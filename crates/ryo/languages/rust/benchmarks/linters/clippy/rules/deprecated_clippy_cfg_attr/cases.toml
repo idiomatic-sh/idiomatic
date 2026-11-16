@@ -42,3 +42,13 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::deprecated_clippy_cfg_attr)]\n#[cfg(not(feature = \"cargo-clippy\"))]\npub struct S;\n" }
 expected = [{ file = "src/lib.rs", start = 84, end = 108 }]
+
+[[cases]]
+name = "raw-string-feature"
+files = { "src/lib.rs" = "#[cfg_attr(feature = r\"cargo-clippy\", allow(dead_code))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 11, end = 36 }]
+
+[[cases]]
+name = "other-key-same-value"
+files = { "src/lib.rs" = "#[cfg_attr(other = \"cargo-clippy\", allow(dead_code))]\npub fn f() {}\n" }
+expected = []

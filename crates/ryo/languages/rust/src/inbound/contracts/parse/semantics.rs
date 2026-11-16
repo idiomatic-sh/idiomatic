@@ -5,7 +5,8 @@ use ryo::languages::{self, AbsenceCause, Reader, Support};
 
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::relations::collections::relations::{
-    expression_shape::item::ExpressionShapeItem, numeric_literal::item::NumericLiteralItem,
+    attribute_path::item::AttributePathItem, expression_shape::item::ExpressionShapeItem,
+    numeric_literal::item::NumericLiteralItem,
 };
 
 use super::contract::ParseContract;
@@ -67,6 +68,10 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
 
     fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, ReadIndexes>> {
         languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn attribute_path(&self) -> Support<Reader<languages::AttributePath, ReadIndexes>> {
+        languages::reads::<AttributePathItem>()
     }
 
     fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, ReadIndexes>> {

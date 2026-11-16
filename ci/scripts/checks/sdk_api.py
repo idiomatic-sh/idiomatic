@@ -10,8 +10,8 @@ The SDK is named by `[workspace.metadata.api]` of the `Cargo.toml` in the curren
 The SDK is read with all its features, the test-support `fixtures` feature included, so no feature widens the surface unrecorded;
 see `check`.
 The rustdoc JSON (written by the pinned nightly, `doc(hidden)` items included) must reach no type of an internal crate, `cargo public-api` must print the listing
-the product records, and `cargo semver-checks` must find nothing broken against the SDK's baseline. The baseline is its published
-crates.io version; until the first publish there is none, and the workspace at `baseline-rev` stands in for it.
+the product records, and `cargo semver-checks` must find nothing broken against the SDK's baseline. The baseline is the product's
+newest release tag merged into the checkout, by version: the workspace as it was released, read from the repository's own tags.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tarfile
 import tempfile
 import tomllib
@@ -46,10 +47,28 @@ def toplevel(directory: Path) -> Path:
 
 def settings(manifest: Path) -> dict:
     """The `[workspace.metadata.api]` of a product's workspace: the SDK `package`, the `nightly` toolchain that writes rustdoc's
-    JSON, the `baseline-rev` semver is checked against, the `listing` file the API is recorded in, and the `allow`ed paths."""
+    JSON, the `listing` file the API is recorded in, and the `allow`ed paths."""
     if not manifest.is_file():
         return {}
     return tomllib.loads(manifest.read_text()).get("workspace", {}).get("metadata", {}).get("api", {})
+
+
+def baseline(root: Path, product: str) -> str:
+    """The release `product`'s SDK is checked against: its newest tag merged into the checkout at `root`, by version order, so
+    `v0.1.10` follows `v0.1.4` and a tag on another branch is never compared with. Refuses a product with no such tag."""
+    from ci.tag.use_case import tag
+
+    listed = subprocess.run(
+        ["git", "tag", "--list", tag(product, "*"), "--merged", "HEAD", "--sort=-v:refname"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    ).stdout.split()
+    if not listed:
+        raise RuntimeError(f"no released tag of {product} to compare the SDK with")
+    return listed[0]
 
 
 def allowed_impl(document: dict, impl: dict, leaked: str) -> bool:
@@ -160,6 +179,9 @@ def check(directory: Path) -> None:
     if not api:
         return
     root = toplevel(directory)
+    # The repository root is the import root of `ci.tag`, which names a product's release tag.
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
     workspace = directory.resolve().relative_to(root.resolve()).as_posix()
     package, nightly = api["package"], api["nightly"]
     # All features: a feature-gated item is public API to whoever switches its feature on, so the leaks and the listing are read
@@ -227,12 +249,12 @@ def check(directory: Path) -> None:
     # The SDK's own manifest, from the workspace's metadata: semver-checks otherwise finds a package by name anywhere
     # beneath the directory, a fixture crate of the same name included.
     manifest = next(each["manifest_path"] for each in metadata["packages"] if each["name"] == package and each["id"] in metadata["workspace_members"])
-    # The baseline is the workspace as it was at `baseline-rev`, without its asset folder (`tastemaker/`, named `canonical/`
+    # The baseline is the workspace as it was at its newest release tag, without its asset folder (`tastemaker/`, named `canonical/`
     # in a baseline from before the product was renamed): the fixture crates in it may
     # carry the SDK's own name, which semver-checks cannot tell from the SDK when it finds a package by name in a clone.
     with tempfile.TemporaryDirectory(prefix="baseline-") as scratch:
         archive, tree = Path(scratch) / "baseline.tar", Path(scratch) / "tree"
-        subprocess.run(["git", "archive", "--format=tar", "-o", str(archive), api["baseline-rev"], workspace], cwd=root, check=True)
+        subprocess.run(["git", "archive", "--format=tar", "-o", str(archive), baseline(root, Path(workspace).name), workspace], cwd=root, check=True)
         with tarfile.open(archive) as tar:
             tar.extractall(tree, members=[each for each in tar if not each.name.startswith((f"{workspace}/tastemaker/", f"{workspace}/canonical/"))], filter="data")
         subprocess.run(

@@ -1,6 +1,0 @@
-param max-dependents: integer;
-let foreign = select * from "source-dependency" where source != target;
-let dependents = group-count(from=foreign, keys=["target"], count="dependents", distinct="source");
-let hubs = select * from dependents where dependents > $max-dependents;
-let located = project(from=hubs, columns=["target", "dependents"]);
-emit located subject "target" key("target");

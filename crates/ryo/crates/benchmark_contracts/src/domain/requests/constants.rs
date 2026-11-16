@@ -26,6 +26,10 @@ pub const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";
 pub const MEASURE: &str = "measure";
 /// The accounted measure command with explicitly audited invalid-source exclusions.
 pub const MEASURE_ACCOUNTED_VALID: &str = "measure-valid";
+/// The worker command that checks a bench's authored cases with the pinned reference only; it never runs a candidate.
+pub const VERIFY_REFERENCE_CASES: &str = "verify-reference-cases";
+/// The worker command that compares both contestants rule by rule on the language's projects.
+pub const PARITY: &str = "parity";
 /// The interim subset measure command.
 pub const MEASURE_SCOPED: &str = "diagnostic-measure";
 /// The interim subset measure command with explicitly audited invalid-source exclusions.

@@ -78,6 +78,67 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             causes: &[],
         }),
     },
+    Case {
+        name: CaseName("a_string_in_an_attribute_token_tree_is_a_literal"),
+        word: Word::Succeeds,
+        input: || "#[rustfmt::skip(v = r\"x\", w = \"\\x41\")]\nfn f() {}",
+        expect: Expect::Value(Reading {
+            rows: &[
+                &[
+                    want_node(21),
+                    want_node(1),
+                    want_name("x"),
+                    want_file(SHOWN),
+                    want_span((1, 21), (1, 25)),
+                    want_flag(false),
+                ],
+                &[
+                    want_node(28),
+                    want_node(1),
+                    want_name("A"),
+                    want_file(SHOWN),
+                    want_span((1, 31), (1, 37)),
+                    want_flag(false),
+                ],
+            ],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("a_string_in_the_token_tree_of_an_opaque_macro_is_not_read"),
+        word: Word::Succeeds,
+        input: || "fn f() { stringify!(\"x\"); }",
+        expect: Expect::Value(Reading {
+            rows: &[],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("a_string_in_a_cfg_predicate_or_an_abi_is_a_literal"),
+        word: Word::Succeeds,
+        input: || "#[cfg(feature = \"a\")]\nextern r\"C\" fn f() {}",
+        expect: Expect::Value(Reading {
+            rows: &[
+                &[
+                    want_node(13),
+                    want_node(1),
+                    want_name("a"),
+                    want_file(SHOWN),
+                    want_span((1, 17), (1, 20)),
+                    want_flag(false),
+                ],
+                &[
+                    want_node(20),
+                    want_node(1),
+                    want_name("C"),
+                    want_file(SHOWN),
+                    want_span((2, 8), (2, 12)),
+                    want_flag(false),
+                ],
+            ],
+            causes: &[],
+        }),
+    },
 ];
 
 fn subject(source: Input) -> Value {

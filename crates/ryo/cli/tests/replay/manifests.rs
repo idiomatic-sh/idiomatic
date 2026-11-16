@@ -59,11 +59,7 @@ fn a_member_of_a_workspace_the_scope_does_not_list_is_found() {
 fn a_package_the_scope_does_not_list_is_found_by_the_recorded_workspace_completeness_query() {
     let _beside = crate::beside();
     let root = workspace();
-    let query = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/recordings/workspace-completeness/query.ryoql"
-    ))
-    .expect("the recorded query");
+    let query = base::rules::query("workspace-completeness");
     let mut rule = crate::rule_from_query("workspace-completeness", &query, &["**".to_owned()]);
     rule.exclude = vec![Glob("outside/**".into())];
     let (rows, _) = base::lint_with(
@@ -92,11 +88,7 @@ fn a_member_the_listing_does_not_hold_is_found_as_a_file_after_the_listed_ones()
     let _beside = crate::beside();
     let root = workspace();
     std::fs::write(root.path().join(".ignore"), "outside/\n").expect("an ignore file");
-    let query = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/recordings/workspace-completeness/query.ryoql"
-    ))
-    .expect("the recorded query");
+    let query = base::rules::query("workspace-completeness");
     let rule = crate::rule_from_query("workspace-completeness", &query, &["**".to_owned()]);
     let (rows, _) = base::lint_with(
         root.path(),

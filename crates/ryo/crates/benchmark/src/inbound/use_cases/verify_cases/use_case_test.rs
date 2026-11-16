@@ -42,7 +42,14 @@ fn verify(
     let context = crate::outbound::context::factory::local();
     let receipts = crate::outbound::receipts::fixtures::fake::ReceiptsFake::default();
     VerifyCasesUseCaseImpl::new(
-        suite, &receipts, &context, reference, candidate, execution, &inventory,
+        suite,
+        &crate::outbound::host::fixtures::fake::HostFake::default(),
+        &receipts,
+        &context,
+        reference,
+        candidate,
+        execution,
+        &inventory,
     )
     .verify_cases(
         rules,

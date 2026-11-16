@@ -1,5 +1,0 @@
-# UP017 target-version proof
-
-The [shared collector receipt](summary.json) records UP017 **14/14 raw-exact PASS** on the existing explicit Python 3.11 profile, sealed worker `e0092188f1af6786f4981680a7129445f33117050343388ba9cb69016891266a`, and pinned Ruff 0.16.5. Eight cases contain UP017 findings; the other six test nonmatching imports, suppression, and alternate syntax. The [raw archive](raw-receipts.tar.gz) retains the staged profile, source, helpers, native case rows, and child output. [Proof metadata](proof.json) binds the receipt to the immutable full inventory and prior supplements.
-
-The [Python 3.10 control](py310-controls.json) executes the same 14 sources through `run-ryo` and pinned Ruff with explicit target 3.10. Both tools return no UP017 findings in all 14 cases, and every candidate execution is complete. [Control inputs](py310-inputs.tar.gz) retain requests, source files, and the target-specific staged profile. The generic `verify-cases` requirement for positive and negative cases does not apply to an all-negative target control, so this control uses the supported direct worker command and is counted separately from the Python 3.11 PASS.

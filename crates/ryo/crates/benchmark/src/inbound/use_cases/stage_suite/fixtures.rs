@@ -45,13 +45,14 @@ fn selected_snapshot(
     }
     let selected = vec![ryo::linter::RuleId::try_from("E722")?];
     let snapshot = destination.join("profile");
-    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local())
-        .stage_suite(
-            directory,
-            &snapshot,
-            &selected,
-            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
-        )?;
+    let _staged =
+        crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local())
+            .stage_suite(
+                directory,
+                &snapshot,
+                &selected,
+                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+            )?;
     let children = std::fs::read_dir(snapshot.join("rules"))?
         .map(|entry| entry.map(|entry| entry.file_name()))
         .collect::<Result<Vec<_>, _>>()?;
@@ -117,13 +118,14 @@ expected = []
     );
     assert!(audited.missing.is_empty());
     let snapshot = destination.path().join("profile");
-    crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local())
-        .stage_suite(
-            root,
-            &snapshot,
-            &audited.implemented,
-            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
-        )?;
+    let _staged =
+        crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local())
+            .stage_suite(
+                root,
+                &snapshot,
+                &audited.implemented,
+                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+            )?;
     assert_eq!(
         std::fs::read_to_string(snapshot.join("rules/B002/query.ryoql"))?,
         "actual support query"
@@ -171,6 +173,67 @@ expected = []
     assert!(crate::application::suite_auditing::service::audit(&local(), root, &tool).is_err());
     Ok(())
 }
+/// Stage a profile of the defaults `E722` and `F704`, each with explicit applicability, for `authored`, and return the
+/// source profile, the staged rules directory and the profile the operation returned.
+fn staged_profile(
+    authored: &[&str],
+) -> Result<
+    (
+        ryo_benchmark_contracts::domain::workloads::types::Tool,
+        Vec<ryo::linter::RuleId>,
+        ryo_benchmark_contracts::domain::workloads::types::Tool,
+    ),
+    Box<dyn std::error::Error>,
+> {
+    let source = tempfile::tempdir()?;
+    let destination = tempfile::tempdir()?;
+    let directory = source.path();
+    std::fs::write(
+        directory.join("benchmark.toml"),
+        "tool='fixture'\nversion='1'\nsha256=['pin']\ndefaults=['E722','F704']\n[rule-applicability]\nE722='always'\nF704='always'\n",
+    )?;
+    for rule in ["E722", "F704"] {
+        let root = directory.join("rules").join(rule);
+        std::fs::create_dir_all(&root)?;
+        std::fs::write(root.join("query.ryoql"), rule)?;
+        std::fs::write(root.join("cases.toml"), "cases = []\n")?;
+    }
+    let authored = authored
+        .iter()
+        .map(|rule| ryo::linter::RuleId::try_from(*rule))
+        .collect::<Result<Vec<_>, _>>()?;
+    let snapshot = destination.path().join("profile");
+    let staged =
+        crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(&local())
+            .stage_suite(
+                directory,
+                &snapshot,
+                &authored,
+                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+            )?;
+    let rules = local().rule_ids(ArtifactPath(&snapshot.join("rules")))?;
+    Ok((local().profile(ArtifactPath(directory))?, rules, staged))
+}
+/// A subset's returned profile selects the subset, and its applicability names exactly the rule directories staged.
+fn staging_a_subset_returns_the_profile_it_staged() -> Result<(), Box<dyn std::error::Error>> {
+    let (_source, rules, staged) = staged_profile(&["E722"])?;
+    assert_eq!(staged.defaults, [ryo::linter::RuleId::try_from("E722")?]);
+    assert_eq!(
+        staged
+            .rule_applicability
+            .keys()
+            .map(|label| label.0.clone())
+            .collect::<Vec<_>>(),
+        rules.iter().map(ToString::to_string).collect::<Vec<_>>()
+    );
+    Ok(())
+}
+/// Staging every default returns the source profile unchanged.
+fn staging_every_default_returns_the_source_profile() -> Result<(), Box<dyn std::error::Error>> {
+    let (source, _rules, staged) = staged_profile(&["E722", "F704"])?;
+    assert_eq!(format!("{staged:?}"), format!("{source:?}"));
+    Ok(())
+}
 fn selected_snapshot_preserves_exact_sources() -> Result<(), Box<dyn std::error::Error>> {
     let source = tempfile::tempdir()?;
     let destination = tempfile::tempdir()?;
@@ -182,6 +245,10 @@ pub enum Scenario {
     Workload,
     Supporting,
     Discrepancy,
+    /// Staging a subset returns the profile it staged.
+    StagedProfile,
+    /// Staging every default returns the source profile.
+    FullProfile,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refusal {
@@ -208,6 +275,8 @@ pub fn exercise(scenario: Scenario) -> Result<(), Box<dyn std::error::Error>> {
         Scenario::Discrepancy => {
             discrepancy::discrepancy_artifacts_survive_staging_and_refuse_source_or_evidence_edits()
         }
+        Scenario::StagedProfile => staging_a_subset_returns_the_profile_it_staged(),
+        Scenario::FullProfile => staging_every_default_returns_the_source_profile(),
     }
 }
 /// Stage a profile directory that does not exist: nothing is staged and the refusal names the missing profile.

@@ -9,13 +9,7 @@ let targets = select l.loop as loop, l.id as id, r.child as reference, l.file as
 let names = select id, file from nodes where kind = "name";
 let name_targets = select l.loop as loop, l.id as id, l.reference as reference, l.file as file from targets as l join names as r on l.reference = r.id and l.file = r.file;
 let value_edges = select l.id as id, r.child as value, l.file as file from direct_augments as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "value";
-let integers = select id, file from "literal-properties" where kind = "integer";
-let values = select l.id as id, l.value as value, l.file as file from value_edges as l join integers as r on l.value = r.id and l.file = r.file;
-let value_positions = select l.id as id, l.file as file, r."start-byte" as start, r."end-byte" as end from values as l join "source-location" as r on l.value = r.id and l.file = r.file;
-let number_tokens = select l.text as text, l.file as file, r."start-byte" as start, r."end-byte" as end from "syntax-tree" as l join "source-location" as r on l.id = r.id and l.file = r.file where l.text != "";
-let value_tokens = select l.id as id, l.file as file, r.text as text from value_positions as l join number_tokens as r on l.start = r.start and l.end = r.end and l.file = r.file;
-let clean_values = replace(from=value_tokens, text="text", pattern="_", replacement="", output="clean");
-let ones = select id, file from clean_values where matches(clean, "^(?:0*1|0[xX]0*1|0[oO]0*1|0[bB]0*1)$");
+let ones = select l.id as id, l.file as file from value_edges as l join "numeric-literal" as r on l.value = r.id and l.file = r.file where r.kind = "integer" and r.value = "1";
 let additions = select id, file from nodes where text = "+" or text = "+=";
 let op_edges = select parent as id, child as op, file from "semantic-child" where field = "op";
 let add_augments = select l.id as id, l.file as file from op_edges as l join additions as r on l.op = r.id and l.file = r.file;

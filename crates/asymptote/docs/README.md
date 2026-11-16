@@ -33,7 +33,7 @@ output = "bmf"
 
 A `[[tools]]` entry takes `id`, `run` and `group` (required), and `fix`, `output` (`sarif` or `bmf`), `timeout-seconds`,
 and `inputs` when needed. A tool whose inputs did not move keeps its last run. A tool whose result depends on what the
-files do not hold, as the root's `commitizen` tool reads git's history, names the range in its `run`
+files do not hold, as a tool that reads git's history does, names the range in its `run`
 (`origin/main..HEAD`, or `a...b`): the stamp of a tool whose command line names a range holds the commits its two ends
 resolve to, so a new commit runs it again and an unchanged branch keeps its run. No key says so.
 
@@ -84,8 +84,8 @@ nothing):
 Rerunning it rewrites its own scripts, found by the comment line, and removes the ones it wrote for hooks no longer
 listed. It never touches a hook it did not write, and a symlink, dangling or not, is never one it wrote: it refuses before writing anything, naming the file (a failure, exit
 1, with a remedy). A directory in no git repository is refused the same way. The commit being made is checked by the
-`pre-commit` hook; commit messages are checked by the root's `commitizen` lint tool over the branch's commits, so the
-commit being made is checked at the next commit or in CI.
+`pre-commit` hook; the message main keeps is checked in CI by the root's `commitizen` tool, from the pull request's title
+or the commits a push to main added.
 
 ### Perf records
 

@@ -117,8 +117,8 @@ impl ParseUseCase for Language {
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn ryo_language::domain::answers::types::Semantics<Model>> {
-        None
+    fn semantics(&self) -> ryo_language::domain::answers::types::SemanticAnswers<'_, Model> {
+        ryo_language::domain::answers::types::SemanticAnswers::Absent
     }
 
     fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {

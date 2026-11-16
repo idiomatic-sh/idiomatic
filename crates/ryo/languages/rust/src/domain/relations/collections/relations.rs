@@ -2,6 +2,7 @@
 
 pub(crate) mod annotates;
 pub(crate) mod assigns;
+pub(crate) mod attribute_path;
 pub(crate) mod call_argument;
 pub(crate) mod comment;
 pub(crate) mod decorates;

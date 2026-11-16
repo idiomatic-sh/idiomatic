@@ -1,5 +1,6 @@
 //! Private Ruff wire data, decoded without IO into canonical benchmark reports.
 use ryo::linter::{RelativePath, RuleId, SourceText};
+use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
@@ -125,10 +126,10 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
                 .map_err(|_outside_root| {
                     Error::Invalid("Ruff returned a path outside the corpus".into())
                 })?;
-            let file = relative
-                .to_str()
-                .ok_or_else(|| Error::Invalid("non-UTF8 Ruff filename".into()))?;
-            let requested_file = RelativePath(file.into());
+            let file = RelativeArtifactPath::try_from(relative)
+                .and_then(|address| address.slashed())
+                .map_err(|_unspellable| Error::Invalid("non-UTF8 Ruff filename".into()))?;
+            let requested_file = RelativePath(file.0.clone().into());
             if !request.files.contains(&requested_file) {
                 return Err(Error::Invalid("Ruff returned an unrequested file".into()));
             }
@@ -161,7 +162,7 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             }
             diagnostics.push(BenchmarkFinding {
                 rule,
-                file: RelativePath(file.into()),
+                file: RelativePath(file.0.into()),
                 start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(start),
                 end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(end),
             });

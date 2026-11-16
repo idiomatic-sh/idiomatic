@@ -88,10 +88,7 @@ let unary_minus = select l.parent as unary, l.file as file from unary_operators 
 let upper_is_minus = select l.slice as slice, l.file as file, r.unary as unary from slice_unary_upper as l join unary_minus as r on l.unary = r.unary and l.file = r.file;
 let unary_operands = select parent, child, file from "semantic-child" where field = "operand";
 let unary_one_edges = select l.unary as unary, l.file as file, r.child as operand from upper_is_minus as l join unary_operands as r on l.unary = r.parent and l.file = r.file;
-let integer_literals = select id, file, span from "literal-properties" where kind = "integer";
-let integer_tokens = select id, file, span, text from "semantic-syntax" where kind = "number";
-let integer_spellings = select l.id as id, l.file as file, r.text as text from integer_literals as l join integer_tokens as r on l.span = r.span and l.file = r.file;
-let negative_one_upper = select l.unary as unary, l.file as file from unary_one_edges as l join integer_spellings as r on l.operand = r.id and l.file = r.file where matches(r.text, "^(?:1|0[xX]_?1|0[oO]_?1|0[bB]_?1)$");
+let negative_one_upper = select l.unary as unary, l.file as file from unary_one_edges as l join "numeric-literal" as r on l.operand = r.id and l.file = r.file where r.kind = "integer" and r.value = "1";
 let valid_slice_upper = select l.slice as slice, l.file as file from upper_is_minus as l join negative_one_upper as r on l.unary = r.unary and l.file = r.file;
 let valid_slices = select l.slice as slice, l.file as file from unstepped_slice_rows as l join valid_slice_upper as r on l.slice = r.slice and l.file = r.file;
 let subscript_lefts = select l.binary as binary, l.file as file, r.subscript as subscript from plus_binary_values as l join slice_subscripts as r on l.left = r.subscript and l.file = r.file;

@@ -4,7 +4,7 @@
 
 **Reference:** pinned Ruff 0.16.5 (`python-target=3.10`; [profile](../../profiles/FURB129/benchmark.toml)). **Scope:** Source-specific reference difference; upstream bug status is unverified.
 
-The 34 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The [archived raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz) records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
+The 34 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The archived raw receipt records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
 
 To reproduce Ruff's reference finding for `binding-8`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
@@ -27,7 +27,7 @@ def f(fp: os.Path):
 
 - Intended: none. Pinned Ruff observed: FURB129 case.py:75–89.
 - Basis: CPython 3.10 has no os.Path type; the exact annotation cannot establish a standard IO interface. Primary evidence: [exact-contract-cpython310.json](../../profiles/FURB129/evidence/exact-contract-cpython310.json), [cpython310-io-contract.json](../../profiles/FURB129/evidence/cpython310-io-contract.json).
-- Reproduce: use the [profile](../../profiles/FURB129/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/FURB129/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 ### Standard IO receiver or annotation
 
@@ -44,7 +44,7 @@ def f(fp:typing.IO[str]):
 
 - Intended: FURB129 case.py:56–70. Pinned Ruff observed: none.
 - Basis: The resolved typing.IO[str] parameter declares the standard generic IO interface. Primary evidence: [exact-contract-cpython310.json](../../profiles/FURB129/evidence/exact-contract-cpython310.json).
-- Reproduce: use the [profile](../../profiles/FURB129/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/FURB129/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 ### Function object versus its call result
 
@@ -61,7 +61,7 @@ for line in fp.readlines():
 
 - Intended: none. Pinned Ruff observed: FURB129 case.py:56–70.
 - Basis: The exact source binds fp to a function object, not its return value. Primary evidence: [exact-contract-cpython310.json](../../profiles/FURB129/evidence/exact-contract-cpython310.json).
-- Reproduce: use the [profile](../../profiles/FURB129/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/FURB129/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 ### Uncertain, eager, or branch-dependent resolution
 
@@ -80,7 +80,7 @@ for line in fp.readlines():
 
 - Intended: none. Pinned Ruff observed: FURB129 case.py:59–73.
 - Basis: CPython 3.10 exact-source branch controls produce either a standard file or a divergent reader whose readlines and iteration return different values. Primary evidence: [exact-contract-cpython310.json](../../profiles/FURB129/evidence/exact-contract-cpython310.json), [cpython310-io-contract.json](../../profiles/FURB129/evidence/cpython310-io-contract.json).
-- Reproduce: use the [profile](../../profiles/FURB129/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/FURB129/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 ## Context-result regression controls
 

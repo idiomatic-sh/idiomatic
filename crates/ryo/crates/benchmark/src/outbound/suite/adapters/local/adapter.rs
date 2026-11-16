@@ -182,19 +182,18 @@ impl SuitePort for SuiteLocalAdapter {
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         digest(path)
     }
+    fn settings_directory(
+        &self,
+        ArtifactPath(bench): ArtifactPath<'_>,
+        rule: &ryo::linter::RuleId,
+    ) -> Result<std::path::PathBuf, Error> {
+        super::tool::schemas::settings_directory(bench, rule)
+    }
     fn rule_ids(
         &self,
         ArtifactPath(profile): ArtifactPath<'_>,
     ) -> Result<Vec<ryo::linter::RuleId>, Error> {
-        std::fs::read_dir(profile)?
-            .map(|entry| {
-                let name = entry?
-                    .file_name()
-                    .into_string()
-                    .map_err(|_| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
-                super::rule_cases::schemas::rule(&name)
-            })
-            .collect()
+        super::rule_cases::schemas::ids(profile)
     }
     fn rule_query(
         &self,

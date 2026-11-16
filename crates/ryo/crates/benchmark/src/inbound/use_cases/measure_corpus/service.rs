@@ -38,6 +38,16 @@ pub(super) fn measure_corpus(
     {
         return Err(Error::Invalid(COHORT_OUTSIDE_CERTIFICATE.into()));
     }
+    let selected: Vec<ryo::linter::RuleId> = match corpus.cohort {
+        CohortSelection::Explicit(rules) => rules.clone(),
+        CohortSelection::Frozen => covered.iter().cloned().collect(),
+    };
+    crate::application::input_metadata::service::admit_rules(
+        boundaries.suite,
+        boundaries.host,
+        corpus.bench,
+        &selected,
+    )?;
     let mut samples = Vec::new();
     let mut failures = Vec::new();
     for project in &corpus.projects {

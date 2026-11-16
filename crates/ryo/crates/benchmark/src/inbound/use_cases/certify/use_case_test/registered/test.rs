@@ -3,6 +3,7 @@ use super::fixtures::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::requests::types::{BenchmarkCoverage, CertificationCases};
 use std::borrow::Cow;
+use std::path::PathBuf;
 
 const ARTIFACT: &str = "registered case artifact changed";
 const QUERY: &str = "measured query differs";
@@ -149,7 +150,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// The number of cases a certificate of rule A alone holds.
 fn selected_subset() -> Result<Value, Failure> {
     let f = Fixture::new();
-    let measured = narrowed(&f, &["A"]);
+    let measured = narrowed(&f, &f.profile, &["A"]);
     let certificate = selected(
         &f,
         &measured,
@@ -164,7 +165,7 @@ fn selected_subset() -> Result<Value, Failure> {
 /// An accounted run never certifies a selected coverage, and refuses before any case runs.
 fn selected_accounted() -> Result<Value, Failure> {
     let f = Fixture::new();
-    let measured = narrowed(&f, &["A"]);
+    let measured = narrowed(&f, &f.profile, &["A"]);
     let reason = crate::inbound::use_cases::certify::constants::SELECTED_COVERAGE_REQUIRES_INTERIM;
     selected(
         &f,
@@ -195,7 +196,7 @@ fn selected_unnarrowed() -> Result<Value, Failure> {
 /// A source with the registered bytes at another path is not the registered authority.
 fn selected_elsewhere() -> Result<Value, Failure> {
     let f = Fixture::new();
-    let measured = narrowed(&f, &["A"]);
+    let measured = narrowed(&f, &f.profile, &["A"]);
     let elsewhere = f._root.path().join("elsewhere");
     copy_measured_profile(&f, &elsewhere);
     let reason = crate::application::registered_certification::constants::SELECTED_SOURCE_DIFFERS_FROM_AUTHORITY;
@@ -210,10 +211,31 @@ fn selected_elsewhere() -> Result<Value, Failure> {
     .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
+/// A copy of the measured profile that also declares rule C, which the registration lacks.
+fn declaring_c(fixture: &Fixture) -> PathBuf {
+    let source = fixture._root.path().join("declaring-c");
+    copy_measured_profile(fixture, &source);
+    write(
+        &source.join("benchmark.toml"),
+        &format!(
+            "tool='fixture'\nversion='1'\nsha256=['{}']\ndefaults=['A','B','C']\nquery-modules={{'test/helper'='helper.ryoql','test/second'='second.ryoql'}}\n",
+            digest(&fixture.reference_executable)
+        ),
+    );
+    write(&source.join("rules/C/query.ryoql"), "query C");
+    crate::outbound::suite::interface::SuitePort::copy_file(
+        &crate::outbound::suite::factory::local(),
+        crate::outbound::suite::types::ArtifactPath(&source.join("rules/A/cases.toml")),
+        crate::outbound::suite::types::ArtifactPath(&source.join("rules/C/cases.toml")),
+    )
+    .unwrap();
+    source
+}
+
 /// Selecting a rule the measured profile declares but the registration lacks refuses before any case runs.
 fn selected_unregistered() -> Result<Value, Failure> {
     let f = Fixture::new();
-    let measured = narrowed(&f, &["A", "C"]);
+    let measured = narrowed(&f, &declaring_c(&f), &["A", "C"]);
     let reason = crate::application::registered_certification::constants::SELECTED_RULES_DIFFER_FROM_MEASURED;
     selected(
         &f,

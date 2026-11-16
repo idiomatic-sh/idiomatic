@@ -105,6 +105,7 @@ pub(crate) fn verify_shard(
 ) -> Result<usize, ReportsError> {
     verify_prepared_shard(
         suite,
+        &crate::outbound::host::fixtures::fake::HostFake::default(),
         receipts,
         &crate::outbound::context::factory::local(),
         reference,

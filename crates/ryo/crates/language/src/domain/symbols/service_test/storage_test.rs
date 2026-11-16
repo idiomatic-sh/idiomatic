@@ -3,18 +3,13 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::names::service::{derived_of, name_count, name_of};
 use crate::domain::symbols::service::{
-    bytes_of, find_hashed_in, find_or_add_hashed, hash_of, intern, intern_derived,
-    name_made_across, place_of, query_intern_derived, text_of,
+    find_hashed_in, hash_of, intern, intern_derived, name_made_across, place_of, text_of,
 };
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::{
-    Generation, QuerySymbols, SymbolStorage, Symbols, SymbolsEngine,
-};
-use ryo_relations::domain::declaration_kind::types::DeclarationKind;
+use crate::domain::symbols::types::{Generation, QuerySymbols, Symbols};
 use ryo_relations::domain::relations::types::{
-    Bytes, CROSS_FILE, Count, FileId, Offset, Origin, Span, TextHash, WorkerNumber,
+    Bytes, CROSS_FILE, Count, FileId, Offset, Origin, WorkerNumber,
 };
-use ryo_relations::domain::terms::service::term_symbol;
 use ryo_relations::domain::terms::types::NameText;
 
 /// A scenario: what a row asks of the service.

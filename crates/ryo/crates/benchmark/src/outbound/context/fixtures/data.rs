@@ -47,5 +47,31 @@ pub fn sealed_manifest() -> ContextManifest {
         auxiliary_files: BTreeMap::new(),
         source_files: BTreeMap::new(),
         missing: Vec::new(),
+        links: BTreeMap::new(),
     }
 }
+
+/// The manifest with these sealed links added, each a path and its exact target text.
+#[must_use]
+pub fn linked(manifest: &ContextManifest, links: &[(&str, &str)]) -> ContextManifest {
+    let mut linked = manifest.clone();
+    linked.links.extend(links.iter().map(|(path, target)| {
+        (
+            (*path).into(),
+            ryo_benchmark_contracts::domain::context::types::LinkTarget((*target).into()),
+        )
+    }));
+    linked
+}
+
+/// The sealed link every link row starts from: `pkg/alias.py` to its sealed `__init__.py`.
+pub const ALIAS: (&str, &str) = ("pkg/alias.py", "__init__.py");
+
+/// Manifests that differ from [`ALIAS`] by one part of a link's identity: its path, its target text, an equivalent
+/// spelling of the same target, and one more link.
+pub const LINK_VARIANTS: [&[(&str, &str)]; 4] = [
+    &[("pkg/other.py", "__init__.py")],
+    &[("pkg/alias.py", "mod.py")],
+    &[("pkg/alias.py", "./__init__.py")],
+    &[ALIAS, ("pkg/second.py", "__init__.py")],
+];

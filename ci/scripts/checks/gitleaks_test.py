@@ -1,5 +1,5 @@
 """The root gitleaks tools: the allowlist lets only a recorded digest line in a record folder through; `gitleaks` scans the staged
-change in the pre-commit hook's lint group, and `gitleaks-history` the branch's own commits, in a full-history clone of the pushed
+change in the pre-commit hook's repository group, and `gitleaks-history` the branch's own commits, in a full-history clone of the pushed
 branch as CI checks it out, in a group the hook does not run."""
 
 from __future__ import annotations

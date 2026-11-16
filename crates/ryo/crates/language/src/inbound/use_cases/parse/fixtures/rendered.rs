@@ -1,6 +1,6 @@
 //! The rows of a relation written as the fixture writes them: as source text for a fixture, and as a line for a finding.
 
-use super::expected::{Cell, Expected};
+use super::expected::Cell;
 use ryo_relations::domain::relations::service::{column_name, columns, folder_of};
 use ryo_relations::domain::relations::types::Relation;
 

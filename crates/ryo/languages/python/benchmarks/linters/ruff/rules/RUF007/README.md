@@ -42,7 +42,7 @@ pending; no reference exception, admission or semantic rewrite proof is claimed.
 
 **Reference:** pinned Ruff 0.16.5 (`python-target=3.10`; [profile](../../profiles/RUF007/benchmark.toml)). **Scope:** Source-specific reference difference; upstream bug status is unverified.
 
-The 4 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The [archived raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz) records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
+The 4 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The archived raw receipt records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
 
 To reproduce Ruff's reference finding for `beyond-i32`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
@@ -62,7 +62,7 @@ result = zip(xs[2147483647:], xs[2147483648:])
 
 - Intended: RUF007 case.py:9–12. Pinned Ruff observed: none.
 - Basis: Python accepts the exact consecutive slice starts across signed 32-bit range; the pinned reference omits the idiom at its integer conversion boundary. Primary evidence: [cpython310-observation.json](../../profiles/RUF007/evidence/cpython310-observation.json).
-- Reproduce: use the [profile](../../profiles/RUF007/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+- Reproduce: use the [profile](../../profiles/RUF007/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 
 ## Explicit profile context replay (2026-11-05)

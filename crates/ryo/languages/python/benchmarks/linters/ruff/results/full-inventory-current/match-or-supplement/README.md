@@ -1,7 +1,0 @@
-# Four-rule source and syntax proof
-
-The [shared collector summary](summary.json) records four PASS results on sealed worker `e0092188f1af6786f4981680a7129445f33117050343388ba9cb69016891266a`: F842 22/22 raw exact, PLW0177 26/26 raw exact, FURB132 103/103 intended with one validated reference difference, and PERF402 67/67 intended with one validated reference difference. [Raw receipts](raw-receipts.tar.gz) include exact staged inputs, native outputs, and the per-case discrepancy validation. [Proof metadata](proof.json) binds this separate run to the unchanged full inventory and both earlier supplements.
-
-[Independent controls](controls.json) show that Python 3.10 parses an OR pattern with unequal bindings but rejects it during compilation; Ruff emits `invalid-syntax` over that pattern. Nested and reordered alternatives with equal binding sets compile and produce no syntax finding. Three F842 singleton controls produce no F821 or F841 findings under the pinned F842 selection; those cross-rule expectations were corrected without changing the F842 query. The FURB132 and PERF402 profiles contain their own exact CPython and Ruff evidence for function objects incorrectly inferred as return-value instances by Ruff. Candidate semantics retain the callable/instance distinction.
-
-Focused Python language and Ruff engine suites passed (197 and 24 tests). This supplement is a separate execution and does not rewrite the full 413-rule receipt.

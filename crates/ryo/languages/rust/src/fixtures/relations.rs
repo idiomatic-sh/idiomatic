@@ -12,6 +12,10 @@ use ryo::languages::contract::{Expected, Unfilled, Unshown};
 mod annotates {
     include!("../../tests/fixtures/relations/annotates/expected.rs");
 }
+/// The rows `attribute_path` read from its fixture's input must give.
+mod attribute_path {
+    include!("../../tests/fixtures/relations/attribute_path/expected.rs");
+}
 /// The rows `assigns` read from its fixture's input must give.
 mod assigns {
     include!("../../tests/fixtures/relations/assigns/expected.rs");
@@ -107,6 +111,7 @@ pub(super) fn expected() -> Vec<Expected> {
     vec![
         annotates::expected(),
         assigns::expected(),
+        attribute_path::expected(),
         call_argument::expected(),
         comment::expected(),
         decorates::expected(),

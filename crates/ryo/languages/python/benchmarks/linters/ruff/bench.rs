@@ -3,8 +3,6 @@ mod adapter;
 mod composition;
 mod constants;
 mod frontend_projection;
-mod host;
-mod host_policy;
 mod schemas;
 mod settings;
 

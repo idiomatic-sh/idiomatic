@@ -1,10 +1,15 @@
 //! benchmark's execution workload: identical child invocations through both implementations.
+//! The child is `/bin/sh`, so the module is compiled on unix alone; `timed` observes through `direct`,
+//! whose platform contract refuses every launch off Linux, so their two workloads are registered on Linux alone.
+#![cfg(unix)]
 #![expect(
     clippy::expect_used,
     reason = "missing benchmark prerequisites must fail visibly"
 )]
+#[cfg(target_os = "linux")]
+use ryo_benchmark::outbound::execution::factory::{direct, timed};
 use ryo_benchmark::outbound::execution::{
-    factory::{bounded, direct, process, timed},
+    factory::{bounded, process},
     interface::ExecutionPort as _,
 };
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
@@ -32,17 +37,12 @@ fn process_child(bencher: divan::Bencher<'_, '_>) {
         divan::black_box(output)
     });
 }
+#[cfg(target_os = "linux")]
 #[divan::bench]
 /// Measure the isolated collector boundary using its actual built executable.
 fn timed_child(bencher: divan::Bencher<'_, '_>) {
     use sha2::{Digest as _, Sha256};
-    let bench = std::env::current_exe().expect("running benchmark executable");
-    let executable = bench
-        .parent()
-        .expect("deps directory")
-        .parent()
-        .expect("profile directory")
-        .join("ryo-benchmark-collector");
+    let executable = std::path::PathBuf::from(env!("CARGO_BIN_EXE_ryo-benchmark-collector"));
     let digest =
         ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(format!(
             "{:x}",
@@ -70,12 +70,21 @@ fn timed_child(bencher: divan::Bencher<'_, '_>) {
     });
 }
 
+#[cfg(target_os = "linux")]
 #[divan::bench]
 /// Measure direct collection separately from the isolated collector boundary.
 fn direct_child(bencher: divan::Bencher<'_, '_>) {
     let adapter = direct();
     let input = invocation();
-    bencher.bench_local(|| adapter.run(input.clone()).expect("direct child starts"));
+    bencher.bench_local(|| {
+        let output = adapter.run(input.clone()).expect("direct child starts");
+        assert_eq!(output.status.0, 0_i32, "workload must exit successfully");
+        assert_eq!(
+            output.stdout.0, b"result",
+            "workload output must survive capture"
+        );
+        divan::black_box(output)
+    });
 }
 
 #[divan::bench]

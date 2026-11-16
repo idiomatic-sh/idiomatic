@@ -38,5 +38,5 @@ pub(super) const QUOTE: char = '"';
 pub(super) const END_OF_IMPORT: char = ';';
 /// The character a module name may hold beside letters and digits.
 pub(super) const UNDERSCORE: char = '_';
-/// The directory of a bench's per-rule settings profiles, and of each rule's stage below the output.
+/// The directory of each rule's stage below the output (a bench's own per-rule settings profiles are found by the suite).
 pub(super) const SETTINGS_PROFILES: &str = "profiles";

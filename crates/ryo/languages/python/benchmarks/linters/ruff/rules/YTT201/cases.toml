@@ -57,3 +57,15 @@ name = "inline_noqa"
 files = { "case.py" = "import sys\nif sys.version_info[0] == 3:  # noqa: YTT201\n    pass\n" }
 expected = []
 comparison = "full"
+
+[[cases]]
+name = "hex-comparator-leading-zero"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0] == 0x03:\n    pass\n" }
+expected = [{ rule = "YTT201", file = "case.py", start = 14, end = 33 }]
+
+[[cases]]
+name = "binary-comparator-leading-zero"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0] == 0b011:\n    pass\n" }
+expected = [{ rule = "YTT201", file = "case.py", start = 14, end = 33 }]

@@ -66,7 +66,7 @@ pub(crate) struct Fixes {
     pub rows: Vec<Row>,
 }
 
-/// The part of `tm check --format json` the tests read: each finding's rule, path and line, all required.
+/// The part of `tm check --format json` the tests read: each finding's rule, path, line and message, all but the line required.
 #[derive(Debug, serde::Deserialize)]
 pub(crate) struct Report {
     pub findings: Vec<ReportedFinding>,
@@ -78,6 +78,7 @@ pub(crate) struct ReportedFinding {
     pub rule: String,
     pub path: String,
     pub line: Option<i64>,
+    pub message: String,
 }
 
 /// A sample: its name (`<language>/api`), its directory and what its `fixes.toml` says.

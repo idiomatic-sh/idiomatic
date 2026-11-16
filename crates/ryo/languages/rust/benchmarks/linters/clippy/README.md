@@ -19,16 +19,20 @@ These clippy findings have no query yet:
 - an outer `#[allow]` on a `mod` item, which clippy applies to the module's own file;
 - an `if` or a `let` written inside a `macro_rules!` body (`manual_take`, `toplevel_ref_arg`) and a binding a local macro's
   argument names (`disallowed_names`), which clippy reports where a call expands them;
-- an expression inside the arguments of a standard macro (`println!`, `format!`, `write!`, `assert!(a == b || a < b)`, `vec!`), which
-  the Rust provider reads as a token tree, not as an expression, so a lint clippy reports there has nothing to match;
-- a pattern inside `matches!`, which is not read as a pattern;
+- an expression inside the arguments of a macro call (`println!`, `format!`, `assert!(a == b || a < b)`, `vec!`, a project's own
+  macro), and a pattern inside `matches!`: the Rust provider reads them in `semantic-syntax`/`semantic-child`, which only
+  `redundant_static_lifetimes` and `fragments/lint-attributes.ryoql` read; the other rules read the file's own tree, where they are a
+  token tree;
+- the arguments of a macro that discards or stringifies them (`($($t:tt)*) => {}`), which the Rust provider still reads as code, so a
+  rule reading `semantic-*` can report where clippy, which lints the expansion, sees nothing;
+- an `#[allow]` written inside a macro argument, which does not silence a finding there: the attributes `lint-attributes` reads are the
+  file's own, while clippy honours one on the item it decorates inside the argument;
 - two expressions clippy holds equal that differ beyond layout, comments inside them and a number's spelling: a type suffix inside a
   larger expression (`x + 1` and `x + 1u32`), and locals bound alike under other names (`let y = x * 2; y` and `let z = x * 2; z`);
 - a comparison's constant that is a named constant or a `char`, which clippy evaluates (`x < C && x > 10`, `c > 'z' && c < 'a'`);
 - a doc comment inside a `macro_rules!` body, which clippy reports at the definition when a call expands it (`tabs_in_doc_comments` and
   the other doc-comment lints read no token tree);
-- an attribute a `cfg_attr` expands, which `duplicated_attributes` compares only when the condition holds, and an attribute list
-  nested deeper than two levels;
+- an attribute a `cfg_attr` expands, which `duplicated_attributes` compares only when the condition holds;
 - an attribute macro other than `derive` and `test`, which consumes its attribute before `empty_line_after_outer_attr` and
   `empty_line_after_doc_comments` see it;
 - a struct literal with a `..` spread whose assigned field is reached through `DerefMut` (`temporary_assignment`).

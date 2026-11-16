@@ -157,6 +157,13 @@ impl SuitePort for SuiteFake {
     fn fingerprint(&self, _: ArtifactSet<'_>) -> Result<ArtifactDigest, Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
+    fn settings_directory(
+        &self,
+        ArtifactPath(bench): ArtifactPath<'_>,
+        _: &ryo::linter::RuleId,
+    ) -> Result<std::path::PathBuf, Error> {
+        Ok(bench.to_owned())
+    }
     fn rule_ids(&self, _: ArtifactPath<'_>) -> Result<Vec<ryo::linter::RuleId>, Error> {
         Ok(Vec::new())
     }

@@ -1,5 +1,6 @@
 //! Context validation and receipts reject unsealed filesystem state.
 use super::adapter::*;
+use super::fixtures::links::{self, link};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::context::types::ContextBytes;
@@ -19,17 +20,6 @@ fn fixture(root: &Path) -> Result<ContextManifest, Error> {
             ryo::linter::SourceText("import pkg.mod\n".into()),
         )]),
     )
-}
-/// Make `at` a symbolic link to `target`.
-#[cfg(unix)]
-fn link(target: &Path, at: &Path) -> std::io::Result<()> {
-    std::os::unix::fs::symlink(target, at)
-}
-
-/// Platforms without symbolic links cannot build this fixture.
-#[cfg(not(unix))]
-fn link(_target: &Path, _at: &Path) -> std::io::Result<()> {
-    Err(std::io::ErrorKind::Unsupported.into())
 }
 fn seal_binds_bytes_absences_logical_root_and_observed_dependencies() -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
@@ -213,7 +203,7 @@ fn verify_refuses_a_snapshot_edited_or_removed_after_the_receipt() -> Result<(),
         edited.to_string(),
         format!(
             "context bytes changed: {}",
-            Path::new("pkg").join("__init__.py").display()
+            Path::new("pkg/__init__.py").display()
         )
     );
     std::fs::write(root.join("__init__.py"), b"")?;
@@ -289,6 +279,61 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("verify_refuses_a_present_dependency_whose_bytes_disagree"),
         word: Word::Succeeds,
         input: || verify_refuses_a_present_dependency_whose_bytes_disagree,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("seal_records_a_tracked_link_to_a_sealed_file"),
+        word: Word::Succeeds,
+        input: || links::seal_records_a_tracked_link_to_a_sealed_file,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("validate_refuses_a_sealed_link_changed_after_the_seal"),
+        word: Word::Succeeds,
+        input: || links::validate_refuses_a_sealed_link_changed_after_the_seal,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("validate_refuses_a_path_equal_retarget"),
+        word: Word::Succeeds,
+        input: || links::validate_refuses_a_path_equal_retarget,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("seal_refuses_non_canonical_link_text"),
+        word: Word::Succeeds,
+        input: || links::seal_refuses_non_canonical_link_text,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("validate_refuses_backslash_link_text"),
+        word: Word::Succeeds,
+        input: || links::validate_refuses_backslash_link_text,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("seal_refuses_a_link_to_an_unsealed_target"),
+        word: Word::Succeeds,
+        input: || links::seal_refuses_a_link_to_an_unsealed_target,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("seal_refuses_a_requested_source_that_is_a_link"),
+        word: Word::Succeeds,
+        input: || links::seal_refuses_a_requested_source_that_is_a_link,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("seal_refuses_a_non_utf8_link_target"),
+        word: Word::Succeeds,
+        input: || links::seal_refuses_a_non_utf8_link_target,
         expect: Expect::Value(()),
     },
 ];

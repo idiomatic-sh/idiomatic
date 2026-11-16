@@ -8,10 +8,10 @@ path = "tastemaker"
 
 [packages."idiomatic.arch".specs]
 ci = "0.2.0"
-workflows = "0.1.0"
+workflows = "0.2.0"
 
 [packages."idiomatic.arch".templates]
-asymptote-workspace = "0.1.0"
+asymptote-workspace = "0.2.0"
 cargo-config = "0.3.0"
 tastemaker-lock = "0.1.0"
 unchecked = "0.1.0"

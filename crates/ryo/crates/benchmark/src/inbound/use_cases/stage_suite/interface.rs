@@ -3,6 +3,8 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// stage_suite through the injected suite boundaries.
 pub trait StageSuiteUseCase {
+    /// Stage the authored subset and return the profile it staged: the one the contestants of that subset run with.
+    ///
     /// # Errors
     /// Propagates exact artifact, admission and execution refusals.
     fn stage_suite(
@@ -11,5 +13,5 @@ pub trait StageSuiteUseCase {
         destination: &Path,
         authored: &[ryo::linter::RuleId],
         purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
-    ) -> Result<(), ReportsError>;
+    ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Tool, ReportsError>;
 }

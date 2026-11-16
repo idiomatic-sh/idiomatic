@@ -41,14 +41,11 @@ fn non_utf8() -> OsString {
     OsString::from_vec(vec![0xff])
 }
 
-/// Only unix spells an argument in bytes that are no UTF8 text.
+/// An argument no UTF8 text spells: an unpaired surrogate, which Windows paths allow.
 #[cfg(not(unix))]
-#[expect(
-    dead_code,
-    reason = "every scenario that uses it runs on unix only; unix-behind-cfg asks this file for the twin"
-)]
 fn non_utf8() -> OsString {
-    OsString::from("\u{fffd}")
+    use std::os::windows::ffi::OsStringExt as _;
+    OsString::from_wide(&[0xD800])
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -70,7 +67,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(Cow::Borrowed("--flag $STATE|$STATE")),
     },
-    #[cfg(unix)]
     Case {
         name: CaseName("a non UTF8 argument is refused"),
         word: Word::Refuses,

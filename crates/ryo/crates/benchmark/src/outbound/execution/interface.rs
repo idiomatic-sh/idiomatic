@@ -5,7 +5,7 @@ use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Execute a prepared invocation and observe its process result.
-pub trait ExecutionPort {
+pub trait ExecutionPort: Send + Sync {
     /// Whether numeric exits are directly observed with no synthetic timeout status.
     /// Wrapped, bounded and unknown observers cannot certify process failures.
     fn exit_observation(&self) -> ExitObservationMode {

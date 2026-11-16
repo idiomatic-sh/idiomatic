@@ -5,6 +5,8 @@ use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 /// One corpus compared rule by rule: both contestants run the same request once per corpus.
 #[derive(Clone, Copy, Debug)]
 pub struct CorpusParity<'a> {
+    /// The bench directory whose settings profiles configure the rules.
+    pub bench: &'a std::path::Path,
     /// What is compared: one built request, or every project of a language's benchmark.
     pub corpus: Corpus<'a>,
     /// The rule set the reference's committed profile configures; the request must select exactly these.
@@ -89,6 +91,8 @@ pub(super) struct ParityBoundaries<'a> {
     pub discovery: &'a dyn crate::outbound::discovery::interface::DiscoveryPort,
     /// Pinned project checkouts.
     pub workspace: &'a dyn crate::outbound::workspace::interface::WorkspacePort,
+    /// The host whose file permissions the profiles may require.
+    pub host: &'a dyn crate::outbound::host::interface::HostPort,
 }
 
 /// The corpus sources read so far, each read once when a finding in it is first placed.

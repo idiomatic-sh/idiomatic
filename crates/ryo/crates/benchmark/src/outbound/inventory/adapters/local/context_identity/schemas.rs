@@ -111,6 +111,7 @@ pub(in super::super) fn context_identity(
         auxiliary_files: path_digests(&auxiliary),
         source_files: path_digests(&sources),
         missing: missing.iter().map(std::path::PathBuf::from).collect(),
+        links: BTreeMap::new(),
     });
     Ok(table([
         (constants::MODE, text(mode)),

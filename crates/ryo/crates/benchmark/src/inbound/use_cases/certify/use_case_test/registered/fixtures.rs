@@ -1,11 +1,15 @@
 //! Test support of the registered certification proofs: the native execution fake and the registration fixture.
 use crate::inbound::use_cases::certify::interface::CertifyUseCase as _;
+use crate::inbound::use_cases::stage_suite::interface::StageSuiteUseCase as _;
+use crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl;
 use crate::outbound::execution::interface::ExecutionPort;
+use ryo::linter::RuleId;
 use ryo_benchmark_contracts::domain::measurements::types::*;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 use ryo_benchmark_contracts::domain::requests::types::CertificationCases;
 use ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage;
+use ryo_benchmark_contracts::domain::workloads::types::StagePurpose;
 use serde_json::{Value as Document, json};
 use sha2::{Digest as _, Sha256};
 use std::{
@@ -97,7 +101,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) struct Fixture {
 }
 impl Fixture {
     pub(in crate::inbound::use_cases::certify::use_case_test) fn new() -> Self {
-        let root = tempfile::tempdir().unwrap();
+        let root = crate::outbound::inventory::fixtures::data::canonical_directory().unwrap();
         let profile = root.path().join("measured");
         let reference_executable = root
             .path()
@@ -189,12 +193,14 @@ impl Fixture {
     ) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
         let operation = crate::inbound::use_cases::certify::use_case::CertifyUseCaseImpl::new(
             Arc::new(crate::outbound::suite::factory::local()),
+            Arc::new(crate::outbound::host::fixtures::fake::HostFake::default()),
             Arc::new(crate::outbound::receipts::fixtures::fake::ReceiptsFake::default()),
             Arc::new(crate::outbound::context::factory::local()),
             Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
             Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
             self.execution.clone(),
             Arc::new(crate::outbound::inventory::factory::local()),
+            Arc::new(crate::outbound::scheduler::factory::threads()),
         );
         operation.certify(
             measured_profile,
@@ -238,7 +244,6 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn copy_measured_profi
         );
     }
 }
-
 /// The refusal named by `reason` when the error says it, else the error in full; no contestant ran beyond `launches`.
 pub(in crate::inbound::use_cases::certify::use_case_test) fn refusal(
     f: &Fixture,
@@ -254,7 +259,6 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn refusal(
         Cow::Owned(text)
     }
 }
-
 pub(in crate::inbound::use_cases::certify::use_case_test) fn failed(
     error: &ReportsError,
 ) -> Cow<'static, str> {
@@ -355,24 +359,21 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn modules(
         .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
-/// A profile staged from the registered one with only `rules` as its defaults, as a diagnostic run stages it.
+/// The profile a diagnostic run stages from `source` for `rules`, through the one staging operation.
 pub(in crate::inbound::use_cases::certify::use_case_test) fn narrowed(
     fixture: &Fixture,
+    source: &Path,
     rules: &[&str],
 ) -> PathBuf {
     let destination = fixture._root.path().join("narrowed");
-    copy_measured_profile(fixture, &destination);
-    let manifest = std::fs::read_to_string(destination.join("benchmark.toml")).unwrap();
-    write(
-        &destination.join("benchmark.toml"),
-        &manifest.replace("defaults=['A','B']", &format!("defaults={rules:?}")),
-    );
-    for rule in ["A", "B"] {
-        if !rules.contains(&rule) {
-            std::fs::remove_dir_all(destination.join("rules").join(rule)).unwrap();
-        }
-    }
-    destination
+    let rules: Vec<_> = rules
+        .iter()
+        .map(|r| RuleId::try_from(*r).unwrap())
+        .collect();
+    StageSuiteUseCaseImpl::new(&crate::outbound::suite::factory::local())
+        .stage_suite(source, &destination, &rules, StagePurpose::Execution)
+        .map(|_staged| destination)
+        .unwrap()
 }
 
 /// Certify the `measured` profile under `scope` with `rules` selected from `source`, while registered rule B fails.

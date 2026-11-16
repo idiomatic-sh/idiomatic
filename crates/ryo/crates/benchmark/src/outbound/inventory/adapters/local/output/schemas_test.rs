@@ -40,6 +40,7 @@ enum Subject {
     Observations(String),
     Summary,
     Row,
+    DeferredSummary,
 }
 
 /// What a row of this table gives the subject.
@@ -68,6 +69,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a row is written with its explicit nulls"),
         word: Word::Succeeds,
         input: || Subject::Row,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName(
+            "a deferred row is counted DEFERRED, never FAIL, with its capability as reason",
+        ),
+        word: Word::Succeeds,
+        input: || Subject::DeferredSummary,
         expect: Expect::Value(1),
     },
     Case {
@@ -111,9 +120,27 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let value: serde_json::Value =
                 serde_json::from_slice(&bytes.0.0).expect("a summary is JSON");
             Ok(usize::from(
-                value["schema"] == "benchmark-inventory/v1"
+                value["schema"] == "benchmark-inventory/v2"
                     && value["run_state"] == "running"
-                    && value["counts"] == serde_json::json!({"PASS": 0, "FAIL": 1}),
+                    && value["counts"] == serde_json::json!({"PASS": 0, "FAIL": 1, "DEFERRED": 0}),
+            ))
+        }
+        Subject::DeferredSummary => {
+            use crate::outbound::inventory::types::{RowReason, RowStatus};
+            use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+            let mut deferred = summary();
+            deferred.rules[0].status = RowStatus::Deferred;
+            deferred.rules[0].reason = RowReason::Deferred("control_flow".into());
+            deferred.failed = CaseCount(0);
+            deferred.deferred = CaseCount(1);
+            let bytes =
+                SummaryJson::try_from(&deferred).map_err(|error| named(&error.to_string()))?;
+            let value: serde_json::Value =
+                serde_json::from_slice(&bytes.0.0).expect("a summary is JSON");
+            Ok(usize::from(
+                value["counts"] == serde_json::json!({"PASS": 0, "FAIL": 0, "DEFERRED": 1})
+                    && value["rules"][0]["status"] == "DEFERRED"
+                    && value["rules"][0]["reason"] == "control_flow",
             ))
         }
         Subject::Row => {

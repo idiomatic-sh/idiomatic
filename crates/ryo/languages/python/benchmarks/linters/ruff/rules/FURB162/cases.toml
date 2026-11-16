@@ -69,3 +69,15 @@ name = "noqa"
 comparison = "full"
 files = { "case.py" = "from datetime import datetime\ndatetime.fromisoformat(date.replace(\"Z\", \"+00:00\"))  # noqa: FURB162\n" }
 expected = []
+
+[[cases]]
+name = "hex-one-leading-zero"
+comparison = "full"
+files = { "case.py" = "from datetime import datetime\ndatetime.fromisoformat(date[:-0x01] + \"+00:00\")\n" }
+expected = [{ rule = "FURB162", file = "case.py", start = 53, end = 76 }]
+
+[[cases]]
+name = "binary-one-leading-zero"
+comparison = "full"
+files = { "case.py" = "from datetime import datetime\ndatetime.fromisoformat(date[:-0b01] + \"+00:00\")\n" }
+expected = [{ rule = "FURB162", file = "case.py", start = 53, end = 76 }]

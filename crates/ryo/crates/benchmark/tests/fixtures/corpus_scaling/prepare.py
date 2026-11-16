@@ -1,7 +1,9 @@
 """Prepare nested corpus requests for the existing run-ryo/collector protocol.
 
-Preparation never executes a contestant. Reports must be admitted by the existing
-verify_profiles.complete_run_ryo_report before canonical equality is compared.
+Preparation never executes a contestant. A report is admitted before canonical
+equality is compared only when its execution metadata is complete and every selected
+rule/file pair is accounted for with none unknown or unread (the shared collector's
+report checks; the Ruff bench's Python verify_profiles.py was removed with ryo-b1gq.40).
 """
 from pathlib import Path
 import argparse

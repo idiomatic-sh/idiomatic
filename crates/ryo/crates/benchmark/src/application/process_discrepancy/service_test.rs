@@ -4,6 +4,7 @@ use super::fixtures::{Actual, Artifacts, complete, edited, passing};
 use super::service::matches;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::types::{OptionalDigest, ReferenceKind};
+use crate::domain::process_receipts::fixtures::root;
 use crate::domain::registered_inputs::types::RefusalText;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -29,11 +30,11 @@ type Failure = ProcessDiscrepancyError;
 
 fn failed() -> FailedInvocation {
     FailedInvocation {
-        actual_request_root: PathText("/root".into()),
+        actual_request_root: PathText(root()),
         files: vec![PathText("case.py".into())],
         arguments: Vec::new(),
         environment: std::collections::BTreeMap::new(),
-        directory: PathText("/root".into()),
+        directory: PathText(root()),
         exit: ExitStatus(2),
         signal: Signal::Absent,
         observer_no_deadline: YesNo::Yes,

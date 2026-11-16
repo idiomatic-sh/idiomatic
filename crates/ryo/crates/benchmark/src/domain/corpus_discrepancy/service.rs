@@ -67,6 +67,23 @@ pub(crate) fn corpus_digest(
                 ),
             ),
         ]);
+        if !manifest.links.is_empty() {
+            let _absent = corpus.insert(
+                Label::from(constants::LINKS),
+                Fragment::Object(
+                    manifest
+                        .links
+                        .iter()
+                        .map(|(link, target)| {
+                            (
+                                Label(link.to_string_lossy().into_owned()),
+                                Fragment::Text(Label(target.0.clone())),
+                            )
+                        })
+                        .collect(),
+                ),
+            );
+        }
     }
     digest(&Fragment::Object(corpus))
 }

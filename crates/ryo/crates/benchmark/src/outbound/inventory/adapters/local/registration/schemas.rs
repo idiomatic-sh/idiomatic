@@ -10,6 +10,7 @@ use ryo_benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, ReasonText, RuleName, Sha256Text,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
 use serde::Deserialize;
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -57,6 +58,7 @@ struct ExecutablePinSchema {
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 enum CommandSchema {
     CaseVerification { context: PathBuf },
+    Deferred { capability: String },
 }
 
 #[derive(Debug, Deserialize)]
@@ -141,13 +143,16 @@ impl TryFrom<RegisteredRuleSchema> for RegisteredRule {
                 .map(|(path, digest)| (path, Sha256Text(digest)))
                 .collect(),
             rule_id: RuleName(wire.rule_id),
-            command: wire.command.map_or(RuleCommand::Unregistered, |command| {
-                RuleCommand::Registered(match command {
+            command: wire
+                .command
+                .map_or(RuleCommand::Unregistered, |command| match command {
                     CommandSchema::CaseVerification { context } => {
-                        Command::CaseVerification { context }
+                        RuleCommand::Registered(Command::CaseVerification { context })
                     }
-                })
-            }),
+                    CommandSchema::Deferred { capability } => {
+                        RuleCommand::Deferred(CapabilityName(capability))
+                    }
+                }),
             reason: wire.reason.map_or(RuleReason::Unstated, |reason| {
                 RuleReason::Stated(ReasonText(reason))
             }),
@@ -180,6 +185,9 @@ fn rule_value(rule: &RegisteredRule) -> Result<serde_json::Value, Error> {
         "command": match &rule.command {
             RuleCommand::Registered(Command::CaseVerification { context }) => {
                 serde_json::json!({"kind": "case-verification", "context": context})
+            }
+            RuleCommand::Deferred(capability) => {
+                serde_json::json!({"kind": "deferred", "capability": capability.0})
             }
             RuleCommand::Unregistered => serde_json::Value::Null,
         },

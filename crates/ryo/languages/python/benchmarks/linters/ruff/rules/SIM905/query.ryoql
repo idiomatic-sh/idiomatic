@@ -32,10 +32,7 @@ let sep_keywords = select call, file, keyword from named_keywords where name = "
 let keyword_value_edges = select parent, child, file from "semantic-child" where field = "value";
 let maxsplit_keyword_values = select l.call as call, l.file as file, r.child as value from maxsplit_keywords as l join keyword_value_edges as r on l.keyword = r.parent and l.file = r.file;
 let sep_keyword_values = select l.call as call, l.file as file, r.child as value from sep_keywords as l join keyword_value_edges as r on l.keyword = r.parent and l.file = r.file;
-let integer_literals = select id, file, span from "literal-properties" where kind = "integer";
-let number_tokens = select id, file, span, text from "semantic-syntax" where kind = "number";
-let integer_spellings = select l.id as id, l.file as file, r.text as text from integer_literals as l join number_tokens as r on l.span = r.span and l.file = r.file;
-let positive_integer_values = select id, file from integer_spellings where matches(text, "^(?:[0-9][0-9_]*|0[xX][0-9a-fA-F_]+|0[oO][0-7_]+|0[bB][01_]+)$");
+let positive_integer_values = select id, file from "numeric-literal" where kind = "integer" and numeric_gte(2147483647, value);
 let unary_nodes = select id, file from "semantic-syntax" where kind = "unary-op";
 let unary_operand_edges = select parent, child, file from "semantic-child" where field = "operand";
 let unary_operator_edges = select parent, child, file from "semantic-child" where field = "op";

@@ -28,11 +28,17 @@ pub struct CompareCorpusUseCaseImpl {
     discovery: Arc<dyn DiscoveryPort>,
     /// Pinned project checkouts.
     workspace: Arc<dyn WorkspacePort>,
+    /// The host's file-permission facts.
+    host: Arc<dyn crate::outbound::host::interface::HostPort>,
 }
 
 impl CompareCorpusUseCaseImpl {
     /// `compare_corpus` over the ports it calls, which the edge injects.
     #[must_use]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each boundary is an independently injected port of the comparison"
+    )]
     pub fn new(
         reference: Arc<dyn LinterPort>,
         candidate: Arc<dyn LinterPort>,
@@ -42,6 +48,7 @@ impl CompareCorpusUseCaseImpl {
         evidence: Arc<dyn EvidencePort>,
         discovery: Arc<dyn DiscoveryPort>,
         workspace: Arc<dyn WorkspacePort>,
+        host: Arc<dyn crate::outbound::host::interface::HostPort>,
     ) -> Self {
         Self {
             reference,
@@ -52,6 +59,7 @@ impl CompareCorpusUseCaseImpl {
             evidence,
             discovery,
             workspace,
+            host,
         }
     }
 }
@@ -68,6 +76,7 @@ impl CompareCorpusUseCaseImpl {
             evidence: self.evidence.as_ref(),
             discovery: self.discovery.as_ref(),
             workspace: self.workspace.as_ref(),
+            host: self.host.as_ref(),
         }
     }
 }

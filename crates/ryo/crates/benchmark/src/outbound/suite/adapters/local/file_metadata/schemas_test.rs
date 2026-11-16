@@ -22,9 +22,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
 ];
-/// Platforms without POSIX modes observe nothing.
+/// Platforms without POSIX modes refuse the observation of any file.
 #[cfg(not(unix))]
-const CASES: &[Case<Input, Value, Failure>] = &[];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("a platform without POSIX modes refuses to observe an execute bit"),
+    word: Word::Refuses,
+    input: || 0,
+    expect: Expect::Error(()),
+}];
 
 /// Writes one file with the given mode and observes it.
 #[cfg(unix)]
@@ -43,7 +48,14 @@ fn subject(_mode: Input) -> Result<Value, Failure> {
     observed(std::path::Path::new(".")).map_err(|_refused| ())
 }
 
+/// The word of the rows this platform has: it reports an execute bit, or refuses to.
+const WORD: Word = if cfg!(unix) {
+    Word::Succeeds
+} else {
+    Word::Refuses
+};
+
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
+    run(CASES, WORD, subject);
 }

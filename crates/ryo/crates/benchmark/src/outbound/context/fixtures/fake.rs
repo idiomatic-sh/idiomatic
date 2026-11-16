@@ -64,7 +64,8 @@ impl ContextPort for ContextFake {
                 &manifest.logical_root,
                 &manifest.source_files,
                 &manifest.auxiliary_files,
-                missing
+                missing,
+                &manifest.links
             )
         ))
     }
@@ -74,7 +75,8 @@ impl ContextPort for ContextFake {
             .source_files
             .keys()
             .chain(manifest.auxiliary_files.keys())
-            .chain(&manifest.missing);
+            .chain(&manifest.missing)
+            .chain(manifest.links.keys());
         if !inside(&manifest.logical_root)
             || !manifest.boundary.is_absolute()
             || actual_root != manifest.boundary.join(&manifest.logical_root)
@@ -108,6 +110,7 @@ impl ContextPort for ContextFake {
             auxiliary_files: BTreeMap::new(),
             source_files: BTreeMap::new(),
             missing: Vec::new(),
+            links: BTreeMap::new(),
         };
         for path in tracked.0 {
             let identity = seal(&ContextBytes(path.as_os_str().as_encoded_bytes().to_vec()));
@@ -138,6 +141,7 @@ impl ContextPort for ContextFake {
                 .collect(),
             source_files: BTreeMap::new(),
             missing: context.missing.clone(),
+            links: BTreeMap::new(),
         };
         for (path, source) in sources {
             let resolved = resolve(&manifest, Path::new(path.0.as_ref()))?;
@@ -160,6 +164,12 @@ impl ContextPort for ContextFake {
         for dependency in dependencies {
             let path = PathBuf::from(dependency.path.0.as_ref());
             let declared = resolve(manifest, &path)?;
+            if manifest.links.contains_key(&declared) {
+                return Err(Error::Invalid(format!(
+                    "context dependency names a sealed link: {}",
+                    path.display()
+                )));
+            }
             let sealed = manifest.auxiliary_files.contains_key(&declared)
                 || manifest.source_files.contains_key(&declared);
             let state = match dependency.state {

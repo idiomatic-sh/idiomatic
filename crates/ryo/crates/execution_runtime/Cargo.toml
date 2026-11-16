@@ -56,4 +56,3 @@ diagnostic-row-progress = ["ryo_execution_domain/diagnostic-row-progress", "ryo_
 
 [lints]
 workspace = true
-

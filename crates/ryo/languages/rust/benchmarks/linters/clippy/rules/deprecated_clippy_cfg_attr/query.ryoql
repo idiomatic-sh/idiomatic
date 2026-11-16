@@ -1,6 +1,9 @@
 import lint_attributes from "rust/clippy/lint-attributes";
 let atoms = select id, file, span from "syntax-tree" where kind = "cfg-atom";
-let features = source-matches(from=atoms, span="span", pattern="\Afeature\s*=\s*\x22cargo-clippy\x22\z", output="found");
+let atom_children = select l.id as id, r.child as child, l.file as file, l.span as span from atoms as l join "syntax-child" as r on l.id = r.parent;
+let feature_keys = select l.id as id from atom_children as l join "syntax-tree" as r on l.child = r.id where r.kind = "ident" and matches(r.text, "^(?:r#)?feature$");
+let clippy_values = select l.id as id, l.file as file, l.span as span from atom_children as l join "string-literal" as r on l.child = r.occurrence where r.value = "cargo-clippy";
+let features = select l.id as id, l.file as file, l.span as span from clippy_values as l join feature_keys as r on l.id = r.id;
 let owners = select id, file from "syntax-tree" where kind = "cfg-meta" or kind = "cfg-attr-meta";
 let owned = axis(from=features, relation="syntax-child", direction=nearest-ancestor, domain=owners);
 let cfg_attrs = select id, file from "syntax-tree" where kind = "cfg-attr-meta";
