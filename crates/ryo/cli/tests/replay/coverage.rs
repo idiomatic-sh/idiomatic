@@ -39,7 +39,7 @@ fn lint(files: &[(&str, &str)]) -> (Pairs, Pairs) {
         ("counts", COUNTS),
     ]
     .iter()
-    .map(|(id, query)| crate::rule_from_query(id, query, &["**".to_owned()]))
+    .map(|(id, query)| crate::tools::rule_from_query(id, query, &["**".to_owned()]))
     .collect();
     let (rows, report) = base::lint_report(
         root.path(),
@@ -148,7 +148,7 @@ fn lint_in(
         ("counts", COUNTS),
     ]
     .iter()
-    .map(|(id, query)| crate::rule_from_query(id, query, &["**".to_owned()]))
+    .map(|(id, query)| crate::tools::rule_from_query(id, query, &["**".to_owned()]))
     .collect();
     let (mut rows, report) = base::lint_report(
         root,
@@ -307,7 +307,7 @@ fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
         let rules = OPTIONAL_CAPABILITY_RULES
             .iter()
             .chain(std::iter::once(&("witness", SELECTS)))
-            .map(|(id, query)| crate::rule_from_query(id, query, &["**".to_owned()]))
+            .map(|(id, query)| crate::tools::rule_from_query(id, query, &["**".to_owned()]))
             .collect();
         let (rows, report) = base::lint_report(
             root.path(),

@@ -10,10 +10,10 @@ use crate::rounds::{COLD_ROUNDS, WORKERS};
 /// What a lint over ruff with these rules cost: wall and process CPU (user and kernel), in milliseconds.
 fn cost_of(rules: Vec<ryo_core::inbound::use_cases::lint::types::Rule>) -> (u128, u128) {
     // The target is read once before the timer, so that every round finds it in the page cache (`phases::pre_read`).
-    crate::phases::pre_read(&crate::base::snapshot::ruff());
+    crate::phases::pre_read(&crate::snapshot::ruff());
     let (wall, cpu) = (Instant::now(), cpu_time::ProcessTime::now());
     let counted = crate::counting::lint_with_workers(
-        &crate::base::snapshot::ruff(),
+        &crate::snapshot::ruff(),
         rules,
         Arc::new(ryo_core::outbound::lint_store::factory::discard()),
         WORKERS,

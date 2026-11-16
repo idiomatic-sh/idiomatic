@@ -645,7 +645,7 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
         if tool["group"].startswith("release")
     }
     rows = workflow["jobs"]["check"]["strategy"]["matrix"]["include"]
-    assert {row["group"] for row in rows} == released | {"repository", "lint", "clippy", "api", "check"}
+    assert {row["group"] for row in rows} == released | {"repository", "lint", "clippy", "api", "check", "memory", "bench-correctness"}
     # A hand run's check, the pull request gate's rows for its product: its lint, the tests on every machine, and the root's
     # `repository` group from the root, the one row with a root of its own.
     assert [(row["group"], row.get("root")) for row in rows if "root" in row or row["group"] in {"lint", "repository"}] == [
@@ -1563,6 +1563,41 @@ def test_every_bench_verb_is_a_tool_per_bench() -> None:
     case_verb.append(cases)
     for changed in (one_bench, other_group, case_verb):
         assert bench_verb_problems(changed)
+
+
+# What the recorded rules answer over ruff and the other pinned targets is a bench run, never a test: the `lint` bench's `--replay`,
+# one tool of the bench-correctness group, which the pull request gate runs. The test tools filter none of the suite's tests out.
+BENCH_REPLAY = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--bench", "lint", "--", "--replay"]
+UNFILTERED_TESTS = {
+    "test-cli": ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo)"],
+    "test-default": ["cargo", "nextest", "run", "--workspace", "--locked"],
+    "coverage": ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked"],
+}
+
+
+def replay_problems(tools: list[dict]) -> list[str]:
+    """What moves the replay over the pinned targets out of the bench-correctness group, or a test of the suite out of its tools."""
+    by_id = {tool["id"]: tool for tool in tools}
+    found = []
+    replay = by_id.get("bench-replay", {})
+    if replay.get("group") != BENCH_CORRECTNESS_GROUP or replay.get("run") != BENCH_REPLAY:
+        found.append("bench-replay must run the lint bench's --replay in the bench-correctness group")
+    found += [f"{identity} must run every test of the suite" for identity, run in UNFILTERED_TESTS.items() if by_id.get(identity, {}).get("run") != run]
+    return found
+
+
+def test_the_replay_over_the_pinned_targets_is_a_bench_correctness_tool() -> None:
+    """The replay over ruff and the other pinned targets is bench-replay, in the bench-correctness group the gate runs; moved to
+    another group, run another way or gone, it is refused, and so is a test tool that filters a test out."""
+    tools = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))["tools"]
+    assert replay_problems(tools) == []
+    moved = deepcopy(tools)
+    next(tool for tool in moved if tool["id"] == "bench-replay")["group"] = "check"
+    gone = [tool for tool in tools if tool["id"] != "bench-replay"]
+    filtered = deepcopy(tools)
+    next(tool for tool in filtered if tool["id"] == "test-cli")["run"][-1] += " and not test(/^peak::/)"
+    for changed in (moved, gone, filtered):
+        assert replay_problems(changed)
 
 
 def test_bench_parity_and_measure_run_only_by_hand() -> None:

@@ -147,10 +147,3 @@ pub(crate) struct Kept(pub Arc<dyn LintStorePort>);
 pub(crate) fn in_memory() -> Kept {
     Kept(Arc::new(ryo_core::outbound::lint_store::factory::memory()))
 }
-
-/// The counting observer a run that reports its work is handed: the rows each step is fed and what each file hands the steps after
-/// the files.
-pub(crate) fn counter()
--> Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort> {
-    Arc::new(ryo_execution_runtime::outbound::observer::factory::counting())
-}

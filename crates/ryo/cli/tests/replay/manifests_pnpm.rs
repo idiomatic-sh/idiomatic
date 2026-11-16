@@ -4,10 +4,8 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use crate::tools::{
-    differences, entries, fixture, json, manifest_in, package_json_languages, relative, ryo_lines,
-    text_at, tool_output,
-};
+use crate::ecosystems::{entries, fixture, manifest_in, package_json_languages, tool_output};
+use crate::tools::{differences, json, relative, ryo_lines, text_at};
 
 /// The query of the dependencies the check compares: every column pnpm's listing says, which writes no requirement.
 const DEPENDENCIES: &str = "let d = select * from \"package-dependency\"; emit d subject source key(source, package, kind, target);";

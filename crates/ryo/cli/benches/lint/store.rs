@@ -25,8 +25,8 @@ pub(crate) fn of_each_target() -> Vec<Cost> {
     let mut metrics = Vec::new();
     let name = "ruff";
     {
-        let (root, inside) = crate::base::snapshot::project(name);
-        let copy = crate::ruff::copy_of(&root);
+        let (root, inside) = crate::snapshot::project(name);
+        let copy = crate::copy::copy_of(&root);
         let at = copy.path().join(inside);
         let kept = || crate::base::store_at(&at);
         let cold = crate::counting::lint_with_workers(

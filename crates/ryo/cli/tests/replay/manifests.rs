@@ -60,7 +60,8 @@ fn a_package_the_scope_does_not_list_is_found_by_the_recorded_workspace_complete
     let _beside = crate::beside();
     let root = workspace();
     let query = base::rules::query("workspace-completeness");
-    let mut rule = crate::rule_from_query("workspace-completeness", &query, &["**".to_owned()]);
+    let mut rule =
+        crate::tools::rule_from_query("workspace-completeness", &query, &["**".to_owned()]);
     rule.exclude = vec![Glob("outside/**".into())];
     let (rows, _) = base::lint_with(
         root.path(),
@@ -89,7 +90,7 @@ fn a_member_the_listing_does_not_hold_is_found_as_a_file_after_the_listed_ones()
     let root = workspace();
     std::fs::write(root.path().join(".ignore"), "outside/\n").expect("an ignore file");
     let query = base::rules::query("workspace-completeness");
-    let rule = crate::rule_from_query("workspace-completeness", &query, &["**".to_owned()]);
+    let rule = crate::tools::rule_from_query("workspace-completeness", &query, &["**".to_owned()]);
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
@@ -172,7 +173,7 @@ fn a_change_to_a_configuration_above_the_repository_reads_the_project_again() {
     let _beside = crate::beside();
     let above = beside_a_configuration();
     let root = above.path().join("repository");
-    let rule = crate::rule_from_query(
+    let rule = crate::tools::rule_from_query(
         "members",
         "let members = select * from \"workspace-member\"; emit members subject package key(package);",
         &["**".to_owned()],

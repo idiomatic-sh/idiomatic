@@ -259,12 +259,10 @@ const CATALOG_FORMAT_STRESS_WITNESSES: &[&str] = &[
 
 /// Check invariants and require positive known-origin witnesses before returning measured feature feeds.
 fn measure() -> Result<BTreeMap<String, u64>, String> {
-    // COUNTING is shared with the other replay helpers, whose writers also run alone.
-    let _alone = crate::alone();
     super::base::COUNTING.store(true, std::sync::atomic::Ordering::Relaxed);
     let measured = (|| {
         let (mut feeds, _) = measure_corpus(
-            &super::base::snapshot::ruff(),
+            &super::snapshot::ruff(),
             QUERIES,
             &["scripts/**/*.py", "python/**/*.py"],
             &[
@@ -277,7 +275,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
         // One upstream generated visitor API, not repeated or synthesized locally.
         // CPython's AST independently counts 1,712 quoted annotation occurrences.
         let (embedded, roots) = measure_corpus(
-            &super::base::snapshot::target("libcst-annotations"),
+            &super::snapshot::target("libcst-annotations"),
             EMBEDDED_QUERIES,
             &["libcst/_typed_visitor.py"],
             &["embedded-root-witness"],
@@ -293,7 +291,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
                 .ok_or("feature row count overflow")?;
         }
         let (catalog, _) = measure_corpus(
-            &super::base::snapshot::ruff(),
+            &super::snapshot::ruff(),
             CATALOG_QUERIES,
             &["scripts/**/*.py", "python/**/*.py"],
             CATALOG_CORPUS_WITNESSES,
@@ -346,7 +344,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             })
             .collect();
         let (stress_feeds, _) = measure_corpus(
-            &super::base::snapshot::target("catalog-pandas"),
+            &super::snapshot::target("catalog-pandas"),
             &stress_queries,
             &["pandas/**/*.py"],
             CATALOG_STRESS_WITNESSES,
@@ -361,7 +359,7 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
             })
             .collect();
         let (format_feeds, _) = measure_corpus(
-            &super::base::snapshot::target("catalog-django"),
+            &super::snapshot::target("catalog-django"),
             &format_queries,
             &["django/**/*.py"],
             CATALOG_FORMAT_STRESS_WITNESSES,
@@ -439,14 +437,14 @@ fn measure_corpus(
             ));
         }
     }
-    verify_composed_spans(&rows)?;
+    super::spans::verify_composed_spans(&rows)?;
     if rows.iter().collect::<BTreeSet<_>>().len() != rows.len() {
         return Err(format!("{witnesses:?} contains duplicate identities"));
     }
     let feeds = report
         .features
         .iter()
-        .map(|entry| (super::answers::feature_name(entry.feature), entry.rows.0))
+        .map(|entry| (super::replayed::feature_name(entry.feature), entry.rows.0))
         .collect();
     Ok((feeds, rows.len()))
 }
@@ -466,67 +464,4 @@ fn merge(into: &mut BTreeMap<String, u64>, measured: BTreeMap<String, u64>) -> R
             .ok_or("feature row count overflow")?;
     }
     Ok(())
-}
-
-/// The replay renders span cells as byte_start..byte_end; compare every actual composed span
-/// with independently selected child-start and parent-end source locations, including delimiters.
-fn verify_composed_spans(rows: &[Vec<String>]) -> Result<(), String> {
-    for row in rows {
-        if row
-            .first()
-            .is_none_or(|rule| rule != "span-between-witness")
-        {
-            continue;
-        }
-        let [_, _, key, _, _] = row.as_slice() else {
-            return Err("malformed span witness row".into());
-        };
-        let mut parts = key.split(',');
-        let Some(((_id, begin), (finish, span))) = parts
-            .next()
-            .zip(parts.next())
-            .zip(parts.next().zip(parts.next()))
-        else {
-            return Err("malformed span witness key".into());
-        };
-        if parts.next().is_some() {
-            return Err("malformed span witness key".into());
-        }
-        let begin: u32 = begin.parse().map_err(|_| "invalid span start")?;
-        let finish: u32 = finish.parse().map_err(|_| "invalid span end")?;
-        let Some((actual_begin, actual_finish)) = span.split_once("..") else {
-            return Err("malformed composed span".into());
-        };
-        let actual_begin: u32 = actual_begin.parse().map_err(|_| "invalid composed start")?;
-        let actual_finish: u32 = actual_finish.parse().map_err(|_| "invalid composed end")?;
-        if begin >= finish || actual_begin != begin || actual_finish != finish {
-            return Err(format!("span-between endpoints differ: {key}"));
-        }
-    }
-    Ok(())
-}
-
-/// These are rendered-cell unit examples, not source rows added to the measured feed counts.
-#[test]
-fn composed_span_witness_checks_both_boundaries_and_nonempty_extent() {
-    let row = |key: &str| {
-        vec![
-            "span-between-witness".to_owned(),
-            "input.py".to_owned(),
-            key.to_owned(),
-            "1".to_owned(),
-            "1".to_owned(),
-        ]
-    };
-    assert!(verify_composed_spans(&[row("id,2,9,2..9")]).is_ok());
-    for key in [
-        "id,2,9,1..9",
-        "id,2,9,2..8",
-        "id,9,2,9..2",
-        "id,2,2,2..2",
-        "id,2,9,missing",
-        "id,2,9,2..9,extra",
-    ] {
-        assert!(verify_composed_spans(&[row(key)]).is_err(), "{key}");
-    }
 }

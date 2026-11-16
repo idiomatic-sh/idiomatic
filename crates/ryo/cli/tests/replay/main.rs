@@ -1,5 +1,6 @@
-//! The replay suite: every test that runs the recorded rules over ruff is a module of one test binary, so the support they share is
-//! compiled once, every part of it is used, and the binary is linked once.
+//! The replay suite: every test that runs the recorded rules over a tree of its own is a module of one test binary, so the support
+//! they share is compiled once, every part of it is used, and the binary is linked once. What runs them over ruff and the other
+//! pinned targets is the `lint` bench's `--replay` run (`benches/lint/replay.rs`), in asymptote's `bench-correctness` group.
 
 #![expect(
     clippy::expect_used,
@@ -37,13 +38,21 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 mod answers;
 #[path = "../fixtures/replay/base.rs"]
 mod base;
+#[path = "../fixtures/replay/cargo.rs"]
+mod cargo;
+#[path = "../fixtures/replay/copy.rs"]
+mod copy;
 #[path = "../fixtures/replay/counting.rs"]
 mod counting;
-#[cfg(feature = "python")]
-#[path = "../fixtures/replay/feature_contracts.rs"]
-mod feature_contracts;
-#[path = "../fixtures/replay/ruff.rs"]
-mod ruff;
+#[cfg(any(feature = "go", feature = "typescript", feature = "python"))]
+#[path = "../fixtures/replay/ecosystems.rs"]
+mod ecosystems;
+#[path = "../fixtures/replay/fetch.rs"]
+mod fetch;
+#[path = "../fixtures/replay/handovers.rs"]
+mod handovers;
+#[path = "../fixtures/replay/spans.rs"]
+mod spans;
 #[path = "../fixtures/replay/stores.rs"]
 mod stores;
 #[path = "../fixtures/replay/tools.rs"]
@@ -51,7 +60,6 @@ mod tools;
 #[path = "../fixtures/replay/unbounded.rs"]
 mod unbounded;
 
-mod behavior;
 mod cache;
 mod comparisons;
 mod coverage;
@@ -85,28 +93,6 @@ mod sdk;
 mod snapshot;
 
 use std::sync::{PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
-
-use ryo_core::inbound::use_cases::lint::types::Rule;
-use ryo_values::domain::files::types::Glob;
-use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::runs::types::RuleId;
-
-/// A rule written as Tastemaker writes it, as ryo is asked to run it.
-#[must_use]
-pub fn rule_from_query(id: &str, query: &str, include: &[String]) -> Rule {
-    Rule {
-        observations: Vec::new(),
-        id: RuleId(id.into()),
-        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(query.into())),
-        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
-        parameters: Vec::new(),
-        include: include
-            .iter()
-            .map(|glob| Glob(glob.as_str().into()))
-            .collect(),
-        exclude: Vec::new(),
-    }
-}
 
 /// Who is running: the CPU of a process is the CPU of everything it runs, so the tests that time the process run alone and every
 /// other test beside the others.

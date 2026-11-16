@@ -5,10 +5,8 @@
 
 use std::collections::BTreeSet;
 
-use crate::tools::{
-    differences, entries, fixture, json, manifest_in, package_json_languages, ryo_lines,
-    tool_output,
-};
+use crate::ecosystems::{entries, fixture, manifest_in, package_json_languages, tool_output};
+use crate::tools::{differences, json, ryo_lines};
 
 /// The query of the dependencies the check compares: every column Bun's lock file says.
 const DEPENDENCIES: &str = "let d = select * from \"package-dependency\"; emit d subject source key(source, package, kind, requirement, target);";
@@ -102,7 +100,7 @@ fn ryo_says_what_bun_says_of_the_manifests_of_a_workspace() {
 #[test]
 fn bun_takes_the_lock_file_of_the_fixture_as_it_is() {
     let _beside = crate::beside();
-    let copy = crate::ruff::copy_of(&fixture("bun"));
+    let copy = crate::copy::copy_of(&fixture("bun"));
     let _installed = tool_output(
         "bun",
         &["install", "--frozen-lockfile", "--lockfile-only"],

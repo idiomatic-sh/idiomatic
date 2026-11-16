@@ -558,7 +558,8 @@ jobs:
           retention-days: 7
   bench-correctness:
     # Each linter bench verified by the shared collector on one Linux runner (never a check matrix row), its one asymptote group:
-    # every default of each bench, each case under its own rule's settings profile, after the whole-bench audit. It restores no
+    # every default of each bench, each case under its own rule's settings profile, after the whole-bench audit; and what the
+    # recorded rules answer over ruff and the other pinned targets (`bench-replay`), too big a run for the test suite. It restores no
     # asymptote store: a reused tool writes no receipts, and the upload requires them, so every bench tool runs in full on every
     # run. The job's limit is above the bench tools' timeouts, so asymptote reports a timeout before the runner cancels the job.
     name: bench-correctness

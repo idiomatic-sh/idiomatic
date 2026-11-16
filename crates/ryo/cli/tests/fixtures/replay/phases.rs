@@ -143,7 +143,7 @@ pub(crate) fn ruff_phase(
 ///
 /// When the rules do not run.
 pub(crate) fn lint_ruff(rules: Vec<Rule>) -> usize {
-    lint_over(&super::base::snapshot::ruff(), rules)
+    lint_over(&super::snapshot::ruff(), rules)
         .expect("the rules run over ruff")
         .0
         .len()

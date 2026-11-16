@@ -65,7 +65,7 @@ inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../rust-toolchain
 id = "test-cli"
 group = "check"
 # The command line's tests: it links every crate of the product, so the product is its input.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo) and not test(/^peak::/)"]
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo)"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
@@ -152,9 +152,9 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo",
 id = "test-default"
 group = "release-tests"
 # Tests are strictly pass or fail: no lock holds a failing test. nextest runs every libtest target; the BDD runners and the
-# doctests, which it cannot list, run in `test-bdd` and `test-doc`. The warm run's memory peak is measured in `peak`, in the
-# perf group, and does not gate a release until it holds its bound on every runner.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "-E", "not test(/^peak::/)"]
+# doctests, which it cannot list, run in `test-bdd` and `test-doc`. What the recorded rules answer over ruff and the other pinned
+# targets is `bench-replay`'s, in the bench-correctness group, and the warm run's memory peak is `memory-lint`'s.
+run = ["cargo", "nextest", "run", "--workspace", "--locked"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
@@ -177,7 +177,7 @@ inputs = [".", "../../tools/lints", "../../rust-toolchain.toml", "../../.cargo"]
 id = "coverage"
 group = "release-coverage"
 # Line coverage, a report with no threshold: the run fails only when a test does.
-run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked", "--", "--skip", "peak::"]
+run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
@@ -253,15 +253,6 @@ timeout-seconds = 3600
 inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "peak"
-group = "perf"
-# A warm run over ruff in a process of its own reads no file (`cli/tests/replay/peak.rs`): run here, apart from the release's
-# tests, which skip it. Its memory is measured by `memory-lint`.
-run = ["cargo", "nextest", "run", "--package", "idiomatic-sh-ryo", "--locked", "-E", "test(/^peak::/)"]
-timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
-
-[[tools]]
 id = "performance-lint"
 group = "perf"
 # ryo's cost over ruff on the same target: the medians of five rounds (cold) and three (the rest), with an equal page cache; run it on a quiet machine.
@@ -297,8 +288,9 @@ group = "memory"
 # One cold run over ruff under `dhat` (the `lint` bench's `--dhat` run, which `--features dhat-heap` gives `dhat` as the allocator:
 # no time or peak is taken beside it): the bytes live at the run's global maximum (`dhat-gmax-bytes`) and the count of blocks of a
 # megabyte or more (`big-blocks`). `dhat` counts every allocation, so both repeat from run to run: the bytes may rise by 1%, which
-# only the order the workers' tables meet at the maximum moves, the count by none. `tests/blocks.rs` keeps its ceiling on the big
-# blocks (the workers and the rules, each with 64 tables) until the ratchet holds them. The run is pinned to four processors and four workers, as `memory-lint` is.
+# only the order the workers' tables meet at the maximum moves, the count by none. The run fails when the big blocks are more than the
+# workers and the rules, each with 64 tables, allow (`tests/blocks.rs` holds the same ceiling over a tree it writes). The run is
+# pinned to four processors and four workers, as `memory-lint` is.
 run = ["taskset", "-c", "0-3", "cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--features", "dhat-heap", "--bench", "lint", "--", "--dhat"]
 output = "bmf"
 tolerance-percent = { dhat-gmax-bytes = 1, big-blocks = 0 }
@@ -323,6 +315,19 @@ group = "bench-correctness"
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "verify-inventory", "languages/{lang}/benchmarks/linters/{linter}"]
 timeout-seconds = 21600
 inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "bench-replay"
+group = "bench-correctness"
+# What the recorded rules answer over ruff and the other pinned targets, too big a run for the test suite: the `lint` bench's
+# `--replay` run holds each live rule's rows to its recording, the findings to the golden counts, what ryo could not decide to the
+# golden or a recorded difference, every feature to a thousand rows fed or `tests/fixtures/unfed.toml`, every file of ruff to four rows
+# handed for each row of its tree, a warm run over ruff in a process of its own to no file read, and every pinned Rust target's
+# manifests to what Cargo says. Each check keeps the name and the failure of the test it was (`cli/benches/lint/replay.rs`); the
+# replay suite holds the same over trees it writes. It measures nothing, so it prints no document and fails when a check does.
+run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--bench", "lint", "--", "--replay"]
+timeout-seconds = 3600
+inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "bench-measure"

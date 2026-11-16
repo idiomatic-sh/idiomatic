@@ -6,7 +6,8 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::tools::{differences, relative, ryo_lines, text_at, tool_output};
+use crate::ecosystems::tool_output;
+use crate::tools::{differences, relative, ryo_lines, text_at};
 
 /// The query of the dependencies the check compares: every column Go's own reading of the modules says.
 const DEPENDENCIES: &str = "let d = select * from \"package-dependency\"; emit d subject source key(source, package, requirement, replacement, target);";

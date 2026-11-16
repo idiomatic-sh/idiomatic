@@ -42,7 +42,7 @@ use ryo_core::inbound::use_cases::lint::types::Rule;
 
 /// A rule that reads the files the run lists, across files: it answers when there are three or more.
 fn counting_files() -> Vec<Rule> {
-    vec![crate::rule_from_query(
+    vec![crate::tools::rule_from_query(
         "three-files",
         "let files = project(from=\"filesystem.file\", columns=[\"path\"]);\nlet ones = extend(from=files, values={\"one\": 1});\nlet counted = group-count(from=ones, keys=[\"one\"], count=\"files\");\nlet enough = select * from counted where files >= 3;\nemit enough subject one key(files);",
         &["**/*.rs".to_owned()],
@@ -92,7 +92,7 @@ fn a_file_added_that_holds_no_node_named_x_changes_the_answer() {
 
 /// A rule that finds the calls of a function nothing defines, across files.
 fn calls_without_a_definition() -> Vec<Rule> {
-    vec![crate::rule_from_query(
+    vec![crate::tools::rule_from_query(
         "undefined-calls",
         "let calls = project(from=\"static-call\", columns=[\"target\"]);\nlet defined = project(from=\"function\", columns=[\"name\"]);\nlet unresolved = antijoin(left=calls, right=defined, left-on=[\"target\"], right-on=[\"name\"]);\nemit unresolved subject target key(target);",
         &["**/*.rs".to_owned()],

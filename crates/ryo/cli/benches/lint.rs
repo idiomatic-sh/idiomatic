@@ -6,6 +6,10 @@
 //! `--features dhat-heap -- --dhat` takes one cold run under `dhat`: the bytes live at its global maximum and its blocks of a
 //! megabyte or more (`dhat` replaces the allocator, so no other measure is taken in that run).
 //!
+//! `-- --replay` takes no measure: it runs the answer checks over ruff and the other pinned targets (`lint/replay.rs`), each held to
+//! what was recorded of it, for asymptote's `bench-replay` tool in the `bench-correctness` group; the run fails when one does. The
+//! `--dhat` run holds the big blocks of the run over ruff to the workers and the rules as well.
+//!
 //! `-- --timing` takes every measure but the memory ones, `-- --memory` the memory ones alone, and no flag all of them. `--memory` runs the memory rows alone (the peaks of a cold and a warm run and the store, taken over the same rounds), for the
 //! asymptote tool that holds them to their best on every pull request.
 //!
@@ -53,35 +57,59 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: dhat::Alloc = dhat::Alloc;
 
+#[path = "../tests/fixtures/replay/answers.rs"]
+mod answers;
 #[path = "../tests/fixtures/replay/base.rs"]
 mod base;
 #[path = "lint/bmf.rs"]
 mod bmf;
 #[path = "lint/cache.rs"]
 mod cache;
+#[path = "../tests/fixtures/replay/cargo.rs"]
+mod cargo;
 #[path = "lint/child.rs"]
 mod child;
 #[path = "lint/cold.rs"]
 mod cold;
+#[path = "../tests/fixtures/replay/copy.rs"]
+mod copy;
 #[path = "../tests/fixtures/replay/counting.rs"]
 mod counting;
+#[cfg(feature = "python")]
+#[path = "../tests/fixtures/replay/feature_contracts.rs"]
+mod feature_contracts;
+#[path = "../tests/fixtures/replay/fetch.rs"]
+mod fetch;
 #[path = "../tests/fixtures/replay/frontier.rs"]
 mod frontier;
 #[path = "lint/frontier.rs"]
 mod frontier_rows;
+#[path = "../tests/fixtures/replay/handovers.rs"]
+mod handovers;
 #[path = "../tests/fixtures/replay/phases.rs"]
 mod phases;
 #[cfg(feature = "dhat-heap")]
 #[path = "../tests/fixtures/replay/profile.rs"]
 mod profile;
+#[path = "lint/replay.rs"]
+mod replay;
+#[path = "../tests/fixtures/replay/replayed.rs"]
+mod replayed;
 #[path = "lint/rounds.rs"]
 mod rounds;
 #[path = "lint/rows.rs"]
 mod rows;
 #[path = "../tests/fixtures/replay/ruff.rs"]
 mod ruff;
+#[path = "../tests/fixtures/replay/snapshot.rs"]
+mod snapshot;
+#[cfg(feature = "python")]
+#[path = "../tests/fixtures/replay/spans.rs"]
+mod spans;
 #[path = "lint/store.rs"]
 mod store;
+#[path = "../tests/fixtures/replay/tools.rs"]
+mod tools;
 
 /// The measures `--memory` takes (and each rule's `<rule>-words`), and `--timing` leaves to it: each is held to its best by one asymptote tool.
 const MEMORY: [&str; 4] = [
@@ -110,9 +138,22 @@ fn main() {
         child::measure(set);
         return;
     }
+    if let Some(directory) = arguments
+        .iter()
+        .position(|each| each == replay::WARM_DIRECTORY)
+        .and_then(|at| arguments.get(at + 1))
+    {
+        replay::warm_child(std::path::Path::new(directory));
+        return;
+    }
     // Run as a test (`cargo test --all-targets` passes no `--bench`), it proves the workloads run on a small tree and measures nothing.
     if !arguments.iter().any(|each| each == "--bench") {
         child::smoke();
+        return;
+    }
+    // `--replay` measures nothing: it holds what the recorded rules answer over the pinned targets to what was recorded.
+    if arguments.iter().any(|each| each == "--replay") {
+        replay::run();
         return;
     }
     let rounds =
@@ -189,10 +230,12 @@ fn dhat_run() {
         .into_iter()
         .map(|(_, rule)| rule)
         .collect();
+    // Every rule the run asks for may read across files: each is at most one crossing.
+    let crossing = rules.len();
     let cache = tempfile::tempdir().expect("a cache directory");
     let (counted, profile) = profile::profiled(|| {
         counting::lint_with_workers(
-            &base::snapshot::ruff(),
+            &snapshot::ruff(),
             rules,
             base::store_at(cache.path()),
             rounds::MEMORY_WORKERS,
@@ -200,6 +243,8 @@ fn dhat_run() {
         .expect("the rules run")
     });
     assert!(counted.reads > 0, "a cold run reads ruff's files");
+    // The workers the engine runs on: the memory runs' count, which the machine is held to (`rounds::require_pinned`).
+    profile::bounded(&counted, &profile, rounds::MEMORY_WORKERS, crossing, "ruff");
     bmf::print(&[
         bmf::Cost {
             target: "ruff",

@@ -3,8 +3,6 @@
 
 #[path = "rules.rs"]
 pub(crate) mod rules;
-#[path = "snapshot.rs"]
-pub(crate) mod snapshot;
 
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
 use std::path::{Path, PathBuf};

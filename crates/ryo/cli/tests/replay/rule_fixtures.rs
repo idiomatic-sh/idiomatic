@@ -78,7 +78,7 @@ pub(crate) fn check(rule: &str) {
             listed if listed.is_empty() => vec!["**".to_owned()],
             listed => listed,
         };
-        let mut each = crate::rule_from_query(rule, &query, &include);
+        let mut each = crate::tools::rule_from_query(rule, &query, &include);
         each.parameters = parameters_of(given);
         // A directory an entry excludes holds everything beneath it.
         each.exclude = words("exclude")
