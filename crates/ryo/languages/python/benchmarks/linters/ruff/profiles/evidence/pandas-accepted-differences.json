@@ -55,18 +55,6 @@
           "column": 13
         }
       ]
-    },
-    {
-      "rule": "RUF100",
-      "reason": "pandas/core/dtypes/dtypes.py binds pa twice at module level: import pyarrow as pa under if HAS_PYARROW, then import pyarrow as pa  # noqa: TC004 under if TYPE_CHECKING. Ruff's documentation says TC004 checks for imports that are required at runtime but are only defined in type-checking blocks; this import is also defined at runtime, so ryo declines TC004 under the certified reference discrepancy runtime-fallback in rules/TC004/cases.toml, while the pinned Ruff 0.16.5 reports it and spends the noqa on it. With no TC004 finding on the line, ryo's RUF100 reports the directive as unused.",
-      "findings": [
-        {
-          "kind": "extra",
-          "file": "pandas/core/dtypes/dtypes.py",
-          "line": 80,
-          "column": 27
-        }
-      ]
     }
   ]
 }

@@ -1,6 +1,6 @@
 # Annotation evaluation positions
 
-The helper accepts real expression occurrences and returns `id,file,evaluation` for their directly containing annotation context:
+The helper accepts real expression occurrences and returns `id,file,evaluation,root,mode` for their directly containing annotation context: `root` is the annotation expression the occurrence belongs to (the occurrence itself when it is the annotation), and `mode` is `lazy` where the file stores annotations without evaluating them (the annotations future, or Python 3.14 onward without it) and `eager` otherwise. `evaluation` is:
 
 - `eager`: evaluated when its owning definition/statement executes, through Python 3.13 without the annotations future.
 - `postponed`: a stored annotation string under the validated module future feature.
