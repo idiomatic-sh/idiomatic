@@ -1,5 +1,6 @@
 //! Composed static event analysis with independent source-level branch, timing and cleanup expectations.
-use super::service::{build, indexed};
+use super::service::{build, build_within, indexed};
+use super::types::NameChainLimit;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     binding_results::types::ReadState,
@@ -331,12 +332,61 @@ fn retained_source_revisions_invalidate_complete_incomplete_and_empty_binding_re
     );
 }
 
+fn a_name_over_the_chain_limit_makes_the_file_incomplete_never_empty() {
+    use crate::inbound::contracts::parse::contract::ParseContract;
+    use crate::outbound::{notes::factory::postcard, syntax::factory::ruff_python_parser};
+    use ryo::languages::Parse as _;
+    use std::sync::Arc;
+    let parser = ParseContract::new(
+        crate::settings::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
+        Arc::new(postcard()),
+    );
+    let mut file = parsed(b"x = 1\nuse(x)\nuse(x)\n").expect("the source parses");
+    let tree = Tree {
+        elements: &file.elements,
+        source: ByteSlice(file.bytes),
+        file: languages::FileId(0),
+    };
+    let mut model = Declarations::default();
+    parser.file_model(&tree, &mut model);
+    let mut index = BindingAnalysisIndex::default();
+    let mut states = Vec::new();
+    for limit in [1, 2, 3, 4, 1 << 20] {
+        build_within(
+            &tree,
+            &model,
+            &mut file.symbols,
+            &mut index,
+            NameChainLimit(limit),
+        );
+        states.push(index.state == BindingAnalysisState::Complete);
+    }
+    assert_eq!(
+        states,
+        [false, false, true, true, true],
+        "x has one store and two reads: three events and reads, so a limit below three leaves the file incomplete"
+    );
+}
+
 /// Each check below states its own source and asserts its own outcome.
-const CHECKS: &[Case<fn(), (), ()>] = &[Case {
-    name: CaseName(
-        "retained source revisions invalidate complete incomplete and empty binding results",
-    ),
-    word: Word::Succeeds,
-    input: || retained_source_revisions_invalidate_complete_incomplete_and_empty_binding_results,
-    expect: Expect::Value(()),
-}];
+const CHECKS: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("a name over the chain limit makes the file incomplete, never empty"),
+        word: Word::Succeeds,
+        input: || a_name_over_the_chain_limit_makes_the_file_incomplete_never_empty,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "retained source revisions invalidate complete incomplete and empty binding results",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            retained_source_revisions_invalidate_complete_incomplete_and_empty_binding_results
+        },
+        expect: Expect::Value(()),
+    },
+];
