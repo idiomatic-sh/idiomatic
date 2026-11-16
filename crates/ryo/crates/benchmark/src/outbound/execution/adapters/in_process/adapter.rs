@@ -1,7 +1,8 @@
-//! The worker's request runs in this process through the edge's worker; any other invocation runs on the process execution.
-use super::constants::{COMPLETED, FAILED, RESPONSE_POISONED};
-use crate::outbound::execution::interface::ExecutionPort;
-use crate::outbound::execution::types::{CompileTimes, ExitObservationMode, InProcessWorker};
+//! A worker's request runs in this process through the language's worker; the composition chooses this execution for the
+//! candidate, and any invocation that is no worker request is refused.
+use super::constants::{COMPLETED, FAILED, NOT_A_WORKER_REQUEST, RESPONSE_POISONED};
+use crate::outbound::execution::interface::{ExecutionPort, InProcessWorker};
+use crate::outbound::execution::types::StoredRequest;
 use ryo_benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ExecutionProfile, Invocation, ProcessExitCode, ProcessOutput,
     ResourceObservation, TerminationSignal,
@@ -10,30 +11,23 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::constants::RUN_RYO;
 use std::sync::{Arc, Mutex};
 
-/// Runs the worker's request through the edge's worker, in this process; any other invocation runs on `process`.
-pub(crate) struct ExecutionInProcessAdapter {
-    /// What every invocation but the worker's runs on.
-    process: Box<dyn ExecutionPort>,
-    /// The worker the edge composed over its engine.
-    worker: InProcessWorker,
+/// Runs each worker request through the language's worker, in this process.
+#[derive(Debug)]
+pub(crate) struct ExecutionInProcessAdapter<'a> {
+    /// The worker the bench composed over its engine.
+    worker: &'a dyn InProcessWorker,
 }
-impl ExecutionInProcessAdapter {
-    /// Bind the process execution and the edge's worker.
-    pub(crate) fn new(process: Box<dyn ExecutionPort>, worker: InProcessWorker) -> Self {
-        Self { process, worker }
+impl<'a> ExecutionInProcessAdapter<'a> {
+    /// Bind the language's worker.
+    pub(crate) fn new(worker: &'a dyn InProcessWorker) -> Self {
+        Self { worker }
     }
     /// The stored request a worker invocation names, none for any other invocation.
-    fn request_file(invocation: &Invocation) -> Option<std::path::PathBuf> {
+    fn request_file(invocation: &Invocation) -> Option<StoredRequest> {
         let mut arguments = invocation.arguments.iter();
         (arguments.next()?.to_str()? == RUN_RYO).then_some(())?;
         let _flag = arguments.next()?;
-        Some(std::path::PathBuf::from(arguments.next()?))
-    }
-}
-impl std::fmt::Debug for ExecutionInProcessAdapter {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(std::any::type_name::<Self>())
-            .finish_non_exhaustive()
+        Some(StoredRequest(std::path::PathBuf::from(arguments.next()?)))
     }
 }
 /// The bytes the worker's response is written to, which the invocation's output then holds.
@@ -51,28 +45,27 @@ impl std::io::Write for Response {
         Ok(())
     }
 }
-impl ExecutionPort for ExecutionInProcessAdapter {
-    fn exit_observation(&self) -> ExitObservationMode {
-        self.process.exit_observation()
-    }
+impl ExecutionPort for ExecutionInProcessAdapter<'_> {
     fn profile(&self) -> ExecutionProfile {
-        self.process.profile()
+        ExecutionProfile::Wall
     }
-    fn compile(&self, invocation: &Invocation) -> CompileTimes {
-        let path = Self::request_file(invocation)?;
+    fn compile(
+        &self,
+        invocation: &Invocation,
+    ) -> Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
+        let request = Self::request_file(invocation)?;
         // A request the worker cannot read compiles nothing ahead: its run reports the same refusal as the run's failure.
-        match (self.worker.compile)(&path) {
-            Ok(times) => times,
+        match self.worker.compile(&request) {
+            Ok(times) => Some(times.0),
             Err(_unread) => None,
         }
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
-        let Some(path) = Self::request_file(&invocation) else {
-            return self.process.run(invocation);
-        };
+        let request = Self::request_file(&invocation)
+            .ok_or_else(|| Error::Invalid(NOT_A_WORKER_REQUEST.into()))?;
         let response = Response::default();
         let started = std::time::Instant::now();
-        let outcome = (self.worker.run)(&path, Box::new(response.clone()));
+        let outcome = self.worker.run(&request, Box::new(response.clone()));
         let wall = started.elapsed();
         let stdout = response
             .0

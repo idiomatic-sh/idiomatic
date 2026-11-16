@@ -11,7 +11,7 @@ pub struct VerifyCasesUseCaseImpl<'a> {
     context: &'a dyn crate::outbound::context::interface::ContextPort,
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
     candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
-    execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+    executions: super::types::Executions<'a>,
     inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
     evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
 }
@@ -25,7 +25,7 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
         context: &'a dyn crate::outbound::context::interface::ContextPort,
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
         candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
-        execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+        executions: super::types::Executions<'a>,
         inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
         evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
     ) -> Self {
@@ -36,7 +36,7 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
             context,
             reference,
             candidate,
-            execution,
+            executions,
             inventory,
             evidence,
         }
@@ -79,7 +79,7 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
             self.context,
             self.reference,
             self.candidate,
-            self.execution,
+            self.executions,
             self.inventory,
             rules,
             cases,

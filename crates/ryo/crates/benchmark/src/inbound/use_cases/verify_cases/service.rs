@@ -1,5 +1,5 @@
 //! The reference and candidate of every selected case answer the same expectations.
-use super::types::VerifiedCases;
+use super::types::{Executions, VerifiedCases};
 use crate::application::case_execution::{
     service::{candidate as run_candidate, run as run_case},
     types::AttemptOutcome,
@@ -15,7 +15,7 @@ use crate::outbound::host::interface::HostPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::{
     context::interface::ContextPort,
-    execution::{interface::ExecutionPort, types::ExitObservationMode},
+    execution::types::ExitObservationMode,
     inventory::interface::InventoryPort,
     linter::interface::LinterPort,
     suite::interface::SuitePort,
@@ -42,7 +42,7 @@ pub(super) fn verify_prepared_shard(
     context: &dyn ContextPort,
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
-    execution: &dyn ExecutionPort,
+    executions: Executions<'_>,
     inventory: &dyn InventoryPort,
     rules: &Path,
     mut cases: Vec<PreparedCase>,
@@ -73,7 +73,7 @@ pub(super) fn verify_prepared_shard(
     if selected_cases
         .iter()
         .any(|case| crate::domain::process_failure::service::expected(case).is_some())
-        && execution.exit_observation() != ExitObservationMode::Direct
+        && executions.reference.exit_observation() != ExitObservationMode::Direct
     {
         return Err(Error::Invalid(
             constants::PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE.into(),
@@ -81,7 +81,8 @@ pub(super) fn verify_prepared_shard(
     }
     let mut timings: BTreeMap<ryo::linter::RuleId, RuleTiming> = BTreeMap::new();
     // The rules compile once, ahead of the cases: an execution that keeps its plans reports what each rule took.
-    for (rule, elapsed) in execution
+    for (rule, elapsed) in executions
+        .candidate
         .compile(&candidate.prepare(&first.request)?)
         .unwrap_or_default()
     {
@@ -92,7 +93,7 @@ pub(super) fn verify_prepared_shard(
         suite,
         context,
         candidate,
-        execution,
+        executions.candidate,
         &first.request,
     )?);
     // The first candidate run is the first case's own.
@@ -107,13 +108,13 @@ pub(super) fn verify_prepared_shard(
             let AttemptOutcome { result, capture } = if contestant == Contestant::Candidate {
                 AttemptOutcome {
                     result: initial.take().map_or_else(
-                        || run_candidate(suite, context, tool, execution, &case.request),
+                        || run_candidate(suite, context, tool, executions.candidate, &case.request),
                         Ok,
                     ),
                     capture: CaptureRecord::Absent,
                 }
             } else {
-                run_case(suite, context, tool, execution, &case, rules)
+                run_case(suite, context, tool, executions.reference, &case, rules)
             };
             let full_report = match &result {
                 Ok(measurement) => Some(measurement.report.clone()),

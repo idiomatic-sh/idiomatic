@@ -1,5 +1,5 @@
 //! Child-process execution contract.
-use super::types::ExitObservationMode;
+use super::types::{ExitObservationMode, RuleCompileTimes, StoredRequest};
 use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
@@ -28,4 +28,24 @@ pub trait ExecutionPort: Send + Sync {
     ///
     /// Returns an error when launching or observing the process fails.
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error>;
+}
+
+/// The language's worker, run in this process in place of a child: the bench composes it over its engine.
+pub trait InProcessWorker: Send + Sync + std::fmt::Debug {
+    /// Run the request stored at `request` and write its response to `response`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request cannot be read, run or answered.
+    fn run(
+        &self,
+        request: &StoredRequest,
+        response: Box<dyn std::io::Write + Send>,
+    ) -> Result<(), Error>;
+    /// Compile the rules of the request stored at `request` ahead of its first run, answering each rule's time.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request cannot be read.
+    fn compile(&self, request: &StoredRequest) -> Result<RuleCompileTimes, Error>;
 }

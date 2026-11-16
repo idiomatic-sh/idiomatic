@@ -1,4 +1,4 @@
-//! A worker's request run inside this process over the edge's engine; every other invocation runs as a child.
+//! A worker request run inside this process through the language's worker; every other invocation is refused.
 pub(crate) mod adapter;
 
 #[cfg(test)]

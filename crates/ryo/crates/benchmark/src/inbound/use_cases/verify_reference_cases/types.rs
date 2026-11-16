@@ -5,9 +5,9 @@ use std::collections::BTreeMap;
 
 /// The cases a reference-only verification matched and how long each rule's cases took.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct VerifiedReferenceCases {
+pub struct VerifiedReferenceCases {
     /// How many cases matched the reference.
-    pub(crate) count: ReferenceCaseCount,
+    pub count: ReferenceCaseCount,
     /// How long each rule's cases took.
-    pub(crate) timings: BTreeMap<ryo::linter::RuleId, RuleTiming>,
+    pub timings: BTreeMap<ryo::linter::RuleId, RuleTiming>,
 }
