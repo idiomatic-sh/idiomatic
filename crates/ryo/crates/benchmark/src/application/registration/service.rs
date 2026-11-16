@@ -62,6 +62,53 @@ struct Bench<'a> {
     output: PathBuf,
 }
 
+impl<'a> Bench<'a> {
+    /// The bench at `bench`, its rules staged under `output`.
+    fn open(
+        suite: &'a dyn SuitePort,
+        inventory: &'a dyn InventoryPort,
+        bench: &Path,
+        output: &Path,
+    ) -> Result<Self, Error> {
+        let root = suite.ensure_directory(ArtifactPath(bench))?;
+        let output = suite.ensure_directory(ArtifactPath(output))?;
+        Ok(Self {
+            suite,
+            inventory,
+            repository: root
+                .ancestors()
+                .nth(constants::REPOSITORY_DEPTH)
+                .unwrap_or(&root)
+                .to_owned(),
+            profile: suite.profile(ArtifactPath(&root))?,
+            output,
+            root,
+        })
+    }
+}
+
+/// Stage one rule of the bench at `bench` under `output` with its own settings profile, as the registration stages it, and
+/// answer the staged directory: its profile, rules, modules and evidence, which a verifier reads as a bench of that one rule.
+///
+/// # Errors
+/// Refuses an unreadable bench or settings profile, a profile pinned to another tool, one that does not select the rule, and
+/// a rule whose definition, modules or evidence cannot be staged.
+pub fn stage_rule_profile(
+    suite: &dyn SuitePort,
+    inventory: &dyn InventoryPort,
+    bench: &Path,
+    rule: &ryo::linter::RuleId,
+    output: &Path,
+) -> Result<PathBuf, Error> {
+    let staged = Bench::open(suite, inventory, bench, output)?;
+    let RuleCommand::Registered(Command::CaseVerification { context }) =
+        stage_rule(&staged, rule)?.command
+    else {
+        return Err(Error::Invalid(constants::NOT_STAGED.into()));
+    };
+    Ok(context)
+}
+
 /// Stage one implemented rule and answer its registration.
 fn stage_rule(bench: &Bench<'_>, rule: &ryo::linter::RuleId) -> Result<RegisteredRule, Error> {
     let suite = bench.suite;
@@ -271,20 +318,8 @@ pub fn register(
     worker: &Sealed,
     output: &Path,
 ) -> Result<PathBuf, Error> {
-    let root = suite.ensure_directory(ArtifactPath(bench))?;
-    let output = suite.ensure_directory(ArtifactPath(output))?;
-    let staged = Bench {
-        suite,
-        inventory,
-        repository: root
-            .ancestors()
-            .nth(constants::REPOSITORY_DEPTH)
-            .unwrap_or(&root)
-            .to_owned(),
-        profile: suite.profile(ArtifactPath(&root))?,
-        output: output.clone(),
-        root,
-    };
+    let staged = Bench::open(suite, inventory, bench, output)?;
+    let output = staged.output.clone();
     let mut rules = Vec::new();
     for rule in &staged.profile.defaults {
         let query = suite.rule_query(
