@@ -12,10 +12,10 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_dfs::types::DfsParts;
 use crate::domain::physical_plan::types::InputRows;
 use crate::domain::physical_plan::types::Resources;
-use crate::domain::physical_plan::types::file_buffers::value::WalkScratch;
 use crate::domain::physical_plan::types::keyed_rows::value::IndexedRow;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::walk_scratch::value::WalkScratch;
 use crate::domain::table_texts::service::text_of_cell;
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};

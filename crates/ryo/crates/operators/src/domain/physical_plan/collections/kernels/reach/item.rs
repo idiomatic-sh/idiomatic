@@ -12,12 +12,12 @@ use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::closure::types::ReachParts;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::SeededJoin;
-use crate::domain::physical_plan::types::file_buffers::value::{
-    ReachedCount, ReachedPlace, ReachedRun, WalkScratch,
-};
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::walk_scratch::value::{
+    ReachedCount, ReachedPlace, ReachedRun, WalkScratch,
+};
 use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedRowAt, KeyedSide, NodeFed};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
