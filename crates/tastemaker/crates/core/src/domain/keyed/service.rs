@@ -192,143 +192,36 @@ fn whole(declarations: &mut Vec<Declaration>, table: &DeclarationName) {
     });
 }
 
-/// The declarations and tables of a template and of a file, as the levels of the tables settle them one depth after another.
-struct Levels {
-    /// The template's declarations, less those of the tables the file lacks.
-    wanted: Vec<Declaration>,
-    /// The file's declarations, named as the template's tables they met.
-    made: Vec<Declaration>,
-    /// The template's tables.
-    wanted_tables: Vec<DeclarationName>,
-    /// The file's tables, named as the template's tables they met.
-    made_tables: Vec<DeclarationName>,
-    /// The template's tables no table of the file stands for.
-    gone: Vec<DeclarationName>,
+/// The depth of the deepest of the tables of both lists.
+fn deepest(one: &[DeclarationName], two: &[DeclarationName]) -> Depth {
+    one.iter().chain(two).map(depth).max().unwrap_or_default()
 }
 
-impl Levels {
-    /// The tables of `tables` that sit at `level` in the same sequence as `table`.
-    fn peers(
-        level: Depth,
-        table: &DeclarationName,
-        tables: &[DeclarationName],
-    ) -> Vec<DeclarationName> {
-        tables
-            .iter()
-            .filter(|candidate| {
-                depth(candidate) == level && sequence_of(candidate) == sequence_of(table)
-            })
-            .cloned()
-            .collect::<Vec<_>>()
+/// Gives each of `made` and `made_tables` the name `moves` say it takes.
+fn rename(made: &mut [Declaration], made_tables: &mut [DeclarationName], moves: &[Renaming]) {
+    for declaration in made {
+        if let Some(name) = moved(&declaration.name, moves) {
+            declaration.name = name;
+        }
     }
+    for table in made_tables {
+        if let Some(name) = moved(table, moves) {
+            *table = name;
+        }
+    }
+}
 
-    /// Settles the tables at `level`: each template's table met by a table of the file takes its place, the ones no table
-    /// of the file meets are absent, and the file's tables no template's meets stand aside.
-    fn settle(&mut self, level: Depth) {
-        let mut moves = Vec::new();
-        let mut taken: Vec<DeclarationName> = Vec::new();
-        let mut unmet = Vec::new();
-        for table in self
-            .wanted_tables
-            .iter()
-            .filter(|table| depth(table) == level)
-        {
-            if self
-                .gone
-                .iter()
-                .any(|missing| inside(table, missing) == Holding::Holds)
-            {
-                continue;
-            }
-            let partner = Self::peers(level, table, &self.made_tables)
-                .into_iter()
-                .find(|candidate| {
-                    !taken.contains(candidate)
-                        && lacking(&self.wanted, table, &within(&self.made, candidate)).is_empty()
-                });
-            match partner {
-                Some(candidate) => {
-                    taken.push(candidate.clone());
-                    moves.push(Renaming {
-                        from: candidate,
-                        to: table.clone(),
-                    });
-                }
-                None => unmet.push(table.clone()),
-            }
-        }
-        for table in &unmet {
-            self.settle_unmet(level, table, &mut taken, &mut moves);
-        }
-        for table in self
-            .made_tables
-            .iter()
-            .filter(|table| depth(table) == level)
-        {
-            if !taken.contains(table) {
-                // A table of the file no template's table meets stands aside, as one element.
-                whole(&mut self.made, table);
-                moves.push(Renaming {
-                    from: table.clone(),
-                    to: aside(table),
-                });
-            }
-        }
-        for declaration in &mut self.made {
-            if let Some(name) = moved(&declaration.name, &moves) {
-                declaration.name = name;
-            }
-        }
-        for table in &mut self.made_tables {
-            if let Some(name) = moved(table, &moves) {
-                *table = name;
-            }
-        }
-    }
-
-    /// Settles a template's table no table of the file held whole: the table of the file left standing that makes the most of it
-    /// is the one it is, and when none is left standing the table is absent.
-    fn settle_unmet(
-        &mut self,
-        level: Depth,
-        table: &DeclarationName,
-        taken: &mut Vec<DeclarationName>,
-        moves: &mut Vec<Renaming>,
-    ) {
-        let candidates = Self::peers(level, table, &self.made_tables);
-        // The table of the file left standing in its sequence that makes the most of it is the one it is: what that
-        // one lacks is missing.
-        let standing = candidates
-            .iter()
-            .filter(|candidate| !taken.contains(candidate))
-            .min_by_key(|candidate| {
-                lacking(&self.wanted, table, &within(&self.made, candidate)).len()
-            })
-            .cloned();
-        if let Some(candidate) = standing {
-            taken.push(candidate.clone());
-            moves.push(Renaming {
-                from: candidate,
-                to: table.clone(),
-            });
-            return;
-        }
-        // None is left standing: the table is absent, and what none of the file's tables makes of it is missing.
-        let rest = candidates
-            .iter()
-            .flat_map(|candidate| within(&self.made, candidate))
-            .collect::<Vec<_>>();
-        let lacking = lacking(&self.wanted, table, &rest);
-        if lacking.is_empty() {
-            whole(&mut self.wanted, table);
-        } else {
-            self.wanted.retain(|declaration| {
-                inside(&declaration.name, table) == Holding::Apart
-                    || lacking.contains(&declaration.name)
-            });
-        }
-        self.gone.push(table.clone());
-    }
+/// A value within an entry of the instance's table is the instance's: only the entry's name is held exactly.
+fn keep_instance_values(mismatches: &mut Vec<Mismatch>, table: &DeclarationName) {
+    let prefix = format!("{}{KEY_PATH_SEPARATOR}", table.0);
+    mismatches.retain(|mismatch| match mismatch {
+        Mismatch::Extra(declaration) => !declaration
+            .name
+            .0
+            .strip_prefix(&*prefix)
+            .is_some_and(|within| within.contains(KEY_PATH_SEPARATOR)),
+        Mismatch::Missing(_) => true,
+    });
 }
 
 /// How a data document's declarations `found` differ from its template's `expected`, each table of a sequence judged
@@ -346,39 +239,97 @@ pub(crate) fn compare_data(
     exact: Exactness,
     instance_values: Option<&DeclarationName>,
 ) -> Vec<Mismatch> {
-    let mut state = Levels {
-        wanted: data_declarations(expected),
-        made: data_declarations(found),
-        wanted_tables: tables(expected),
-        made_tables: tables(found),
-        gone: Vec::new(),
-    };
-    let deepest = state
-        .wanted_tables
-        .iter()
-        .chain(&state.made_tables)
-        .map(depth)
-        .max()
-        .unwrap_or_default();
+    let mut wanted = data_declarations(expected);
+    let mut made = data_declarations(found);
+    let wanted_tables = tables(expected);
+    let mut made_tables = tables(found);
+    let deepest = deepest(&wanted_tables, &made_tables);
+    let mut gone: Vec<DeclarationName> = Vec::new();
     for level in 0..=deepest.0 {
-        state.settle(Depth(level));
+        let level = Depth(level);
+        let peers = |table: &DeclarationName, tables: &[DeclarationName]| {
+            tables
+                .iter()
+                .filter(|candidate| {
+                    depth(candidate) == level && sequence_of(candidate) == sequence_of(table)
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        let mut moves = Vec::new();
+        let mut taken: Vec<DeclarationName> = Vec::new();
+        let mut unmet = Vec::new();
+        for table in wanted_tables.iter().filter(|table| depth(table) == level) {
+            if gone
+                .iter()
+                .any(|missing| inside(table, missing) == Holding::Holds)
+            {
+                continue;
+            }
+            let partner = peers(table, &made_tables).into_iter().find(|candidate| {
+                !taken.contains(candidate)
+                    && lacking(&wanted, table, &within(&made, candidate)).is_empty()
+            });
+            match partner {
+                Some(candidate) => {
+                    taken.push(candidate.clone());
+                    moves.push(Renaming {
+                        from: candidate,
+                        to: table.clone(),
+                    });
+                }
+                None => unmet.push(table.clone()),
+            }
+        }
+        for table in &unmet {
+            let candidates = peers(table, &made_tables);
+            // The table of the file left standing in its sequence that makes the most of it is the one it is: what that
+            // one lacks is missing.
+            let standing = candidates
+                .iter()
+                .filter(|candidate| !taken.contains(candidate))
+                .min_by_key(|candidate| lacking(&wanted, table, &within(&made, candidate)).len())
+                .cloned();
+            if let Some(candidate) = standing {
+                taken.push(candidate.clone());
+                moves.push(Renaming {
+                    from: candidate,
+                    to: table.clone(),
+                });
+                continue;
+            }
+            // None is left standing: the table is absent, and what none of the file's tables makes of it is missing.
+            let rest = candidates
+                .iter()
+                .flat_map(|candidate| within(&made, candidate))
+                .collect::<Vec<_>>();
+            let lacking = lacking(&wanted, table, &rest);
+            if lacking.is_empty() {
+                whole(&mut wanted, table);
+            } else {
+                wanted.retain(|declaration| {
+                    inside(&declaration.name, table) == Holding::Apart
+                        || lacking.contains(&declaration.name)
+                });
+            }
+            gone.push(table.clone());
+        }
+        for table in made_tables.iter().filter(|table| depth(table) == level) {
+            if !taken.contains(table) {
+                // A table of the file no template's table meets stands aside, as one element.
+                whole(&mut made, table);
+                moves.push(Renaming {
+                    from: table.clone(),
+                    to: aside(table),
+                });
+            }
+        }
+        rename(&mut made, &mut made_tables, &moves);
     }
-    let Levels {
-        wanted, mut made, ..
-    } = state;
     in_order(&wanted, &mut made);
     let mut mismatches = compare(&wanted, &made, exact);
     if let Some(table) = instance_values {
-        // A value within an entry of the instance's table is the instance's: only the entry's name is held exactly.
-        let prefix = format!("{}{KEY_PATH_SEPARATOR}", table.0);
-        mismatches.retain(|mismatch| match mismatch {
-            Mismatch::Extra(declaration) => !declaration
-                .name
-                .0
-                .strip_prefix(&*prefix)
-                .is_some_and(|within| within.contains(KEY_PATH_SEPARATOR)),
-            Mismatch::Missing(_) => true,
-        });
+        keep_instance_values(&mut mismatches, table);
     }
     mismatches
 }
