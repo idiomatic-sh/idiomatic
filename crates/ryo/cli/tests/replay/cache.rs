@@ -11,9 +11,9 @@ use std::sync::atomic::Ordering;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;
 
-/// The most bytes the store of all of ruff may hold after a run: a regression guard at the size measured (70,304,943 bytes,
-/// rounded up to 75 MB). The goal is a few MB (five), and this bound is lowered when the store reaches it.
-const STORE_BYTES_BOUND: u64 = 75_000_000;
+/// How many percent over its best the store of ruff may be: the store is the same bytes for the same files and rules, so only the
+/// order the workers hand their buckets in can move it (asymptote tool `memory-store`).
+const STORE_TOLERANCE_PERCENT: u64 = 1;
 
 /// The recorded rules that cross files and that stay in one: the first compares functions of one name in two files.
 pub(crate) fn rules() -> Vec<Rule> {
@@ -236,11 +236,11 @@ fn a_store_is_not_used_for_other_rules_and_is_kept_apart_by_root() {
     );
 }
 
-/// The size of the store over all of ruff is a ratchet, not a contract: that a warm run reads no file and answers the cold run's
+/// The size of the store over all of ruff is measured, not bounded: asymptote's ratchet holds its best (tool `memory-store`). That a warm run reads no file and answers the cold run's
 /// rows is proved over owned fixtures by core (`unchanged_reuse_reads_no_file`,
 /// `cold_warm_and_edited_runs_answer_the_same_in_every_store`).
 #[test]
-fn the_store_every_recorded_rule_keeps_over_ruff_stays_within_its_bound() {
+fn the_store_every_recorded_rule_keeps_over_ruff_is_measured() {
     let _beside = crate::beside();
     let copy = ruff::ruff_copy();
     let rules: Vec<Rule> = counting::runnable()
@@ -253,9 +253,15 @@ fn the_store_every_recorded_rule_keeps_over_ruff_stays_within_its_bound() {
     let size = std::fs::metadata(copy.path().join(".ryo_cache/lint.store"))
         .expect("the store")
         .len();
-    assert!(
-        size <= STORE_BYTES_BOUND,
-        "the store of ruff stays within {STORE_BYTES_BOUND} bytes: {size} bytes"
+    // The size is a measure for asymptote's ratchet (tool `memory-store`), which holds its best and fails a run that rises over it.
+    assert!(size > 0, "the store of ruff holds the run: {size} bytes");
+    crate::ratchet::print(
+        "ruff",
+        &[crate::ratchet::Measure {
+            name: "store-bytes",
+            value: size,
+            tolerance_percent: STORE_TOLERANCE_PERCENT,
+        }],
     );
 }
 
