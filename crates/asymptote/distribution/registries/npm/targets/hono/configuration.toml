@@ -1,0 +1,9 @@
+# What asymptote checks this target with: a run places this file in the project's directory, under asymptote's own name for it.
+# The target is TypeScript, and its linter is oxlint, at the version `tools/install.py` declares.
+[[tools]]
+id = "oxlint"
+group = "lint"
+run = ["oxlint", "--format", "sarif"]
+output = "sarif"
+timeout-seconds = 600
+inputs = ["."]
