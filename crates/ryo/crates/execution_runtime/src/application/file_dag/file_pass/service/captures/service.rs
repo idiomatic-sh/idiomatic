@@ -15,6 +15,7 @@ use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::service::refusals::service::deferred_layout;
 use ryo_execution_domain::domain::executable_program::service::rule as fused_rule;
 use ryo_execution_domain::domain::executable_program::types::RuleNodes;
 use ryo_execution_domain::domain::finish::service::escape_frame;
@@ -95,6 +96,15 @@ pub(crate) fn captured_rule(
         if after_the_files {
             continue;
         }
+        // A relation the file never read stops the rule here: nothing is handed over, as the interpreter stopped a rule whose
+        // frontier named facts the file did not read.
+        let relation = match *source {
+            Input::Relation(relation) => match relation_rows(at, rule, relation) {
+                Ok(answer) => Some(answer),
+                Err(error) => return Ok(RuleAfter::Stopped(FileStop::Operating(error))),
+            },
+            Input::Step(_) | Input::BoundObservation(_) => None,
+        };
         let outcome = (|| {
             let NodeAnswer {
                 mut table,
@@ -106,9 +116,18 @@ pub(crate) fn captured_rule(
                         .get(usize::try_from(step.0).unwrap_or(usize::MAX))
                         .ok_or(OperatingError::NotRun)
                         .and_then(Clone::clone);
-                    node_rows(at, symbols, rule, node, step)?
+                    let deferred = node
+                        .as_ref()
+                        .is_ok_and(|node| deferred_layout(&at.pass.program, *node).is_some());
+                    let mut answer = node_rows(at, symbols, rule, node, step)?;
+                    // A deferred refusal holding no row is handed over with no column: the step after the files that reads it
+                    // reads none, as a reader in the file does (`NodeMove::Empty`).
+                    if deferred && answer.table.count.0 == 0 {
+                        answer.table.kinds.clear();
+                    }
+                    answer
                 }
-                Input::Relation(relation) => relation_rows(at, rule, relation)?,
+                Input::Relation(_) => relation.ok_or(OperatingError::NotRead)?,
                 Input::BoundObservation(id) => {
                     match at.inputs.observation(BoundObservationPlace::of(
                         RuleOrdinal(
