@@ -1,0 +1,67 @@
+# The store main's engine keeps over ruff with the replay's live rules, measured once: the figure the release gate in
+# replay/cache.rs compares this engine's store with, on the same rules, the same languages and the same files.
+# Measured in a temporary checkout of main at `commit` in a builder's worktree: each recording held its live rule's query as
+# `query.ryoql` and this branch's `parameters.toml` and `scope.toml`, main's replay linked Rust and TOML, and its walk skipped the
+# directories `ryo` skips. A rule main cannot run is dropped from both sides and named under `dropped`.
+[main]
+commit = "acf3e1b27be4ecd722b978802e17a732765d8dc0"
+measured = "2026-11-16"
+command = "flock /workspaces/.cargo-build.lock cargo nextest run -p idiomatic-sh-ryo --test replay -E 'test(measure_on_main)' --no-capture"
+bytes = 2279490860
+languages = ["rust", "toml"]
+rules = [
+  "adapter-at-root",
+  "allow-attributes-per-file",
+  "boxed-dyn-error-annotations",
+  "case-vocabulary",
+  "constant-assertions",
+  "crate-dependency-cycles",
+  "crate-dependency-depth",
+  "deep-function-nesting",
+  "deep-nesting",
+  "dependency-feature-sprawl",
+  "duplicate-function-bodies",
+  "error-variant-never-constructed",
+  "field-written-never-read",
+  "file-length",
+  "function-called-from-one-file",
+  "glob-imports",
+  "import-fan-in",
+  "layer-order",
+  "let-single-arm-match",
+  "long-function",
+  "lossy-float-literals",
+  "module-cycles",
+  "nested-function-count",
+  "no-env-reads",
+  "no-ignored-tests",
+  "no-public-options",
+  "no-reexports",
+  "orphan-rust-files",
+  "parallel-members",
+  "parse-errors",
+  "print-in-library",
+  "pub-item-unreferenced-elsewhere",
+  "repeated-bound-strings",
+  "repeated-string-literals",
+  "same-name-in-sibling-crates",
+  "scattered-dispatch",
+  "shadowed-prelude",
+  "test-names-nothing-beside",
+  "threads-at-adapter",
+  "todo-comments",
+  "too-many-parameters",
+  "trait-with-one-impl",
+  "type-used-only-elsewhere",
+  "unfinished-macros",
+  "unsafe-without-safety",
+  "unwrap-outside-tests",
+  "workspace-completeness",
+]
+dropped = [
+  { rule = "empty-else", why = "ryo does not run the recorded query: the recorded rules do not run: rule `empty-else`: kind `keyword` names no kind of rust, toml" },
+  { rule = "io-at-boundary", why = "ryo does not compile the recorded query: no relation named `tastemaker.placed`" },
+  { rule = "match-on-bool", why = "ryo does not run the recorded query: the recorded rules do not run: rule `match-on-bool`: kind `{match,switch-statement}` names no kind of rust, toml" },
+  { rule = "no-json-in-process", why = "ryo does not compile the recorded query: no relation named `tastemaker.placed`" },
+  { rule = "unseparated-literals", why = "ryo does not run the recorded query: the recorded rules do not run: rule `unseparated-literals`: kind `numeric` names no kind of rust, toml" },
+]
