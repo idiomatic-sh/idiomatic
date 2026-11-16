@@ -1,0 +1,32 @@
+description = "Selects each file its entry reaches, so a condition it answers holds when the entry's include matches a file."
+why = "Lets the directory tell whether it holds a registry's package file without a capture, which a count cannot say alone: a product holding `registries/npm/package.json` has npm's build, launcher and platforms, and a product holding none has none. It answers the `npm` and `pypi` conditions and is never placed as a check, so its rows are never findings; its level only lets its fixtures show them."
+
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+emit files subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "`{path}` is present"
+help = "Nothing to fix: this rule only answers a condition, and its rows are never reported as findings."
+
+[given]
+include = ['registries/npm/package.json']
+
+[[scenarios]]
+id = 'file-entry-reaches-answers-yes'
+scenario = 'A file the entry reaches answers yes.'
+given.files.'registries/npm/package.json' = '''
+{ "name": "@idiomatic-sh/demo" }
+'''
+then.findings = [
+  { path = 'registries/npm/package.json' },
+]
+
+[[scenarios]]
+id = 'no-file-entry-reaches-answers-no'
+scenario = 'No file the entry reaches answers no.'
+given.files.'registries/cargo/smoke_test.rs' = '''
+//! The proof of Cargo's registry.
+'''

@@ -168,16 +168,18 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--bench", "commands"]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
+inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "performance-distribution"
 group = "perf"
-# The `distribution` bench: each registry's targets through the installed command, cold, warm and after an edit.
+# The `distribution` bench: each registry's targets through the installed command, cold, warm and after an edit. The targets state
+# their pin alone and no policy: they have no findings yet, and the bench measures none until a tool that needs no Tastemaker
+# policy gives each its expected findings.
 run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "build"
