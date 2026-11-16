@@ -24,9 +24,20 @@ use ryo_values::domain::query_operators::types::OperationKind;
 pub fn indexed_input(
     operation: &ryo_values::domain::plans::types::Operation,
 ) -> Option<ryo_values::domain::plan_parts::types::InputNumber> {
+    use super::resources::types::ResourceProgram;
     match super::resources::service::prepare(operation) {
-        super::resources::types::ResourceProgram::Index { input, .. } => Some(input),
-        _ => None,
+        ResourceProgram::Index { input, .. } => Some(input),
+        ResourceProgram::None
+        | ResourceProgram::Appended(_)
+        | ResourceProgram::Rank(_)
+        | ResourceProgram::Join(_)
+        | ResourceProgram::Count { .. }
+        | ResourceProgram::Digest { .. }
+        | ResourceProgram::Closure { .. }
+        | ResourceProgram::Cycles { .. }
+        | ResourceProgram::Ordered { .. }
+        | ResourceProgram::Dfs(_)
+        | ResourceProgram::Axis(_) => None,
     }
 }
 
