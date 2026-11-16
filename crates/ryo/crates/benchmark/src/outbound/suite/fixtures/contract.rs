@@ -1,5 +1,5 @@
 //! Physical artifact observations shared by suite adapters; audit policy stays in application.
-use super::samples::{classify, escaping_case, given_file, request, store, tool};
+use super::samples::{Refusal, classify, escaping_case, given_file, request, store, tool};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::{
     interface::SuitePort,
@@ -42,12 +42,6 @@ pub enum Operation {
 }
 type Input = Operation;
 type Value = usize;
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Refusal {
-    Unexpected,
-    MissingArtifact,
-    Refused,
-}
 type Failure = Refusal;
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

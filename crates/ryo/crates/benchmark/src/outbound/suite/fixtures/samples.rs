@@ -117,14 +117,23 @@ pub fn store(root: &std::path::Path) -> std::io::Result<std::path::PathBuf> {
 /// How the contract classifies a refusal: a missing artifact, or anything else.
 pub(super) fn classify(
     error: ryo_benchmark_contracts::domain::reports::errors::ReportsError,
-) -> super::contract::Refusal {
+) -> Refusal {
     use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
     match error {
         Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            super::contract::Refusal::MissingArtifact
+            Refusal::MissingArtifact
         }
-        Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
-            super::contract::Refusal::Unexpected
-        }
+        Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => Refusal::Unexpected,
     }
+}
+
+/// How the contract tells refusals apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Refusal {
+    /// Anything but a missing artifact.
+    Unexpected,
+    /// The artifact is missing.
+    MissingArtifact,
+    /// The adapter refused the request.
+    Refused,
 }

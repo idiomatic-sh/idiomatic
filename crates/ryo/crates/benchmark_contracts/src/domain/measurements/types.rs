@@ -152,15 +152,6 @@ pub enum MeasurementMode {
     Diagnostic,
 }
 
-/// Whether a sample covers the complete rule inventory.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum InventoryStatus {
-    /// Every declared rule was measured.
-    Complete,
-    /// Only a scoped subset was measured.
-    Diagnostic,
-}
-
 /// One generated shape, `<rule>/<scope>/<operation>`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GrowthShape(pub String);

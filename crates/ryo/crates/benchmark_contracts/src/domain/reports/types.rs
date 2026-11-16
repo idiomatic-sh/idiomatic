@@ -218,13 +218,6 @@ pub struct RuleComparison<Finding> {
     pub end_differences: Vec<EndPair<Finding>>,
 }
 
-/// The name a contestant's counts carry in parity evidence.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ContestantName<'a>(
-    /// The name.
-    pub &'a str,
-);
-
 /// One difference of a corpus comparison that no acceptance covers, as a person reads it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParityProblem(
