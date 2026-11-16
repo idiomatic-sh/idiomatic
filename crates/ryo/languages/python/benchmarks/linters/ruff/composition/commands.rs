@@ -20,6 +20,10 @@ use ryo_benchmark::inbound::use_cases::check_worker_request::{
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
+use ryo_benchmark::inbound::use_cases::select_cases::types::CaseRun;
+use ryo_benchmark::inbound::use_cases::verify_rule_profiles::{
+    interface::VerifyRuleProfilesUseCase as _, use_case::VerifyRuleProfilesUseCaseImpl,
+};
 use ryo_benchmark::inbound::use_cases::{
     select_cases::{interface::SelectCasesUseCase as _, types::CaseArgument},
     stage_suite::interface::StageSuiteUseCase as _,
@@ -35,8 +39,6 @@ use ryo_benchmark::outbound::worker::{interface::WorkerPort, types::WorkerSource
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
-use ryo_benchmark::application::rule_profiles::service::verify_each;
-use ryo_benchmark::inbound::use_cases::select_cases::types::CaseRun;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -149,15 +151,17 @@ pub(super) fn verify_cases(
         ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl::new()
             .select_cases(&flags)?;
     // Each rule is verified under its own settings profile, reached through the harness's one registrar.
-    verify_each(
-        &ryo_benchmark::outbound::suite::factory::local(),
+    let suite = ryo_benchmark::outbound::suite::factory::local();
+    VerifyRuleProfilesUseCaseImpl::new(
+        &suite,
         &ryo_benchmark::outbound::inventory::factory::local(),
+    )
+    .verify_rule_profiles(
         &source,
         run.shard,
-        constants::VERIFY_CASES_SCRATCH,
-        &mut |profile| verify_profile(&executable, profile, &run).map(|count| count.0),
+        ArtifactText(constants::VERIFY_CASES_SCRATCH),
+        &mut |profile| verify_profile(&executable, profile, &run),
     )
-    .map(CaseCount)
 }
 
 /// Verify the profile at `source` against both contestants, its rules under its one settings profile.
@@ -239,15 +243,20 @@ pub(super) fn verify_reference_cases(
         .next()
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
     // Each rule is checked under its own settings profile, reached through the harness's one registrar.
-    verify_each(
-        &ryo_benchmark::outbound::suite::factory::local(),
+    let suite = ryo_benchmark::outbound::suite::factory::local();
+    VerifyRuleProfilesUseCaseImpl::new(
+        &suite,
         &ryo_benchmark::outbound::inventory::factory::local(),
+    )
+    .verify_rule_profiles(
         &source,
         ryo_benchmark_contracts::domain::requests::types::ShardPartition::All,
-        constants::VERIFY_REFERENCE_SCRATCH,
-        &mut |profile| verify_reference_profile(&executable, profile).map(|count| count.0),
+        ArtifactText(constants::VERIFY_REFERENCE_SCRATCH),
+        &mut |profile| {
+            verify_reference_profile(&executable, profile).map(|count| CaseCount(count.0))
+        },
     )
-    .map(ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount)
+    .map(|count| ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount(count.0))
 }
 
 /// Validate the fixture expectations of the profile at `source` against the reference, without loading a candidate.
