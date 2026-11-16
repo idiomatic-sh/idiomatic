@@ -9,6 +9,7 @@ use crate::domain::discrepancy::service::{describe_difference, judge};
 use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::suite::constants;
+use crate::domain::suite::types::RuleTiming;
 use crate::outbound::host::interface::HostPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::{
@@ -24,7 +25,15 @@ use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use ryo_benchmark_contracts::domain::workloads::types::{
     PreparedCase, case_count::value::CaseCount,
 };
+use std::collections::BTreeMap;
 use std::path::Path;
+use std::time::Instant;
+
+/// What a verification answered: the cases it checked and how long each rule's whole case set took.
+pub(crate) struct Verified {
+    pub(crate) count: CaseCount,
+    pub(crate) timings: BTreeMap<ryo::linter::RuleId, RuleTiming>,
+}
 
 /// Execute admitted materialized cases through the same verification workflow.
 #[expect(
@@ -43,7 +52,7 @@ pub(super) fn verify_prepared_shard(
     rules: &Path,
     mut cases: Vec<PreparedCase>,
     selection: CaseSelection,
-) -> Result<CaseCount, Error> {
+) -> Result<Verified, Error> {
     if cases.is_empty() {
         return Err(Error::Invalid(constants::NO_CASES.into()));
     }
@@ -75,6 +84,8 @@ pub(super) fn verify_prepared_shard(
             constants::PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE.into(),
         ));
     }
+    let mut timings: BTreeMap<ryo::linter::RuleId, RuleTiming> = BTreeMap::new();
+    let started = Instant::now();
     let mut initial = Some(run_candidate(
         suite,
         context,
@@ -82,8 +93,11 @@ pub(super) fn verify_prepared_shard(
         execution,
         &first.request,
     )?);
+    // The first candidate run loads and compiles the profile for every case; it is the first case's time.
+    let mut startup = Some(started.elapsed());
     let mut failures = Vec::new();
     for (case, proof) in selected_cases.into_iter().zip(proofs) {
+        let case_started = Instant::now();
         for (contestant, tool) in [
             (Contestant::Reference, reference),
             (Contestant::Candidate, candidate),
@@ -184,13 +198,24 @@ pub(super) fn verify_prepared_shard(
                 }
             }
         }
+        let elapsed = case_started.elapsed() + startup.take().unwrap_or_default();
+        timings
+            .entry(case.rule.clone())
+            .or_default()
+            .record(elapsed);
+        failures.extend(crate::domain::suite::service::over_case_limit(
+            &case.rule, &case.name, elapsed,
+        ));
     }
     if failures.is_empty() {
         debug_assert!(
             count <= global_count.0,
             "selected cases must belong to the audited inventory"
         );
-        Ok(CaseCount(count))
+        Ok(Verified {
+            count: CaseCount(count),
+            timings,
+        })
     } else {
         Err(Error::Invalid(format!(
             "{count} cases checked; failures:\n{}",

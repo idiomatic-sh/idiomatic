@@ -46,3 +46,5 @@ pub(super) const MISSING_CLASS: &str = "-missing";
 pub(super) const EXTRA_CLASS: &str = "-extra";
 /// The suffix of a contestant's end key in an end-difference sample, after its name.
 pub(super) const END_KEY: &str = "_end";
+/// The benchmark and measure prefix of the verification times.
+pub(super) const VERIFY: &str = "verify";

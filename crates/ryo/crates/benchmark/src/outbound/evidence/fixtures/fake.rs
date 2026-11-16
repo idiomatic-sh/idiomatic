@@ -36,6 +36,17 @@ impl EvidencePort for EvidenceFake {
     ) -> Result<(), Error> {
         Ok(())
     }
+    /// The fake has no external effects, so the verification times go nowhere.
+    fn verification(
+        &self,
+        _linter: &ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName,
+        _timings: &std::collections::BTreeMap<
+            ryo::linter::RuleId,
+            crate::domain::suite::types::RuleTiming,
+        >,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
     /// The fake has no external effects, so the parity evidence goes nowhere.
     fn parity(
         &self,

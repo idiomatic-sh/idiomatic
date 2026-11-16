@@ -20,3 +20,19 @@ pub enum ContextAbsence {
     /// The context does not name the input as absent.
     Unnamed,
 }
+
+/// How long the cases of one rule took to verify.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RuleTiming {
+    /// The time of every case of the rule together.
+    pub total: std::time::Duration,
+    /// The time of the rule's slowest case.
+    pub slowest: std::time::Duration,
+}
+impl RuleTiming {
+    /// Count one case that took `elapsed`.
+    pub fn record(&mut self, elapsed: std::time::Duration) {
+        self.total += elapsed;
+        self.slowest = self.slowest.max(elapsed);
+    }
+}

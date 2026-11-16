@@ -116,7 +116,7 @@ pub(crate) fn verify_shard(
         suite.prepared.clone(),
         CaseSelection::default(),
     )
-    .map(|count| count.0)
+    .map(|verified| verified.count.0)
 }
 
 /// Sets the permission bits of `path`; a file system with no modes has none to set.

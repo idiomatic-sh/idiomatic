@@ -31,6 +31,7 @@ fn verify(
         candidate,
         execution,
         &inventory,
+        &ryo_benchmark::outbound::evidence::fixtures::fake::EvidenceFake,
     )
     .verify_cases(
         rules,

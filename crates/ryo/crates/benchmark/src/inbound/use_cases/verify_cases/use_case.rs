@@ -13,6 +13,7 @@ pub struct VerifyCasesUseCaseImpl<'a> {
     candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
     execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
     inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
+    evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
 }
 impl<'a> VerifyCasesUseCaseImpl<'a> {
     /// Borrow the boundaries already composed by the caller.
@@ -26,6 +27,7 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
         candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
         execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
         inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
+        evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
     ) -> Self {
         Self {
             suite,
@@ -36,6 +38,7 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
             candidate,
             execution,
             inventory,
+            evidence,
         }
     }
 }
@@ -69,7 +72,7 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
             rules,
             scratch,
         )?;
-        super::service::verify_prepared_shard(
+        let verified = super::service::verify_prepared_shard(
             self.suite,
             self.host,
             self.receipts,
@@ -81,6 +84,15 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
             rules,
             cases,
             selection,
-        )
+        )?;
+        let tool = self
+            .suite
+            .profile(crate::outbound::suite::types::ArtifactPath(
+                rules.parent().ok_or_else(|| {
+                    ReportsError::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into())
+                })?,
+            ))?;
+        self.evidence.verification(&tool.tool, &verified.timings)?;
+        Ok(verified.count)
     }
 }

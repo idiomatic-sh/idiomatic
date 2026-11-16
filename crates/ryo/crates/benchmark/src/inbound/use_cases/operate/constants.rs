@@ -7,7 +7,8 @@ pub const SHARDS_OPTION: &str = "--shards";
 pub const SHARDS_ONLY_VERIFY_INVENTORY: &str = "--shards applies to verify-inventory only";
 /// The refusal when the operation failed.
 pub const FAILED: &str = "the bench operation failed; see its output directory";
-/// How long one rule's verification may take, in seconds.
+/// How long one rule's whole worker may run before it is taken to be hung, in seconds; the per-case limit is the harness's
+/// `CASE_TIME_LIMIT`.
 pub const RULE_TIMEOUT_SECONDS: u64 = 120;
 /// The build tool the bench workers are built with, found on the search path.
 pub const BUILD_TOOL: &str = "cargo";
