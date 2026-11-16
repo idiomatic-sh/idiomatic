@@ -33,3 +33,9 @@ name = "same-line-noqa"
 comparison = "full"
 files = { "case.py" = "x = \"A\u0000B\u0000\"  # noqa: PLE2514\n" }
 expected = []
+
+[[cases]]
+name = "string-contents-parsed-as-expressions"
+comparison = "full"
+files = { "case.py" = "g(\"'\u0000'\")\nx: \"'\u0000'\" = 1\n" }
+expected = [{ rule = "PLE2514", file = "case.py", start = 4, end = 5 }, { rule = "PLE2514", file = "case.py", start = 14, end = 15 }]
