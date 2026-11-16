@@ -36,6 +36,10 @@ The `query_language` domain's `comparing` concept: the sides of a comparison, re
 
 The `query_language` domain's `cutting` concept: the rows a file hands over, cut to the columns the steps after the files ask.
 
+### distinctness
+
+The `query_language` domain's `distinctness` concept: whether the rows of a step hold each value of a set of its columns once, so a join keyed on them meets one row of that step at most.
+
 ### expanding
 
 The `query_language` domain's `expanding` concept: the expansion of every imported-fragment call into fresh, identity-linked steps.
@@ -151,3 +155,7 @@ The `query_language` domain's `validation` concept.
 ### walking
 
 The `query_language` domain's `walking` concept: the descents and neighbour lookups of the syntax tree made one walk.
+
+### widths
+
+The `query_language` domain's `widths` concept: how many columns the rows of a relation or a step have, from what the step makes of the rows it reads.

@@ -301,6 +301,12 @@ pub(super) fn answer(
         .map_err(|error| LintError::Execution {
             reason: error.to_string(),
         })?;
+    let handovers = observed
+        .map(ObserverPort::handovers)
+        .transpose()
+        .map_err(|error| LintError::Execution {
+            reason: error.to_string(),
+        })?;
     kept(keeps, run.listing.read.as_ref(), &keep, keeping)?;
     Ok(LintReport {
         dependencies: project_dependencies(&now),
@@ -309,6 +315,9 @@ pub(super) fn answer(
         skipped,
         features: features_of(fed.as_ref(), run),
         work: work_of(fed.as_ref(), run),
+        handovers: handovers.map_or_else(Vec::new, |told| {
+            crate::domain::reporting::service::widest_each(&told, run.paths, run.ids)
+        }),
     })
 }
 

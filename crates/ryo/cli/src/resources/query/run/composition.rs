@@ -55,11 +55,7 @@ pub(crate) fn build(
         root,
         ryo_values::domain::files::types::CorpusListing::Walked,
         Vec::new(),
-        {
-            let mut skipped = crate::languages::skipped();
-            skipped.0.push(edge.store.0.clone());
-            skipped
-        },
+        edge.skipped.clone(),
     ));
     let language: Arc<dyn LanguagePort> = Arc::new(crate::languages::linked());
     let digests: Arc<dyn DigestPort> = Arc::new(digest::factory::blake3());

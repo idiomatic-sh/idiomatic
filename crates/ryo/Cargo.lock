@@ -1310,6 +1310,7 @@ dependencies = [
  "idiomatic-sh-ryo-values",
  "ignore",
  "indicatif",
+ "libtest-mimic",
  "mimalloc",
  "serde",
  "serde_json",

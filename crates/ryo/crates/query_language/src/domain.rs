@@ -8,6 +8,7 @@ pub(crate) mod checking;
 pub(crate) mod combining;
 pub(crate) mod comparing;
 pub(crate) mod cutting;
+pub(crate) mod distinctness;
 pub(crate) mod expanding;
 pub(crate) mod fusing;
 pub(crate) mod idioms;
@@ -35,6 +36,7 @@ pub(crate) mod syntax;
 pub(crate) mod traversing;
 pub(crate) mod validation;
 pub(crate) mod walking;
+pub(crate) mod widths;
 
 pub(crate) mod substituting;
 

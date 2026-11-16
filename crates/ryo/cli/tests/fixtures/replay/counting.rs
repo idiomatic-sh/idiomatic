@@ -144,9 +144,14 @@ pub(crate) fn lint_with_workers(
         rules,
         lint_store,
         workers,
+        None,
         |counted, _output, _report| counted,
     )
 }
+
+/// The observer a lint counts its own work with: the rows each step is fed and what each file hands the steps after the files.
+pub(crate) type Counter =
+    fn() -> Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>;
 
 /// Lints `root` with `rules` on `workers` workers, keeping what it found in `lint_store`, and gives `observe` what the run counted with its
 /// complete emitted output and report: each test keeps what it reads of them.
@@ -159,6 +164,7 @@ pub(crate) fn lint_observing<T>(
     rules: Vec<Rule>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     workers: usize,
+    work: Option<Counter>,
     observe: impl FnOnce(
         Counted,
         row_sink::types::Collected,
@@ -179,7 +185,8 @@ pub(crate) fn lint_observing<T>(
                 RootPath(root.to_string_lossy().into()),
                 ryo_values::domain::files::types::CorpusListing::Walked,
                 Vec::new(),
-                corpus::types::SkippedDirectories(vec![".ryo_cache".into()]),
+                // The directories `ryo` itself skips: the languages' own and the store's.
+                super::base::command_edge(root).skipped,
             ));
         let analysis_language: Arc<dyn language::interface::LanguagePort> = Arc::new(Counting {
             // The replay's languages, the same the pending check asks.
@@ -234,6 +241,11 @@ pub(crate) fn lint_observing<T>(
             Arc::clone(&analysis_digest),
             lint_store,
         )
+    };
+    // The rows each step is fed and what each file hands over are counted when the caller asks, and only then.
+    let use_case = match work {
+        Some(counter) => use_case.counting(counter),
+        None => use_case,
     };
     let request = LintRequest {
         source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,

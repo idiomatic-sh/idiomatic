@@ -2,11 +2,12 @@
 
 use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
-use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::types::{EdgeSource, ElementDemand, InputWidth, StartingRow};
+use super::types::{EdgeSource, ElementDemand, StartingRow};
 use crate::domain::rewriting::types::StepIndex;
+use crate::domain::widths::service::width_of;
+use crate::domain::widths::types::InputWidth;
 use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::service::{column_place, relation_column};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -20,63 +21,6 @@ use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-
-/// How many columns the rows of `input` have, when the plan says so.
-pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
-    match input {
-        Input::BoundObservation(_) => None, // this legacy rewrite does not own the declared bound schema
-        Input::Relation(relation) => Some(InputWidth(
-            u32::try_from(columns(relation).len()).unwrap_or(u32::MAX),
-        )),
-        Input::Step(id) => match &steps
-            .get(usize::try_from(id.0).unwrap_or(usize::MAX))?
-            .operation
-        {
-            Operation::Select { from, kept, .. } => {
-                if kept.is_empty() {
-                    width_of(steps, *from)
-                } else {
-                    Some(InputWidth(u32::try_from(kept.len()).unwrap_or(u32::MAX)))
-                }
-            }
-            Operation::Join { output, .. } => {
-                Some(InputWidth(u32::try_from(output.len()).unwrap_or(u32::MAX)))
-            }
-            Operation::Project { columns, .. } => {
-                Some(InputWidth(u32::try_from(columns.len()).unwrap_or(u32::MAX)))
-            }
-            Operation::Axis { from, output, .. } => {
-                if output.is_empty() {
-                    width_of(steps, *from).map(|width| InputWidth(width.0 + 1))
-                } else {
-                    Some(InputWidth(u32::try_from(output.len()).unwrap_or(u32::MAX)))
-                }
-            }
-            Operation::Extend { .. }
-            | Operation::Union { .. }
-            | Operation::Intersection { .. }
-            | Operation::Difference { .. }
-            | Operation::Antijoin { .. }
-            | Operation::GroupCount { .. }
-            | Operation::Replace { .. }
-            | Operation::SpanBounds { .. }
-            | Operation::SourceMatches { .. }
-            | Operation::RenderSyntax { .. }
-            | Operation::FitsRendered { .. }
-            | Operation::SpanBetween { .. }
-            | Operation::OrderedMatch { .. }
-            | Operation::OrderedDfs { .. }
-            | Operation::GroupDigest { .. }
-            | Operation::Capture { .. }
-            | Operation::Rank { .. }
-            | Operation::Words { .. }
-            | Operation::Closure { .. }
-            | Operation::Cycles { .. }
-            | Operation::Rows { .. }
-            | Operation::Hosted { .. } => None,
-        },
-    }
-}
 
 /// The column of the syntax tree's edges at `index`, when they have that many columns.
 fn edge_column(index: ColumnIndex) -> Option<SyntaxChildColumn> {

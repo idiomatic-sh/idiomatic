@@ -93,6 +93,7 @@ pub(crate) fn complete(
         rules,
         Arc::clone(kept),
         0,
+        None,
         |counted, output, report| (counted, Complete { output, report }),
     )
     .expect(run)
@@ -210,4 +211,96 @@ pub(crate) struct Kept(pub Arc<dyn LintStorePort>);
 /// A store that keeps what a run gives it in memory, for as long as it lives.
 pub(crate) fn in_memory() -> Kept {
     Kept(Arc::new(ryo_core::outbound::lint_store::factory::memory()))
+}
+
+/// This engine's store over ruff beside main's, on the rules main's engine ran: main's figure, recorded once, and this one's.
+pub(crate) struct AgainstMain {
+    /// The bytes main's engine kept, as `fixtures/measured.toml` records them.
+    pub main: u64,
+    /// The bytes this engine keeps.
+    pub here: u64,
+    /// What a gate says when this one is the bigger: both figures, main's commit and date, and the rules left out.
+    pub said: String,
+}
+
+/// The store this engine keeps over ruff with the rules main's engine ran (`fixtures/measured.toml`: its commit, the command and
+/// the date it was measured), Rust and TOML linked as main linked them, beside main's figure. The rules main could not run are
+/// left out of both sides, and named.
+///
+/// # Panics
+///
+/// When the measurement cannot be read, a rule it names is no recording here, or the rules do not run.
+pub(crate) fn against_main() -> AgainstMain {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/measured.toml");
+    let measured: toml::Table = std::fs::read_to_string(&path)
+        .expect("the recorded measurement")
+        .parse()
+        .expect("the recorded measurement is TOML");
+    let main = measured
+        .get("main")
+        .and_then(toml::Value::as_table)
+        .expect("the measurement of main");
+    let text = |key: &str| {
+        main.get(key)
+            .and_then(toml::Value::as_str)
+            .unwrap_or_else(|| panic!("the measurement names its `{key}`"))
+            .to_owned()
+    };
+    let (commit, date) = (text("commit"), text("measured"));
+    let bytes = main
+        .get("bytes")
+        .and_then(toml::Value::as_integer)
+        .and_then(|bytes| u64::try_from(bytes).ok())
+        .expect("the measured bytes");
+    let names: Vec<String> = main
+        .get("rules")
+        .and_then(toml::Value::as_array)
+        .expect("the rules measured")
+        .iter()
+        .filter_map(|name| name.as_str().map(str::to_owned))
+        .collect();
+    let dropped: Vec<String> = main
+        .get("dropped")
+        .and_then(toml::Value::as_array)
+        .expect("the rules left out")
+        .iter()
+        .filter_map(|each| {
+            each.get("rule")
+                .and_then(toml::Value::as_str)
+                .map(str::to_owned)
+        })
+        .collect();
+    let rules: Vec<ryo_core::inbound::use_cases::lint::types::Rule> = super::base::recordings()
+        .iter()
+        .filter(|each| names.contains(&each.name))
+        .map(super::base::rule_of)
+        .collect();
+    assert_eq!(
+        rules.len(),
+        names.len(),
+        "every rule main ran is a recording here"
+    );
+    let copy = super::ruff::ruff_copy();
+    let _cold = super::base::lint_report_with_languages(
+        copy.path(),
+        rules,
+        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
+        super::base::store_at(copy.path()),
+        Vec::new(),
+        false,
+        vec![ryo_core::outbound::language::factory::LanguageConnection::from(ryo_toml::linked())],
+    )
+    .expect("the rules run");
+    let size = std::fs::metadata(copy.path().join(".ryo_cache/lint.store"))
+        .expect("the store")
+        .len();
+    eprintln!("STORE {size} bytes, main's {bytes}");
+    AgainstMain {
+        main: bytes,
+        here: size,
+        said: format!(
+            "the store over ruff with the {} rules main ran is {size} bytes, more than main's {bytes} (main {commit}, measured {date}); left out of both sides: {dropped:?}",
+            names.len()
+        ),
+    }
 }

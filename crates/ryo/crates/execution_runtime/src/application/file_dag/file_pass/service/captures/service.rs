@@ -39,6 +39,7 @@ use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepScope};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{FrontierOrdinal, FrontierProof, ProducerRule};
 use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::runs::types::{FileHandover, ParsedRows, RowsHanded, RuleNumber};
 use ryo_values::domain::stored_facts::service::frontier_bucket;
 use ryo_values::domain::table_words::service::{encode_table, pack};
 use ryo_values::domain::table_words::types::WordSlice;
@@ -68,6 +69,8 @@ pub(crate) fn captured_rule(
         ..
     } = context;
     let mut captures = Vec::with_capacity(frontiers.len());
+    // The rows this file hands the rule's steps after the files, every input together, for an observer that asked.
+    let mut handed = 0_u64;
     for (index, source) in frontiers.iter().enumerate() {
         let input = InputNumber(index);
         if capture.intent == CaptureIntent::Observations
@@ -125,6 +128,8 @@ pub(crate) fn captured_rule(
                 }
             };
             let coverage = file_frontier_coverage(coverage, at.file)?;
+            let rows = table.count;
+            handed = handed.saturating_add(u64::try_from(rows.0).unwrap_or(u64::MAX));
             let frame_places = escape_frame(
                 &mut table,
                 Leaving {
@@ -156,9 +161,20 @@ pub(crate) fn captured_rule(
                     coverage,
                 },
                 words: packed,
+                rows,
             })
         })();
         captures.push(FrontierCapture { input, outcome });
+    }
+    if let Some(observer) = at.request.observer
+        && handed != 0
+    {
+        observer.handed(FileHandover {
+            file: at.file,
+            rule: RuleNumber(u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?),
+            handed: RowsHanded(handed),
+            parsed: ParsedRows(u64::try_from(at.inputs.lookup.tree().kind.len()).unwrap_or(u64::MAX)),
+        })?;
     }
     if let Some(error) = at.inputs.refused.take() {
         return Ok(RuleAfter::Stopped(FileStop::Facts(error)));

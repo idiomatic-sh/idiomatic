@@ -6,7 +6,7 @@ use super::types::StepColumn;
 use super::types::ValueOrigin;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::resolving::service::relation_fields;
-use crate::domain::walking::service::width_of;
+use crate::domain::widths::service::width_of;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::lineage::service::anchor_of;

@@ -3,8 +3,11 @@
 
 use super::types::Regrouped;
 use super::types::SplitJoin;
+use crate::domain::distinctness::service::distinct_on;
+use crate::domain::distinctness::types::DistinctMemo;
 use crate::domain::lineage::service::file_lineage;
 use crate::domain::lineage::types::LineageMemo;
+use crate::domain::lowering::types::Uniqueness;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::pushing::service::index_among;
 use crate::domain::pushing::types::ColumnPrefixLength;
@@ -27,11 +30,12 @@ use ryo_values::domain::plans::types::PlanStep;
 
 /// The plan with each join after the files of a per-file input with a join after the files, keyed on columns of that join's per-file
 /// input, made two joins: the two per-file inputs joined in each file, and the join's other input joined with that after the files.
-/// `Join(Join(C, P1, k1), P2, k2)`, with every column of `k2` a column of `P1` and `k2` pairing a column of each side that states its row's file,
-/// becomes `Join(C, Join(P1, P2, k2), k1)`: a file hands over the rows of `P1` and `P2` that meet, not every row of each. Joins are
-/// associative, and every pair `k2` matches is of one file, so the rows and their columns are the same. A key of spans alone states
-/// no file and leaves the join as it is. Done again on the join it makes, so a chain of such joins is made in
-/// each file down to its first input from after the files.
+/// `Join(Join(C, P1, k1), P2, k2)`, with every column of `k2` a column of `P1`, `k2` pairing a column of each side that states its
+/// row's file, and `P1` or `P2` distinct on its columns of `k2`, becomes `Join(C, Join(P1, P2, k2), k1)`: a file hands over the rows
+/// of `P1` and `P2` that meet, not every row of each, and no more rows than the other input has. Joins are associative, and every
+/// pair `k2` matches is of one file, so the rows and their columns are the same. A key of spans alone states no file, and a key
+/// neither input is distinct on would hand over every pair of rows sharing it: both leave the join as it is. Done again on the join
+/// it makes, so a chain of such joins is made in each file down to its first input from after the files.
 #[must_use]
 pub(crate) fn regroup_joins(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
     let steps = regroup_joins_roots(steps, std::slice::from_mut(&mut emitted));
@@ -42,10 +46,14 @@ pub(crate) fn regroup_joins(steps: Vec<PlanStep>, mut emitted: StepId) -> Planne
 pub(crate) fn regroup_joins_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     let mut place = 0;
     let mut memo = LineageMemo::default();
+    let mut distinct = DistinctMemo::default();
     while place < steps.len() {
-        if let Some(Regrouped { inner, outer }) = regrouped(&steps, &mut memo, StepIndex(place)) {
+        if let Some(Regrouped { inner, outer }) =
+            regrouped(&steps, &mut memo, &mut distinct, StepIndex(place))
+        {
             // The steps move, so what was found of them no longer holds.
             memo = LineageMemo::default();
+            distinct = DistinctMemo::default();
             // The join of the per-file inputs takes the place of the join it was made from, which follows it.
             let first = StepId(u32::try_from(place).unwrap_or(u32::MAX));
             for step in &mut steps {
@@ -163,14 +171,19 @@ fn kept_from(side: Side, columns: &[ColumnIndex]) -> impl Iterator<Item = JoinCo
 }
 
 /// The two joins the join at `place` is regrouped into, with the join after the files on either side of it.
-fn regrouped(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Option<Regrouped> {
+fn regrouped(
+    steps: &[PlanStep],
+    memo: &mut LineageMemo,
+    distinct: &mut DistinctMemo,
+    place: StepIndex,
+) -> Option<Regrouped> {
     let step = steps.get(place.0)?;
     if step.scope != StepScope::CrossFile {
         return None;
     }
     let at = Input::Step(StepId(u32::try_from(place.0).unwrap_or(u32::MAX)));
-    regrouped_on(steps, memo, &step.operation, Side::Left, at)
-        .or_else(|| regrouped_on(steps, memo, &step.operation, Side::Right, at))
+    regrouped_on(steps, memo, distinct, &step.operation, Side::Left, at)
+        .or_else(|| regrouped_on(steps, memo, distinct, &step.operation, Side::Right, at))
 }
 
 /// The two joins `outer` is regrouped into when the join after the files is its input on `side`; the join of the per-file inputs
@@ -182,6 +195,7 @@ fn regrouped(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Op
 fn regrouped_on(
     steps: &[PlanStep],
     memo: &mut LineageMemo,
+    distinct: &mut DistinctMemo,
     outer: &Operation,
     side: Side,
     at: Input,
@@ -245,6 +259,14 @@ fn regrouped_on(
         &other_source_keys,
         &[],
     ) == KeyPairing::Unproven
+    {
+        return None;
+    }
+    // The inner join runs in each file and its rows are handed over: unless one input is distinct on its keys, every row of one meets
+    // every row of the other that shares a key, and a file with `k` children of one parent hands over `k * k` pairs of them where the
+    // join after the files read `k` rows of each.
+    if distinct_on(steps, distinct, split.local, &inner_local_keys) == Uniqueness::Shared
+        && distinct_on(steps, distinct, other, &other_source_keys) == Uniqueness::Shared
     {
         return None;
     }

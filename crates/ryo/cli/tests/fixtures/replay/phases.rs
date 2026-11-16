@@ -96,10 +96,11 @@ pub(crate) fn ruff_phase(copy: &Path, rules: Vec<Rule>, keep: bool, label: &'sta
     let cpu = cpu_time::ProcessTime::now();
     // The complete output and report are kept as they are, and written as text and digested only after the timers stop:
     // writing them is the bench's work, not the run's.
-    let (run, output, report) = lint_observing(copy, rules, kept, 0, |counted, output, report| {
-        (counted, output, report)
-    })
-    .expect("the rules run over the copy");
+    let (run, output, report) =
+        lint_observing(copy, rules, kept, 0, None, |counted, output, report| {
+            (counted, output, report)
+        })
+        .expect("the rules run over the copy");
     let wall = started.elapsed().as_millis();
     let cpu = cpu.elapsed().as_millis();
     let output_digest = format!(

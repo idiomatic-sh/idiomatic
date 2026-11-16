@@ -259,6 +259,16 @@ fn the_store_every_recorded_rule_keeps_over_ruff_stays_within_its_bound() {
     );
 }
 
+/// The release gate on the store (owner, 2026-11-16): over ruff, with the rules main's engine ran, Rust and TOML linked and the same
+/// files, this engine keeps a store no bigger than main's, recorded once with its commit, command and date (`stores::against_main`).
+/// The 75 MB budget above stays the target, apart from this gate.
+#[test]
+fn the_store_over_ruff_is_no_bigger_than_mains_with_the_same_rules() {
+    let _beside = crate::beside();
+    let measured = stores::against_main();
+    assert!(measured.here <= measured.main, "{}", measured.said);
+}
+
 #[test]
 fn files_added_and_removed_before_others_move_what_the_others_handed_with_them() {
     let _beside = crate::beside();
