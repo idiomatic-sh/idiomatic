@@ -1,8 +1,8 @@
 //! Readers of refused steps, generated: every reader kind (unary, and binary in both operand orders: union, intersection,
-//! difference, join, anti-join probe) over every refusal pattern (none, direct, relation, node and relation, deferred,
-//! deferred of deferred, and a frontier handed or skipped), with the hosted text empty or one row, observed or not. Every
-//! line the interpreter's answer at checkpoint-350 (64a99968a1) to the same generated input, recorded there in
-//! `tests/fixtures/refusal_order/`.
+//! difference, join, anti-join probe) over every refusal pattern (none, a sound copy, direct, relation, node and relation,
+//! deferred, deferred of deferred, and a frontier handed or skipped, alone and crossed with each other pattern), with the
+//! hosted text empty or one row, observed or not. Every line the interpreter's answer at checkpoint-350 (64a99968a1) to the
+//! same generated input, recorded there in `tests/fixtures/refusal_order/`.
 use super::super::fixtures::programs::{
     antijoin, d, function99, h, i, join, join_functions, p, s, select_all, u, w99, words0,
 };
@@ -17,6 +17,7 @@ type Pattern = fn(u32) -> (Vec<Operation>, u32);
 fn patterns() -> Vec<(&'static str, Pattern)> {
     vec![
         ("none", |_| (vec![], 0)),
+        ("sound", |at| (vec![select_all(0)], at)),
         ("direct", |at| (vec![p(0, &[99])], at)),
         ("relation", |at| (vec![function99()], at)),
         ("node-relation", |at| (vec![join_functions(0, 99)], at)),
@@ -128,16 +129,49 @@ fn in_each_pass() -> String {
     answered
 }
 
-/// Each reader after the files of a frontier: the hosted text in the file, with a deferred refusal of it in the file or not,
-/// handed over by the file (MX) or not, its only file skipped (SK).
-fn across_the_files() -> String {
-    let mut answered = String::new();
-    let handed: Vec<(&str, Vec<Operation>, u32)> = vec![
+/// The frontiers a file hands over: the hosted text, sound or under a deferred refusal or two, by name, with their steps in the
+/// file and the step handed over.
+fn frontiers() -> Vec<(&'static str, Vec<Operation>, u32)> {
+    vec![
         ("front-sound", vec![h()], 0),
         ("front-deferred", vec![h(), w99(0)], 1),
         ("front-deferred2", vec![h(), w99(0), w99(1)], 2),
-    ];
-    for (name, producers, refused) in handed {
+    ]
+}
+
+/// The answers of `steps`, emitting its last step, over the frontier its plan hands over: the file handed over (MX) or
+/// skipped (SK), populated or not, observed or not.
+fn across(label: &str, steps: &[(StepScope, Operation)]) -> String {
+    let plan: Vec<PlanStep> = steps
+        .iter()
+        .map(|(scope, operation)| PlanStep {
+            scope: *scope,
+            operation: operation.clone(),
+        })
+        .collect();
+    let frontier =
+        ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::frontier(&plan);
+    let emit = u32::try_from(steps.len() - 1).expect("a few steps");
+    let mut answered = String::new();
+    for populated in [false, true] {
+        for observe in [false, true] {
+            let answer = both_passes(steps, emit, frontier.clone(), populated, observe);
+            answered.push_str(&format!(
+                "MX {label} pop={populated} obs={observe}: {answer}\n"
+            ));
+            let answer = after_the_files(steps, emit, frontier.clone(), populated, observe);
+            answered.push_str(&format!(
+                "SK {label} pop={populated} obs={observe}: {answer}\n"
+            ));
+        }
+    }
+    answered
+}
+
+/// Each reader after the files of a frontier, against the hosted text handed over beside it.
+fn across_the_files() -> String {
+    let mut answered = String::new();
+    for (name, producers, refused) in frontiers() {
         let mut readers: Vec<(String, Operation)> = unary()
             .into_iter()
             .map(|(reader, read)| (format!("{reader}({name})"), read(refused)))
@@ -153,29 +187,45 @@ fn across_the_files() -> String {
                 .map(|each| (StepScope::PerFile, each))
                 .collect();
             steps.push((StepScope::CrossFile, reader));
-            let plan: Vec<PlanStep> = steps
-                .iter()
-                .map(|(scope, operation)| PlanStep {
-                    scope: *scope,
-                    operation: operation.clone(),
-                })
-                .collect();
-            let frontier =
-                ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::frontier(
-                    &plan,
-                );
-            let emit = u32::try_from(steps.len() - 1).expect("a few steps");
-            for populated in [false, true] {
-                for observe in [false, true] {
-                    let answer = both_passes(&steps, emit, frontier.clone(), populated, observe);
-                    answered.push_str(&format!(
-                        "MX {label} pop={populated} obs={observe}: {answer}\n"
-                    ));
-                    let answer =
-                        after_the_files(&steps, emit, frontier.clone(), populated, observe);
-                    answered.push_str(&format!(
-                        "SK {label} pop={populated} obs={observe}: {answer}\n"
-                    ));
+            answered.push_str(&across(&label, &steps));
+        }
+    }
+    answered
+}
+
+/// Each binary reader after the files of a frontier crossed with every other refusal pattern, in both operand orders: the
+/// pattern's steps in the file (handed over beside the frontier) or after the files, the file handed over (MX) or skipped
+/// (SK).
+fn frontier_crossed() -> String {
+    let mut answered = String::new();
+    for (front, producers, handed) in frontiers() {
+        for (name, pattern) in patterns() {
+            let start = u32::try_from(producers.len()).expect("a few steps");
+            let (steps, refused) = pattern(start);
+            for (place, scope) in [
+                ("in-file", StepScope::PerFile),
+                ("after", StepScope::CrossFile),
+            ] {
+                for (reader, read) in binary() {
+                    for (label, operation) in [
+                        (
+                            format!("{reader}({front},{name}@{place})"),
+                            read(handed, refused),
+                        ),
+                        (
+                            format!("{reader}({name}@{place},{front})"),
+                            read(refused, handed),
+                        ),
+                    ] {
+                        let mut program: Vec<_> = producers
+                            .iter()
+                            .cloned()
+                            .map(|each| (StepScope::PerFile, each))
+                            .collect();
+                        program.extend(steps.iter().cloned().map(|each| (scope, each)));
+                        program.push((StepScope::CrossFile, operation));
+                        answered.push_str(&across(&label, &program));
+                    }
                 }
             }
         }
@@ -198,5 +248,14 @@ fn generated_readers_of_a_frontier_answer_as_the_interpreter_across_the_files() 
     assert_eq!(
         answered,
         include_str!("../../../fixtures/refusal_order/across_the_files.txt")
+    );
+}
+
+#[test]
+fn generated_readers_of_a_frontier_and_another_refusal_answer_as_the_interpreter() {
+    let answered = frontier_crossed();
+    assert_eq!(
+        answered,
+        include_str!("../../../fixtures/refusal_order/frontier_crossed.txt")
     );
 }
