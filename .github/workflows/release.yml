@@ -89,6 +89,7 @@ jobs:
           - { runner: windows-2025, group: release-tests }
           - { runner: ubuntu-26.04, group: release-clippy }
           - { runner: ubuntu-26.04, group: release-coverage }
+          - { runner: ubuntu-26.04, group: memory }
           - { runner: ubuntu-26.04, group: release-msrv }
           - { runner: ubuntu-26.04, group: release-dylint }
           - { runner: ubuntu-26.04, group: release-hack }

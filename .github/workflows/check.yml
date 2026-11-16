@@ -1,7 +1,7 @@
 # The check workflow on GitHub Actions, its thin edge: the pull request gate, and on a push to main the run that seeds the caches a
 # pull request restores. Asymptote alone decides what runs. A pull request runs Linux x86 (ubuntu-26.04) only, and the fewest
 # builds: the `root` job (the repository's own groups), the `pull-request` job (the message main keeps), one `check-linux` job per
-# product (its `lint`, `clippy`, `check`, `release-tests` and `release-coverage` groups in one asymptote call, so the tests share one
+# product (its `lint`, `clippy`, `check`, `release-tests`, `release-coverage` and `memory` groups in one asymptote call, so the tests share one
 # build), the `bench-correctness` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
 # Windows) and groups and `python-release`, a hand run `speed`. Every cache is saved by a run on main alone (`github.ref ==
 # refs/heads/main`) and restored by every run: the Rust cache under one key per machine and product, shared by the groups of a
@@ -259,7 +259,7 @@ jobs:
           key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-check-linux-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-check-linux-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
-      - run: asymptote check --root crates/${{ matrix.product }} --groups lint,clippy,check,release-tests,release-coverage
+      - run: asymptote check --root crates/${{ matrix.product }} --groups lint,clippy,check,release-tests,release-coverage,memory
       - name: Save the asymptote store
         if: always() && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

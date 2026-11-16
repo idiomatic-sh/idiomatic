@@ -178,6 +178,18 @@ timeout-seconds = 3600
 inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../.."]
 
 [[tools]]
+id = "tm-peak"
+group = "memory"
+# The peak resident set of `tm check` over crates/ryo, cold (`cli/tests/replay/check.rs`), as one BMF measure
+# (`crates-ryo/cold-peak-kib`): the lock holds its best and a run fails when it rises over it by more than 5%. The tolerance is
+# the noise of a resident set, which moves with how many workers hold their tables at once; the test itself holds no bound.
+# Target, not a gate: 500 MB.
+run = ["bash", "-c", "set -o pipefail; cargo test --locked --package idiomatic-sh-tastemaker --test replay -- --exact check::checking_crates_ryo_cold_peaks_at_its_measure --nocapture | grep '^{'"]
+output = "bmf"
+timeout-seconds = 3600
+inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../.."]
+
+[[tools]]
 id = "performance"
 group = "perf"
 # The benches print the Bencher Metric Format: the lock holds each measure's best and asymptote judges against it.

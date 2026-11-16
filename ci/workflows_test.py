@@ -774,7 +774,7 @@ def test_a_green_check_on_main_releases_the_products_whose_version_its_commit_ch
 
 
 # The groups a pull request runs for each product on Linux x86, in one asymptote call so that its tools share one build.
-LINUX_GROUPS = ("lint", "clippy", "check", "release-tests", "release-coverage")
+LINUX_GROUPS = ("lint", "clippy", "check", "release-tests", "release-coverage", "memory")
 EVERY_PRODUCT = "${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[\"{0}\"]', inputs.product) || '" + "[" + ",".join(
     f'"{product}"' for product in PRODUCTS
 ) + "]') }}"
