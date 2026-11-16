@@ -94,27 +94,24 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
             flushed(push, readers, stage, after)?;
         }
     }
-    let tail_fed = if length == 1 {
-        head_rows
-    } else {
-        stages.last().map_or(RowCount(0), |stage| stage.read)
-    };
-    let right_fed = stages.last().map_or(RowCount(0), |stage| {
-        if nodes.last().is_some_and(|tail| {
-            physical(push.plan, *tail)
-                .is_ok_and(|tail| matches!(tail.lowering, Lowering::Probe { .. }))
-        }) {
+    // What each stage's node was fed, as the held plan records it for the node it runs: the head stage its head's every row,
+    // a later stage the rows it read, and a probe its right rows too. A fused node is counted as a held one is.
+    for (at, (node, stage)) in nodes.iter().zip(stages.iter()).enumerate() {
+        let left = if at == 0 { head_rows } else { stage.read };
+        let right = if physical(push.plan, *node)
+            .is_ok_and(|node| matches!(node.lowering, Lowering::Probe { .. }))
+        {
             stage.own.fed
         } else {
             RowCount(0)
-        }
-    });
-    if let Some(fed) = nodes.last().and_then(|tail| {
-        push.buffers
+        };
+        if let Some(fed) = push
+            .buffers
             .fed
-            .get_mut(usize::try_from(tail.0).unwrap_or(usize::MAX))
-    }) {
-        *fed = NodeFed([tail_fed, right_fed, RowCount(0)]);
+            .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+        {
+            *fed = NodeFed([left, right, RowCount(0)]);
+        }
     }
     Ok(stages.iter_mut().rev().find_map(|stage| stage.fault.take()))
 }
