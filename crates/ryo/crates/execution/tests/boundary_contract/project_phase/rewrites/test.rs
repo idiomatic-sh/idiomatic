@@ -339,3 +339,44 @@ fn cutting_a_join_in_each_file_to_the_columns_read_after_the_files_keeps_the_row
     );
     assert_eq!(rows(after, after_emitted, &files), before);
 }
+
+#[test]
+fn cutting_a_join_in_each_file_keeps_the_rows_it_repeats_on_the_columns_read_after_the_files() {
+    let files = files();
+    let kept = [ID, NAME, FILE];
+    let at = |place: u32| ColumnIndex(place);
+    // The pairs of functions of each file (id, name, other id), read after the files for the id and the name, which repeat once
+    // for each other function of the file, joined after the files with every name on the name.
+    let steps = vec![
+        functions_kept(&kept),
+        functions_kept(&kept),
+        in_each_file(join(
+            StepId(0),
+            StepId(1),
+            (at(2), at(2)),
+            vec![
+                column(Side::Left, at(0)),
+                column(Side::Left, at(1)),
+                column(Side::Right, at(0)),
+            ],
+        )),
+        functions_kept(&[NAME]),
+        gathered(StepId(3), at(0)),
+        after_the_files(join(
+            StepId(2),
+            StepId(4),
+            (at(1), at(0)),
+            vec![column(Side::Left, at(0))],
+        )),
+    ];
+    let emitted = StepId(5);
+    let before = rows(steps.clone(), emitted, &files);
+    // Each function of the first two files is answered once for each function of its file.
+    assert_eq!(before.len(), 9, "the uncut rows: {before:?}");
+    let (after, after_emitted) = cut(steps.clone(), emitted);
+    assert_ne!(
+        after, steps,
+        "the join is read after the files for two of its three columns"
+    );
+    assert_eq!(rows(after, after_emitted, &files), before);
+}

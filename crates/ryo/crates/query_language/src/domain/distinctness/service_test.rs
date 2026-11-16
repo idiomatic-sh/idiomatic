@@ -24,6 +24,9 @@ enum Scenario {
     TheEdgesJoinedToTheirParentEdge,
     /// The edges joined on their parent with the edges under it: every sibling of each.
     TheEdgesJoinedToTheirSiblings,
+    /// The functions' ids and names after their names were split into words, a projection that keeps its repeated rows, asked of
+    /// both columns.
+    TheWordsOfOneFunctionKeptRepeated,
 }
 
 /// Whether the step is distinct on the columns.
@@ -61,6 +64,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_join_meeting_many_rows_is_shared_on_the_key_of_its_input"),
         word: Word::Succeeds,
         input: || Scenario::TheEdgesJoinedToTheirSiblings,
+        expect: Expect::Value(Uniqueness::Shared),
+    },
+    Case {
+        name: CaseName(
+            "a_projection_that_keeps_repeated_rows_after_a_split_is_shared_on_the_key_it_kept",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::TheWordsOfOneFunctionKeptRepeated,
         expect: Expect::Value(Uniqueness::Shared),
     },
 ];
@@ -105,19 +116,32 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         step(edges_joined(0, 1)),
         // The parent of each edge is the parent of every sibling.
         step(edges_joined(0, 0)),
+        // Each function once for each word of its name, its id and name kept with the repeats.
+        step(Operation::Words {
+            from: Reads::Relation(Relation::Function),
+            text: ColumnIndex(1),
+        }),
+        step(Operation::Project {
+            from: Reads::Step(StepId(4)),
+            columns: vec![ColumnIndex(0), ColumnIndex(1)],
+            distinct: RepeatedRows::Kept,
+        }),
     ];
-    let (at, column) = match scenario {
-        Scenario::TheChildOfTheEdges => (0, 1),
-        Scenario::TheParentOfTheEdges => (0, 0),
-        Scenario::TheMarkedFiles => (1, 0),
-        Scenario::TheEdgesJoinedToTheirParentEdge => (2, 0),
-        Scenario::TheEdgesJoinedToTheirSiblings => (3, 0),
+    let (at, columns): (u32, &[u32]) = match scenario {
+        Scenario::TheChildOfTheEdges => (0, &[1]),
+        Scenario::TheParentOfTheEdges => (0, &[0]),
+        Scenario::TheMarkedFiles => (1, &[0]),
+        Scenario::TheEdgesJoinedToTheirParentEdge => (2, &[0]),
+        Scenario::TheEdgesJoinedToTheirSiblings => (3, &[0]),
+        // Asked of every column it keeps: a projection that drops repeats would be distinct on them.
+        Scenario::TheWordsOfOneFunctionKeptRepeated => (5, &[0, 1]),
     };
+    let keys: Vec<ColumnIndex> = columns.iter().copied().map(ColumnIndex).collect();
     Ok(distinct_on(
         &steps,
         &mut DistinctMemo::default(),
         Reads::Step(StepId(at)),
-        &[ColumnIndex(column)],
+        &keys,
     ))
 }
 

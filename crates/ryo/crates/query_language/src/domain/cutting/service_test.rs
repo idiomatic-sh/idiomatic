@@ -19,6 +19,8 @@ enum Scenario {
     EveryColumnOfAJoinAsked,
     /// The plan of a join asked for its columns 0 and 2, cut.
     TwoOfAJoinsColumnsPlanned,
+    /// A step after the files asks of the name of a count of functions by file and name made in each file.
+    OneColumnOfAGroupingAsked,
 }
 
 /// What the rewrite made of the plan.
@@ -67,6 +69,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::TwoOfAJoinsColumnsPlanned,
         expect: Expect::Value(Answer::Planned(Vec::new(), StepId(0))),
+    },
+    Case {
+        name: CaseName("a_grouping_in_each_file_asked_for_one_of_its_three_columns_is_cut_to_it"),
+        word: Word::Succeeds,
+        input: || Scenario::OneColumnOfAGroupingAsked,
+        expect: Expect::Value(Answer::Cut(true)),
     },
 ];
 
@@ -122,6 +130,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             return Ok(join_asked(vec![ColumnIndex(0), ColumnIndex(2)]));
         }
         Scenario::TwoOfAJoinsColumnsPlanned => return Ok(planned()),
+        Scenario::OneColumnOfAGroupingAsked => return Ok(grouping_asked()),
         Scenario::EveryColumnOfAJoinAsked => {
             return Ok(join_asked(vec![
                 ColumnIndex(0),
@@ -175,4 +184,28 @@ fn planned() -> Value {
     } else {
         Answer::Planned(planned.steps, planned.emitted)
     }
+}
+
+/// A count of the functions of each file by file and name, made in it (file, name, count), and a step after the files that asks of
+/// the names: whether the plan came back with a step that cuts the count.
+fn grouping_asked() -> Value {
+    let steps = vec![
+        PlanStep {
+            operation: Operation::GroupCount {
+                from: Reads::Relation(Relation::Function),
+                keys: vec![ColumnIndex(2), ColumnIndex(1)],
+                distinct: Some(ColumnIndex(0)),
+            },
+            scope: StepScope::PerFile,
+        },
+        PlanStep {
+            operation: Operation::Project {
+                from: Reads::Step(StepId(0)),
+                columns: vec![ColumnIndex(1)],
+                distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+            },
+            scope: StepScope::CrossFile,
+        },
+    ];
+    Answer::Cut(cut_handover(steps.clone(), StepId(1)).steps.len() > steps.len())
 }

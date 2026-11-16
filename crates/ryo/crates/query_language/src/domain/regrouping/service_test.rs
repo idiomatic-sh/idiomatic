@@ -23,10 +23,22 @@ enum Scenario {
     SiblingsOnTheirParent,
     /// The edges of the syntax tree, joined after the files with the edge of their parent: one row at most for each.
     ParentOnItsOwnEdge,
+    /// The functions' ids and names, once for each word of their names, joined after the files with themselves on both: a
+    /// projection that keeps its repeated rows is distinct on nothing, so `k` words would hand over `k * k` rows.
+    WordsKeptOnTheirIdAndName,
 }
 
 /// The plan after the rewrite, and the step it emits.
-type Value = (Vec<PlanStep>, StepId);
+type Plan = (Vec<PlanStep>, StepId);
+
+/// Whether the rewrite made the plan expected: a plan that is not is answered as it came back, which no row expects.
+#[derive(Debug, PartialEq)]
+enum Value {
+    /// The plan expected.
+    AsExpected,
+    /// Another plan, as it came back.
+    Otherwise(Plan),
+}
 type Failure = std::convert::Infallible;
 /// What a row asks of the service.
 type Input = Scenario;
@@ -38,13 +50,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::KeyedOnTheFile,
-        expect: Expect::Value((Vec::new(), StepId(0))),
+        expect: Expect::Value(Value::AsExpected),
     },
     Case {
         name: CaseName("a_join_after_the_files_on_a_name_stays_as_it_is"),
         word: Word::Succeeds,
         input: || Scenario::KeyedOnAName,
-        expect: Expect::Value((Vec::new(), StepId(0))),
+        expect: Expect::Value(Value::AsExpected),
     },
     Case {
         name: CaseName(
@@ -52,13 +64,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::KeyedOnAFileNeitherIsDistinctOn,
-        expect: Expect::Value((Vec::new(), StepId(0))),
+        expect: Expect::Value(Value::AsExpected),
     },
     Case {
         name: CaseName("a_join_of_syntax_edges_on_their_shared_parent_stays_after_the_files"),
         word: Word::Succeeds,
         input: || Scenario::SiblingsOnTheirParent,
-        expect: Expect::Value((Vec::new(), StepId(0))),
+        expect: Expect::Value(Value::AsExpected),
     },
     Case {
         name: CaseName(
@@ -66,7 +78,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::ParentOnItsOwnEdge,
-        expect: Expect::Value((Vec::new(), StepId(0))),
+        expect: Expect::Value(Value::AsExpected),
+    },
+    Case {
+        name: CaseName(
+            "a_join_of_rows_a_split_repeated_on_every_column_a_projection_keeping_repeats_made_stays_after_the_files",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::WordsKeptOnTheirIdAndName,
+        expect: Expect::Value(Value::AsExpected),
     },
 ];
 
@@ -230,19 +250,79 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::SiblingsOnTheirParent => (edges(0), (edges(0), StepId(4))),
         Scenario::ParentOnItsOwnEdge => (edges(1), (edges_regrouped(), StepId(5))),
+        Scenario::WordsKeptOnTheirIdAndName => (words_kept(), (words_kept(), StepId(6))),
         Scenario::KeyedOnTheFile | Scenario::KeyedOnAName => regrouped_by_hand(scenario),
     };
-    let planned = regroup_joins(steps, StepId(4));
-    // The row's value is empty when the plan is the one expected, and the plan that came back when it is not.
-    Ok(if (planned.steps.clone(), planned.emitted) == expected {
-        (Vec::new(), StepId(0))
+    let emitted = expected.1;
+    let emits = if matches!(scenario, Scenario::WordsKeptOnTheirIdAndName) {
+        emitted
     } else {
-        (planned.steps, planned.emitted)
+        StepId(4)
+    };
+    let planned = regroup_joins(steps, emits);
+    Ok(if (planned.steps.clone(), planned.emitted) == expected {
+        Value::AsExpected
+    } else {
+        Value::Otherwise((planned.steps, planned.emitted))
     })
 }
 
+/// The functions after the files, and in each file the functions' ids and names once for each word of their names, kept with
+/// the repeats, twice: the first joined after the files on the id, then joined with the second on the id and the name.
+fn words_kept() -> Vec<PlanStep> {
+    let words = || Operation::Words {
+        from: Reads::Relation(Relation::Function),
+        text: ColumnIndex(1),
+    };
+    let kept = |from: u32| Operation::Project {
+        from: Reads::Step(StepId(from)),
+        columns: vec![ColumnIndex(0), ColumnIndex(1)],
+        distinct: RepeatedRows::Kept,
+    };
+    vec![
+        step(
+            Operation::Select {
+                from: Reads::Relation(Relation::Function),
+                comparisons: Vec::new(),
+                kept: vec![ColumnIndex(0)],
+            },
+            StepScope::CrossFile,
+        ),
+        step(words(), StepScope::PerFile),
+        step(kept(1), StepScope::PerFile),
+        step(words(), StepScope::PerFile),
+        step(kept(3), StepScope::PerFile),
+        step(
+            join(
+                Reads::Step(StepId(0)),
+                Reads::Step(StepId(2)),
+                (0, 0),
+                vec![
+                    column(Side::Left, 0),
+                    column(Side::Right, 0),
+                    column(Side::Right, 1),
+                ],
+            ),
+            StepScope::CrossFile,
+        ),
+        step(
+            Operation::Join {
+                left: Reads::Step(StepId(5)),
+                right: Reads::Step(StepId(4)),
+                left_on: vec![ColumnIndex(1), ColumnIndex(2)],
+                right_on: vec![ColumnIndex(0), ColumnIndex(1)],
+                output: vec![column(Side::Left, 0), column(Side::Right, 0)],
+                filter: Vec::new(),
+                view: Vec::new(),
+                reach: None,
+            },
+            StepScope::CrossFile,
+        ),
+    ]
+}
+
 /// The plan before the rewrite and the plan expected of it, for the rows over the files with a marker.
-fn regrouped_by_hand(scenario: Input) -> (Vec<PlanStep>, Value) {
+fn regrouped_by_hand(scenario: Input) -> (Vec<PlanStep>, Plan) {
     let (key, expected) = match scenario {
         Scenario::KeyedOnTheFile => {
             let mut after = before(2);
@@ -274,7 +354,8 @@ fn regrouped_by_hand(scenario: Input) -> (Vec<PlanStep>, Value) {
         Scenario::KeyedOnAName
         | Scenario::KeyedOnAFileNeitherIsDistinctOn
         | Scenario::SiblingsOnTheirParent
-        | Scenario::ParentOnItsOwnEdge => (1, (before(1), StepId(4))),
+        | Scenario::ParentOnItsOwnEdge
+        | Scenario::WordsKeptOnTheirIdAndName => (1, (before(1), StepId(4))),
     };
     (before(key), expected)
 }
