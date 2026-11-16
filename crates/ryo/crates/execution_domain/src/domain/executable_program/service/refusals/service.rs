@@ -89,7 +89,7 @@ pub fn deferred_layout(program: &ExecutableProgram, node: PlanNodeId) -> Option<
 }
 
 /// The inputs each node reads, by node, in the order its input `lists` name them.
-pub(in crate::domain::executable_program) fn node_reads(
+pub(in crate::domain::executable_program) fn inputs_by_node(
     lists: &[Vec<PlanInput>],
 ) -> Vec<Vec<PlanInput>> {
     lists.to_vec()

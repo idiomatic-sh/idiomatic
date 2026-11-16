@@ -9,7 +9,8 @@ use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    IndexKey, IndexPlace, KeyedIndex, NodeReaders, PlanNodeId, ProbeIndex,
+    IndexIdentity, IndexKey, IndexPlace, KeyedIndex, KeyedIndexes, NodeReaders, PlanNodeId,
+    ProbeIndex,
 };
 
 /// Shares one `hash_index` between the probes of one right source and key: a planning step, not a rewrite, since an unshared
@@ -17,7 +18,7 @@ use crate::domain::physical_plan::types::{
 /// ordered probe, which turns each key's first row into its extremum, and a probe alone on its right source and key; a probe
 /// that walks the tree has no index to share. Run after the rewrites, which change a probe's right rows, key, mode and index.
 pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
-    let mut keyed: Vec<KeyedIndex> = Vec::new();
+    let mut keyed = KeyedIndexes::default();
     for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
         if let Lowering::Probe {
             right,
@@ -29,20 +30,17 @@ pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<Keyed
             && probe.filter.comparisons.is_empty()
             && !matches!(probe.mode, ProbeMode::Ordered(_))
         {
-            let key = IndexKey::Cells(on.clone());
-            match keyed
-                .iter_mut()
-                .find(|index| index.source == *right && index.key == key)
-            {
-                Some(index) => index.readers.push(id),
-                None => keyed.push(KeyedIndex {
+            let _: IndexPlace = read_by(
+                &mut keyed,
+                IndexIdentity {
                     source: *right,
-                    key,
-                    readers: vec![id],
-                }),
-            }
+                    key: IndexKey::Cells(on.clone()),
+                },
+                id,
+            );
         }
     }
+    let keyed = keyed.indexes;
     for index in keyed.into_iter().filter(|index| index.readers.len() > 1) {
         let at = IndexPlace(indexes.len());
         for reader in &index.readers {
@@ -55,6 +53,27 @@ pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<Keyed
         }
         indexes.push(index);
     }
+}
+
+/// Records `reader` as a reader of the index `identity` names, met first now or before, and answers its place among `keyed`.
+pub(crate) fn read_by(
+    keyed: &mut KeyedIndexes,
+    identity: IndexIdentity,
+    reader: PlanNodeId,
+) -> IndexPlace {
+    let KeyedIndexes { indexes, places } = keyed;
+    let at = *places.entry(identity).or_insert_with_key(|identity| {
+        indexes.push(KeyedIndex {
+            source: identity.source,
+            key: identity.key.clone(),
+            readers: Vec::new(),
+        });
+        IndexPlace(indexes.len() - 1)
+    });
+    if let Some(index) = indexes.get_mut(at.0) {
+        index.readers.push(reader);
+    }
+    at
 }
 
 /// One shared index for each index of `plan`, each emptied by the release of its last probe.
