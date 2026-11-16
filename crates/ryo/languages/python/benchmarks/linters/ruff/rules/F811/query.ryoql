@@ -87,7 +87,9 @@ let eligible_previous00 = antijoin(left=eligible_previous0, right=loop_variable_
 let eligible_previous1 = antijoin(left=eligible_previous00, right=with_variable_bindings, left-on=["binding"], right-on=["binding"]);
 let eligible_previous = antijoin(left=eligible_previous1, right=future_imports, left-on=["binding", "file"], right-on=["binding", "file"]);
 let potential_redefinitions0 = select l.binding as previous, r.binding as current, l.name as name, l.scope as scope, l.phase as phase, l.ordinal as previous_order, r.ordinal as current_order, l.file as file, l.declaration_kind as previous_kind, r.declaration_kind as current_kind, l.refinement as previous_refinement, r.refinement as current_refinement, l.span as previous_span, r.span as current_span from eligible_previous as l join bindings as r on l.name = r.name and l.scope = r.scope and l.phase = r.phase and l.file = r.file where l.ordinal < r.ordinal;
-let potential_redefinitions1 = antijoin(left=potential_redefinitions0, right=future_imports, left-on=["current", "file"], right-on=["binding", "file"]);
+let type_parameter_bindings = select id as binding, file from "defines" where kind = "type-parameter";
+let potential_redefinitions01 = antijoin(left=potential_redefinitions0, right=type_parameter_bindings, left-on=["current", "file"], right-on=["binding", "file"]);
+let potential_redefinitions1 = antijoin(left=potential_redefinitions01, right=future_imports, left-on=["current", "file"], right-on=["binding", "file"]);
 let redirect_scope_nodes = select id, file from nodes where kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda";
 let redirect_declarations = select occurrence as id, name, file from "binding-event" where kind = "global" or kind = "nonlocal";
 let redirect_declaration_owners = axis(from=redirect_declarations, relation="semantic-child", direction=nearest-ancestor, domain=redirect_scope_nodes);
@@ -120,7 +122,8 @@ let import_segments = capture(from=import_origins, path="target", pattern="{*mod
 let redundant_from_aliases = select l.id as binding, l.file as file from asname_labels as l join import_segments as r on l.id = r.id and l.file = r.file where l.name = r.member;
 let redundant_module_aliases = select l.id as binding, l.file as file from asname_labels as l join import_origins as r on l.id = r.id and l.file = r.file where l.name = r.target;
 let explicit_exports = union(left=redundant_from_aliases, right=redundant_module_aliases);
-let non_class_cross_pairs = antijoin(left=cross_scope_pairs0, right=class_shadow_bindings, left-on=["current", "file"], right-on=["binding", "file"]);
+let non_class_cross_pairs0 = antijoin(left=cross_scope_pairs0, right=class_shadow_bindings, left-on=["current", "file"], right-on=["binding", "file"]);
+let non_class_cross_pairs = antijoin(left=non_class_cross_pairs0, right=type_parameter_bindings, left-on=["current", "file"], right-on=["binding", "file"]);
 let ordinary_cross_pairs = antijoin(left=non_class_cross_pairs, right=explicit_exports, left-on=["previous", "file"], right-on=["binding", "file"]);
 let dummy_previous = select previous, current from immediate_redefinitions where previous_kind != "import" and matches(name, "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$");
 let decorator_lists = select parent as binding, child as list, file from "semantic-child" where field = "decorator-list";

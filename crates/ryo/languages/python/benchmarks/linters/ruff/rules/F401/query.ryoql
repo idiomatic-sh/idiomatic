@@ -90,7 +90,9 @@ let ending_events = select occurrence as id, name, scope, phase, ordinal, file f
 let ending_owners = axis(from=ending_events,relation="semantic-child",direction=nearest-ancestor,domain=scopes);
 let redirected_names = union(left=global_redirected,right=nonlocal_redirected);
 let ending_rows = select l.id as id, l.name as name, l.scope as scope, l.phase as phase, l.ordinal as ordinal, r.related as lexical from ending_events as l join ending_owners as r on l.id = r.id;
-let redirected_endings = select l.id as id from ending_rows as l join redirected_names as r on l.lexical = r.lexical and l.name = r.name;
+let nonmodule_scopes = select id from nodes where kind != "module";
+let redirected_scoped_names = select l.lexical as lexical, l.name as name from redirected_names as l join nonmodule_scopes as r on l.lexical = r.id;
+let redirected_endings = select l.id as id from ending_rows as l join redirected_scoped_names as r on l.lexical = r.lexical and l.name = r.name;
 let own_endings = antijoin(left=ending_rows,right=redirected_endings,left-on=["id"],right-on=["id"]);
 let endings = select id as occurrence, name, scope, phase, ordinal from own_endings;
 let replaced_imports = select l.binding as binding from dated_imports as l join endings as r on l.scope = r.scope and l.phase = r.phase and l.name = r.name where l.ordinal < r.ordinal;
@@ -118,7 +120,10 @@ let shadow_replacements = select previous as earlier, binding as later from "bin
 let timed_replacements = select l.earlier as earlier, l.later as later, r.phase as phase, r.ordinal as ordinal from shadow_replacements as l join bindings as r on l.later = r.binding;
 let local_replacements = select l.earlier as earlier, l.later as later, l.ordinal as ordinal from timed_replacements as l join bindings as r on l.earlier = r.binding and l.phase = r.phase where r.ordinal < l.ordinal;
 let replacement_edges = select earlier, later from local_replacements;
-let inherited = closure(edges=replacement_edges,source="earlier",destination="later");
+let import_groups = select name, scope from imports0;
+let edge_groups = select l.earlier as earlier, l.later as later, r.name as name, r.scope as scope from replacement_edges as l join bindings as r on l.earlier = r.binding;
+let import_edges = select l.earlier as earlier, l.later as later from edge_groups as l join import_groups as r on l.name = r.name and l.scope = r.scope;
+let inherited = closure(edges=import_edges,source="earlier",destination="later");
 let all_reads = select reference as id, name, scope, phase, file from "binding-read";
 let deferred_resolutions = deferred_events(missing=all_reads);
 let read_ids = select occurrence as reference, file from events where kind = "read" or kind = "delete";
