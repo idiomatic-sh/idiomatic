@@ -231,7 +231,21 @@ fn graph(scenario: Scenario) -> Graph {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::InputFaults => Ok(Observation::Faults(first_faults().into())),
-        other => traced(&graph(other)).map(|trace| Observation::Trace(trace.into())),
+        other @ (Scenario::PartitionsApart
+        | Scenario::UnchangedNotQueued
+        | Scenario::OtherBeforeState
+        | Scenario::CyclicLattice
+        | Scenario::TwoLeastStates
+        | Scenario::TwoJoins
+        | Scenario::UnknownRootState
+        | Scenario::TwoJoinsNoRunJoins
+        | Scenario::OneOrderTwice
+        | Scenario::OneOrderInTwoStates
+        | Scenario::LatchReadTwice
+        | Scenario::EmptyLattice
+        | Scenario::EdgeOverEmptyLattice) => {
+            traced(&graph(other)).map(|trace| Observation::Trace(trace.into()))
+        }
     }
 }
 

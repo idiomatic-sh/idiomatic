@@ -281,13 +281,13 @@ fn worklist([roots, edges, lattice]: [u32; 3], keyed: bool) -> Step {
 
 /// A cell as the case states it: a number as itself, a symbol as its text.
 fn stated_text(cell: Cell, texts: &[&str], resources: &TextResources) -> String {
-    match cell {
-        Cell::Number(Integer(value)) => value.to_string(),
-        other => texts
-            .iter()
-            .find(|text| resources.symbol(text) == other)
-            .map_or_else(|| format!("{other:?}"), |text| (*text).to_owned()),
+    if let Cell::Number(Integer(value)) = cell {
+        return value.to_string();
     }
+    texts
+        .iter()
+        .find(|text| resources.symbol(text) == cell)
+        .map_or_else(|| format!("{cell:?}"), |text| (*text).to_owned())
 }
 
 /// The trace a worklist answers over `graph`, each row `root:source>destination#order before=after`, its partition and a `/`

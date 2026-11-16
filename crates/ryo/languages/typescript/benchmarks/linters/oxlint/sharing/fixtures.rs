@@ -12,7 +12,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 /// The runs at each size; the fastest counts.
-const RUNS: usize = 3;
+const RUNS: usize = 5;
 
 /// One derived constructor of `size` statements after its `super()`: a branch reading `this`, a loop that may break, and a
 /// try block whose handler and finalizer each call, in turn.

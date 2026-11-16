@@ -177,7 +177,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CycleOfNoChange => {
             Observation::Rows(trace.split(' ').filter(|cell| cell.contains('>')).count())
         }
-        _ => Observation::Trace(trace.into()),
+        Scenario::Fan
+        | Scenario::QueuedPerChange
+        | Scenario::RaisedBeforePop
+        | Scenario::ObservedAndLatched
+        | Scenario::RootOfTwoStates
+        | Scenario::PoppedTwiceInOneState => Observation::Trace(trace.into()),
     })
 }
 
