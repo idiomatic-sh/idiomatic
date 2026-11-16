@@ -79,7 +79,6 @@ pub fn command() -> clap::Command {
 
 /// Parses the command line and runs the command it names, from `start` with `build`; a panic is reported as an internal
 /// error and ends as one.
-#[must_use]
 pub fn run(start: &str, build: &str) -> std::process::ExitCode {
     report_panics();
     let outcome =

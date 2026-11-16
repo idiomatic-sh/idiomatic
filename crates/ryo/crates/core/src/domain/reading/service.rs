@@ -151,12 +151,12 @@ pub(crate) fn buckets_of(
     rules: Option<&[PlacedRule]>,
 ) -> Vec<Bucket> {
     let mut buckets = Vec::new();
-    for (place, (_rule, start)) in metadata.iter().zip(first).enumerate() {
+    for (place, (run, start)) in metadata.iter().zip(first).enumerate() {
         let rule = PlacedRule(u32::try_from(place).unwrap_or(u32::MAX));
         if rules.is_some_and(|rules| rules.binary_search_by_key(&rule.0, |each| each.0).is_err()) {
             continue;
         }
-        for input in 0..metadata[place].frontier_capture.len() {
+        for input in 0..run.frontier_capture.len() {
             buckets.push(frontier_bucket(*start, InputNumber(input)));
         }
     }

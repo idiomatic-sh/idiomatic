@@ -24,9 +24,7 @@ use ryo::languages;
 pub(crate) struct FormatSpecificationItem;
 
 /// Whether the parser decoded every input the specifications are read from.
-fn completeness(
-    observations: &Observations,
-) -> ObservationCompleteness {
+fn completeness(observations: &Observations) -> ObservationCompleteness {
     observations.completeness
 }
 

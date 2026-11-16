@@ -282,9 +282,7 @@ fn walk_with<L>(
     if !reads_any {
         return;
     }
-    if language.completion_requirement()
-        == CompletionRequirement::PreparedModel
-    {
+    if language.completion_requirement() == CompletionRequirement::PreparedModel {
         crate::application::completion::service::prepare(
             elements,
             source,

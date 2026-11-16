@@ -222,130 +222,154 @@ fn manifest(written: &Written<'_>) -> Vec<DataRow> {
     rows
 }
 
+/// What the declarations of the document say, and what they should say.
+fn keyed() -> (String, String) {
+    (
+        data_declarations(&facts(&document()))
+            .iter()
+            .map(|declaration| {
+                std::iter::once(&*declaration.name.0)
+                    .chain(declaration.attributes.iter().map(|value| &*value.0))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
+            .collect::<Vec<_>>()
+            .join("; "),
+        "bench; bench.[0]; bench.[0].harness = false; package; package.name = \"a\"; package.requires; package.requires.[0] = \"x\"".to_owned(),
+    )
+}
+
+/// How many mismatches an emptied table makes, and how many it should.
+fn emptied() -> (String, String) {
+    let emptied = document()
+        .into_iter()
+        .filter(|row| row.syntax != Syntax::Elements || &*row.id.0 != "#11")
+        .collect::<Vec<_>>();
+    (counted(&document(), &emptied), "1".to_owned())
+}
+
+/// How many mismatches an inserted and a reordered value make, and how many they should.
+fn inserted() -> (String, String) {
+    let values = |each: &[&str]| {
+        let mut rows = vec![row(Syntax::Entries, ("#1", "#0"), ("run", "sequence", ""))];
+        for (place, value) in each.iter().enumerate() {
+            rows.push(row(
+                Syntax::Elements,
+                (&format!("#v{place}"), "#1"),
+                (&place.to_string(), "string", &format!("\"{value}\"")),
+            ));
+        }
+        rows
+    };
+    (
+        format!(
+            "{} {}",
+            counted(&values(&["a", "c"]), &values(&["a", "b", "c"])),
+            counted(&values(&["a", "c"]), &values(&["c", "a"])),
+        ),
+        "0 1".to_owned(),
+    )
+}
+
+/// How many mismatches tables of a sequence make, judged each by itself, and how many they should.
+fn per_element() -> (String, String) {
+    (
+        format!(
+            "{} {}",
+            counted(
+                &tables(&[("a", true), ("b", true)]),
+                &tables(&[("a", false), ("b", true)])
+            ),
+            counted(
+                &tables(&[("a", true), ("b", false)]),
+                &tables(&[("b", false), ("c", true), ("a", true)])
+            ),
+        ),
+        "1 0".to_owned(),
+    )
+}
+
+/// How many mismatches the values of an instance's table make, and how many they should.
+fn instance_values() -> (String, String) {
+    let template = Written {
+        libraries: &["a"],
+        x: &["p"],
+        exclude: &["x"],
+        more: false,
+    };
+    let variables = DeclarationName("variables".into());
+    let exact = |found: &Written<'_>, instance_values: Option<&DeclarationName>| {
+        compare_data(
+            &facts(&manifest(&template)),
+            &facts(&manifest(found)),
+            Exactness::Exact,
+            instance_values,
+        )
+        .len()
+        .to_string()
+    };
+    let added = Written {
+        libraries: &["a", "b"],
+        ..template
+    };
+    (
+        [
+            exact(&added, Some(&variables)),
+            exact(
+                &Written {
+                    exclude: &["x", "y"],
+                    ..template
+                },
+                Some(&variables),
+            ),
+            exact(
+                &Written {
+                    libraries: &["b"],
+                    ..template
+                },
+                Some(&variables),
+            ),
+            exact(
+                &Written {
+                    more: true,
+                    ..template
+                },
+                Some(&variables),
+            ),
+            exact(&added, None),
+            exact(
+                &Written {
+                    x: &["p", "q"],
+                    ..template
+                },
+                Some(&variables),
+            ),
+        ]
+        .join(" "),
+        "0 1 1 1 1 1".to_owned(),
+    )
+}
+
+/// The arguments the text of an attribute is split into, and what they should be.
+fn argument_list() -> (String, String) {
+    (
+        arguments(PartText("Clone,  Debug, rename = \"a, b\", f(x, y)"))
+            .iter()
+            .map(|argument| &*argument.0)
+            .collect::<Vec<_>>()
+            .join(" "),
+        "Clone Debug rename=\"a, b\" f(x,y)".to_owned(),
+    )
+}
+
 fn subject(question: Input) -> Value {
     let (said, expected) = match question {
-        Question::Keyed => (
-            data_declarations(&facts(&document()))
-                .iter()
-                .map(|declaration| {
-                    std::iter::once(&*declaration.name.0)
-                        .chain(declaration.attributes.iter().map(|value| &*value.0))
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                })
-                .collect::<Vec<_>>()
-                .join("; "),
-            "bench; bench.[0]; bench.[0].harness = false; package; package.name = \"a\"; package.requires; package.requires.[0] = \"x\"".to_owned(),
-        ),
-        Question::Emptied => {
-            let emptied = document()
-                .into_iter()
-                .filter(|row| row.syntax != Syntax::Elements || &*row.id.0 != "#11")
-                .collect::<Vec<_>>();
-            (counted(&document(), &emptied), "1".to_owned())
-        }
-        Question::Inserted => {
-            let values = |each: &[&str]| {
-                let mut rows = vec![row(Syntax::Entries, ("#1", "#0"), ("run", "sequence", ""))];
-                for (place, value) in each.iter().enumerate() {
-                    rows.push(row(
-                        Syntax::Elements,
-                        (&format!("#v{place}"), "#1"),
-                        (&place.to_string(), "string", &format!("\"{value}\"")),
-                    ));
-                }
-                rows
-            };
-            (
-                format!(
-                    "{} {}",
-                    counted(&values(&["a", "c"]), &values(&["a", "b", "c"])),
-                    counted(&values(&["a", "c"]), &values(&["c", "a"])),
-                ),
-                "0 1".to_owned(),
-            )
-        }
-        Question::PerElement => (
-            format!(
-                "{} {}",
-                counted(
-                    &tables(&[("a", true), ("b", true)]),
-                    &tables(&[("a", false), ("b", true)])
-                ),
-                counted(
-                    &tables(&[("a", true), ("b", false)]),
-                    &tables(&[("b", false), ("c", true), ("a", true)])
-                ),
-            ),
-            "1 0".to_owned(),
-        ),
-        Question::InstanceValues => {
-            let template = Written {
-                libraries: &["a"],
-                x: &["p"],
-                exclude: &["x"],
-                more: false,
-            };
-            let variables = DeclarationName("variables".into());
-            let exact = |found: &Written<'_>, instance_values: Option<&DeclarationName>| {
-                compare_data(
-                    &facts(&manifest(&template)),
-                    &facts(&manifest(found)),
-                    Exactness::Exact,
-                    instance_values,
-                )
-                .len()
-                .to_string()
-            };
-            let added = Written {
-                libraries: &["a", "b"],
-                ..template
-            };
-            (
-                [
-                    exact(&added, Some(&variables)),
-                    exact(
-                        &Written {
-                            exclude: &["x", "y"],
-                            ..template
-                        },
-                        Some(&variables),
-                    ),
-                    exact(
-                        &Written {
-                            libraries: &["b"],
-                            ..template
-                        },
-                        Some(&variables),
-                    ),
-                    exact(
-                        &Written {
-                            more: true,
-                            ..template
-                        },
-                        Some(&variables),
-                    ),
-                    exact(&added, None),
-                    exact(
-                        &Written {
-                            x: &["p", "q"],
-                            ..template
-                        },
-                        Some(&variables),
-                    ),
-                ]
-                .join(" "),
-                "0 1 1 1 1 1".to_owned(),
-            )
-        }
-        Question::Arguments => (
-            arguments(PartText("Clone,  Debug, rename = \"a, b\", f(x, y)"))
-                .iter()
-                .map(|argument| &*argument.0)
-                .collect::<Vec<_>>()
-                .join(" "),
-            "Clone Debug rename=\"a, b\" f(x,y)".to_owned(),
-        ),
+        Question::Keyed => keyed(),
+        Question::Emptied => emptied(),
+        Question::Inserted => inserted(),
+        Question::PerElement => per_element(),
+        Question::InstanceValues => instance_values(),
+        Question::Arguments => argument_list(),
     };
     if said == expected {
         String::new()

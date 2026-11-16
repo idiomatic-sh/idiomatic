@@ -127,13 +127,18 @@ pub(super) fn answer(
     } else {
         let instance: String = pieces(Template(&at.0))
             .into_iter()
-            .map(|piece| match piece {
-                PatternPiece::Capture(name)
+            .map(|piece| {
+                if let PatternPiece::Capture(name)
                 | PatternPiece::Span(name)
-                | PatternPiece::Directory(name) => format!("<{}>", name.0),
-                PatternPiece::Literal(character) => character.0.to_string(),
-                // A wildcard, or a piece a later core adds, is written as the pattern writes it.
-                other => written_piece(other).0,
+                | PatternPiece::Directory(name) = piece
+                {
+                    format!("<{}>", name.0)
+                } else if let PatternPiece::Literal(character) = piece {
+                    character.0.to_string()
+                } else {
+                    // A wildcard, or a piece a later core adds, is written as the pattern writes it.
+                    written_piece(piece).0
+                }
             })
             .collect();
         rooted(

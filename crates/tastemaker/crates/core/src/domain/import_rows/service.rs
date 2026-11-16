@@ -186,50 +186,90 @@ fn in_scope(around: Option<ByteSpan>, module: Option<ByteSpan>, edge: ImportPlac
 /// `file-package` says, whatever language's manifest it is.
 #[must_use]
 pub fn imports(rows: &ImportRows) -> Vec<Import> {
-    let mut names: BTreeMap<&RepoPath, Vec<&Name>> = BTreeMap::new();
-    for name in &rows.names {
-        names.entry(&name.source).or_default().push(name);
+    let grouped = Grouped::of(rows);
+    let mut found = edge_imports(rows, &grouped);
+    found.extend(name_imports(&grouped));
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// The rows of the import relations grouped by the file each is about.
+struct Grouped<'a> {
+    /// The names each file's imports bring in.
+    names: BTreeMap<&'a RepoPath, Vec<&'a Name>>,
+    /// The semantic edges of each file, less the ones that point at the file itself.
+    edges: BTreeMap<&'a RepoPath, Vec<&'a Import>>,
+    /// The manifest each file belongs to.
+    owners: BTreeMap<&'a RepoPath, &'a RepoPath>,
+    /// The packages each manifest depends on, each by the names it is bound with and the manifest it points at.
+    packages: BTreeMap<&'a RepoPath, Vec<(Vec<ModuleName>, &'a RepoPath)>>,
+}
+
+impl<'a> Grouped<'a> {
+    /// Groups the rows of the import relations by the file each is about.
+    fn of(rows: &'a ImportRows) -> Self {
+        let mut names: BTreeMap<&RepoPath, Vec<&Name>> = BTreeMap::new();
+        for name in &rows.names {
+            names.entry(&name.source).or_default().push(name);
+        }
+        let mut edges: BTreeMap<&RepoPath, Vec<&Import>> = BTreeMap::new();
+        for edge in rows
+            .edges
+            .iter()
+            .filter(|edge| !matches!(&edge.target, Target::File(target) if *target == edge.source))
+        {
+            edges.entry(&edge.source).or_default().push(edge);
+        }
+        let owners = rows
+            .owners
+            .iter()
+            .map(|owner| (&owner.path, &owner.package))
+            .collect::<BTreeMap<_, _>>();
+        let mut packages: BTreeMap<&RepoPath, Vec<(Vec<ModuleName>, &RepoPath)>> = BTreeMap::new();
+        for package in &rows.packages {
+            packages.entry(&package.source).or_default().push((
+                written_names(&WrittenPath(package.binding.0.clone())),
+                &package.target,
+            ));
+        }
+        Self {
+            names,
+            edges,
+            owners,
+            packages,
+        }
     }
-    let mut edges: BTreeMap<&RepoPath, Vec<&Import>> = BTreeMap::new();
-    for edge in rows
-        .edges
-        .iter()
-        .filter(|edge| !matches!(&edge.target, Target::File(target) if *target == edge.source))
-    {
-        edges.entry(&edge.source).or_default().push(edge);
-    }
-    let owners = rows
-        .owners
-        .iter()
-        .map(|owner| (&owner.path, &owner.package))
-        .collect::<BTreeMap<_, _>>();
-    let mut packages: BTreeMap<&RepoPath, Vec<(Vec<ModuleName>, &RepoPath)>> = BTreeMap::new();
-    for package in &rows.packages {
-        packages.entry(&package.source).or_default().push((
-            written_names(&WrittenPath(package.binding.0.clone())),
-            &package.target,
-        ));
-    }
+}
+
+/// The spans of the scopes of `source`, sorted: every scope, or only the ones of one kind.
+fn scope_spans(rows: &ImportRows, source: &RepoPath, only: Option<ScopeKind>) -> Vec<ByteSpan> {
+    let mut spans = rows
+        .scopes
+        .get(source)
+        .into_iter()
+        .flatten()
+        .filter(|scope| only.is_none_or(|kind| scope.kind == kind))
+        .filter_map(|scope| match scope.span {
+            ImportPlace::At(span) => Some(span),
+            ImportPlace::Unplaced => None,
+        })
+        .collect::<Vec<_>>();
+    spans.sort();
+    spans
+}
+
+/// The imports the semantic edges say, each written as its file writes it.
+fn edge_imports(rows: &ImportRows, grouped: &Grouped<'_>) -> Vec<Import> {
     let mut found = Vec::new();
-    for (source, paths) in &edges {
-        let brought = names.get(source).map(Vec::as_slice).unwrap_or_default();
-        let spans = |only: Option<ScopeKind>| {
-            let mut spans = rows
-                .scopes
-                .get(*source)
-                .into_iter()
-                .flatten()
-                .filter(|scope| only.is_none_or(|kind| scope.kind == kind))
-                .filter_map(|scope| match scope.span {
-                    ImportPlace::At(span) => Some(span),
-                    ImportPlace::Unplaced => None,
-                })
-                .collect::<Vec<_>>();
-            spans.sort();
-            spans
-        };
-        let scopes = spans(None);
-        let modules = spans(Some(ScopeKind::Module));
+    for (source, paths) in &grouped.edges {
+        let brought = grouped
+            .names
+            .get(source)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let scopes = scope_spans(rows, source, None);
+        let modules = scope_spans(rows, source, Some(ScopeKind::Module));
         // Each import's innermost scope, read once: the bindings a use-site path may start at, where each binds.
         let bindings = brought
             .iter()
@@ -268,11 +308,23 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
             });
         }
     }
-    for (source, named) in &names {
-        let resolved = edges.get(source).map(Vec::as_slice).unwrap_or_default();
-        let depends = owners
+    found
+}
+
+/// The names an import brings in that no edge resolved: each reaches the manifest of a package of the repository the file's own
+/// package depends on, or a module outside it.
+fn name_imports(grouped: &Grouped<'_>) -> Vec<Import> {
+    let mut found = Vec::new();
+    for (source, named) in &grouped.names {
+        let resolved = grouped
+            .edges
             .get(source)
-            .and_then(|manifest| packages.get(*manifest))
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let depends = grouped
+            .owners
+            .get(source)
+            .and_then(|manifest| grouped.packages.get(*manifest))
             .map(Vec::as_slice)
             .unwrap_or_default();
         for name in named {
@@ -298,7 +350,5 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
             });
         }
     }
-    found.sort();
-    found.dedup();
     found
 }

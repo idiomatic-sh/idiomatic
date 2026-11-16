@@ -29,11 +29,7 @@ impl Project for ProjectContract {
         languages::primary_role_from_manifests(path, self.manifests().iter().copied())
     }
 
-    fn project_entries(
-        &self,
-        _request: &ProjectRequest,
-        _entries: &mut languages::ProjectEntries,
-    ) {
+    fn project_entries(&self, _request: &ProjectRequest, _entries: &mut languages::ProjectEntries) {
     }
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {

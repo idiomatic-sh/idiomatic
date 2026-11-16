@@ -186,7 +186,7 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
         assert!(body.contains(expected), "{path} lacks {expected}");
     }
 
-    contract::assert_contract(&language);
+    contract::assert_contract(&language).expect("the generated parse contract");
 
     // The packages the copied workspace's lock names, fetched first: a machine that built only Tastemaker has not downloaded
     // every one of ryo's (`addr2line`, a dependency for another target, among them), and the check itself runs offline.

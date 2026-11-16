@@ -34,9 +34,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         ))
     }
     fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> AskedKinds {
-        AskedKinds(
-            ryo_execution_domain::domain::kind_check::service::kinds_asked(plan, bound),
-        )
+        AskedKinds(ryo_execution_domain::domain::kind_check::service::kinds_asked(plan, bound))
     }
     fn first_unknown(
         &self,
@@ -124,9 +122,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         ryo_execution_domain::domain::trust::service::scoped_needs(plan)
     }
     fn observed_reads(&self, plan: &Plan) -> ObservedReads {
-        ObservedReads(
-            ryo_execution_domain::domain::trust::service::observed_reads(plan),
-        )
+        ObservedReads(ryo_execution_domain::domain::trust::service::observed_reads(plan))
     }
     fn matters(&self, read: &RelationRead, partial: &Partial) -> Bearing {
         ryo_execution_domain::domain::trust::service::matters(read, partial)

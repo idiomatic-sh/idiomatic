@@ -3,10 +3,9 @@
 use std::path::Path;
 
 /// Keep optional reader support explicitly unread in a newly generated language.
-pub(super) fn assert_contract(language: &Path) {
+pub(super) fn assert_contract(language: &Path) -> std::io::Result<()> {
     let contract =
-        std::fs::read_to_string(language.join("src/inbound/contracts/parse/contract.rs"))
-            .expect("the generated parse contract");
+        std::fs::read_to_string(language.join("src/inbound/contracts/parse/contract.rs"))?;
     assert!(
         contract.contains("fn capabilities(&self) -> &'static [languages::OptionalCapability] {\n        &[]\n    }"),
         "a fresh language must not advertise unimplemented optional capabilities"
@@ -45,4 +44,5 @@ pub(super) fn assert_contract(language: &Path) {
             "{method} must remain explicitly unread until implemented"
         );
     }
+    Ok(())
 }

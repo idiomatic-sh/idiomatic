@@ -7,7 +7,10 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Return start followed by end without validating against a particular source.
-pub(crate) fn bounds(row: &[Value], column: ColumnIndex) -> Result<[Value; 2], PortableOperatorFault> {
+pub(crate) fn bounds(
+    row: &[Value],
+    column: ColumnIndex,
+) -> Result<[Value; 2], PortableOperatorFault> {
     let value = row
         .get(usize::try_from(column.0).unwrap_or(usize::MAX))
         .copied()

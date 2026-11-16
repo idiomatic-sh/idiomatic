@@ -70,10 +70,7 @@ impl Publications<'_> {
             Err(OperatingError::ObservationIncomplete { .. }) => return Ok(()),
             Err(error) => return Err(error),
         };
-        let mut physical = BTreeMap::<
-            Bucket,
-            Result<RestoredOutput, OperatingError>,
-        >::new();
+        let mut physical = BTreeMap::<Bucket, Result<RestoredOutput, OperatingError>>::new();
         for (slot, root) in metadata.frontiers.iter().enumerate() {
             let consumers = &metadata
                 .outputs

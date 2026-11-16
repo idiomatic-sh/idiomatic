@@ -25,12 +25,7 @@ struct FutureImports<'a> {
 }
 
 impl FutureImports<'_> {
-    fn report(
-        &mut self,
-        code: DiagnosticCode,
-        range: TextRange,
-        message: DiagnosticMessage,
-    ) {
+    fn report(&mut self, code: DiagnosticCode, range: TextRange, message: DiagnosticMessage) {
         self.valid = FutureValidity(false);
         self.errors.push(SemanticSyntaxDiagnostic {
             message,

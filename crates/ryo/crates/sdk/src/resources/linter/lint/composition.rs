@@ -108,11 +108,10 @@ pub(crate) fn build(
     settings: LinterLintSettings,
 ) -> impl LintUseCase {
     let LinterLintSettings { root, budget } = settings;
-    let spill: Arc<dyn facts::interface::FactsPort> =
-        match &connections.spill {
-            Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
-            Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
-        };
+    let spill: Arc<dyn facts::interface::FactsPort> = match &connections.spill {
+        Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
+        Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
+    };
     let store: Arc<dyn LintStorePort> = match connections.store.clone() {
         Some(store) => Arc::new(lint_store::factory::postcard(store)),
         None => Arc::new(lint_store::factory::discard()),
@@ -150,9 +149,8 @@ pub(crate) fn build(
             let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> = files;
             let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
-            let analysis_digest: Arc<
-                dyn digest::interface::DigestPort,
-            > = Arc::new(digest::factory::blake3());
+            let analysis_digest: Arc<dyn digest::interface::DigestPort> =
+                Arc::new(digest::factory::blake3());
             ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
                 ryo_core::application::file_analysis::service::FileAnalysis::new(
                     Arc::clone(&analysis_corpus),
@@ -322,9 +320,7 @@ pub(crate) fn store_skip(
 impl From<DependencyBytes<'_>> for DependencyFingerprint {
     fn from(bytes: DependencyBytes<'_>) -> Self {
         use ryo_execution_runtime::outbound::digest::interface::DigestPort as _;
-        let digest = digest::factory::blake3().digest(
-            digest::types::DigestBytes(bytes.0),
-        );
+        let digest = digest::factory::blake3().digest(digest::types::DigestBytes(bytes.0));
         Self(digest.0)
     }
 }
