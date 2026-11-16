@@ -34,6 +34,7 @@ use super::stores::partial_of_a_reused_file_after_a_file_is_listed_before_it;
 use super::stores::project_entry_observations_invalidate_persisted_absence_and_presence;
 use super::stores::project_reuse_frames_root_and_repository_and_keeps_dependency_evidence;
 use super::worlds::again;
+use super::worlds::compiled_lint;
 use super::worlds::lint;
 use super::worlds::read_and_unread;
 use super::worlds::serial_and_parallel_agree;
@@ -239,13 +240,15 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
 fn frames_of_a_file_no_language_reads() -> Result<(usize, usize), LintError> {
     const UNTESTED: &str = "let files = capture(from=\"filesystem.file\", path=\"path\", pattern=\"{name}.rs\", captures=[\"name\"]);\nlet tests = capture(from=\"filesystem.file\", path=\"path\", pattern=\"{name}_test.rs\", captures=[\"name\"]);\nlet tested = project(from=tests, columns=[\"name\"]);\nlet untested = antijoin(left=files, right=tested, left-on=[\"name\"], right-on=[\"name\"]);\nemit untested subject \"path\" key(\"path\");";
     let store = Arc::new(LintStoreFake::default());
-    let _linted = super::stores::compiled_lint(Given {
+    let given = Given {
         files: vec![("a.rs", "fn a() {}"), ("notes.snap", "a note")],
         rules: vec![UNTESTED],
         ids: vec!["untested"],
         store: Arc::clone(&store),
         ..violations()
-    })?;
+    };
+    let asked = request(&given);
+    let _linted = compiled_lint(given, asked)?;
     let kept = store
         .kept
         .lock()

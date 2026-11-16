@@ -154,6 +154,7 @@ fn step_distinct(
         | Operation::OrderedMatch { .. }
         | Operation::Axis { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }

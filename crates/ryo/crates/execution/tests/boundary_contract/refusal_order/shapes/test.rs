@@ -15,7 +15,10 @@ fn join_rel_left(at: u32, key: u32) -> Operation {
         right: s(at),
         left_on: vec![ColumnIndex(0)],
         right_on: vec![ColumnIndex(key)],
-        output: vec![JoinColumn { side: Side::Right, column: ColumnIndex(0) }],
+        output: vec![JoinColumn {
+            side: Side::Right,
+            column: ColumnIndex(0),
+        }],
         filter: vec![],
         view: vec![],
         reach: None,
@@ -26,15 +29,60 @@ fn join_rel_left(at: u32, key: u32) -> Operation {
 fn answered() -> String {
     let mut out = String::new();
     let mixed: Vec<(&str, Vec<(StepScope, Operation)>, u32, Vec<Input>)> = vec![
-        ("mx-union-front-refused", vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, u(1, 2))], 3, vec![s(0), s(1)]),
-        ("mx-union-refused-front", vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, u(2, 1))], 3, vec![s(0), s(1)]),
-        ("mx-diff-front-refused", vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, d(1, 2))], 3, vec![s(0), s(1)]),
-        ("mx-diff-refused-front", vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, d(2, 1))], 3, vec![s(0), s(1)]),
-        ("mx-bad-front-w99", vec![(PF, h()), (PF, bad(0)), (XF, w99(1)), (XF, p(2, &[0]))], 3, vec![s(1)]),
-        ("mx-xf-nested", vec![(PF, h()), (XF, w99(0)), (XF, p(1, &[0])), (XF, p(2, &[0]))], 3, vec![s(0)]),
-        ("mx-xf-unread", vec![(PF, h()), (XF, w99(0)), (XF, p(1, &[0])), (XF, p(1, &[1]))], 3, vec![s(0)]),
-        ("mx-front-w99-of-w99", vec![(PF, h()), (PF, w99(0)), (XF, w99(1))], 2, vec![s(1)]),
-        ("mx-xf-join-front", vec![(PF, h()), (PF, w99(0)), (XF, join_functions(1, 0))], 2, vec![s(1)]),
+        (
+            "mx-union-front-refused",
+            vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, u(1, 2))],
+            3,
+            vec![s(0), s(1)],
+        ),
+        (
+            "mx-union-refused-front",
+            vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, u(2, 1))],
+            3,
+            vec![s(0), s(1)],
+        ),
+        (
+            "mx-diff-front-refused",
+            vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, d(1, 2))],
+            3,
+            vec![s(0), s(1)],
+        ),
+        (
+            "mx-diff-refused-front",
+            vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, d(2, 1))],
+            3,
+            vec![s(0), s(1)],
+        ),
+        (
+            "mx-bad-front-w99",
+            vec![(PF, h()), (PF, bad(0)), (XF, w99(1)), (XF, p(2, &[0]))],
+            3,
+            vec![s(1)],
+        ),
+        (
+            "mx-xf-nested",
+            vec![(PF, h()), (XF, w99(0)), (XF, p(1, &[0])), (XF, p(2, &[0]))],
+            3,
+            vec![s(0)],
+        ),
+        (
+            "mx-xf-unread",
+            vec![(PF, h()), (XF, w99(0)), (XF, p(1, &[0])), (XF, p(1, &[1]))],
+            3,
+            vec![s(0)],
+        ),
+        (
+            "mx-front-w99-of-w99",
+            vec![(PF, h()), (PF, w99(0)), (XF, w99(1))],
+            2,
+            vec![s(1)],
+        ),
+        (
+            "mx-xf-join-front",
+            vec![(PF, h()), (PF, w99(0)), (XF, join_functions(1, 0))],
+            2,
+            vec![s(1)],
+        ),
     ];
     for (name, steps, emit, frontier) in &mixed {
         for populated in [false, true] {
@@ -45,8 +93,18 @@ fn answered() -> String {
         }
     }
     let skipped: Vec<(&str, Vec<(StepScope, Operation)>, u32, Vec<Input>)> = vec![
-        ("sk-union-front-refused", vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, u(1, 2))], 3, vec![s(0), s(1)]),
-        ("sk-union-refused-front", vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, u(2, 1))], 3, vec![s(0), s(1)]),
+        (
+            "sk-union-front-refused",
+            vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, u(1, 2))],
+            3,
+            vec![s(0), s(1)],
+        ),
+        (
+            "sk-union-refused-front",
+            vec![(PF, h()), (PF, w99(0)), (XF, p(0, &[99])), (XF, u(2, 1))],
+            3,
+            vec![s(0), s(1)],
+        ),
     ];
     for (name, steps, emit, frontier) in &skipped {
         for populated in [false, true] {
@@ -60,14 +118,25 @@ fn answered() -> String {
     let nr = [
         ("rel-left-w99", vec![h(), w99(0), join_rel_left(1, 0)], 2),
         ("rel-left-node99", vec![h(), join_rel_left(0, 99)], 1),
-        ("rel-join-under-union", vec![h(), w99(0), join_functions(1, 0), u(2, 0)], 3),
+        (
+            "rel-join-under-union",
+            vec![h(), w99(0), join_functions(1, 0), u(2, 0)],
+            3,
+        ),
         ("rel-join-bad", vec![h(), bad(0), join_functions(1, 99)], 2),
-        ("rel-join-unread", vec![h(), w99(0), join_functions(1, 0), p(0, &[0])], 3),
+        (
+            "rel-join-unread",
+            vec![h(), w99(0), join_functions(1, 0), p(0, &[0])],
+            3,
+        ),
     ];
     for (name, ops, emit) in &nr {
         for (scope, pass) in [(PF, "PF"), (XF, "XF")] {
             let steps: Vec<_> = ops.iter().cloned().map(|o| (scope, o)).collect();
-            for (rel, facts) in [("refused", vec![]), ("read", vec![(Relation::Function, &table)])] {
+            for (rel, facts) in [
+                ("refused", vec![]),
+                ("read", vec![(Relation::Function, &table)]),
+            ] {
                 for populated in [false, true] {
                     for observe in [false, true] {
                         let a = if scope == PF {
@@ -77,7 +146,9 @@ fn answered() -> String {
                         } else {
                             after_the_files(&steps, *emit, vec![], populated, observe)
                         };
-                        out.push_str(&format!("NR {pass} {name} function={rel} pop={populated} obs={observe}: {a}\n"));
+                        out.push_str(&format!(
+                            "NR {pass} {name} function={rel} pop={populated} obs={observe}: {a}\n"
+                        ));
                     }
                 }
             }

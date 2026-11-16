@@ -4,6 +4,6 @@
 mod fixtures;
 mod frontiers;
 mod generated;
+mod shapes;
 #[cfg(test)]
 mod test;
-mod shapes;

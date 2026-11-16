@@ -34,6 +34,17 @@ impl ObserverPort for Told {
     fn totals(&self) -> Result<FedTotals, OperatingError> {
         Ok(FedTotals(Vec::new()))
     }
+    fn handed(
+        &self,
+        _: ryo_values::domain::runs::types::FileHandover,
+    ) -> Result<(), OperatingError> {
+        Ok(())
+    }
+    fn handovers(
+        &self,
+    ) -> Result<Vec<ryo_values::domain::runs::types::FileHandover>, OperatingError> {
+        Ok(Vec::new())
+    }
 }
 
 /// The observer of a run, and what it was told, when the run is observed.

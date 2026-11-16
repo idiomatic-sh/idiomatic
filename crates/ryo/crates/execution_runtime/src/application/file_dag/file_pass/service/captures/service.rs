@@ -174,7 +174,9 @@ pub(crate) fn captured_rule(
             file: at.file,
             rule: RuleNumber(u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?),
             handed: RowsHanded(handed),
-            parsed: ParsedRows(u64::try_from(at.inputs.lookup.tree().kind.len()).unwrap_or(u64::MAX)),
+            parsed: ParsedRows(
+                u64::try_from(at.inputs.lookup.tree().kind.len()).unwrap_or(u64::MAX),
+            ),
         })?;
     }
     if let Some(error) = at.inputs.refused.take() {
