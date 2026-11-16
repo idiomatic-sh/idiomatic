@@ -1,5 +1,10 @@
 # idiomatic-project
 
+## 0.3.5
+
+Pins `crate-dependency-cycles@0.1.1`, which adds a scenario of three cycles and a self-dependency; its query is unchanged. Everything
+else is as in 0.3.4, which is removed with this version: no lock reads it.
+
 ## 0.3.4
 
 `manifest-placements`' `config-roles` and `manifest-roles` no longer name `idiomatic.ryo/provider-allowances`: ryo deleted that
