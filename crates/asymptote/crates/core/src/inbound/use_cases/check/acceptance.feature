@@ -88,6 +88,7 @@ Feature: check
       Examples:
         | input       | expected |
         | held        | Pass; ran lint+bench+unit; regressed 0 unseeded 0 improved 0 resolved 0; best 100; operations 1 |
+        | tolerated   | Pass; ran lint+bench+unit; regressed 0 unseeded 0 improved 0 resolved 0; best 100; operations 1 |
         | improved    | Pass; ran lint+bench+unit; regressed 0 unseeded 0 improved 1 resolved 0; best 70; operations 2 |
         | improved-fixing | Pass; ran lint+bench+unit; regressed 0 unseeded 0 improved 1 resolved 0; best 100; operations 1 |
 
@@ -99,6 +100,7 @@ Feature: check
       Examples:
         | input     | expected |
         | regressed | Changed; ran lint+bench+unit; regressed 1 unseeded 0 improved 0 resolved 0; best 100; operations 1 |
+        | beyond-tolerance | Changed; ran lint+bench+unit; regressed 1 unseeded 0 improved 0 resolved 0; best 100; operations 1 |
         | unseeded  | Changed; ran lint+bench+unit; regressed 0 unseeded 1 improved 0 resolved 0; best -; operations 0 |
         | resolved  | Changed; ran lint+bench+unit; regressed 0 unseeded 0 improved 0 resolved 1; best 100; operations 1 |
 

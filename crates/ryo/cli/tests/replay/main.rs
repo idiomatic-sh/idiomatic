@@ -48,6 +48,8 @@ mod ruff;
 mod stores;
 #[path = "../fixtures/replay/tools.rs"]
 mod tools;
+#[path = "../fixtures/replay/unbounded.rs"]
+mod unbounded;
 
 mod behavior;
 mod cache;

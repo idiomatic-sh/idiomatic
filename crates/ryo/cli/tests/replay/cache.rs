@@ -3,7 +3,8 @@
 //! the files show one another as it was reads only the file edited, and the answer after any edit is the
 //! one a run that keeps nothing gives.
 
-use crate::{counting, ruff, stores};
+use crate::unbounded;
+use crate::{counting, stores};
 use std::fmt::Write as _;
 use std::path::Path;
 use std::sync::Arc;
@@ -54,7 +55,7 @@ pub(crate) fn sorted(mut rows: Vec<Vec<String>>) -> Vec<Vec<String>> {
 
 /// What a run that keeps nothing gives.
 pub(crate) fn uncached(root: &Path) -> counting::Counted {
-    counting::lint_counting(
+    unbounded::lint_counting(
         root,
         rules(),
         Arc::new(ryo_core::outbound::lint_store::factory::memory()),
@@ -115,7 +116,7 @@ fn a_warm_run_reads_nothing_and_an_edit_reads_what_it_must() {
     commented.push_str("// TODO later\n");
     write(root.path(), &[("three/lib.rs", commented)]);
     let noted =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("an edit run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("an edit run");
     assert_eq!(noted.reads, 1, "only the file edited is read");
     assert_eq!(
         sorted(noted.rows.clone()),
@@ -127,7 +128,7 @@ fn a_warm_run_reads_nothing_and_an_edit_reads_what_it_must() {
     // made again, from what the other files handed the last run; only the file edited is read.
     write(root.path(), &[("two/lib.rs", function("copied", 40, "9"))]);
     let edited =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("an edit run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("an edit run");
     assert_eq!(edited.reads, 1, "only the file edited is read");
     assert_eq!(
         sorted(edited.rows.clone()),
@@ -138,7 +139,7 @@ fn a_warm_run_reads_nothing_and_an_edit_reads_what_it_must() {
     // A file added that copies another is found by the cross-file steps.
     write(root.path(), &[("four/lib.rs", function("alone", 40, "2"))]);
     let added =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("an added file");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("an added file");
     assert_eq!(added.reads, 1, "only the file added is read");
     let oracle = uncached(root.path());
     assert_eq!(
@@ -149,7 +150,7 @@ fn a_warm_run_reads_nothing_and_an_edit_reads_what_it_must() {
 
     // A file removed takes its findings with it.
     std::fs::remove_file(root.path().join("four/lib.rs")).expect("a file");
-    let removed = counting::lint_counting(root.path(), rules(), store).expect("a removed file");
+    let removed = unbounded::lint_counting(root.path(), rules(), store).expect("a removed file");
     assert_eq!(removed.reads, 0, "a file removed reads no file");
     assert_eq!(sorted(removed.rows), sorted(uncached(root.path()).rows));
 }
@@ -167,7 +168,7 @@ fn a_warm_run_leaves_the_store_as_it_was_and_a_removed_file_does_not() {
         ],
     );
     let first =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a cold run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a cold run");
     let written = || {
         std::fs::metadata(root.path().join(".ryo_cache/lint.store"))
             .and_then(|meta| meta.modified())
@@ -176,7 +177,7 @@ fn a_warm_run_leaves_the_store_as_it_was_and_a_removed_file_does_not() {
     let cold = written();
     std::thread::sleep(std::time::Duration::from_millis(20));
     let warm =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a warm run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a warm run");
     assert_eq!(
         sorted(warm.rows),
         sorted(first.rows),
@@ -184,7 +185,7 @@ fn a_warm_run_leaves_the_store_as_it_was_and_a_removed_file_does_not() {
     );
     assert!(written() == cold, "nothing changed, so nothing is written");
     std::fs::remove_file(root.path().join("two/lib.rs")).expect("a file");
-    let removed = counting::lint_counting(root.path(), rules(), store)
+    let removed = unbounded::lint_counting(root.path(), rules(), store)
         .expect("a run after a file is removed");
     assert_eq!(removed.reads, 0, "the file left is not read");
     assert!(written() != cold, "a file is gone, so the store says so");
@@ -202,14 +203,14 @@ fn a_store_is_not_used_for_other_rules_and_is_kept_apart_by_root() {
     write(first.path(), &[("lib.rs", function("one", 5, "1"))]);
     write(second.path(), &[("lib.rs", function("two", 5, "1"))]);
     assert_eq!(
-        counting::lint_counting(first.path(), rules(), Arc::clone(&store))
+        unbounded::lint_counting(first.path(), rules(), Arc::clone(&store))
             .expect("a run")
             .reads,
         1,
         "the first run of a root reads its one file"
     );
     assert_eq!(
-        counting::lint_counting(second.path(), rules(), other)
+        unbounded::lint_counting(second.path(), rules(), other)
             .expect("a run")
             .reads,
         1,
@@ -217,14 +218,14 @@ fn a_store_is_not_used_for_other_rules_and_is_kept_apart_by_root() {
     );
     let fewer: Vec<Rule> = rules().into_iter().take(1).collect();
     assert_eq!(
-        counting::lint_counting(first.path(), fewer, Arc::clone(&store))
+        unbounded::lint_counting(first.path(), fewer, Arc::clone(&store))
             .expect("a run")
             .reads,
         1,
         "other rules read every file"
     );
     assert_eq!(
-        counting::lint_counting(first.path(), rules(), store)
+        unbounded::lint_counting(first.path(), rules(), store)
             .expect("a run")
             .reads,
         1,
@@ -255,7 +256,7 @@ fn files_added_and_removed_before_others_move_what_the_others_handed_with_them()
         );
     };
     let run =
-        |step: &str| counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect(step);
+        |step: &str| unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect(step);
     as_kept_nothing("a cold run", run("a cold run"));
     // A file too small to hand the cross-file steps anything moves every other file one number on.
     write(root.path(), &[("a/lib.rs", function("tiny", 1, "3"))]);
@@ -290,7 +291,7 @@ fn an_edit_hands_the_store_the_words_of_the_file_read_alone() {
             ("three/lib.rs", function("alone", 40, "2")),
         ],
     );
-    let cold = counting::lint_counting(
+    let cold = unbounded::lint_counting(
         root.path(),
         rules(),
         Arc::<stores::CountingStore>::clone(&counting),
@@ -305,7 +306,7 @@ fn an_edit_hands_the_store_the_words_of_the_file_read_alone() {
     // One copy is renamed, so it is no copy any more: the cross-file steps are made again, and the store is handed the words of that
     // file alone; the words of the two used again stay where it keeps them.
     write(root.path(), &[("two/lib.rs", function("renamed", 40, "1"))]);
-    let edited = counting::lint_counting(
+    let edited = unbounded::lint_counting(
         root.path(),
         rules(),
         Arc::<stores::CountingStore>::clone(&counting),
@@ -325,7 +326,7 @@ fn an_edit_hands_the_store_the_words_of_the_file_read_alone() {
         sorted(uncached(root.path()).rows),
         "and the answer is the one a run that keeps nothing gives"
     );
-    let warm = counting::lint_counting(root.path(), rules(), counting).expect("a warm run");
+    let warm = unbounded::lint_counting(root.path(), rules(), counting).expect("a warm run");
     assert_eq!(
         sorted(warm.rows),
         sorted(uncached(root.path()).rows),
@@ -345,7 +346,7 @@ fn a_run_whose_store_keeps_nothing_answers_what_one_that_keeps_does() {
             ("three/lib.rs", function("alone", 40, "2")),
         ],
     );
-    let plain = counting::lint_counting(root.path(), rules(), stores::nothing_kept())
+    let plain = unbounded::lint_counting(root.path(), rules(), stores::nothing_kept())
         .expect("a run that keeps nothing");
     assert_eq!(plain.reads, 3, "every file is read");
     assert_eq!(

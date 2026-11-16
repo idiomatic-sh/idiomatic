@@ -2,7 +2,7 @@
 //! measured by the `lint` bench (`warm-peak-megabytes`), which asymptote holds to its best.
 
 #[cfg(target_os = "linux")]
-use crate::{counting, ruff};
+use crate::{counting, ruff, unbounded};
 #[cfg(target_os = "linux")]
 use ryo_core::inbound::use_cases::lint::types::Rule;
 
@@ -25,12 +25,12 @@ fn a_warm_unchanged_run_over_ruff_reads_nothing_in_a_process_of_its_own() {
     });
     if let Some(directory) = named {
         // The child: the warm run alone, so the peak is its own.
-        let warm = counting::lint_counting(&directory, rules, crate::base::store_at(&directory))
+        let warm = unbounded::lint_counting(&directory, rules, crate::base::store_at(&directory))
             .expect("the rules run");
         assert_eq!(warm.reads, 0, "a warm run reads no file");
     } else {
         let copy = ruff::ruff_copy();
-        let _cold = counting::lint_counting(copy.path(), rules, crate::base::store_at(copy.path()))
+        let _cold = unbounded::lint_counting(copy.path(), rules, crate::base::store_at(copy.path()))
             .expect("the rules run");
         let child = std::process::Command::new(std::env::current_exe().expect("this test program"))
             .args([

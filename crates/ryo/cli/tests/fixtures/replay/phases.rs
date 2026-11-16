@@ -84,7 +84,13 @@ pub(crate) fn rename_ruff_export(copy: &Path) {
 /// # Panics
 ///
 /// When a run is refused.
-pub(crate) fn ruff_phase(copy: &Path, rules: Vec<Rule>, keep: bool, label: &'static str) -> Phase {
+pub(crate) fn ruff_phase(
+    copy: &Path,
+    rules: Vec<Rule>,
+    keep: bool,
+    label: &'static str,
+    workers: usize,
+) -> Phase {
     use sha2::Digest as _;
     let kept: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort> = if keep {
         crate::base::store_at(copy)
@@ -96,7 +102,7 @@ pub(crate) fn ruff_phase(copy: &Path, rules: Vec<Rule>, keep: bool, label: &'sta
     let cpu = cpu_time::ProcessTime::now();
     // The complete output and report are kept as they are, and written as text and digested only after the timers stop:
     // writing them is the bench's work, not the run's.
-    let (run, output, report) = lint_observing(copy, rules, kept, 0, |counted, output, report| {
+    let (run, output, report) = lint_observing(copy, rules, kept, workers, |counted, output, report| {
         (counted, output, report)
     })
     .expect("the rules run over the copy");

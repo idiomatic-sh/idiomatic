@@ -2,7 +2,7 @@
 //! stderr): `{ "<target>": { "<metric>": { "value": 831, "lower_value": 794, "upper_value": 893 } } }`. The benchmark is
 //! the target the cost is of (`ruff`), the measure is the metric (`cold-milliseconds`,
 //! `cold-cpu-milliseconds`, `spike-cpu-milliseconds`, `warm-milliseconds`, `edit-milliseconds`, `peak-megabytes` (the cold run's), `warm-peak-megabytes`,
-//! `store-bytes`, `store-megabytes`, `store-files`); `value` is the median of the rounds, `lower_value` and `upper_value` the fastest
+//! `store-bytes`, `store-files`); `value` is the median of the rounds, `lower_value` and `upper_value` the fastest
 //! and the slowest. Asymptote's `perf` group judges the document against the ratchet it keeps in its lock (best, and the tolerance of each measure, which the
 //! tool's definition holds); this bench asserts no budget and keeps no ratchet of its own. The `blocks` bench prints the same format.
 //!

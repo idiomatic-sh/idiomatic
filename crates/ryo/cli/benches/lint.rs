@@ -6,7 +6,7 @@
 //! `--features dhat-heap -- --dhat` takes one cold run under `dhat`: the bytes live at its global maximum and its blocks of a
 //! megabyte or more (`dhat` replaces the allocator, so no other measure is taken in that run).
 //!
-//! `-- --memory` runs the memory rows alone (the peaks of a cold and a warm run and the store, taken over the same rounds), for the
+//! `-- --timing` takes every measure but the memory ones, `-- --memory` the memory ones alone, and no flag all of them. `--memory` runs the memory rows alone (the peaks of a cold and a warm run and the store, taken over the same rounds), for the
 //! asymptote tool that holds them to their best on every pull request.
 //!
 //! Run it with `cargo bench --locked -p idiomatic-sh-ryo --bench lint` on a quiet machine, never in a batch (a full run
@@ -26,7 +26,7 @@
 
 // The allocator the command line ships, so the bench measures what ships.
 /// The allocator on Windows: mimalloc, as ruff and uv ship it.
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", not(feature = "dhat-heap")))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
@@ -78,6 +78,14 @@ mod rows;
 mod ruff;
 #[path = "lint/store.rs"]
 mod store;
+
+/// The measures `--memory` takes, and `--timing` leaves to it: each is held to its best by one asymptote tool.
+const MEMORY: [&str; 4] = [
+    "peak-megabytes",
+    "warm-peak-megabytes",
+    "store-bytes",
+    "store-files",
+];
 
 fn main() {
     let arguments: Vec<String> = std::env::args().collect();
@@ -154,6 +162,16 @@ fn main() {
         },
     ));
     metrics.extend(store::of_each_target());
+    // A measure is held under one tool: the memory measures by the `--memory` run, every other by `--timing`; no flag gives all.
+    let timing = arguments.iter().any(|each| each == "--timing");
+    metrics.retain(|cost| {
+        let held = MEMORY.contains(&cost.metric);
+        if memory {
+            held
+        } else {
+            !(timing && held)
+        }
+    });
     bmf::print(&metrics);
 }
 
@@ -167,8 +185,13 @@ fn dhat_run() {
         .collect();
     let cache = tempfile::tempdir().expect("a cache directory");
     let (counted, profile) = profile::profiled(|| {
-        counting::lint_counting(&base::snapshot::ruff(), rules, base::store_at(cache.path()))
-            .expect("the rules run")
+        counting::lint_with_workers(
+            &base::snapshot::ruff(),
+            rules,
+            base::store_at(cache.path()),
+            rounds::WORKERS,
+        )
+        .expect("the rules run")
     });
     assert!(counted.reads > 0, "a cold run reads ruff's files");
     bmf::print(&[

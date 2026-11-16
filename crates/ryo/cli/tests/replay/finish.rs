@@ -33,6 +33,7 @@ fn rows_with_no_place_leave_in_one_order() {
     }
 }
 
+use crate::unbounded;
 use crate::cache::{function, sorted, write};
 use crate::counting;
 use std::sync::Arc;
@@ -51,7 +52,7 @@ fn counting_files() -> Vec<Rule> {
 /// What a run of `rules` over `root` that keeps nothing finds.
 fn uncached(root: &std::path::Path, rules: Vec<Rule>) -> Vec<Vec<String>> {
     sorted(
-        counting::lint_counting(
+        unbounded::lint_counting(
             root,
             rules,
             Arc::new(ryo_core::outbound::lint_store::factory::memory()),
@@ -73,7 +74,7 @@ fn a_file_added_that_holds_no_node_named_x_changes_the_answer() {
             ("two.rs", "pub fn z() {}\n".to_owned()),
         ],
     );
-    let before = counting::lint_counting(root.path(), counting_files(), Arc::clone(&store))
+    let before = unbounded::lint_counting(root.path(), counting_files(), Arc::clone(&store))
         .expect("a cold run");
     assert!(
         before.rows.is_empty(),
@@ -82,7 +83,7 @@ fn a_file_added_that_holds_no_node_named_x_changes_the_answer() {
     );
     // The file added holds no function at all, but it is a file more: what the files show one another changed.
     write(root.path(), &[("three.rs", "// nothing here\n".to_owned())]);
-    let after = counting::lint_counting(root.path(), counting_files(), store)
+    let after = unbounded::lint_counting(root.path(), counting_files(), store)
         .expect("a run after the file is added");
     assert_eq!(after.reads, 1, "only the file added is read");
     assert_eq!(after.rows.len(), 1, "three files are: {:?}", after.rows);
@@ -109,7 +110,7 @@ fn removing_the_definition_is_found_from_what_the_file_that_calls_handed() {
             ("call.rs", "pub fn caller() { beta(); }\n".to_owned()),
         ],
     );
-    let first = counting::lint_counting(
+    let first = unbounded::lint_counting(
         root.path(),
         calls_without_a_definition(),
         crate::base::store_at(root.path()),
@@ -118,7 +119,7 @@ fn removing_the_definition_is_found_from_what_the_file_that_calls_handed() {
     assert!(first.rows.is_empty(), "beta is defined: {:?}", first.rows);
     // A fresh adapter over the same root stands for a fresh process: nothing is remembered but the store on disk.
     std::fs::remove_file(root.path().join("define.rs")).expect("the definition removed");
-    let after = counting::lint_counting(
+    let after = unbounded::lint_counting(
         root.path(),
         calls_without_a_definition(),
         crate::base::store_at(root.path()),
@@ -155,7 +156,7 @@ fn an_edit_that_leaves_what_a_file_shows_the_others_as_it_was_keeps_the_cross_fi
             ("three.rs", function("alone", 40, "2")),
         ],
     );
-    let cold = counting::lint_counting(root.path(), duplicates.clone(), Arc::clone(&store))
+    let cold = unbounded::lint_counting(root.path(), duplicates.clone(), Arc::clone(&store))
         .expect("a cold run");
     assert!(!cold.rows.is_empty());
     // A comment of the file the rule found nothing in is written over with another: the file's bytes are others, what it
@@ -167,7 +168,7 @@ fn an_edit_that_leaves_what_a_file_shows_the_others_as_it_was_keeps_the_cross_fi
             function("alone", 40, "2").replace("// TODO 0", "// TODO 7"),
         )],
     );
-    let edited = counting::lint_counting(root.path(), duplicates.clone(), Arc::clone(&store))
+    let edited = unbounded::lint_counting(root.path(), duplicates.clone(), Arc::clone(&store))
         .expect("a run after the edit");
     assert_eq!(edited.reads, 1, "only the file edited is read");
     assert_eq!(sorted(edited.rows), sorted(cold.rows));
@@ -179,7 +180,7 @@ fn an_edit_that_leaves_what_a_file_shows_the_others_as_it_was_keeps_the_cross_fi
             function("alone", 40, "2").replace("value_3", "other_3"),
         )],
     );
-    let changed = counting::lint_counting(root.path(), duplicates.clone(), store)
+    let changed = unbounded::lint_counting(root.path(), duplicates.clone(), store)
         .expect("a run after the change");
     assert_eq!(
         changed.reads, 1,

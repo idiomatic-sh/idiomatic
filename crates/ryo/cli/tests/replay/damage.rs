@@ -1,9 +1,9 @@
 //! A store cut short or damaged is no store: the run after it answers what a run that keeps nothing gives.
 
+use crate::unbounded;
 use std::sync::Arc;
 
 use crate::cache::{function, rules, sorted, uncached, write};
-use crate::counting;
 
 #[test]
 fn a_store_cut_short_damaged_or_removed_is_empty_and_the_run_answers_as_with_none() {
@@ -19,7 +19,7 @@ fn a_store_cut_short_damaged_or_removed_is_empty_and_the_run_answers_as_with_non
         ],
     );
     let cold =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a cold run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a cold run");
     let oracle = sorted(uncached(root.path()).rows);
     assert_eq!(sorted(cold.rows), oracle);
     let file = root.path().join(".ryo_cache/lint.store");
@@ -28,7 +28,7 @@ fn a_store_cut_short_damaged_or_removed_is_empty_and_the_run_answers_as_with_non
     bytes.truncate(bytes.len() / 2);
     std::fs::write(&file, bytes).expect("cut");
     let after_a_cut =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a run");
     assert_eq!(
         after_a_cut.reads, 3,
         "a store cut short is empty, so every file is read"
@@ -37,16 +37,16 @@ fn a_store_cut_short_damaged_or_removed_is_empty_and_the_run_answers_as_with_non
     // Bytes that are not a store are no store either.
     std::fs::write(&file, b"not a store").expect("damaged");
     let after_damage =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a run");
     assert_eq!(after_damage.reads, 3);
     assert_eq!(sorted(after_damage.rows), oracle);
     // A store that is gone is none, and the run after it has one again.
     std::fs::remove_file(&file).expect("removed");
     let after_a_removal =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a run");
     assert_eq!(after_a_removal.reads, 3);
     assert_eq!(sorted(after_a_removal.rows), oracle);
-    let warm = counting::lint_counting(root.path(), rules(), store).expect("a warm run");
+    let warm = unbounded::lint_counting(root.path(), rules(), store).expect("a warm run");
     assert_eq!(warm.reads, 0);
     assert_eq!(sorted(warm.rows), oracle);
 }
@@ -121,7 +121,7 @@ fn a_store_with_one_section_damaged_gives_the_findings_of_a_run_that_keeps_nothi
     );
     let oracle = sorted(uncached(root.path()).rows);
     let _cold =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a cold run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a cold run");
     let file = root.path().join(".ryo_cache/lint.store");
     let count = sections(&std::fs::read(&file).expect("the store")).len();
     assert!(
@@ -137,7 +137,7 @@ fn a_store_with_one_section_damaged_gives_the_findings_of_a_run_that_keeps_nothi
             .expect("the section")
             .fill(0xff);
         std::fs::write(&file, bytes).expect("damaged");
-        let after = counting::lint_counting(root.path(), rules(), Arc::clone(&store))
+        let after = unbounded::lint_counting(root.path(), rules(), Arc::clone(&store))
             .expect("a run over a damaged store");
         assert_eq!(
             sorted(after.rows),
@@ -211,11 +211,11 @@ fn a_store_whose_table_of_contents_gives_a_section_longer_than_the_file_is_no_st
     );
     let oracle = sorted(uncached(root.path()).rows);
     let _cold =
-        counting::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a cold run");
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect("a cold run");
     let file = root.path().join(".ryo_cache/lint.store");
     let bytes = std::fs::read(&file).expect("the store");
     std::fs::write(&file, with_rest_length(&bytes, u64::MAX)).expect("damaged");
-    let after = counting::lint_counting(root.path(), rules(), store)
+    let after = unbounded::lint_counting(root.path(), rules(), store)
         .expect("a run over a table of contents that names more bytes than the file holds");
     assert_eq!(sorted(after.rows), oracle);
 }

@@ -126,7 +126,7 @@ fn a_manifest_that_does_not_parse_is_a_finding_and_the_others_are_read_cold_and_
         exclude: Vec::new(),
     };
     let kept = || base::store_at(root.path());
-    let cold = crate::counting::lint_counting(root.path(), vec![rule.clone()], kept())
+    let cold = crate::unbounded::lint_counting(root.path(), vec![rule.clone()], kept())
         .expect("a manifest that does not parse stops nothing");
     assert!(
         cold.unread.iter().any(|path| path == "broken/Cargo.toml"),
@@ -137,7 +137,7 @@ fn a_manifest_that_does_not_parse_is_a_finding_and_the_others_are_read_cold_and_
         !cold.rows.is_empty(),
         "the manifests that parse are still read"
     );
-    let warm = crate::counting::lint_counting(root.path(), vec![rule], kept()).expect("a warm run");
+    let warm = crate::unbounded::lint_counting(root.path(), vec![rule], kept()).expect("a warm run");
     assert_eq!(warm.unread, cold.unread, "a warm run reports the same");
     assert_eq!(warm.rows, cold.rows);
 }
@@ -178,7 +178,7 @@ fn a_change_to_a_configuration_above_the_repository_reads_the_project_again() {
     );
     let kept: Arc<ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake> = Arc::default();
     let run = || {
-        crate::counting::lint_counting(
+        crate::unbounded::lint_counting(
             &root,
             vec![rule.clone()],
             Arc::<ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake>::clone(&kept),

@@ -14,11 +14,11 @@ use crate::domain::judgement::service::{compare, tail, verdict, with_perf};
 use crate::domain::judgement::types::{Code, Failure, Inventory, Problem, Run, Status, Tail};
 use crate::domain::manifest::constants::MANIFEST;
 use crate::domain::manifest::service::selects;
-use crate::domain::manifest::types::{Fix, Output, Pathspec, Percent, ProductRoot, Running, Tool};
+use crate::domain::manifest::types::{Fix, Output, Pathspec, ProductRoot, Running, Tool};
 use crate::domain::operations::constants::LOCK_SEGMENT;
 use crate::domain::operations::types::{Operation, Record, Revision};
-use crate::domain::perf::service::{judge, rewritten};
-use crate::domain::perf::types::{Measurement, PerfOutcome, Rewriting, ToleranceKey};
+use crate::domain::perf::service::{allowances, judge, rewritten};
+use crate::domain::perf::types::{Measurement, PerfOutcome, Rewriting};
 use crate::domain::renames::types::Head;
 use crate::domain::reports::service::{
     completed, failed, measured, range_ends, recorded, stamp_parts, unlisted, unread,
@@ -324,22 +324,7 @@ impl CheckUseCaseImpl {
             .filter(|record| !excluded.contains(&record.key.tool))
             .cloned()
             .collect();
-        let allowed: BTreeMap<ToleranceKey, Percent> = tools
-            .iter()
-            .flat_map(|tool| {
-                tool.tolerance
-                    .iter()
-                    .map(|(measure, percent)| {
-                        (
-                            ToleranceKey {
-                                tool: tool.id.clone(),
-                                measure: measure.clone(),
-                            },
-                            *percent,
-                        )
-                    })
-            })
-            .collect();
+        let allowed = allowances(tools);
         let mut perf = judge(&measured(scanned), &records, &ran, &allowed);
         let improved = rewritten(&perf);
         if request.fixing == Fixing::Fix || matches!(request.against, Against::Since(_)) {

@@ -14,6 +14,7 @@ use crate::domain::judgement::service::compare;
 use crate::domain::operations::constants::COMPACT_AT;
 use crate::domain::operations::service::{fold, settled, shape, snapshot};
 use crate::domain::operations::types::{Operation, Provenance, Shape};
+use crate::domain::perf::service::allowances;
 use crate::domain::ratchet::service::accepting;
 use crate::domain::ratchet::types::{Compaction, Writing};
 use crate::domain::renames::service::{changes, split};
@@ -153,7 +154,8 @@ impl UpUseCase for UpUseCaseImpl {
             ..split(&migrations, &seen, &outcome)
         };
         let persisted = changes(&carried, made.records.clone(), Vec::new());
-        let perf = seeded(&request, &folded, &report);
+        let allowed = allowances(&self.ports.manifest.read(&root)?.tools);
+        let perf = seeded(&request, &folded, &report, &allowed);
         let mut compaction = Compaction::Unchanged;
         if request.writing == Writing::Write
             && !(persisted.added.is_empty() && persisted.removed.is_empty() && perf.is_empty())

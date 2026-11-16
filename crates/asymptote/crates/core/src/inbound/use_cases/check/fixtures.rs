@@ -218,7 +218,7 @@ pub fn down_request() -> crate::inbound::use_cases::down::types::DownRequest {
 }
 
 /// The product the group and perf scenarios check, on disk: `lint` (SARIF, nothing found), `bench` (Bencher Metric
-/// Format, group `perf`) and `unit` (group `test`, exiting `unit_exit`), in a git repository, so its inputs are listed.
+/// Format, group `perf`, `wall-ms` allowed 5% over its best) and `unit` (group `test`, exiting `unit_exit`), in a git repository, so its inputs are listed.
 ///
 /// # Errors
 ///
@@ -234,7 +234,7 @@ pub fn measured_product(bench: &str, unit_exit: i32) -> std::io::Result<tempfile
     std::fs::write(
         root.join("asymptote.toml"),
         format!(
-            "[[tools]]\nid=\"lint\"\nrun=[\"sh\",\"-c\",\"cat lint.sarif\"]\ngroup=\"lint\"\noutput=\"sarif\"\n\n[[tools]]\nid=\"bench\"\nrun=[\"sh\",\"-c\",\"cat bench.json\"]\ngroup=\"perf\"\noutput=\"bmf\"\n\n[[tools]]\nid=\"unit\"\nrun=[\"sh\",\"-c\",\"exit {unit_exit}\"]\ngroup=\"test\"\n"
+            "[[tools]]\nid=\"lint\"\nrun=[\"sh\",\"-c\",\"cat lint.sarif\"]\ngroup=\"lint\"\noutput=\"sarif\"\n\n[[tools]]\nid=\"bench\"\nrun=[\"sh\",\"-c\",\"cat bench.json\"]\ngroup=\"perf\"\noutput=\"bmf\"\ntolerance-percent={{wall-ms=5}}\n\n[[tools]]\nid=\"unit\"\nrun=[\"sh\",\"-c\",\"exit {unit_exit}\"]\ngroup=\"test\"\n"
         ),
     )?;
     for arguments in [["init", "-q"], ["add", "-A"]] {
@@ -369,6 +369,9 @@ pub fn scene(input: &str) -> Result<Scene, String> {
         "regressed" | "raise" => against_held("120"),
         "improved" => against_held("70"),
         "held" => against_held("100"),
+        // Over its best of 100 by less than, and by more than, the 5% the product's `asymptote.toml` states for `wall-ms`.
+        "tolerated" => against_held("104"),
+        "beyond-tolerance" => against_held("106"),
         "resolved" => Scene {
             records: vec![perf_record("wall-ms", 100.0), perf_record("cpu-ms", 100.0)],
             ..base(r#"{"c": {"cpu-ms": {"value": 100}}}"#.to_owned())

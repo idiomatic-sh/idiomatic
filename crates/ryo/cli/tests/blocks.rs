@@ -15,6 +15,8 @@ mod base;
 mod counting;
 #[path = "fixtures/replay/profile.rs"]
 mod profile;
+#[path = "fixtures/replay/unbounded.rs"]
+mod unbounded;
 
 /// The allocator that records every allocation of the run into the profile the blocks are counted from.
 #[global_allocator]
@@ -33,7 +35,7 @@ fn main() {
     // Every rule the run asks for may read across files: each is at most one crossing.
     let crossing = rules.len();
     let (counted, profile) = profile::profiled(|| {
-        counting::lint_counting(&base::snapshot::ruff(), rules, base::store_at(cache.path()))
+        unbounded::lint_counting(&base::snapshot::ruff(), rules, base::store_at(cache.path()))
             .expect("the rules run")
     });
     // The run read the files and gave findings: a run that read nothing allocates no big block for them.

@@ -78,6 +78,7 @@ pub(crate) fn measure_cache_phase(label: &str, directory: &str) {
             "body" => "body",
             _ => "rename",
         },
+        crate::rounds::WORKERS,
     );
     assert_eq!(
         phase.unread_rust, 0,

@@ -104,6 +104,9 @@ pub(crate) fn instances() -> crate::measure::Measured {
     )
 }
 
+/// The processors `tm check` is held to in the peak, so that it runs the same workers on every machine (four: the fewest a runner has).
+const CPUS: &str = "0-3";
+
 /// The kibibytes of the largest resident set `tm check` reached over a copy of the repository at its `HEAD`, run in
 /// `crates/ryo`, cold: a fresh copy and no cache of Tastemaker's own, taken in the process the command line runs as.
 #[expect(
@@ -142,7 +145,10 @@ pub(crate) fn cold_peak() -> crate::measure::Measured {
             scratch
         },
         |scratch| {
-            let output = std::process::Command::new("/usr/bin/time")
+            // The command line runs a worker for each processor it may use, and the lock holds no machine: the run is held to
+            // the first `CPUS` processors, so its workers, and the tables each holds, are the same on every machine.
+            let output = std::process::Command::new("taskset")
+                .args(["-c", CPUS, "/usr/bin/time"])
                 .args(["-f", "peak-kib %M", env!("CARGO_BIN_EXE_tm"), "check", "--format", "json"])
                 .current_dir(scratch.path().join("crates/ryo"))
                 .output()

@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::types::{
     Holding, Improvement, Measured, PerfOutcome, Regression, Spread, ToleranceKey, Unseeded,
 };
-use crate::domain::manifest::types::Percent;
+use crate::domain::manifest::types::{Percent, Tool};
 use crate::domain::operations::types::{Count, Number, PerfKey, PerfRecord};
 use crate::domain::violations::types::ToolId;
 
@@ -30,6 +30,25 @@ pub(crate) fn standing_of(
     } else {
         std::cmp::Ordering::Equal
     }
+}
+
+/// The tolerance each tool's manifest states for each of its measures: what `check` judges by and `up` raises by.
+#[must_use]
+pub fn allowances(tools: &[Tool]) -> BTreeMap<ToleranceKey, Percent> {
+    tools
+        .iter()
+        .flat_map(|tool| {
+            tool.tolerance.iter().map(|(measure, percent)| {
+                (
+                    ToleranceKey {
+                        tool: tool.id.clone(),
+                        measure: measure.clone(),
+                    },
+                    *percent,
+                )
+            })
+        })
+        .collect()
 }
 
 /// The records whose tool completed (`ran`) and no longer reports them.

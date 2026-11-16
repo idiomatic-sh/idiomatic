@@ -5,10 +5,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::bmf::Cost;
-use crate::rounds::COLD_ROUNDS;
-
-/// The workers a run over ruff is taken on.
-const WORKERS: usize = 10;
+use crate::rounds::{COLD_ROUNDS, WORKERS};
 
 /// What a lint over ruff with these rules cost: wall and process CPU (user and kernel), in milliseconds.
 fn cost_of(rules: Vec<ryo_core::inbound::use_cases::lint::types::Rule>) -> (u128, u128) {
