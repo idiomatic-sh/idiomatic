@@ -78,7 +78,8 @@ pub(crate) fn output_kinds(
 ///
 /// # Errors
 ///
-/// `NotALattice` when the order has a cycle, there is not one least state, or two states have no one least upper bound.
+/// `NotALattice` when there are states and the order has a cycle, there is not one least state, or two states have no one
+/// least upper bound; a lattice of no state is none of these, and holds no root or edge state.
 pub(crate) fn tabled(
     lattice: &mut LatticeTable,
     cells: &[Value],
@@ -105,6 +106,12 @@ pub(crate) fn tabled(
     }
     let count = lattice.states.len();
     lattice.below.clear();
+    lattice.joins.clear();
+    // No state is no lattice to check: it holds nothing, so any root or edge state is refused where it is looked up.
+    if count == 0 {
+        lattice.least = StatePlace::default();
+        return Ok(());
+    }
     lattice.below.resize(count * count, StateOrder::Unordered);
     for state in places(lattice) {
         ordered(lattice, state, state);
@@ -142,7 +149,6 @@ pub(crate) fn tabled(
         return Err(PortableOperatorFault::NotALattice);
     };
     lattice.least = bottom;
-    lattice.joins.clear();
     for one in places(lattice) {
         for other in places(lattice) {
             let join = least_upper_bound(lattice, one, other)?;
