@@ -76,6 +76,8 @@ CAPTURE_GROUP = re.compile(r"asymptote check --groups ([a-z][a-z-]*) --format js
 # chains anything to, or only actions (a build matrix). The values it is handed are crates.io's token, from its trusted publishing,
 # and the token `gh` creates the GitHub Release with; npm and PyPI exchange the OIDC token themselves.
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
+# The one other job command: seeding ryo's bench lock on the runner that judges it, one linter bench a step (benchmarks.yml).
+SEED = re.compile(r'asymptote up --root crates/ryo --reason "seed on [\w.-]+" --tool bench/[a-z]+/[a-z]+')
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
 # What may start a workflow: a hand run, and a pull request to main for the workflows `REQUESTED` names, the check alone (GitHub's
 # standard hosted runners are free on a public repository). The workflows `PUSHED` names may start on a push to main too, which
@@ -106,8 +108,7 @@ TOOLHASH = (
     "'.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}"
 )
 # The check matrix's groups whose answer stands on state outside the repository, which no stamp holds: release-resolution resolves
-# against crates.io's live index, api's semver baseline is the newest release tag. Their rows keep no store, nor does speed, whose
-# answer stands on origin/main.
+# against crates.io's live index, api's semver baseline is the newest release tag. Their rows keep no store.
 UNSTORED_GROUPS = ("release-resolution", "api")
 # A row of the check matrix says whether it keeps a store (`store`), and the groups above are the rows that say no.
 UNSTORED = "matrix.check.store"
@@ -132,15 +133,16 @@ RELEASE_LINE = re.compile(
 # The steps that put the declared tools on a machine; a job command runs beside them and installs nothing itself.
 SETUP = {"rustup toolchain install", "uv run --script tools/install.py"}
 
-# The bench-correctness job verifies every default of every linter bench, each case under its own rule's settings profile, in
-# one job on one Linux runner, its one asymptote group. Its guards keep a failure from turning into a pass: no skip, no masked
-# step, exactly its one check, its environment, and receipts uploaded even after failure.
-BENCH_CORRECTNESS_GROUP = "bench-correctness"
-BENCH_CORRECTNESS_CHECK = f"asymptote check --root crates/ryo --groups {BENCH_CORRECTNESS_GROUP}"
+# The bench job runs every linter bench (every default verified, ryo against the pinned reference over every project, ryo's
+# cost, times and growth judged against the lock) in one job on one Linux runner, its one asymptote group. Its guards keep a
+# failure from turning into a pass: no skip, no masked step, exactly its one check, its environment, and receipts uploaded even
+# after failure.
+BENCH_JOB_GROUP = "bench"
+BENCH_JOB_CHECK = f"asymptote check --root crates/ryo --groups {BENCH_JOB_GROUP}"
 # The bench job sets no RAYON_NUM_THREADS of its own: the bench tool's run line pins every timed measure, once.
-BENCH_CORRECTNESS_ENV = {"CARGO_BUILD_JOBS": "6"}
-BENCH_CORRECTNESS_UPLOAD = {
-    "name": "bench-correctness-${{ github.run_attempt }}",
+BENCH_JOB_ENV = {"CARGO_BUILD_JOBS": "6"}
+BENCH_JOB_UPLOAD = {
+    "name": "bench-${{ github.run_attempt }}",
     "path": "target/benchmark/",
     "include-hidden-files": True,
     "if-no-files-found": "error",
@@ -148,37 +150,37 @@ BENCH_CORRECTNESS_UPLOAD = {
 }
 
 
-def bench_correctness_problems(job: dict) -> list[str]:
-    """What lets the bench-correctness job pass without verifying every bench in each of its groups."""
+def bench_job_problems(job: dict) -> list[str]:
+    """What lets the bench job pass without running every bench in its group."""
     found = []
     steps = job.get("steps", [])
     if job.get("runs-on") != "ubuntu-26.04" or "container" in job:
-        found.append("bench-correctness must run on the one Linux runner, outside a container")
+        found.append("bench must run on the one Linux runner, outside a container")
     if "strategy" in job:
-        found.append("bench-correctness runs its one group; a matrix would add groups the gate does not review")
+        found.append("bench runs its one group; a matrix would add groups the gate does not review")
     if not isinstance(job.get("timeout-minutes"), int) or job["timeout-minutes"] <= 360:
-        found.append("bench-correctness needs headroom over its tool's 360-minute timeout")
+        found.append("bench needs headroom over its tool's 360-minute timeout")
     if "if" in job or "continue-on-error" in job:
-        found.append("bench-correctness may not be skipped or masked")
-    if job.get("env") != BENCH_CORRECTNESS_ENV:
-        found.append("bench-correctness changed its pinned environment")
+        found.append("bench may not be skipped or masked")
+    if job.get("env") != BENCH_JOB_ENV:
+        found.append("bench changed its pinned environment")
     runs = [step.get("run") for step in steps if "run" in step]
-    if runs.count(BENCH_CORRECTNESS_CHECK) != 1:
-        found.append("bench-correctness does not run exactly its one check")
+    if runs.count(BENCH_JOB_CHECK) != 1:
+        found.append("bench does not run exactly its one check")
     if any("continue-on-error" in step or "shell" in step for step in steps):
-        found.append("bench-correctness steps may not mask failures or override their shell")
+        found.append("bench steps may not mask failures or override their shell")
     if any(
         "if" in step and (step.get("name"), step["if"])
         not in {
             ("Save the installed tools", f"{MAIN} && steps.cargo_bin_cache.outputs.cache-hit != 'true'"),
-            ("Bench summaries and per-rule receipts", "always()"),
+            ("Bench documents and per-rule receipts", "always()"),
         }
         for step in steps
     ):
-        found.append("bench-correctness has an unreviewed step condition")
+        found.append("bench has an unreviewed step condition")
     upload = steps[-1] if steps else {}
-    if not upload.get("uses", "").startswith(UPLOAD) or upload.get("if") != "always()" or upload.get("with") != BENCH_CORRECTNESS_UPLOAD:
-        found.append("bench-correctness must upload its complete receipts even after failure")
+    if not upload.get("uses", "").startswith(UPLOAD) or upload.get("if") != "always()" or upload.get("with") != BENCH_JOB_UPLOAD:
+        found.append("bench must upload its complete receipts even after failure")
     return found
 
 
@@ -269,6 +271,11 @@ def checks(job: dict) -> list[int]:
     return [index for index, step in enumerate(job["steps"]) if re.search(r"(^|\s)asymptote check\b", step.get("run", ""))]
 
 
+def seeds(job: dict) -> list[int]:
+    """The positions of the job's steps that seed one linter bench's lock."""
+    return [index for index, step in enumerate(job["steps"]) if SEED.fullmatch(step.get("run", "").strip())]
+
+
 def needs(job: dict) -> list[str]:
     """The jobs this job waits for."""
     waits = job.get("needs", [])
@@ -293,15 +300,7 @@ def captured_check(run: str) -> bool:
             f"printf '%s\\n' \"${status}\" > {stem}.status",
             f'exit "${status}"',
         ]
-    return lines == [
-        "mkdir -p target/benchmarks/speed",
-        "set +e",
-        "asymptote check --groups speed --format json > target/benchmarks/speed/check.json 2> target/benchmarks/speed/check.stderr.log",
-        "speed_status=$?",
-        "cat target/benchmarks/speed/check.json",
-        "cat target/benchmarks/speed/check.stderr.log >&2",
-        'exit "$speed_status"',
-    ]
+    return False
 
 
 def problems(workflow: dict) -> list[str]:
@@ -313,8 +312,8 @@ def problems(workflow: dict) -> list[str]:
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
-        if name == "bench-correctness":
-            found.extend(bench_correctness_problems(job))
+        if name == "bench":
+            found.extend(bench_job_problems(job))
         found.extend(store_problems(name, job))
         positions = checks(job)
         saved = {index for index, step in store_steps(job) if step["uses"].startswith(SAVE)}
@@ -331,6 +330,8 @@ def problems(workflow: dict) -> list[str]:
             steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP]
             runs = [re.sub(r"\$\{\{.*?\}\}", "value", step["run"].strip()) for step in steps]
             runs = [each for each in runs if each not in SETUP]
+            if seeds(job) and all(SEED.fullmatch(each) for each in runs):
+                runs = []
             if len(runs) > 1 or any(not COMMAND.fullmatch(each) for each in runs):
                 found.append(f"{name} does not check and does not run exactly one job command: {runs}")
             for step in job["steps"]:
@@ -340,12 +341,14 @@ def problems(workflow: dict) -> list[str]:
                 found.append(f"{name} hands a step more than {sorted(HANDED)}")
 
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
-        return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
+        return bool(checks(jobs[name]) or seeds(jobs[name])) or any(
+            gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen
+        )
 
     # The jobs a gated job waits for: the ones that decide what it runs (which products a push releases).
     deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
     found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
-    if not any(checks(job) for job in jobs.values()):
+    if not any(checks(job) or seeds(job) for job in jobs.values()):
         found.append("no job calls asymptote check")
     return found
 
@@ -367,31 +370,6 @@ def test_every_workflow_checks_through_one_asymptote_call(path: Path) -> None:
     """Beside the steps that set up its machine and install the tools, a job that checks ends in one `asymptote check` call, and
     every other job of the workflow waits for one that does."""
     assert problems(yaml.safe_load(read(path))) == []
-
-
-def test_speed_job_saves_installed_tools_before_quality_checks() -> None:
-    """The independent speed guard retains its installed tools even when quality fails: saved by main alone, under the key every
-    job of its machine shares, and restored by every run."""
-    workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    action = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
-    paths = "~/.cargo/bin\n~/.cargo/.crates.toml\n~/.cargo/.crates2.json\n"
-    prefix = "cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}"
-    key = prefix
-    for name in ("speed",):
-        steps = workflow["jobs"][name]["steps"]
-        restore = next(index for index, step in enumerate(steps) if step.get("id") == "cargo_bin_cache")
-        install = next(index for index, step in enumerate(steps) if step.get("run") == "uv run --script tools/install.py")
-        save = steps[install + 1]
-        assert restore < install < len(steps) - 1
-        assert steps[restore]["uses"] == f"actions/cache/restore@{action}"
-        assert steps[restore]["with"] == {
-            "path": paths,
-            "key": key,
-        }
-        assert save["uses"] == f"actions/cache/save@{action}"
-        assert save["if"] == f"{MAIN} && steps.cargo_bin_cache.outputs.cache-hit != 'true'"
-        assert save["with"] == {"path": paths, "key": key}
-        assert any("asymptote check" in step.get("run", "") for step in steps[install + 2 :])
 
 
 def test_there_are_workflows_to_hold() -> None:
@@ -444,9 +422,9 @@ def test_a_check_may_take_its_group_from_the_matrix_and_upload_what_its_tools_le
     assert problems({"jobs": {"check": checking}}) == []
 
 
-@pytest.mark.parametrize("name", ["check", "speed"])
+@pytest.mark.parametrize("name", ["check", "bench"])
 def test_each_real_check_remains_one_check(name: str) -> None:
-    """The product checks and independent speed guard each contain one propagated check."""
+    """The product checks and the bench each contain one propagated check."""
     checking = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"][name]
     assert problems({"jobs": {name: checking}}) == []
 
@@ -481,17 +459,6 @@ def test_capture_refuses_extra_commands_changed_streams_and_masked_status(before
     assert before in step["run"]
     step["run"] = step["run"].replace(before, after)
     assert problems({"jobs": {"build": checking}})
-
-
-def test_speed_capture_refuses_a_second_check_or_masked_exit() -> None:
-    """The shorter speed wrapper has the same one-command and status requirements."""
-    workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    run = workflow["jobs"]["speed"]["steps"][checks(workflow["jobs"]["speed"])[0]]["run"]
-    for changed in (
-        run.replace("speed_status=$?", "asymptote check\nspeed_status=$?"),
-        run.replace('exit "$speed_status"', "exit 0"),
-    ):
-        assert problems({"jobs": {"speed": job(changed)}})
 
 
 def test_a_job_that_checks_twice_is_refused() -> None:
@@ -646,7 +613,7 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
         if tool["group"].startswith("release")
     }
     rows = workflow["jobs"]["check"]["strategy"]["matrix"]["include"]
-    assert {row["group"] for row in rows} == released | {"repository", "lint", "clippy", "api", "check", "memory", "bench-correctness"}
+    assert {row["group"] for row in rows} == released | {"repository", "lint", "clippy", "api", "check", "memory", "bench"}
     # A hand run's check, the pull request gate's rows for its product: its lint, the tests on every machine, and the root's
     # `repository` group from the root, the one row with a root of its own.
     assert [(row["group"], row.get("root")) for row in rows if "root" in row or row["group"] in {"lint", "repository"}] == [
@@ -726,66 +693,18 @@ def test_a_job_that_releases_with_anything_but_gh_is_refused() -> None:
     ]
 
 
-def test_speed_requires_declared_timings_for_every_language_workspace_member() -> None:
-    """A source-registry omission cannot hide behind equal observed base/head metric sets."""
-    tools = tomllib.loads(read(ROOT / "asymptote.toml"))["tools"]
-    speed = next(tool for tool in tools if tool["id"] == "speed")
-    bench_names = [speed["run"][index + 1] for index, value in enumerate(speed["run"]) if value == "--bench"]
-    assert "languages" in bench_names
-    for manifest in listed(ROOT / "crates/ryo/languages", "*/Cargo.toml"):
-        language = tomllib.loads(read(manifest))
-        contract = language["package"]["metadata"]["ryo"]["performance"]
-        assert contract == {"schema": "divan-timing/v1", "workloads": {"generated_every_relation": [2500, 10000]}, "metrics": ["median-ns"]}
-
-def test_a_green_check_on_main_releases_the_products_whose_version_its_commit_changes_without_checking_again() -> None:
-    """The check's run on main passed its `gate` on the tree, so the release it starts tags and releases each product whose version
-    the commit changes, and only those, each product's publish in a concurrency group of its own; a hand run checks its product
-    first. A red, cancelled or pull request run starts no tag."""
-    workflow = yaml.safe_load(read(DIRECTORY / "release.yml"))
-    on = workflow["on" if "on" in workflow else True]
-    assert on["workflow_run"] == WORKFLOW_RUN and "push" not in on and set(on["workflow_dispatch"]["inputs"]) == {"product", "publish"}
-    jobs = workflow["jobs"]
-    assert "concurrency" not in workflow
-    tag = jobs["tag"]
-    assert tag["if"] == (
-        "github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'"
-    )
-    assert tag["permissions"] == {"contents": "write"}
-    # Every job that reads the tree reads the commit the check ran on, not the branch's newest.
-    for name in ("tag", "build", "publish"):
-        (checkout,) = [step for step in jobs[name]["steps"] if step.get("uses", "").startswith("actions/checkout@")]
-        assert checkout["with"]["ref"] == "${{ github.event.workflow_run.head_sha || github.sha }}", name
-    assert [step["run"] for step in tag["steps"] if "run" in step] == ["uv run ci/tag/command.py --push"]
-    assert tag["outputs"]["products"] == "${{ steps.tag.outputs.products }}"
-    assert jobs["check"]["if"] == "github.event_name == 'workflow_dispatch'"
-    assert jobs["build"]["needs"] == ["tag", "check"]
-    assert jobs["build"]["if"].startswith("${{ !cancelled() && !failure() && ")
-    assert "needs.tag.result == 'success' && needs.tag.outputs.products != '[]'" in jobs["build"]["if"]
-    publish = jobs["publish"]
-    assert publish["if"] == "${{ !cancelled() && needs.build.result == 'success' }}"
-    assert publish["concurrency"] == {"group": "release-${{ matrix.product }}", "cancel-in-progress": False}
-    # One publish at a time, in the `tag` job's order: ryo's crates are on crates.io before tastemaker's publish starts.
-    assert publish["strategy"]["max-parallel"] == 1
-    assert PRODUCTS.index("ryo") < PRODUCTS.index("tastemaker")
-    # Each build row's artifact is named for its product, and a publish downloads its product's alone, a directory per target.
-    (upload,) = [step for step in jobs["build"]["steps"] if step["uses"].startswith("actions/upload-artifact@")]
-    assert upload["with"]["name"] == "${{ matrix.product }}-${{ matrix.platform.target }}"
-    (download,) = [step for step in publish["steps"] if step.get("uses", "").startswith("actions/download-artifact@")]
-    assert download["with"] == {"pattern": "${{ matrix.product }}-*", "merge-multiple": True, "path": "dist"}
-
-
 # The groups a pull request runs for each product on Linux x86, in one asymptote call so that its tools share one build.
 LINUX_GROUPS = ("lint", "clippy", "check", "release-tests", "release-coverage", "memory")
 EVERY_PRODUCT = "${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[\"{0}\"]', inputs.product) || '" + "[" + ",".join(
     f'"{product}"' for product in PRODUCTS
 ) + "]') }}"
-GATED = ["root", "pull-request", "check-linux", "check", "speed", "python-release", "bench-correctness"]
+GATED = ["root", "pull-request", "check-linux", "check", "python-release", "bench"]
 # A pull request runs Linux x86 alone, the fewest builds: `check-linux`, the root's and the title's jobs and the bench. The jobs that
 # run on main alone (the other machines and groups, the Python release build) are skipped on a pull request, which the gate lets
-# pass; the speed guard compares with origin/main, so only a hand run runs it, and the gate lets it skip everywhere else.
+# pass.
 NOT_ON_A_PULL_REQUEST = "github.event_name != 'pull_request'"
-CONDITIONS = {"check": NOT_ON_A_PULL_REQUEST, "python-release": NOT_ON_A_PULL_REQUEST, "speed": "github.event_name == 'workflow_dispatch'"}
-ALLOWED_SKIPS = "${{ github.event_name == 'pull_request' && 'check,speed,python-release' || github.event_name == 'push' && 'speed' || '' }}"
+CONDITIONS = {"check": NOT_ON_A_PULL_REQUEST, "python-release": NOT_ON_A_PULL_REQUEST}
+ALLOWED_SKIPS = "${{ github.event_name == 'pull_request' && 'check,python-release' || '' }}"
 
 
 def gate_problems(workflow: dict) -> list[str]:
@@ -817,7 +736,7 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
     """A pull request to main and a push to main check every product, and a hand run the one product it names: each one's whole
     check fan-out, the rows release.yml checks a hand run with but the root row, which the `root` job runs. Asymptote's stores,
     not a paths filter, decide what runs. One `gate` job fails when a job failed or was cancelled and passes when each succeeded,
-    or was skipped when only the speed guard was, on a push."""
+    or was skipped when only the main-only jobs were, on a pull request."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     on = workflow["on" if "on" in workflow else True]
     assert set(on) == {"pull_request", "push", "workflow_dispatch"}
@@ -895,19 +814,15 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
         ),
         pytest.param(lambda workflow: workflow["jobs"]["check"].update({"needs": "root"}), id="check-waits"),
         pytest.param(lambda workflow: workflow["jobs"]["python-release"].update({"if": "false"}), id="python-release-skipped"),
-        pytest.param(lambda workflow: workflow["jobs"]["speed"].pop("if"), id="speed-on-a-push"),
         pytest.param(lambda workflow: workflow["jobs"]["check"].pop("if"), id="the-other-machines-on-a-pull-request"),
         pytest.param(lambda workflow: workflow["jobs"]["check-linux"].update({"if": "false"}), id="check-linux-skipped"),
         pytest.param(lambda workflow: workflow.update({"concurrency": {**workflow["concurrency"], "cancel-in-progress": True}}), id="a-merge-cancels-the-seed"),
         pytest.param(
             lambda workflow: workflow["jobs"]["check"]["strategy"]["matrix"].update({"product": '["ryo"]'}), id="one-product"
         ),
-        pytest.param(lambda workflow: workflow["jobs"]["gate"]["needs"].remove("speed"), id="gate-drops-speed"),
+        pytest.param(lambda workflow: workflow["jobs"]["gate"]["needs"].remove("bench"), id="gate-drops-bench"),
         pytest.param(
-            lambda workflow: workflow["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "speed"}), id="speed-skippable-always"
-        ),
-        pytest.param(
-            lambda workflow: workflow["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "bench-correctness"}),
+            lambda workflow: workflow["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "bench"}),
             id="bench-skippable",
         ),
     ],
@@ -971,20 +886,20 @@ def test_python_release_guard_cannot_be_orphaned_by_product_selection() -> None:
     assert all(not python_release_covered(changed) for changed in (missing, detached, skipped, waiting, wrong_group))
 
 
-def bench_correctness_required(workflow: dict) -> bool:
-    """The gate waits for bench-correctness and never lets it skip."""
+def bench_required(workflow: dict) -> bool:
+    """The gate waits for bench and never lets it skip."""
     gate = workflow["jobs"]["gate"]
-    return "bench-correctness" in needs(gate) and "bench-correctness" not in gate["steps"][0]["with"]["allowed-skips"].split(", ")
+    return "bench" in needs(gate) and "bench" not in re.split(r"[\s,']+", gate["steps"][0]["with"]["allowed-skips"])
 
 
-def test_bench_correctness_is_required_by_the_gate() -> None:
+def test_bench_is_required_by_the_gate() -> None:
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    assert bench_correctness_required(workflow)
+    assert bench_required(workflow)
     dropped = deepcopy(workflow)
-    dropped["jobs"]["gate"]["needs"].remove("bench-correctness")
+    dropped["jobs"]["gate"]["needs"].remove("bench")
     skippable = deepcopy(workflow)
-    skippable["jobs"]["gate"]["steps"][0]["with"]["allowed-skips"] += ", bench-correctness"
-    assert not bench_correctness_required(dropped) and not bench_correctness_required(skippable)
+    skippable["jobs"]["gate"]["steps"][0]["with"]["allowed-skips"] += ", bench"
+    assert not bench_required(dropped) and not bench_required(skippable)
 
 
 def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
@@ -993,7 +908,7 @@ def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
 
     jobs = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"]
     keys = set()
-    for name in ("check-linux", "check", "speed", "python-release", "bench-correctness"):
+    for name in ("check-linux", "check", "python-release", "bench"):
         cache = next(step for step in jobs[name]["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@"))["with"]
         assert "prefix-key" not in cache
         assert cache["cache-workspace-crates"] is True
@@ -1054,21 +969,21 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
 
 
-def test_the_bench_correctness_job_is_an_independent_complete_gate() -> None:
+def test_the_bench_job_is_an_independent_complete_gate() -> None:
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    assert bench_correctness_problems(workflow["jobs"]["bench-correctness"]) == []
+    assert bench_job_problems(workflow["jobs"]["bench"]) == []
     assert problems(workflow) == []
 
 
-def _altered_bench_correctness(change) -> dict:
+def _altered_bench(change) -> dict:
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     altered = deepcopy(workflow)
-    change(altered["jobs"]["bench-correctness"])
+    change(altered["jobs"]["bench"])
     return altered
 
 
 def _check_step(job: dict) -> dict:
-    return next(step for step in job["steps"] if step.get("run") == BENCH_CORRECTNESS_CHECK)
+    return next(step for step in job["steps"] if step.get("run") == BENCH_JOB_CHECK)
 
 
 @pytest.mark.parametrize(
@@ -1078,7 +993,7 @@ def _check_step(job: dict) -> dict:
         pytest.param(lambda job: job.__setitem__("continue-on-error", True), id="job-continue-on-error"),
         pytest.param(lambda job: _check_step(job).__setitem__("if", False), id="step-if-false"),
         pytest.param(lambda job: _check_step(job).__setitem__("continue-on-error", True), id="step-continue-on-error"),
-        pytest.param(lambda job: _check_step(job).__setitem__("run", BENCH_CORRECTNESS_CHECK + " || true"), id="masked-exit"),
+        pytest.param(lambda job: _check_step(job).__setitem__("run", BENCH_JOB_CHECK + " || true"), id="masked-exit"),
         pytest.param(lambda job: _check_step(job).__setitem__("run", "asymptote check --root crates/ryo --groups lint"), id="other-group"),
         pytest.param(lambda job: _check_step(job).__setitem__("shell", "bash +e {0}"), id="shell-override"),
         pytest.param(lambda job: job.__setitem__("timeout-minutes", 360), id="no-headroom"),
@@ -1088,22 +1003,22 @@ def _check_step(job: dict) -> dict:
         pytest.param(lambda job: job.__setitem__("container", "example.invalid/custom:latest"), id="container"),
     ],
 )
-def test_bench_correctness_refuses_skips_masks_and_dropped_receipts(change) -> None:
-    assert problems(_altered_bench_correctness(change))
+def test_bench_refuses_skips_masks_and_dropped_receipts(change) -> None:
+    assert problems(_altered_bench(change))
 
 
-def test_the_bench_correctness_job_runs_its_one_group() -> None:
-    """The job runs ryo's bench-correctness group, once: a matrix re-added, or the check pointed at another group, is refused."""
+def test_the_bench_job_runs_its_one_group() -> None:
+    """The job runs ryo's bench group, once: a matrix re-added, or the check pointed at another group, is refused."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     tools = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))["tools"]
-    assert BENCH_CORRECTNESS_GROUP in {tool["group"] for tool in tools}
-    assert bench_correctness_problems(workflow["jobs"]["bench-correctness"]) == []
-    matrix = deepcopy(workflow["jobs"]["bench-correctness"])
-    matrix["strategy"] = {"fail-fast": False, "matrix": {"group": ["bench-correctness", "bench-cases"]}}
-    other_group = deepcopy(workflow["jobs"]["bench-correctness"])
+    assert BENCH_JOB_GROUP in {tool["group"] for tool in tools}
+    assert bench_job_problems(workflow["jobs"]["bench"]) == []
+    matrix = deepcopy(workflow["jobs"]["bench"])
+    matrix["strategy"] = {"fail-fast": False, "matrix": {"group": ["bench", "bench-cases"]}}
+    other_group = deepcopy(workflow["jobs"]["bench"])
     _check_step(other_group)["run"] = "asymptote check --root crates/ryo --groups bench-cases"
     for changed in (matrix, other_group):
-        assert bench_correctness_problems(changed)
+        assert bench_job_problems(changed)
 
 
 def store_of(job: dict, path: str, key: str) -> list[dict]:
@@ -1118,7 +1033,7 @@ def store_of(job: dict, path: str, key: str) -> list[dict]:
 def test_a_job_saves_only_its_asymptote_store_after_its_check() -> None:
     """A job that keeps a store restores it before its check and saves it after, a failed check too, under its machine,
     product, group and the pins of the installed tools, the toolchains and the helpers; check.yml's jobs keep one each but the
-    bench jobs and speed, and nothing else is saved after a check."""
+    bench jobs, and nothing else is saved after a check."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     assert {name for name, job in workflow["jobs"].items() if store_steps(job)} == {"root", "check-linux", "check", "python-release"}
     for path in WORKFLOWS:
@@ -1179,12 +1094,11 @@ def test_a_workflow_change_misses_the_store() -> None:
 
 
 def test_a_group_whose_answer_stands_outside_the_repository_keeps_no_store() -> None:
-    """release-resolution (crates.io's live index), api (the newest release tag) and speed (origin/main) restore no store, so a
+    """release-resolution (crates.io's live index) and api (the newest release tag) restore no store, so a
     stored pass never outlives the state it was judged on; a row restored anyway is refused."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     rows = {row["label"] for row in workflow["jobs"]["check"]["strategy"]["matrix"]["check"]}
     assert set(UNSTORED_GROUPS) <= rows
-    assert not store_steps(workflow["jobs"]["speed"])
     check = workflow["jobs"]["check"]
     assert store_problems("check", check) == []
     for _, step in store_steps(check):
@@ -1261,9 +1175,9 @@ def test_a_job_that_requires_its_receipts_restores_no_store_its_tools_cannot_ref
             if requires_receipts(defined):
                 receipts.append((path.name, name))
                 assert not store_steps(defined), (path.name, name)
-    assert receipts == [("benchmarks.yml", "bench-parity"), ("benchmarks.yml", "bench-measure"), ("check.yml", "bench-correctness")]
-    warm = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"]["bench-correctness"]
-    key = f"asymptote-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-ryo-bench-correctness-{TOOLHASH}-${{{{ github.run_id }}}}-${{{{ github.run_attempt }}}}"
+    assert receipts == [("benchmarks.yml", "bench-seed"), ("check.yml", "bench")]
+    warm = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"]["bench"]
+    key = f"asymptote-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-ryo-bench-{TOOLHASH}-${{{{ github.run_id }}}}-${{{{ github.run_attempt }}}}"
     warm["steps"].insert(0, store_of({"steps": []}, "crates/ryo/.asymptote/cache", key)[0])
     assert requires_receipts(warm) and store_steps(warm)
 
@@ -1586,57 +1500,20 @@ def test_ryo_ownership_contracts_are_check_tools() -> None:
                 assert not re.search(r"(^|\s)(tm|cargo)\s", step.get("run", "")), (path.name, name, step.get("run"))
 
 
-BENCH_VERBS = {
-    "bench-correctness": ("verify-inventory", "bench-correctness"),
-    "bench-parity": ("parity", "bench-parity"),
-    "bench-measure": ("measure-valid", "bench-measure"),
-}
 BENCH = "languages/{lang}/benchmarks/linters/{linter}"
 COLLECTOR = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--"]
-# The worker's case verbs run on the bench's root profile, not each rule's settings profile: no tool runs them through the
-# collector, and bench-correctness covers every case under its rule's own profile.
-WORKER_CASE_VERBS = {"verify-cases", "verify-reference-cases"}
-
-
-def bench_verb_problems(tools: list[dict]) -> list[str]:
-    """What keeps a linter bench's verb from being a tool expanded per bench: a verb with no tool, a tool in another group, or a
-    run that is not the collector's verb over the captured bench directory; and any tool that runs the collector with a worker
-    case verb."""
-    found = []
-    by_id = {tool["id"]: tool for tool in tools}
-    for identity, (verb, group) in BENCH_VERBS.items():
-        tool = by_id.get(identity, {})
-        run = [*COLLECTOR, verb, BENCH]
-        if tool.get("group") != group or tool.get("run") != run or BENCH not in tool.get("inputs", []):
-            found.append(f"{identity} must run the collector's {verb} over each bench, in group {group}")
-    for tool in tools:
-        run = tool.get("run", [])
-        if run[: len(COLLECTOR)] == COLLECTOR and len(run) > len(COLLECTOR) and run[len(COLLECTOR)] in WORKER_CASE_VERBS:
-            found.append(f"{tool['id']}: a worker case verb runs on the bench profile, not each rule's settings profile")
-    return found
-
-
-def test_every_bench_verb_is_a_tool_per_bench() -> None:
-    """Every verb of every linter bench is a tool of ryo's asymptote.toml, expanded per bench directory, so a new bench gets each
-    with no edit."""
-    tools = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))["tools"]
-    assert bench_verb_problems(tools) == []
-    one_bench = deepcopy(tools)
-    correctness = next(tool for tool in one_bench if tool["id"] == "bench-correctness")
-    correctness["run"][-1] = "languages/python/benchmarks/linters/ruff"
-    other_group = deepcopy(tools)
-    next(tool for tool in other_group if tool["id"] == "bench-measure")["group"] = "perf"
-    case_verb = deepcopy(tools)
-    cases = deepcopy(next(tool for tool in case_verb if tool["id"] == "bench-correctness"))
-    cases.update({"id": "bench-cases", "group": "bench-cases", "run": [*COLLECTOR, "verify-cases", BENCH]})
-    case_verb.append(cases)
-    for changed in (one_bench, other_group, case_verb):
-        assert bench_verb_problems(changed)
-
-
-# What the recorded rules answer over ruff and the other pinned targets is a bench run, never a test: the `lint` bench's `--replay`,
-# one tool of the bench-correctness group, which the pull request gate runs. The test tools filter none of the suite's tests out.
-BENCH_REPLAY = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--bench", "lint", "--", "--replay"]
+# The one pin of every timed measure: the whole process tree of the bench on processors 0-3 with four workers.
+PIN = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4"]
+BENCH_TOLERANCES = {
+    "cpu-s", "wall-s", "peak-rss-bytes", "warm-cpu-s", "warm-peak-rss-bytes", "edited-cpu-s", "edited-peak-rss-bytes",
+    "store-bytes", "total-ms", "max-case-ms", "compile-ms", "doubling-ratio", "larger-ms",
+}
+# The tools the one bench replaced: the verification, the corpus measure and parity, the verify times and growth, and the runs
+# over ruff with Tastemaker's rules, which left ryo.
+RETIRED = {
+    "bench-correctness", "bench-measure", "bench-parity", "bench-verify", "bench-growth", "bench-replay", "memory-lint",
+    "memory-dhat", "performance-lint",
+}
 UNFILTERED_TESTS = {
     "test-cli": ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo)"],
     "test-default": ["cargo", "nextest", "run", "--workspace", "--locked"],
@@ -1644,77 +1521,76 @@ UNFILTERED_TESTS = {
 }
 
 
-GROWTH_TOOL = "bench-growth"
-
-
-def growth_problems(tools: list[dict]) -> list[str]:
-    """What turns the Ruff bench's growth back into a test or drops its ratchet: no tool in the bench-verify group running the
-    bench's `growth`, a measure with no tolerance, or a test tool that runs the bench's tests with the growth rows in them."""
-    tool = next((tool for tool in tools if tool["id"] == GROWTH_TOOL), {})
+def bench_tool_problems(tools: list[dict], job: dict) -> list[str]:
+    """What keeps each language bench from being one tool of the `bench` group: not exactly one tool in the group, a run that is
+    not the pin followed by the collector's bench verb over the captured bench directory, an output other than BMF, a tolerance
+    table other than the bench's, an input under Tastemaker, a retired tool back, or a bench job that sets a worker count of its
+    own."""
     found = []
-    if tool.get("group") != "bench-verify" or tool.get("output") != "bmf" or "-- growth --growth-times=" not in " ".join(tool.get("run", [])):
-        found.append("bench-growth must run the ruff bench's growth as BMF in the bench-verify group")
-    if set(tool.get("tolerance-percent", {})) != {"doubling-ratio", "larger-ms"}:
-        found.append("bench-growth must hold doubling-ratio and larger-ms each to a tolerance")
+    benches = [tool for tool in tools if tool.get("group") == "bench"]
+    if len(benches) != 1:
+        return [f"the bench group holds {len(benches)} tools, not one"]
+    (tool,) = benches
+    if tool.get("run") != [*PIN, *COLLECTOR, "bench", BENCH] or BENCH not in tool.get("inputs", []):
+        found.append("bench must run the pinned collector's bench verb over each bench directory")
+    if tool.get("output") != "bmf" or set(tool.get("tolerance-percent", {})) != BENCH_TOLERANCES:
+        found.append("bench must print BMF with the bench's tolerance table")
+    if any("tastemaker" in each for each in tool.get("inputs", [])):
+        found.append("bench reads no Tastemaker rule")
+    found += [f"{each['id']} is retired by bench" for each in tools if each.get("id") in RETIRED]
+    if "RAYON_NUM_THREADS" in job.get("env", {}):
+        found.append("the bench job sets a worker count beside the tool's pin")
     return found
 
 
-def test_the_ruff_growth_is_a_bench_tool_with_a_ratchet() -> None:
-    """The growth of the name-resolving rules is bench-growth's, ratcheted; moved to another group, run as a test or without a
-    tolerance for a measure, it is refused."""
+def test_each_language_bench_is_one_pinned_tool() -> None:
+    """Each linter bench is one tool of the bench group, expanded per bench directory: the pin, then the collector's bench verb,
+    BMF with the bench's tolerances and no Tastemaker input; the bench job sets no worker count. Each planted violation is
+    refused."""
     tools = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))["tools"]
-    assert growth_problems(tools) == []
-    moved = deepcopy(tools)
-    next(tool for tool in moved if tool["id"] == GROWTH_TOOL)["group"] = "check"
+    job = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"]["bench"]
+    assert bench_tool_problems(tools, job) == []
+
+    def bench(changed: list[dict]) -> dict:
+        return next(tool for tool in changed if tool.get("group") == "bench")
+
+    unpinned = deepcopy(tools)
+    bench(unpinned)["run"] = bench(unpinned)["run"][len(PIN) :]
+    one_worker = deepcopy(tools)
+    bench(one_worker)["run"][4] = "RAYON_NUM_THREADS=1"
+    one_bench = deepcopy(tools)
+    bench(one_bench)["run"][-1] = "languages/python/benchmarks/linters/ruff"
     loose = deepcopy(tools)
-    del next(tool for tool in loose if tool["id"] == GROWTH_TOOL)["tolerance-percent"]["larger-ms"]
-    gone = [tool for tool in tools if tool["id"] != GROWTH_TOOL]
-    for changed in (moved, loose, gone):
-        assert growth_problems(changed)
+    del bench(loose)["tolerance-percent"]["cpu-s"]
+    tastemaker = deepcopy(tools)
+    bench(tastemaker)["inputs"].append("../../tastemaker")
+    second = deepcopy(tools)
+    second.append({**bench(second), "id": "bench-replay"})
+    retired = deepcopy(tools)
+    retired.append({"id": "memory-lint", "group": "memory", "run": ["cargo", "bench"]})
+    for changed in (unpinned, one_worker, one_bench, loose, tastemaker, second, retired):
+        assert bench_tool_problems(changed, job)
+    assert bench_tool_problems(tools, {**job, "env": {**job["env"], "RAYON_NUM_THREADS": "1"}})
 
 
-def replay_problems(tools: list[dict]) -> list[str]:
-    """What moves the replay over the pinned targets out of the bench-correctness group, or a test of the suite out of its tools."""
-    by_id = {tool["id"]: tool for tool in tools}
-    found = []
-    replay = by_id.get("bench-replay", {})
-    if replay.get("group") != BENCH_CORRECTNESS_GROUP or replay.get("run") != BENCH_REPLAY:
-        found.append("bench-replay must run the lint bench's --replay in the bench-correctness group")
-    found += [f"{identity} must run every test of the suite" for identity, run in UNFILTERED_TESTS.items() if by_id.get(identity, {}).get("run") != run]
-    return found
+def test_the_test_tools_filter_no_test_out() -> None:
+    """The test tools run every test of the suite; one that filters a test out is refused."""
+    tools = {tool["id"]: tool for tool in tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))["tools"]}
+    assert {identity: tools[identity]["run"] for identity in UNFILTERED_TESTS} == UNFILTERED_TESTS
 
 
-def test_the_replay_over_the_pinned_targets_is_a_bench_correctness_tool() -> None:
-    """The replay over ruff and the other pinned targets is bench-replay, in the bench-correctness group the gate runs; moved to
-    another group, run another way or gone, it is refused, and so is a test tool that filters a test out."""
-    tools = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))["tools"]
-    assert replay_problems(tools) == []
-    moved = deepcopy(tools)
-    next(tool for tool in moved if tool["id"] == "bench-replay")["group"] = "check"
-    gone = [tool for tool in tools if tool["id"] != "bench-replay"]
-    filtered = deepcopy(tools)
-    next(tool for tool in filtered if tool["id"] == "test-cli")["run"][-1] += " and not test(/^peak::/)"
-    for changed in (moved, gone, filtered):
-        assert replay_problems(changed)
-
-
-def test_bench_parity_and_measure_run_only_by_hand() -> None:
-    """benchmarks.yml, started only by hand, runs ryo's bench-parity and bench-measure groups, one job each, each uploading the
-    receipts its tools wrote; check.yml runs neither."""
+def test_the_bench_lock_is_seeded_only_by_hand() -> None:
+    """benchmarks.yml, started only by hand, seeds ryo's bench lock, one linter bench a step, and uploads the lock and the
+    receipts its tools wrote; check.yml seeds nothing."""
     workflow = yaml.safe_load(read(DIRECTORY / "benchmarks.yml"))
     assert triggers(workflow) == {"workflow_dispatch"}
-    for group in ("bench-parity", "bench-measure"):
-        job = workflow["jobs"][group]
-        assert "if" not in job and "needs" not in job and "strategy" not in job
-        assert [step["run"] for step in job["steps"] if "asymptote check" in step.get("run", "")] == [f"asymptote check --root crates/ryo --groups {group}"]
-        upload = job["steps"][-1]
-        assert upload["uses"].startswith(UPLOAD) and upload["if"] == "always()"
-        assert upload["with"] == {
-            "name": f"{group}-${{{{ github.run_attempt }}}}",
-            "path": "target/benchmark/",
-            "include-hidden-files": True,
-            "if-no-files-found": "error",
-            "retention-days": 7,
-        }
-    check = read(DIRECTORY / "check.yml")
-    assert "bench-parity" not in check and "bench-measure" not in check
+    assert list(workflow["jobs"]) == ["bench-seed"]
+    job = workflow["jobs"]["bench-seed"]
+    assert "if" not in job and "needs" not in job and "strategy" not in job
+    assert [job["steps"][index]["run"].split()[-1] for index in seeds(job)] == [
+        "bench/python/ruff", "bench/rust/clippy", "bench/typescript/oxlint"
+    ]
+    upload = job["steps"][-1]
+    assert upload["uses"].startswith(UPLOAD) and upload["if"] == "always()"
+    assert upload["with"]["path"].split() == ["crates/ryo/.asymptote/operations/", "target/benchmark/"]
+    assert "asymptote up" not in read(DIRECTORY / "check.yml")

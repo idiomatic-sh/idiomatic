@@ -20,15 +20,14 @@ the evidence no case declares were deleted when the bench moved onto the shared 
 them, and `a6e880e1d7` keeps the earlier full-run receipts.
 
 From `crates/ryo`, the shared collector registers every default from `benchmark.toml`, `profiles/<id>/benchmark.toml` and
-`rules/<id>/`, builds and seals the worker, and writes `target/benchmark/python/ruff/verify-inventory/`:
+`rules/<id>/`, builds and seals the worker, verifies every default, then measures ryo against the pinned Ruff over each project
+of `../../benchmark.toml`, writing under `target/benchmark/python/ruff/bench/` and printing the bench's one BMF document:
 
 ```sh
-cargo run --locked --release -p idiomatic-sh-ryo-benchmark --bin ryo-benchmark-collector -- verify-inventory languages/python/benchmarks/linters/ruff
-cargo run --locked --release -p idiomatic-sh-ryo-benchmark --bin ryo-benchmark-collector -- verify-inventory --shards 4 languages/python/benchmarks/linters/ruff
+taskset -c 0-3 env RAYON_NUM_THREADS=4 cargo run --locked --release -p idiomatic-sh-ryo-benchmark --bin ryo-benchmark-collector -- bench languages/python/benchmarks/linters/ruff
 ```
 
-That is the asymptote tool `bench-correctness/python/ruff`. `--shards <count>` verifies the rules round robin in that many shards at
-once (one by default); the summary is written by one writer, so it is the same at every count. The shared collector owns registration,
+That is the asymptote tool `bench/python/ruff`. The rules' growth is `../../growth.toml`. The shared collector owns registration,
 execution receipts and PASS/FAIL decisions; missing, incomplete, invalid, or mismatched results fail. `verify-reference-cases` checks
 the pinned Ruff observations only; candidate correctness requires `verify-cases` or the full inventory.
 

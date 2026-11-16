@@ -69,5 +69,5 @@ cargo bench -p idiomatic-sh-ryo-rust-clippy-benchmark --bench clippy -- audit
 ```
 
 `verify-reference-cases` checks the cases against clippy alone; `verify-cases` runs both contestants over the authored rules and refuses
-while any default is unaccounted. `bench-parity rust/clippy` and `bench-measure rust/clippy` clone ripgrep and clap at the revisions
+while any default is unaccounted. The asymptote tool `bench/rust/clippy` clones ripgrep and clap at the revisions
 `../../benchmark.toml` pins; the collector finds `clippy-driver` in the directory of the toolchain's `cargo` first.

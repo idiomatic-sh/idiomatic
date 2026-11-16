@@ -245,56 +245,11 @@ inputs = ["languages/{lang}", ".", "../tastemaker", "../../tastemaker", "../../r
 id = "correctness-python-release-build"
 group = "python-release"
 # The Python provider's boolean parser payload is written in an optimized build: the one test that needs a release build,
-# kept in its own group so the check matrix does not build release on every row. Ruff correctness is the bench-correctness
-# group's (tool bench-correctness).
+# kept in its own group so the check matrix does not build release on every row. Ruff correctness is the bench
+# group's (tool bench).
 run = ["cargo", "test", "--release", "--locked", "-p", "idiomatic-sh-ryo-python", "--lib", "boolean_parser_payload_is_written_in_optimized_builds"]
 timeout-seconds = 3600
 inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "performance-lint"
-group = "perf"
-# ryo's cost over ruff on the same target: the medians of five rounds (cold) and three (the rest), with an equal page cache; run it on a quiet machine.
-# Every measure but the memory ones (`--timing`): `memory-lint` holds those, so no measure has two bests.
-run = ["cargo", "bench", "--locked", "--workspace", "--bench", "lint", "--", "--timing"]
-output = "bmf"
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "memory-lint"
-group = "memory"
-# The memory rows of the `lint` bench alone, over ruff: the peak of a cold run (`peak-megabytes`) and of a warm one
-# (`warm-peak-megabytes`), each the median of three rounds in a process of its own, and the bytes of the store the run leaves
-# (`store-bytes`) and its files (`store-files`). It is the part of the bench a pull request can afford (a few minutes, not the
-# whole bench), the bench's `--memory` flag, and `performance-lint` takes the rest with `--timing`: each measure has one bench run and one
-# best. The whole run is held to the first four processors (`taskset -c 0-3`, which fails on a machine with fewer, and the bench checks it) and the bench runs four workers (`MEMORY_WORKERS`): the engine starts no more workers than the machine has, so the same four on every machine and the lock needs no machine. The tolerances: the peaks
-# (`peak-megabytes` of the cold run, `warm-peak-megabytes`) are resident sets, which move with how many workers hold their tables at
-# once, so 5%; `store-bytes` is the same bytes for the same files and rules, which only the order the workers hand their buckets in
-# can move, so 1%; `store-files` is exact. The words each rule hands the cross-file finish
-# (`frontier/<rule>-words`, over four files of five functions of sixty statements) are counts of the same corpus, so they repeat
-# exactly and are held exactly. Target, not a gate: a row for each function and none for a token, which the engine does not yet meet
-# for `duplicate-function-bodies` and `no-reexports` until cross-file pruning. Targets, not gates: a peak under the release build's 87 MB, a store of a few MB (five).
-run = ["taskset", "-c", "0-3", "cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--bench", "lint", "--", "--memory"]
-output = "bmf"
-tolerance-percent = { peak-megabytes = 5, warm-peak-megabytes = 5, store-bytes = 1 }
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "memory-dhat"
-group = "memory"
-# One cold run over ruff under `dhat` (the `lint` bench's `--dhat` run, which `--features dhat-heap` gives `dhat` as the allocator:
-# no time or peak is taken beside it): the bytes live at the run's global maximum (`dhat-gmax-bytes`) and the count of blocks of a
-# megabyte or more (`big-blocks`). `dhat` counts every allocation, so both repeat from run to run: the bytes may rise by 1%, which
-# only the order the workers' tables meet at the maximum moves, the count by none. The run fails when the big blocks are more than the
-# workers and the rules, each with 64 tables, allow (`tests/blocks.rs` holds the same ceiling over a tree it writes). The run is
-# pinned to four processors and four workers, as `memory-lint` is.
-run = ["taskset", "-c", "0-3", "cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--features", "dhat-heap", "--bench", "lint", "--", "--dhat"]
-output = "bmf"
-tolerance-percent = { dhat-gmax-bytes = 1, big-blocks = 0 }
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "memory-allocation"
@@ -319,76 +274,16 @@ timeout-seconds = 7200
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tastemaker"]
 
 [[tools]]
-id = "bench-correctness"
-group = "bench-correctness"
-# Every default of each linter bench, verified against its registered cases by the shared runner: the collector builds and
-# seals the bench's worker, registers every default and writes target/benchmark/<lang>/<linter>/verify-inventory/. One Linux
-# runner runs this group (the bench-correctness job), never the check matrix.
-run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "verify-inventory", "languages/{lang}/benchmarks/linters/{linter}"]
+id = "bench"
+group = "bench"
+# Each linter bench over every project of its language: every default verified against its cases, then ryo and the pinned
+# reference over each project, any difference a failure, and ryo's cost, its verification times and its growth as one BMF
+# document. The one pin of every timed measure (whole-repo runs, verification times, growth): the whole process tree runs on
+# processors 0-3 with RAYON_NUM_THREADS=4, and the collector refuses any processor count but four. `store-files` is held
+# exactly. benchmarks.yml's hand-run bench-seed job seeds the lock on the runner that judges it.
+run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "bench", "languages/{lang}/benchmarks/linters/{linter}"]
+output = "bmf"
+tolerance-percent = { cpu-s = 10, wall-s = 15, peak-rss-bytes = 5, warm-cpu-s = 10, warm-peak-rss-bytes = 5, edited-cpu-s = 10, edited-peak-rss-bytes = 5, store-bytes = 1, total-ms = 10, max-case-ms = 10, compile-ms = 10, doubling-ratio = 10, larger-ms = 10 }
 timeout-seconds = 21600
 inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
-[[tools]]
-id = "bench-replay"
-group = "bench-correctness"
-# What the recorded rules answer over ruff and the other pinned targets, too big a run for the test suite: the `lint` bench's
-# `--replay` run holds each live rule's rows to its recording, the findings to the golden counts, what ryo could not decide to the
-# golden or a recorded difference, every feature to a thousand rows fed or `tests/fixtures/unfed.toml`, every file of ruff to four rows
-# handed for each row of its tree, a warm run over ruff in a process of its own to no file read, and every pinned Rust target's
-# manifests to what Cargo says. Each check keeps the name and the failure of the test it was (`cli/benches/lint/replay.rs`); the
-# replay suite holds the same over trees it writes. It measures nothing, so it prints no document and fails when a check does.
-run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--bench", "lint", "--", "--replay"]
-timeout-seconds = 3600
-inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "bench-measure"
-group = "bench-measure"
-# Each linter bench's certified measure over every project of its language: the collector seals the worker and itself,
-# registers every default, and runs the worker's measure-valid. A group of its own, apart from perf, whose lock holds
-# quiet-machine bests: benchmarks.yml's hand-run bench-measure job runs it on a hosted runner, and its records are that runner's.
-run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "measure-valid", "languages/{lang}/benchmarks/linters/{linter}"]
-output = "bmf"
-timeout-seconds = 14400
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "bench-verify"
-group = "bench-verify"
-# How long each linter bench's rules take to verify against their registered cases, in this process over one SDK engine
-# per rule: the bench's verify-cases writes one benchmark `verify/<linter>/<rule>` with `total-ms`, `max-case-ms` and `compile-ms`
-# as BMF to the file named by --verify-times, one document for each profile, and the tool prints them as one document. The lock holds each measure's best, and a run fails
-# when one rises over it by more than 10%, the noise of a timing on a shared machine. The
-# target is 10 ms for every case (`max-case-ms`) and falls from there; it is a target, never a gate.
-run = ["bash", "-c", "set -eo pipefail; mkdir -p target/benchmarks/verify; out=\"$PWD/target/benchmarks/verify/{lang}-{linter}.bmf\"; rm -f \"$out\"; reference=$(command -v {linter} || echo \"$(rustc --print sysroot)/bin/{linter}-driver\"); cargo bench --locked -p idiomatic-sh-ryo-{lang}-{linter}-benchmark --bench {linter} -- verify-cases \"$reference\" . --verify-times=\"$out\" >&2; jq -s add \"$out\""]
-output = "bmf"
-tolerance-percent = { total-ms = 10, max-case-ms = 10, compile-ms = 10 }
-timeout-seconds = 14400
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "bench-growth"
-group = "bench-verify"
-# How the Ruff bench's name-resolving rules (F401, F841, F811, F821) grow with the file, beside verify's times: the bench's
-# `growth` command runs each over every generated shape (an operation repeated in a scope) at 500 and 1,000 repetitions and
-# writes one benchmark `growth/ruff/<rule>/<scope>/<operation>` with `doubling-ratio` (the CPU time at the larger size over
-# the half size's, floored) and `larger-ms` (the CPU time at the larger size) as BMF to the file `--growth-times` names; the
-# tool prints the file. The lock holds each measure's best, and a run fails when one rises over it by more than 10%, the noise
-# of a timing on a shared machine. The bench fails on its own when a doubling costs more than 2.2 times or a run's peak is over
-# its bound, after it wrote the document. It was the `*_cost_grows_with_the_file` rows of the bench's engine tests.
-run = ["bash", "-c", "set -o pipefail; mkdir -p target/benchmarks/growth; out=target/benchmarks/growth/python-ruff.bmf; rm -f \"$out\"; status=0; cargo bench --locked -p idiomatic-sh-ryo-python-ruff-benchmark --bench ruff -- growth --growth-times=\"$out\" >&2 || status=$?; if [ -f \"$out\" ]; then cat \"$out\"; fi; exit \"$status\""]
-output = "bmf"
-tolerance-percent = { doubling-ratio = 10, larger-ms = 10 }
-timeout-seconds = 14400
-inputs = ["languages/python", "languages/python/benchmarks/linters/ruff", ".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "bench-parity"
-group = "bench-parity"
-# Each linter bench's rule-by-rule parity with its pinned reference over every project of its language; a project's
-# accepted differences are profiles/evidence/<project>-accepted-differences.json of the bench, none when it is absent.
-# benchmarks.yml's hand-run bench-parity job runs this group.
-run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "parity", "languages/{lang}/benchmarks/linters/{linter}"]
-output = "bmf"
-timeout-seconds = 7200
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]

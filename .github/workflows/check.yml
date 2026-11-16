@@ -2,21 +2,20 @@
 # pull request restores. Asymptote alone decides what runs. A pull request runs Linux x86 (ubuntu-26.04) only, and the fewest
 # builds: the `root` job (the repository's own groups), the `pull-request` job (the message main keeps), one `check-linux` job per
 # product (its `lint`, `clippy`, `check`, `release-tests`, `release-coverage` and `memory` groups in one asymptote call, so the tests share one
-# build), the `bench-correctness` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
-# Windows) and groups and `python-release`, a hand run `speed`. Every cache is saved by a run on main alone (`github.ref ==
+# build), the `bench` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
+# Windows) and groups and `python-release`. Every cache is saved by a run on main alone (`github.ref ==
 # refs/heads/main`) and restored by every run: the Rust cache under one key per machine and product, shared by the groups of a
 # machine (no job id in it), the installed tools under one key per machine and the hash of the files that pin them, and each
 # job's `.asymptote/cache` store under its groups and the hash of those files, this workflow, the toolchains and the helper
 # scripts, so any of them changing opens an empty store. A pull request that edits one of them starts cold, once. A job whose
-# answer stands on state outside the repository keeps no store: speed (origin/main), release-resolution (crates.io's live
+# answer stands on state outside the repository keeps no store: release-resolution (crates.io's live
 # index), api (the newest release tag) and the pull-request job (the event). The bench job keeps none either: asymptote reuses a
 # tool's result without the receipts its run wrote, and the upload requires the receipts, so every bench tool runs in full. A
 # hand run checks the one product its `product` input names: the release pull request workflow (release-pr.yml) starts one on its
 # branch, since a pull request a workflow opens starts no workflow. Each job is a machine, the toolchains (every sample's among
 # them: a sample whose toolchain is missing fails its test), `tools/install.py`, which installs every tool the checks run at the
 # version declared for it, prebuilt, and one `asymptote check` call. The `gate` job waits for every other and fails when one
-# failed or was cancelled; on a pull request the jobs that run on main alone (`check`, `python-release`, `speed`) are skipped, and on a push `speed`,
-# which passes. `gate` is the one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by
+# failed or was cancelled; on a pull request the jobs that run on main alone (`check`, `python-release`) are skipped, which passes. `gate` is the one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by
 # process (no repository rule enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote
 # init` installs, which runs the products' `lint` groups and the root's `repository` group.
 name: check
@@ -387,16 +386,16 @@ jobs:
             target/checks/
           if-no-files-found: ignore
   # The one verdict: it fails when a job it waits for failed or was cancelled, and passes when each succeeded or was skipped (the
-  # speed guard alone, on a push to main).
+  # main-only jobs, on a pull request).
   gate:
-    needs: [root, pull-request, check-linux, check, speed, python-release, bench-correctness]
+    needs: [root, pull-request, check-linux, check, python-release, bench]
     if: always()
     runs-on: ubuntu-26.04
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}
-          allowed-skips: ${{ github.event_name == 'pull_request' && 'check,speed,python-release' || github.event_name == 'push' && 'speed' || '' }}
+          allowed-skips: ${{ github.event_name == 'pull_request' && 'check,python-release' || '' }}
   python-release:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
@@ -469,104 +468,18 @@ jobs:
         with:
           path: crates/ryo/.asymptote/cache
           key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-python-release-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
-  # A change's speed against main: on a hand run alone. A run on main would compare main with itself, and a pull request's is not run.
-  # It keeps no asymptote store: its answer stands on origin/main, which no stamp holds.
-  speed:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-26.04
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24.22.2"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.26.5"
-          # No go.mod at the root: there is nothing for the module cache to key on.
-          cache: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12.16"
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          version: "0.13.8"
-      - name: Rust toolchain (rust-toolchain.toml)
-        run: rustup toolchain install
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        with:
-          cache-bin: false
-          # Keep this release-mode cache separate from check and the other Ruff jobs.
-          cache-workspace-crates: true
-          shared-key: ubuntu-26.04-speed-ryo
-          add-job-id-key: false
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-          cache-on-failure: true
-          workspaces: crates/ryo -> ../../target
-      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
-      # version as it is.
-      - id: cargo_bin_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
-          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
-      - name: The tools the checks run, each at the version declared for it
-        run: uv run --script tools/install.py
-        env:
-          # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
-          GH_TOKEN: ${{ github.token }}
-      # Saved by main's runs only, and only when the restore missed: a pull request restores what main saved.
-      - name: Save the installed tools
-        if: github.ref == 'refs/heads/main' && steps.cargo_bin_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
-          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
-      - id: speed_check
-        run: |
-          mkdir -p target/benchmarks/speed
-          set +e
-          asymptote check --groups speed --format json > target/benchmarks/speed/check.json 2> target/benchmarks/speed/check.stderr.log
-          speed_status=$?
-          cat target/benchmarks/speed/check.json
-          cat target/benchmarks/speed/check.stderr.log >&2
-          exit "$speed_status"
-      - name: Speed comparison and Rust memory evidence
-        if: always() && steps.speed_check.outcome != 'skipped'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: speed-evidence-${{ runner.os }}-${{ github.run_attempt }}
-          path: |
-            target/benchmarks/speed/**
-            .asymptote/cache/check.failures.json
-            crates/*/.asymptote/cache/check.failures.json
-            tools/lints/.asymptote/cache/check.failures.json
-          include-hidden-files: true
-          if-no-files-found: ignore
-          retention-days: 7
-  bench-correctness:
-    # Each linter bench verified by the shared collector on one Linux runner (never a check matrix row), its one asymptote group:
-    # every default of each bench, each case under its own rule's settings profile, after the whole-bench audit; and what the
-    # recorded rules answer over ruff and the other pinned targets (`bench-replay`), too big a run for the test suite. It restores no
-    # asymptote store: a reused tool writes no receipts, and the upload requires them, so every bench tool runs in full on every
-    # run. The job's limit is above the bench tools' timeouts, so asymptote reports a timeout before the runner cancels the job.
-    name: bench-correctness
+  bench:
+    # Each linter bench on one Linux runner (never a check matrix row), its one asymptote group: the collector verifies every
+    # default of the bench against its cases, then runs ryo and the pinned reference over each project of its language, any
+    # difference a failure, and publishes ryo's cost, its verification times and its growth as one document, judged against the
+    # committed lock. The tool's run line pins the whole process tree to four processors and four workers, so the job sets no
+    # worker count of its own. It restores no asymptote store: a reused tool writes no receipts, and the upload requires them, so
+    # every bench tool runs in full on every run. The job's limit is above the bench tools' timeouts, so asymptote reports a
+    # timeout before the runner cancels the job.
+    name: bench
     runs-on: ubuntu-26.04
     timeout-minutes: 390
     env:
-      RAYON_NUM_THREADS: "1"
       CARGO_BUILD_JOBS: "6"
     defaults:
       run:
@@ -596,7 +509,7 @@ jobs:
         with:
           cache-bin: false
           cache-workspace-crates: true
-          shared-key: ubuntu-26.04-bench-correctness-ryo
+          shared-key: ubuntu-26.04-bench-ryo
           add-job-id-key: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
@@ -623,12 +536,12 @@ jobs:
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
-      - run: asymptote check --root crates/ryo --groups bench-correctness
-      - name: Bench summaries and per-rule receipts
+      - run: asymptote check --root crates/ryo --groups bench
+      - name: Bench documents and per-rule receipts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: bench-correctness-${{ github.run_attempt }}
+          name: bench-${{ github.run_attempt }}
           path: target/benchmark/
           include-hidden-files: true
           if-no-files-found: error

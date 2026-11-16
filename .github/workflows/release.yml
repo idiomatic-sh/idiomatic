@@ -71,8 +71,8 @@ jobs:
       fail-fast: false
       # One job per independent build: the tools of a group share one, and no two groups do. The tests (check, release-tests) run on
       # every machine; the groups whose verdict is the same on every platform run once, on Linux, but the SDK's API, on macOS, where
-      # cargo-public-api ships a prebuilt. bench-correctness holds the linter benches and what the recorded rules answer over the
-      # pinned targets (`bench-replay`), the runs too big for the test suite. check.yml's gate runs these rows for every product; a
+      # cargo-public-api ships a prebuilt. bench holds the linter benches: every default verified, ryo against the pinned
+      # reference over every project, and ryo's cost, verification times and growth judged against the lock. check.yml's gate runs these rows for every product; a
       # hand run runs them for its product, and the root row the repository root's `repository` group, which no product has: the
       # root's tools alone.
       matrix:
@@ -92,7 +92,7 @@ jobs:
           - { runner: ubuntu-26.04, group: release-clippy }
           - { runner: ubuntu-26.04, group: release-coverage }
           - { runner: ubuntu-26.04, group: memory }
-          - { runner: ubuntu-26.04, group: bench-correctness }
+          - { runner: ubuntu-26.04, group: bench }
           - { runner: ubuntu-26.04, group: release-msrv }
           - { runner: ubuntu-26.04, group: release-dylint }
           - { runner: ubuntu-26.04, group: release-hack }
