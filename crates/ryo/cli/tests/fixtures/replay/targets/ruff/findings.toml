@@ -7,7 +7,7 @@
 "idiomatic.arch/boxed-dyn-error-annotations#unknown" = 1447
 "idiomatic.arch/case-vocabulary" = 2
 "idiomatic.arch/constant-assertions" = 3
-"idiomatic.arch/crate-dependency-cycles" = 3
+"idiomatic.arch/crate-dependency-cycles" = 2
 "idiomatic.arch/crate-dependency-depth" = 29
 "idiomatic.arch/deep-function-nesting" = 6
 "idiomatic.arch/deep-nesting" = 203
