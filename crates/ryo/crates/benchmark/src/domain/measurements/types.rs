@@ -4,7 +4,6 @@ pub mod corpus_shape;
 pub mod measurement_environment;
 pub mod pair;
 pub mod rule_tally;
-pub mod sample;
 
 /// The language as observations name it.
 #[derive(Clone, Copy, Debug)]

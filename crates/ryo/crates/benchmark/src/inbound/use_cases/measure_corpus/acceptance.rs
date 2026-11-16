@@ -5,20 +5,11 @@ use ryo_benchmark::inbound::use_cases::measure_corpus::{
     interface::MeasureCorpusUseCase as _,
     types::SourceSuffix,
 };
-use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 
-#[then("measure_corpus says a diagnostic corpus publishes no metric")]
-fn diagnostic(world: &mut crate::Behavior) {
-    let _: &mut crate::Behavior = world;
-    let (succeeded, observations) = measure(BenchmarkCoverage::Interim);
-    assert!(succeeded);
-    assert!(observations.contains("not benchmark metrics"));
-}
-
-#[then("measure_corpus refuses to publish an accounted corpus without samples")]
+#[then("measure_corpus refuses a corpus of no project, publishing no cost")]
 fn refuses(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
-    assert!(!measure(BenchmarkCoverage::Accounted).0);
+    assert!(!measure().0);
 }
 
 #[then("measure_corpus counts a.ts and b.mjs in the corpus shape and not c.vue")]
@@ -53,9 +44,9 @@ fn suffixed(world: &mut crate::Behavior) {
 }
 
 /// Whether an empty corpus run succeeded, and what it wrote.
-fn measure(scope: BenchmarkCoverage) -> (bool, String) {
+fn measure() -> (bool, String) {
     let mut observations = Vec::new();
-    let result = with_corpus(scope, 0, |corpus| {
+    let result = with_corpus(0, |corpus| {
         use_case().measure_corpus(corpus, &mut observations)
     });
     (

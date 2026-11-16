@@ -1,22 +1,23 @@
-//! The owned sample data the evidence contract rows are written in.
-use ryo_benchmark_contracts::domain::measurements::types::{
-    Measurement, PublicationSample, SampleName,
-};
+//! The owned sample data the evidence contract is written in.
 
-/// Owned test data, not a certification or measurement proof.
-#[derive(Clone)]
-pub struct SampleInput {
-    pub(super) inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus,
-    pub(super) name: SampleName,
-    pub(super) measurement: Measurement,
-}
-impl SampleInput {
-    pub(super) fn publication(&self) -> PublicationSample<'_> {
-        PublicationSample {
-            inventory: self.inventory,
-            name: &self.name,
-            measurement: &self.measurement,
-        }
+/// A complete report of one file and no finding, what the comparison evidence is written of.
+#[must_use]
+pub fn report() -> ryo_benchmark_contracts::domain::reports::types::RunReport {
+    use ryo_benchmark_contracts::domain::reports::types::{
+        CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext, RuleCoverage, RunReport,
+    };
+    RunReport {
+        execution_metadata: ExecutionMetadata::Complete,
+        project_context: ProjectContext::NotRequested,
+        skipped: Vec::new(),
+        coverage: CoverageAccounting::Accounted(RuleCoverage {
+            selected: PairCount(1),
+            evaluated: PairCount(1),
+            skipped: PairCount(0),
+            unknown_or_unread: PairCount(0),
+        }),
+        diagnostics: vec![],
+        files: vec![ryo::linter::RelativePath("input".into())],
     }
 }
 

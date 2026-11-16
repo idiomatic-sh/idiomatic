@@ -302,40 +302,14 @@ pub fn exercise(
                 );
             }
             if matches!(change, Change::None | Change::InventoryFull) {
-                use crate::inbound::use_cases::publish::interface::PublishUseCase as _;
-                let full = matches!(change, Change::InventoryFull);
                 assert_eq!(
                     pair.eligibility,
-                    if full {
+                    if matches!(change, Change::InventoryFull) {
                         crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
                     } else {
                         crate::domain::measurements::types::MeasurementEligibility::Diagnostic
                     }
                 );
-                let samples = pair.samples([
-                    ryo_benchmark_contracts::domain::measurements::types::SampleName(
-                        "fixture/reference/cold".into(),
-                    ),
-                    ryo_benchmark_contracts::domain::measurements::types::SampleName(
-                        "fixture/candidate/cold".into(),
-                    ),
-                ]);
-                let publication =
-                    crate::inbound::use_cases::publish::use_case::PublishUseCaseImpl::new(
-                        std::sync::Arc::new(crate::outbound::evidence::factory::bmf(
-                            Box::new(Vec::<u8>::new()),
-                            Box::new(Vec::<u8>::new()),
-                        )),
-                    )
-                    .publish(&samples);
-                if full {
-                    publication.expect("complete measured inventory publishes");
-                } else {
-                    assert_eq!(
-                        publication.err().map(|error| error.to_string()),
-                        Some("diagnostic observations cannot publish benchmark metrics".to_owned())
-                    );
-                }
             }
             Ok(certificate.cases())
         }

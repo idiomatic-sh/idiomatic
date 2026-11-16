@@ -8,7 +8,6 @@ pub fn bmf(output: Box<dyn Write + Send>, comparison: Box<dyn Write + Send>) -> 
     EvidenceBmfAdapter::new(super::adapters::bmf::connection::EvidenceBmfConnection {
         output: std::sync::Mutex::new(output),
         comparison: std::sync::Mutex::new(comparison),
-        parity: std::sync::Mutex::default(),
         document: std::sync::Mutex::new(Some(
             super::adapters::bmf::types::MeasureDocument::default(),
         )),

@@ -1,5 +1,4 @@
-//! Borrowed permission for the exact workflow-issued publication payload.
-pub mod measured_publication;
+//! What one rule's verification took and where the inventory left it.
 
 /// How long the cases of one rule took to verify.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

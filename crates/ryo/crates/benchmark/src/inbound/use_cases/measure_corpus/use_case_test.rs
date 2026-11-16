@@ -4,7 +4,7 @@ use super::{
     interface::MeasureCorpusUseCase as _,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::requests::types::{BenchmarkCoverage, CohortSelection};
+use ryo_benchmark_contracts::domain::requests::types::CohortSelection;
 
 /// The rules a certificate covers and the cohort measured under it.
 #[derive(Clone, Copy)]
@@ -28,7 +28,7 @@ enum Host {
 }
 
 /// How many projects the corpus holds, whether the run is held to the accounted inventory, its cohort and its host.
-type Input = (BenchmarkCoverage, usize, Cohort, Host);
+type Input = (usize, Cohort, Host);
 /// What the observation lines say.
 type Value = &'static str;
 /// The refusal and the observation lines written before it.
@@ -36,37 +36,16 @@ type Failure = (&'static str, &'static str);
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a diagnostic corpus says its samples are not metrics"),
-        word: Word::Succeeds,
-        input: || {
-            (
-                BenchmarkCoverage::Interim,
-                0,
-                Cohort::Frozen,
-                Host::Honouring,
-            )
-        },
-        expect: Expect::Value("diagnostic-only: scoped samples are not benchmark metrics\n"),
-    },
-    Case {
-        name: CaseName("an accounted corpus without samples refuses publication"),
+        name: CaseName("a corpus of no project publishes no cost"),
         word: Word::Refuses,
-        input: || {
-            (
-                BenchmarkCoverage::Accounted,
-                0,
-                Cohort::Frozen,
-                Host::Honouring,
-            )
-        },
-        expect: Expect::Error(("no measured evidence", "")),
+        input: || (0, Cohort::Frozen, Host::Honouring),
+        expect: Expect::Error(("no costs", "")),
     },
     Case {
         name: CaseName("a project that cannot be prepared is reported after the diagnostic line"),
         word: Word::Fails,
         input: || {
             (
-                BenchmarkCoverage::Interim,
                 1,
                 Cohort::Frozen,
                 Host::Honouring,
@@ -74,7 +53,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Error((
             "corpus comparisons failed: [ProjectName(\"project-0\")]",
-            "project-0: corpus comparison failed: invalid pin\ndiagnostic-only: scoped samples are not benchmark metrics\n",
+            "project-0: corpus comparison failed: invalid pin\n",
         )),
     },
     Case {
@@ -82,7 +61,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             (
-                BenchmarkCoverage::Interim,
                 1,
                 Cohort::Explicit {
                     covered: &["A"],
@@ -98,7 +76,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || {
             (
-                BenchmarkCoverage::Interim,
                 1,
                 Cohort::Explicit {
                     covered: &["A", "B"],
@@ -109,7 +86,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Error((
             "corpus comparisons failed: [ProjectName(\"project-0\")]",
-            "project-0: corpus comparison failed: invalid pin\ndiagnostic-only: scoped samples are not benchmark metrics\n",
+            "project-0: corpus comparison failed: invalid pin\n",
         )),
     },
     Case {
@@ -119,7 +96,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             (
-                BenchmarkCoverage::Interim,
                 1,
                 Cohort::Explicit {
                     covered: &["A", "B"],
@@ -138,7 +114,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             (
-                BenchmarkCoverage::Interim,
                 1,
                 Cohort::Frozen,
                 Host::Unreliable,
@@ -151,7 +126,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn subject((scope, projects, cohort, host): Input) -> Result<Value, Failure> {
+fn subject((projects, cohort, host): Input) -> Result<Value, Failure> {
     let mut observations = Vec::new();
     let (covered, cohort) = match cohort {
         Cohort::Frozen => (&["A"][..], CohortSelection::Frozen),
@@ -165,7 +140,7 @@ fn subject((scope, projects, cohort, host): Input) -> Result<Value, Failure> {
             ),
         ),
     };
-    let result = with_cohort(scope, projects, covered, &cohort, |corpus| {
+    let result = with_cohort(projects, covered, &cohort, |corpus| {
         match host {
             Host::Honouring => use_case(),
             Host::Unreliable => unreliable_host_use_case(),

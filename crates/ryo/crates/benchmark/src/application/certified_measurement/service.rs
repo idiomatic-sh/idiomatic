@@ -95,6 +95,18 @@ pub fn pair(
     })
 }
 
+/// Pair both contestants' measurements of a corpus run without comparing them: the per-rule judge
+/// (`corpus_discrepancy::judge`) decides whether they agree, against the corpus's accepted differences, and names each
+/// difference by rule, file and line.
+#[must_use]
+pub fn unjudged(reference: Measurement, candidate: Measurement) -> Pair {
+    Pair {
+        eligibility: MeasurementEligibility::Diagnostic,
+        reference,
+        candidate,
+    }
+}
+
 /// Require the instrumentation, certified artifacts and sources unchanged and issue the pair's eligibility.
 ///
 /// # Errors

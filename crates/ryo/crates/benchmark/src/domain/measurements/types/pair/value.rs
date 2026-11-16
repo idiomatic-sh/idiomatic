@@ -3,9 +3,7 @@
     clippy::field_scoped_visibility_modifiers,
     reason = "crate-scoped fields let checked workflows issue evidence while preventing external callers from constructing certified values"
 )]
-use crate::domain::measurements::types::sample::value::BenchmarkSample;
 use ryo_benchmark_contracts::domain::measurements::types::Measurement;
-use ryo_benchmark_contracts::domain::measurements::types::SampleName;
 
 /// Reference and candidate observations retained under the explicit diagnostics comparison contract.
 ///
@@ -45,21 +43,9 @@ impl Pair {
     pub fn candidate(&self) -> &Measurement {
         &self.candidate
     }
-    /// Name the two certified observations for publication.
+    /// What the pair's certification permits: only a complete inventory's costs are published.
     #[must_use]
-    pub fn samples(self, names: [SampleName; 2]) -> [BenchmarkSample; 2] {
-        let [reference, candidate] = names;
-        [
-            BenchmarkSample {
-                eligibility: self.eligibility,
-                name: reference,
-                measurement: self.reference,
-            },
-            BenchmarkSample {
-                eligibility: self.eligibility,
-                name: candidate,
-                measurement: self.candidate,
-            },
-        ]
+    pub fn eligibility(&self) -> crate::domain::measurements::types::MeasurementEligibility {
+        self.eligibility
     }
 }

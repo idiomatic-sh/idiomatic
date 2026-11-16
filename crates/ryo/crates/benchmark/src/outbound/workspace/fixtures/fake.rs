@@ -43,3 +43,31 @@ impl WorkspacePort for WorkspaceFake {
 #[cfg(test)]
 #[path = "fake_test.rs"]
 mod tests;
+
+/// A checkout of one project at a fixed directory, tracking the files it names.
+#[derive(Debug)]
+pub struct ProjectWorkspace {
+    /// The checkout's root.
+    pub root: PathBuf,
+    /// The files the project tracks.
+    pub tracked: Vec<String>,
+}
+
+impl WorkspacePort for ProjectWorkspace {
+    fn prepare(&self, project: &Project) -> Result<Workspace, Error> {
+        Ok(Workspace {
+            root: self.root.clone(),
+            revision: CommitRevision(project.revision.0.clone()),
+            applied: None,
+        })
+    }
+    fn tracked_files(&self, _: &Workspace) -> Result<TrackedFiles, Error> {
+        Ok(TrackedFiles(self.tracked.clone()))
+    }
+    fn apply_patch(&self, _: &mut Workspace, _: &Path) -> Result<(), Error> {
+        Ok(())
+    }
+    fn reset(&self, _: &mut Workspace) -> Result<(), Error> {
+        Ok(())
+    }
+}

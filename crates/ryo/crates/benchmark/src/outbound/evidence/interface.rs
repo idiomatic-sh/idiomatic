@@ -1,17 +1,11 @@
 //! Asymptote owns the ratchet; this port gathers one document of observed measures and writes it once.
-use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, ReportComparison, RunReport,
 };
 
-/// Publication boundary for complete, correctness-gated observations.
+/// The one writer of a bench's document, and the comparison evidence beside it.
 pub trait EvidencePort {
-    /// Write one complete document, refusing empty or resource-incomplete samples.
-    ///
-    /// # Errors
-    /// Returns encoding, validation, stream-write or flush failures.
-    fn publish(&self, publication: &MeasuredPublication<'_>) -> Result<(), Error>;
     /// Report the declared contract, both comparison dimensions and both producers' execution
     /// metadata beside the timing output, never as a benchmark metric.
     ///
@@ -66,14 +60,4 @@ pub trait EvidencePort {
     /// # Errors
     /// An empty document, encoding, stream-write or flush failures.
     fn finish(&self) -> Result<(), Error>;
-    /// Publish the differing-rule and unaccepted-difference counts of a corpus parity as metrics, and its
-    /// per-rule document on the comparison stream. The counts of every parity published through this boundary
-    /// are one document, each under its reference's name, written when the boundary is done.
-    ///
-    /// # Errors
-    /// Returns encoding, stream-write or flush failures.
-    fn parity(
-        &self,
-        parity: &ryo_benchmark_contracts::domain::reports::types::ParityReport<'_>,
-    ) -> Result<(), Error>;
 }

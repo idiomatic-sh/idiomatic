@@ -6,8 +6,8 @@
 
 use super::{
     types::{
-        CorpusLanguage, CorpusMeasurement, ProfileLabel, SampleLabel, SourceProfile, SourceSuffix,
-        ToolTitle,
+        AcceptedDifferencesFiles, AcceptedSuffix, CorpusLanguage, CorpusMeasurement, ProfileLabel,
+        SourceSuffix, ToolTitle,
     },
     use_case::MeasureCorpusUseCaseImpl,
 };
@@ -24,7 +24,7 @@ use ryo_benchmark_contracts::domain::measurements::types::{
     ExecutionProfile, Invocation, MeasurementMode,
 };
 use ryo_benchmark_contracts::domain::requests::types::{
-    BenchmarkCoverage, CertificationCases, CohortSelection, ContextSeal, FileMetadataDeclaration,
+    CertificationCases, CohortSelection, ContextSeal, FileMetadataDeclaration,
     InputDeclaration, RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
 use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
@@ -123,7 +123,7 @@ pub fn discovering(root: &std::path::Path, files: &[&str]) -> MeasureCorpusUseCa
     wired(
         files,
         Arc::new(
-            crate::inbound::use_cases::compare_corpus::fixtures::ProjectWorkspace {
+            crate::outbound::workspace::fixtures::fake::ProjectWorkspace {
                 root: root.to_owned(),
                 tracked: files.iter().map(|file| (*file).to_owned()).collect(),
             },
@@ -156,34 +156,35 @@ fn wired(
         Arc::new(EvidenceFake),
         workspace,
         host,
+        (
+            Arc::new(crate::outbound::engine::fixtures::fake::EngineFake::default()),
+            Arc::new(crate::outbound::process_meter::fixtures::fake::ProcessMeterFake::default()),
+        ),
     )
 }
 
-/// Hand `operate` a corpus of `projects` under `scope`; each project is pinned to a branch name, which the workspace refuses.
+/// Hand `operate` a corpus of `projects`; each project is pinned to a branch name, which the workspace refuses.
 ///
 /// # Panics
 /// Never: the rule identifier is a valid literal.
 pub fn with_corpus<R>(
-    scope: BenchmarkCoverage,
     projects: usize,
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
-    with_cohort(scope, projects, &["A"], &CohortSelection::Frozen, operate)
+    with_cohort(projects, &["A"], &CohortSelection::Frozen, operate)
 }
 
-/// Hand `operate` a corpus of `projects` under `scope`, certified for the `covered` rules and measuring `cohort`.
+/// Hand `operate` a corpus of `projects`, certified for the `covered` rules and measuring `cohort`.
 ///
 /// # Panics
 /// When a covered rule is not a valid rule identifier.
 pub fn with_cohort<R>(
-    scope: BenchmarkCoverage,
     projects: usize,
     covered: &[&str],
     cohort: &CohortSelection,
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
     measured(
-        scope,
         pinned(projects, "main"),
         covered,
         cohort,
@@ -196,7 +197,7 @@ pub fn with_cohort<R>(
     )
 }
 
-/// Hand `operate` a diagnostic corpus of one project pinned to a full commit, which the workspace checks out, matching the sources
+/// Hand `operate` a corpus of one project pinned to a full commit, which the workspace checks out, matching the sources
 /// that end in one of `suffixes`, its trials kept under `cache`.
 pub fn with_suffixes<R>(
     (bench, cache): (&std::path::Path, &std::path::Path),
@@ -204,7 +205,6 @@ pub fn with_suffixes<R>(
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
     measured(
-        BenchmarkCoverage::Interim,
         pinned(1, &"0".repeat(40)),
         &["A"],
         &CohortSelection::Frozen,
@@ -225,10 +225,9 @@ fn pinned(count: usize, revision: &str) -> Vec<Project> {
         .collect()
 }
 
-/// Hand `operate` the corpus of `projects` under `scope`, certified for the `covered` rules, measuring `cohort` over the sources
+/// Hand `operate` the corpus of `projects`, certified for the `covered` rules, measuring `cohort` over the sources
 /// that end in one of `suffixes`.
 fn measured<R>(
-    scope: BenchmarkCoverage,
     projects: Vec<Project>,
     covered: &[&str],
     cohort: &CohortSelection,
@@ -237,11 +236,17 @@ fn measured<R>(
 ) -> R {
     let certificate = certificate(covered);
     let invalid_syntax = ryo::linter::RuleId::try_from("invalid-syntax").expect("rule identifier");
+    let language = "fixture".into();
+
     operate(&CorpusMeasurement {
         bench,
         projects,
-        scope,
-        profile: SourceProfile::Full,
+        accepted: AcceptedDifferencesFiles {
+            directory: std::path::Path::new("accepted"),
+            suffix: AcceptedSuffix("-accepted-differences.json"),
+        },
+        growth: None,
+        verification: &crate::outbound::evidence::types::VerificationTimesFiles::default(),
         cache,
         frozen_workload: std::path::Path::new("workload"),
         certificate: &certificate,
@@ -251,15 +256,12 @@ fn measured<R>(
         search_roots: &SearchRoots::Undeclared,
         context_mode: ProjectContextMode::Isolated,
         language: CorpusLanguage {
+            id: &language,
             display: LanguageTitle("Fixture"),
             reference_display: ToolTitle("Reference"),
-            reference_name: SampleLabel(
-                ryo_benchmark_contracts::domain::receipts::constants::REFERENCE,
-            ),
             suffixes,
             invalid_syntax: &invalid_syntax,
             valid_profile: ProfileLabel("accepted-fixture"),
-            full_profile: ProfileLabel("all-fixture"),
         },
     })
 }

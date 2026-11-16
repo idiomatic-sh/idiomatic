@@ -1,6 +1,5 @@
-//! The fake of the `evidence` port: publication acceptance without external effects.
+//! The fake of the `evidence` port: a document gathered without external effects.
 use super::super::interface::EvidencePort;
-use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, ReportComparison, RunReport,
@@ -10,22 +9,6 @@ use ryo_benchmark_contracts::domain::reports::types::{
 #[derive(Debug, Clone, Copy)]
 pub struct EvidenceFake;
 impl EvidencePort for EvidenceFake {
-    fn publish(&self, publication: &MeasuredPublication<'_>) -> Result<(), Error> {
-        let samples = publication.samples();
-        if samples.is_empty()
-            || samples.iter().any(|sample| {
-                sample.inventory != ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete
-                    || sample.name.0.is_empty()
-                    || matches!(
-                        sample.measurement.resources,
-                        ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly
-                    )
-            })
-        {
-            return Err(Error::Invalid("incomplete evidence fixture".into()));
-        }
-        Ok(())
-    }
     /// The fake has no external effects, so the comparison evidence goes nowhere.
     fn comparison(
         &self,
@@ -78,13 +61,6 @@ impl EvidencePort for EvidenceFake {
     }
     /// The fake writes nothing.
     fn finish(&self) -> Result<(), Error> {
-        Ok(())
-    }
-    /// The fake has no external effects, so the parity evidence goes nowhere.
-    fn parity(
-        &self,
-        _parity: &ryo_benchmark_contracts::domain::reports::types::ParityReport<'_>,
-    ) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -140,9 +116,6 @@ impl EvidenceRecorder {
 }
 
 impl EvidencePort for EvidenceRecorder {
-    fn publish(&self, publication: &MeasuredPublication<'_>) -> Result<(), Error> {
-        EvidenceFake.publish(publication)
-    }
     fn comparison(
         &self,
         _reference: &RunReport,
@@ -196,11 +169,5 @@ impl EvidencePort for EvidenceRecorder {
     }
     fn finish(&self) -> Result<(), Error> {
         self.record(|held| held.documents += 1)
-    }
-    fn parity(
-        &self,
-        parity: &ryo_benchmark_contracts::domain::reports::types::ParityReport<'_>,
-    ) -> Result<(), Error> {
-        EvidenceFake.parity(parity)
     }
 }

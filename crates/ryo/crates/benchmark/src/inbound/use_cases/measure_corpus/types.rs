@@ -4,27 +4,14 @@ use crate::domain::suite::types::certificate::value::Certificate;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
 use ryo_benchmark_contracts::domain::requests::types::{
-    BenchmarkCoverage, CohortSelection, SearchRoots,
+    CohortSelection, SearchRoots,
 };
 use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
 use std::path::Path;
 
-/// Which sources of a project are measured.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SourceProfile {
-    /// Only sources the pinned reference parser accepts.
-    Valid,
-    /// Every discovered source of the language.
-    Full,
-}
-
 /// The pinned reference tool as observations name it.
 #[derive(Clone, Copy, Debug)]
 pub struct ToolTitle<'a>(pub &'a str);
-
-/// The sample name of the reference contestant.
-#[derive(Clone, Copy, Debug)]
-pub struct SampleLabel<'a>(pub &'a str);
 
 /// The suffix of a file the matched input profile admits.
 #[derive(Clone, Copy, Debug)]
@@ -37,20 +24,18 @@ pub struct ProfileLabel<'a>(pub &'a str);
 /// The names and suffixes the language gives its sources, its reference and its profiles.
 #[derive(Clone, Copy, Debug)]
 pub struct CorpusLanguage<'a> {
+    /// The language as benchmark.toml and the bench's measures name it (`python`).
+    pub id: &'a ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
     /// The language as observations name it.
     pub display: LanguageTitle<'a>,
     /// The pinned reference tool as observations name it.
     pub reference_display: ToolTitle<'a>,
-    /// The sample name of the reference contestant.
-    pub reference_name: SampleLabel<'a>,
     /// The suffixes of the files the matched input profile admits.
     pub suffixes: &'a [SourceSuffix<'a>],
     /// The reference's rule for a source its parser rejects.
     pub invalid_syntax: &'a ryo::linter::RuleId,
     /// The input-profile label of a run limited to accepted sources.
     pub valid_profile: ProfileLabel<'a>,
-    /// The input-profile label of a run over every source.
-    pub full_profile: ProfileLabel<'a>,
 }
 
 /// Per-rule finding multiplicities, written explicitly rather than as debug representations.
@@ -80,10 +65,12 @@ pub struct CorpusMeasurement<'a> {
     pub bench: &'a Path,
     /// The projects measured, in order.
     pub projects: Vec<Project>,
-    /// Whether the samples are published as a metric or only reported.
-    pub scope: BenchmarkCoverage,
-    /// Which sources of each project are measured.
-    pub profile: SourceProfile,
+    /// Where each project's accepted differences are, if it has any.
+    pub accepted: AcceptedDifferencesFiles<'a>,
+    /// The composition's growth plan, if its language grows its rules.
+    pub growth: Option<&'a crate::domain::growth::types::GrowthPlan>,
+    /// The times file of each rule the inventory verified.
+    pub verification: &'a crate::outbound::evidence::types::VerificationTimesFiles,
     /// The directory retained state and trial directories live under.
     pub cache: &'a Path,
     /// The frozen workload directory the projects' edit patches are read from.
@@ -102,6 +89,20 @@ pub struct CorpusMeasurement<'a> {
     pub context_mode: ProjectContextMode,
     /// The names and suffixes of the measured language.
     pub language: CorpusLanguage<'a>,
+}
+
+/// The suffix, after a project's name, of the file naming the differences accepted for it.
+#[derive(Clone, Copy, Debug)]
+pub struct AcceptedSuffix<'a>(pub &'a str);
+
+/// Where the differences accepted for each project are written: `<directory>/<project><suffix>`; a project with no such
+/// file has none accepted.
+#[derive(Clone, Copy, Debug)]
+pub struct AcceptedDifferencesFiles<'a> {
+    /// The directory of the files.
+    pub directory: &'a Path,
+    /// The suffix of each file after its project's name.
+    pub suffix: AcceptedSuffix<'a>,
 }
 
 /// The boundaries one corpus measurement calls, borrowed from the use case.
@@ -124,4 +125,16 @@ pub(super) struct CorpusBoundaries<'a> {
     pub workspace: &'a dyn crate::outbound::workspace::interface::WorkspacePort,
     /// The host whose file permissions the profiles may require.
     pub host: &'a dyn crate::outbound::host::interface::HostPort,
+    /// The engine the growth programs are linted with, in this process.
+    pub engine: &'a dyn crate::outbound::engine::interface::EnginePort,
+    /// This process's CPU time and peak, around each growth lint.
+    pub meter: &'a dyn crate::outbound::process_meter::interface::ProcessMeterPort,
 }
+
+/// The corpus sources read so far, each read once when a finding in it is first placed.
+#[derive(Debug, Default)]
+pub(super) struct SourceTexts(
+    /// Each source read, by its corpus-relative path.
+    pub std::collections::BTreeMap<ryo::linter::RelativePath, ryo::linter::SourceText>,
+);
+

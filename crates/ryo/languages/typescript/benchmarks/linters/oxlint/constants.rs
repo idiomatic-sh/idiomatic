@@ -23,8 +23,6 @@ pub(crate) const FORMAT: &str = "--format";
 pub(crate) const JSON: &str = "json";
 /// Set the number of linting threads.
 pub(crate) const THREADS: &str = "--threads";
-/// Pin the reference to one worker for comparable execution.
-pub(crate) const ONE_WORKER: &str = "1";
 /// Read no configuration file nested below the working directory.
 pub(crate) const NO_NESTED_CONFIG: &str = "--disable-nested-config";
 /// Separate explicit input paths from options.

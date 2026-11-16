@@ -1,11 +1,7 @@
 Feature: measure_corpus
-  @succeeds
-  Scenario: A diagnostic corpus is not a metric
-    Then measure_corpus says a diagnostic corpus publishes no metric
-
   @refuses
-  Scenario: An accounted corpus without samples refuses publication
-    Then measure_corpus refuses to publish an accounted corpus without samples
+  Scenario: A corpus of no project publishes no cost
+    Then measure_corpus refuses a corpus of no project, publishing no cost
 
   @succeeds
   Scenario: The corpus shape counts TypeScript and JavaScript files alike

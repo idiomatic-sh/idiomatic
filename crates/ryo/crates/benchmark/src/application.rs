@@ -13,7 +13,6 @@ pub mod inventory_verification;
 pub mod measurement;
 pub mod process_discrepancy;
 pub mod project_request;
-pub mod publication;
 pub mod receipt_validation;
 pub mod registered_certification;
 pub mod registration;

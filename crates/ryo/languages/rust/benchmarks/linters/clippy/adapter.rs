@@ -178,10 +178,6 @@ impl LinterClippyAdapter {
                     .to_string()
                     .into(),
             ),
-            (
-                ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
-                constants::ONE_JOB.into(),
-            ),
         ]);
         environment
     }
