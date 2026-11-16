@@ -120,6 +120,7 @@ pub use ryo::languages::FlowBlockFact
 pub use ryo::languages::FlowBlockRow
 pub use ryo::languages::FlowEdge
 pub use ryo::languages::FlowEdgeColumn
+pub use ryo::languages::EdgeOrdinal
 pub use ryo::languages::FlowEdgeFact
 pub use ryo::languages::FlowEdgeKind
 pub use ryo::languages::FlowEdgeRow

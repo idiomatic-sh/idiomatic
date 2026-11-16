@@ -28,6 +28,18 @@ pub struct BlockNumber(pub u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepOrdinal(pub u32);
 
+/// An edge's place among the edges leaving its source block, in the order the language's flow analysis follows them, from 0.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::flow::types::EdgeOrdinal;
+///
+/// assert!(EdgeOrdinal(0) < EdgeOrdinal(1));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EdgeOrdinal(pub u32);
+
 /// How control passes along an edge: the closed vocabulary of `flow-edge.edge-kind`.
 ///
 /// # Examples
@@ -122,9 +134,9 @@ pub struct FlowBlockFact {
 /// # Examples
 ///
 /// ```
-/// use ryo_language::domain::flow::types::{BlockNumber, FlowEdgeFact, FlowEdgeKind};
+/// use ryo_language::domain::flow::types::{BlockNumber, EdgeOrdinal, FlowEdgeFact, FlowEdgeKind};
 ///
-/// let back = FlowEdgeFact { source: BlockNumber(2), target: BlockNumber(1), kind: FlowEdgeKind::Backedge };
+/// let back = FlowEdgeFact { source: BlockNumber(2), target: BlockNumber(1), kind: FlowEdgeKind::Backedge, ordinal: EdgeOrdinal(0) };
 /// assert!(back.target < back.source);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -135,6 +147,8 @@ pub struct FlowEdgeFact {
     pub target: BlockNumber,
     /// How control passes.
     pub kind: FlowEdgeKind,
+    /// Its place among the edges leaving `source`, in the order the flow analysis follows them.
+    pub ordinal: EdgeOrdinal,
 }
 
 /// One step of a block that is an element of the file.

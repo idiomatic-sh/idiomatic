@@ -196,7 +196,8 @@ pub(super) fn embedded_roots_valid(elements: &Elements) -> bool {
 
 /// Whether the control-flow rows of a file read as file 0 hold together: every row is of file 0; the blocks are numbered from
 /// zero in the order written, with flags that are 0 or 1; every edge, step and member names a block the file has; every step and
-/// member names an element `node` accepts; and every edge and step kind is a word of its relation, as `word` reads the cell.
+/// member names an element `node` accepts; every edge and step kind is a word of its relation, as `word` reads the cell; and the
+/// edges leaving a block are numbered from zero.
 pub(super) fn flow_valid(
     rows: &[(Relation, Vec<u64>)],
     node: impl Fn(u64) -> bool,
@@ -215,20 +216,32 @@ pub(super) fn flow_valid(
         }
         blocks += 1;
     }
-    rows.iter().all(|(relation, row)| {
-        if *relation == Relation::FlowEdge {
-            return matches!(row.as_slice(), [source, target, kind, 0]
+    // Each source's edges are numbered 0, 1, ... by their place among the edges leaving it.
+    let mut ordinals: Vec<(u64, u64)> = rows
+        .iter()
+        .filter(|(relation, _)| *relation == Relation::FlowEdge)
+        .filter_map(|(_, row)| Some((*row.first()?, *row.get(3)?)))
+        .collect();
+    ordinals.sort_unstable();
+    let numbered = ordinals.iter().enumerate().all(|(at, (source, ordinal))| {
+        let first = ordinals.partition_point(|(other, _)| other < source);
+        u64::try_from(at - first).is_ok_and(|place| place == *ordinal)
+    });
+    numbered
+        && rows.iter().all(|(relation, row)| {
+            if *relation == Relation::FlowEdge {
+                return matches!(row.as_slice(), [source, target, kind, _, 0]
                 if *source < blocks && *target < blocks && word(*relation, *kind));
-        }
-        if *relation == Relation::FlowStep {
-            return matches!(row.as_slice(), [block, _, kind, at, 0]
+            }
+            if *relation == Relation::FlowStep {
+                return matches!(row.as_slice(), [block, _, kind, at, 0]
                 if *block < blocks && word(*relation, *kind) && node(*at));
-        }
-        if *relation == Relation::FlowMember {
-            return matches!(row.as_slice(), [at, block, 0] if *block < blocks && node(*at));
-        }
-        true
-    })
+            }
+            if *relation == Relation::FlowMember {
+                return matches!(row.as_slice(), [at, block, 0] if *block < blocks && node(*at));
+            }
+            true
+        })
 }
 
 /// Whether an empty file's rows of the flow relation `relation` are its module's own graph: one member, the module's root element

@@ -43,6 +43,8 @@ macro_rules! flow_edge {
                 target Target: Integer => Number;
                 /// How control passes: normal, jump, backedge, join, finalize, new-function, unreachable, error-explicit or error-implicit.
                 edge_kind EdgeKind: Symbol => Symbol;
+                /// The edge's place among the edges leaving its source, in the order the language's flow analysis follows them, from 0.
+                ordinal Ordinal: Integer => Number;
                 /// The file it is in.
                 file File: FileId => File;
             }

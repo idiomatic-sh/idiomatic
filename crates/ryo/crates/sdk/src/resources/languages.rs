@@ -99,7 +99,7 @@ pub use ryo_language::domain::elements::service::take_semantics;
 pub use ryo_language::domain::flow::service::{flow_edge_word, flow_step_word};
 /// The control flow graphs a language's read keeps of a file: blocks by number, edges, steps and the block of each element.
 pub use ryo_language::domain::flow::types::{
-    BlockNumber, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowGraph, FlowMemberFact,
+    BlockNumber, EdgeOrdinal, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowGraph, FlowMemberFact,
     FlowStepFact, FlowStepKind, StepOrdinal,
 };
 /// Keep a file's control flow graphs in its table through the builder (a builder that discards keeps nothing), and read them back

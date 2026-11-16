@@ -1,5 +1,6 @@
 //! The validators' cases, on rows written by hand: a real empty module's flow graph holds, and a planted edge to a block the file
-//! does not have, or a member for an element it does not have, is refused.
+//! does not have, an edge numbered past its place among its source's edges, or a member for an element it does not have, is
+//! refused.
 
 use super::{empty_module_flow, flow_valid};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -18,7 +19,7 @@ const KIND: u64 = 7;
 
 /// An empty module's graph as a language writes it: its error exit (0) and entry (1), the edge from the entry to the exit, and the
 /// root in the entry, with `edge` and `member` in place of that edge and that member.
-fn module(edge: [u64; 4], member: [u64; 3]) -> Vec<(Relation, Vec<u64>)> {
+fn module(edge: [u64; 5], member: [u64; 3]) -> Vec<(Relation, Vec<u64>)> {
     vec![
         (Relation::FlowBlock, vec![0, 1, 1, 0, 0]),
         (Relation::FlowBlock, vec![1, 1, 1, 0, 0]),
@@ -41,17 +42,22 @@ fn accepted(rows: &[(Relation, Vec<u64>)]) -> bool {
 
 /// The module's own graph.
 fn a_real_empty_module_graph_holds() -> bool {
-    accepted(&module([1, 0, KIND, 0], [ROOT, 1, 0]))
+    accepted(&module([1, 0, KIND, 0, 0], [ROOT, 1, 0]))
 }
 
 /// The entry's edge planted to block 5, which the file does not have.
 fn an_edge_to_a_block_the_file_lacks_is_refused() -> bool {
-    accepted(&module([1, 5, KIND, 0], [ROOT, 1, 0]))
+    accepted(&module([1, 5, KIND, 0, 0], [ROOT, 1, 0]))
+}
+
+/// The entry's one edge numbered 1, past its place among the entry's edges.
+fn an_edge_numbered_past_its_place_is_refused() -> bool {
+    accepted(&module([1, 0, KIND, 1, 0], [ROOT, 1, 0]))
 }
 
 /// The member planted for element 9, which the file does not have.
 fn a_member_for_an_element_the_file_lacks_is_refused() -> bool {
-    accepted(&module([1, 0, KIND, 0], [9, 1, 0]))
+    accepted(&module([1, 0, KIND, 0, 0], [9, 1, 0]))
 }
 
 /// The rows of this part's cases.
@@ -66,6 +72,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_edge_to_a_block_the_file_lacks_is_refused"),
         word: Word::Succeeds,
         input: || an_edge_to_a_block_the_file_lacks_is_refused,
+        expect: Expect::Value(false),
+    },
+    Case {
+        name: CaseName("an_edge_numbered_past_its_place_is_refused"),
+        word: Word::Succeeds,
+        input: || an_edge_numbered_past_its_place_is_refused,
         expect: Expect::Value(false),
     },
     Case {

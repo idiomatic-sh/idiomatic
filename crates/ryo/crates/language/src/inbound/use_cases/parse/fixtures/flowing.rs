@@ -7,8 +7,8 @@ use crate::domain::answers::types::{Reader, Support};
 use crate::domain::builders::service::{builder_position, enter_node, leave_node};
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
 use crate::domain::flow::types::{
-    FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowMemberFact, FlowStepFact, FlowStepKind,
-    StepOrdinal,
+    EdgeOrdinal, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowMemberFact, FlowStepFact,
+    FlowStepKind, StepOrdinal,
 };
 use crate::domain::flow_table::service::{
     add_flow_block, add_flow_edge, add_flow_member, add_flow_step,
@@ -139,6 +139,7 @@ impl ParseUseCase for Flowing {
                     source,
                     target,
                     kind: FlowEdgeKind::Jump,
+                    ordinal: EdgeOrdinal(0),
                 },
             );
             add_flow_step(
