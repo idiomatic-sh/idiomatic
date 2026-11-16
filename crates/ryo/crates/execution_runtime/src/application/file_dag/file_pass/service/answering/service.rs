@@ -36,14 +36,23 @@ pub(crate) fn ran_answering(
 ) -> Result<(), OperatingError> {
     match layout(program, node) {
         Ok(_) => {
-            // A deferred refusal it reads runs first, in the order it reads them: its row error comes before the node runs,
-            // and holding no row it answers the node no column, as the interpreter's reader of a refused step read none.
-            for input in node_inputs(program, node) {
-                if let PlanInput::Node(read) = input
-                    && deferred_layout(program, *read).is_some()
-                {
+            // A node reading a deferred refusal runs its node inputs first, in the order it reads them, up to the last
+            // deferred one, as the interpreter ran a step's inputs before the step: an input's row error comes before any
+            // later input runs, and a deferred refusal holding no row answers the node no column.
+            let inputs = node_inputs(program, node);
+            let deferred = |input: &PlanInput| match input {
+                PlanInput::Node(read) => deferred_layout(program, *read).is_some(),
+                PlanInput::Relation(_) | PlanInput::Frontier(_) | PlanInput::Observation(_) => {
+                    false
+                }
+            };
+            let before = inputs.iter().rposition(deferred).map_or(0, |last| last + 1);
+            for input in inputs.get(..before).unwrap_or_default() {
+                if let PlanInput::Node(read) = input {
                     ran_answering(program, *read, step)?;
-                    step(NodeMove::Empty(*read))?;
+                    if deferred(input) {
+                        step(NodeMove::Empty(*read))?;
+                    }
                 }
             }
             step(NodeMove::Run(node))
