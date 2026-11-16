@@ -1,26 +1,86 @@
-//! The concrete stream destination answers the publication contract.
+//! The concrete stream destination answers the publication contract, and writes one document per run, at finish.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::evidence::fixtures::contract::check;
-type Input = ();
-type Value = ();
-type Failure = ();
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("BMF destination honors publication contract"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(()),
-}];
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "the shared case runner requires a Result-returning subject for every outcome word"
-)]
-fn subject(_: Input) -> Result<Value, Failure> {
-    check(&crate::outbound::evidence::factory::bmf(
-        Box::new(std::io::sink()),
-        Box::new(std::io::sink()),
-    ));
-    Ok(())
+use crate::outbound::evidence::fixtures::sample;
+use crate::outbound::evidence::interface::EvidencePort as _;
+
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    /// The port contract over sinks.
+    Contract,
+    /// Costs, verification times and growth added, then finish called twice.
+    OneDocument,
 }
+type Input = Scenario;
+/// The lines written before finish, after the first finish and after the refused second one.
+type Value = [usize; 3];
+type Failure = Refusal;
+#[derive(Debug, PartialEq, Eq)]
+enum Refusal {
+    /// A measure was refused, or the first finish failed.
+    Unexpected,
+    /// A second finish wrote or was accepted.
+    SecondDocument,
+}
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("BMF destination honors publication contract"),
+        word: Word::Succeeds,
+        input: || Scenario::Contract,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "every measure of one run is one document: nothing before finish, one line at finish, and a second finish is refused",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::OneDocument,
+        expect: Expect::Value([0, 1, 1]),
+    },
+];
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::Contract => {
+            check(&crate::outbound::evidence::factory::bmf(
+                Box::new(std::io::sink()),
+                Box::new(std::io::sink()),
+            ));
+            Ok([0, 0, 0])
+        }
+        Scenario::OneDocument => one_document(),
+    }
+}
+
+/// Add every kind of measure, then finish twice, counting the lines written at each step.
+fn one_document() -> Result<Value, Failure> {
+    let written = Shared::default();
+    let adapter = crate::outbound::evidence::factory::bmf(
+        Box::new(written.clone()),
+        Box::new(std::io::sink()),
+    );
+    let language = "python".into();
+    let lines = || {
+        written
+            .0
+            .lock()
+            .map(|bytes| bytes.iter().filter(|byte| **byte == b'\n').count())
+            .map_err(|_poisoned| Refusal::Unexpected)
+    };
+    adapter
+        .costs(&language, &sample::costs())
+        .and_then(|()| adapter.verification(&language, &sample::timings()))
+        .and_then(|()| adapter.growth(&language, &sample::growth()))
+        .map_err(|_refused| Refusal::Unexpected)?;
+    let before = lines()?;
+    adapter.finish().map_err(|_refused| Refusal::Unexpected)?;
+    let finished = lines()?;
+    if adapter.finish().is_ok() {
+        return Err(Refusal::SecondDocument);
+    }
+    Ok([before, finished, lines()?])
+}
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
@@ -41,36 +101,4 @@ impl std::io::Write for Shared {
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
     }
-}
-
-#[test]
-fn every_measure_of_one_run_is_one_document_written_at_finish() {
-    use crate::outbound::evidence::fixtures::sample;
-    use crate::outbound::evidence::interface::EvidencePort as _;
-    let written = Shared::default();
-    let adapter = crate::outbound::evidence::factory::bmf(
-        Box::new(written.clone()),
-        Box::new(std::io::sink()),
-    );
-    let language = "python".into();
-    let lines = || {
-        String::from_utf8(
-            written
-                .0
-                .lock()
-                .map(|bytes| bytes.clone())
-                .unwrap_or_default(),
-        )
-        .unwrap_or_default()
-        .lines()
-        .count()
-    };
-    assert!(adapter.costs(&language, &sample::costs()).is_ok());
-    assert!(adapter.verification(&language, &sample::timings()).is_ok());
-    assert!(adapter.growth(&language, &sample::growth()).is_ok());
-    assert_eq!(lines(), 0, "nothing is written before finish");
-    assert!(adapter.finish().is_ok());
-    assert_eq!(lines(), 1, "finish writes exactly one document");
-    assert!(adapter.finish().is_err(), "a second document is refused");
-    assert_eq!(lines(), 1, "and nothing more is written");
 }

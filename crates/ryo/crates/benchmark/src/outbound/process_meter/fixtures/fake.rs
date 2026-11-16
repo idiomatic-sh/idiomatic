@@ -9,24 +9,24 @@ use std::sync::Mutex;
 #[derive(Debug)]
 pub struct ProcessMeterFake {
     /// The CPU time each `cpu` read advances the clock by, in order; the last repeats.
-    pub cpu_steps: Vec<std::time::Duration>,
+    cpu_steps: Vec<std::time::Duration>,
     /// The peak each `peak` read answers, in order; the last repeats.
-    pub peaks: Vec<ResidentBytes>,
-    /// How many reads of each kind were answered: the clock so far, the CPU reads and the peak reads.
-    pub state: Mutex<ProcessMeterFakeState>,
+    peaks: Vec<ResidentBytes>,
+    /// What was answered so far: the clock, the CPU reads, the peak reads and the resets.
+    state: Mutex<Reads>,
 }
 
 /// What the fake meter has answered so far.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct ProcessMeterFakeState {
+struct Reads {
     /// The CPU time so far.
-    pub clock: std::time::Duration,
+    clock: std::time::Duration,
     /// How many CPU reads were answered.
-    pub cpu_reads: usize,
+    cpu_reads: usize,
     /// How many peak reads were answered.
-    pub peak_reads: usize,
+    peak_reads: usize,
     /// How many resets were asked for.
-    pub resets: usize,
+    resets: usize,
 }
 
 impl ProcessMeterFake {
@@ -36,17 +36,10 @@ impl ProcessMeterFake {
         Self {
             cpu_steps,
             peaks,
-            state: Mutex::new(ProcessMeterFakeState::default()),
+            state: Mutex::new(Reads::default()),
         }
     }
 
-    /// What the meter has answered so far.
-    #[must_use]
-    pub fn answered(&self) -> ProcessMeterFakeState {
-        self.state
-            .lock()
-            .map_or_else(|poisoned| *poisoned.into_inner(), |state| *state)
-    }
 }
 
 impl Default for ProcessMeterFake {

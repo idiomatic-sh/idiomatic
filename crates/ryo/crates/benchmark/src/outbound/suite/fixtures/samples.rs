@@ -101,3 +101,15 @@ pub fn tool() -> ryo_benchmark_contracts::domain::workloads::types::Tool {
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     }
 }
+
+/// A store below `root`: `one.bin` of 3 bytes and `nested/two.bin` of 7.
+///
+/// # Errors
+/// Refuses a root that cannot hold it.
+pub fn store(root: &std::path::Path) -> std::io::Result<std::path::PathBuf> {
+    let store = root.join("store");
+    std::fs::create_dir_all(store.join("nested"))?;
+    std::fs::write(store.join("one.bin"), b"abc")?;
+    std::fs::write(store.join("nested/two.bin"), b"abcdefg")?;
+    Ok(store)
+}

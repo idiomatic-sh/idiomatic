@@ -24,9 +24,6 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// A block of memory allocated and touched after the reset, so a peak read after it may grow by its size and no more.
-const TOUCHED: usize = 1 << 20;
-
 /// Run the rows against one implementation.
 ///
 /// # Panics
@@ -43,13 +40,13 @@ pub fn check(port: &impl ProcessMeterPort) {
         } else {
             let before = port.peak().map_err(|error| error.to_string())?;
             port.reset_peak().map_err(|error| error.to_string())?;
-            let touched = std::hint::black_box(vec![1_u8; TOUCHED]);
+            // A block of memory allocated and touched after the reset, so a peak read after it may grow by its size and no more.
+            let touched = std::hint::black_box(vec![1_u8; 1 << 20]);
             let after = port.peak().map_err(|error| error.to_string())?;
-            drop(touched);
             Ok(after.0
                 <= before
                     .0
-                    .saturating_add(u64::try_from(TOUCHED).unwrap_or(u64::MAX)))
+                    .saturating_add(u64::try_from(touched.len()).unwrap_or(u64::MAX)))
         }
     });
 }

@@ -6,6 +6,7 @@ use crate::outbound::suite::types::{
 };
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use ryo_benchmark_contracts::domain::costs::types::StoreSize;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, RuleName};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
@@ -375,4 +376,23 @@ pub(super) fn relative(path: &Path) -> Result<(), SuiteError> {
         ));
     }
     Ok(())
+}
+
+/// The bytes and count of every file below `directory`.
+pub(super) fn directory_size(directory: &std::path::Path) -> Result<StoreSize, Error> {
+    let mut size = StoreSize::default();
+    let mut pending = vec![directory.to_path_buf()];
+    while let Some(next) = pending.pop() {
+        for entry in std::fs::read_dir(&next)? {
+            let entry = entry?;
+            let kind = entry.file_type()?;
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else if kind.is_file() {
+                size.bytes.0 = size.bytes.0.saturating_add(entry.metadata()?.len());
+                size.files.0 = size.files.0.saturating_add(1);
+            }
+        }
+    }
+    Ok(size)
 }

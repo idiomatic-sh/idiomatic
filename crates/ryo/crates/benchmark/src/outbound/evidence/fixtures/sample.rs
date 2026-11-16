@@ -22,9 +22,9 @@ impl SampleInput {
 
 /// One project's costs over three trials, each condition's values distinct, so a measure read under another name shows.
 #[must_use]
-pub fn costs() -> ryo_benchmark_contracts::domain::measurements::types::ProjectCosts {
+pub fn costs() -> ryo_benchmark_contracts::domain::costs::types::ProjectCosts {
     use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
-    use ryo_benchmark_contracts::domain::measurements::types::{
+    use ryo_benchmark_contracts::domain::costs::types::{
         ProjectCost, ProjectCosts, RunCost, StoreBytes, StoreFiles, StoreSize,
     };
     use std::time::Duration;
@@ -51,7 +51,7 @@ pub fn costs() -> ryo_benchmark_contracts::domain::measurements::types::ProjectC
 #[must_use]
 pub fn timings() -> crate::outbound::evidence::types::RuleTimings {
     crate::outbound::evidence::types::RuleTimings(std::collections::BTreeMap::from([(
-        ryo::linter::RuleId::try_from("F401").unwrap_or_else(|_| unreachable!("F401 is a rule id")),
+        ryo::linter::RuleId::try_from("F401").expect("F401 is a rule id"),
         crate::outbound::evidence::types::RuleTiming {
             total: std::time::Duration::from_millis(40),
             slowest: std::time::Duration::from_millis(9),

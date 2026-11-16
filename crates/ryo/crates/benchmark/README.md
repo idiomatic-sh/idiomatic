@@ -28,6 +28,10 @@ Canonical finding multisets retain duplicate occurrences, exact paths and byte l
 
 A pinned reference may differ from the intended contract only with complete, known and evidenced identities.
 
+### growth
+
+How a rule's cost grows when its generated program doubles: each shape's programs, the one CPU floor and memory bound, and what each shape grew.
+
 ### host_applicability
 
 A host whose file permissions cannot be trusted refuses the profiles that require file observations.

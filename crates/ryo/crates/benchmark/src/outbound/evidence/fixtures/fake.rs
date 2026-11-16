@@ -40,7 +40,7 @@ impl EvidencePort for EvidenceFake {
     fn costs(
         &self,
         _language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &ryo_benchmark_contracts::domain::measurements::types::ProjectCosts,
+        costs: &ryo_benchmark_contracts::domain::costs::types::ProjectCosts,
     ) -> Result<(), Error> {
         if costs.0.is_empty() {
             return Err(Error::Invalid("no costs".into()));
@@ -104,7 +104,7 @@ pub struct EvidenceRecorder {
 #[derive(Clone, Debug, Default)]
 pub struct Recorded {
     /// Every project's cost, in the order given.
-    pub costs: Vec<ryo_benchmark_contracts::domain::measurements::types::ProjectCost>,
+    pub costs: Vec<ryo_benchmark_contracts::domain::costs::types::ProjectCost>,
     /// Every rule's times.
     pub verification: crate::outbound::evidence::types::RuleTimings,
     /// Every shape's growth.
@@ -155,7 +155,7 @@ impl EvidencePort for EvidenceRecorder {
     fn costs(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &ryo_benchmark_contracts::domain::measurements::types::ProjectCosts,
+        costs: &ryo_benchmark_contracts::domain::costs::types::ProjectCosts,
     ) -> Result<(), Error> {
         EvidenceFake.costs(language, costs)?;
         self.record(|held| held.costs.extend(costs.0.iter().cloned()))

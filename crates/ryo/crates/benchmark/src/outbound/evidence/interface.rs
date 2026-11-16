@@ -31,7 +31,7 @@ pub trait EvidencePort {
     fn costs(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &ryo_benchmark_contracts::domain::measurements::types::ProjectCosts,
+        costs: &ryo_benchmark_contracts::domain::costs::types::ProjectCosts,
     ) -> Result<(), Error>;
     /// Add each rule's verification times, `<language>/verify/<rule>`, with the measures `total-ms`, `max-case-ms` and
     /// `compile-ms`; nothing is written before `finish`.

@@ -72,29 +72,29 @@ impl EvidencePort for EvidenceBmfAdapter {
     fn costs(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &ryo_benchmark_contracts::domain::measurements::types::ProjectCosts,
+        costs: &ryo_benchmark_contracts::domain::costs::types::ProjectCosts,
     ) -> Result<(), Error> {
-        self.add(|document| super::document::costs(document, language, costs))
+        self.add(|document| schemas::costs(document, language, costs))
     }
     fn verification(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
         timings: &crate::outbound::evidence::types::RuleTimings,
     ) -> Result<(), Error> {
-        self.add(|document| super::document::verification(document, language, timings))
+        self.add(|document| schemas::verification(document, language, timings))
     }
     fn growth(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
         growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error> {
-        self.add(|document| super::document::growth(document, language, growth))
+        self.add(|document| schemas::growth(document, language, growth))
     }
     fn read_verification(
         &self,
         files: &crate::outbound::evidence::types::VerificationTimesFiles,
     ) -> Result<crate::outbound::evidence::types::RuleTimings, Error> {
-        super::document::read_verification(files)
+        schemas::read_verification(files)
     }
     fn finish(&self) -> Result<(), Error> {
         let mut held = self
@@ -102,7 +102,7 @@ impl EvidencePort for EvidenceBmfAdapter {
             .document
             .lock()
             .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
-        let bytes = super::document::encode(
+        let bytes = schemas::encode_document(
             held.as_ref()
                 .ok_or_else(|| Error::Invalid(constants::FINISHED.into()))?,
         )?;

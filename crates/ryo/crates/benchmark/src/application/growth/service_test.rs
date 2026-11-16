@@ -1,6 +1,6 @@
 //! The one growth service: a shape whose CPU more than doubles (2.2 times its floored half) or whose peak passes the plan's
 //! memory bound fails the bench; any other is published with its ratio, its whole-size time and its peak.
-use super::grow;
+use super::service::grow;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::growth::types::{
     CpuFloor, GrownProgram, GrowthPlan, GrowthSize, MemoryBound, RuleModules, ShapePrograms,

@@ -26,19 +26,9 @@ pub(crate) struct BenchmarkName(pub String);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct MeasureName(pub &'static str);
 
-/// What one measure observed: its value, and the lowest and highest it was.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Observed {
-    /// The median of the trials, or the one observation.
-    pub value: f64,
-    /// The lowest trial.
-    pub lower: f64,
-    /// The highest trial.
-    pub upper: f64,
-}
 
 /// Every measure added to a bench run's one document, by benchmark.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct MeasureDocument(
-    pub std::collections::BTreeMap<BenchmarkName, std::collections::BTreeMap<MeasureName, Observed>>,
+    pub std::collections::BTreeMap<BenchmarkName, std::collections::BTreeMap<MeasureName, super::schemas::Observed>>,
 );

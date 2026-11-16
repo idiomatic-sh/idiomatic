@@ -185,28 +185,8 @@ impl SuitePort for SuiteLocalAdapter {
     fn directory_size(
         &self,
         ArtifactPath(directory): ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::measurements::types::StoreSize, Error> {
-        use ryo_benchmark_contracts::domain::measurements::types::{
-            StoreBytes, StoreFiles, StoreSize,
-        };
-        let (mut bytes, mut files) = (0_u64, 0_u64);
-        let mut pending = vec![directory.to_path_buf()];
-        while let Some(next) = pending.pop() {
-            for entry in std::fs::read_dir(&next)? {
-                let entry = entry?;
-                let kind = entry.file_type()?;
-                if kind.is_dir() {
-                    pending.push(entry.path());
-                } else if kind.is_file() {
-                    bytes = bytes.saturating_add(entry.metadata()?.len());
-                    files = files.saturating_add(1);
-                }
-            }
-        }
-        Ok(StoreSize {
-            bytes: StoreBytes(bytes),
-            files: StoreFiles(files),
-        })
+    ) -> Result<ryo_benchmark_contracts::domain::costs::types::StoreSize, Error> {
+        super::writer::directory_size(directory)
     }
     fn settings_directory(
         &self,

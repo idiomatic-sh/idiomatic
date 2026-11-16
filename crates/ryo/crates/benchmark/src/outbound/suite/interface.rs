@@ -184,7 +184,7 @@ pub trait SuitePort: Send + Sync {
     fn directory_size(
         &self,
         directory: ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::measurements::types::StoreSize, Error>;
+    ) -> Result<ryo_benchmark_contracts::domain::costs::types::StoreSize, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     ///
     /// # Errors
