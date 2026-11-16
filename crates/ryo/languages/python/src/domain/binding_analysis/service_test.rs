@@ -367,7 +367,7 @@ fn a_name_over_the_chain_limit_makes_the_file_incomplete_never_empty() {
     assert_eq!(
         states,
         [false, false, true, true, true],
-        "x has one store and two reads: three events and reads, so a limit below three leaves the file incomplete"
+        "x has one store and two reads: three events, so a limit below three leaves the file incomplete"
     );
 }
 

@@ -85,8 +85,12 @@ let dated_imports = select l.binding as binding, l.name as name, l.scope as scop
 let redirections = select occurrence as id, name, kind from "binding-event" where kind = "global" or kind = "nonlocal";
 let redirect_scopes = axis(from=redirections,relation="semantic-child",direction=nearest-ancestor,domain=scopes);
 let function_nodes = select id from nodes where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
-let global_redirected = select related as lexical, name from redirect_scopes where kind = "global";
-let nonlocal_redirected = select related as lexical, name from redirect_scopes where kind = "nonlocal";
+let global_redirect_rows = select related as lexical, name from redirect_scopes where kind = "global";
+let global_redirected_counts = group-count(from=global_redirect_rows, keys=["lexical","name"], count="count");
+let global_redirected = select lexical, name from global_redirected_counts;
+let nonlocal_redirect_rows = select related as lexical, name from redirect_scopes where kind = "nonlocal";
+let nonlocal_redirected_counts = group-count(from=nonlocal_redirect_rows, keys=["lexical","name"], count="count");
+let nonlocal_redirected = select lexical, name from nonlocal_redirected_counts;
 let ending_events = select occurrence as id, name, scope, phase, ordinal, file from events where kind = "bind" or kind = "delete" or kind = "cleanup";
 let ending_owners = axis(from=ending_events,relation="semantic-child",direction=nearest-ancestor,domain=scopes);
 let redirected_names = union(left=global_redirected,right=nonlocal_redirected);

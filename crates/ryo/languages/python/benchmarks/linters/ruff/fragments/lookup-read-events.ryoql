@@ -82,7 +82,9 @@ let non_comprehension_scopes = select id, file from nodes where kind = "module" 
 let walrus_lexical_owners = axis(from=walrus_events,relation="semantic-child",direction=nearest-ancestor,domain=non_comprehension_scopes);
 let walrus_body_events = select l.id as id, l.name as name, l.scope as scope, l.ordinal as ordinal, l.kind as kind, l.file as file, l.related as related from walrus_lexical_owners as l join event_body_owners as r on l.id = r.id and l.related = r.scope and l.file = r.file;
 let owned_namespace_events = union(left=lexical_body_events,right=walrus_body_events);
-let redirect_key_names = select scope, name, file from redirect_namespaces;
+let redirect_key_rows = select scope, name, file from redirect_namespaces;
+let redirect_key_names_counts = group-count(from=redirect_key_rows, keys=["scope","name","file"], count="count");
+let redirect_key_names = select scope, name, file from redirect_key_names_counts;
 let redirected_namespace_events = select l.id as occurrence, l.name as name, l.related as scope, l.ordinal as ordinal, l.kind as kind, l.file as file from owned_namespace_events as l join redirect_key_names as r on l.related = r.scope and l.name = r.name and l.file = r.file;
 let normal_namespace_rows = antijoin(left=raw_namespace_events,right=redirected_namespace_events,left-on=["id","file"],right-on=["occurrence","file"]);
 let normal_namespace_events = select id as occurrence, name, scope, ordinal, kind, file from normal_namespace_rows;
@@ -152,7 +154,9 @@ let fresh_function_annotations = antijoin(left=function_annotations, right=delay
 let annotation_events = select id as occurrence, name, scope, ordinal, kind, file from fresh_function_annotations;
 let ordinary_events = select occurrence, name, scope, ordinal, kind, file from namespace_events;
 let target_events = union(left=ordinary_events, right=annotation_events);
-let global_redirect_scopes = select scope as redirect_scope, name, file from redirect_namespaces where kind = "global";
+let global_redirect_rows = select scope as redirect_scope, name, file from redirect_namespaces where kind = "global";
+let global_redirect_scopes_counts = group-count(from=global_redirect_rows, keys=["redirect_scope","name","file"], count="count");
+let global_redirect_scopes = select redirect_scope, name, file from global_redirect_scopes_counts;
 let target_scope_names = select context, lookup_scope, name, file from context_names where stage > 1;
 let global_chain_scopes = select l.context as context, l.lookup_scope as redirect_scope, l.name as name, l.file as file from target_scope_names as l join global_redirect_scopes as r on l.lookup_scope = r.redirect_scope and l.name = r.name and l.file = r.file;
 let global_skipped0 = select l.context as context, r.destination as lookup_scope, l.name as name, l.file as file from global_chain_scopes as l join scope_paths as r on l.redirect_scope = r.origin and l.file = r.file;
@@ -164,7 +168,9 @@ let linear_names1 = antijoin(left=linear_names0, right=global_skipped, left-on=[
 let own_delete_names0 = select context, lookup_scope, name, point, expression, file from context_names where stage = 3 and lookup_scope = initial_scope;
 let own_delete_names = antijoin(left=own_delete_names0, right=global_skipped, left-on=["context", "lookup_scope", "name", "file"], right-on=["context", "lookup_scope", "name", "file"]);
 let streamed_names = union(left=linear_names1, right=own_delete_names);
-let stream_groups = select lookup_scope as scope, name, file from streamed_names;
+let stream_group_rows = select lookup_scope as scope, name, file from streamed_names;
+let stream_groups_counts = group-count(from=stream_group_rows, keys=["scope","name","file"], count="count");
+let stream_groups = select scope, name, file from stream_groups_counts;
 let group_events = select e.occurrence as occurrence, e.name as name, e.scope as scope, e.ordinal as ordinal, e.kind as kind, e.file as file from target_events as e join stream_groups as g on e.scope = g.scope and e.name = g.name and e.file = g.file;
 let event_stream0 = select scope, scope as phase, name, file, ordinal from group_events;
 let event_points = select scope as lookup_scope, name, file, ordinal as point from group_events;
@@ -200,7 +206,9 @@ let old_path_declaration_names = select lookup_scope as scope, name, file from d
 let old_path_fallback_names = select lookup_scope as scope, name, file from fallback_names;
 let old_path_type_names = select lookup_scope as scope, name, file from type_context_names where stage < 2;
 let old_path_names0 = union(left=old_path_declaration_names, right=old_path_fallback_names);
-let old_path_names = union(left=old_path_names0, right=old_path_type_names);
+let old_path_name_rows = union(left=old_path_names0, right=old_path_type_names);
+let old_path_names_counts = group-count(from=old_path_name_rows, keys=["scope","name","file"], count="count");
+let old_path_names = select scope, name, file from old_path_names_counts;
 let handler_intervals_old = select h.handler as handler, h.name as name, h.scope as scope, h.file as file, h.finish as finish, h.begin as begin from handler_intervals as h join old_path_names as n on h.scope = n.scope and h.name = n.name and h.file = n.file;
 let target_context_rows0 = select l.context as context, l.name as name, l.file as file, l.lookup_scope as lookup_scope, l.expression as expression, l.point as point, l.stage as stage, l.initial_scope as initial_scope from context_names as l join fallback_names as r on l.context = r.context and l.lookup_scope = r.lookup_scope and l.name = r.name and l.file = r.file;
 let target_context_rows = select context, name, file, lookup_scope, expression, point, stage, initial_scope from target_context_rows0 where stage > 1;
