@@ -195,7 +195,7 @@ pub(crate) fn state_of(
 ///
 /// # Errors
 ///
-/// `NotALattice` when there is none, or more than one.
+/// `NotALattice` when there is none: two upper bounds with none below the other leave no least one.
 fn least_upper_bound(
     lattice: &LatticeTable,
     one: StatePlace,
@@ -205,17 +205,15 @@ fn least_upper_bound(
         order(lattice, one, state) == StateOrder::AtOrBelow
             && order(lattice, other, state) == StateOrder::AtOrBelow
     };
-    let mut least = places(lattice)
+    // The upper bound below every other: one at most, the order having no cycle.
+    places(lattice)
         .filter(|state| above(*state))
-        .filter(|state| {
+        .find(|state| {
             places(lattice).all(|bound| {
                 !above(bound) || order(lattice, *state, bound) == StateOrder::AtOrBelow
             })
-        });
-    match (least.next(), least.next()) {
-        (Some(join), None) => Ok(join),
-        _ => Err(PortableOperatorFault::NotALattice),
-    }
+        })
+        .ok_or(PortableOperatorFault::NotALattice)
 }
 
 /// Every state of `lattice`, by its place, ascending.
