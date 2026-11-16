@@ -58,6 +58,10 @@ BENCH_CORRECTNESS_UPLOAD = {
 }
 
 
+# The one condition the job carries: it is ryo's own proof, so another product's check skips it, as it skips the Ruff guard.
+RYO_ONLY = "inputs.product == 'ryo'"
+
+
 def bench_correctness_problems(job: dict) -> list[str]:
     """What lets the bench-correctness job pass without verifying every default."""
     found = []
@@ -66,8 +70,8 @@ def bench_correctness_problems(job: dict) -> list[str]:
         found.append("bench-correctness must run once, on the one Linux runner, outside a container")
     if not isinstance(job.get("timeout-minutes"), int) or job["timeout-minutes"] <= 360:
         found.append("bench-correctness needs headroom over its tool's 360-minute timeout")
-    if "if" in job or "continue-on-error" in job:
-        found.append("bench-correctness may not be skipped or masked")
+    if job.get("if", RYO_ONLY) != RYO_ONLY or "continue-on-error" in job:
+        found.append("bench-correctness may not be skipped or masked, but for another product than ryo")
     if job.get("env") != BENCH_CORRECTNESS_ENV:
         found.append("bench-correctness changed its pinned environment")
     runs = [step.get("run") for step in steps if "run" in step]
@@ -585,6 +589,8 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
     assert workflow["concurrency"] == {"group": "check-${{ github.ref }}-${{ inputs.product }}", "cancel-in-progress": True}
     jobs = workflow["jobs"]
     assert set(jobs) == {"check", "gate", "speed", "ruff-candidates", "bench-correctness", "ownership-contracts"}
+    # Every default of the ryo linter benches is ryo's own proof: another product's check never runs it.
+    assert jobs["bench-correctness"].get("if") == RYO_ONLY
     assert sorted(path.parent.name for path in ROOT.glob("crates/*/Cargo.toml")) == sorted(PRODUCTS)
     check = jobs["check"]
     assert "needs" not in check and "if" not in check
@@ -617,7 +623,7 @@ def ruff_candidates_covered(workflow: dict) -> bool:
         return False
     return (
         "needs" not in job
-        and job.get("if") == "inputs.product == 'ryo'"
+        and job.get("if") == RYO_ONLY
         and job.get("runs-on") == "ubuntu-26.04"
         and [step["run"] for step in job["steps"] if "asymptote check" in step.get("run", "")]
         == ["asymptote check --root crates/ryo --groups ruff-candidates"]

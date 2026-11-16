@@ -293,6 +293,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
   bench-correctness:
+    if: inputs.product == 'ryo'
     # Every default of every linter bench, verified by the shared collector on one Linux runner (asymptote group
     # bench-correctness, never a check matrix row). The job's limit is above the tool's 21600-second timeout, so asymptote
     # reports a timeout before the runner cancels the job.
