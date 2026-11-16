@@ -294,8 +294,8 @@ pub(crate) fn graph_operations() -> Vec<Operation> {
             order: col(2),
             before: col(3),
             after: col(3),
-            lower: col(3),
-            upper: col(3),
+            lower: col(1),
+            upper: col(1),
             root_keys: vec![col(5)],
             edge_keys: vec![col(4)],
         },
@@ -332,7 +332,7 @@ pub fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> Vec<Tab
         }
         Operation::Closure { .. } | Operation::Cycles { .. } => vec![graph],
         Operation::OrderedDfs { .. } => vec![first, graph],
-        Operation::Worklist { .. } => vec![first, graph.clone(), graph],
+        Operation::Worklist { .. } => vec![first.clone(), graph, first],
         Operation::Rows { .. } => Vec::new(),
         Operation::Hosted { .. } => vec![Table {
             kinds: vec![CellKind::Number, CellKind::Symbol, CellKind::File],
