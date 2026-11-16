@@ -172,12 +172,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || EngineScenario::ActualRootedQueriesKeepTheirSparseAxis,
         expect: Expect::Value(true),
     },
-    Case {
-        name: CaseName("lookup_rules_cost_grows_with_the_file_not_its_square"),
-        word: Word::Succeeds,
-        input: || EngineScenario::LookupRulesCostGrowsWithTheFileNotItsSquare,
-        expect: Expect::Value(true),
-    },
 ];
 fn exercise(scenario: Input) -> Result<Value, Error> {
     if scenario == EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile {
@@ -222,10 +216,6 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     }
     if scenario == EngineScenario::ActualRootedQueriesKeepTheirSparseAxis {
         return sparse_traversal_test::actual_rooted_queries_keep_their_sparse_axis()
-            .map(|()| true);
-    }
-    if scenario == EngineScenario::LookupRulesCostGrowsWithTheFileNotItsSquare {
-        return lookup_linearity_test::lookup_rules_cost_grows_with_the_file_not_its_square()
             .map(|()| true);
     }
     let root = tempfile::tempdir()?;
@@ -309,3 +299,24 @@ mod rejected_syntax_consumer_test;
 
 #[cfg(test)]
 mod worker_request_input_test;
+
+/// Each of the four rules that resolve a name costs time and memory proportional to the file, in every generated shape.
+#[test]
+fn f401_cost_grows_with_the_file() {
+    lookup_linearity_test::rule_cost_grows_with_the_file("F401").unwrap();
+}
+
+#[test]
+fn f841_cost_grows_with_the_file() {
+    lookup_linearity_test::rule_cost_grows_with_the_file("F841").unwrap();
+}
+
+#[test]
+fn f811_cost_grows_with_the_file() {
+    lookup_linearity_test::rule_cost_grows_with_the_file("F811").unwrap();
+}
+
+#[test]
+fn f821_cost_grows_with_the_file() {
+    lookup_linearity_test::rule_cost_grows_with_the_file("F821").unwrap();
+}

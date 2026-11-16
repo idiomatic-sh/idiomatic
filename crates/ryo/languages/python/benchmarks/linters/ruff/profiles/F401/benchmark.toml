@@ -34,6 +34,7 @@ defaults = ["F401"]
 "python/ruff/deferred-type-reads" = "fragments/deferred-type-reads.ryoql"
 "python/ruff/future-annotation-context" = "fragments/future-annotation-context.ryoql"
 "python/ruff/latest-before" = "fragments/latest-before.ryoql"
+"python/ruff/resolve-pointers" = "fragments/resolve-pointers.ryoql"
 "python/ruff/lookup-read-events" = "fragments/lookup-read-events.ryoql"
 "python/ruff/type-definition-context" = "fragments/type-definition-context.ryoql"
 "python/ruff/annotation-evaluation-context" = "fragments/annotation-evaluation-context.ryoql"

@@ -43,10 +43,10 @@ let variable_points = select l.id as id, r.id as function, r.point as bind_point
 let variable_annotation_rows = select id, function, file from variable_points;
 let early_annotations = union(left=early_function_annotations, right=variable_annotation_rows);
 let function_points = union(left=function_points0, right=variable_points);
-let previous_points = select l.id as id, l.function as function, r.ordinal as point, l.file as file from function_points as l join events as r on l.file = r.file where r.ordinal < l.bind_point;
-let older_points = select l.id as id, l.point as point, l.file as file from previous_points as l join previous_points as r on l.id = r.id and l.file = r.file where l.point < r.point;
-let predecessor_points = antijoin(left=previous_points, right=older_points, left-on=["id", "point", "file"], right-on=["id", "point", "file"]);
-let no_predecessor = antijoin(left=function_points, right=previous_points, left-on=["id", "file"], right-on=["id", "file"]);
+let event_ordinals = select ordinal, file from events;
+let event_pairs = ordered-match(left=event_ordinals, right=event_ordinals, left-on=[file], right-on=[file], left-order="ordinal", right-order="ordinal", output={before:[left,ordinal], at:[right,ordinal], file:[left,file]});
+let predecessor_points = select l.id as id, l.function as function, r.before as point, l.file as file from function_points as l join event_pairs as r on l.bind_point = r.at and l.file = r.file;
+let no_predecessor = antijoin(left=function_points, right=predecessor_points, left-on=["id", "file"], right-on=["id", "file"]);
 let first_points = select id, function, bind_point as point, file from no_predecessor;
 let points = union(left=predecessor_points, right=first_points);
 let context_points = select l.id as context, r.scope as initial_scope, l.point as point, l.point as header_point, l.file as file from points as l join reads as r on l.id = r.id and l.file = r.file;
@@ -69,7 +69,8 @@ let scope_paths = closure(edges=scopes, source="child", destination="parent", ke
 let reference_scopes = select l.id as id, r.scope as scope, l.point as point, l.file as file from points as l join reads as r on l.id = r.id and l.file = r.file;
 let inherited_scopes = select l.id as id, r.parent as scope, l.point as point, l.file as file from reference_scopes as l join scope_paths as r on l.scope = r.child and l.file = r.file;
 let all_scopes = union(left=reference_scopes, right=inherited_scopes);
-let wildcard_masked = select l.id as id, l.file as file from all_scopes as l join events as r on l.scope = r.scope and l.file = r.file where r.kind = "wildcard" and r.ordinal <= l.point;
+let wildcard_events = select scope, ordinal, file from events where kind = "wildcard";
+let wildcard_masked = select l.id as id, l.file as file from all_scopes as l join wildcard_events as r on l.scope = r.scope and l.file = r.file where r.ordinal <= l.point;
 let result = select l.id as id, l.file as file from no_builtins as l;
 let unmasked = antijoin(left=result, right=wildcard_masked, left-on=["id", "file"], right-on=["id", "file"]);
 return unmasked;

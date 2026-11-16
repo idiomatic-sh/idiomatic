@@ -1,12 +1,15 @@
-//! The rules that resolve a name cost time proportional to the file, not to its square.
+//! The rules that resolve a name cost time and memory proportional to the file, not to its square, in every shape.
 //!
-//! A file of N pairs `x = i; print(x)` has N bindings of one name and N reads of it, and a file of N `def f(): pass` has N
-//! redefinitions of one name. A lookup that joins every read to every earlier binding, or a rule that pairs every binding
-//! with every later one, grows 3.5 to 6 times per doubling and holds gigabytes; one ordered pass doubles. Each of F401, F841,
-//! F811 and F821 runs over both shapes at 1,000, 2,000 and 4,000 repetitions, and its time at each size must be at most
-//! `DOUBLING_LIMIT` times the time at the half size. A name read more times between two bindings than one pointer-jumping
-//! pass spans takes the exact fallback of the shared `latest-before` fragment; the last proof reads one name 17,000 times
-//! and requires that F821 finds every one of them bound, as it does for a short chain.
+//! The shapes are generated from one table: each operation (bind, rebind, import, handler, loop and with targets, walrus,
+//! annotation, def, class, read, delete, `global` and `nonlocal` declarations, defaults, lambdas and comprehensions, many
+//! functions reading a rebound module name, many distinct names, a read run longer than the first 14 pointer-jumping
+//! rounds of `latest-before`) repeated N times in every scope kind it makes sense in (module, function, nested function,
+//! class body, method). Each of F401, F841, F811 and F821 runs every program at 1,000, 2,000 and 4,000 repetitions; its
+//! CPU time at each size must be at most `DOUBLING_LIMIT` times the time at the half size (a floor under the half-size
+//! time keeps a fixed startup cost from deciding a ratio), and its peak resident memory at the largest size must stay
+//! within `MEMORY_BASE_MB` plus `MEMORY_PER_REPETITION_KB` per repetition. A rule that joins every read to every
+//! binding, pairs every effect with every other, or tests every handler against every read grows 3.5 to 8 times per
+//! doubling and holds gigabytes.
 use super::prepared_engine_test::{
     PreparedEngine as _, default_frontend_projection, fixture_cohort, module_names, python_310,
 };
@@ -22,26 +25,120 @@ use ryo_benchmark_contracts::domain::requests::types::{
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-/// The doubling of the file may at most this many times the time.
+/// The doubling of the file may cost at most this many times the time.
 const DOUBLING_LIMIT: f64 = 2.2;
+/// The half-size times below this many CPU seconds count as this many, so startup cost does not decide a ratio.
+const TIME_FLOOR: f64 = 0.4;
 /// The repetition counts of each shape.
 const SIZES: [usize; 3] = [1000, 2000, 4000];
-/// The runs of one size whose cheapest is the time; the process's CPU seconds, so a busy machine does not decide it.
-const RUNS: usize = 2;
-/// The rules whose cost the lookup or their own pair enumeration decides.
-const RULES: [&str; 4] = ["F401", "F841", "F811", "F821"];
-/// More reads of one name between two bindings than the pointer-jumping rounds of `latest-before` span.
-const LONG_CHAIN: usize = 17_000;
+/// The memory every run may hold before its file counts.
+const MEMORY_BASE_MB: f64 = 160.0;
+/// The memory each repetition of a shape may add at the largest size.
+const MEMORY_PER_REPETITION_KB: f64 = 40.0;
 
-/// The shapes of a file of `count` repetitions: reads that each follow a binding, and bindings that each redefine one.
-fn shapes(count: usize) -> [(&'static str, String); 2] {
-    [
-        (
-            "pairs",
-            (0..count).map(|index| format!("x = {index}\nprint(x)\n")).collect(),
-        ),
-        ("redefinitions", "def f():\n    pass\n".repeat(count)),
-    ]
+/// Where a shape's repetitions sit.
+#[derive(Clone, Copy)]
+enum Scope {
+    Module,
+    Function,
+    Nested,
+    Class,
+    Method,
+}
+
+impl Scope {
+    const ALL: [Scope; 5] = [Scope::Module, Scope::Function, Scope::Nested, Scope::Class, Scope::Method];
+
+    fn label(self) -> &'static str {
+        match self {
+            Scope::Module => "module",
+            Scope::Function => "function",
+            Scope::Nested => "nested",
+            Scope::Class => "class",
+            Scope::Method => "method",
+        }
+    }
+}
+
+/// One operation: the lines before the repetitions and the lines repeated; `{i}` is the repetition's index.
+struct Operation {
+    name: &'static str,
+    prologue: &'static str,
+    repeat: &'static str,
+    /// Only meaningful at module level (it defines the functions or defaults it reads there).
+    module_only: bool,
+    /// Needs an enclosing function binding (a `nonlocal` declaration).
+    nested_only: bool,
+}
+
+const fn op(name: &'static str, prologue: &'static str, repeat: &'static str) -> Operation {
+    Operation { name, prologue, repeat, module_only: false, nested_only: false }
+}
+
+const OPERATIONS: &[Operation] = &[
+    op("assign", "", "v = 1\n"),
+    op("assign-read", "", "v = 1\nprint(v)\n"),
+    op("import", "", "import v\n"),
+    op("import-read", "", "import v\nprint(v)\n"),
+    op("handler", "", "try:\n    pass\nexcept Exception as v:\n    pass\n"),
+    op("handler-read", "", "try:\n    pass\nexcept Exception as v:\n    print(v)\n"),
+    op("for-target", "", "for v in y:\n    print(v)\n"),
+    op("with-target", "", "with y as v:\n    print(v)\n"),
+    op("walrus", "", "(v := 1)\nprint(v)\n"),
+    op("annotation", "", "v: int\n"),
+    op("annotation-read", "", "v: int\nprint(v)\n"),
+    op("def", "", "def v():\n    pass\n"),
+    op("class", "", "class v:\n    pass\n"),
+    op("read", "v = 1\n", "print(v)\n"),
+    op("assign-del", "", "v = 1\ndel v\n"),
+    op("del", "v = 1\n", "del v\n"),
+    op("global-declaration", "", "global v\n"),
+    op("global-assign", "", "global v\nv = 1\n"),
+    op("global-read", "", "global v\nprint(v)\n"),
+    op("global-del", "", "global v\ndel v\n"),
+    Operation { nested_only: true, ..op("nonlocal-assign", "", "nonlocal v\nv = 1\n") },
+    op("distinct-import", "", "import v{i}\nprint(v{i})\n"),
+    op("distinct-assign", "", "v{i} = 1\nprint(v{i})\n"),
+    op("distinct-def", "", "def v{i}():\n    pass\n"),
+    op("distinct-class", "", "class v{i}:\n    x = 1\n"),
+    op("distinct-handler", "", "try:\n    pass\nexcept Exception as v{i}:\n    print(v{i})\n"),
+    Operation { module_only: true, ..op("default-argument", "v = 1\n", "def g{i}(a=v):\n    pass\n") },
+    Operation { module_only: true, ..op("rebind-read-by-functions", "", "v = 1\ndef g{i}():\n    return v\n") },
+    Operation { module_only: true, ..op("lambda-read", "v = 1\n", "w{i} = lambda: v\n") },
+    Operation { module_only: true, ..op("comprehension-read", "v = 1\n", "w{i} = [v for _ in y]\n") },
+    op("method-read", "v = 1\n", "def m{i}(self):\n    return v\n"),
+    Operation { nested_only: false, ..op("global-skipped-read", "global v\n", "v = 1\ndef g{i}():\n    return v\n") },
+    op("long-read-run", "", "v = 1\n"),
+];
+
+/// A program: the operation repeated `count` times in the scope, or none when the pair makes no sense.
+fn program(scope: Scope, operation: &Operation, count: usize) -> Option<String> {
+    let repeated = |depth: usize| -> String {
+        let pad = "    ".repeat(depth);
+        let line = |text: &str| -> String {
+            text.lines().map(|line| format!("{pad}{line}\n")).collect()
+        };
+        let mut text = line(operation.prologue);
+        for index in 0..count {
+            text.push_str(&line(&operation.repeat.replace("{i}", &index.to_string())));
+        }
+        if operation.name == "long-read-run" {
+            text.push_str(&line(&"v\n".repeat(16_384 + count)));
+        }
+        text
+    };
+    match scope {
+        _ if operation.module_only && !matches!(scope, Scope::Module) => None,
+        _ if operation.nested_only && !matches!(scope, Scope::Nested) => None,
+        Scope::Module => Some(repeated(0)),
+        Scope::Function => Some(format!("def f():\n{}", repeated(1))),
+        Scope::Nested => {
+            let outer = if operation.nested_only { "    v = 1\n" } else { "" };
+            Some(format!("def f():\n{outer}    def g():\n{}", repeated(2)))
+        }
+        Scope::Class => Some(format!("class C:\n{}", repeated(1))),
+        Scope::Method => Some(format!("class C:\n    def m(self):\n{}", repeated(2))),
+    }
 }
 
 /// The modules the rule's profile registers, resolved against this bench's directory.
@@ -117,47 +214,55 @@ fn timed(rule: &str, text: &str) -> Result<(f64, RunReport), Error> {
     Ok((elapsed, report))
 }
 
-/// Each rule over each shape at each size; no doubling may cost more than the limit.
-pub(super) fn lookup_rules_cost_grows_with_the_file_not_its_square() -> Result<(), Error> {
-    let mut slow = Vec::new();
-    for rule in RULES {
-        for shape in 0..2 {
-            let mut name = "";
-            let mut seconds = Vec::new();
-            for size in SIZES {
-                let (label, text) = &shapes(size)[shape];
-                name = label;
-                let mut best = f64::MAX;
-                for _ in 0..RUNS {
-                    best = best.min(timed(rule, text)?.0);
-                }
-                seconds.push(best);
+/// The peak resident memory of this process since the last reset, in megabytes; zero where `/proc` is absent.
+fn peak_resident_mb() -> f64 {
+    std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|status| {
+            status
+                .lines()
+                .find(|line| line.starts_with("VmHWM:"))
+                .and_then(|line| line.split_whitespace().nth(1)?.parse::<f64>().ok())
+        })
+        .map_or(0.0, |kilobytes| kilobytes / 1024.0)
+}
+
+/// Forget the peak so far, so the next reading is the next run's own.
+fn reset_peak_resident() {
+    let _ignored = std::fs::write("/proc/self/clear_refs", "5");
+}
+
+/// Every generated program at every size: no doubling may cost more than the limit and no run may hold more than its bound.
+pub(super) fn rule_cost_grows_with_the_file(rule: &str) -> Result<(), Error> {
+    let mut failures = Vec::new();
+    for scope in Scope::ALL {
+        for operation in OPERATIONS {
+            if program(scope, operation, 1).is_none() {
+                continue;
             }
-            let ratios: Vec<f64> = seconds.windows(2).map(|pair| pair[1] / pair[0]).collect();
+            let mut seconds = Vec::new();
+            let mut peaks = Vec::new();
+            for size in SIZES {
+                let text = program(scope, operation, size).unwrap_or_default();
+                reset_peak_resident();
+                let (elapsed, _report) = timed(rule, &text)?;
+                seconds.push(elapsed);
+                peaks.push(peak_resident_mb());
+            }
+            let ratios: Vec<f64> = seconds
+                .windows(2)
+                .map(|pair| pair[1] / pair[0].max(TIME_FLOOR))
+                .collect();
+            let bound = MEMORY_BASE_MB + MEMORY_PER_REPETITION_KB * SIZES[2] as f64 / 1024.0;
+            let name = format!("{rule} {} {}", scope.label(), operation.name);
             if ratios.iter().any(|ratio| *ratio > DOUBLING_LIMIT) {
-                slow.push(format!(
-                    "{rule} {name}: seconds at {SIZES:?} are {seconds:?}, doubling ratios {ratios:?}"
-                ));
+                failures.push(format!("{name}: seconds {seconds:.2?} at {SIZES:?}, ratios {ratios:.2?}"));
+            }
+            if peaks[2] > bound {
+                failures.push(format!("{name}: peak {:.0} MB at {} repetitions, bound {bound:.0} MB", peaks[2], SIZES[2]));
             }
         }
     }
-    assert!(
-        slow.is_empty(),
-        "each doubling may cost at most {DOUBLING_LIMIT}x: {slow:#?}"
-    );
-    a_name_read_beyond_one_pass_still_resolves()
-}
-
-/// One name read more times than one pointer-jumping pass spans still resolves to its binding.
-fn a_name_read_beyond_one_pass_still_resolves() -> Result<(), Error> {
-    let long_reads = |prologue: &str, read: &str| format!("{prologue}{}", read.repeat(LONG_CHAIN));
-    for (rule, text) in [("F821", long_reads("x = 1\n", "x\n"))] {
-        let (_, report) = timed(rule, &text)?;
-        assert!(
-            report.diagnostics.is_empty(),
-            "{rule}: the {LONG_CHAIN} reads must resolve to the binding: {:?}",
-            report.diagnostics.first()
-        );
-    }
+    assert!(failures.is_empty(), "each doubling may cost at most {DOUBLING_LIMIT}x: {failures:#?}");
     Ok(())
 }

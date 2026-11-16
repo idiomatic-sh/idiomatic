@@ -1,4 +1,5 @@
 import conditional_deletions from "python/ruff/conditional-deletions";
+import latest_before from "python/ruff/latest-before";
 import ordinary_uses_of from "python/ruff/ordinary-read-uses";
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
@@ -74,9 +75,15 @@ let value_namespace_effects = select occurrence as id, name, scope, phase, ordin
 let raw_namespace_effects = union(left=value_namespace_effects, right=declaration_effects);
 let nonparameter_namespace_effects = antijoin(left=raw_namespace_effects, right=parameter_declarations, left-on=["id", "file"], right-on=["id", "file"]);
 let namespace_effects = antijoin(left=nonparameter_namespace_effects, right=conditional_delete_effects, left-on=["id", "file"], right-on=["id", "file"]);
-let prior_effects = select l.id as deletion, l.name as name, l.scope as scope, l.phase as phase, l.file as file, r.ordinal as prior, r.kind as prior_kind from local_delete_candidates as l join namespace_effects as r on l.name = r.name and l.scope = r.scope and l.phase = r.phase and l.file = r.file where r.ordinal < l.ordinal;
-let superseded_prior_effects = select l.deletion as deletion, l.prior as prior from prior_effects as l join prior_effects as r on l.deletion = r.deletion where l.prior < r.prior;
-let latest_prior_effects = antijoin(left=prior_effects, right=superseded_prior_effects, left-on=["deletion", "prior"], right-on=["deletion", "prior"]);
+let effect_successors = ordered-match(left=namespace_effects, right=namespace_effects, left-on=[scope,phase,name,file], right-on=[scope,phase,name,file], left-order="ordinal", right-order="ordinal", output={deletion:[right,id], deletion_order:[right,ordinal], prior:[left,ordinal], prior_kind:[left,kind], name:[left,name], scope:[left,scope], phase:[left,phase], file:[left,file]});
+let direct_prior_effects = select l.deletion as deletion, l.name as name, l.scope as scope, l.phase as phase, l.file as file, l.prior as prior, l.prior_kind as prior_kind from effect_successors as l join delete_events as r on l.deletion = r.id and l.deletion_order = r.ordinal and l.file = r.file;
+let conditional_delete_rows = select l.id as id, l.name as name, l.scope as scope, l.phase as phase, l.ordinal as ordinal, l.file as file from local_delete_candidates as l join conditional_delete_effects as r on l.id = r.id and l.file = r.file;
+let effect_events = select scope, phase, name, file, ordinal from namespace_effects;
+let conditional_probes = select scope, phase, name, file, ordinal from conditional_delete_rows;
+let conditional_latest = latest_before(events=effect_events, probes=conditional_probes);
+let conditional_hits = select l.id as deletion, l.name as name, l.scope as scope, l.phase as phase, l.file as file, r.event_ordinal as prior from conditional_delete_rows as l join conditional_latest as r on l.scope = r.scope and l.phase = r.phase and l.name = r.name and l.file = r.file and l.ordinal = r.point;
+let conditional_prior_effects = select l.deletion as deletion, l.name as name, l.scope as scope, l.phase as phase, l.file as file, l.prior as prior, r.kind as prior_kind from conditional_hits as l join namespace_effects as r on l.scope = r.scope and l.phase = r.phase and l.name = r.name and l.file = r.file and l.prior = r.ordinal;
+let latest_prior_effects = union(left=direct_prior_effects, right=conditional_prior_effects);
 let latest_prior_bindings = select deletion as id from latest_prior_effects where prior_kind = "bind";
 let deletion_scope_owners = axis(from=local_delete_candidates, relation="semantic-child", direction=nearest-ancestor, domain=global_scope_owner_nodes);
 let nested_deletion_ids = select id, file from deletion_scope_owners;
@@ -87,7 +94,7 @@ let synthetic_global_deletions = select l.id as id from module_phase_deletion_po
 let unbound_candidates = antijoin(left=local_delete_candidates, right=latest_prior_bindings, left-on=["id"], right-on=["id"]);
 let missing_prior_bindings = antijoin(left=unbound_candidates, right=synthetic_global_deletions, left-on=["id"], right-on=["id"]);
 let builtin_modules = select id, file from "semantic-syntax" where kind = "module";
-let no_prior_effect_deletions = antijoin(left=missing_prior_bindings, right=prior_effects, left-on=["id", "file"], right-on=["deletion", "file"]);
+let no_prior_effect_deletions = antijoin(left=missing_prior_bindings, right=latest_prior_effects, left-on=["id", "file"], right-on=["deletion", "file"]);
 let builtin_deletions0 = select l.id as id, l.name as name, l.file as file from no_prior_effect_deletions as l join builtin_modules as r on l.scope = r.id and l.file = r.file;
 let builtin_catalog = select name, file from "implicit-symbol" as catalog where catalog.kind = "builtin" and (catalog."since-major" < 3 or catalog."since-major" = 3 and catalog."since-minor" <= 10);
 let first_builtin_deletions = select l.id as id, l.file as file from builtin_deletions0 as l join builtin_catalog as r on l.name = r.name and l.file = r.file;
