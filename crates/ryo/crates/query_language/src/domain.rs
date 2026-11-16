@@ -36,6 +36,7 @@ pub(crate) mod syntax;
 pub(crate) mod traversing;
 pub(crate) mod validation;
 pub(crate) mod walking;
+pub(crate) mod widths;
 
 pub(crate) mod substituting;
 

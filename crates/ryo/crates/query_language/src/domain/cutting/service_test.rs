@@ -166,7 +166,7 @@ fn planned() -> Value {
         operation: Operation::Project {
             from: Reads::Step(StepId(0)),
             columns: vec![ColumnIndex(0), ColumnIndex(2)],
-            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         },
         scope: StepScope::PerFile,
     });

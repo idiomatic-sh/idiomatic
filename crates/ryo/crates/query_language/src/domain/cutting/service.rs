@@ -7,7 +7,7 @@ use crate::domain::inlining::types::StepReading;
 use crate::domain::narrowing::service::{narrow_lookups, narrow_lookups_roots};
 use crate::domain::regrouping::service::{regroup_joins, regroup_joins_roots};
 use crate::domain::rewriting::types::Planned;
-use crate::domain::walking::service::width_of;
+use crate::domain::widths::service::width_of;
 use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::Provenance;
 use ryo_relations::domain::relations::types::Relation;
@@ -43,8 +43,8 @@ pub(crate) fn cut_handover_roots(steps: Vec<PlanStep>, roots: &mut [StepId]) -> 
 /// The plan with, for each per-file step that only cross-file steps read through some of its columns, one projection
 /// of those columns without repeats: the rows a file hands over are the distinct ones the cross-file steps ask for, not
 /// one for each place in the file, and a step of any kind (a join, an axis, a grouping) asked for fewer columns than it makes
-/// hands over only those. Not done when a count of rows (not of distinct values) comes after the files, which would count the
-/// repeats.
+/// hands over only those, each of its rows kept, repeated or not. Not done when a count of rows (not of distinct values) comes
+/// after the files, which would count the repeats.
 #[must_use]
 fn reduced_frontier(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
     let steps = reduced_frontier_roots(steps, std::slice::from_mut(&mut emitted));
@@ -144,7 +144,13 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
                 operation: Operation::Project {
                     from: Input::Step(read),
                     columns: used.clone(),
-                    distinct: RepeatedRows::Dropped,
+                    // Rows that repeat wherever the file does are made once; the rows of any other step are kept as many as they
+                    // are, since the steps after the files may count, join or emit each of them.
+                    distinct: if repeats {
+                        RepeatedRows::Dropped
+                    } else {
+                        RepeatedRows::Kept
+                    },
                 },
                 scope: StepScope::PerFile,
             },

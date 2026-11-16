@@ -33,12 +33,14 @@ type Plan = (Vec<PlanStep>, StepId);
 
 /// Whether the rewrite made the plan expected: a plan that is not is answered as it came back, which no row expects.
 #[derive(Debug, PartialEq)]
-enum Value {
+enum Outcome {
     /// The plan expected.
     AsExpected,
     /// Another plan, as it came back.
     Otherwise(Plan),
 }
+
+type Value = Outcome;
 type Failure = std::convert::Infallible;
 /// What a row asks of the service.
 type Input = Scenario;
@@ -50,13 +52,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::KeyedOnTheFile,
-        expect: Expect::Value(Value::AsExpected),
+        expect: Expect::Value(Outcome::AsExpected),
     },
     Case {
         name: CaseName("a_join_after_the_files_on_a_name_stays_as_it_is"),
         word: Word::Succeeds,
         input: || Scenario::KeyedOnAName,
-        expect: Expect::Value(Value::AsExpected),
+        expect: Expect::Value(Outcome::AsExpected),
     },
     Case {
         name: CaseName(
@@ -64,13 +66,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::KeyedOnAFileNeitherIsDistinctOn,
-        expect: Expect::Value(Value::AsExpected),
+        expect: Expect::Value(Outcome::AsExpected),
     },
     Case {
         name: CaseName("a_join_of_syntax_edges_on_their_shared_parent_stays_after_the_files"),
         word: Word::Succeeds,
         input: || Scenario::SiblingsOnTheirParent,
-        expect: Expect::Value(Value::AsExpected),
+        expect: Expect::Value(Outcome::AsExpected),
     },
     Case {
         name: CaseName(
@@ -78,7 +80,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::ParentOnItsOwnEdge,
-        expect: Expect::Value(Value::AsExpected),
+        expect: Expect::Value(Outcome::AsExpected),
     },
     Case {
         name: CaseName(
@@ -86,7 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::WordsKeptOnTheirIdAndName,
-        expect: Expect::Value(Value::AsExpected),
+        expect: Expect::Value(Outcome::AsExpected),
     },
 ];
 
@@ -261,9 +263,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let planned = regroup_joins(steps, emits);
     Ok(if (planned.steps.clone(), planned.emitted) == expected {
-        Value::AsExpected
+        Outcome::AsExpected
     } else {
-        Value::Otherwise((planned.steps, planned.emitted))
+        Outcome::Otherwise((planned.steps, planned.emitted))
     })
 }
 

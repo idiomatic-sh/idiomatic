@@ -155,3 +155,7 @@ The `query_language` domain's `validation` concept.
 ### walking
 
 The `query_language` domain's `walking` concept: the descents and neighbour lookups of the syntax tree made one walk.
+
+### widths
+
+The `query_language` domain's `widths` concept: how many columns the rows of a relation or a step have, from what the step makes of the rows it reads.

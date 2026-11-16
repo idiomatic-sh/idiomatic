@@ -1,13 +1,10 @@
 //! The types of the `walking` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
+use crate::domain::widths::types::InputWidth;
 use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-
-/// How many columns the rows of an input have.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct InputWidth(pub u32);
 
 /// The row a fused lookup starts from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

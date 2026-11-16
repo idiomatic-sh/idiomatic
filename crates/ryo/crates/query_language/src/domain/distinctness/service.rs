@@ -11,6 +11,7 @@ use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
+use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
@@ -69,8 +70,14 @@ fn step_distinct(
                 .collect::<Option<Vec<_>>>()?;
             distinct_on(steps, memo, *from, &keys)
         }
-        Operation::Project { from, columns, .. } => {
-            if covers(keys, columns) == Uniqueness::Unique {
+        // A projection that drops repeated rows is distinct on every column it keeps; one that keeps them (`Kept`, chosen because
+        // a column kept was said to tell its rows apart) is distinct only on what the rows it reads are distinct on.
+        Operation::Project {
+            from,
+            columns,
+            distinct,
+        } => {
+            if *distinct == RepeatedRows::Dropped && covers(keys, columns) == Uniqueness::Unique {
                 Uniqueness::Unique
             } else {
                 let keys = keys

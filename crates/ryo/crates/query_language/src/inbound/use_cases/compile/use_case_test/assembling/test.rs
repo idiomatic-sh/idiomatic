@@ -100,7 +100,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::Text(COLUMNS_ASKED_ACROSS_FILES),
-        expect: Expect::Value(Answer::Lowered("project project project join*")),
+        expect: Expect::Value(Answer::Lowered("project project project-keyed join*")),
     },
     Case {
         name: CaseName(
