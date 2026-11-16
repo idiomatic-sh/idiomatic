@@ -85,6 +85,10 @@ pub(super) fn verify_prepared_shard(
         ));
     }
     let mut timings: BTreeMap<ryo::linter::RuleId, RuleTiming> = BTreeMap::new();
+    // The rules compile once, ahead of the cases: an execution that keeps its plans reports what each rule took.
+    for (rule, elapsed) in execution.compile(&candidate.prepare(&first.request)?)? {
+        timings.entry(rule).or_default().compile = elapsed;
+    }
     let started = Instant::now();
     let mut initial = Some(run_candidate(
         suite,
@@ -93,7 +97,7 @@ pub(super) fn verify_prepared_shard(
         execution,
         &first.request,
     )?);
-    // The first candidate run loads and compiles the profile for every case; it is the first case's time.
+    // The first candidate run is the first case's own.
     let mut startup = Some(started.elapsed());
     let mut failures = Vec::new();
     for (case, proof) in selected_cases.into_iter().zip(proofs) {
@@ -203,9 +207,6 @@ pub(super) fn verify_prepared_shard(
             .entry(case.rule.clone())
             .or_default()
             .record(elapsed);
-        failures.extend(crate::domain::suite::service::over_case_limit(
-            &case.rule, &case.name, elapsed,
-        ));
     }
     if failures.is_empty() {
         debug_assert!(

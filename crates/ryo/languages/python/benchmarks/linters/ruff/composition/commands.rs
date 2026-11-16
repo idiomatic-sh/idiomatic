@@ -20,7 +20,7 @@ use ryo_benchmark::inbound::use_cases::check_worker_request::{
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::select_cases::types::CaseRun;
+use ryo_benchmark::inbound::use_cases::select_cases::types::{CaseRun, VerifyTimes};
 use ryo_benchmark::inbound::use_cases::verify_rule_profiles::{
     interface::VerifyRuleProfilesUseCase as _, use_case::VerifyRuleProfilesUseCaseImpl,
 };
@@ -166,7 +166,6 @@ pub(super) fn verify_cases(
 
 /// Verify the profile at `source` against both contestants, its rules under its one settings profile.
 fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<CaseCount, Error> {
-    let execution = Arc::new(ryo_benchmark::outbound::execution::factory::process());
     let executable = executable.to_owned();
     let source = source.to_owned();
     let suite_source: Arc<dyn SuitePort> =
@@ -207,6 +206,35 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
         staged.rule_observation_selection,
         staged.rule_observations.clone(),
     ));
+    let target_version = parser_target(match &staged.parser_configuration {
+        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
+            Some(TargetConfiguration(name.0.as_str()))
+        }
+        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
+    })?;
+    let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
+        ryo_python::settings::PythonParserSettings::new(target_version),
+    )]);
+    let frontend_diagnostic =
+        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
+            rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+            query: ryo::query::RyoQlQuery::try_from(
+                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
+            )
+            .map_err(|error| Error::Invalid(error.to_string()))?,
+        };
+    // The candidate runs in this process over one engine, which compiles each rule once and keeps its plans for every case.
+    let execution = Arc::new(ryo_benchmark::outbound::execution::factory::in_process(
+        ryo_benchmark::outbound::execution::factory::process(),
+        Arc::new(
+            ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
+                languages,
+                frontend_diagnostic,
+            ),
+        ),
+        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+    ));
     let reference = Arc::new(reference(executable, staged)?);
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
@@ -218,10 +246,10 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
             candidate.as_ref(),
             execution.as_ref(),
             &ryo_benchmark::outbound::inventory::factory::local(),
-            &ryo_benchmark::outbound::evidence::factory::bmf(
-                Box::new(std::io::stdout()),
-                Box::new(std::io::stderr()),
-            ),
+            &ryo_benchmark::outbound::evidence::factory::bmf_to(match &run.timings {
+                VerifyTimes::Recorded(path) => Some(path.as_path()),
+                VerifyTimes::Unrecorded => None,
+            })?,
         )
         .verify_cases(
             &profile.join(constants::RULES_DIRECTORY),
@@ -281,7 +309,7 @@ fn verify_reference_profile(
         ArtifactText(constants::VERIFY_REFERENCE_SCRATCH),
     )?;
     let root = suite_source.ensure_directory(ArtifactPath(scratch.path()))?;
-    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::host::factory::local(), &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local(), &ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout()), Box::new(std::io::stderr()))).verify_reference_cases(
+    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::host::factory::local(), &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local(), &ryo_benchmark::outbound::evidence::factory::bmf_to(None)?).verify_reference_cases(
         &source.join(constants::RULES_DIRECTORY),
         &root,
     );

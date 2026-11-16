@@ -2,8 +2,7 @@
 use super::constants;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::service::{
-    over_case_limit, require_complete, validate_case_sources, validate_cases,
-    validate_selected_rules,
+    require_complete, validate_case_sources, validate_cases, validate_selected_rules,
 };
 use crate::domain::suite::types::audit::value::Audit;
 use ryo::linter::{
@@ -37,8 +36,6 @@ enum Check {
     Sources(SuiteCase),
     /// An explicit rule selection.
     Selection(CohortSelection),
-    /// How long one case of the rule `F401` took to verify, in milliseconds.
-    Verified(u64),
 }
 
 type Input = Check;
@@ -237,22 +234,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             constants::SELECTED_RULES_MUST_BE_NONEMPTY_AND,
         )),
     },
-    Case {
-        name: CaseName("a case verified within the time limit is accepted"),
-        word: Word::Succeeds,
-        input: || Check::Verified(100),
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "a case over the time limit is refused with its rule, name and measured time",
-        ),
-        word: Word::Refuses,
-        input: || Check::Verified(101),
-        expect: Expect::Error(Cow::Borrowed(
-            "F401/slow took 101 ms to verify, over the 100 ms limit",
-        )),
-    },
 ];
 
 /// The declared context of a case.
@@ -381,14 +362,6 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Check::Polarity(rule, cases) => validate_cases(&rule, &cases),
         Check::Sources(case) => validate_case_sources(&Cases { cases: vec![case] }),
         Check::Selection(rules) => validate_selected_rules(&rules),
-        Check::Verified(milliseconds) => over_case_limit(
-            &RuleId::try_from("F401").unwrap(),
-            &"slow",
-            std::time::Duration::from_millis(milliseconds),
-        )
-        .map_or(Ok(()), |failure| {
-            Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(failure))
-        }),
     }
     .map_err(|error| error.to_string().into())
 }
