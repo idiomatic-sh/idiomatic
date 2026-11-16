@@ -10,14 +10,9 @@ let read_rows = select reference, name, scope, phase, context, state, "since-maj
 let unbound_missing = select reference as id, name, scope, phase, file, span from read_rows where state = "unbound" and context != "deletion";
 let provider_resolved_reads = select l.reference as reference, l.file as file from read_rows as l join "binding-use" as r on l.reference = r.reference and l.file = r.file where l.context = "value";
 let resolved_value_reads = select reference, file from provider_resolved_reads;
-let lazy_resolved_inputs = select l.reference as reference, l.file as file from read_rows as l join "binding-use" as r on l.reference = r.reference and l.file = r.file;
-let resolved_inputs = union(left=resolved_value_reads, right=lazy_resolved_inputs);
-let resolved_lookups = ordinary_uses_of(reads=resolved_inputs);
-let resolved_hits = select reference, file from resolved_lookups where kind != "unresolved";
-let resolved_hit_ids = select reference, file from resolved_hits;
-let lazy_missing = select reference, file from resolved_lookups where kind = "unresolved";
-let lookup_missed0 = antijoin(left=resolved_value_reads, right=resolved_hit_ids, left-on=["reference", "file"], right-on=["reference", "file"]);
-let lookup_missed = union(left=lookup_missed0, right=lazy_missing);
+let resolved_lookups = ordinary_uses_of(reads=resolved_value_reads);
+let resolved_hit_ids = select reference, file from resolved_lookups;
+let lookup_missed = antijoin(left=resolved_value_reads, right=resolved_hit_ids, left-on=["reference", "file"], right-on=["reference", "file"]);
 let missed_rows = select l.reference as id, l.name as name, l.scope as scope, l.phase as phase, l.file as file, l.span as span from read_rows as l join lookup_missed as r on l.reference = r.reference and l.file = r.file;
 let ordinary_missing0 = union(left=unbound_missing, right=missed_rows);
 let replay_reads = select reference as id, name, scope, phase, file from read_rows where context != "deletion";

@@ -3250,3 +3250,443 @@ name = "pep695-type-parameter-shadows-import-annotation"
 comparison = "full"
 files = { "case.py" = "import T\n\n\ndef f[T](a: T) -> T:\n    return a\n" }
 expected = [{ rule = "F401", file = "case.py", start = 7, end = 8 }, { rule = "invalid-syntax", file = "case.py", start = 16, end = 19 }]
+
+[[cases]]
+name="matrix-a-module-global-assign-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv = 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-import-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nimport v\n"}
+expected=[{rule="F401", file="case.py", start=25, end=26}]
+
+
+[[cases]]
+name="matrix-a-module-global-exc-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ntry:\n    pass\nexcept Exception as v:\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-for-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nfor v in y:\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-with-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nwith y as v:\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-walrus-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\n(v := 1)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-assign+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv = 1\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-assign+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv = 1\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-import+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nimport v\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-import+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nimport v\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-for+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nfor v in y:\n    pass\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-for+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nfor v in y:\n    pass\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-with+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nwith y as v:\n    pass\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-with+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nwith y as v:\n    pass\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-walrus+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\n(v := 1)\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-walrus+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\n(v := 1)\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-func-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    try:\n        pass\n    except Exception as v:\n        pass\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        try:\n            pass\n        except Exception as v:\n            pass\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested2-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            try:\n                pass\n            except Exception as v:\n                pass\n            print(v)\n        h()\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    try:\n        pass\n    except Exception as v:\n        pass\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class_in_func-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        try:\n            pass\n        except Exception as v:\n            pass\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        try:\n            pass\n        except Exception as v:\n            pass\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method_in_func-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            try:\n                pass\n            except Exception as v:\n                pass\n            print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-annoval-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv: int = 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-deff-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ndef v():\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-cls-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nclass v:\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-excdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ntry:\n    pass\nexcept Exception as v:\n    del v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-excifdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ntry:\n    pass\nexcept Exception as v:\n    if c:\n        del v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifbind-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifelse-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\nelse:\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-annoval+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv: int = 1\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-annoval+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv: int = 1\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-deff+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ndef v():\n    pass\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-deff+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ndef v():\n    pass\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-cls+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nclass v:\n    pass\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-cls+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nclass v:\n    pass\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifbind+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifbind+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifelse+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\nelse:\n    print(v)\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifelse+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\nelse:\n    print(v)\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-func-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    try:\n        pass\n    except Exception as v:\n        del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-func-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-none-excdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excifdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excifdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-none-excifdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    try:\n        pass\n    except Exception as v:\n        del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excifdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excifdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excifdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-method-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-method-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name = "handler-target-in-function-hides-outer-import-from-its-read"
+comparison = "full"
+files = { "case.py" = "import e\ndef f():\n    try:\n        pass\n    except Exception as e:\n        print(e)\nf()\n" }
+expected = [{ rule = "F401", file = "case.py", start = 7, end = 8 }]
