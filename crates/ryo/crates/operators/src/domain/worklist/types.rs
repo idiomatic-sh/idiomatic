@@ -64,14 +64,6 @@ pub(crate) struct HeldState {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct StateRank(pub(crate) u32);
 
-/// Sixty-four bits of a state's set of the states at or above it, a bit for each state by its rank.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct OrderWord(pub(crate) u64);
-
-/// How many 64-bit words a set of the lattice's states takes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SetWords(pub(crate) usize);
-
 /// A lattice row: a lower state and an upper state above it, by their places.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Cover {
@@ -93,7 +85,7 @@ pub(crate) enum RankVisit {
     Unseen,
     /// Reached, its upper states still being walked: reaching it again closes a cycle.
     Open,
-    /// Ranked, every state above it known.
+    /// Ranked: every state above it is ranked above it.
     Done,
 }
 
@@ -133,8 +125,6 @@ pub(crate) struct LatticeTable {
     pub(crate) ranks: Vec<StateRank>,
     /// The state of each rank.
     pub(crate) by_rank: Vec<StatePlace>,
-    /// Each state's set of the states at or above it, a bit per rank, row-major by the state's place.
-    pub(crate) above: Vec<OrderWord>,
     /// The least upper bound of each pair of states, row-major by the first state's place.
     pub(crate) joins: Vec<StatePlace>,
     /// The least state, which every entity holds before any join.

@@ -1,8 +1,8 @@
 //! The one lowering of a worklist, the columns of its roots, edges and lattice; the kinds those columns must have and its rows
 //! have; and its declared lattice, tabled once before any run and read by place.
 use super::types::{
-    Cover, CoverPlace, LatticeSide, LatticeTable, OrderWord, RankVisit, SetWords, StatePlace,
-    StateRank, WalkFrame, WorklistParts, WorklistShape,
+    Cover, CoverPlace, LatticeSide, LatticeTable, RankVisit, StatePlace, StateRank, WalkFrame,
+    WorklistParts, WorklistShape,
 };
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{CellKind, Value};
@@ -75,8 +75,9 @@ pub(crate) fn output_kinds(
 /// Tables `lattice` from the canonical cells of its rows, `cells` (each row's lower state, then its upper): its states,
 /// ascending, each written as `original` gives the first cell of its text, by its row and side; the order between them, the
 /// reflexive and transitive closure of the rows; the least upper bound of every two, each checked before any run; and the
-/// least state. One walk ranks the states lower first and gathers each one's set of the states above it, as bits by rank, so
-/// a pair's least upper bound is the lowest-ranked state above both, if every state above both is above it: O(rows + S^2)
+/// least state. One walk ranks the states lower first. Then, the lower-ranked state of each pair first, from the highest
+/// rank down, a pair's least upper bound is the lowest-ranked of the joins of the other with the lower one's upper rows,
+/// when it is below each of them (a state is below another when their join is the other): O(S x rows) for S states
 /// words of S/64 bits for S states.
 ///
 /// # Errors
@@ -126,48 +127,57 @@ pub(crate) fn tabled(
     lattice.covers.sort_unstable();
     lattice.covers.dedup();
     ranked(lattice)?;
-    let words = SetWords(count.div_ceil(64));
-    // The least state is the one every state is at or above.
-    let held = |at| {
-        lattice
-            .above
-            .get(at * words.0..(at + 1) * words.0)
-            .unwrap_or(&[])
-            .iter()
-            .fold(0, |held, word| held + word.0.count_ones() as usize)
-    };
-    let mut full = (0..count).filter(|at| held(*at) == count);
-    let (Some(bottom), None) = (full.next(), full.next()) else {
-        return Err(PortableOperatorFault::NotALattice);
-    };
-    lattice.least = StatePlace(u32::try_from(bottom).unwrap_or(u32::MAX));
-    for one in 0..count {
-        for other in 0..count {
-            let pair = [one, other].map(|at| StatePlace(u32::try_from(at).unwrap_or(u32::MAX)));
-            let join = least_upper_bound(lattice, words, pair)?;
-            lattice.joins.push(join);
+    lattice.joins.clear();
+    lattice.joins.resize(count * count, StatePlace(u32::MAX));
+    for low in (0..count).rev() {
+        let one = *lattice
+            .by_rank
+            .get(low)
+            .ok_or(PortableOperatorFault::NotALattice)?;
+        for high in low..count {
+            let other = *lattice
+                .by_rank
+                .get(high)
+                .ok_or(PortableOperatorFault::NotALattice)?;
+            let join = least_upper_bound(lattice, [one, other])?;
+            for (left, right) in [(one, other), (other, one)] {
+                let at = usize::try_from(left.0).unwrap_or(usize::MAX) * count
+                    + usize::try_from(right.0).unwrap_or(usize::MAX);
+                if let Some(slot) = lattice.joins.get_mut(at) {
+                    *slot = join;
+                }
+            }
         }
     }
+    // The least state is the lowest-ranked one, when its join with every state is that state.
+    let bottom = *lattice
+        .by_rank
+        .first()
+        .ok_or(PortableOperatorFault::NotALattice)?;
+    for at in 0..count {
+        let state = StatePlace(u32::try_from(at).unwrap_or(u32::MAX));
+        if join_of(lattice, bottom, state)? != state {
+            return Err(PortableOperatorFault::NotALattice);
+        }
+    }
+    lattice.least = bottom;
     Ok(())
 }
 
-/// Ranks the states lower first and gives each its set of the states at or above it, walking the rows depth first: a state
-/// is ranked when every state above it is, so ranking in reverse finish order puts each before the states above it.
+/// Ranks the states lower first, walking the rows depth first: a state is ranked when every state above it is, so ranking in
+/// reverse finish order puts each before the states above it.
 ///
 /// # Errors
 ///
 /// `NotALattice` when the rows close a cycle.
 fn ranked(lattice: &mut LatticeTable) -> Result<(), PortableOperatorFault> {
     let count = lattice.states.len();
-    let words = SetWords(count.div_ceil(64));
     lattice.visits.clear();
     lattice.visits.resize(count, RankVisit::Unseen);
     lattice.ranks.clear();
     lattice.ranks.resize(count, StateRank::default());
     lattice.by_rank.clear();
     lattice.by_rank.resize(count, StatePlace::default());
-    lattice.above.clear();
-    lattice.above.resize(count * words.0, OrderWord::default());
     lattice.frames.clear();
     let mut finished = 0;
     for start in 0..count {
@@ -197,7 +207,7 @@ fn ranked(lattice: &mut LatticeTable) -> Result<(), PortableOperatorFault> {
                     let _done = lattice.frames.pop();
                     let rank = StateRank(u32::try_from(count - 1 - finished).unwrap_or(u32::MAX));
                     finished += 1;
-                    done(lattice, frame.state, rank, words);
+                    done(lattice, frame.state, rank);
                 }
             }
         }
@@ -230,40 +240,41 @@ fn opened(lattice: &mut LatticeTable, state: StatePlace) {
     lattice.frames.push(WalkFrame { state, next });
 }
 
-/// Ranks `state` at `rank`, every state above it ranked, and gives it the set of them and itself.
-fn done(lattice: &mut LatticeTable, state: StatePlace, rank: StateRank, words: SetWords) {
-    let (at, rank_at, words) = (
-        usize::try_from(state.0).unwrap_or(usize::MAX),
-        usize::try_from(rank.0).unwrap_or(usize::MAX),
-        words.0,
-    );
+/// Ranks `state` at `rank`, every state above it ranked.
+fn done(lattice: &mut LatticeTable, state: StatePlace, rank: StateRank) {
+    let at = usize::try_from(state.0).unwrap_or(usize::MAX);
     if let Some(slot) = lattice.ranks.get_mut(at) {
         *slot = rank;
     }
     if let Some(visit) = lattice.visits.get_mut(at) {
         *visit = RankVisit::Done;
     }
-    if let Some(slot) = lattice.by_rank.get_mut(rank_at) {
+    if let Some(slot) = lattice
+        .by_rank
+        .get_mut(usize::try_from(rank.0).unwrap_or(usize::MAX))
+    {
         *slot = state;
     }
-    if let Some(word) = lattice.above.get_mut(at * words + rank_at / 64) {
-        word.0 |= 1 << (rank_at % 64);
-    }
-    let first = lattice.covers.partition_point(|cover| cover.lower < state);
-    let end = lattice.covers.partition_point(|cover| cover.lower <= state);
-    for cover in first..end {
-        let Some(upper) = lattice.covers.get(cover).map(|cover| cover.upper) else {
-            continue;
-        };
-        let upper = usize::try_from(upper.0).unwrap_or(usize::MAX);
-        for word in 0..words {
-            if let Some(bits) = lattice.above.get(upper * words + word).copied()
-                && let Some(own) = lattice.above.get_mut(at * words + word)
-            {
-                own.0 |= bits.0;
-            }
-        }
-    }
+}
+
+/// The join of `one` and `other` the table holds.
+///
+/// # Errors
+///
+/// `NotALattice` when the table holds none for them.
+fn join_of(
+    lattice: &LatticeTable,
+    one: StatePlace,
+    other: StatePlace,
+) -> Result<StatePlace, PortableOperatorFault> {
+    let at = usize::try_from(one.0).unwrap_or(usize::MAX) * lattice.states.len()
+        + usize::try_from(other.0).unwrap_or(usize::MAX);
+    lattice
+        .joins
+        .get(at)
+        .copied()
+        .filter(|join| join.0 != u32::MAX)
+        .ok_or(PortableOperatorFault::NotALattice)
 }
 
 /// The least upper bound of `one` and `other`, two states of the tabled `lattice`.
@@ -305,49 +316,45 @@ pub(crate) fn state_of(
     }
 }
 
-/// The one least state above both states of `pair`: the lowest-ranked state above both, when every state above both is
-/// above it.
+/// The one least state above both states of `pair`, the first the lower-ranked or equal: the state itself for a state and
+/// itself; else the lowest-ranked of the joins of the other with the first's upper rows (each above the first, so already
+/// tabled), when it is below each of them.
 ///
 /// # Errors
 ///
-/// `NotALattice` when no state is above both, or the lowest-ranked one is not below every other.
+/// `NotALattice` when the first has no upper row (nothing is above both), or the lowest-ranked join is not below another: two
+/// upper bounds with none below the other.
 fn least_upper_bound(
     lattice: &LatticeTable,
-    words: SetWords,
-    pair: [StatePlace; 2],
+    [one, other]: [StatePlace; 2],
 ) -> Result<StatePlace, PortableOperatorFault> {
-    let row = |state: StatePlace| {
-        let at = usize::try_from(state.0).unwrap_or(usize::MAX);
-        lattice
-            .above
-            .get(at * words.0..(at + 1) * words.0)
-            .unwrap_or(&[])
-    };
-    let [one, other] = pair.map(row);
-    let rank = one
-        .iter()
-        .zip(other)
-        .enumerate()
-        .find_map(|(word, (one, other))| {
-            let both = one.0 & other.0;
-            (both != 0).then(|| word * 64 + both.trailing_zeros() as usize)
-        })
-        .ok_or(PortableOperatorFault::NotALattice)?;
-    let join = lattice
-        .by_rank
-        .get(rank)
-        .copied()
-        .ok_or(PortableOperatorFault::NotALattice)?;
-    // Every state above both is above the candidate, or the candidate is only one minimal upper bound among several.
-    let above = row(join);
-    if one
-        .iter()
-        .zip(other)
-        .zip(above)
-        .all(|((one, other), above)| one.0 & other.0 & !above.0 == 0)
-    {
-        Ok(join)
-    } else {
-        Err(PortableOperatorFault::NotALattice)
+    if one == other {
+        return Ok(one);
     }
+    let first = lattice.covers.partition_point(|cover| cover.lower < one);
+    let end = lattice.covers.partition_point(|cover| cover.lower <= one);
+    let rank = |state: StatePlace| {
+        lattice
+            .ranks
+            .get(usize::try_from(state.0).unwrap_or(usize::MAX))
+            .copied()
+            .ok_or(PortableOperatorFault::NotALattice)
+    };
+    let mut least: Option<StatePlace> = None;
+    for cover in lattice.covers.get(first..end).unwrap_or(&[]) {
+        let candidate = join_of(lattice, cover.upper, other)?;
+        least = match least {
+            Some(held) if rank(held)? <= rank(candidate)? => Some(held),
+            _ => Some(candidate),
+        };
+    }
+    let join = least.ok_or(PortableOperatorFault::NotALattice)?;
+    // The join is below every other candidate, or there are two upper bounds with none below the other.
+    for cover in lattice.covers.get(first..end).unwrap_or(&[]) {
+        let candidate = join_of(lattice, cover.upper, other)?;
+        if join_of(lattice, join, candidate)? != candidate {
+            return Err(PortableOperatorFault::NotALattice);
+        }
+    }
+    Ok(join)
 }
