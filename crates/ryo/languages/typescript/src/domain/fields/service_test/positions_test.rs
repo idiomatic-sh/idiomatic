@@ -28,6 +28,12 @@ fn large_call() -> &'static str {
     Box::leak(format!("f({});", arguments.join(", ")).into_boxed_str())
 }
 
+/// An arrow function of `MANY` parameters: each parameter's role is read by whether the arrow comes before it.
+fn large_arrow() -> &'static str {
+    let parameters: Vec<String> = (0..MANY).map(|at| format!("p{at}")).collect();
+    Box::leak(format!("({}) => 0;", parameters.join(", ")).into_boxed_str())
+}
+
 /// Reads one row's input through the concept fixtures' shared reading.
 fn subject(input: Input) -> Result<Value, Failure> {
     super::super::fixtures::subject(input)
@@ -35,6 +41,20 @@ fn subject(input: Input) -> Result<Value, Failure> {
 
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("the_last_parameter_of_an_arrow_of_many_parameters_is_a_parameter"),
+        word: Word::Succeeds,
+        input: || {
+            edge(
+                large_arrow(),
+                Dialect::Plain,
+                Kind::Node(Node::ArrowFunctionExpression),
+                Kind::Node(Node::Identifier),
+                MANY - 1,
+            )
+        },
+        expect: Expect::Value("params"),
+    },
     Case {
         name: CaseName("the_last_statement_of_a_large_block_is_its_body"),
         word: Word::Succeeds,

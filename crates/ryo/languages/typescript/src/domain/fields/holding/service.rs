@@ -6,7 +6,7 @@ use super::super::constants::{
 use super::super::placing::service::{
     by_kind, by_marker, count_before, kinded, marked, nth, place, placed_nth, sharing,
 };
-use super::super::types::{Field, Lastness, Sharing};
+use super::super::types::{Field, FirstMarkers, Lastness, Sharing};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::types::Kind;
@@ -40,7 +40,13 @@ pub(in super::super) fn export_specifier(tree: &Tree<'_>, at: Position) -> Field
     clippy::too_many_lines,
     reason = "one arm for each kind of TypeScript-ESTree node: the table of the properties is the proof, and splitting it would split it"
 )]
-pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child: Kind) -> Field {
+pub(in super::super) fn held(
+    tree: &Tree<'_>,
+    at: Position,
+    holder: Node,
+    child: Kind,
+    first: &FirstMarkers,
+) -> Field {
     match holder {
         Node::Program
         | Node::BlockStatement
@@ -70,7 +76,13 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
             &[kinded(Node::SwitchCase, Field::Cases)],
             Field::Discriminant,
         ),
-        Node::SwitchCase => by_marker(tree, at, &[marked(COLON, Field::Consequent)], Field::Test),
+        Node::SwitchCase => by_marker(
+            tree,
+            at,
+            &[marked(COLON, Field::Consequent)],
+            Field::Test,
+            first,
+        ),
         Node::ImportDeclaration => by_kind(
             child,
             &[
@@ -87,12 +99,24 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 kinded(Node::ExportSpecifier, Field::Specifiers),
                 kinded(Node::ImportAttribute, Field::Attributes),
             ],
-            by_marker(tree, at, &[marked(FROM, Field::Source)], Field::Declaration),
+            by_marker(
+                tree,
+                at,
+                &[marked(FROM, Field::Source)],
+                Field::Declaration,
+                first,
+            ),
         ),
         Node::ExportAllDeclaration => by_kind(
             child,
             &[kinded(Node::ImportAttribute, Field::Attributes)],
-            by_marker(tree, at, &[marked(FROM, Field::Source)], Field::Exported),
+            by_marker(
+                tree,
+                at,
+                &[marked(FROM, Field::Source)],
+                Field::Exported,
+                first,
+            ),
         ),
         Node::ExportDefaultDeclaration => Field::Declaration,
         Node::ChainExpression
@@ -221,9 +245,13 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 count_before(tree, at, SEMICOLON),
             ),
         },
-        Node::ArrowFunctionExpression => {
-            by_marker(tree, at, &[marked(ARROW, Field::Body)], Field::Params)
-        }
+        Node::ArrowFunctionExpression => by_marker(
+            tree,
+            at,
+            &[marked(ARROW, Field::Body)],
+            Field::Params,
+            first,
+        ),
         Node::FunctionDeclaration
         | Node::FunctionExpression
         | Node::TSDeclareFunction
@@ -235,6 +263,7 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 at,
                 &[marked(OPEN_PARENTHESIS, Field::Params)],
                 Field::Id,
+                first,
             ),
         ),
         Node::TSMethodSignature => by_marker(
@@ -242,6 +271,7 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
             at,
             &[marked(OPEN_PARENTHESIS, Field::Params)],
             Field::Key,
+            first,
         ),
         Node::TSCallSignatureDeclaration
         | Node::TSConstructSignatureDeclaration
@@ -255,7 +285,13 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 kinded(Node::ClassBody, Field::Body),
                 kinded(Node::TSClassImplements, Field::Implements),
             ],
-            by_marker(tree, at, &[marked(EXTENDS, Field::SuperClass)], Field::Id),
+            by_marker(
+                tree,
+                at,
+                &[marked(EXTENDS, Field::SuperClass)],
+                Field::Id,
+                first,
+            ),
         ),
         Node::TSInterfaceDeclaration => by_kind(
             child,
@@ -268,7 +304,13 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
         Node::TSImportType => by_kind(
             child,
             &[kinded(Node::ObjectExpression, Field::Options)],
-            by_marker(tree, at, &[marked(DOT, Field::Qualifier)], Field::Source),
+            by_marker(
+                tree,
+                at,
+                &[marked(DOT, Field::Qualifier)],
+                Field::Source,
+                first,
+            ),
         ),
         Node::TSMappedType => by_marker(
             tree,
@@ -279,6 +321,7 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 marked(IN, Field::Constraint),
             ],
             Field::Key,
+            first,
         ),
         Node::TSTypeParameter => by_marker(
             tree,
@@ -288,6 +331,7 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 marked(EXTENDS, Field::Constraint),
             ],
             Field::Name,
+            first,
         ),
         Node::JSXElement => by_kind(
             child,

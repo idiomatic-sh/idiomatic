@@ -5,7 +5,7 @@
 
 use super::holding::service::held;
 use super::placing::service::{operator_of, returning};
-use super::types::{Field, Returning};
+use super::types::{Field, FirstMarkers, Returning};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind, kind_bits, kind_name, kinds, parent};
 use crate::domain::syntax::types::Kind;
@@ -35,7 +35,7 @@ pub(crate) fn fields() -> impl Iterator<Item = Field> {
 
 /// The role of the element at `at` under its parent; `None` for the root, for a token that spells no operator, and for an extra.
 #[must_use]
-pub(crate) fn field_of(tree: &Tree<'_>, at: Position) -> Field {
+pub(crate) fn field_of(tree: &Tree<'_>, at: Position, first: &FirstMarkers) -> Field {
     let holder = parent(tree, at);
     if holder == at {
         return Field::None;
@@ -59,14 +59,14 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: Position) -> Field {
             Field::SuperTypeArguments
         }
         Kind::Node(Node::TSTypeParameterInstantiation) => Field::TypeArguments,
-        Kind::Node(_) => held(tree, at, node, child),
+        Kind::Node(_) => held(tree, at, node, child, first),
     }
 }
 
 /// The number of the role of the element at `at`, for the table to hold.
 #[must_use]
-pub(crate) fn role_of(tree: &Tree<'_>, at: Position) -> languages::FieldId {
-    field_bits(field_of(tree, at))
+pub(crate) fn role_of(tree: &Tree<'_>, at: Position, first: &FirstMarkers) -> languages::FieldId {
+    field_bits(field_of(tree, at, first))
 }
 
 /// Gives the completion the names of the language's kinds, and, when the run wants them, of its roles and the role of every element.
@@ -81,6 +81,7 @@ pub(crate) fn name_vocabulary(
         for field in fields() {
             languages::name_field(completion, field_bits(field), field_name(field));
         }
-        languages::write_fields(completion, role_of);
+        let first = FirstMarkers::default();
+        languages::write_fields(completion, |tree, at| role_of(tree, at, &first));
     }
 }

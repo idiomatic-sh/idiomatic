@@ -190,8 +190,21 @@ pub(crate) enum Field {
 }
 
 /// The spelling of a token that marks where a property of its parent begins: the `(` before the parameters of a function.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Marker(pub &'static str);
+
+/// The first token spelled each marker among the children of a parent, found by one scan of that parent the first time one of its
+/// children asks, and kept while one tree's roles are read: a parent of many children (the specifiers of an `export { .. } from`, the
+/// parameters of an arrow) is scanned once, not once for each child.
+#[derive(Debug, Default)]
+pub(crate) struct FirstMarkers(
+    pub  std::cell::RefCell<
+        std::collections::HashMap<
+            (ryo::languages::Position, Marker),
+            Option<ryo::languages::Position>,
+        >,
+    >,
+);
 
 /// Where a node stands among the nodes its parent holds by their place, from zero.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
