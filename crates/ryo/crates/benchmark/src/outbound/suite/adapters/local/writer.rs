@@ -139,7 +139,14 @@ pub(super) fn stage(
             )?,
         )?;
         if purpose == StagePurpose::Certification {
-            copy_evidence(directory, destination, &target.join(constants::CASES))?;
+            // A rule's evidence is read where its registration reads it: beside its own settings profile when the profile
+            // holds every file its cases declare, beside the bench's otherwise (the registrar's `stage_evidence`).
+            let settings = super::tool::schemas::settings_directory(directory, rule)
+                .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+            let cases = target.join(constants::CASES);
+            if copy_evidence(&settings, destination, &cases).is_err() {
+                copy_evidence(directory, destination, &cases)?;
+            }
         }
     }
     for rule in definitions.iter().filter(|id| !authored.contains(id)) {
