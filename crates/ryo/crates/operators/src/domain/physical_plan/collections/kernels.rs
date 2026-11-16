@@ -22,3 +22,4 @@ pub(crate) mod scan_facts;
 pub(crate) mod scan_node;
 pub(crate) mod scan_roots;
 pub(crate) mod text_map;
+pub(crate) mod worklist;

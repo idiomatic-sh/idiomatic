@@ -241,3 +241,57 @@ pub(crate) fn ordered_dfs() -> OperatorDescription {
         r#"let roots = select id as root, file from "function"; let edges = select parent as source, child as destination, ordinal as position, child as base, file from "syntax-child"; let example = ordered-dfs(from=roots,root=root,edges=edges,source=source,destination=destination,order=position,edge=base,keys=[file],output=visit); emit example subject file key(base,visit);"#,
     )
 }
+
+/// The description of `worklist`.
+pub(crate) fn worklist() -> OperatorDescription {
+    described(
+        "worklist",
+        "Run a first-in-first-out worklist over a graph from each distinct partition/root: an entity leaving the queue follows its edges whose before-state is the state it holds then, in numeric order, each joining its after-state into the destination by the lattice's least upper bound; a destination whose state changes joins the queue again. One row for each edge followed, with the destination's state after the join; every entity starts at the lattice's least state.",
+        vec![
+            field("from", "Root rows.", Required),
+            field("root", "Root entity column.", Required),
+            field("state", "The root's starting state column.", Required),
+            field(
+                "edges",
+                "Directed edge rows, one for each before-state an edge is followed in.",
+                Required,
+            ),
+            field("source", "Edge source column.", Required),
+            field(DESTINATION, "Edge destination column.", Required),
+            field(
+                "order",
+                "Numeric outgoing-edge order; ties within a source and before-state are rejected.",
+                Required,
+            ),
+            field(
+                "before",
+                "The state the source must hold for the edge to be followed.",
+                Required,
+            ),
+            field(
+                "after",
+                "The state the edge joins into its destination.",
+                Required,
+            ),
+            field(
+                "lattice",
+                "Lattice rows: a lower state and a state above it. The states must form a lattice.",
+                Required,
+            ),
+            field("lower", "The lower state column.", Required),
+            field("upper", "The upper state column.", Required),
+            field(
+                "keys",
+                "Matching partition columns of roots and edges, in output order; omitted means one graph.",
+                Optional,
+            ),
+            field(
+                OUTPUT,
+                "Name of the column holding the destination's state after the edge.",
+                Required,
+            ),
+        ],
+        &[],
+        r#"let starts = select id as root, file from "function"; let roots = extend(from=starts,values={state:0}); let raw = select id as source, id as destination, file from "function"; let edges = extend(from=raw,values={position:0,before:0,after:1}); let files = select file from "function"; let lattice = extend(from=files,values={lower:0,upper:1}); let example = worklist(from=roots,root=root,state=state,edges=edges,source=source,destination=destination,order=position,before=before,after=after,lattice=lattice,lower=lower,upper=upper,keys=[file],output=reached); emit example subject root key(before,reached);"#,
+    )
+}

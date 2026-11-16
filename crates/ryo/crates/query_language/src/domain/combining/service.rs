@@ -95,6 +95,7 @@ pub(crate) fn call_set(
         | QueryOperator::FitsRendered
         | QueryOperator::OrderedMatch
         | QueryOperator::OrderedDfs
+        | QueryOperator::Worklist
         | QueryOperator::GroupDigest
         | QueryOperator::Capture
         | QueryOperator::Words

@@ -38,6 +38,7 @@ impl KernelsItem for ProjectItem {
                 | Lowering::SeededReach { .. }
                 | Lowering::Axis { .. }
                 | Lowering::OrderedWalk { .. }
+                | Lowering::Worklist { .. }
                 | Lowering::Components { .. }
                 | Lowering::ScanBound { .. }
                 | Lowering::Unlowered => false,

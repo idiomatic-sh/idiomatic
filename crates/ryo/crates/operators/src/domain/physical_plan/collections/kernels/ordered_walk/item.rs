@@ -7,7 +7,7 @@ use super::super::hash_index::item::indexed;
 use super::super::hash_index::item::value_hash;
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
+use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_dfs::types::DfsParts;
 use crate::domain::physical_plan::types::InputRows;
@@ -16,7 +16,7 @@ use crate::domain::physical_plan::types::file_buffers::value::WalkScratch;
 use crate::domain::physical_plan::types::keyed_rows::value::IndexedRow;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::table_texts::service::{canonical_cell, text_of_cell};
+use crate::domain::table_texts::service::text_of_cell;
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -48,6 +48,7 @@ impl KernelsItem for OrderedWalkItem {
             | Lowering::OrderedMatch { .. }
             | Lowering::Render { .. }
             | Lowering::ScanBound { .. }
+            | Lowering::Worklist { .. }
             | Lowering::Unlowered => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }
@@ -74,14 +75,14 @@ pub(crate) fn visited(
     walk.reached.clear();
     shaped(dfs, roots, edges, output)?;
     // Main compares a text by its canonical symbol: the root columns first, then the edge columns, rows last first.
-    canonical(
+    canonical_cells(
         roots,
         dfs.root_keys.iter().chain([&dfs.root]),
         texts,
         &mut walk.reached,
         &mut walk.entities,
     )?;
-    canonical(
+    canonical_cells(
         edges,
         dfs.edge_keys.iter().chain([&dfs.source, &dfs.destination]),
         texts,
@@ -328,37 +329,6 @@ impl Canon<'_> {
             .find(|order| order.is_ne())
             .unwrap_or(Ordering::Equal)
     }
-}
-
-/// Writes into `into` the canonical cells of `columns` of every row of `rows`, and numbers in `fresh` each text no symbol of
-/// the file holds, in the order main's engine interned them: rows last first, columns in order.
-///
-/// # Errors
-///
-/// `NoSuchColumn` for a column past the rows; `ShapeMismatch` for a name with no text.
-#[expect(
-    clippy::indexing_slicing,
-    reason = "every place is below the rows times the columns `into` was sized to just before"
-)]
-fn canonical<'c>(
-    rows: InputRows<'_>,
-    columns: impl Iterator<Item = &'c ColumnIndex> + Clone,
-    texts: &Texts<'_>,
-    fresh: &mut Vec<Value>,
-    into: &mut Vec<Value>,
-) -> Result<(), PortableOperatorFault> {
-    let width = columns.clone().count();
-    let count = count_of(rows).0;
-    into.clear();
-    into.resize(count * width, Value::Number(Integer(0)));
-    for at in (0..count).rev() {
-        for (place, column) in columns.clone().enumerate() {
-            let value = cell_of(rows, RowIndex(at), *column)
-                .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })?;
-            into[at * width + place] = canonical_cell(value, texts, fresh)?;
-        }
-    }
-    Ok(())
 }
 
 /// Interns, in order, each text a walk numbered after the file's symbols, as main's engine interned it while it prepared the

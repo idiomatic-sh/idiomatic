@@ -64,6 +64,8 @@ pub struct FileBuffers {
     pub(crate) shared: Vec<SharedIndex>,
     /// The work of the chains of streamed stages, its capacity kept across nodes and files.
     pub(crate) stream: crate::domain::physical_plan::types::stream_scratch::value::StreamScratch,
+    /// The work of a worklist, its capacity kept across nodes and files.
+    pub(crate) worklist: crate::domain::worklist::types::WorklistScratch,
     /// How many times a probe built an index, its own or a shared one: what the sharing cases count.
     #[cfg(test)]
     pub(crate) builds: IndexBuilds,

@@ -146,3 +146,42 @@ pub(crate) fn row_of<'r>(
         }
     }
 }
+
+/// Writes into `into` the canonical cells of `columns` of every row of `rows`, and numbers in `fresh` each text no symbol of
+/// the file holds, in the order main's engine interned them: rows last first, columns in order.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a column past the rows; `ShapeMismatch` for a name with no text.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "every place is below the rows times the columns `into` was sized to just before"
+)]
+pub(crate) fn canonical_cells<'c>(
+    rows: InputRows<'_>,
+    columns: impl Iterator<Item = &'c ryo_values::domain::plan_parts::types::ColumnIndex> + Clone,
+    texts: &crate::domain::table_texts::types::Texts<'_>,
+    fresh: &mut Vec<Value>,
+    into: &mut Vec<Value>,
+) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
+    let width = columns.clone().count();
+    let count = count_of(rows).0;
+    into.clear();
+    into.resize(
+        count * width,
+        Value::Number(ryo_relations::domain::relations::types::Integer(0)),
+    );
+    for at in (0..count).rev() {
+        for (place, column) in columns.clone().enumerate() {
+            let value = cell_of(rows, ryo_values::domain::rows::types::RowIndex(at), *column)
+                .ok_or(
+                    crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+                        index: *column,
+                    },
+                )?;
+            into[at * width + place] =
+                crate::domain::table_texts::service::canonical_cell(value, texts, fresh)?;
+        }
+    }
+    Ok(())
+}

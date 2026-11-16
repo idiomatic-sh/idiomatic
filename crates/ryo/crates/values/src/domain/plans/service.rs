@@ -38,6 +38,12 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
             domain,
             ..
         } => (*from, *edges, *domain, 3),
+        Operation::Worklist {
+            from,
+            edges,
+            lattice,
+            ..
+        } => (*from, *edges, *lattice, 3),
         Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => {
             (*edges, *edges, *edges, 1)
         }
@@ -125,6 +131,16 @@ pub fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) 
             visit(edges);
             visit(domain);
         }
+        Operation::Worklist {
+            from,
+            edges,
+            lattice,
+            ..
+        } => {
+            visit(from);
+            visit(edges);
+            visit(lattice);
+        }
         Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => visit(edges),
         Operation::Rows { .. } | Operation::Hosted { .. } => {}
     }
@@ -150,6 +166,7 @@ pub fn kind_of(operation: &Operation) -> OperationKind {
         Operation::Replace { .. } => OperationKind::Replace,
         Operation::OrderedMatch { .. } => OperationKind::OrderedMatch,
         Operation::OrderedDfs { .. } => OperationKind::OrderedDfs,
+        Operation::Worklist { .. } => OperationKind::Worklist,
         Operation::GroupCount { .. } => OperationKind::GroupCount,
         Operation::GroupDigest { .. } => OperationKind::GroupDigest,
         Operation::Capture { .. } => OperationKind::Capture,
@@ -184,6 +201,7 @@ pub fn comparisons_of(operation: &Operation) -> &[PlanComparison] {
         | Operation::SpanBounds { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }

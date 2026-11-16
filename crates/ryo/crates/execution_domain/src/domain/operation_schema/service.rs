@@ -101,9 +101,10 @@ pub fn schema_of(
         Operation::Replace { text, .. } | Operation::Words { text, .. } => {
             appended(first()?.kinds, &[*text], CellKind::Symbol)
         }
-        Operation::Axis { .. } | Operation::OrderedMatch { .. } | Operation::OrderedDfs { .. } => {
-            TraversalShape::new(inputs).of(operation, bindings)
-        }
+        Operation::Axis { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. } => TraversalShape::new(inputs).of(operation, bindings),
         Operation::Closure {
             keys,
             source,

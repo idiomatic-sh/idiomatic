@@ -66,6 +66,7 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
             | Operation::SpanBetween { .. }
             | Operation::OrderedMatch { .. }
             | Operation::OrderedDfs { .. }
+            | Operation::Worklist { .. }
             | Operation::GroupDigest { .. }
             | Operation::Capture { .. }
             | Operation::Rank { .. }

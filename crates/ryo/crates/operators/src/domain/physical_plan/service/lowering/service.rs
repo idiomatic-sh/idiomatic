@@ -5,7 +5,8 @@ use crate::domain::ordered_dfs::types::DfsShape;
 use crate::domain::physical_plan::types::lowering::value::{BoundScan, Lowering};
 use crate::domain::physical_plan::types::{PlanInput, ProbeIndex, RowMap, RowSource};
 use crate::domain::set_rows::types::{SetKind, SetLowering};
-use crate::domain::{aggregate, closure, cycles, ordered_dfs};
+use crate::domain::worklist::types::WorklistShape;
+use crate::domain::{aggregate, closure, cycles, ordered_dfs, worklist};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -268,6 +269,37 @@ pub(crate) fn lowered(
                 edge_keys,
             }),
         }),
+        Operation::Worklist {
+            root,
+            state,
+            source,
+            destination,
+            order,
+            before,
+            after,
+            lower,
+            upper,
+            root_keys,
+            edge_keys,
+            ..
+        } => {
+            let third = inputs.get(2).and_then(source_of);
+            both()
+                .zip(third)
+                .map(|((roots, edges), lattice)| Lowering::Worklist {
+                    roots,
+                    edges,
+                    lattice,
+                    worklist: worklist::service::lower(WorklistShape {
+                        root: *root,
+                        state: *state,
+                        edge_columns: [*source, *destination, *order, *before, *after],
+                        lattice_columns: [*lower, *upper],
+                        root_keys,
+                        edge_keys,
+                    }),
+                })
+        }
         Operation::Cycles {
             source,
             destination,

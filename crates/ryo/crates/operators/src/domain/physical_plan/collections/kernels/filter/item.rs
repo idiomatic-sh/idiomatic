@@ -41,6 +41,7 @@ impl KernelsItem for FilterItem {
                 | Lowering::Render { .. }
                 | Lowering::Reach { .. }
                 | Lowering::OrderedWalk { .. }
+                | Lowering::Worklist { .. }
                 | Lowering::Components { .. }
                 | Lowering::ScanBound { .. }
                 | Lowering::Unlowered => false,

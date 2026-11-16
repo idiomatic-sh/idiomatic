@@ -283,6 +283,22 @@ pub(crate) fn graph_operations() -> Vec<Operation> {
             root_keys: vec![col(5)],
             edge_keys: vec![col(4)],
         },
+        Operation::Worklist {
+            from: FROM,
+            edges: FROM,
+            lattice: FROM,
+            root: col(2),
+            state: col(1),
+            source: col(0),
+            destination: col(1),
+            order: col(2),
+            before: col(3),
+            after: col(3),
+            lower: col(3),
+            upper: col(3),
+            root_keys: vec![col(5)],
+            edge_keys: vec![col(4)],
+        },
     ]
 }
 /// Every current Operation variant exactly once, including a real Hosted request source.
@@ -316,6 +332,7 @@ pub fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> Vec<Tab
         }
         Operation::Closure { .. } | Operation::Cycles { .. } => vec![graph],
         Operation::OrderedDfs { .. } => vec![first, graph],
+        Operation::Worklist { .. } => vec![first, graph.clone(), graph],
         Operation::Rows { .. } => Vec::new(),
         Operation::Hosted { .. } => vec![Table {
             kinds: vec![CellKind::Number, CellKind::Symbol, CellKind::File],

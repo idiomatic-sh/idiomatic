@@ -349,6 +349,7 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
         Operation::Join { reach: Some(_), .. }
         | Operation::Axis { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. } => Lineage::Mixed,
         Operation::Hosted { .. } => hosted(kinds),

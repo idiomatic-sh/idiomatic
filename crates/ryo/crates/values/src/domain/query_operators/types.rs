@@ -72,6 +72,8 @@ pub enum QueryOperator {
     SpanBounds,
     /// `ordered-dfs(from, root, edges, source, destination, order, edge, keys, output)`.
     OrderedDfs,
+    /// `worklist(from, root, state, edges, source, destination, order, before, after, lattice, lower, upper, keys, output)`.
+    Worklist,
 }
 
 /// Maximum physical display columns of a source line.
@@ -152,4 +154,6 @@ operation_kinds! {
     SpanBounds,
     /// Ordered depth-first edge visits.
     OrderedDfs,
+    /// A first-in-first-out worklist fixpoint over a declared lattice.
+    Worklist,
 }

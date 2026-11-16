@@ -64,6 +64,7 @@ pub(crate) fn minted(
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. }
         | Lowering::ScanBound { .. }
         | Lowering::Unlowered => Err(PortableOperatorFault::WrongOperation),

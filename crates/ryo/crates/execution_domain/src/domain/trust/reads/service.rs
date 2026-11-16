@@ -111,6 +111,7 @@ pub(super) fn step_reads(
         | OperationKind::Replace
         | OperationKind::OrderedMatch
         | OperationKind::OrderedDfs
+        | OperationKind::Worklist
         | OperationKind::GroupDigest
         | OperationKind::Capture
         | OperationKind::Rank

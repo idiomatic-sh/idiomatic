@@ -20,6 +20,9 @@ use crate::domain::physical_plan::collections::kernels::reach::item::{
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, kinds_of, row_of,
 };
+use crate::domain::physical_plan::collections::kernels::worklist::item::{
+    WorklistInputs, worklisted,
+};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{CellStart, KernelRun, PlanNodeId};
@@ -134,6 +137,21 @@ pub(crate) fn kernels(
                 edges,
                 &run.resources.texts(),
                 &mut buffers.walk,
+                output,
+            );
+        }
+        Lowering::Worklist { worklist, .. } => {
+            let inputs = WorklistInputs {
+                roots: input,
+                edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
+                lattice: third.ok_or(PortableOperatorFault::WrongOperation)?,
+            };
+            return worklisted(
+                worklist,
+                inputs,
+                &run.resources.texts(),
+                &mut buffers.worklist,
+                &mut buffers.repeats,
                 output,
             );
         }

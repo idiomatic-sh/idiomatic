@@ -30,9 +30,16 @@ pub enum OperatingError {
         /// The application's or provider's exact reason.
         reason: String,
     },
-    /// Ordered DFS cannot distinguish two outgoing edges of one partition/source.
-    #[error("ordered-dfs requires unique order values within each partition and source")]
+    /// An ordered walk cannot distinguish two outgoing edges of one partition and source.
+    #[error(
+        "ordered-dfs and worklist require unique order values within each partition and source (and before-state)"
+    )]
     DuplicateDfsOrder,
+    /// The lattice rows of a `worklist` make no lattice, or a root or edge names a state they do not hold.
+    #[error(
+        "worklist requires lattice rows with no cycle, one least state and one least upper bound for every two states, holding every root and edge state"
+    )]
+    NotALattice,
     /// A visit ordinal cannot be represented as an engine integer.
     #[error("ordered-dfs visit ordinal overflow")]
     DfsOrdinalOverflow,

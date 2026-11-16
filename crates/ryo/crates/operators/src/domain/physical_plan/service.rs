@@ -185,6 +185,7 @@ fn flow_of(nodes: &[PhysicalNode], indexes: &[KeyedIndex], id: PlanNodeId) -> No
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }

@@ -179,13 +179,15 @@ pub(crate) fn call_closure(
     Ok(())
 }
 
-/// Construct shared DFS output columns and refuse duplicate names before publishing the step.
-fn dfs_output_columns(
+/// The output columns of a walk from roots: the roots' keys and root, the named edge columns, and the named numeric or state
+/// output column; a duplicate name is refused before the step is published.
+pub(crate) fn graph_output_columns(
     roots: &[PlannedColumn],
     fields: &[PlannedColumn],
     root_keys: &[parts::ColumnIndex],
     root: parts::ColumnIndex,
-    endpoints: [parts::ColumnIndex; 3],
+    endpoints: &[parts::ColumnIndex],
+    output: CellKind,
     call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<Vec<PlannedColumn>, LoweringError> {
     let mut kept: Vec<_> = root_keys
@@ -200,7 +202,7 @@ fn dfs_output_columns(
     );
     kept.push(PlannedColumn {
         name: word_of(call, ArgumentSlot::Output)?,
-        kind: CellKind::Number,
+        kind: output,
         unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
@@ -295,12 +297,13 @@ pub(crate) fn call_ordered_dfs(
             ArgumentFault::MatchingGraphKeys,
         ));
     }
-    let kept = dfs_output_columns(
+    let kept = graph_output_columns(
         &roots,
         &fields,
         &root_keys,
         root,
-        [source, destination, edge],
+        &[source, destination, edge],
+        CellKind::Number,
         call,
     )?;
     push(

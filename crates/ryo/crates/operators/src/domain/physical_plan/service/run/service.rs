@@ -142,6 +142,7 @@ pub(super) fn made(
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. } => {}
     }
     let mut sources = lowering.sources();
@@ -232,6 +233,10 @@ pub(super) fn made(
         Lowering::OrderedMatch { .. } => left_fault.clone().or_else(|| right_fault.clone()),
         Lowering::Axis { .. } => right_fault.clone().or_else(|| last_fault.clone()),
         Lowering::OrderedWalk { .. } => right_fault.clone().or_else(|| left_fault.clone()),
+        Lowering::Worklist { .. } => right_fault
+            .clone()
+            .or_else(|| last_fault.clone())
+            .or_else(|| left_fault.clone()),
         Lowering::Filter { .. }
         | Lowering::Project { .. }
         | Lowering::Extend { .. }

@@ -12,6 +12,7 @@ pub(crate) mod expanding;
 pub(crate) mod fusing;
 pub(crate) mod idioms;
 pub(crate) mod inlining;
+pub(crate) mod iterating;
 pub(crate) mod joining;
 pub(crate) mod lineage;
 pub(crate) mod linking;

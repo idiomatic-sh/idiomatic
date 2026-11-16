@@ -259,6 +259,9 @@ mod spans;
 mod traversing;
 
 #[cfg(test)]
+mod iterating;
+
+#[cfg(test)]
 mod closures_and_axes;
 
 #[cfg(test)]

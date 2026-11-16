@@ -37,6 +37,9 @@ pub enum PortableOperatorFault {
     ShapeMismatch,
     /// Two edges of one partition and source share an order value: an ordered depth-first visit needs them distinct.
     DuplicateOrder,
+    /// The lattice rows of a dataflow make no lattice: their order has a cycle, no least state, or two states with no one least
+    /// upper bound; or a root or edge names a state they do not hold.
+    NotALattice,
     /// A span-bound extraction received an invalid interval.
     InvalidSpanBounds,
     /// A composed span exceeds the source or reverses its interval.

@@ -39,6 +39,7 @@ impl KernelsItem for HashIndexItem {
                     | Lowering::SeededReach { .. }
                     | Lowering::Axis { .. }
                     | Lowering::OrderedWalk { .. }
+                    | Lowering::Worklist { .. }
                     | Lowering::Components { .. }
             )
         };

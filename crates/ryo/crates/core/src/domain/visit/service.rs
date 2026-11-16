@@ -181,7 +181,8 @@ fn reads_role(operation: &Operation) -> RoleRead {
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
-        | Operation::OrderedDfs { .. } => named(&inputs_of(operation))
+        | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. } => named(&inputs_of(operation))
             .iter()
             .any(|input| edges(*input) == EdgeInput::Edges),
         Operation::Closure { .. }

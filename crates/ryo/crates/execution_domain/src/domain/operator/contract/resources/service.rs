@@ -20,7 +20,8 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. } => ResourceProgram::None,
+        | Operation::FitsRendered { .. }
+        | Operation::Worklist { .. } => ResourceProgram::None,
         Operation::Extend { values, .. } => ResourceProgram::Appended(values.clone()),
         Operation::Rank { sets, .. } => ResourceProgram::Rank(*sets),
         Operation::Intersection { .. } | Operation::Difference { .. } => ResourceProgram::Index {
@@ -179,6 +180,7 @@ pub(crate) fn binding_dependent(
         | ryo_values::domain::plans::types::Operation::Words { .. }
         | ryo_values::domain::plans::types::Operation::Closure { .. }
         | ryo_values::domain::plans::types::Operation::OrderedDfs { .. }
+        | ryo_values::domain::plans::types::Operation::Worklist { .. }
         | ryo_values::domain::plans::types::Operation::Cycles { .. }
         | ryo_values::domain::plans::types::Operation::Hosted { .. }
         | ryo_values::domain::plans::types::Operation::SpanBetween { .. }
