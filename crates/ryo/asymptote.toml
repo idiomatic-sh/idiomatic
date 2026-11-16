@@ -296,6 +296,19 @@ timeout-seconds = 3600
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
+id = "memory-allocation"
+group = "memory"
+# The core's allocation harness (`crates/core/tests/allocation.rs`, `--bmf`), over the core's own corpus and the fake language: the most
+# blocks any file allocates, after warm-up, beyond what the parser does on its own (`fake/blocks-per-file-beyond-parser`). `dhat` counts
+# every block, so the number repeats; it varies by a few blocks between files, because a vector the findings fill doubles now and then,
+# so the measure may rise 2% over its best. Target, not a gate: one block per file.
+run = ["cargo", "test", "--locked", "--package", "idiomatic-sh-ryo-core", "--all-features", "--test", "allocation", "--", "--bmf"]
+output = "bmf"
+tolerance-percent = { blocks-per-file-beyond-parser = 2 }
+timeout-seconds = 3600
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
 id = "build"
 group = "build"
 # Compile reusable test/doc artifacts before independent quality and speed jobs.
