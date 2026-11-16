@@ -156,7 +156,7 @@ pub trait Resources {
 }
 
 /// What a node of the physical plan reads its rows from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum RowSource {
     /// A relation's rows, lent by the facts.
     Facts(Relation),
@@ -215,8 +215,45 @@ pub(crate) struct KeyedIndex {
     pub(crate) readers: Vec<PlanNodeId>,
 }
 
+/// Which shared index a reader reads: the rows it indexes and what it keys them by. Two readers of one identity share one index.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct IndexIdentity {
+    /// The rows it indexes.
+    pub(crate) source: RowSource,
+    /// What it keys them by.
+    pub(crate) key: IndexKey,
+}
+
+/// The indexes a planning step finds, in the order it first meets them, each found again by its identity in one lookup: a plan of
+/// many readers would scan them all for each reader.
+#[derive(Default)]
+pub(crate) struct KeyedIndexes {
+    /// Every index met, with its readers in node order.
+    pub(crate) indexes: Vec<KeyedIndex>,
+    /// Each index's place in `indexes`, by its identity.
+    pub(crate) places: hashbrown::HashMap<IndexIdentity, IndexPlace>,
+}
+
+/// Who reads a node's rows, found in one pass over every node's sources: how many reads there are, and the first.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ReadersFound {
+    /// How many sources of later nodes name it, a node naming it twice counted twice.
+    pub(crate) count: NodeReaders,
+    /// The first source naming it: the reader and the source's place among the reader's sources.
+    pub(crate) first: Option<FirstRead>,
+}
+
+/// One source naming a node: the reader, and the source's place among the reader's sources (a probe's left is first).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FirstRead {
+    /// The node that reads it.
+    pub(crate) reader: PlanNodeId,
+    /// The source's place among the reader's sources.
+    pub(crate) place: ryo_values::domain::plan_parts::types::InputNumber,
+}
+
 /// What a shared index keys its rows by: a name column's text for lookups, key columns' cells for probes.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum IndexKey {
     /// One name column's text.
     Text(ColumnIndex),

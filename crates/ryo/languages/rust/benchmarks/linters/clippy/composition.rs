@@ -1,7 +1,6 @@
 //! Rust composition provides its linked language only at this outer edge.
 use self::commands::{audit, reference, verify_cases, verify_reference_cases, worker};
-use self::compare::parity;
-use self::constants::{AUDIT, EXPECTED_EXECUTABLE, UNSUPPORTED_WORKER_COMMAND, USAGE, VERIFY_TOOL};
+use self::constants::{AUDIT, EXPECTED_EXECUTABLE, UNSUPPORTED_WORKER_COMMAND, USAGE};
 use self::locations::{directory, targets};
 use self::measure::measure;
 use ryo_benchmark::domain::command_line::types::{
@@ -12,13 +11,12 @@ use ryo_benchmark::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::constants::{
-    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PARITY,
-    PROFILE_RYO, RUN_RYO, VERIFY_REFERENCE_CASES,
+    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PROFILE_RYO,
+    RUN_RYO, VERIFY_REFERENCE_CASES, VERIFY_TOOL,
 };
 use std::{path::PathBuf, sync::Arc};
 mod certification;
 mod commands;
-mod compare;
 pub(crate) mod constants;
 mod locations;
 mod measure;
@@ -55,11 +53,6 @@ pub(crate) fn run(
         }
         Some(MEASURE | MEASURE_ACCOUNTED_VALID | MEASURE_SCOPED | MEASURE_VALID) => measure(
             MeasureCommand(command.as_deref().unwrap_or_default()),
-            &mut args.map(BenchmarkArgument),
-            observations,
-            &suite_source,
-        ),
-        Some(PARITY) => parity(
             &mut args.map(BenchmarkArgument),
             observations,
             &suite_source,

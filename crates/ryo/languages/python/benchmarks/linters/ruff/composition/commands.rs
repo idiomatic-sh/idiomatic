@@ -29,7 +29,6 @@ use ryo_benchmark::inbound::use_cases::{
     stage_suite::interface::StageSuiteUseCase as _,
     verify_cases::interface::VerifyCasesUseCase as _,
 };
-use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactText},
@@ -162,8 +161,8 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
     let suite_source: Arc<dyn SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let tool = suite_source.profile(ArtifactPath(&source))?;
-    let expected = reference(executable.clone(), tool.clone())?.version_line(&tool);
-    suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
+    // The bench verified the reference tool's pinned bytes and version line once, before any rule (`verify-tool`); the
+    // registration pins its digest, which the inventory checks before and after every rule.
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(&suite_source),
     )
@@ -197,29 +196,55 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
         staged.rule_observation_selection,
         staged.rule_observations.clone(),
     ));
-    let target_version = parser_target(match &staged.parser_configuration {
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
-            Some(TargetConfiguration(name.0.as_str()))
-        }
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
-    })?;
+    let target_version = parser_target(configured(&staged.parser_configuration))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
     )]);
     let frontend_diagnostic = frontend_diagnostic()?;
     // The candidate runs in this process over one engine, which compiles each rule once and keeps its plans for every case.
-    let execution = Arc::new(
-        ryo_benchmark::inbound::use_cases::verify_cases::in_process::InProcessExecution::new(
-            Box::new(ryo_benchmark::outbound::execution::factory::process()),
-            Arc::new(
-                ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
-                    languages,
-                    frontend_diagnostic,
-                ),
+    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
+        Arc::new(
+            ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
+                languages,
+                frontend_diagnostic,
             ),
-            Arc::new(ryo_benchmark::outbound::context::factory::local()),
-        ),
-    );
+        );
+    let context: Arc<dyn ryo_benchmark::outbound::context::interface::ContextPort + Send + Sync> =
+        Arc::new(ryo_benchmark::outbound::context::factory::local());
+    let compiling = Arc::clone(&engine);
+    let execution = Arc::new(ryo_benchmark::outbound::execution::factory::in_process(
+        Box::new(ryo_benchmark::outbound::execution::factory::process()),
+        ryo_benchmark::outbound::execution::types::InProcessWorker {
+            run: Box::new(move |request, response| {
+                RunRyoUseCaseImpl::new(
+                    Arc::<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync>::clone(
+                        &engine,
+                    ),
+                    Arc::new(ryo_benchmark::outbound::worker::factory::json(
+                        WorkerSource::Stored(request.to_owned()),
+                        response,
+                    )),
+                    Arc::<dyn ryo_benchmark::outbound::context::interface::ContextPort + Send + Sync>::clone(
+                        &context,
+                    ),
+                )
+                .run_ryo()
+            }),
+            compile: Box::new(move |request| {
+                let read = ryo_benchmark::outbound::worker::factory::json(
+                    WorkerSource::Stored(request.to_owned()),
+                    Box::new(std::io::sink()),
+                )
+                .receive()?;
+                Ok(
+                    ryo_benchmark::outbound::engine::interface::EnginePort::compile(
+                        compiling.as_ref(),
+                        &read,
+                    ),
+                )
+            }),
+        },
+    ));
     let reference = Arc::new(reference(executable, staged)?);
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
@@ -231,7 +256,7 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
             candidate.as_ref(),
             execution.as_ref(),
             &ryo_benchmark::outbound::inventory::factory::local(),
-            &ryo_benchmark::outbound::evidence::factory::bmf_to(match &run.timings {
+            &ryo_benchmark::outbound::evidence::factory::bmf_appending(match &run.timings {
                 VerifyTimes::Recorded(path) => Some(path.as_path()),
                 VerifyTimes::Unrecorded => None,
             })?,
@@ -247,14 +272,9 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
 }
 
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
-    let target_version = ruff_target(match &tool.parser_configuration {
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
-            Some(TargetConfiguration(name.0.as_str()))
-        }
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
-    })?
-    .0
-    .to_owned();
+    let target_version = ruff_target(configured(&tool.parser_configuration))?
+        .0
+        .to_owned();
     Ok(LinterRuffAdapter::new(LinterRuffSettings {
         executable,
         defaults: tool.defaults.into_iter().collect(),
@@ -287,7 +307,20 @@ pub(super) fn frontend_diagnostic()
     )
 }
 
-fn parser_target(
+/// The target configuration a parser selection names, none when it names none.
+pub(super) fn configured(
+    selection: &ryo_benchmark_contracts::domain::requests::types::ParserSelection,
+) -> Option<TargetConfiguration<'_>> {
+    match selection {
+        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
+            Some(TargetConfiguration(name.0.as_str()))
+        }
+        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
+    }
+}
+
+/// The linked parser's target version for a target configuration, the same identity the reference is given.
+pub(super) fn parser_target(
     configuration: Option<TargetConfiguration<'_>>,
 ) -> Result<ryo_python::settings::PythonTargetVersion, Error> {
     Ok(super::targets::resolve(configuration)?.parser)

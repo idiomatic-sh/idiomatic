@@ -31,7 +31,7 @@ use logical::service::{
     after_inputs, answered_steps, derived_roots, held, observation_reaches, read_inputs, stated,
     timed,
 };
-use refusals::service::{deferred_layouts, node_reads};
+use refusals::service::{deferred_layouts, inputs_by_node};
 use scopes::service::scope_at;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
@@ -199,7 +199,7 @@ pub fn logical<'p>(
     let consumers = held(&mut program, rules, &nodes, &inputs.lists, &mut engine)?;
     let roots = derived_roots(&drafts, &inputs.lists);
     let layouts = drafts.iter().map(|draft| draft.layout.clone()).collect();
-    let reads = node_reads(&inputs.lists);
+    let reads = inputs_by_node(&inputs.lists);
     let deferred = deferred_layouts(&drafts);
     let reach = observation_reaches(&drafts, &inputs.lists);
     Ok(LogicalBuild {

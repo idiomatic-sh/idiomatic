@@ -191,6 +191,13 @@ pub fn observe(
                     .map(|argument| rooted(&root_path, &argument.to_string_lossy()).into())
                     .collect(),
             ),
+            ExecutablesCall::Check(path, arguments) => ExecutablesCall::Check(
+                relative(path),
+                arguments
+                    .iter()
+                    .map(|argument| rooted(&root_path, &argument.to_string_lossy()).into())
+                    .collect(),
+            ),
         })
         .collect();
     Observed {

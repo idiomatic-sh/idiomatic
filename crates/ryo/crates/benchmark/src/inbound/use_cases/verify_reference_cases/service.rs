@@ -1,4 +1,5 @@
 //! The reference of every admitted case answers its own derived expectations.
+use super::types::VerifiedReferenceCases;
 use crate::application::case_execution::{service::run as run_case, types::AttemptOutcome};
 use crate::application::case_observation::service::write as record;
 use crate::domain::discrepancy::service::judge;
@@ -35,13 +36,7 @@ pub(super) fn verify_prepared_reference_cases(
     inventory: &dyn InventoryPort,
     rules: &Path,
     mut cases: Vec<PreparedCase>,
-) -> Result<
-    (
-        ReferenceCaseCount,
-        BTreeMap<ryo::linter::RuleId, RuleTiming>,
-    ),
-    Error,
-> {
+) -> Result<VerifiedReferenceCases, Error> {
     if cases.is_empty() {
         return Err(Error::Invalid(constants::NO_CASES.into()));
     }
@@ -150,7 +145,10 @@ pub(super) fn verify_prepared_reference_cases(
         }
     }
     if failures.is_empty() {
-        Ok((ReferenceCaseCount(count), timings))
+        Ok(VerifiedReferenceCases {
+            count: ReferenceCaseCount(count),
+            timings,
+        })
     } else {
         Err(Error::Invalid(format!(
             "{count} reference-only cases checked; failures:\n{}",

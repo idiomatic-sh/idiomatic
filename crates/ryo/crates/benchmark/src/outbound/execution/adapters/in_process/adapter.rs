@@ -1,39 +1,26 @@
-//! The execution of a candidate's worker request inside this process, over one engine every case shares.
-use crate::outbound::context::interface::ContextPort;
-use crate::outbound::engine::interface::EnginePort;
+//! The worker's request runs in this process through the edge's worker; any other invocation runs on the process execution.
+use super::constants::{COMPLETED, FAILED, RESPONSE_POISONED};
 use crate::outbound::execution::interface::ExecutionPort;
-use crate::outbound::worker::{factory::json, interface::WorkerPort as _, types::WorkerSource};
+use crate::outbound::execution::types::{CompileTimes, ExitObservationMode, InProcessWorker};
 use ryo_benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ExecutionProfile, Invocation, ProcessExitCode, ProcessOutput,
     ResourceObservation, TerminationSignal,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::constants::RUN_RYO;
-use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-/// Runs the worker's request over the engine it was given, in this process; any other invocation runs on `process`.
-pub struct InProcessExecution {
+/// Runs the worker's request through the edge's worker, in this process; any other invocation runs on `process`.
+pub(crate) struct ExecutionInProcessAdapter {
     /// What every invocation but the worker's runs on.
     process: Box<dyn ExecutionPort>,
-    /// The engine every worker request runs over.
-    engine: Arc<dyn EnginePort + Send + Sync>,
-    /// Sealed project context validation and receipt boundary.
-    context: Arc<dyn ContextPort + Send + Sync>,
+    /// The worker the edge composed over its engine.
+    worker: InProcessWorker,
 }
-impl InProcessExecution {
-    /// Bind the process execution, the engine and the context.
-    #[must_use]
-    pub fn new(
-        process: Box<dyn ExecutionPort>,
-        engine: Arc<dyn EnginePort + Send + Sync>,
-        context: Arc<dyn ContextPort + Send + Sync>,
-    ) -> Self {
-        Self {
-            process,
-            engine,
-            context,
-        }
+impl ExecutionInProcessAdapter {
+    /// Bind the process execution and the edge's worker.
+    pub(crate) fn new(process: Box<dyn ExecutionPort>, worker: InProcessWorker) -> Self {
+        Self { process, worker }
     }
     /// The stored request a worker invocation names, none for any other invocation.
     fn request_file(invocation: &Invocation) -> Option<std::path::PathBuf> {
@@ -43,7 +30,7 @@ impl InProcessExecution {
         Some(std::path::PathBuf::from(arguments.next()?))
     }
 }
-impl std::fmt::Debug for InProcessExecution {
+impl std::fmt::Debug for ExecutionInProcessAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct(std::any::type_name::<Self>())
             .finish_non_exhaustive()
@@ -56,7 +43,7 @@ impl std::io::Write for Response {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         self.0
             .lock()
-            .map_err(|_poisoned| std::io::Error::other(super::constants::RESPONSE_POISONED))?
+            .map_err(|_poisoned| std::io::Error::other(RESPONSE_POISONED))?
             .extend_from_slice(bytes);
         Ok(bytes.len())
     }
@@ -64,48 +51,37 @@ impl std::io::Write for Response {
         Ok(())
     }
 }
-impl ExecutionPort for InProcessExecution {
-    fn exit_observation(&self) -> crate::outbound::execution::types::ExitObservationMode {
+impl ExecutionPort for ExecutionInProcessAdapter {
+    fn exit_observation(&self) -> ExitObservationMode {
         self.process.exit_observation()
     }
     fn profile(&self) -> ExecutionProfile {
         self.process.profile()
     }
-    fn compile(
-        &self,
-        invocation: &Invocation,
-    ) -> Option<BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
+    fn compile(&self, invocation: &Invocation) -> CompileTimes {
         let path = Self::request_file(invocation)?;
-        let request = json(WorkerSource::Stored(path), Box::new(Response::default()))
-            .receive()
-            .ok()?;
-        self.engine.compile(&request)
+        // A request the worker cannot read compiles nothing ahead: its run reports the same refusal as the run's failure.
+        match (self.worker.compile)(&path) {
+            Ok(times) => times,
+            Err(_unread) => None,
+        }
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let Some(path) = Self::request_file(&invocation) else {
             return self.process.run(invocation);
         };
         let response = Response::default();
-        let transport = json(WorkerSource::Stored(path), Box::new(response.clone()));
-        let engine: Arc<dyn EnginePort> = self.engine.clone();
-        let context: Arc<dyn ContextPort> = self.context.clone();
         let started = std::time::Instant::now();
-        let worker = crate::inbound::use_cases::run_ryo::use_case::RunRyoUseCaseImpl::new(
-            engine,
-            Arc::new(transport),
-            context,
-        );
-        let outcome =
-            crate::inbound::use_cases::run_ryo::interface::RunRyoUseCase::run_ryo(&worker);
+        let outcome = (self.worker.run)(&path, Box::new(response.clone()));
         let wall = started.elapsed();
         let stdout = response
             .0
             .lock()
-            .map_err(|_poisoned| Error::Invalid(super::constants::RESPONSE_POISONED.into()))?
+            .map_err(|_poisoned| Error::Invalid(RESPONSE_POISONED.into()))?
             .clone();
         let (status, stderr) = match outcome {
-            Ok(()) => (0, Vec::new()),
-            Err(error) => (1, error.to_string().into_bytes()),
+            Ok(()) => (COMPLETED, Vec::new()),
+            Err(error) => (FAILED, error.to_string().into_bytes()),
         };
         Ok(ProcessOutput {
             signal: TerminationSignal::Exited,

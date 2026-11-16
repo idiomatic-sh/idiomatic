@@ -3,9 +3,7 @@ use crate::domain::measurements::types::LanguageTitle;
 use crate::domain::suite::types::certificate::value::Certificate;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
-use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, SearchRoots,
-};
+use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, SearchRoots};
 use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
 use std::path::Path;
 
@@ -25,7 +23,8 @@ pub struct ProfileLabel<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug)]
 pub struct CorpusLanguage<'a> {
     /// The language as benchmark.toml and the bench's measures name it (`python`).
-    pub id: &'a ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+    pub id:
+        &'a ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
     /// The language as observations name it.
     pub display: LanguageTitle<'a>,
     /// The pinned reference tool as observations name it.
@@ -65,8 +64,6 @@ pub struct CorpusMeasurement<'a> {
     pub bench: &'a Path,
     /// The projects measured, in order.
     pub projects: Vec<Project>,
-    /// Where each project's accepted differences are, if it has any.
-    pub accepted: AcceptedDifferencesFiles<'a>,
     /// The composition's growth plan, if its language grows its rules.
     pub growth: Option<&'a crate::domain::growth::types::GrowthPlan>,
     /// The times file of each rule the inventory verified.
@@ -89,20 +86,6 @@ pub struct CorpusMeasurement<'a> {
     pub context_mode: ProjectContextMode,
     /// The names and suffixes of the measured language.
     pub language: CorpusLanguage<'a>,
-}
-
-/// The suffix, after a project's name, of the file naming the differences accepted for it.
-#[derive(Clone, Copy, Debug)]
-pub struct AcceptedSuffix<'a>(pub &'a str);
-
-/// Where the differences accepted for each project are written: `<directory>/<project><suffix>`; a project with no such
-/// file has none accepted.
-#[derive(Clone, Copy, Debug)]
-pub struct AcceptedDifferencesFiles<'a> {
-    /// The directory of the files.
-    pub directory: &'a Path,
-    /// The suffix of each file after its project's name.
-    pub suffix: AcceptedSuffix<'a>,
 }
 
 /// The boundaries one corpus measurement calls, borrowed from the use case.
@@ -137,4 +120,3 @@ pub(super) struct SourceTexts(
     /// Each source read, by its corpus-relative path.
     pub std::collections::BTreeMap<ryo::linter::RelativePath, ryo::linter::SourceText>,
 );
-

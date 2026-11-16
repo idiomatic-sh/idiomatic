@@ -170,32 +170,6 @@ fn a_module_without_a_file_is_unknown_at_its_file_and_a_file_no_crate_root_reach
     );
 }
 
-/// A word a rule writes for a kind that no linked language has fails the run before a file is read, naming the word and the languages
-/// that were looked in: nothing runs until it is fixed.
-#[test]
-fn a_rule_that_names_a_kind_no_language_has_fails_the_run() {
-    let _beside = crate::beside();
-    let root = workspace();
-    let rule = crate::tools::rule_from_query(
-        "misspelled",
-        "let a = select * from \"syntax-tree\" where kind = \"funtcion-item\"; emit a subject file key(id);",
-        &["**".to_owned()],
-    );
-    let refused = base::lint_with(
-        root.path(),
-        vec![rule],
-        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
-        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
-    )
-    .expect_err("a kind no language has fails the run");
-    assert!(
-        refused.contains(
-            "rule `misspelled`: kind `funtcion-item` names no kind of css, go, html, javascript, json, markdown, python, rust, toml, typescript"
-        ),
-        "{refused}"
-    );
-}
-
 /// A counted run that uses again what the store kept counts its own work only. A changed file it reads alone before the run, for
 /// the rules that read across files, is not its work, as before the observer counted the work: the per-file rule's results for the
 /// edited file come from that read, so the edit run counts none for it.

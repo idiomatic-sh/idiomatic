@@ -32,34 +32,16 @@ pub(crate) const TYPESCRIPT: &str = "typescript";
 pub(crate) const PROJECTS_DIRECTORY: &str = "projects";
 /// Stable command, artifact or observation identity for valid source profile.
 pub(crate) const VALID_SOURCE_PROFILE: &str = "pinned-reference-valid-typescript";
-/// Stable command, artifact or observation identity for full source profile.
-pub(crate) const FULL_SOURCE_PROFILE: &str = "all-typescript-sources";
-/// Stable command, artifact or observation identity for reference name.
-pub(crate) const REFERENCE_NAME: &str = "oxlint";
 /// Stable command, artifact or observation identity for audit.
 pub(crate) const AUDIT: &str = "audit";
-/// Stable command, artifact or observation identity for verify tool.
-pub(crate) const VERIFY_TOOL: &str = "verify-tool";
-/// Refusal of a parity command line that is not its two paths.
-pub(crate) const PARITY_ARGUMENTS: &str = "expected parity <oxlint> <output>";
-/// The state directory of one project's parity, below its output.
-pub(crate) const PARITY_STATE: &str = "state";
-/// One project's per-rule parity document, below its output.
-pub(crate) const PER_RULE: &str = "per-rule.json";
-/// Where a project's accepted differences are, relative to this bench.
-pub(crate) const EVIDENCE_DIRECTORY: &str = "profiles/evidence";
-/// The suffix of a project's accepted-differences file, after the project's name.
-pub(crate) const ACCEPTED_SUFFIX: &str = "-accepted-differences.json";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
-pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | parity <oxlint> <output> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <dir> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
+pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <dir> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
 /// This benchmark package's root, where its rules and fragments are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
 /// Text `unsupported worker command`.
 pub(crate) const UNSUPPORTED_WORKER_COMMAND: &str = "unsupported worker command";
-/// Text `--case-inventory=`.
-pub(crate) const CASE_INVENTORY: &str = "--case-inventory=";
 /// Text `canonical benchmark requires explicit...`.
 pub(crate) const CANONICAL_BENCHMARK_REQUIRES_EXPLI: &str =
     "canonical benchmark requires explicit registered --case-inventory=PATH";
@@ -111,3 +93,9 @@ pub(crate) const SOURCE_SUFFIXES: [&str; 8] = [
 ];
 /// Stable command, artifact or observation identity for rules directory.
 pub(crate) const RULES_DIRECTORY: &str = "rules";
+/// Refusal of a measure without the file its document is written to.
+pub(crate) const EXPECTED_DOCUMENT: &str = "expected --document=<file>";
+/// Refusal of a measure without the verification's directory.
+pub(crate) const EXPECTED_VERIFICATION: &str = "expected --verification=<inventory directory>";
+/// The name of the one source file each growth program is written as.
+pub(crate) const GROWTH_SOURCE: &str = "case.ts";

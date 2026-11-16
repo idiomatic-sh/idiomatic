@@ -45,9 +45,15 @@ pub(super) fn executable_name(stem: &str) -> String {
     }
 }
 
-/// The known fixture's native bad-image error, not an arbitrary child's numeric status.
-pub(super) fn image_error() -> i32 {
-    if cfg!(windows) { 193 } else { 8 }
+/// The native errors that launching the known invalid image answers, not an arbitrary child's numeric status. Windows
+/// answers a file that is no executable image of this machine with one of its image errors: invalid signature (191), image
+/// marked invalid (192), bad format (193) or another machine type (216).
+pub(super) fn image_errors() -> &'static [i32] {
+    if cfg!(windows) {
+        &[191, 192, 193, 216]
+    } else {
+        &[8]
+    }
 }
 
 #[cfg(unix)]

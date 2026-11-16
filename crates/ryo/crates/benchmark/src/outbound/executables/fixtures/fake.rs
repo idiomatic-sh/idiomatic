@@ -16,6 +16,8 @@ pub enum ExecutablesCall {
     SealWorker(PathBuf),
     /// The running executable was sealed at this path.
     SealCurrent(PathBuf),
+    /// A sealed executable ran for its verdict with these arguments.
+    Check(PathBuf, Vec<OsString>),
     /// A sealed executable ran with these arguments.
     Run(PathBuf, Vec<OsString>),
 }
@@ -27,7 +29,7 @@ pub struct ExecutablesFake {
     pub target: PathBuf,
     /// The reference tools on the fake search path, by name.
     pub tools: Vec<(ToolName, PathBuf)>,
-    /// What every sealed run writes to its output.
+    /// The document every sealed run writes; a run that succeeds publishes it to its output.
     pub stdout: Vec<u8>,
     /// What every sealed run answers.
     pub verdict: RunVerdict,
@@ -85,10 +87,24 @@ impl ExecutablesPort for ExecutablesFake {
         seal(sealed, "collector")
     }
 
+    fn check_sealed(
+        &self,
+        executable: &Path,
+        arguments: &RunArguments,
+    ) -> Result<RunVerdict, Error> {
+        let _executable = std::fs::metadata(executable)?;
+        self.record(ExecutablesCall::Check(
+            executable.to_owned(),
+            arguments.0.clone(),
+        ));
+        Ok(RunVerdict::Passed)
+    }
+
     fn run_sealed(
         &self,
         executable: &Path,
         arguments: &RunArguments,
+        document: &Path,
         output: &mut dyn std::io::Write,
     ) -> Result<RunVerdict, Error> {
         let _executable = std::fs::metadata(executable)?;
@@ -96,7 +112,11 @@ impl ExecutablesPort for ExecutablesFake {
             executable.to_owned(),
             arguments.0.clone(),
         ));
-        output.write_all(&self.stdout)?;
+        // The scripted worker writes its document; only a run that succeeds publishes it.
+        std::fs::write(document, &self.stdout)?;
+        if self.verdict == RunVerdict::Passed {
+            output.write_all(&std::fs::read(document)?)?;
+        }
         Ok(self.verdict)
     }
 }

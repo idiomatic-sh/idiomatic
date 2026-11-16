@@ -1,0 +1,7 @@
+//! The text this part uses.
+/// What a worker request that failed reports, when the poisoned response cannot be read.
+pub(super) const RESPONSE_POISONED: &str = "response lock poisoned";
+/// The exit status of a worker request that completed.
+pub(super) const COMPLETED: i32 = 0;
+/// The exit status of a worker request that failed.
+pub(super) const FAILED: i32 = 1;

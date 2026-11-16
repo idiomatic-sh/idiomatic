@@ -1,16 +1,17 @@
 //! The `operate` use case: the struct holding only the ports it calls.
+use super::constants::REFERENCE_NOT_VERIFIED;
 use super::interface::OperateUseCase;
 use super::types::{OperationReport, OperationRequest, OperationVerdict};
 use crate::application::inventory_verification::service as inventory_verification;
 use crate::application::registration::service::register;
 use crate::domain::operations::constants::{COLLECTOR, INVENTORY, WORKER};
-use crate::domain::operations::service::{layout, worker_arguments};
+use crate::domain::operations::service::{document, layout, worker_arguments};
 use crate::domain::operations::types::BenchOperation;
 use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use crate::outbound::{
     executables::{
         interface::ExecutablesPort,
-        types::{BenchPackage, RunArguments, Sealed},
+        types::{BenchPackage, RunArguments, RunVerdict, Sealed},
     },
     execution::interface::ExecutionPort,
     inventory::interface::InventoryPort,
@@ -20,6 +21,7 @@ use crate::outbound::{
 use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
 use ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::constants::VERIFY_TOOL;
 use ryo_benchmark_contracts::domain::requests::types::{
     RegisteredCoverage, case_shard::value::ShardCount,
 };
@@ -98,6 +100,15 @@ impl OperateUseCase for OperateUseCaseImpl {
         let _collector = self
             .executables
             .seal_current(&layout.root.join(COLLECTOR))?;
+        // The reference tool's pinned bytes and version line, once for the run: the registration then pins its digest, and the
+        // verification checks that digest before and after every rule.
+        if self.executables.check_sealed(
+            &worker.path,
+            &RunArguments(vec![VERIFY_TOOL.into(), reference.path.clone().into()]),
+        )? == RunVerdict::Failed
+        {
+            return Err(Error::Invalid(REFERENCE_NOT_VERIFIED.into()));
+        }
         // The whole bench first: a rule directory that is neither a default nor a supporting rule, or a query that does not
         // read, is refused before any rule is registered.
         let _audit = crate::application::suite_auditing::service::audit(
@@ -134,6 +145,7 @@ impl OperateUseCase for OperateUseCaseImpl {
                     &layout,
                     &reference.path,
                 )),
+                &document(&layout),
                 output,
             )?),
         };

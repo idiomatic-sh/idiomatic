@@ -54,7 +54,13 @@ impl ExecutionPort for ExecutionFake {
         if invocation.executable.file_stem().is_some_and(|name| {
             name == "invalid-format" || cfg!(windows) && name == "missing-interpreter"
         }) {
-            return Err(std::io::Error::from_raw_os_error(super::driver::image_error()).into());
+            return Err(std::io::Error::from_raw_os_error(
+                super::driver::image_errors()
+                    .first()
+                    .copied()
+                    .unwrap_or_default(),
+            )
+            .into());
         }
         let large = invocation
             .arguments

@@ -39,3 +39,13 @@ pub fn bounded(timeout: std::time::Duration) -> impl super::interface::Execution
         timeout: Some(timeout),
     }
 }
+
+/// Construct execution that runs a worker's request in this process through `worker`, and every other invocation on
+/// `process`.
+#[must_use]
+pub fn in_process(
+    process: Box<dyn super::interface::ExecutionPort>,
+    worker: super::types::InProcessWorker,
+) -> impl super::interface::ExecutionPort {
+    super::adapters::in_process::adapter::ExecutionInProcessAdapter::new(process, worker)
+}

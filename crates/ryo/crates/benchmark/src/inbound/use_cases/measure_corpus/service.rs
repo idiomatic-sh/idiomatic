@@ -1,14 +1,19 @@
 //! Every project is measured in both orders, cold, retained and edited; each pair is judged rule by rule against the
 //! reference, and the candidate's costs, the verification times and the growth are the bench's one document.
 use super::constants::{
-    CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_RETAINED, CANDIDATE_STATE, CLEAN_EDITED_DIRECTORY,
-    COHORT_OUTSIDE_CERTIFICATE, EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, GROWTH_INCOMPLETE,
-    NO_RESOURCES, NO_SOURCE, NOT_COMPLETE, ONE_FINDING, PATH_SEPARATOR, REFERENCE_EDITED,
-    REFERENCE_FIRST, REFERENCE_RETAINED, REFERENCE_STATE, RETAINED_CACHE_CONDITION,
-    RETAINED_DIRECTORY, SCENES_DIRECTORY, TRIAL_PREFIX, TRIALS, UNACCEPTED,
+    ACCEPTED_DIRECTORY, ACCEPTED_SUFFIX, CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_RETAINED,
+    CANDIDATE_STATE, CLEAN_EDITED_DIRECTORY, COHORT_OUTSIDE_CERTIFICATE, EDITED_CACHE_CONDITION,
+    EMPTY_CACHE_CONDITION, GROWTH_INCOMPLETE, NO_RESOURCES, NO_SOURCE, NOT_COMPLETE, ONE_FINDING,
+    PATH_SEPARATOR, REFERENCE_EDITED, REFERENCE_FIRST, REFERENCE_RETAINED, REFERENCE_STATE,
+    RETAINED_CACHE_CONDITION, RETAINED_DIRECTORY, SCENES_DIRECTORY, TRIAL_PREFIX, TRIALS,
+    UNACCEPTED,
 };
-use super::types::{ComparisonName, CorpusBoundaries, CorpusMeasurement, FindingCounts, SourceTexts};
-use crate::application::certified_measurement::service::{admit, conclude, require_covered, unjudged};
+use super::types::{
+    ComparisonName, CorpusBoundaries, CorpusMeasurement, FindingCounts, SourceTexts,
+};
+use crate::application::certified_measurement::service::{
+    admit, conclude, require_covered, unjudged,
+};
 use crate::application::measurement::service::run as execute;
 use crate::application::project_request::types::ProjectCorpus;
 use crate::domain::corpus_discrepancy::types::AdmittedDifferences;
@@ -16,7 +21,9 @@ use crate::domain::measurements::types::{MeasurementEligibility, pair::value::Pa
 use crate::domain::source_validity::constants::PREFLIGHT_DIRECTORY;
 use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet, ArtifactText};
-use ryo_benchmark_contracts::domain::costs::types::{ProjectCost, ProjectCosts, RunCost, StoreSize};
+use ryo_benchmark_contracts::domain::costs::types::{
+    ProjectCost, ProjectCosts, RunCost, StoreSize,
+};
 use ryo_benchmark_contracts::domain::measurements::types::{
     Measurement, ResourceObservation, RunOrder,
 };
@@ -25,7 +32,9 @@ use ryo_benchmark_contracts::domain::reports::types::{
     BenchmarkFinding, EndPair, ExecutionMetadata, FindingPosition, LocatedFinding, RuleComparison,
     RunReport, SourceByteOffset,
 };
-use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, RunRequest, WorkerRequest};
+use ryo_benchmark_contracts::domain::requests::types::{
+    CohortSelection, RunRequest, WorkerRequest,
+};
 use ryo_benchmark_contracts::domain::workloads::types::Project;
 use std::path::{Path, PathBuf};
 
@@ -215,7 +224,12 @@ fn measure_project(
             &tracked_paths,
             trial.join(RETAINED_DIRECTORY),
         )?;
-        let accepted = admitted(boundaries, accepted_file.as_deref(), &initial, Strictness::Pinned)?;
+        let accepted = admitted(
+            boundaries,
+            accepted_file.as_deref(),
+            &initial,
+            Strictness::Pinned,
+        )?;
         let cold = measured(boundaries, corpus, &initial, order)?;
         if store.is_none() {
             store = Some(
@@ -230,7 +244,14 @@ fn measure_project(
             project.name,
             finding_counts(&cold.reference().report)
         )?;
-        judged(boundaries, &initial, (selected, language.invalid_syntax), &accepted, &cold, observations)?;
+        judged(
+            boundaries,
+            &initial,
+            (selected, language.invalid_syntax),
+            &accepted,
+            &cold,
+            observations,
+        )?;
         let retained = measured(boundaries, corpus, &initial, order)?;
         agree(
             ComparisonName(REFERENCE_RETAINED),
@@ -242,7 +263,14 @@ fn measure_project(
             &cold.candidate().report,
             &retained.candidate().report,
         )?;
-        judged(boundaries, &initial, (selected, language.invalid_syntax), &accepted, &retained, observations)?;
+        judged(
+            boundaries,
+            &initial,
+            (selected, language.invalid_syntax),
+            &accepted,
+            &retained,
+            observations,
+        )?;
         boundaries
             .workspace
             .apply_patch(&mut workspace, &corpus.frozen_workload.join(&project.patch))?;
@@ -357,15 +385,16 @@ fn cost(runs: &[Measurement]) -> Result<RunCost, Error> {
     Ok(cost)
 }
 
-/// The file naming the project's accepted differences, if it has one.
+/// The file naming the project's accepted differences, `<bench>/profiles/evidence/<project>-accepted-differences.json`, if it
+/// has one.
 fn accepted_file(
     boundaries: &CorpusBoundaries<'_>,
     corpus: &CorpusMeasurement<'_>,
     project: &Project,
 ) -> Result<Option<PathBuf>, Error> {
     let mut name = project.name.0.clone();
-    name.push_str(corpus.accepted.suffix.0);
-    let file = corpus.accepted.directory.join(name);
+    name.push_str(ACCEPTED_SUFFIX);
+    let file = corpus.bench.join(ACCEPTED_DIRECTORY).join(name);
     match boundaries.suite.digest(ArtifactPath(&file)) {
         Ok(_digest) => Ok(Some(file)),
         Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -419,10 +448,11 @@ fn judged(
         &measured_pair.candidate().report,
     );
     let mut texts = SourceTexts::default();
-    let located = crate::domain::diagnostics::service::compare_rules(selected, reference, candidate)
-        .iter()
-        .map(|comparison| locate(boundaries, &request.root, &mut texts, comparison))
-        .collect::<Result<Vec<_>, _>>()?;
+    let located =
+        crate::domain::diagnostics::service::compare_rules(selected, reference, candidate)
+            .iter()
+            .map(|comparison| locate(boundaries, &request.root, &mut texts, comparison))
+            .collect::<Result<Vec<_>, _>>()?;
     let problems = crate::domain::corpus_discrepancy::service::judge(
         &located,
         selected.len(),

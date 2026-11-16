@@ -5,10 +5,7 @@
 )]
 
 use super::{
-    types::{
-        AcceptedDifferencesFiles, AcceptedSuffix, CorpusLanguage, CorpusMeasurement, ProfileLabel,
-        SourceSuffix, ToolTitle,
-    },
+    types::{CorpusLanguage, CorpusMeasurement, ProfileLabel, SourceSuffix, ToolTitle},
     use_case::MeasureCorpusUseCaseImpl,
 };
 use crate::domain::measurements::types::LanguageTitle;
@@ -24,8 +21,8 @@ use ryo_benchmark_contracts::domain::measurements::types::{
     ExecutionProfile, Invocation, MeasurementMode,
 };
 use ryo_benchmark_contracts::domain::requests::types::{
-    CertificationCases, CohortSelection, ContextSeal, FileMetadataDeclaration,
-    InputDeclaration, RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
+    CertificationCases, CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
+    RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
 use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
 use std::sync::Arc;
@@ -167,10 +164,7 @@ fn wired(
 ///
 /// # Panics
 /// Never: the rule identifier is a valid literal.
-pub fn with_corpus<R>(
-    projects: usize,
-    operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
-) -> R {
+pub fn with_corpus<R>(projects: usize, operate: impl FnOnce(&CorpusMeasurement<'_>) -> R) -> R {
     with_cohort(projects, &["A"], &CohortSelection::Frozen, operate)
 }
 
@@ -241,10 +235,6 @@ fn measured<R>(
     operate(&CorpusMeasurement {
         bench,
         projects,
-        accepted: AcceptedDifferencesFiles {
-            directory: std::path::Path::new("accepted"),
-            suffix: AcceptedSuffix("-accepted-differences.json"),
-        },
         growth: None,
         verification: &crate::outbound::evidence::types::VerificationTimesFiles::default(),
         cache,

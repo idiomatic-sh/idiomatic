@@ -19,12 +19,10 @@ pub(crate) const COLLECTOR: &str = "collector";
 pub(crate) const REGISTRATION: &str = "registration.json";
 /// The state directory of a measure.
 pub(crate) const STATE: &str = "state";
+/// The file the worker writes the bench's one document to.
+pub(crate) const DOCUMENT: &str = "document.bmf";
 /// The directory a bench's verification writes its summary, its receipts and each rule's times to.
 pub(crate) const INVENTORY: &str = "inventory";
-/// The option naming the registration a measure is certified against.
-pub(crate) const CASE_INVENTORY: &str = "--case-inventory=";
-/// The option naming the directory the verification left its receipts and each rule's times in.
-pub(crate) const VERIFICATION: &str = "--verification=";
 /// The refusal of a path that is not a bench directory.
 pub(crate) const NOT_A_BENCH_DIRECTORY: &str =
     "expected a bench directory languages/<lang>/benchmarks/linters/<linter>";

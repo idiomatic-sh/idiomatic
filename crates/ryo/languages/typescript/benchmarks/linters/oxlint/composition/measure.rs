@@ -6,6 +6,7 @@ use super::commands;
 use super::constants;
 use super::constants::UNEXPECTED_MEASUREMENT_ARGUMENT;
 use super::locations::{default_scratch, directory};
+use ryo_benchmark::application::inventory_verification::service::times_files;
 use ryo_benchmark::domain::command_line::types::{
     BenchmarkArgument, Selection, measure_command::value::MeasureCommand,
 };
@@ -25,14 +26,12 @@ use ryo_benchmark::inbound::use_cases::certify::{
 };
 use ryo_benchmark::inbound::use_cases::measure_corpus::{
     interface::MeasureCorpusUseCase as _,
-    types::{
-        CorpusLanguage, CorpusMeasurement, ProfileLabel, SampleLabel, SourceProfile, SourceSuffix,
-        ToolTitle,
-    },
+    types::{CorpusLanguage, CorpusMeasurement, ProfileLabel, SourceSuffix, ToolTitle},
     use_case::MeasureCorpusUseCaseImpl,
 };
 use ryo_benchmark::outbound::discovery::interface::DiscoveryPort;
 use ryo_benchmark::outbound::evidence::interface::EvidencePort;
+use ryo_benchmark::outbound::evidence::types::VerificationTimesFiles;
 use ryo_benchmark::outbound::execution::interface::ExecutionPort;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
 use ryo_benchmark::outbound::suite::{
@@ -42,7 +41,9 @@ use ryo_benchmark::outbound::suite::{
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use ryo_benchmark_contracts::domain::requests::constants::{
+    DOCUMENT_ARGUMENT, VERIFICATION_ARGUMENT,
+};
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use std::{path::PathBuf, sync::Arc};
 
@@ -62,8 +63,8 @@ pub(super) fn measure(
         collector_path,
     } = paths(args, suite_source)?;
     let tool = suite_source.profile(ArtifactPath(&directory()))?;
-    let expected = commands::reference(executable.clone(), tool.clone()).version_line(&tool);
-    suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
+    // The bench verified the reference tool's pinned bytes and version line once, before any rule (`verify-tool`); the
+    // registration pins its digest, which the inventory checks before and after every rule.
     let declared_inventory = tool.defaults.clone();
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(&suite_source),
@@ -82,9 +83,30 @@ pub(super) fn measure(
         &cache,
         suite_source,
     )?;
+    let verification = args
+        .next()
+        .and_then(|argument| {
+            argument
+                .0
+                .strip_prefix(VERIFICATION_ARGUMENT)
+                .map(PathBuf::from)
+        })
+        .filter(|directory| !directory.as_os_str().is_empty())
+        .ok_or_else(|| Error::Invalid(constants::EXPECTED_VERIFICATION.into()))?;
+    let document = args
+        .next()
+        .and_then(|argument| {
+            argument
+                .0
+                .strip_prefix(DOCUMENT_ARGUMENT)
+                .map(PathBuf::from)
+        })
+        .filter(|file| !file.as_os_str().is_empty())
+        .ok_or_else(|| Error::Invalid(constants::EXPECTED_DOCUMENT.into()))?;
     if args.next().is_some() {
         return Err(Error::Invalid(UNEXPECTED_MEASUREMENT_ARGUMENT.into()));
     }
+    let verification = times_files(&verification, audit.authored());
     let measurement_mode =
         AdmitMeasurementUseCaseImpl::new().admit_measurement(&MeasurementAdmission {
             scope,
@@ -119,6 +141,7 @@ pub(super) fn measure(
             executable.clone(),
             crate::adapter::LinterOxlintAdapter::discovery_arguments(&selected_scratch)?,
         ));
+    let parser = staged_tool.parser_configuration.clone();
     let reference = Arc::new(commands::reference(executable.clone(), staged_tool));
     // Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
     let collector_settings =
@@ -176,9 +199,10 @@ pub(super) fn measure(
             mode: measurement_mode,
             cache,
             workload: frozen_workload,
-            scope,
+            verification,
+            document,
+            parser,
         },
-        command,
         suite_source,
         observations,
     )
@@ -198,13 +222,17 @@ struct Certified {
     mode: MeasurementMode,
     cache: PathBuf,
     workload: PathBuf,
-    scope: BenchmarkCoverage,
+    /// The times file of each rule the bench's verification verified.
+    verification: VerificationTimesFiles,
+    /// The file the bench's one document is written to.
+    document: PathBuf,
+    /// The parser configuration both contestants run with.
+    parser: ryo_benchmark_contracts::domain::requests::types::ParserSelection,
 }
 
 /// Measure the corpus of a certified pair and publish or report the samples.
 fn compare(
     certified: Certified,
-    command: MeasureCommand<'_>,
     suite_source: &Arc<dyn SuitePort>,
     observations: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
@@ -221,7 +249,9 @@ fn compare(
         mode,
         cache,
         workload,
-        scope,
+        verification,
+        document,
+        parser,
     } = certified;
     let suite: Suite = suite_source.projects(ArtifactPath(&workload))?;
     CorpusShape {
@@ -230,20 +260,13 @@ fn compare(
     }
     .admit(&suite)?;
     let evidence: Arc<dyn EvidencePort> =
-        Arc::new(ryo_benchmark::outbound::evidence::factory::bmf(
-            Box::new(std::io::stdout()),
+        Arc::new(ryo_benchmark::outbound::evidence::factory::bmf_document(
+            &document,
             Box::new(std::io::stderr()),
-        ));
-    let profile = if matches!(
-        command.0,
-        ryo_benchmark_contracts::domain::requests::constants::MEASURE_VALID
-            | ryo_benchmark_contracts::domain::requests::constants::MEASURE_ACCOUNTED_VALID
-    ) {
-        SourceProfile::Valid
-    } else {
-        SourceProfile::Full
-    };
+        )?);
     let suffixes = constants::SOURCE_SUFFIXES.map(SourceSuffix);
+    let language = constants::TYPESCRIPT.into();
+    let growth = super::growth::plan(suite_source.as_ref(), &parser)?;
     let invalid_syntax = ryo::linter::RuleId::try_from(crate::constants::INVALID_SYNTAX)
         .map_err(|error| Error::Invalid(error.to_string()))?;
     MeasureCorpusUseCaseImpl::new(
@@ -258,13 +281,23 @@ fn compare(
             cache.join(constants::PROJECTS_DIRECTORY),
         )),
         Arc::new(ryo_benchmark::outbound::host::factory::local()),
+        (
+            Arc::new(
+                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                    ryo::linter::Languages(vec![ryo_typescript::linked()]),
+                    None,
+                    commands::frontend_diagnostic()?,
+                ),
+            ),
+            Arc::new(ryo_benchmark::outbound::process_meter::factory::linux()),
+        ),
     )
     .measure_corpus(
         &CorpusMeasurement {
             bench: &directory(),
             projects: suite.projects,
-            scope,
-            profile,
+            growth: Some(&growth),
+            verification: &verification,
             cache: &cache,
             frozen_workload: &workload,
             certificate: &certificate,
@@ -274,13 +307,12 @@ fn compare(
             search_roots: &search_roots,
             context_mode,
             language: CorpusLanguage {
+                id: &language,
                 display: LanguageTitle(constants::LANGUAGE_DISPLAY),
                 reference_display: ToolTitle(constants::REFERENCE_DISPLAY),
-                reference_name: SampleLabel(constants::REFERENCE_NAME),
                 suffixes: &suffixes,
                 invalid_syntax: &invalid_syntax,
                 valid_profile: ProfileLabel(constants::VALID_SOURCE_PROFILE),
-                full_profile: ProfileLabel(constants::FULL_SOURCE_PROFILE),
             },
         },
         observations,

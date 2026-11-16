@@ -17,12 +17,16 @@ const PASSING: Scenario = Scenario {
     processors: 4,
 };
 
-#[then("a bench writes exactly what its sealed worker wrote")]
+#[then("a bench writes exactly the document its sealed worker wrote, as one BMF document")]
 fn bench(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
     let observed = run(PASSING);
     assert_eq!(observed.answer, Ok(OperationVerdict::Passed));
     assert_eq!(observed.stdout, b"{\"metric\":{}}\n");
+    assert!(
+        serde_json::from_slice::<serde_json::Value>(&observed.stdout).is_ok(),
+        "the bench's standard output is one BMF document"
+    );
 }
 
 #[then("a bench whose verification fails runs no corpus")]

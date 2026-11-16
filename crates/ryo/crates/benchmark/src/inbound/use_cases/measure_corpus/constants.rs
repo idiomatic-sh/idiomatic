@@ -50,3 +50,7 @@ pub(super) const NO_RESOURCES: &str = "the candidate's run collected no CPU time
 pub(super) const GROWTH_INCOMPLETE: &str = "a growth lint did not complete";
 /// What a project's per-rule judgement reports first.
 pub(super) const UNACCEPTED: &str = "unaccepted differences";
+/// Where a bench keeps the differences accepted for its projects, relative to the bench.
+pub(super) const ACCEPTED_DIRECTORY: &str = "profiles/evidence";
+/// The suffix of a project's accepted-differences file, after the project's name.
+pub(super) const ACCEPTED_SUFFIX: &str = "-accepted-differences.json";

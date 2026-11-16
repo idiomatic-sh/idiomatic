@@ -92,16 +92,15 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
                     ReportsError::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into())
                 })?,
             ))?;
-        let (count, timings) = verified;
         // The times file of a verification names the tool it verified against: the bench reads it back by rule, and its own
         // document names the language.
-        if !timings.is_empty() {
+        if !verified.timings.is_empty() {
             self.evidence.verification(
                 &tool.tool.0.as_str().into(),
-                &crate::outbound::evidence::types::RuleTimings(timings),
+                &crate::outbound::evidence::types::RuleTimings(verified.timings),
             )?;
             self.evidence.finish()?;
         }
-        Ok(count)
+        Ok(verified.count)
     }
 }

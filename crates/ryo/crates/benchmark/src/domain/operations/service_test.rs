@@ -21,7 +21,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || ("bench", "languages/python/benchmarks/linters/ruff"),
         expect: Expect::Value(Cow::Borrowed(
-            "/target/benchmark/python/ruff/bench: measure-valid /bin/tool /target/benchmark/python/ruff/bench/state /target/benchmark/python/ruff/bench/collector --case-inventory=/target/benchmark/python/ruff/bench/registration.json --verification=/target/benchmark/python/ruff/bench/inventory",
+            "/target/benchmark/python/ruff/bench: measure-valid /bin/tool /target/benchmark/python/ruff/bench/state /target/benchmark/python/ruff/bench/collector --case-inventory=/target/benchmark/python/ruff/bench/registration.json --verification=/target/benchmark/python/ruff/bench/inventory --document=/target/benchmark/python/ruff/bench/document.bmf",
         )),
     },
     Case {
@@ -34,7 +34,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(
-            "/target/benchmark/typescript/oxlint/bench: measure-valid /bin/tool /target/benchmark/typescript/oxlint/bench/state /target/benchmark/typescript/oxlint/bench/collector --case-inventory=/target/benchmark/typescript/oxlint/bench/registration.json --verification=/target/benchmark/typescript/oxlint/bench/inventory",
+            "/target/benchmark/typescript/oxlint/bench: measure-valid /bin/tool /target/benchmark/typescript/oxlint/bench/state /target/benchmark/typescript/oxlint/bench/collector --case-inventory=/target/benchmark/typescript/oxlint/bench/registration.json --verification=/target/benchmark/typescript/oxlint/bench/inventory --document=/target/benchmark/typescript/oxlint/bench/document.bmf",
         )),
     },
     Case {

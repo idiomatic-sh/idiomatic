@@ -1,4 +1,5 @@
 //! The reference and candidate of every selected case answer the same expectations.
+use super::types::VerifiedCases;
 use crate::application::case_execution::{
     service::{candidate as run_candidate, run as run_case},
     types::AttemptOutcome,
@@ -46,7 +47,7 @@ pub(super) fn verify_prepared_shard(
     rules: &Path,
     mut cases: Vec<PreparedCase>,
     selection: CaseSelection,
-) -> Result<(CaseCount, BTreeMap<ryo::linter::RuleId, RuleTiming>), Error> {
+) -> Result<VerifiedCases, Error> {
     if cases.is_empty() {
         return Err(Error::Invalid(constants::NO_CASES.into()));
     }
@@ -209,7 +210,10 @@ pub(super) fn verify_prepared_shard(
             count <= global_count.0,
             "selected cases must belong to the audited inventory"
         );
-        Ok((CaseCount(count), timings))
+        Ok(VerifiedCases {
+            count: CaseCount(count),
+            timings,
+        })
     } else {
         Err(Error::Invalid(format!(
             "{count} cases checked; failures:\n{}",

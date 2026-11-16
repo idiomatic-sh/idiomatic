@@ -9,19 +9,22 @@ use std::borrow::Cow;
 
 /// The scenario a row runs.
 type Input = Scenario;
-/// The verdict, the standard output and the artifacts requests, as text.
-type Value = (OperationVerdict, Cow<'static, str>, Cow<'static, str>);
+/// The verdict, the standard output, whether that output parses as exactly one BMF document, and the artifacts requests, as
+/// text.
+type Value = (OperationVerdict, Cow<'static, str>, bool, Cow<'static, str>);
 /// The refusal, the artifacts requests, as text, and whether a registration was written.
 type Failure = (Cow<'static, str>, Cow<'static, str>, bool);
 
-/// What the scripted worker writes.
+/// The document the scripted worker writes.
 const METRICS: &str = "{\"metric\":{}}\n";
 
-/// The requests of a bench whose verification passed: the worker and the collector sealed, then the worker's corpus run.
-const BENCH_CALLS: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/bench/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/bench/collector\"), Run(\"<root>/target/benchmark/fixture/lint/bench/worker\", [\"measure-valid\", \"<root>/lint\", \"<root>/target/benchmark/fixture/lint/bench/state\", \"<root>/target/benchmark/fixture/lint/bench/collector\", \"--case-inventory=<root>/target/benchmark/fixture/lint/bench/registration.json\", \"--verification=<root>/target/benchmark/fixture/lint/bench/inventory\"])]";
+/// The requests of a bench whose verification passed: the worker and the collector sealed, the reference tool verified once,
+/// then the worker's corpus run.
+const BENCH_CALLS: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/bench/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/bench/collector\"), Check(\"<root>/target/benchmark/fixture/lint/bench/worker\", [\"verify-tool\", \"<root>/lint\"]), Run(\"<root>/target/benchmark/fixture/lint/bench/worker\", [\"measure-valid\", \"<root>/lint\", \"<root>/target/benchmark/fixture/lint/bench/state\", \"<root>/target/benchmark/fixture/lint/bench/collector\", \"--case-inventory=<root>/target/benchmark/fixture/lint/bench/registration.json\", \"--verification=<root>/target/benchmark/fixture/lint/bench/inventory\", \"--document=<root>/target/benchmark/fixture/lint/bench/document.bmf\"])]";
 
-/// The requests of a bench whose verification failed: the worker and the collector sealed, and no corpus run.
-const SEALED: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/bench/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/bench/collector\")]";
+/// The requests of a bench whose verification failed: the worker and the collector sealed, the reference tool verified once,
+/// and no corpus run.
+const SEALED: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/bench/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/bench/collector\"), Check(\"<root>/target/benchmark/fixture/lint/bench/worker\", [\"verify-tool\", \"<root>/lint\"])]";
 
 /// A bench on four processors whose one default the profile defers, so its verification passes.
 const PASSING: Scenario = Scenario {
@@ -35,17 +38,20 @@ const PASSING: Scenario = Scenario {
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("bench passes and passes the worker's one document through"),
+        name: CaseName(
+            "bench passes and its standard output is the worker's one document and nothing else",
+        ),
         word: Word::Succeeds,
         input: || PASSING,
         expect: Expect::Value((
             OperationVerdict::Passed,
             Cow::Borrowed(METRICS),
+            true,
             Cow::Borrowed(BENCH_CALLS),
         )),
     },
     Case {
-        name: CaseName("a failed worker fails the bench"),
+        name: CaseName("a failed worker fails the bench and publishes no document"),
         word: Word::Succeeds,
         input: || Scenario {
             verdict: OperationVerdict::Failed,
@@ -53,7 +59,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value((
             OperationVerdict::Failed,
-            Cow::Borrowed(METRICS),
+            Cow::Borrowed(""),
+            false,
             Cow::Borrowed(BENCH_CALLS),
         )),
     },
@@ -67,6 +74,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((
             OperationVerdict::Failed,
             Cow::Borrowed(""),
+            false,
             Cow::Borrowed(SEALED),
         )),
     },
@@ -124,6 +132,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Ok(verdict) => Ok((
             verdict,
             Cow::Owned(String::from_utf8_lossy(&observed.stdout).into_owned()),
+            // One JSON document and nothing after it: what asymptote reads as the bench's BMF.
+            serde_json::from_slice::<serde_json::Value>(&observed.stdout).is_ok(),
             calls,
         )),
         Err(refusal) => Err((Cow::Owned(refusal), calls, observed.registered)),

@@ -19,15 +19,25 @@ pub fn bmf(output: Box<dyn Write + Send>, comparison: Box<dyn Write + Send>) -> 
 ///
 /// # Errors
 /// Refuses a destination that cannot be opened for appending.
-pub fn bmf_to(destination: Option<&std::path::Path>) -> Result<impl EvidencePort, std::io::Error> {
-    let output: Box<dyn Write + Send> = match destination {
-        Some(path) => Box::new(
-            std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path)?,
-        ),
-        None => Box::new(std::io::sink()),
-    };
-    Ok(bmf(output, Box::new(std::io::sink())))
+pub fn bmf_appending(
+    destination: Option<&std::path::Path>,
+) -> Result<impl EvidencePort + use<>, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
+{
+    Ok(EvidenceBmfAdapter::new(
+        super::adapters::bmf::connection::EvidenceBmfConnection::appending(destination)?,
+    ))
+}
+
+/// Bind the bench's one BMF document to a new file at `document`, and the comparison evidence to its own stream.
+///
+/// # Errors
+/// Refuses a document file that cannot be created.
+pub fn bmf_document(
+    document: &std::path::Path,
+    comparison: Box<dyn Write + Send>,
+) -> Result<impl EvidencePort + use<>, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
+{
+    Ok(EvidenceBmfAdapter::new(
+        super::adapters::bmf::connection::EvidenceBmfConnection::document(document, comparison)?,
+    ))
 }

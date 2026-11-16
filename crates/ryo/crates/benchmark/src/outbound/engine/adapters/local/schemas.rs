@@ -293,7 +293,7 @@ mod tests;
 
 /// The rules of `request`, loaded from its query files, once when the verification retains them.
 pub(super) fn request_rules(
-    retained: Option<&crate::outbound::engine::types::Retained>,
+    kept: Option<&std::sync::OnceLock<BTreeMap<RuleId, Rule>>>,
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     request: &ryo_benchmark_contracts::domain::requests::types::WorkerRequest,
 ) -> Result<BTreeMap<RuleId, Rule>, Error> {
@@ -313,12 +313,12 @@ pub(super) fn request_rules(
             },
         )
     };
-    let Some(retained) = retained else {
+    let Some(kept) = kept else {
         return load();
     };
-    if let Some(rules) = retained.rules.get() {
+    if let Some(rules) = kept.get() {
         return Ok(rules.clone());
     }
     let rules = load()?;
-    Ok(retained.rules.get_or_init(|| rules).clone())
+    Ok(kept.get_or_init(|| rules).clone())
 }

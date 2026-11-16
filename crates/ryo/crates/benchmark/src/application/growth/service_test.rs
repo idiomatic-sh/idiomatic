@@ -2,14 +2,14 @@
 //! memory bound fails the bench; any other is published with its ratio, its whole-size time and its peak.
 use super::service::grow;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::growth::constants::{CPU_FLOOR, MEGABYTE, MEMORY_BOUND};
 use crate::domain::growth::types::{
-    CpuFloor, GrownProgram, GrowthPlan, GrowthSize, MemoryBound, RuleModules, ShapePrograms,
-    SourceFileName,
+    GrownProgram, GrowthPlan, GrowthSize, RuleModules, ShapePrograms, SourceFileName,
 };
 use crate::outbound::process_meter::fixtures::fake::ProcessMeterFake;
 use crate::outbound::suite::types::ArtifactPath;
+use ryo_benchmark_contracts::domain::measurements::types::GrowthShape;
 use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
-use ryo_benchmark_contracts::domain::measurements::types::{DoublingRatio, GrowthShape};
 use ryo_benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, InputDeclaration, ParserSelection, ProviderSelection,
     RuleContextPreparation, SearchRoots, WorkerRequest, WorkerState,
@@ -42,7 +42,7 @@ enum Refusal {
 }
 
 /// A megabyte, as the plan's bound counts.
-const MB: u64 = 1_000_000;
+const MB: u64 = MEGABYTE;
 /// How many lints of each size a shape takes: the fastest is its time.
 const LINTS: usize = 5;
 
@@ -121,13 +121,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn plan(scenes: &std::path::Path, size: usize) -> GrowthPlan {
     let rule = ryo::linter::RuleId::try_from("F401").unwrap_or_else(|_| unreachable!("a rule id"));
     GrowthPlan {
-        floor: CpuFloor(Duration::from_millis(300)),
-        memory: MemoryBound {
-            base: ResidentBytes(160 * MB),
-            per_thousand: ResidentBytes(100 * MB),
-            doubling: DoublingRatio(2.4),
-            floor: ResidentBytes(120 * MB),
-        },
+        floor: CPU_FLOOR,
+        memory: MEMORY_BOUND,
         file: SourceFileName("case.py".into()),
         request: WorkerRequest {
             performance: Default::default(),
@@ -179,7 +174,9 @@ fn meter(scenario: Scenario) -> ProcessMeterFake {
 /// How many directories below `scenes` hold a file named `case.py`.
 fn scenes_holding_the_source(scenes: &std::path::Path) -> Result<usize, Refusal> {
     let mut holding = 0;
-    for entry in std::fs::read_dir(scenes).map_err(|error| Refusal::Unexpected(error.to_string()))? {
+    for entry in
+        std::fs::read_dir(scenes).map_err(|error| Refusal::Unexpected(error.to_string()))?
+    {
         let entry = entry.map_err(|error| Refusal::Unexpected(error.to_string()))?;
         if entry.path().join("case.py").is_file() {
             holding += 1;
