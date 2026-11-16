@@ -47,3 +47,12 @@ pub mod loaded_engine_session;
 
 /// A checked consuming SDK execution handle.
 pub mod configured_engine_session;
+
+/// Whether an engine keeps its loaded rules and its SDK engine across the runs asked of it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Retention {
+    /// Every run loads its rules and builds its own engine, as a child's only run does.
+    PerRun,
+    /// A verification's runs share one loading and one engine, so the plans compile once.
+    PerVerification,
+}

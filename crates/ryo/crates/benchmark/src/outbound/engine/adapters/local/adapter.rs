@@ -30,7 +30,7 @@ pub(crate) struct EngineLocalAdapter {
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     /// What a verification keeps across its cases: the rules loaded once and one SDK engine, whose compiled plans every case
     /// shares. Absent for a run that is one child's only case.
-    retaining: bool,
+    retention: crate::outbound::engine::types::Retention,
     /// The rules loaded from the profile's query files, kept across a verification's cases.
     kept_rules: std::sync::OnceLock<BTreeMap<RuleId, Rule>>,
     /// The SDK engine every case of a verification runs over.
@@ -47,7 +47,7 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: None,
             frontend_diagnostic,
-            retaining: true,
+            retention: crate::outbound::engine::types::Retention::PerVerification,
             kept_rules: std::sync::OnceLock::new(),
             kept_linter: std::sync::OnceLock::new(),
         }
@@ -59,7 +59,7 @@ impl EngineLocalAdapter {
         own: &'a mut Option<linter::Linter>,
         cache: Cache,
     ) -> Result<&'a linter::Linter, Error> {
-        if self.retaining {
+        if self.retention == crate::outbound::engine::types::Retention::PerVerification {
             if let Some(engine) = self.kept_linter.get() {
                 return Ok(engine);
             }
@@ -77,6 +77,11 @@ impl EngineLocalAdapter {
             MemoryBudget::Machine,
             cache,
         )))
+    }
+    /// The slot the rules are kept in, when this engine keeps them across runs.
+    fn retained_rules(&self) -> Option<&std::sync::OnceLock<BTreeMap<RuleId, Rule>>> {
+        (self.retention == crate::outbound::engine::types::Retention::PerVerification)
+            .then_some(&self.kept_rules)
     }
     /// The pool the files of a run are read on: rayon's own size, `RAYON_NUM_THREADS` when the caller sets it.
     fn pool() -> Result<WorkerPool, Error> {
@@ -99,7 +104,7 @@ impl EngineLocalAdapter {
             trace,
             diagnostic_events: None,
             frontend_diagnostic,
-            retaining: false,
+            retention: crate::outbound::engine::types::Retention::PerRun,
             kept_rules: std::sync::OnceLock::new(),
             kept_linter: std::sync::OnceLock::new(),
         }
@@ -115,7 +120,7 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: Some(path),
             frontend_diagnostic,
-            retaining: false,
+            retention: crate::outbound::engine::types::Retention::PerRun,
             kept_rules: std::sync::OnceLock::new(),
             kept_linter: std::sync::OnceLock::new(),
         }
@@ -143,7 +148,7 @@ impl EnginePort for EngineLocalAdapter {
             None
         };
         let rules = super::schemas::request_rules(
-            self.retaining.then_some(&self.kept_rules),
+            self.retained_rules(),
             self.frontend_diagnostic.clone(),
             request,
         )?;
@@ -161,9 +166,7 @@ impl EnginePort for EngineLocalAdapter {
         ))
     }
     fn compile(&self, request: &WorkerRequest) -> Option<BTreeMap<RuleId, std::time::Duration>> {
-        if !self.retaining {
-            return None;
-        }
+        let _kept = self.retained_rules()?;
         let mut own = None;
         let Ok(engine) = self.engine(&mut own, Cache::None) else {
             return None;

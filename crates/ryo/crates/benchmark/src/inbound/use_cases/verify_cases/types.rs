@@ -5,9 +5,9 @@ use std::collections::BTreeMap;
 
 /// The cases a verification checked and how long each rule's cases took.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct VerifiedCases {
+pub struct VerifiedCases {
     /// How many cases were checked.
-    pub(crate) count: CaseCount,
+    pub count: CaseCount,
     /// How long each rule's cases took.
-    pub(crate) timings: BTreeMap<ryo::linter::RuleId, RuleTiming>,
+    pub timings: BTreeMap<ryo::linter::RuleId, RuleTiming>,
 }

@@ -44,3 +44,7 @@ pub(in super::super) fn encode(
     }
     serde_json::to_vec(&document).map_err(|error| Error::Json(Box::new(error)))
 }
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
