@@ -65,6 +65,19 @@ records = [
 
 A run fails when even the low end of its range is above the best. When even the high end is below it, the check lowers the best.
 
+A measure that moves a little from run to run, such as a process's peak memory, is held to its best with a tolerance: the tool key `tolerance-percent` names each such measure and its whole percent, for a tool whose `output` is `bmf`:
+
+```toml
+[[tools]]
+id = "bench"
+group = "perf"
+run = ["cargo", "bench", "--bench", "lint"]
+output = "bmf"
+tolerance-percent = { peak-megabytes = 5 }
+```
+
+The tool prints plain values and the tolerance is the tool's definition, written once. A run fails when even the low end of its range is above `best × (1 + percent / 100)`; a run within it passes and leaves the best as it is, and a run whose high end is below the best still lowers it. A measure the table does not name is held to its best exactly.
+
 ### Groups
 
 `group` is any label you choose. `asymptote check` runs every tool, and `--groups` runs only the tools of the groups named. `[hooks]` maps a git hook to groups:
@@ -108,3 +121,4 @@ The lock is committed with the code. `up` and `down` each write a new file in `.
 | `fix` | The command `check --fix` runs first. |
 | `inputs` | Paths the tool reads, each named; a path dependency it reads must be named too, or a change in it reuses the last result. When none changed, the last result is reused. |
 | `timeout-seconds` | How long the tool may run. Default 600. |
+| `tolerance-percent` | For a `bmf` tool: a table of measure name to how many whole percent over its best that measure may be before the run fails. Default 0 for every measure. |

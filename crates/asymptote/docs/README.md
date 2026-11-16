@@ -32,7 +32,7 @@ output = "bmf"
 ### Tool keys
 
 A `[[tools]]` entry takes `id`, `run` and `group` (required), and `fix`, `output` (`sarif` or `bmf`), `timeout-seconds`,
-and `inputs` when needed. A tool whose inputs did not move keeps its last run. A tool whose result depends on what the
+`tolerance-percent` (a `bmf` tool only) and `inputs` when needed. A tool whose inputs did not move keeps its last run. A tool whose result depends on what the
 files do not hold, as the root's `commitizen` tool reads git's history, names the range in its `run`
 (`origin/main..HEAD`, or `a...b`): the stamp of a tool whose command line names a range holds the commits its two ends
 resolve to, so a new commit runs it again and an unchanged branch keeps its run. No key says so.
@@ -95,6 +95,12 @@ measures, each `{ "value": n, "lower_value": n, "upper_value": n }` with the two
 tool's slugs (`wall-ms`, `cpu-ms`, `peak-mb`). Anything that is not that shape, a missing or non-numeric `value`, a negative number, a
 spread that does not hold its `value` (`lower_value <= value <= upper_value`), or an output with no measurement, is a
 failed tool.
+
+A measure that moves a little between runs (a process's peak memory) is held with a tolerance, which belongs to the tool's
+definition and not to the measurer: `tolerance-percent` is a table of measure name to whole percent (`{ peak-megabytes = 5 }`), on a `bmf` tool only (any other
+tool refuses it); a measure it does not name has 0. A run fails when even the low end of its spread is above `best * (1 + tolerance-percent / 100)`: a run within
+the tolerance holds and leaves the best as it is; a run whose high end is under the best still lowers the best, so the
+lock only moves down. The writer prints plain values and decides nothing about how far a value may rise.
 
 The lock keeps one record for each `(tool, benchmark, measure)` in the same operations as the findings, one more section
 of the operation file, written only when an operation has one. The fold is the lock's: a descendant wins, a concurrent
@@ -250,6 +256,7 @@ with them.
 | the fingerprint is the item fingerprint: the reported line's text, whitespace removed, and the name of the item that encloses it, read from indentation (a body that is not indented belongs to the item whose opening brace ends the line above it, until its closing brace); a whole-file result's is one fixed value; a tool's own `primaryLocationLineHash` is used only when the file cannot be read | "it tells apart the same text in two functions, so fixing `value == None` in one function while writing it in another is one fixed and one new finding, never a move" |
 | a record its own path reports fewer times than it accepts takes the unaccepted findings of the same content at another path | "That is code that moved, as a file renamed or code carried to another file; SonarQube's issue tracker matches a moved file's issues the same way." |
 | a file moved with `mv` and not yet added is a rename | "moving a file with `mv` is a rename before `git add` says so" |
+| the tolerance of a measure is a key of its `bmf` tool, in whole percent over the best | the tool's definition is where its reason is written and reviewed, a writer prints what it measured, and a percent of the best is the same rule at any size |
 | perf is one more section of the same operations, one format, folded like the rest | the lock stays one immutable, content-addressed, merge-friendly store: a perf record is an operation like a finding, so `git` merges it and a descendant wins |
 | a failed tool is unknown, never clean: exit 2 | "A tool that failed outranks anything found. CI must never read "could not determine" as "determined it is fine"" |
 | the lock is folded afresh by each run; the store keeps only the check's runs | the store keeps what is shown or decides reuse; the merge model is unchanged |
