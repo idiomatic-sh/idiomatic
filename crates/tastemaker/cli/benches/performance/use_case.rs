@@ -137,6 +137,11 @@ mod cost {
             &source.join("../tastemaker"),
             &copy.path().join("tastemaker"),
         );
+        // The proofs of the package's rules read the foreign package of tastemaker's replay fixtures.
+        copy_tree(
+            &source.join("tastemaker/cli/tests/fixtures/replay/roles"),
+            &copy.path().join("crates/tastemaker/cli/tests/fixtures/replay/roles"),
+        );
         std::fs::create_dir_all(copy.path().join(".git")).expect("a .git directory");
         std::fs::write(
             copy.path().join(".gitignore"),
