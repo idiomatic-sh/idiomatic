@@ -5,6 +5,7 @@ use std::path::Path;
 /// verify_reference_cases with required borrowed boundaries.
 pub struct VerifyReferenceCasesUseCaseImpl<'a> {
     suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+    host: &'a dyn crate::outbound::host::interface::HostPort,
     receipts: &'a dyn crate::outbound::receipts::interface::ReceiptsPort,
     context: &'a dyn crate::outbound::context::interface::ContextPort,
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
@@ -16,6 +17,7 @@ impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
     #[must_use]
     pub fn new(
         suite: &'a dyn crate::outbound::suite::interface::SuitePort,
+        host: &'a dyn crate::outbound::host::interface::HostPort,
         receipts: &'a dyn crate::outbound::receipts::interface::ReceiptsPort,
         context: &'a dyn crate::outbound::context::interface::ContextPort,
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
@@ -24,6 +26,7 @@ impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
     ) -> Self {
         Self {
             suite,
+            host,
             receipts,
             context,
             reference,
@@ -42,6 +45,7 @@ impl VerifyReferenceCasesUseCase for VerifyReferenceCasesUseCaseImpl<'_> {
         )?;
         super::service::verify_prepared_reference_cases(
             self.suite,
+            self.host,
             self.receipts,
             self.context,
             self.reference,

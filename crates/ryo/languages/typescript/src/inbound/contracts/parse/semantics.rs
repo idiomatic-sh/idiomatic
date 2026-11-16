@@ -74,6 +74,11 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn attribute_path(&self) -> Support<Reader<languages::AttributePath, ReadIndexes>> {
+        // standard: @typescript-eslint/ast-spec AST_NODE_TYPES: a Decorator holds an expression, not an attribute, so no attribute writes a path.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
     fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, ReadIndexes>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

@@ -13,11 +13,7 @@ fn a_rule_whose_include_matches_no_file_gives_no_finding_and_no_error() {
     let _beside = crate::beside();
     let root = workspace();
     // Steps that read the tree of a file, joined across files by the file they are in.
-    let query = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/recordings/workspace-completeness/query.ryoql"
-    ))
-    .expect("the recorded query");
+    let query = base::rules::query("workspace-completeness");
     let across = "let listed = project(from=\"filesystem.file\", columns=[\"path\"]);
 let parts = capture(from=listed, path=\"path\", pattern=\"{*dir}/x.rs\", captures=[\"dir\"]);
 let dirs = project(from=parts, columns=[\"dir\"]);
@@ -180,7 +176,7 @@ fn a_rule_that_names_a_kind_no_language_has_fails_the_run() {
     let root = workspace();
     let rule = crate::rule_from_query(
         "misspelled",
-        "let a = select * from \"syntax-tree\" where kind = \"function-declaration\"; emit a subject file key(id);",
+        "let a = select * from \"syntax-tree\" where kind = \"funtcion-item\"; emit a subject file key(id);",
         &["**".to_owned()],
     );
     let refused = base::lint_with(
@@ -191,7 +187,9 @@ fn a_rule_that_names_a_kind_no_language_has_fails_the_run() {
     )
     .expect_err("a kind no language has fails the run");
     assert!(
-        refused.contains("rule `misspelled`: kind `function-declaration` names no kind of rust"),
+        refused.contains(
+            "rule `misspelled`: kind `funtcion-item` names no kind of css, go, html, javascript, json, markdown, python, rust, toml, typescript"
+        ),
         "{refused}"
     );
 }

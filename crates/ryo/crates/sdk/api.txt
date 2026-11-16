@@ -10,6 +10,9 @@ pub use ryo::languages::AnnotatesRow
 pub use ryo::languages::Assigns
 pub use ryo::languages::AssignsColumn
 pub use ryo::languages::AssignsRow
+pub use ryo::languages::AttributePath
+pub use ryo::languages::AttributePathColumn
+pub use ryo::languages::AttributePathRow
 pub use ryo::languages::BindingEvent
 pub use ryo::languages::BindingEventColumn
 pub use ryo::languages::BindingEventRow
@@ -294,6 +297,7 @@ pub use ryo::languages::SampleText
 pub use ryo::languages::Scope
 pub use ryo::languages::ScopeColumn
 pub use ryo::languages::ScopeRow
+pub use ryo::languages::SemanticAnswers
 pub use ryo::languages::SemanticChild
 pub use ryo::languages::SemanticChildColumn
 pub use ryo::languages::SemanticChildRow
@@ -409,6 +413,8 @@ pub use ryo::languages::enter_implied_node
 pub use ryo::languages::enter_node
 pub use ryo::languages::entry_state
 pub use ryo::languages::exact_digits
+pub use ryo::languages::expanded_semantic_child
+pub use ryo::languages::expanded_semantic_syntax
 pub use ryo::languages::field_at
 pub use ryo::languages::field_name_at
 pub use ryo::languages::fill_to
@@ -493,6 +499,7 @@ pub mod ryo::languages::contract
 pub use ryo::languages::contract::AnalyzedSourceExpectedRow
 pub use ryo::languages::contract::AnnotatesExpectedRow
 pub use ryo::languages::contract::AssignsExpectedRow
+pub use ryo::languages::contract::AttributePathExpectedRow
 pub use ryo::languages::contract::BindingEventExpectedRow
 pub use ryo::languages::contract::BindingReadExpectedRow
 pub use ryo::languages::contract::BindingShadowExpectedRow

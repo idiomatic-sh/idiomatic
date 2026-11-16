@@ -63,8 +63,8 @@ impl Parse for ParseContract {
         begin_file(self.syntax.as_ref(), request, tree, slot);
     }
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics<Declarations>> {
-        Some(self)
+    fn semantics(&self) -> languages::SemanticAnswers<'_, Declarations> {
+        languages::SemanticAnswers::Supplied(self)
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {

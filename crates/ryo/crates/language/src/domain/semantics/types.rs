@@ -33,6 +33,17 @@ pub enum SemanticSlot {
     Begun(Box<dyn SemanticSession>),
 }
 
+/// Names the slot's state alone: what a language retained or began is its own and has no `Debug` of its own.
+impl std::fmt::Debug for SemanticSlot {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Empty => write!(formatter, "Empty"),
+            Self::Retained(_) => write!(formatter, "Retained"),
+            Self::Begun(_) => write!(formatter, "Begun"),
+        }
+    }
+}
+
 impl From<SemanticSlot> for Option<Box<dyn SemanticSession>> {
     fn from(slot: SemanticSlot) -> Self {
         match slot {

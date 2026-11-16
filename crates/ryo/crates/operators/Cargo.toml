@@ -58,4 +58,3 @@ fixtures = ["dep:dhat", "ryo_relations/fixtures"]
 
 [lints]
 workspace = true
-

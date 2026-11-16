@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use ryo::languages::{self, RootPath};
 
-use crate::domain::syntax::constants::EXPANDED_MACROS;
+use crate::domain::syntax::constants::OPAQUE_MACROS;
 use crate::inbound::contracts::parse::contract::ParseContract;
 use crate::inbound::contracts::project::contract::ProjectContract;
 use crate::outbound::conditions::factory::cargo_platform;
@@ -14,13 +14,13 @@ use crate::outbound::pattern_matching::factory::globset;
 use crate::outbound::repository::factory::native;
 use crate::outbound::repository::interface::RepositoryPort;
 use crate::outbound::syntax::factory::ra_ap_syntax;
-use crate::outbound::syntax::types::Expanding;
+use crate::outbound::syntax::types::OpaqueMacros;
 
 /// The `parse` contract, over the language's syntax port.
 #[must_use]
 pub fn parse() -> impl languages::Parse {
     ParseContract::new(
-        Arc::new(ra_ap_syntax(Expanding(&EXPANDED_MACROS))),
+        Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))),
         Arc::new(crate::outbound::notes::factory::postcard()),
     )
 }

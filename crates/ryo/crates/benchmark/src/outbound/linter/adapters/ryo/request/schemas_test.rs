@@ -62,6 +62,7 @@ fn listed_context_request() -> WorkerRequest {
             )]),
             source_files: std::collections::BTreeMap::new(),
             missing: vec!["__init__.py".into()],
+            links: std::collections::BTreeMap::new(),
         },
     );
     request

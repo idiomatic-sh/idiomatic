@@ -327,3 +327,20 @@ impl From<ModeSchema>
         }
     }
 }
+
+/// `profiles/<id>` below the bench when it holds a profile manifest, else the bench itself: where a rule's settings profile is.
+pub(in super::super) fn settings_directory(
+    bench: &std::path::Path,
+    rule: &ryo::linter::RuleId,
+) -> Result<std::path::PathBuf, Error> {
+    let dedicated = bench
+        .join(crate::outbound::suite::adapters::local::constants::SETTINGS_PROFILES)
+        .join(rule.to_string());
+    match std::fs::metadata(
+        dedicated.join(crate::outbound::suite::adapters::local::constants::MANIFEST),
+    ) {
+        Ok(_manifest) => Ok(dedicated),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(bench.to_owned()),
+        Err(error) => Err(error.into()),
+    }
+}

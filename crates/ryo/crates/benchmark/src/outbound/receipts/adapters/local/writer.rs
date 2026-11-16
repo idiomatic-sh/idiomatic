@@ -2,6 +2,7 @@
 use super::constants;
 use crate::outbound::receipts::errors::ReceiptsError;
 use crate::outbound::receipts::types::CapturedProcess;
+use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
     ObservationDocument, ProcessArtifacts,
 };
@@ -82,15 +83,10 @@ pub(super) fn record(
             let relative = path
                 .strip_prefix(&boundary)
                 .map_err(|error| ReceiptsError::Invalid(error.to_string()))?;
-            let relative = relative
-                .components()
-                .map(|part| {
-                    part.as_os_str().to_str().ok_or_else(|| {
-                        ReceiptsError::Invalid(constants::RAW_ARTIFACT_PATH_IS_NOT_UTF8.into())
-                    })
-                })
-                .collect::<Result<Vec<_>, _>>()?
-                .join(constants::SLASH);
+            let relative = RelativeArtifactPath::try_from(relative)
+                .and_then(|address| address.slashed())
+                .map_err(|error| ReceiptsError::Invalid(error.to_string()))?
+                .0;
             artifacts.insert(
                 label,
                 ArtifactPointer {

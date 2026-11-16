@@ -29,6 +29,8 @@ pub struct MeasureCorpusUseCaseImpl {
     evidence: Arc<dyn EvidencePort>,
     /// Corpus worktrees.
     workspace: Arc<dyn WorkspacePort>,
+    /// The host's file-permission facts.
+    host: Arc<dyn crate::outbound::host::interface::HostPort>,
 }
 impl MeasureCorpusUseCaseImpl {
     /// Bind the boundaries chosen by the composition.
@@ -46,6 +48,7 @@ impl MeasureCorpusUseCaseImpl {
         context: Arc<dyn ContextPort>,
         evidence: Arc<dyn EvidencePort>,
         workspace: Arc<dyn WorkspacePort>,
+        host: Arc<dyn crate::outbound::host::interface::HostPort>,
     ) -> Self {
         Self {
             reference,
@@ -56,6 +59,7 @@ impl MeasureCorpusUseCaseImpl {
             context,
             evidence,
             workspace,
+            host,
         }
     }
 }
@@ -75,6 +79,7 @@ impl MeasureCorpusUseCase for MeasureCorpusUseCaseImpl {
                 context: self.context.as_ref(),
                 evidence: self.evidence.as_ref(),
                 workspace: self.workspace.as_ref(),
+                host: self.host.as_ref(),
             },
             corpus,
             observations,

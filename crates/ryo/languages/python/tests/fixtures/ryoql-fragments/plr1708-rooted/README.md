@@ -19,8 +19,10 @@ cases retained plus 11 boundary controls. Existing sources reuse their pinned
 expectations; new-oracle-records.json retains ten fresh Ruff0.16.5 runs and one
 disjoint two-file composition. No whole-corpus or wall-time claim is made.
 
-generic.py is registered by sparse-traversal-guards/run.py. Integration must
-apply the minimal verifier hook to make that runner part of actual candidate CI;
-manual execution alone is not an automatic guard. The core Axis case added in
+The Ruff bench's engine test
+`plr1708_rooted_equivalence_reports_nothing_across_unrelated_growth` runs
+equivalence.ryoql over its eight corpora on every test run, and
+`actual_rooted_queries_keep_their_sparse_axis` holds the rule query to its
+rooted walk (see sparse-traversal-guards/README.md). The core Axis case added in
 this batch runs in the existing `succeeds` unit test and checks the visited set
 remains independent of unrelated components, including cycles and file IDs.

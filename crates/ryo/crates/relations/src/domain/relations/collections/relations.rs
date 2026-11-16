@@ -3,6 +3,7 @@
 pub mod analyzed_source;
 pub mod annotates;
 pub mod assigns;
+pub mod attribute_path;
 pub mod brace_format_field;
 pub mod brace_format_parse;
 pub mod bytes_literal;

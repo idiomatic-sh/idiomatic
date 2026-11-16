@@ -9,6 +9,7 @@ use crate::domain::discrepancy::service::{describe_difference, judge};
 use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::suite::constants;
+use crate::outbound::host::interface::HostPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::{
     context::interface::ContextPort,
@@ -32,6 +33,7 @@ use std::path::Path;
 )]
 pub(super) fn verify_prepared_shard(
     suite: &dyn SuitePort,
+    host: &dyn HostPort,
     receipts: &dyn ReceiptsPort,
     context: &dyn ContextPort,
     reference: &dyn LinterPort,
@@ -45,7 +47,7 @@ pub(super) fn verify_prepared_shard(
     if cases.is_empty() {
         return Err(Error::Invalid(constants::NO_CASES.into()));
     }
-    crate::application::input_metadata::service::admit(suite, rules, &cases)?;
+    crate::application::input_metadata::service::admit(suite, host, rules, &cases)?;
     crate::application::discrepancy_attachment::service::attach(suite, rules, &mut cases)?;
     let ShardSelection {
         global_count,

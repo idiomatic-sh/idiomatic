@@ -7,7 +7,7 @@ use ryo_benchmark_contracts::domain::context::types::project_context_mode::value
 use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, ContextSeal, SearchRoots};
 use ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile;
 use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 type Input = (ProjectContextMode, &'static [&'static str]);
 type Value = bool;
@@ -34,6 +34,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
+/// An absolute directory on every platform: `/corpus` has no drive on Windows and is not absolute there.
+fn corpus_root() -> PathBuf {
+    std::env::temp_dir().join("corpus")
+}
+
 fn subject((mode, files): Input) -> Result<Value, Failure> {
     let cohort = CohortSelection::Explicit(Vec::new());
     let files = files
@@ -48,7 +53,7 @@ fn subject((mode, files): Input) -> Result<Value, Failure> {
             search_roots: &SearchRoots::Undeclared,
             context_mode: mode,
         },
-        Path::new("/corpus"),
+        &corpus_root(),
         &files,
         &[PathBuf::from("a.py")],
         PathBuf::from("state"),

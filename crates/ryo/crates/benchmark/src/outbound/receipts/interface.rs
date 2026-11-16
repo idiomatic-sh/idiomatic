@@ -5,7 +5,7 @@ use super::types::{CapturedProcess, CaseReceipts, ReceiptPath};
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 
 /// What every `receipts` adapter implements.
-pub trait ReceiptsPort {
+pub trait ReceiptsPort: Send + Sync {
     /// Where this run appends its case receipts, as the edge chose.
     fn case_receipts(&self) -> CaseReceipts;
 

@@ -1,6 +1,9 @@
 //! Materialize and validate explicitly sealed project context at the filesystem boundary.
 use super::constants;
-use super::writer::{PathScope, no_symlinks, relative, resolve, walked_dependency};
+use super::writer::{
+    PathScope, link_destination, link_text, no_symlinked_parent, no_symlinks, relative, resolve,
+    walked_dependency,
+};
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::context::types::CorpusFiles;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -66,6 +69,32 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
             )));
         }
     }
+    for (path, target) in &manifest.links {
+        relative(path, PathScope::Member)?;
+        if manifest.source_files.contains_key(path)
+            || manifest.auxiliary_files.contains_key(path)
+            || missing.contains(path)
+        {
+            return Err(Error::Invalid(
+                constants::CONTEXT_PATH_HAS_CONFLICTING_ROLES.into(),
+            ));
+        }
+        let destination = link_destination(path, target)?;
+        if !manifest.source_files.contains_key(&destination)
+            && !manifest.auxiliary_files.contains_key(&destination)
+        {
+            return Err(Error::Invalid(
+                constants::CONTEXT_LINK_TARGET_UNSEALED.into(),
+            ));
+        }
+        no_symlinked_parent(&manifest.boundary, path)?;
+        if link_text(&manifest.boundary.join(path))? != *target {
+            return Err(Error::Invalid(format!(
+                "context link changed: {}",
+                path.display()
+            )));
+        }
+    }
     for path in &missing {
         relative(path, PathScope::Member)?;
         no_symlinks(&manifest.boundary, path)?;
@@ -109,11 +138,19 @@ pub(crate) fn seal_existing(
         source_files: BTreeMap::new(),
         auxiliary_files: BTreeMap::new(),
         missing: Vec::new(),
+        links: BTreeMap::new(),
     };
     for path in tracked {
         relative(path, PathScope::Member)?;
-        no_symlinks(&manifest.boundary, path)?;
+        no_symlinked_parent(&manifest.boundary, path)?;
         let actual = manifest.boundary.join(path);
+        if std::fs::symlink_metadata(&actual)?.file_type().is_symlink() {
+            if source_set.contains(path) {
+                return Err(Error::Invalid(constants::SEALED_SOURCE_IS_A_LINK.into()));
+            }
+            let _prior = manifest.links.insert(path.clone(), link_text(&actual)?);
+            continue;
+        }
         let bytes = ContextBytes(std::fs::read(&actual).map_err(|error| {
             Error::Io(std::io::Error::new(
                 error.kind(),
@@ -144,6 +181,7 @@ pub(crate) fn materialize(
         auxiliary_files: BTreeMap::new(),
         source_files: BTreeMap::new(),
         missing: context.missing.clone(),
+        links: BTreeMap::new(),
     };
     match std::fs::remove_dir_all(&manifest.boundary) {
         Ok(()) => {}
@@ -198,6 +236,11 @@ pub(crate) fn receipt(
     for dependency in dependencies {
         let path = PathBuf::from(dependency.path.0.as_ref());
         let declared = resolve(manifest, &path)?;
+        if manifest.links.contains_key(&declared) {
+            return Err(Error::Invalid(
+                constants::CONTEXT_DEPENDENCY_IS_A_LINK.into(),
+            ));
+        }
         let sealed = manifest.auxiliary_files.contains_key(&declared)
             || manifest.source_files.contains_key(&declared);
         let state = match dependency.state {

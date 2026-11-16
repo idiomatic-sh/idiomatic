@@ -98,16 +98,16 @@ macro_rules! semantics_methods {
         /// given the model it works out of each file (`M`, its `FileModel`). The method of each is generated from the catalog's one
         /// declaration and has no default body, so a language that answers any of them answers each, and a relation the catalog
         /// declares `optional` stops every language that answers them from compiling until it has answered it. A language that
-        /// answers none of them implements no `Semantics` and says so once, with `None` from `ParseUseCase::semantics`, and the
-        /// engine reads none of them for its files.
+        /// answers none of them implements no `Semantics` and says so once, with `SemanticAnswers::Absent` from
+        /// `ParseUseCase::semantics`, and the engine reads none of them for its files.
         ///
         /// # Examples
         ///
         /// ```
-        /// use ryo_language::domain::answers::types::Semantics;
+        /// use ryo_language::domain::answers::types::SemanticAnswers;
         ///
-        /// let answers: Option<&dyn Semantics> = None;
-        /// assert!(answers.is_none());
+        /// let answers: SemanticAnswers<'_> = SemanticAnswers::Absent;
+        /// assert!(matches!(answers, SemanticAnswers::Absent));
         /// ```
         pub trait Semantics<M: 'static = ()>: Send + Sync {
             $(
@@ -121,6 +121,33 @@ macro_rules! semantics_methods {
 }
 
 ryo_relations::each_relation!(@declared ryo_relations::optional_relations, semantics_methods);
+
+/// Whether a language answers the optional semantic capabilities of its files' trees, given the model it works out of each file
+/// (`M`, its `FileModel`): what `ParseUseCase::semantics` answers, once for every language.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::answers::types::SemanticAnswers;
+///
+/// let answers: SemanticAnswers<'_> = SemanticAnswers::Absent;
+/// assert_eq!(format!("{answers:?}"), "Absent");
+/// ```
+pub enum SemanticAnswers<'a, M: 'static = ()> {
+    /// The language answers them through this implementation.
+    Supplied(&'a dyn Semantics<M>),
+    /// The language implements no `Semantics`: the engine reads none of the optional relations for its files.
+    Absent,
+}
+
+impl<M: 'static> std::fmt::Debug for SemanticAnswers<'_, M> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Supplied(_) => write!(formatter, "Supplied"),
+            Self::Absent => write!(formatter, "Absent"),
+        }
+    }
+}
 
 /// What a language does for a relation: it reads it, or it says the relation is not in the language. A language can say it
 /// reads a relation only through the item that reads it (`reads::<Item>()`), which implements the trait ryo owns for it;

@@ -67,3 +67,23 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n///\n#[warn(clippy::empty_docs)]\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 30, end = 33 }]
+
+[[cases]]
+name = "alias-mentions-hidden"
+files = { "src/lib.rs" = "///\n#[doc(alias = \"a, hidden\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
+
+[[cases]]
+name = "hidden-with-value"
+files = { "src/lib.rs" = "///\n#[doc(hidden = \"x\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
+
+[[cases]]
+name = "inline-is-not-hidden"
+files = { "src/lib.rs" = "///\n#[doc(inline)]\npub use std::fmt;\n" }
+expected = [{ file = "src/lib.rs", start = 0, end = 3 }]
+
+[[cases]]
+name = "escaped-newline-doc"
+files = { "src/lib.rs" = "#[doc = \"\\n\"]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 8, end = 12 }]

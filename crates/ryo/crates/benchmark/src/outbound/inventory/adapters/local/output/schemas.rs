@@ -7,7 +7,7 @@ use crate::outbound::inventory::types::{
 use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::constants::{
-    BENCHMARK_INVENTORY_V1, COMPLETE, FAIL, FAILED, PASS, RUNNING,
+    BENCHMARK_INVENTORY_V2, COMPLETE, DEFERRED, FAIL, FAILED, PASS, RUNNING,
 };
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -87,9 +87,11 @@ fn row_schema(row: &Row) -> Result<RowSchema, Error> {
         status: match row.status {
             RowStatus::Pass => PASS,
             RowStatus::Fail => FAIL,
+            RowStatus::Deferred => DEFERRED,
         },
         reason: match &row.reason {
             RowReason::Failed(reason) => Some(reason.0.clone()),
+            RowReason::Deferred(capability) => Some(capability.0.clone()),
             RowReason::Passed => None,
         },
         instance: match &row.instance {
@@ -117,7 +119,7 @@ fn row(row: &Row) -> Result<CapturedBytes, Error> {
 /// Encode a whole summary, pretty printed, with its final newline.
 fn summary(summary: &Summary) -> Result<CapturedBytes, Error> {
     let wire = SummarySchema {
-        schema: BENCHMARK_INVENTORY_V1,
+        schema: BENCHMARK_INVENTORY_V2,
         provider: summary.provider.0.clone(),
         run_state: match summary.run_state {
             RunState::Running => RUNNING,
@@ -129,7 +131,11 @@ fn summary(summary: &Summary) -> Result<CapturedBytes, Error> {
             .iter()
             .map(|(key, text)| Ok((key.0.clone(), value(text)?)))
             .collect::<Result<_, Error>>()?,
-        counts: BTreeMap::from([(PASS, summary.passed.0), (FAIL, summary.failed.0)]),
+        counts: BTreeMap::from([
+            (PASS, summary.passed.0),
+            (FAIL, summary.failed.0),
+            (DEFERRED, summary.deferred.0),
+        ]),
         rules: summary
             .rules
             .iter()

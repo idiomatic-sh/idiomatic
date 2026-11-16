@@ -57,3 +57,11 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+/// The address spelled with `/`, from a path joined component by component as the platform joins them.
+#[test]
+fn slashed_joins_the_components_with_a_slash() {
+    let path = Path::new("pkg").join("sub").join("λ.py");
+    let address = RelativeArtifactPath::try_from(path.as_path()).expect("a relative address");
+    assert_eq!(address.slashed().expect("UTF-8 names").0, "pkg/sub/λ.py");
+}

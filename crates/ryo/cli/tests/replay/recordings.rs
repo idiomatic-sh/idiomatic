@@ -1,12 +1,16 @@
 //! What a recording must hold for the replay to compare it, each way a failure could otherwise pass as a match: a stale
 //! `pending.txt` (H1), a declared parameter with no value (H2), a malformed table (H3), a missing `expected.toml` or `checked.toml`
 //! (H4), an `undecided.txt` with no reason (H5), a finding too short or under no live rule (H6), a sample that could not be made
-//! (H7), a missing cell read as empty text (H8), a recorded difference with no reason (H9), an undecided rule giving rows nobody
-//! checked (F2), a pending recording failing on another ground or for other relations than its `pending.txt` names (F3), and a
-//! recording without its query or scope (F5). Each fails; the goldens' own failures are in `goldens`.
+//! (H7), a missing cell read as empty text (H8), a recorded difference with no reason (H9), a pending recording failing on another
+//! ground or for other relations than its `pending.txt` names (F3), and a recording of no rule or without its scope (F5). Each
+//! fails; the goldens' own failures are in `goldens`, which rule a recording replays in `rules`, and how its rows are compared in
+//! `comparisons`.
 
-use super::answers::{by_rule, expectation_at, extra_rows_in, unchecked_rows};
-use super::base::{ABSENT, Pending, Recording, does_not_run_in, finding_texts, recording_at};
+use super::answers::{by_rule, expectation_at, extra_rows_in};
+use super::base::{
+    ABSENT, Pending, Recording, does_not_run_in, finding_texts, lint_over, recording_at,
+    recording_of, rule_of,
+};
 use std::path::Path;
 
 /// A query over the syntax tree that every Rust file gives rows to.
@@ -22,9 +26,9 @@ fn recorded(files: &[(&str, &str)]) -> tempfile::TempDir {
     at
 }
 
-/// Whether reading the recording at `at` fails.
-fn refused(at: &Path) -> bool {
-    std::panic::catch_unwind(|| recording_at(at)).is_err()
+/// Whether reading the recording at `at`, replaying `query`, fails.
+fn refused(at: &Path, query: &str) -> bool {
+    std::panic::catch_unwind(|| recording_of(at, query.to_owned())).is_err()
 }
 
 /// Whether reading what the recording at `at` expects fails.
@@ -36,26 +40,24 @@ fn unexpected(at: &Path) -> bool {
 fn a_pending_txt_naming_a_relation_the_rust_language_provides_fails() {
     let _beside = crate::beside();
     let at = recorded(&[
-        ("query.ryoql", TREE),
         ("scope.toml", "include = [\"**\"]\n"),
         (
             "pending.txt",
             "reads syntax-tree, which the Rust language of ryo does not provide\n",
         ),
     ]);
-    assert!(refused(at.path()), "a stale pending.txt passes");
+    assert!(refused(at.path(), TREE), "a stale pending.txt passes");
 }
 
 #[test]
 fn a_pending_txt_not_in_its_one_form_fails() {
     let _beside = crate::beside();
     let at = recorded(&[
-        ("query.ryoql", TREE),
         ("scope.toml", "include = [\"**\"]\n"),
         ("pending.txt", "waits for something\n"),
     ]);
     assert!(
-        refused(at.path()),
+        refused(at.path(), TREE),
         "a pending.txt naming no relation passes"
     );
 }
@@ -70,12 +72,9 @@ fn a_parameter_the_query_declares_without_a_value_fails() {
             r#"from "syntax-tree" as l where l."text" in $names;"#,
         )
     );
-    let at = recorded(&[
-        ("query.ryoql", &query),
-        ("scope.toml", "include = [\"**\"]\n"),
-    ]);
+    let at = recorded(&[("scope.toml", "include = [\"**\"]\n")]);
     assert!(
-        refused(at.path()),
+        refused(at.path(), &query),
         "a declared parameter is bound to an empty list"
     );
 }
@@ -87,15 +86,12 @@ fn a_malformed_scope_or_parameters_table_fails() {
         ("scope.toml", "include = ["),
         ("parameters.toml", "names = "),
     ] {
-        let mut files = vec![
-            ("query.ryoql", TREE),
-            ("scope.toml", "include = [\"**\"]\n"),
-        ];
+        let mut files = vec![("scope.toml", "include = [\"**\"]\n")];
         files.retain(|(name, _)| *name != file);
         files.push((file, body));
         let at = recorded(&files);
         assert!(
-            refused(at.path()),
+            refused(at.path(), TREE),
             "a malformed {file} reads as an empty table"
         );
     }
@@ -203,39 +199,9 @@ const HOSTED: &str = r#"let rows = select l."path" as "file" from "tastemaker.pl
 emit rows subject "file" key("file");"#;
 
 #[test]
-fn an_undecided_rule_giving_rows_nobody_checked_fails() {
-    let rows = |each: &[&str]| {
-        each.iter()
-            .map(|row| (*row).to_owned())
-            .collect::<Vec<String>>()
-    };
-    assert!(
-        unchecked_rows(
-            "r",
-            &rows(&["a.rs\t1..2"]),
-            &[],
-            &rows(&["a.rs\t1..2", "b.rs\t3..4"])
-        )
-        .is_some(),
-        "an extra row of an undecided rule passes"
-    );
-    assert_eq!(
-        unchecked_rows(
-            "r",
-            &rows(&["a.rs\t1..2"]),
-            &rows(&["b.rs\t3..4"]),
-            &rows(&["a.rs\t1..2", "b.rs\t3..4"])
-        ),
-        None,
-        "an extra row listed with a reason is kept"
-    );
-}
-
-#[test]
 fn a_pending_recording_that_fails_on_another_ground_fails() {
     let _beside = crate::beside();
     let at = recorded(&[
-        ("query.ryoql", "let rows = selec;\n"),
         ("scope.toml", "include = [\"**\"]\n"),
         (
             "pending.txt",
@@ -243,7 +209,7 @@ fn a_pending_recording_that_fails_on_another_ground_fails() {
         ),
     ]);
     assert!(
-        refused(at.path()),
+        refused(at.path(), "let rows = selec;\n"),
         "a pending.txt stands while the query does not parse"
     );
 }
@@ -252,7 +218,6 @@ fn a_pending_recording_that_fails_on_another_ground_fails() {
 fn a_pending_txt_naming_other_relations_than_the_refusal_fails() {
     let _beside = crate::beside();
     let at = recorded(&[
-        ("query.ryoql", HOSTED),
         ("scope.toml", "include = [\"**\"]\n"),
         (
             "pending.txt",
@@ -260,7 +225,7 @@ fn a_pending_txt_naming_other_relations_than_the_refusal_fails() {
         ),
     ]);
     assert!(
-        refused(at.path()),
+        refused(at.path(), HOSTED),
         "a pending.txt names more than the query is refused for"
     );
 }
@@ -269,7 +234,6 @@ fn a_pending_txt_naming_other_relations_than_the_refusal_fails() {
 fn a_pending_txt_naming_exactly_the_refused_relation_waits() {
     let _beside = crate::beside();
     let at = recorded(&[
-        ("query.ryoql", HOSTED),
         ("scope.toml", "include = [\"**\"]\n"),
         (
             "pending.txt",
@@ -277,22 +241,25 @@ fn a_pending_txt_naming_exactly_the_refused_relation_waits() {
         ),
     ]);
     assert!(matches!(
-        recording_at(at.path()).pending,
+        recording_of(at.path(), HOSTED.to_owned()).pending,
         Pending::Because(_)
     ));
 }
 
 #[test]
-fn a_recording_without_its_query_or_scope_fails() {
+fn a_recording_of_no_rule_or_without_its_scope_fails() {
     let _beside = crate::beside();
-    let without_query = recorded(&[("scope.toml", "include = [\"**\"]\n")]);
+    let above = tempfile::tempdir().expect("a directory for the recording");
+    let of_no_rule = above.path().join("a-name-no-rule-has");
+    std::fs::create_dir(&of_no_rule).expect("the recording's directory");
+    std::fs::write(of_no_rule.join("scope.toml"), "include = [\"**\"]\n").expect("its scope");
     assert!(
-        refused(without_query.path()),
-        "a recording without query.ryoql reads an empty query"
+        std::panic::catch_unwind(|| recording_at(&of_no_rule)).is_err(),
+        "a recording of no rule reads an empty query"
     );
-    let without_scope = recorded(&[("query.ryoql", TREE)]);
+    let without_scope = recorded(&[]);
     assert!(
-        refused(without_scope.path()),
+        refused(without_scope.path(), TREE),
         "a recording without scope.toml reads every file"
     );
 }
@@ -305,9 +272,9 @@ fn a_scope_without_include_or_with_other_keys_fails() {
         "include = [\"**\"]\nincludes = [\"src/**\"]\n",
         "include = [1]\n",
     ] {
-        let at = recorded(&[("query.ryoql", TREE), ("scope.toml", scope)]);
+        let at = recorded(&[("scope.toml", scope)]);
         assert!(
-            refused(at.path()),
+            refused(at.path(), TREE),
             "the scope `{scope}` widens to every file"
         );
     }
@@ -317,12 +284,11 @@ fn a_scope_without_include_or_with_other_keys_fails() {
 fn a_parameter_the_query_does_not_declare_fails() {
     let _beside = crate::beside();
     let at = recorded(&[
-        ("query.ryoql", TREE),
         ("scope.toml", "include = [\"**\"]\n"),
         ("parameters.toml", "names = [\"a\"]\n"),
     ]);
     assert!(
-        refused(at.path()),
+        refused(at.path(), TREE),
         "a parameter no query declares is passed unseen"
     );
 }
@@ -354,4 +320,57 @@ fn rows_nothing_compares_fail() {
         unexpected(checked_without_undecided.path()),
         "checked.toml of a decided recording is ignored"
     );
+}
+
+#[test]
+fn a_recorded_parameter_value_decides_the_rows() {
+    let _beside = crate::beside();
+    let repository = tempfile::tempdir().expect("a repository");
+    std::fs::create_dir(repository.path().join("src")).expect("its src");
+    std::fs::write(repository.path().join("src/lib.rs"), "fn alpha() {}\n").expect("its lib.rs");
+    let query = format!(
+        "param names: set<string>;\n{}",
+        TREE.replace(
+            r#"from "syntax-tree" as l;"#,
+            r#"from "syntax-tree" as l where l."text" in $names;"#,
+        )
+    );
+    let rows_for = |name: &str| {
+        let at = recorded(&[
+            ("scope.toml", "include = [\"**\"]\n"),
+            ("parameters.toml", &format!("names = [\"{name}\"]\n")),
+        ]);
+        let recording = recording_of(at.path(), query.clone());
+        lint_over(repository.path(), vec![rule_of(&recording)])
+            .expect("the rule runs")
+            .0
+    };
+    assert!(
+        !rows_for("alpha").is_empty(),
+        "the recorded value `alpha` finds the function named alpha"
+    );
+    assert!(
+        rows_for("omega").is_empty(),
+        "the recorded value `omega` finds a row"
+    );
+}
+
+#[test]
+fn a_rule_naming_a_kind_of_another_linked_language_loads_and_answers() {
+    let _beside = crate::beside();
+    // The replay links what `ryo lint` links: here a language beside Rust and TOML, whose kinds a live rule may name.
+    assert!(
+        ryo_cli::linked_connections().len() > 2,
+        "the command links no language beside Rust and TOML"
+    );
+    // `keyword` is a kind of the Python and TypeScript languages, not of Rust's: over Rust files it matches nothing.
+    let query = r#"let words = select l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."kind" = "keyword";
+emit words subject "file" key("span");"#;
+    let at = recorded(&[("scope.toml", "include = [\"**\"]\n")]);
+    let recording = recording_of(at.path(), query.to_owned());
+    let repository = tempfile::tempdir().expect("a repository");
+    std::fs::write(repository.path().join("lib.rs"), "fn alpha() {}\n").expect("its lib.rs");
+    let (rows, _) = lint_over(repository.path(), vec![rule_of(&recording)])
+        .expect("a rule naming a kind of a linked language runs");
+    assert_eq!(rows, Vec::<Vec<String>>::new());
 }

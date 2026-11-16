@@ -62,3 +62,8 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::empty_line_after_outer_attr)]\n#[inline]\n\npub fn f() {}\n" }
 expected = [{ file = "src/lib.rs", start = 75, end = 85 }]
+
+[[cases]]
+name = "attr-before-derive"
+files = { "src/lib.rs" = "#[must_use]\n\n#[derive(Clone)]\npub struct S;\n" }
+expected = []

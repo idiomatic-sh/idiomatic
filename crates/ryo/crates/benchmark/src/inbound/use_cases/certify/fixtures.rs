@@ -67,12 +67,14 @@ pub fn exercise(
     change: Change,
     constructor: impl FnOnce(
         std::sync::Arc<dyn crate::outbound::suite::interface::SuitePort>,
+        std::sync::Arc<dyn crate::outbound::host::interface::HostPort>,
         std::sync::Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
         std::sync::Arc<dyn crate::outbound::context::interface::ContextPort>,
         std::sync::Arc<dyn LinterPort>,
         std::sync::Arc<dyn LinterPort>,
         std::sync::Arc<dyn crate::outbound::execution::interface::ExecutionPort>,
         std::sync::Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
+        std::sync::Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
     ) -> crate::inbound::use_cases::certify::use_case::CertifyUseCaseImpl,
 ) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, ()> {
     let root = tempfile::tempdir().expect(constants::FIXTURE_PRECONDITION);
@@ -143,12 +145,14 @@ pub fn exercise(
     ));
     let operation = constructor(
         suite.clone(),
+        std::sync::Arc::new(crate::outbound::host::fixtures::fake::HostFake::default()),
         std::sync::Arc::new(crate::outbound::receipts::fixtures::fake::ReceiptsFake::default()),
         std::sync::Arc::new(crate::outbound::context::factory::local()),
         reference.clone(),
         candidate.clone(),
         execution.clone(),
         std::sync::Arc::new(crate::outbound::inventory::factory::local()),
+        std::sync::Arc::new(crate::outbound::scheduler::factory::threads()),
     );
     let certificate = crate::inbound::use_cases::certify::interface::CertifyUseCase::certify(
         &operation,

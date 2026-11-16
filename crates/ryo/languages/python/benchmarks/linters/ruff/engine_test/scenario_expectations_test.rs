@@ -20,9 +20,11 @@ pub(super) fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
         | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
         | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
-        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory => {
-            "input.py"
-        }
+        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
+        | EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
+        | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
+        | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
+        | EngineScenario::ActualRootedQueriesKeepTheirSparseAxis => "input.py",
         EngineScenario::PreservedStubSemanticSyntaxError => "input.pyi",
     }
 }
@@ -50,7 +52,11 @@ pub(super) fn source_for(scenario: EngineScenario) -> &'static str {
         | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
         | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
         | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
-        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory => {
+        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
+        | EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
+        | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
+        | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
+        | EngineScenario::ActualRootedQueriesKeepTheirSparseAxis => {
             "try:\n    pass\nexcept:\n    pass\n"
         }
     }
@@ -120,9 +126,11 @@ pub(super) fn expected_diagnostics(
         | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
         | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
         | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
-        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory => {
-            ("E722", 14, 20)
-        }
+        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
+        | EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
+        | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
+        | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
+        | EngineScenario::ActualRootedQueriesKeepTheirSparseAxis => ("E722", 14, 20),
     };
     Ok(vec![BenchmarkFinding {
         rule: ryo::linter::RuleId::try_from(rule)

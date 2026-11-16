@@ -4,7 +4,9 @@
     clippy::expect_used,
     reason = "fixture directories, files and rule identifiers are test preconditions"
 )]
+pub mod unreliable_host;
 use super::use_case::CompareCorpusUseCaseImpl;
+use crate::outbound::host::fixtures::fake::HostFake;
 use crate::outbound::workspace::interface::{Workspace, WorkspacePort};
 use crate::outbound::workspace::types::{CommitRevision, TrackedFiles};
 use crate::outbound::{
@@ -184,10 +186,14 @@ pub fn use_case_with(outside: Outside) -> CompareCorpusUseCaseImpl {
             ..ExecutionFake::default()
         }),
         Arc::new(ContextFake),
-        Arc::new(SuiteFake::default()),
+        Arc::new(SuiteFake {
+            profile: Some(crate::outbound::suite::fixtures::samples::tool()),
+            ..SuiteFake::default()
+        }),
         Arc::new(EvidenceFake),
         Arc::new(crate::outbound::discovery::fixtures::fake::DiscoveryFake { files: Vec::new() }),
         Arc::new(crate::outbound::workspace::fixtures::fake::WorkspaceFake),
+        Arc::new(HostFake::default()),
     )
 }
 
@@ -371,12 +377,16 @@ fn project_use_case(
             ..ExecutionFake::default()
         }),
         Arc::new(ContextFake),
-        Arc::new(SuiteFake::default()),
+        Arc::new(SuiteFake {
+            profile: Some(crate::outbound::suite::fixtures::samples::tool()),
+            ..SuiteFake::default()
+        }),
         Arc::new(EvidenceFake),
         Arc::new(crate::outbound::discovery::fixtures::fake::DiscoveryFake { files: sources }),
         Arc::new(ProjectWorkspace {
             root: root.to_owned(),
             tracked,
         }),
+        Arc::new(HostFake::default()),
     )
 }

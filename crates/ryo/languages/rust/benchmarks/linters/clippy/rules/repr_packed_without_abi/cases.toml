@@ -57,3 +57,8 @@ expected = []
 name = "warn-reenables"
 files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::repr_packed_without_abi)]\n#[repr(packed)]\npub struct A(u8, u32);\n#[repr(packed)]\npub struct B(u8, u32);\n" }
 expected = [{ file = "src/lib.rs", start = 80, end = 102 }]
+
+[[cases]]
+name = "comment-mentions-packed"
+files = { "src/lib.rs" = "#[repr(align(4) /*, packed, */)]\npub struct A(u8, u32);\n" }
+expected = []

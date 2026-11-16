@@ -184,3 +184,20 @@ pub(crate) const PYTHON_TARGET_3_16: &str = "python-target=3.16";
 pub(crate) const PYTHON_TARGET_3_09: &str = "python-target=3.09";
 /// Text `python-target=3.10 `.
 pub(crate) const PYTHON_TARGET_3_10_2: &str = "python-target=3.10 ";
+/// Text `a.py`.
+pub(crate) const A_PY: &str = "a.py";
+/// Text `b.py`.
+pub(crate) const B_PY: &str = "b.py";
+/// Text `accepted-syntax`: the applicability policy under which a rule is skipped on a file the parser rejects.
+pub(crate) const ACCEPTED_SYNTAX: &str = "accepted-syntax";
+/// The rule an equivalence fixture is staged as.
+pub(crate) const ROOTED001: &str = "ROOTED001";
+/// The program whose six names a rooted traversal reaches from two roots sharing each identity.
+pub(crate) const SPARSE_PIE794_RELEVANT: &str = "value = outer(deep(leaf(a)), shallow(b))\n";
+/// The relevant program with an await inside a root's descendants.
+pub(crate) const SPARSE_NONEMPTY_AWAIT: &str =
+    "async def sample():\n    value = outer(deep(leaf(await a())), shallow(b))\n";
+/// An await outside every root.
+pub(crate) const SPARSE_UNRELATED_AWAIT: &str = "async def unrelated():\n    await work()\n";
+/// The PLR1708 program: a generator body whose nested functions, lambda, annotation and class are scope boundaries.
+pub(crate) const SPARSE_PLR1708_RELEVANT: &str = "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\n";

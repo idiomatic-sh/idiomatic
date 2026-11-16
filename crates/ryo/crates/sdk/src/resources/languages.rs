@@ -17,6 +17,7 @@ pub use macros::link::link;
 /// Open on purpose: a language implements it, and nothing else does.
 pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Parse;
 
+pub use ryo_language::domain::answers::types::SemanticAnswers;
 pub use ryo_language::domain::answers::types::Semantics;
 pub use ryo_language::domain::semantics::errors::SemanticsError;
 pub use ryo_language::domain::semantics::types::{
@@ -354,7 +355,10 @@ pub use ryo_relations::domain::relations::types::PropertyId;
 
 pub use ryo_relations::domain::relations::types::Locatedness;
 
-pub use ryo_language::domain::answers::service::{native_semantic_child, native_semantic_syntax};
+pub use ryo_language::domain::answers::service::{
+    expanded_semantic_child, expanded_semantic_syntax, native_semantic_child,
+    native_semantic_syntax,
+};
 
 pub use ryo_relations::domain::catalog::types::OptionalCapability;
 

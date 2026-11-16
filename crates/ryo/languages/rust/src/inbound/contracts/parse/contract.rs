@@ -54,8 +54,8 @@ impl Parse for ParseContract {
 
     fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
 
-    fn semantics(&self) -> Option<&dyn languages::Semantics<ReadIndexes>> {
-        Some(self)
+    fn semantics(&self) -> languages::SemanticAnswers<'_, ReadIndexes> {
+        languages::SemanticAnswers::Supplied(self)
     }
 
     fn completion_requirement(&self) -> CompletionRequirement {
@@ -190,11 +190,11 @@ impl Parse for ParseContract {
     }
 
     fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, ReadIndexes>> {
-        languages::native_semantic_syntax()
+        languages::expanded_semantic_syntax()
     }
 
     fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, ReadIndexes>> {
-        languages::native_semantic_child()
+        languages::expanded_semantic_child()
     }
 
     fn resolves(&self) -> Support<Reader<languages::Resolves, ReadIndexes>> {

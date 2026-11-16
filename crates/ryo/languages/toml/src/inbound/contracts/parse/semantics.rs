@@ -68,6 +68,10 @@ impl languages::Semantics<Model> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn attribute_path(&self) -> Support<Reader<languages::AttributePath, Model>> {
+        languages::absent(AbsenceCause::NotCode)
+    }
+
     fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Model>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

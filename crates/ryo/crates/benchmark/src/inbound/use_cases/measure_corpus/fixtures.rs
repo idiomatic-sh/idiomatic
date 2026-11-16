@@ -30,6 +30,9 @@ use ryo_benchmark_contracts::domain::requests::types::{
 use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
 use std::sync::Arc;
 
+/// The bench directory whose settings profiles configure the fixture rules.
+pub const BENCH: &str = "bench";
+
 /// The certificate both fixture contestants hold, covering the `covered` rules.
 fn certificate(covered: &[&str]) -> Certificate {
     let request = RunRequest {
@@ -77,7 +80,39 @@ fn certificate(covered: &[&str]) -> Certificate {
 /// The use case wired to the fakes of every boundary it calls.
 #[must_use]
 pub fn use_case() -> MeasureCorpusUseCaseImpl {
-    wired(&[], Arc::new(WorkspaceFake), Arc::new(SuiteFake::default()))
+    wired(
+        &[],
+        Arc::new(WorkspaceFake),
+        Arc::new(SuiteFake {
+            profile: Some(crate::outbound::suite::fixtures::samples::tool()),
+            ..SuiteFake::default()
+        }),
+        Arc::new(crate::outbound::host::fixtures::fake::HostFake::default()),
+    )
+}
+
+/// The use case on a Microsoft kernel outside a container, whose suite's settings profile requires executable bits.
+#[must_use]
+pub fn unreliable_host_use_case() -> MeasureCorpusUseCaseImpl {
+    wired(
+        &[],
+        Arc::new(WorkspaceFake),
+        Arc::new(SuiteFake {
+            profile: Some(ryo_benchmark_contracts::domain::workloads::types::Tool {
+                file_observation:
+                    ryo_benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable,
+                ..crate::outbound::suite::fixtures::samples::tool()
+            }),
+            ..SuiteFake::default()
+        }),
+        Arc::new(crate::outbound::host::fixtures::fake::HostFake {
+            facts: ryo_benchmark_contracts::domain::hosts::types::HostFacts {
+                family: ryo_benchmark_contracts::domain::hosts::types::HostFamily::Unix,
+                kernel: ryo_benchmark_contracts::domain::hosts::types::HostKernel::Microsoft,
+                isolation: ryo_benchmark_contracts::domain::hosts::types::HostIsolation::Bare,
+            },
+        }),
+    )
 }
 
 /// The use case of `use_case`, its discovery answering every project with `files`, its workspace checking out `root`, tracking
@@ -93,14 +128,17 @@ pub fn discovering(root: &std::path::Path, files: &[&str]) -> MeasureCorpusUseCa
             },
         ),
         Arc::new(crate::outbound::suite::factory::local()),
+        Arc::new(crate::outbound::host::fixtures::fake::HostFake::default()),
     )
 }
 
-/// The use case over the fakes of every boundary, its discovery answering `files` and its workspace `workspace`.
+/// The use case over the fakes of every boundary, its discovery answering `files`, its workspace `workspace`, its suite `suite`
+/// and its host `host`.
 fn wired(
     files: &[&str],
     workspace: Arc<dyn crate::outbound::workspace::interface::WorkspacePort>,
     suite: Arc<dyn crate::outbound::suite::interface::SuitePort>,
+    host: Arc<dyn crate::outbound::host::interface::HostPort>,
 ) -> MeasureCorpusUseCaseImpl {
     MeasureCorpusUseCaseImpl::new(
         Arc::new(LinterFake::default()),
@@ -116,6 +154,7 @@ fn wired(
         Arc::new(ContextFake),
         Arc::new(EvidenceFake),
         workspace,
+        host,
     )
 }
 
@@ -194,6 +233,7 @@ fn measured<R>(
     let certificate = certificate(covered);
     let invalid_syntax = ryo::linter::RuleId::try_from("invalid-syntax").expect("rule identifier");
     operate(&CorpusMeasurement {
+        bench: std::path::Path::new(BENCH),
         projects,
         scope,
         profile: SourceProfile::Full,

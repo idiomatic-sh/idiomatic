@@ -1,6 +1,6 @@
 //! The content seal of a listed project context: declared bytes, declared absences and the stable logical root, never the
 //! temporary physical directory.
-use super::constants::{AUXILIARY, LISTED_DISK_CONTEXT, MISSING, SOURCE};
+use super::constants::{AUXILIARY, LINK, LISTED_DISK_CONTEXT, MISSING, SOURCE};
 use super::types::ContextManifest;
 use crate::domain::artifacts::types::digest::value::ArtifactDigest;
 use sha2::{Digest as _, Sha256};
@@ -14,7 +14,7 @@ fn frame(hash: &mut Sha256, field: &OsStr) {
 }
 
 /// The content seal of a manifest: its logical root, each source and auxiliary file with its digest, and each
-/// declared absence, framed.
+/// declared absence, then each sealed link with its target, framed; a manifest without links seals as it did before links existed.
 #[must_use]
 pub fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut hash = Sha256::new();
@@ -35,6 +35,11 @@ pub fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     for path in missing {
         frame(&mut hash, OsStr::new(MISSING));
         frame(&mut hash, path.as_os_str());
+    }
+    for (path, target) in &manifest.links {
+        frame(&mut hash, OsStr::new(LINK));
+        frame(&mut hash, path.as_os_str());
+        frame(&mut hash, OsStr::new(&target.0));
     }
     ArtifactDigest(format!("{:x}", hash.finalize()))
 }

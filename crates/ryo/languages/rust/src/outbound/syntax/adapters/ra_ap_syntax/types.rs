@@ -1,5 +1,6 @@
 //! The types of the `ra_ap_syntax` adapter: plain data, public fields and derives, with no constructor and no inherent impl.
 
+use crate::outbound::syntax::types::OpaqueMacros;
 use ra_ap_syntax::SyntaxKind;
 use ryo::languages::{Count, Flag, Offset, Position};
 
@@ -32,7 +33,7 @@ impl std::ops::Deref for ParserMessage {
     }
 }
 
-/// The name of a macro, as it is written before the `!`.
+/// The name of a macro, as it is written before the `!`: the last segment of the call's path.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct MacroName(pub Box<str>);
 
@@ -68,42 +69,16 @@ pub(crate) struct Cursor {
     pub literal: Flag,
 }
 
-/// A direct child of a token tree: the bytes it spans, and its kind.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Child {
-    /// Where it starts.
-    pub from: Offset,
-    /// Where it ends.
-    pub to: Offset,
-    /// Its kind (that of its node, or of its token).
-    pub kind: SyntaxKind,
-}
-
-/// A stretch of text in an argument list.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ArgumentSpan {
-    /// Where it starts.
-    pub from: Offset,
-    /// Where it ends.
-    pub to: Offset,
-}
-
-/// What a stretch of an argument list is read as.
+/// The grammar a macro call's arguments are read by.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum FragmentEntryPoint {
-    /// An expression.
-    Expression,
-    /// A pattern.
-    Pattern,
-}
-
-/// A stretch of an argument list and what it is read as.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Stretch {
-    /// The text.
-    pub span: ArgumentSpan,
-    /// What it is read as.
-    pub reading: FragmentEntryPoint,
+pub(crate) enum ArgumentGrammar {
+    /// A list of expressions separated by commas, a trailing comma allowed, each of them perhaps named (`width = 3`, read as its value):
+    /// the arguments of every macro but `vec!` and `matches!`.
+    Arguments,
+    /// The elements of an array (`vec![a, b]`) or an element and its count (`vec![a; n]`).
+    Vector,
+    /// An expression, then a pattern and perhaps `if` and a guard (`matches!`).
+    Matches,
 }
 
 /// An argument of a macro read again: where its text starts and the steps it parses to.
@@ -115,11 +90,13 @@ pub(crate) struct MacroArgument {
     pub steps: Vec<Step>,
 }
 
-/// A node being open while the file's own tree is written.
+/// A node being open while a tree is written.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Open {
     /// The node's place in the table.
     pub at: Position,
+    /// Its kind: a token tree is a call's arguments only when it is a child of a macro call.
+    pub kind: SyntaxKind,
 }
 
 /// A token tree being held while its macro is looked at.
@@ -133,8 +110,10 @@ pub(crate) struct HeldMacro {
     pub start: Offset,
     /// How many nodes of it are open.
     pub depth: Count,
-    /// The steps taken so far.
-    pub steps: Vec<Step>,
+    /// The kind of its first token, when the token tree starts with one: its opening delimiter.
+    pub opening: Option<SyntaxKind>,
+    /// The kind of the last step written directly under it, when that step is a token: its closing delimiter, once it is whole.
+    pub closing: Option<SyntaxKind>,
 }
 
 /// The arguments of a macro call read again, to be added under the call.
@@ -146,11 +125,37 @@ pub(crate) struct Expansion {
     pub arguments: Vec<MacroArgument>,
 }
 
-/// Whether a child of a token tree is white space or a comment.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Triviality {
-    /// It is.
-    Trivia,
-    /// It is not.
-    Significant,
+/// The text an argument list is parsed from: the token tree, its delimiters replaced by those of a tuple or an array.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ArgumentList(pub String);
+
+/// The direct children of a node: each child node, with where its text starts, and the kinds of the tokens directly under it that are
+/// not white space or comments.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct NodeChildren {
+    /// The child nodes, in order.
+    pub nodes: Vec<MacroArgument>,
+    /// The kinds of the tokens directly under it, white space and comments aside.
+    pub tokens: Vec<SyntaxKind>,
+}
+
+/// Where a walk of a tree has come to, for finding the macro calls in it: the file's own tree, or the arguments read again of a call.
+#[derive(Debug)]
+pub(crate) struct Walker {
+    /// The built-in macros whose arguments are never read again.
+    pub opaque: OpaqueMacros<'static>,
+    /// Where the last name written starts.
+    pub name_from: Offset,
+    /// Where the last name written ends.
+    pub name_to: Offset,
+    /// Whether the token tree that follows is the arguments of a macro call: the last token was the `!` of a call.
+    pub armed: Flag,
+    /// The nodes open, with the place each has in the table.
+    pub open: Vec<Open>,
+    /// The token tree of a call being written, held until it is whole.
+    pub held: Option<HeldMacro>,
+    /// The calls whose arguments were read, in the order their token trees closed.
+    pub found: Vec<Expansion>,
+    /// The text an argument list is parsed from, kept between calls so it is made once.
+    pub buffer: ArgumentList,
 }

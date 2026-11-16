@@ -70,6 +70,24 @@ fn check(probe: Probe) -> Result<(), Box<dyn std::error::Error>> {
         digest = ArtifactDigest("incorrect".into());
     }
     let execution = execution::factory::timed(executable, digest);
+    if !cfg!(target_os = "linux") && !matches!(probe, Probe::ChangedCollector) {
+        // The collector observes through `direct`, whose declared platform contract refuses every launch off Linux
+        // with an `Unsupported` I/O error that carries no errno, so the collector answers it as a failed collection
+        // with that error's text. The child is the collector itself, an executable this platform has, so a missing
+        // executable (a launch failure with its errno) cannot stand in for that refusal.
+        let refused = execution.run(Invocation {
+            executable: PathBuf::from(env!("CARGO_BIN_EXE_ryo-benchmark-collector")),
+            arguments: Vec::new(),
+            environment: std::collections::BTreeMap::default(),
+            directory: std::env::temp_dir(),
+        });
+        let unsupported = std::io::Error::from(std::io::ErrorKind::Unsupported).to_string();
+        assert!(
+            matches!(&refused, Err(ReportsError::Invalid(message)) if *message == unsupported),
+            "off Linux the collector refuses every launch as unsupported: {refused:?}"
+        );
+        return Ok(());
+    }
     if matches!(probe, Probe::Contract) {
         check_contract(&execution);
         return Ok(());

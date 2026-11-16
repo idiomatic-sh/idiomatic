@@ -92,6 +92,11 @@ impl languages::Semantics<Declarations> for ParseContract {
         )
     }
 
+    fn attribute_path(&self) -> Support<Reader<languages::AttributePath, Declarations>> {
+        // standard: The Python Language Reference, section 8.7 (Function definitions) and 8.8 (Class definitions): a decorator is an expression, not an attribute, so no attribute writes a path.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
     fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Declarations>> {
         languages::reads::<BytesLiteralItem>()
     }

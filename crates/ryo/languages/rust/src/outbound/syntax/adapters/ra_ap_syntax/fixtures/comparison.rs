@@ -3,11 +3,11 @@
 use super::super::adapter::SyntaxRaApSyntaxAdapter;
 use super::unproduced::kind_of_bits;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::constants::EXPANDED_MACROS;
+use crate::domain::syntax::constants::OPAQUE_MACROS;
 use crate::domain::syntax::service::kind_name;
 use crate::domain::syntax::types::Kind;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use crate::outbound::syntax::types::{Expanding, SourceText};
+use crate::outbound::syntax::types::{OpaqueMacros, SourceText};
 use ryo::languages::{
     ByteSlice, Elements, Position, Symbol, Symbols, TOKEN, end_at, positions, start_at,
     table_builder, text_of,
@@ -15,7 +15,7 @@ use ryo::languages::{
 
 pub(in super::super) fn read(source: &str) -> (Elements, Symbols) {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    SyntaxRaApSyntaxAdapter::new(Expanding(&EXPANDED_MACROS)).read(
+    SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS)).read(
         SourceText(source.as_bytes()),
         &mut table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes())),
     );
@@ -50,10 +50,10 @@ pub(in super::super) fn functions(source: &'static str) -> String {
     )
 }
 
-/// `source` read into a table, with no macro read again: the file's own tree.
+/// `source` read into a table, whose own tree (`positions`, without the arguments added under the macro calls) is what is printed.
 pub(in super::super) fn own_tree(source: &str) -> Elements {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    SyntaxRaApSyntaxAdapter::new(Expanding(&[])).read(
+    SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS)).read(
         SourceText(source.as_bytes()),
         &mut table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes())),
     );

@@ -20,7 +20,7 @@ impl StageSuiteUseCase for StageSuiteUseCaseImpl<'_> {
         destination: &Path,
         authored: &[ryo::linter::RuleId],
         purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
-    ) -> Result<(), ReportsError> {
+    ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Tool, ReportsError> {
         crate::application::suite_staging::service::stage(
             self.suite,
             directory,

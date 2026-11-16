@@ -16,6 +16,10 @@ Declared and observed source context and owned rule-observation declarations pre
 
 The registered case and native observation documents are plain values that both the suite and the inventory ports read and write.
 
+### hosts
+
+The kernel, container and file-permission facts a host port reports, as plain values.
+
 ### measurements
 
 Raw process measurements and borrowed publication observations carry no certified sample constructor.

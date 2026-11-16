@@ -1,3 +1,0 @@
-param max-parameters: integer;
-let first-over = select * from "parameter" where ordinal = $max-parameters;
-emit first-over subject "file" key("span");

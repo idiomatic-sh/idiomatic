@@ -10,10 +10,11 @@ inputs = [".", "../../rustfmt.toml", "../../rust-toolchain.toml"]
 id = "tastemaker"
 group = "lint"
 # ryo's gate is Tastemaker, the release the root's tastemaker.toml pins.
+# `tm check` reads every tastemaker.lock of the repository (a version no lock reads is refused), so the whole tree is its input.
 run = ["tm", "check", "--format", "sarif"]
 output = "sarif"
 timeout-seconds = 1800
-inputs = [".", "../../tastemaker"]
+inputs = [".", "../../tastemaker", "../.."]
 
 [[tools]]
 id = "cargo-deny"
@@ -30,7 +31,7 @@ group = "clippy"
 run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../../ci/scripts/checks/cargo_diagnostics.py"]
 
 [[tools]]
 id = "sdk-api"
@@ -43,12 +44,13 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo",
 [[tools]]
 id = "test-core"
 group = "check"
-# The core crates' tests, every feature on: each test tool builds the workspace once, as the others do, and runs the
-# packages its filter names, so its run is kept while its own inputs did not move. The BDD runners and the doctests,
+# The tests of every package under crates/, every feature on. `--workspace` builds every member whatever the filter names, so
+# the inputs are the whole workspace (`.`), with what ryo's tests read beyond it (../tastemaker, ../../tastemaker) and the
+# template's entries first. Every test tool of ryo names the same: inputs are coarse and safe. The BDD runners and the doctests,
 # which nextest cannot list, run in `test-bdd` and `test-doc`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-core) | package(=idiomatic-sh-ryo-language) | package(=idiomatic-sh-ryo-query_language) | package(=idiomatic-sh-ryo-sdk) | package(=idiomatic-sh-ryo-values) | package(=idiomatic-sh-ryo-benchmark)"]
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-core) | package(=idiomatic-sh-ryo-language) | package(=idiomatic-sh-ryo-query_language) | package(=idiomatic-sh-ryo-sdk) | package(=idiomatic-sh-ryo-values) | package(=idiomatic-sh-ryo-benchmark) | package(=idiomatic-sh-ryo-benchmark-contracts) | package(=idiomatic-sh-ryo-derived) | package(=idiomatic-sh-ryo-execution) | package(=idiomatic-sh-ryo-execution-domain) | package(=idiomatic-sh-ryo-execution-runtime) | package(=idiomatic-sh-ryo-execution-store) | package(=idiomatic-sh-ryo-matching) | package(=idiomatic-sh-ryo-operators) | package(=idiomatic-sh-ryo-relations)"]
 timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../rust-toolchain.toml", "../../.cargo", "../../tastemaker", ".", "../tastemaker"]
 
 [[tools]]
 id = "test-cli"
@@ -56,7 +58,7 @@ group = "check"
 # The command line's tests: it links every crate of the product, so the product is its input.
 run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo) and not test(/^peak::/)"]
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "test-bdd"
@@ -64,7 +66,7 @@ group = "check"
 # The cucumber runners (`tests/bdd.rs`, `harness = false`), which nextest's default filter leaves out.
 run = ["bash", "-c", "mkdir -p target/checks/bdd; set +e; cargo test --workspace --locked --all-features --test bdd > target/checks/bdd/stdout.log 2> target/checks/bdd/stderr.log; tool_status=$?; cat target/checks/bdd/stdout.log; cat target/checks/bdd/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/bdd/status; exit \"$tool_status\""]
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "test-doc"
@@ -73,7 +75,7 @@ group = "check"
 # `compile_fail,E0…` doctest, and on stable such a doctest passes for any error, so a renamed field or a wrong code proves nothing.
 run = ["bash", "-c", "set -e; nightly=$(python3 -c 'import tomllib; print(tomllib.load(open(\"Cargo.toml\", \"rb\"))[\"workspace\"][\"metadata\"][\"api\"][\"nightly\"])'); cargo \"+$nightly\" test --workspace --locked --all-features --doc"]
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "cargo-doc"
@@ -84,13 +86,58 @@ timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
+id = "test-boundary-contract"
+group = "check"
+# The execution crate's boundary contract suite, its ignored tests too: it fails when the suite lists no test.
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "--no-tests=fail", "--run-ignored", "all", "-E", "package(=idiomatic-sh-ryo-execution) & kind(test) & binary(=boundary_contract)"]
+timeout-seconds = 3600
+inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "test-execution-use-case"
+group = "check"
+# The execution use case's tests in the execution crate's lib, its ignored tests too: it fails when none is listed.
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "--no-tests=fail", "--run-ignored", "all", "-E", "package(=idiomatic-sh-ryo-execution) & kind(lib) & test(/^inbound::use_cases::execution::/)"]
+timeout-seconds = 3600
+inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "test-operators-doc"
+group = "check"
+# The operators crate's doctests exist: test-doc runs them on nightly; this fails when none is listed. The listing is read whole
+# before grep looks in it: `grep -q` quits at its first match, and the rustdoc still writing the list would fail on the closed pipe.
+run = ["bash", "-c", "set -euo pipefail; nightly=$(python3 -c 'import tomllib; print(tomllib.load(open(\"Cargo.toml\", \"rb\"))[\"workspace\"][\"metadata\"][\"api\"][\"nightly\"])'); listing=$(cargo \"+$nightly\" test --locked --all-features -p idiomatic-sh-ryo-operators --doc -- --list); grep -Eq ': test$' <<< \"$listing\""]
+timeout-seconds = 3600
+inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "test-bench"
+group = "check"
+# Each linter bench package's own tests (tests.rs), one tool per bench.
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "--no-tests=fail", "-E", "package(=idiomatic-sh-ryo-{lang}-{linter}-benchmark)"]
+timeout-seconds = 3600
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "test-benches"
+group = "check"
+# Every bench target in test mode, with the default features, as ownership-contracts' `cargo test --workspace --all-targets` ran
+# them (nextest's default filter leaves out kind(bench)): a divan bench runs each benchmark once, cli's `lint` bench its smoke.
+# The default features leave out the `distribution` bench (required-features = ["distribution"]). The linter workers
+# (idiomatic-sh-ryo-<lang>-<linter>-benchmark) are excluded: each is the collector's executable, which takes `<verb> <reference>`
+# and has nothing to run without one; the bench groups run it and test-bench runs its tests.
+run = ["cargo", "test", "--workspace", "--locked", "--benches", "--exclude", "idiomatic-sh-ryo-*-*-benchmark"]
+timeout-seconds = 3600
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+
+[[tools]]
 id = "cargo-clippy-default"
 group = "release-clippy"
 # The same, with the default features: code a feature turns off is compiled and linted as a user builds it.
 run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../../ci/scripts/checks/cargo_diagnostics.py"]
 
 [[tools]]
 id = "test-default"
@@ -100,7 +147,7 @@ group = "release-tests"
 # perf group, and does not gate a release until it holds its bound on every runner.
 run = ["cargo", "nextest", "run", "--workspace", "--locked", "-E", "not test(/^peak::/)"]
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "cargo-hack"
@@ -123,7 +170,7 @@ group = "release-coverage"
 # Line coverage, a report with no threshold: the run fails only when a test does.
 run = ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked", "--", "--skip", "peak::"]
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "cargo-msrv"
@@ -139,7 +186,7 @@ group = "release-tests"
 # The `distribution` test target's findings: each target checked through the crate installed with its registry's languages.
 run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "target_test::", "targets_have_their_findings", "every_registry_is_declared"]
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "release-smoke"
@@ -147,7 +194,7 @@ group = "release-tests"
 # Each registry's package is built from the crate, installed in a scratch directory and run. Only the release workflow runs the `release-*` groups.
 run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "cargo::", "npm::", "pypi::"]
 timeout-seconds = 7200
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "fresh-resolution"
@@ -165,7 +212,7 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--bench", "commands"]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tastemaker"]
 
 [[tools]]
 id = "performance-distribution"
@@ -174,35 +221,27 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "test-language"
 group = "check"
-# Each language's tests, one tool per directory of `languages`, so an edit in one language reruns its tool alone. A
-# language reaches crates/language and every other crate through crates/sdk, so all of them are its inputs.
+# Each language's tests, one tool per directory of `languages` (the capture), each reported on its own. `--workspace` builds
+# every member, and the conformance reads the command line's default features (cli/Cargo.toml), so its inputs are the
+# whole workspace: an edit anywhere in ryo reruns every language.
 run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-{lang})"]
 timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", ".config", "languages/{lang}", "crates/language", "crates/sdk", "crates/core", "crates/query_language", "crates/values", "crates/benchmark", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", ".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "correctness-python-ruff"
-group = "check"
-# Each rule of the native evidence runs its authored cases alone under its own profile against
-# the pinned Ruff, with the descriptor generated into the output directory; then the
-# benchmark's Python unittests run (they are all under authoring/: the profile driver's tests went with it to the harness). The combined candidate cohort is a separate tool.
-run = ["python3", "-c", "import json, os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\ncodes = [subprocess.run([sys.executable, str(helper), '--self-test-native-standalone']).returncode]\noutput = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / ('ruff-native-standalone-' + os.environ.get('GITHUB_RUN_ID', 'local') + '-' + str(os.getpid()))\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\ncodes.append(subprocess.run([sys.executable, str(helper), executable, '--native-standalone', '--output-dir', str(output)], env=environment).returncode)\nbuild = output / 'build' / 'result.json'\nrecord = json.loads(build.read_text()) if build.is_file() else {}\nworker = record.get('frozen_executable', {}).get('path', '')\nif not worker:\n    print('no frozen worker: ' + str(record.get('error', 'no build receipt at ' + str(build))), file=sys.stderr)\ntests = {**os.environ, 'RYO_PREFLIGHT_WORKER': worker, 'RYO_PREFLIGHT_RUFF': executable}\ncodes.extend(subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', directory, '-p', 'test_*.py'], cwd=helper.parent, env=tests).returncode for directory in ('authoring',))\nsys.exit(next((code for code in codes if code), 0))"]
+id = "correctness-python-release-build"
+group = "python-release"
+# The Python provider's boolean parser payload is written in an optimized build: the one test that needs a release build,
+# kept in its own group so the check matrix does not build release on every row. Ruff correctness is the bench-correctness
+# group's (tool bench-correctness).
+run = ["cargo", "test", "--release", "--locked", "-p", "idiomatic-sh-ryo-python", "--lib", "boolean_parser_payload_is_written_in_optimized_builds"]
 timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "correctness-python-ruff-candidates"
-group = "ruff-candidates"
-# This job checks authoring guards and optimized Python release behavior.
-# The bench-correctness CI job (tool bench-correctness) owns strict all-default verification and its receipts.
-run = ["python3", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nrelease_tests = [\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--lib', 'boolean_parser_payload_is_written_in_optimized_builds'],\n]\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nfor command in release_tests:\n    result = subprocess.run(command, env=environment)\n    if result.returncode:\n        sys.exit(result.returncode)\nsys.exit(0)"]
-timeout-seconds = 3600
-inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "peak"
@@ -211,7 +250,7 @@ group = "perf"
 # tests, until it holds its bound on every runner.
 run = ["cargo", "nextest", "run", "--package", "idiomatic-sh-ryo", "--locked", "-E", "test(/^peak::/)"]
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "performance-lint"
@@ -220,7 +259,7 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--bench", "lint"]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "build"
@@ -229,7 +268,7 @@ group = "build"
 # Clippy remains mandatory in its quality group; denied style findings do not gate Rust speed execution.
 run = ["bash", "-c", "set -eo pipefail; mkdir -p target/checks/build; cargo check --workspace --all-targets --all-features --locked 2>&1 | tee target/checks/build/compile.log; cargo test --workspace --locked --all-features --no-run 2>&1 | tee target/checks/build/test.log; cargo doc --workspace --no-deps --all-features --locked 2>&1 | tee target/checks/build/doc.log"]
 timeout-seconds = 7200
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tastemaker"]
 
 [[tools]]
 id = "bench-correctness"
@@ -239,24 +278,26 @@ group = "bench-correctness"
 # runner runs this group (the bench-correctness job), never the check matrix.
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "verify-inventory", "languages/{lang}/benchmarks/linters/{linter}"]
 timeout-seconds = 21600
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "bench-measure"
-group = "perf"
+group = "bench-measure"
 # Each linter bench's certified measure over every project of its language: the collector seals the worker and itself,
-# registers every default, and runs the worker's measure-valid; run it on a quiet Linux machine.
+# registers every default, and runs the worker's measure-valid. A group of its own, apart from perf, whose lock holds
+# quiet-machine bests: benchmarks.yml's hand-run bench-measure job runs it on a hosted runner, and its records are that runner's.
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "measure-valid", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 timeout-seconds = 14400
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "bench-parity"
-group = "perf"
+group = "bench-parity"
 # Each linter bench's rule-by-rule parity with its pinned reference over every project of its language; a project's
 # accepted differences are profiles/evidence/<project>-accepted-differences.json of the bench, none when it is absent.
+# benchmarks.yml's hand-run bench-parity job runs this group.
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "parity", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", "Cargo.toml", "Cargo.lock", "crates", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]

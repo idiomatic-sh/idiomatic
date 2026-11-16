@@ -7,11 +7,11 @@ use super::fixtures::roles::roles;
 use super::fixtures::unproduced::{kinds, trees_agree, unproduced_kinds_a_source_gives};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::constants::EXPANDED_MACROS;
+use crate::domain::syntax::constants::OPAQUE_MACROS;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::outbound::syntax::fixtures::contract::check;
-use crate::outbound::syntax::types::Expanding;
+use crate::outbound::syntax::types::OpaqueMacros;
 use ryo::languages::{ByteSlice, Elements, Position, Symbols, kind_at, positions};
 
 /// What a row is given.
@@ -246,7 +246,7 @@ fn pinned_differences() -> String {
 fn unasked(source: &'static str) -> String {
     use ryo::languages::{NO_FIELD, field_at};
     let language = crate::inbound::contracts::parse::contract::ParseContract::new(
-        std::sync::Arc::new(SyntaxRaApSyntaxAdapter::new(Expanding(&EXPANDED_MACROS))),
+        std::sync::Arc::new(SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS))),
         std::sync::Arc::new(crate::outbound::notes::factory::postcard()),
     );
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -273,7 +273,7 @@ fn unasked(source: &'static str) -> String {
 fn origins(source: &'static str) -> String {
     use ryo::languages::{ElementOrigin, end_of, origin_at};
     let language = crate::inbound::contracts::parse::contract::ParseContract::new(
-        std::sync::Arc::new(SyntaxRaApSyntaxAdapter::new(Expanding(&EXPANDED_MACROS))),
+        std::sync::Arc::new(SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS))),
         std::sync::Arc::new(crate::outbound::notes::factory::postcard()),
     );
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());

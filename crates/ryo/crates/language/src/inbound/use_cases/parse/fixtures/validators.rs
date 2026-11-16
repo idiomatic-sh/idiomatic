@@ -1,23 +1,11 @@
 //! What a contract checks of the rows and trees a language wrote: each check answers whether they are well formed.
 
-use super::super::errors::ParseError;
-use super::super::service::{absence, build, read as read_file};
-use super::super::types::ParseEngine;
-use super::super::types::{ParseRequest, Recognition, SourceFile};
 use super::collect::Collect;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
-use crate::domain::files::types::SourcePath;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
-use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
-use ryo_relations::domain::relations::service::{all, columns, is_declaring, provenance_of};
-use ryo_relations::domain::relations::types::Provenance;
-use ryo_relations::domain::relations::types::{
-    Bits, FileId, Missing, Relation, RelationDeclaring, Rows,
-};
+use ryo_relations::domain::relations::types::{FileId, Relation};
 
 /// Without embedded expressions, projection must not add, omit, or alter native syntax.
 pub(super) fn projection_preserves_native(out: &Collect) -> bool {
@@ -40,6 +28,30 @@ pub(super) fn projection_preserves_native(out: &Collect) -> bool {
         original.sort();
         projected.sort();
         original == projected
+    })
+}
+
+/// With embedded expressions or macro expansions, projection keeps every native row and edge, and adds only the trees read again:
+/// every semantic row that is not a native one is of an element the language added (`added` answers for its node id), a syntax row
+/// by its `id` and an edge by its `child`.
+pub(super) fn projection_extends_native(out: &Collect, added: impl Fn(u64) -> bool) -> bool {
+    [
+        (Relation::SyntaxTree, Relation::SemanticSyntax, 0),
+        (Relation::SyntaxChild, Relation::SemanticChild, 1),
+    ]
+    .into_iter()
+    .all(|(native, semantic, element)| {
+        let rows_of = |wanted| -> std::collections::BTreeSet<_> {
+            out.rows()
+                .into_iter()
+                .filter_map(|(relation, row)| (relation == wanted).then_some(row))
+                .collect()
+        };
+        let (native, projected) = (rows_of(native), rows_of(semantic));
+        native.is_subset(&projected)
+            && projected
+                .difference(&native)
+                .all(|row| row.get(element).is_some_and(|id| added(*id)))
     })
 }
 

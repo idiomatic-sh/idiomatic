@@ -1,6 +1,0 @@
-param max-nested: integer;
-let nesting = closure(edges="scope", source="parent", destination="child");
-let counts = group-count(from=nesting, keys=["parent"], count="nested", distinct="child");
-let crowded = select * from counts where nested > $max-nested;
-let located = select r."name" as "name", l."nested" as "nested", r."file" as "file", r."span" as "span" from crowded as l join "function" as r on l."parent" = r."id";
-emit located subject "file" key("span");

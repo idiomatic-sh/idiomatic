@@ -296,7 +296,12 @@ macro_rules! support_of {
         Some($language.$module())
     };
     (optional $language:ident $module:ident) => {
-        $language.semantics().map(|semantics| semantics.$module())
+        match $language.semantics() {
+            crate::domain::answers::types::SemanticAnswers::Supplied(semantics) => {
+                Some(semantics.$module())
+            }
+            crate::domain::answers::types::SemanticAnswers::Absent => None,
+        }
     };
 }
 

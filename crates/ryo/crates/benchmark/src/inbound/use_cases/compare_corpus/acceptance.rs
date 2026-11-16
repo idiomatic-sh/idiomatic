@@ -62,6 +62,7 @@ fn compare_leaving(unanswered: &str) -> Result<(), ReportsError> {
         [".ts", ".mts", ".cts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].map(SourceExtension);
     suffixed_use_case(directory.path(), unanswered).compare_corpus(
         &CorpusParity {
+            bench: std::path::Path::new("bench"),
             corpus: Corpus::Projects(ProjectsParity {
                 projects: std::slice::from_ref(&project),
                 suffixes: &suffixes,
@@ -91,6 +92,7 @@ fn compare(configured_rule: bool) -> (Result<(), ReportsError>, Vec<u8>) {
     let mut observations = Vec::new();
     let result = use_case().compare_corpus(
         &CorpusParity {
+            bench: std::path::Path::new("bench"),
             corpus: Corpus::Request {
                 request: &corpus.request,
                 accepted: AcceptedDifferencesFile::Declared(&corpus.accepted),

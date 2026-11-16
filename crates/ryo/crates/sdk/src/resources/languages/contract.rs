@@ -23,9 +23,10 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
 };
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     analyzed_source::AnalyzedSourceExpectedRow, annotates::AnnotatesExpectedRow,
-    assigns::AssignsExpectedRow, binding_event::BindingEventExpectedRow,
-    binding_read::BindingReadExpectedRow, binding_shadow::BindingShadowExpectedRow,
-    binding_use::BindingUseExpectedRow, brace_format_field::BraceFormatFieldExpectedRow,
+    assigns::AssignsExpectedRow, attribute_path::AttributePathExpectedRow,
+    binding_event::BindingEventExpectedRow, binding_read::BindingReadExpectedRow,
+    binding_shadow::BindingShadowExpectedRow, binding_use::BindingUseExpectedRow,
+    brace_format_field::BraceFormatFieldExpectedRow,
     brace_format_parse::BraceFormatParseExpectedRow, bytes_literal::BytesLiteralExpectedRow,
     call_argument::CallArgumentExpectedRow, comment::CommentExpectedRow,
     compiler_feature::CompilerFeatureExpectedRow, constant_key::ConstantKeyExpectedRow,

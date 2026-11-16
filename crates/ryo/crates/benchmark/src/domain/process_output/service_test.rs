@@ -28,14 +28,21 @@ type Input = Scenario;
 type Value = Cow<'static, str>;
 type Failure = ProcessOutputError;
 
+/// What the subject answers when the expansion is the independently built document.
+const FRAMED_JSON_PATH: &str =
+    "the file is the root joined with the path, escaped as JSON, around the bytes it was framed in";
+
+/// An absolute directory on every platform: `/tmp/root` has no drive on Windows and is not absolute there.
+fn root(name: &str) -> PathBuf {
+    std::env::temp_dir().join(name)
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a JSON path is escaped without touching unrelated bytes"),
         word: Word::Succeeds,
         input: || Scenario::UnicodeJsonPath,
-        expect: Expect::Value(Cow::Borrowed(
-            "{\"file\":\"/tmp/日本/é\\\".py\",\"assertion\":\"x < y\"}",
-        )),
+        expect: Expect::Value(Cow::Borrowed(FRAMED_JSON_PATH)),
     },
     Case {
         name: CaseName("moving a byte between rule and case changes the key"),
@@ -98,7 +105,7 @@ fn slot(file: &str) -> Result<Value, Failure> {
         file: file.into(),
         encoding: Encoding::Utf8Bytes,
     }];
-    expand(&parts, Path::new("/tmp/root"), &[PathBuf::from("case.py")])
+    expand(&parts, &root("root"), &[PathBuf::from("case.py")])
         .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned().into())
 }
 
@@ -134,8 +141,18 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     "\",\"assertion\":\"x < y\"}".into(),
                 )),
             ];
-            expand(&parts, Path::new("/tmp/日本"), &[PathBuf::from("é\".py")])
-                .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned().into())
+            let root = root("日本");
+            let expanded = expand(&parts, &root, &[PathBuf::from("é\".py")])
+                .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned())?;
+            // The expectation is the platform's own join of the root and the file, escaped by an independent JSON encoder.
+            let path = serde_json::to_string(&root.join("é\".py").to_string_lossy())
+                .expect("a path is a JSON string");
+            let expected = format!("{{\"file\":{},\"assertion\":\"x < y\"}}", path);
+            if expanded == expected {
+                Ok(Cow::Borrowed(FRAMED_JSON_PATH))
+            } else {
+                Ok(Cow::Owned(expanded))
+            }
         }
         Scenario::RelativeRoot => expand(&[], Path::new("relative"), &[])
             .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned().into()),

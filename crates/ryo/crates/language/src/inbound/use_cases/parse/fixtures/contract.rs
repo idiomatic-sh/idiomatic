@@ -9,26 +9,18 @@ use super::super::errors::ParseError;
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition, SourceFile};
 use super::collect::Collect;
-use super::row_checks::{Scenario, read, rows, rows_on};
-use super::validators::{
-    embedded_roots_valid, filtered_projection_valid, identifier_valid, projection_preserves_native,
-    qualified_name_valid, semantic_spans_valid, shape_representatives_valid, well_formed,
-};
+use super::row_checks::{read, rows, rows_on};
+use super::validators::well_formed;
 use crate::domain::files::types::SourcePath;
 use crate::domain::symbols::types::ByteSlice;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
 
-use super::super::service::{absence, build, read as read_file};
+use super::super::service::{build, read as read_file};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
 use crate::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
-use ryo_relations::domain::relations::service::{all, columns, is_declaring, provenance_of};
-use ryo_relations::domain::relations::types::Provenance;
-use ryo_relations::domain::relations::types::{
-    Bits, FileId, Missing, Relation, RelationDeclaring, Rows,
-};
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::{FileId, Missing, Relation, Rows};
 
 /// A writer that keeps nothing: the contract looks at what the language answers, not at what it wrote.
 #[derive(Default, Clone, Copy, Debug)]

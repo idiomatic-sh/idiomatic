@@ -114,12 +114,7 @@ pub(super) fn verify_cases(
             .select_cases(&flags)?;
     let suite_source: Arc<dyn SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
-    let mut tool = suite_source.profile(ArtifactPath(&source))?;
-    let query_modules = tool.query_modules.clone();
-    let rule_applicability = tool.rule_applicability.clone();
-    let parser_configuration = tool.parser_configuration.clone();
-    let source_language = tool.source_language.clone();
-    let project_context_mode = tool.project_context_mode;
+    let tool = suite_source.profile(ArtifactPath(&source))?;
     let expected = reference(executable.clone(), tool.clone()).version_line(&tool);
     suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
@@ -127,41 +122,39 @@ pub(super) fn verify_cases(
     )
     .audit(&source, &tool)?;
     AccountDefaultsUseCaseImpl::new().account_defaults(&audit, &tool)?;
-    tool.defaults = audit.authored().to_vec();
-    let candidate_defaults = tool.defaults.clone();
-    let candidate_observations = tool.rule_observations.clone();
-    let candidate_observation_selection = tool.rule_observation_selection;
-    let reference = Arc::new(reference(executable, tool));
     let scratch = default_scratch(
         suite_source.as_ref(),
         ArtifactText(constants::VERIFY_CASES_SCRATCH),
     )?;
     let root = suite_source.ensure_directory(ArtifactPath(scratch.path()))?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
-    ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
-        suite_source.as_ref(),
-    )
-    .stage_suite(
-        &source,
-        &profile,
-        audit.authored(),
-        ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
-    )?;
+    let staged =
+        ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
+            suite_source.as_ref(),
+        )
+        .stage_suite(
+            &source,
+            &profile,
+            audit.authored(),
+            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+        )?;
     let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
         std::env::current_exe()?,
         profile.join(constants::RULES_DIRECTORY),
-        query_modules,
-        rule_applicability,
-        parser_configuration,
-        source_language,
-        project_context_mode,
-        candidate_defaults,
-        candidate_observation_selection,
-        candidate_observations,
+        staged.query_modules.clone(),
+        staged.rule_applicability.clone(),
+        staged.parser_configuration.clone(),
+        staged.source_language.clone(),
+        staged.project_context_mode,
+        staged.defaults.clone(),
+        staged.rule_observation_selection,
+        staged.rule_observations.clone(),
     ));
+    let reference = Arc::new(reference(executable, staged));
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
             suite_source.as_ref(),
+            &ryo_benchmark::outbound::host::factory::local(),
             &ryo_benchmark::outbound::receipts::factory::local(run.receipts),
             &ryo_benchmark::outbound::context::factory::local(),
             reference.as_ref(),
@@ -206,7 +199,7 @@ pub(super) fn verify_reference_cases(
         ArtifactText(constants::VERIFY_REFERENCE_SCRATCH),
     )?;
     let root = suite_source.ensure_directory(ArtifactPath(scratch.path()))?;
-    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
+    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::host::factory::local(), &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local()).verify_reference_cases(
         &source.join(constants::RULES_DIRECTORY),
         &root,
     );

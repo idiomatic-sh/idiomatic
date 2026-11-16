@@ -3,35 +3,17 @@
 use crate::inbound::use_cases::parse::types::Recognition;
 use ryo_relations::domain::terms::types::UnknownName;
 use std::marker::PhantomData;
-use std::sync::Mutex;
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answers::service::{absent, reads};
 use crate::domain::answers::types::{Expansions, ReadItem, Reader, Reads, Support};
-use crate::domain::builders::service::{enter_node, leave_node, table_builder, token};
-use crate::domain::elements::service::end_of;
-use crate::domain::elements::types::{Completion, Elements, TableBuilder, Tree};
-use crate::domain::files::types::SourcePath;
-use crate::domain::reasons::types::ToolMessage;
-use crate::domain::symbols::types::ByteSlice;
+use crate::domain::elements::types::{Completion, TableBuilder, Tree};
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::errors::ParseError;
-use crate::inbound::use_cases::parse::fixtures::collect::Collect;
 use crate::inbound::use_cases::parse::fixtures::small::{Seen, Small};
 use crate::inbound::use_cases::parse::interface::ParseUseCase;
-use crate::inbound::use_cases::parse::service::{absence, build, walk};
-use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest, ParseRequest};
+use crate::inbound::use_cases::parse::types::ParseRequest;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::collections::relations::function::item::{
-    Function, FunctionRow,
-};
-use ryo_relations::domain::relations::collections::relations::syntax_tree::item::{
-    SyntaxTree, SyntaxTreeRow,
-};
-use ryo_relations::domain::relations::types::{
-    Count, FileId, KindBits, NodeId, Offset, Position, Relation, Rows, Span,
-};
-use ryo_relations::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::types::{Count, Offset, Position, Rows, Span};
 
 /// An optional reader that emits one real row per visited occurrence.
 pub(crate) struct IdentifierProbe<const FORBIDDEN: bool>;
@@ -135,33 +117,28 @@ impl ParseUseCase for Promised {
 
     fn begin_semantics(
         &self,
-        _request: &crate::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _request: &ParseRequest<'_>,
         _tree: &crate::domain::elements::types::Elements,
         _slot: &mut crate::domain::semantics::types::SemanticSlot,
     ) {
     }
 
-    fn semantics(&self) -> Option<&dyn crate::domain::answers::types::Semantics<Seen>> {
-        if self.0.is_empty() { None } else { Some(self) }
+    fn semantics(&self) -> crate::domain::answers::types::SemanticAnswers<'_, Seen> {
+        if self.0.is_empty() {
+            crate::domain::answers::types::SemanticAnswers::Absent
+        } else {
+            crate::domain::answers::types::SemanticAnswers::Supplied(self)
+        }
     }
 
     fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
         crate::domain::elements::types::CompletionRequirement::Independent
     }
 
-    fn extend_file_model(
-        &self,
-        _tree: &crate::domain::elements::types::Tree<'_>,
-        _from: ryo_relations::domain::relations::types::Position,
-        _model: &mut Seen,
-    ) {
-    }
+    fn extend_file_model(&self, _tree: &Tree<'_>, _from: Position, _model: &mut Seen) {}
 
-    fn recognizes_explicit(
-        &self,
-        _request: &crate::inbound::use_cases::parse::types::ParseRequest<'_>,
-    ) -> crate::inbound::use_cases::parse::types::Recognition {
-        crate::inbound::use_cases::parse::types::Recognition::Declines
+    fn recognizes_explicit(&self, _request: &ParseRequest<'_>) -> Recognition {
+        Recognition::Declines
     }
     fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability] {
         &[]

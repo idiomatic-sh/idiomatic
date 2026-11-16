@@ -251,6 +251,7 @@ struct ManifestSchema {
     auxiliary_files: BTreeMap<PathBuf, String>,
     source_files: BTreeMap<PathBuf, String>,
     missing: Vec<PathBuf>,
+    links: BTreeMap<PathBuf, String>,
 }
 impl From<ContextManifest> for ManifestSchema {
     fn from(value: ContextManifest) -> Self {
@@ -266,6 +267,11 @@ impl From<ContextManifest> for ManifestSchema {
             auxiliary_files: digests(value.auxiliary_files),
             source_files: digests(value.source_files),
             missing: value.missing,
+            links: value
+                .links
+                .into_iter()
+                .map(|(path, target)| (path, target.0))
+                .collect(),
         }
     }
 }

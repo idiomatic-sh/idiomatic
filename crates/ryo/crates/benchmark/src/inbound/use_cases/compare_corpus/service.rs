@@ -26,6 +26,12 @@ pub(super) fn compare_corpus(
     parity: &CorpusParity<'_>,
     observations: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
+    crate::application::input_metadata::service::admit_rules(
+        boundaries.suite,
+        boundaries.host,
+        parity.bench,
+        parity.configured,
+    )?;
     let projects = match parity.corpus {
         Corpus::Request { request, accepted } => {
             return compare_request(

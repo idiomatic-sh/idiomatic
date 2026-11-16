@@ -3,12 +3,12 @@
 //! opened, shared caches. A factory builds nothing else, chooses nothing, and is called
 //! only by an edge.
 
-use super::types::Expanding;
+use super::types::OpaqueMacros;
 
-/// The `ra_ap_syntax` syntax adapter: rust-analyzer's parser, reading again the arguments of the macros `expanding` names.
+/// The `ra_ap_syntax` syntax adapter: rust-analyzer's parser, reading again the arguments of every macro call but those `opaque` names.
 #[must_use]
 pub(crate) fn ra_ap_syntax(
-    expanding: Expanding<'static>,
+    opaque: OpaqueMacros<'static>,
 ) -> impl crate::outbound::syntax::interface::SyntaxPort {
-    super::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter::new(expanding)
+    super::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter::new(opaque)
 }

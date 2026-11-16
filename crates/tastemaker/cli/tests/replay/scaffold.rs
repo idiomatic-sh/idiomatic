@@ -2,11 +2,10 @@
 //! of it missing or misplaced. Findings about its content (the fixtures and rows the author writes) are the author's work and are not
 //! asked about here.
 
-mod contract;
-
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
+use crate::fixes::root;
 use crate::languages::{
     TEMPLATE, created, given_content, initialized, over_samples, ran, reported,
 };
@@ -31,15 +30,6 @@ const PLACEMENT: [&str; 6] = [
 /// are the language's own text.
 const PARTS: &str = "language-parts";
 const SAMPLES: &str = "allocation";
-
-/// The repository root: three directories above this crate.
-fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(3)
-        .map(Path::to_path_buf)
-        .unwrap_or_default()
-}
 
 /// Copies a tree, leaving out every `target` directory, each workspace file pinned to the built `tm`.
 fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
@@ -116,26 +106,27 @@ fn misplaced_parts(tastemaker: &str, workspace: &Path) -> Vec<String> {
     // The check reports source findings by its exit code; validation errors are refused above.
     drop(checked(tastemaker, &["check", "--fix"], workspace));
     let printed = checked(tastemaker, &["check", "--format", "json"], workspace);
-    let report: serde_json::Value = serde_json::from_slice(&printed).expect("a report in JSON");
+    let report: crate::fixes::Report =
+        serde_json::from_slice(&printed).expect("a report: findings with a rule, path and message");
     let own = format!("languages/{LANGUAGE}");
     report
-        .get("findings")
-        .and_then(serde_json::Value::as_array)
+        .findings
         .into_iter()
-        .flatten()
+        .filter(|finding| finding.path.contains(&own))
         .filter(|finding| {
-            finding["path"]
-                .as_str()
-                .is_some_and(|path| path.contains(&own))
+            (finding.rule.ends_with(PARTS) && !finding.message.contains(SAMPLES))
+                || PLACEMENT.iter().any(|check| finding.rule.contains(check))
         })
-        .filter(|finding| {
-            let rule = finding["rule"].as_str().unwrap_or_default();
-            let message = finding["message"].as_str().unwrap_or_default();
-            (rule.ends_with(PARTS) && !message.contains(SAMPLES))
-                || PLACEMENT.iter().any(|check| rule.contains(check))
-        })
-        .map(ToString::to_string)
+        .map(|finding| format!("{finding:?}"))
         .collect::<Vec<_>>()
+}
+
+/// A report the scaffold rows read is `tm check`'s whole report: findings, each with its rule, path and message.
+#[test]
+fn a_report_without_its_findings_is_no_report() {
+    assert!(serde_json::from_slice::<crate::fixes::Report>(b"{}").is_err());
+    let bare = br#"{"findings": [{"rule": "x#count", "path": "languages/zz"}]}"#;
+    assert!(serde_json::from_slice::<crate::fixes::Report>(bare).is_err());
 }
 
 #[test]
@@ -144,11 +135,16 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
     if scratch.exists() {
         std::fs::remove_dir_all(&scratch).expect("the previous scene removed");
     }
-    let crates = scratch.join("crates");
-    copy(&root().join("crates/ryo"), &crates.join("ryo")).expect("ryo copied");
-    copy(&root().join("tastemaker"), &scratch.join("tastemaker"))
-        .expect("the package tastemaker/ copied");
-    let workspace = crates.join("ryo");
+    // The workspace, the package it is placed by, the fixture package two of its scenarios read, and every lock.
+    for part in [
+        "crates/ryo",
+        "tastemaker",
+        "crates/tastemaker/cli/tests/fixtures/replay",
+    ] {
+        copy(&root().join(part), &scratch.join(part)).expect("a part of the repository copied");
+    }
+    crate::benchmark_fixture::copy_locks(&scratch).expect("every lock of the repository copied");
+    let workspace = scratch.join("crates/ryo");
     run(Command::new("git").arg("init").arg("-q"), &scratch);
     let tastemaker = env!("CARGO_BIN_EXE_tm");
     run(
@@ -179,14 +175,17 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
             "EXTENSION: &str = \".ts\"",
         ),
         ("src/domain/language/service_test.rs", "src/main.ts"),
-        ("benches/performance.rs", "generated.ts"),
+        ("benchmarks/provider/bench.rs", "generated.ts"),
         ("README.md", "`.ts`"),
     ] {
         let body = std::fs::read_to_string(language.join(path)).expect("generated file");
         assert!(body.contains(expected), "{path} lacks {expected}");
     }
 
-    contract::assert_contract(&language);
+    let contract =
+        std::fs::read_to_string(language.join("src/inbound/contracts/parse/contract.rs"))
+            .expect("the generated parse contract");
+    crate::scaffold_contract::assert_contract(&contract);
 
     // The packages the copied workspace's lock names, fetched first: a machine that built only Tastemaker has not downloaded
     // every one of ryo's (`addr2line`, a dependency for another target, among them), and the check itself runs offline.
@@ -251,16 +250,12 @@ specs = [{{ alias = "subject", spec = "idiomatic.arch/collection", include = ["c
     }
     run(Command::new(tastemaker).arg("validate"), directory);
     let printed = checked(tastemaker, &["--json", "check", "--fix"], directory);
-    let report: serde_json::Value = serde_json::from_slice(&printed).expect("check report");
-    let missing = report["findings"]
-        .as_array()
-        .expect("findings")
+    let report: crate::fixes::Report =
+        serde_json::from_slice(&printed).expect("a report: findings with a rule, path and message");
+    let missing = report
+        .findings
         .iter()
-        .filter(|finding| {
-            finding["rule"]
-                .as_str()
-                .is_some_and(|rule| rule.ends_with("#count"))
-        })
+        .filter(|finding| finding.rule.ends_with("#count"))
         .collect::<Vec<_>>();
     assert!(
         missing.is_empty(),

@@ -98,6 +98,9 @@ why = "no recorded rule uses `span-bounds`; the Python suppression fragments do.
 [feature."relation:AnalyzedSource"]
 why = "read only by `orphan-rust-files` (undecided on ruff, so it feeds nothing) and `crate-dependency-depth` (recorded as pending)."
 
+[feature."relation:AttributePath"]
+why = "no recorded rule reads it, and Python writes no attribute: only the Rust provider answers it, which the clippy bench reads."
+
 [feature."relation:BytesLiteral"]
 why = "2 rows; no recorded rule reads it."
 

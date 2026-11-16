@@ -2,6 +2,8 @@
 
 ## 0.1.0
 
+Edited in place: `no-env-reads` is placed at 0.1.1, which reports a read inside a macro's arguments once, at the path, where the language reads those arguments as expressions as well as tokens; 0.1.0 is removed.
+
 Every finding is an error: no rule and no entry sets a `level`. `module-cycles` and `variants-benched` report as errors. `shadowed-prelude` and `test-names-nothing-beside` are placed like every other rule. `error-variant-never-constructed`, `boxed-dyn-error-annotations` and `same-name-in-sibling-crates` are removed: each reported correct code (a `#[from]` variant built by `?`, a `Box<dyn Trait>` in a `Result`'s value, the names every crate's templated `cases.rs` declares), and `one-type-per-name` covers the last.
 
 `bounded-engine-state` is added: a use case other crates run (one with a `fixtures/contract.rs`, built once and called again and again) holds interior-mutable state (`Mutex`, `RwLock`, `RefCell`, `Cell`, `OnceCell`, `OnceLock`, `LazyCell`, `LazyLock`, atomics) only in a type of its `types.rs` named for what it keeps, bounded by the constant of the same name in its `constants.rs` (`CompiledPlans` and `COMPILED_PLANS`), which a test of the hex names. A bare locked map on the use case is the shape that let concurrent lint calls evict each other's compiled plans.

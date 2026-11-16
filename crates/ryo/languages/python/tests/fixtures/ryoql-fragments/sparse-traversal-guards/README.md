@@ -1,25 +1,29 @@
-Automatic sparse traversal guards
-=================================
+Sparse traversal guards
+=======================
 
-run.py receives the existing sealed benchmark worker from candidate profile
-verification, after its protocol audit. It never builds or invokes Ruff. It runs
-the PIE794, B023/C419 and PLR1708 generic membership probes once per candidate
-verification invocation, preserving unique raw/report artifacts. Nonzero exits,
-missing proof, truncated case coverage, Unknown results and counted-bag
-mismatches fail the invocation. Its four unit tests exercise those refusals with
-an injected subprocess runner and require no real worker.
+The PIE794, B023/C419 and PLR1708 rooted queries answer by membership and counted
+multiset, so a rooted axis must report exactly what the global closure over the
+same roots reports, however much unrelated code grows around them. Four engine
+tests of the Ruff bench (`languages/python/benchmarks/linters/ruff/engine_test/sparse_traversal_test.rs`)
+hold that on every test run, through the real Python provider:
 
-The companion verifier insertion is handed integration as
-/tmp/sparse-traversal-verifier-hook.patch; the shared helper has exclusive
-integration ownership. Registration is complete only once that insertion is
-merged. Existing asymptote candidate verification calls verify_profiles.py,
-so the hook runs these guards with the worker that job already built. Resume
-creates a fresh proof directory instead of trusting stale guard success. The
-separate existing core Axis `succeeds` test includes a rooted visited-set work
-guard independent of unrelated graph components; that test is pending the next
-combined Rust gate, not claimed executed by this Python runner.
+- `pie794_rooted_equivalence_reports_nothing_across_unrelated_growth`: the 8
+  corpora of pie794-rooted (two contexts, two files sharing node identities,
+  unrelated width 16/256/1024 and depth 4/16/48);
+- `sparse_descendant_consumers_equivalence_reports_nothing_across_unrelated_growth`:
+  the same 8 plus an await inside and an await outside the roots (10);
+- `plr1708_rooted_equivalence_reports_nothing_across_unrelated_growth`: the 8
+  corpora of plr1708-rooted, its scope boundaries filtered;
+- `actual_rooted_queries_keep_their_sparse_axis`: the rule queries keep the
+  rooted `axis(...)` the equivalences prove and never the global closure.
 
-executions.json records the initial successful manual registered-runner check on
-worker2ea. These generic probes use actual language NodeIds, repeated roots with
-different payloads, multiple files and unrelated width/depth growth. They assert
-membership and bags, not equivalence of BFS and sorted-closure physical order.
+Each corpus must report no diagnostic and account for every rule/file pair with
+none unknown or unread. Each fixture directory keeps its equivalence.ryoql and
+baseline files; the tests read them with `include_str!`. They assert membership
+and bags, not equivalence of BFS and sorted-closure physical order. The separate
+core Axis `succeeds` test includes a rooted visited-set work guard independent of
+unrelated graph components.
+
+executions.json records the earlier Python runner's check on worker2ea; that
+runner (`run.py`) and its three `generic.py` probes were replaced by these tests,
+and commit `981eb0d869` keeps them.

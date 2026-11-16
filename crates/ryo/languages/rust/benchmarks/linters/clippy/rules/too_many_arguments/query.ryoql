@@ -8,7 +8,7 @@ let counted = group-count(from=inputs, keys=["id", "file"], count="inputs");
 let crowded = select id, file from counted where inputs > 7;
 let abis = select id, child as abi, file from fn_children where field = "abi";
 let abi_strings = select l.id as id, l.file as file, r.child as string from abis as l join "syntax-child" as r on l.abi = r.parent;
-let rust_abis = select l.id as id, l.file as file from abi_strings as l join "syntax-tree" as r on l.string = r.id where r.kind = "string" and matches(r.text, "^\x22Rust\x22$");
+let rust_abis = select l.id as id, l.file as file from abi_strings as l join "string-literal" as r on l.string = r.occurrence where r.value = "Rust";
 let abi_fns = select id, file from abis;
 let foreign = antijoin(left=abi_fns, right=rust_abis, left-on=["id"], right-on=["id"]);
 let impl_traits = select l.parent as id, l.file as file from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where r.kind = "for-kw";

@@ -1,11 +1,13 @@
 //! The `string_literal` relation of the language: a string literal with its escapes read, in its place; one in the arguments of a
-//! standard macro whose arguments are expressions is read there too. The file a `#[path = "…"]` names is an import specifier.
+//! standard macro whose arguments are expressions is read there too, and so is a string written on its own in an attribute's
+//! arguments, a `cfg` predicate or an ABI. The file a `#[path = "…"]` names is an import specifier.
 
 use crate::domain::fact_extraction::service::specifier;
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::owner;
-use crate::domain::syntax::service::{child, kind_bits};
+use crate::domain::string_literals::service::string_token;
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use ryo::languages;
@@ -15,9 +17,9 @@ pub(crate) struct StringLiteralItem;
 
 ryo::reads! {
     StringLiteralItem => languages::StringLiteral, model(ReadIndexes) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::Literal)] as kind_bits,
+        kinds: [Kind::Node(Node::Literal), Kind::Token(Token::String)] as kind_bits,
         expanded,
-        given string = child(tree, at, Kind::Token(Token::String))?;
+        given string = string_token(tree, at)?;
         given value = languages::intern_derived(symbols, tree.source, languages::decoded_at(tree.elements, string)?);
         row {
             occurrence: node(at),
