@@ -2,6 +2,7 @@
 //! that cross files; an edit of what a file declares or imports makes the cross-file steps again, and the answer is the one a run
 //! that keeps nothing gives.
 
+use crate::unbounded;
 use crate::cache::{sorted, write};
 use crate::{counting, stores};
 use std::path::Path;
@@ -60,14 +61,14 @@ const INTERFACE_WORKSPACE: &[(&str, &str)] = &[
 
 /// A run over `root` with the interface rules, keeping its store in `store`: the rows sorted, and how many files the language read.
 fn interface_run(root: &Path, store: &stores::Kept, step: &str) -> (Vec<Vec<String>>, usize) {
-    let run = counting::lint_counting(root, interface_rules(), Arc::clone(&store.0)).expect(step);
+    let run = unbounded::lint_counting(root, interface_rules(), Arc::clone(&store.0)).expect(step);
     (sorted(run.rows), run.reads)
 }
 
 /// What a run that keeps nothing gives over `root` with the interface rules, sorted.
 fn interface_oracle(root: &Path) -> Vec<Vec<String>> {
     sorted(
-        counting::lint_counting(root, interface_rules(), stores::in_memory().0)
+        unbounded::lint_counting(root, interface_rules(), stores::in_memory().0)
             .expect("the oracle runs")
             .rows,
     )

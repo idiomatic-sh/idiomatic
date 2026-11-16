@@ -49,7 +49,7 @@ fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
         } else {
             let _: u64 = std::fs::copy(&source, &target)?;
             if name == crate::fixes::WORKSPACE_FILE {
-                crate::fixes::pinned(&target)?;
+                crate::pinned::pinned(&target)?;
             }
         }
     }

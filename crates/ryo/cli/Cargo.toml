@@ -92,6 +92,8 @@ harness = false
 # Every language is a default: a plain `cargo install` reads all of them, and a registry's build or a check names its own set with `--no-default-features --features ...`.
 [features]
 distribution = []
+# A diagnostic build of the `lint` bench: `dhat` is its allocator, for the `--dhat` run (the allocation profile of a cold run).
+dhat-heap = []
 default = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = []

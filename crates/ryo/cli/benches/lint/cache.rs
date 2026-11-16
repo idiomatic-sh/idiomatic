@@ -11,18 +11,24 @@ use crate::{phases, ruff};
 /// The cache rows: a copy of ruff, and a process for each run over it, so the peak of each is its own. The sequence is run `rounds`
 /// times, each over a copy of its own, and a metric is judged by the median of its rounds: one round moves with the load of the machine and
 /// with how many workers hold their tables at once.
-pub(crate) fn of_ruff(rounds: usize) -> Vec<Cost> {
+///
+/// `phases` are the rows run, in the order they run (`cold` before `warm`, which reads its store): all of them for the full
+/// bench, `cold` and `warm` for the memory run, which takes the peaks alone.
+pub(crate) fn of_ruff(rounds: usize, phases: &[&str]) -> Vec<Cost> {
     eprintln!(
         "cache, all rules that run, ruff copied, store kept in the copy, {rounds} rounds: {:>14} {:>9} {:>10} {:>8} {:>8}",
         "wall ms", "CPU ms", "files read", "rows", "peak MB"
     );
-    let (mut peaks, mut warms, mut edits): (Vec<u128>, Vec<u128>, Vec<u128>) =
-        (Vec::new(), Vec::new(), Vec::new());
+    let (mut peaks, mut warm_peaks, mut warms, mut edits): (Vec<u128>, Vec<u128>, Vec<u128>, Vec<u128>) =
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for round in 1..=rounds {
         let copy = ruff::ruff_copy();
         let directory = copy.path().to_string_lossy().into_owned();
         let mut cold_rows = String::new();
-        for label in ["plain", "cold", "warm", "edit", "body", "rename"] {
+        for label in ["plain", "cold", "warm", "edit", "body", "rename"]
+            .into_iter()
+            .filter(|label| phases.contains(label))
+        {
             match label {
                 "edit" => phases::edit_ruff_copy(copy.path()),
                 "body" => phases::edit_ruff_body(copy.path()),
@@ -65,7 +71,10 @@ pub(crate) fn of_ruff(rounds: usize) -> Vec<Cost> {
                     };
                     match *reported_label {
                         "cold" => peaks.push(measured(peak)),
-                        "warm" => warms.push(measured(wall)),
+                        "warm" => {
+                            warms.push(measured(wall));
+                            warm_peaks.push(measured(peak));
+                        }
                         "edit" => edits.push(measured(wall)),
                         _ => {}
                     }
@@ -96,21 +105,19 @@ pub(crate) fn of_ruff(rounds: usize) -> Vec<Cost> {
         crate::bmf::listed(&warms),
         crate::bmf::listed(&edits)
     );
-    vec![
-        Cost {
-            target: "ruff",
-            metric: "peak-megabytes",
-            rounds: peaks,
-        },
-        Cost {
-            target: "ruff",
-            metric: "warm-milliseconds",
-            rounds: warms,
-        },
-        Cost {
-            target: "ruff",
-            metric: "edit-milliseconds",
-            rounds: edits,
-        },
+    // A row that did not run has no rounds and reports no metric.
+    [
+        ("peak-megabytes", peaks),
+        ("warm-peak-megabytes", warm_peaks),
+        ("warm-milliseconds", warms),
+        ("edit-milliseconds", edits),
     ]
+    .into_iter()
+    .filter(|(_, rounds)| !rounds.is_empty())
+    .map(|(metric, rounds)| Cost {
+        target: "ruff",
+        metric,
+        rounds,
+    })
+    .collect()
 }

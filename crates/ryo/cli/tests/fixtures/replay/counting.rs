@@ -115,19 +115,6 @@ pub(crate) struct Counted {
     pub projects: usize,
 }
 
-/// Lints `root` with `rules`, keeping what it found in `lint_store`, and counts the files the language read.
-///
-/// # Errors
-///
-/// What the lint refuses, as text.
-pub(crate) fn lint_counting(
-    root: &Path,
-    rules: Vec<Rule>,
-    lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
-) -> Result<Counted, String> {
-    lint_with_workers(root, rules, lint_store, 0)
-}
-
 /// Lints `root` with `rules` on `workers` workers (none: as many as the machine has), keeping what it found in `lint_store`, and counts.
 ///
 /// # Errors
