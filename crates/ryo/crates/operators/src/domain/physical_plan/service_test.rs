@@ -66,3 +66,5 @@ fn refuses() {
 mod catalog_test;
 #[cfg(test)]
 mod flows_test;
+#[cfg(test)]
+mod growth_test;
