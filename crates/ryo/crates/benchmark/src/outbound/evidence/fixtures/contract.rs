@@ -167,7 +167,7 @@ pub fn check(adapter: &impl EvidencePort) {
         adapter
             .costs(
                 &language,
-                &crate::domain::measurements::types::project_cost::value::ProjectCosts(Vec::new())
+                &ryo_benchmark_contracts::domain::measurements::types::ProjectCosts(Vec::new())
             )
             .is_err(),
         "an empty set of costs is refused"

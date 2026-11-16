@@ -1,10 +1,10 @@
 //! The one document of a bench run: every measure added under its benchmark, and the names they are written with.
 use super::constants;
 use super::schemas::MetricSchema;
-use super::types::{BenchmarkName, Document, MeasureName, Observed};
-use crate::domain::growth::types::ShapeGrowths;
-use crate::domain::measurements::types::project_cost::value::{ProjectCosts, RunCost};
+use super::types::{BenchmarkName, MeasureDocument, MeasureName, Observed};
 use crate::outbound::evidence::types::{RuleTiming, RuleTimings, VerificationTimesFiles};
+use ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths;
+use ryo_benchmark_contracts::domain::measurements::types::{ProjectCosts, RunCost};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage;
 use std::collections::BTreeMap;
@@ -64,7 +64,7 @@ fn bytes(values: impl IntoIterator<Item = u64>) -> Result<Vec<f64>, Error> {
 
 /// Add one benchmark to `document`, refusing one already there.
 fn add(
-    document: &mut Document,
+    document: &mut MeasureDocument,
     benchmark: String,
     measures: BTreeMap<MeasureName, Observed>,
 ) -> Result<(), Error> {
@@ -96,7 +96,7 @@ fn condition(
 /// Add each project's candidate cost as `<language>/<project>`: the cold run's CPU, wall and peak, the warm and edited runs'
 /// CPU and peak, and the store the cold run left.
 pub(super) fn costs(
-    document: &mut Document,
+    document: &mut MeasureDocument,
     language: &SuiteLanguage,
     costs: &ProjectCosts,
 ) -> Result<(), Error> {
@@ -147,7 +147,7 @@ fn milliseconds(elapsed: Duration) -> f64 {
 
 /// Add each rule's verification times as `<language>/verify/<rule>`.
 pub(super) fn verification(
-    document: &mut Document,
+    document: &mut MeasureDocument,
     language: &SuiteLanguage,
     timings: &RuleTimings,
 ) -> Result<(), Error> {
@@ -176,7 +176,7 @@ pub(super) fn verification(
 
 /// Add each shape's growth as `<language>/growth/<shape>`.
 pub(super) fn growth(
-    document: &mut Document,
+    document: &mut MeasureDocument,
     language: &SuiteLanguage,
     growth: &ShapeGrowths,
 ) -> Result<(), Error> {
@@ -197,7 +197,7 @@ pub(super) fn growth(
 }
 
 /// The document as one line of BMF.
-pub(super) fn encode(document: &Document) -> Result<Vec<u8>, Error> {
+pub(super) fn encode(document: &MeasureDocument) -> Result<Vec<u8>, Error> {
     if document.0.is_empty() {
         return Err(Error::Invalid(
             ryo_benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE.into(),

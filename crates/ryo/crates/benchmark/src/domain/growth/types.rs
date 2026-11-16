@@ -1,10 +1,7 @@
 //! The plan of a growth run, its bounds and what it observed.
 use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
+use ryo_benchmark_contracts::domain::measurements::types::{DoublingRatio, GrowthShape};
 use std::collections::BTreeMap;
-
-/// One generated shape, `<rule>/<scope>/<operation>`.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct GrowthShape(pub String);
 
 /// A shape's program at one size.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -20,11 +17,11 @@ pub struct SourceFileName(pub String);
 
 /// A query module the rule imports, by its name.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ModuleName(pub String);
+pub struct GrowthModule(pub String);
 
 /// The query modules a rule needs beside the program.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RuleModules(pub BTreeMap<ModuleName, std::path::PathBuf>);
+pub struct RuleModules(pub BTreeMap<GrowthModule, std::path::PathBuf>);
 
 /// The program of one shape at the half and the whole size.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -44,10 +41,6 @@ pub struct ShapePrograms {
 /// The CPU time under which a half-size time counts as this much, so a fixed startup cost does not decide a ratio.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CpuFloor(pub std::time::Duration);
-
-/// Whole-size over floored half-size, of CPU time or of peak memory.
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct DoublingRatio(pub f64);
 
 /// How much memory a grown program may hold.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -76,18 +69,3 @@ pub struct GrowthPlan {
     /// The shapes.
     pub shapes: BTreeMap<GrowthShape, ShapePrograms>,
 }
-
-/// How one shape grew.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ShapeGrowth {
-    /// Whole-size CPU over floored half-size CPU.
-    pub ratio: DoublingRatio,
-    /// Whole-size CPU.
-    pub larger: std::time::Duration,
-    /// Whole-size peak resident memory.
-    pub peak: ResidentBytes,
-}
-
-/// Every shape's growth.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct ShapeGrowths(pub BTreeMap<GrowthShape, ShapeGrowth>);

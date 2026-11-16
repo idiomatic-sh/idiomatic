@@ -40,7 +40,7 @@ impl EvidencePort for EvidenceFake {
     fn costs(
         &self,
         _language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &crate::domain::measurements::types::project_cost::value::ProjectCosts,
+        costs: &ryo_benchmark_contracts::domain::measurements::types::ProjectCosts,
     ) -> Result<(), Error> {
         if costs.0.is_empty() {
             return Err(Error::Invalid("no costs".into()));
@@ -59,7 +59,7 @@ impl EvidencePort for EvidenceFake {
     fn growth(
         &self,
         _language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        _growth: &crate::domain::growth::types::ShapeGrowths,
+        _growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error> {
         Ok(())
     }
@@ -104,11 +104,11 @@ pub struct EvidenceRecorder {
 #[derive(Clone, Debug, Default)]
 pub struct Recorded {
     /// Every project's cost, in the order given.
-    pub costs: Vec<crate::domain::measurements::types::project_cost::value::ProjectCost>,
+    pub costs: Vec<ryo_benchmark_contracts::domain::measurements::types::ProjectCost>,
     /// Every rule's times.
     pub verification: crate::outbound::evidence::types::RuleTimings,
     /// Every shape's growth.
-    pub growth: crate::domain::growth::types::ShapeGrowths,
+    pub growth: ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
     /// How many documents were finished.
     pub documents: usize,
     /// How many comparisons were reported.
@@ -155,7 +155,7 @@ impl EvidencePort for EvidenceRecorder {
     fn costs(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &crate::domain::measurements::types::project_cost::value::ProjectCosts,
+        costs: &ryo_benchmark_contracts::domain::measurements::types::ProjectCosts,
     ) -> Result<(), Error> {
         EvidenceFake.costs(language, costs)?;
         self.record(|held| held.costs.extend(costs.0.iter().cloned()))
@@ -177,7 +177,7 @@ impl EvidencePort for EvidenceRecorder {
     fn growth(
         &self,
         _language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        growth: &crate::domain::growth::types::ShapeGrowths,
+        growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error> {
         self.record(|held| {
             held.growth.0.extend(

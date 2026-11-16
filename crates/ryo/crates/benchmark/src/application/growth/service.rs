@@ -1,9 +1,10 @@
 //! Grow each shape: write its scene, lint the half and the whole program, and refuse a doubling over the limits.
-use crate::domain::growth::types::{GrowthPlan, ShapeGrowths};
+use crate::domain::growth::types::GrowthPlan;
 use crate::outbound::engine::interface::EnginePort;
 use crate::outbound::process_meter::interface::ProcessMeterPort;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::ArtifactPath;
+use ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// Lint every shape of `plan` at both sizes through `engine`, fastest of five. Each program's scene is a fresh directory

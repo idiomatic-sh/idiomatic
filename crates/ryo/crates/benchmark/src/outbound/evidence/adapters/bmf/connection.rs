@@ -1,5 +1,5 @@
 //! An injected destination stream owned by the evidence adapter.
-use super::types::{Document, ParityCounts, ReportName};
+use super::types::{MeasureDocument, ParityCounts, ReportName};
 use std::{collections::BTreeMap, io::Write, sync::Mutex};
 
 /// Resource lifetime is bounded by the configured adapter instance.
@@ -12,7 +12,7 @@ pub(crate) struct EvidenceBmfConnection {
     /// adapter is done.
     pub parity: Mutex<BTreeMap<ReportName, ParityCounts>>,
     /// Every measure added so far, written once by `finish`; `None` once it is written.
-    pub document: Mutex<Option<Document>>,
+    pub document: Mutex<Option<MeasureDocument>>,
 }
 impl std::fmt::Debug for EvidenceBmfConnection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

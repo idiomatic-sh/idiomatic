@@ -3,13 +3,14 @@
 use super::grow;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::growth::types::{
-    CpuFloor, DoublingRatio, GrownProgram, GrowthPlan, GrowthShape, GrowthSize, MemoryBound,
-    RuleModules, ShapePrograms, SourceFileName,
+    CpuFloor, GrownProgram, GrowthPlan, GrowthSize, MemoryBound, RuleModules, ShapePrograms,
+    SourceFileName,
 };
 use crate::outbound::engine::fixtures::fake::EngineFake;
 use crate::outbound::process_meter::fixtures::fake::ProcessMeterFake;
 use crate::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
+use ryo_benchmark_contracts::domain::measurements::types::{DoublingRatio, GrowthShape};
 use ryo_benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, InputDeclaration, ParserSelection, ProviderSelection,
     RuleContextPreparation, SearchRoots, WorkerRequest, WorkerState,

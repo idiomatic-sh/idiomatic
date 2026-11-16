@@ -24,7 +24,7 @@ impl EvidenceBmfAdapter {
     /// Add measures to the document not yet written.
     fn add(
         &self,
-        adding: impl FnOnce(&mut super::types::Document) -> Result<(), Error>,
+        adding: impl FnOnce(&mut super::types::MeasureDocument) -> Result<(), Error>,
     ) -> Result<(), Error> {
         let mut held = self
             .connection
@@ -72,7 +72,7 @@ impl EvidencePort for EvidenceBmfAdapter {
     fn costs(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &crate::domain::measurements::types::project_cost::value::ProjectCosts,
+        costs: &ryo_benchmark_contracts::domain::measurements::types::ProjectCosts,
     ) -> Result<(), Error> {
         self.add(|document| super::document::costs(document, language, costs))
     }
@@ -86,7 +86,7 @@ impl EvidencePort for EvidenceBmfAdapter {
     fn growth(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        growth: &crate::domain::growth::types::ShapeGrowths,
+        growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error> {
         self.add(|document| super::document::growth(document, language, growth))
     }

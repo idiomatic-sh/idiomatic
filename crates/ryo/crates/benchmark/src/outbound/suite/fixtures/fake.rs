@@ -138,7 +138,7 @@ impl SuitePort for SuiteFake {
     fn directory_size(
         &self,
         directory: ArtifactPath<'_>,
-    ) -> Result<crate::domain::measurements::types::project_cost::value::StoreSize, Error> {
+    ) -> Result<ryo_benchmark_contracts::domain::measurements::types::StoreSize, Error> {
         local().directory_size(directory)
     }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {

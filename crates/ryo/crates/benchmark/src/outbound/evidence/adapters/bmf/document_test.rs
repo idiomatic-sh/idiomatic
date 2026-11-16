@@ -2,7 +2,7 @@
 //! `<language>/verify/<rule>` and the growth under `<language>/growth/<shape>`, and nothing of the reference.
 use super::{costs, encode, growth, verification};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::evidence::adapters::bmf::types::Document;
+use crate::outbound::evidence::adapters::bmf::types::MeasureDocument;
 use crate::outbound::evidence::fixtures::sample;
 use std::time::Duration;
 
@@ -114,7 +114,7 @@ fn expected(scenario: Scenario) -> serde_json::Value {
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let language = "python".into();
-    let mut document = Document::default();
+    let mut document = MeasureDocument::default();
     let added = match scenario {
         Scenario::Costs => costs(&mut document, &language, &sample::costs()),
         Scenario::Verification => verification(&mut document, &language, &sample::timings()),

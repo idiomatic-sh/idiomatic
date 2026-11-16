@@ -31,7 +31,7 @@ pub trait EvidencePort {
     fn costs(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &crate::domain::measurements::types::project_cost::value::ProjectCosts,
+        costs: &ryo_benchmark_contracts::domain::measurements::types::ProjectCosts,
     ) -> Result<(), Error>;
     /// Add each rule's verification times, `<language>/verify/<rule>`, with the measures `total-ms`, `max-case-ms` and
     /// `compile-ms`; nothing is written before `finish`.
@@ -51,7 +51,7 @@ pub trait EvidencePort {
     fn growth(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        growth: &crate::domain::growth::types::ShapeGrowths,
+        growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error>;
     /// Read the times the inventory's verification left in `files`, one per verified rule.
     ///

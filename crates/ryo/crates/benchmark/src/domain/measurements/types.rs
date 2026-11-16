@@ -3,7 +3,6 @@ pub mod certification_summary;
 pub mod corpus_shape;
 pub mod measurement_environment;
 pub mod pair;
-pub mod project_cost;
 pub mod rule_tally;
 pub mod sample;
 

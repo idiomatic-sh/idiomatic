@@ -185,8 +185,8 @@ impl SuitePort for SuiteLocalAdapter {
     fn directory_size(
         &self,
         ArtifactPath(directory): ArtifactPath<'_>,
-    ) -> Result<crate::domain::measurements::types::project_cost::value::StoreSize, Error> {
-        use crate::domain::measurements::types::project_cost::value::{
+    ) -> Result<ryo_benchmark_contracts::domain::measurements::types::StoreSize, Error> {
+        use ryo_benchmark_contracts::domain::measurements::types::{
             StoreBytes, StoreFiles, StoreSize,
         };
         let (mut bytes, mut files) = (0_u64, 0_u64);

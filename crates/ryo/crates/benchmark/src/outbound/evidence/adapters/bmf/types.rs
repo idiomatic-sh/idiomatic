@@ -39,6 +39,6 @@ pub(crate) struct Observed {
 
 /// Every measure added to a bench run's one document, by benchmark.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct Document(
+pub(crate) struct MeasureDocument(
     pub std::collections::BTreeMap<BenchmarkName, std::collections::BTreeMap<MeasureName, Observed>>,
 );
