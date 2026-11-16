@@ -42,7 +42,7 @@ impl EvidencePort for EvidenceFake {
         _linter: &ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName,
         _timings: &std::collections::BTreeMap<
             ryo::linter::RuleId,
-            crate::domain::suite::types::RuleTiming,
+            crate::outbound::evidence::types::RuleTiming,
         >,
     ) -> Result<(), Error> {
         Ok(())

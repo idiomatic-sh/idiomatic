@@ -39,18 +39,3 @@ pub fn bounded(timeout: std::time::Duration) -> impl super::interface::Execution
         timeout: Some(timeout),
     }
 }
-
-/// Construct the execution of a verification's candidate: a worker request runs in this process over `engine`, which keeps
-/// its compiled plans between cases; every other invocation runs as `process` runs it.
-#[must_use]
-pub fn in_process(
-    process: impl super::interface::ExecutionPort + 'static,
-    engine: std::sync::Arc<dyn crate::outbound::engine::interface::EnginePort + Send + Sync>,
-    context: std::sync::Arc<dyn crate::outbound::context::interface::ContextPort + Send + Sync>,
-) -> impl super::interface::ExecutionPort {
-    super::adapters::in_process::adapter::ExecutionInProcessAdapter::new(
-        Box::new(process),
-        engine,
-        context,
-    )
-}
