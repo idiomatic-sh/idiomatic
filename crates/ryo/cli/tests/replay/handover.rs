@@ -1,6 +1,5 @@
 //! What a file hands the steps after the files is bounded by its own tree (`handovers`), over a tree written here: files of
-//! functions copied across files, nested and commented, so the rules that read across files hand their rows. All of ruff is held to
-//! the same bound by the `lint` bench's `--replay` run.
+//! functions copied across files, nested and commented, so the rules that read across files hand their rows.
 
 use crate::cache::{function, write};
 use crate::handovers::{handovers_over, within_the_bound};

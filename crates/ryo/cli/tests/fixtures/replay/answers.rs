@@ -1,5 +1,5 @@
 //! What the replay adds to the base: what a recording expects, one rule's rows compared with it, and the golden findings and the
-//! recorded differences read. The replay over ruff that asks them is `replayed`, run by the `lint` bench's `--replay`.
+//! recorded differences read.
 
 use super::base::{required_text, text};
 use std::collections::BTreeMap;

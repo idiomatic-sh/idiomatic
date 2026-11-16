@@ -1,6 +1,5 @@
 //! What a warm run reads in a process of its own: nothing, when no file changed. The store the cold run left is all the warm run
-//! has, so it is read from disk and not from a process that kept it. Over a tree written here; all of ruff is held to the same by the
-//! `lint` bench's `--replay` run, and the memory a warm run over ruff peaks at by its `--memory` run (`warm-peak-megabytes`).
+//! has, so it is read from disk and not from a process that kept it. Over a tree written here.
 
 #[cfg(target_os = "linux")]
 use crate::cache::{function, write};

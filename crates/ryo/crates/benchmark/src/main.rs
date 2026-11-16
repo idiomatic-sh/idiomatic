@@ -1,7 +1,5 @@
 //! Minimal process composition; contestant clocks start inside the direct observer.
 //!
-//! For the shipped recording benchmark, check `cargo metadata --locked --no-deps --format-version 1`: package `idiomatic-sh-ryo` has target `lint`, kind `bench`, source `cli/benches/lint.rs` (`harness = false`). Build it with `cargo bench --locked --no-run -p idiomatic-sh-ryo --bench lint`, seal the reported bench executable, then run that executable with `--bench --rounds 1`. The ordinary `ryo` CLI binary is a different target and does not accept those arguments.
-//!
 //! The collector also runs a language bench: `bench`, with one argument, the bench directory
 //! `languages/<lang>/benchmarks/linters/<linter>`. It refuses any count of processors but four, builds and seals the bench's
 //! worker and itself under `<target>/benchmark/<lang>/<linter>/bench/`, registers every default from the bench's

@@ -1,5 +1,5 @@
 //! The allocation profile of a run, taken under `dhat`, and the bound on its big blocks: what the `blocks` test bounds over a tree it
-//! writes and the `lint` bench's `--dhat` run measures and bounds over ruff. The process that calls it has `dhat::Alloc` as its global allocator and runs nothing beside it.
+//! writes. The process that calls it has `dhat::Alloc` as its global allocator and runs nothing beside it.
 
 /// What a profile says of a run.
 pub(crate) struct Profile {

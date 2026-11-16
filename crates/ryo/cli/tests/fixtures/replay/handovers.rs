@@ -1,6 +1,5 @@
 //! What a file hands the steps after the files is bounded by its own tree: no file hands one rule more than four rows for each row of
-//! its syntax tree. The hard guard against a handover that grows with pairs of a file's rows: the replay holds a tree it writes to it,
-//! and the `lint` bench's `--replay` run all of ruff.
+//! its syntax tree. The hard guard against a handover that grows with pairs of a file's rows: the replay holds a tree it writes to it.
 
 use super::counting;
 use std::sync::Arc;

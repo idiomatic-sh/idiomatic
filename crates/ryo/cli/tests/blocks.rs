@@ -2,7 +2,7 @@
 //! reads across files is the tables of its one plan, decoded once for the rule from every file's buckets, so the calls that allocate a
 //! block of a megabyte or more are bounded by the workers and the rules, each with its tables, never by the files. Counted from the
 //! allocation profile `dhat` writes, as the sites whose blocks average a megabyte or more; it runs alone in its process, over a tree
-//! it writes. The same bound over all of ruff is the `lint` bench's `--dhat` run (asymptote's `memory-dhat`).
+//! it writes.
 
 #![expect(
     clippy::expect_used,

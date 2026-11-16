@@ -1,6 +1,6 @@
 //! Cargo is the reference Rust's manifests are read against: what ryo's `workspace-member` and `package-dependency` rows say of a
 //! repository, held to what `cargo metadata` says of the same manifests. The replay's `manifests_cargo` holds a workspace it writes to
-//! it, and the `lint` bench's `--replay` run every pinned Rust target.
+//! it.
 
 use std::collections::BTreeSet;
 use std::path::Path;

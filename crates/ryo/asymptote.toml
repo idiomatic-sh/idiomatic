@@ -131,7 +131,7 @@ inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".
 id = "test-benches"
 group = "check"
 # Every bench target in test mode, with the default features, as ownership-contracts' `cargo test --workspace --all-targets` ran
-# them (nextest's default filter leaves out kind(bench)): a divan bench runs each benchmark once, cli's `lint` bench its smoke.
+# them (nextest's default filter leaves out kind(bench)): a divan bench runs each benchmark once.
 # The default features leave out the `distribution` bench (required-features = ["distribution"]). The linter workers
 # (idiomatic-sh-ryo-<lang>-<linter>-benchmark) are excluded: each is the collector's executable, which takes `<verb> <reference>`
 # and has nothing to run without one; the bench groups run it and test-bench runs its tests.

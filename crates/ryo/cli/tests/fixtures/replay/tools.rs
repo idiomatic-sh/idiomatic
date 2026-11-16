@@ -1,6 +1,5 @@
 //! What the replay suites that hold ryo's manifest rows to each ecosystem's own tool share: the rows ryo writes of a project, what a
-//! tool says of it, and the comparison of the two, line by line. The `lint` bench's `--replay` run holds the pinned targets to Cargo
-//! with the same; what only the replay's suites of the other ecosystems ask is `ecosystems`'.
+//! tool says of it, and the comparison of the two, line by line. What only the replay's suites of the other ecosystems ask is `ecosystems`'.
 
 use std::collections::BTreeSet;
 use std::path::Path;

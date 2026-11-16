@@ -1,6 +1,5 @@
 //! The replay suite: every test that runs the recorded rules over a tree of its own is a module of one test binary, so the support
-//! they share is compiled once, every part of it is used, and the binary is linked once. What runs them over ruff and the other
-//! pinned targets is the `lint` bench's `--replay` run (`benches/lint/replay.rs`), in asymptote's `bench-correctness` group.
+//! they share is compiled once, every part of it is used, and the binary is linked once.
 
 #![expect(
     clippy::expect_used,

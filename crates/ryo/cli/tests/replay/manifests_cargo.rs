@@ -1,5 +1,5 @@
 //! Ryo says what Cargo says of the manifests of a workspace (`cargo::cargo_differences`): the members and the dependencies of a
-//! workspace written here. The `lint` bench's `--replay` run holds every pinned Rust target to the same.
+//! workspace written here.
 
 use crate::cargo::cargo_differences;
 
