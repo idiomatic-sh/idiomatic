@@ -309,7 +309,7 @@ fn graph(scenario: Scenario) -> Graph {
         ),
         Scenario::CyclicLattice => lattice_of(&[("u", "a"), ("a", "b"), ("b", "a")], "a"),
         Scenario::TwoLeastStates => lattice_of(&[("u", "a"), ("v", "a")], "a"),
-        // a and b have two least upper bounds, c and d, and the run joins them.
+        // a and b have two least upper bounds, c and d, below the top t, and the run joins them.
         Scenario::TwoJoins => {
             let mut graph = lattice_of(
                 &[
@@ -319,6 +319,8 @@ fn graph(scenario: Scenario) -> Graph {
                     ("b", "c"),
                     ("a", "d"),
                     ("b", "d"),
+                    ("c", "t"),
+                    ("d", "t"),
                 ],
                 "a",
             );
@@ -335,6 +337,8 @@ fn graph(scenario: Scenario) -> Graph {
                 ("b", "c"),
                 ("a", "d"),
                 ("b", "d"),
+                ("c", "t"),
+                ("d", "t"),
             ],
             "a",
         ),
