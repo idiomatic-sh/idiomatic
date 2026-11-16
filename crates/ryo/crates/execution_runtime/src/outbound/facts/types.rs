@@ -14,8 +14,11 @@ use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialSc
 /// by the owner that captured it. The proof is required even for empty rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WordsToKeep<'a> {
+    /// The packed words of the frontier.
     pub words: &'a PackedWords,
+    /// The file the words were captured from.
     pub file: FileId,
+    /// The identity and coverage the owner issued for the capture.
     pub proof: &'a ryo_values::domain::records::types::FrontierProof,
 }
 
@@ -30,9 +33,13 @@ pub struct KeptWordsLength(pub usize);
 /// One exact source range inside the concatenated bucket bytes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BucketSource {
+    /// The file the source range was captured from.
     pub file: FileId,
+    /// Where the range begins in the bucket's words.
     pub start: KeptWordsStart,
+    /// How many words the range spans.
     pub length: KeptWordsLength,
+    /// The identity and coverage the owner issued for the range.
     pub proof: ryo_values::domain::records::types::FrontierProof,
 }
 

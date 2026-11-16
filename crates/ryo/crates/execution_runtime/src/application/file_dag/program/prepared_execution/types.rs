@@ -46,7 +46,9 @@ pub(crate) struct ProgramParts {
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Demand {
+    /// The request wants the rule.
     Demanded,
+    /// The request does not want the rule.
     Undemanded,
 }
 /// Whether a rule declares or consumes named observations.
@@ -59,7 +61,9 @@ pub enum Demand {
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObservationContract {
+    /// The rule declares or binds an observation.
     Declared,
+    /// The rule neither declares nor binds an observation.
     Absent,
 }
 /// The readiness layout of the named observations and the frontiers that feed them.
@@ -80,7 +84,9 @@ pub enum ObservationContract {
 /// ```
 #[derive(Debug)]
 pub struct NamedLayout<'a> {
+    /// The layout of the readiness the named observations are recorded in.
     pub layout: ObservationReadinessLayout,
+    /// The frontier roots the observations are read from.
     pub frontiers: &'a [ObservedFrontierRoot],
 }
 /// The rules a changed selection reaches and the producer frontiers they read.
@@ -96,7 +102,9 @@ pub struct NamedLayout<'a> {
 /// ```
 #[derive(Debug, PartialEq)]
 pub struct ReplayClosure {
+    /// How much of the earlier run is reused.
     pub reuse: Reuse,
+    /// The frontier buckets the replay reads.
     pub buckets: Vec<Bucket>,
 }
 

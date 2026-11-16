@@ -14,8 +14,10 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 /// ```
 #[derive(Debug, thiserror::Error)]
 pub enum FrontiersError {
+    /// The worker's facts refused the frontier.
     #[error(transparent)]
     Facts(#[from] FactsError),
+    /// The program's metadata refused the frontier.
     #[error(transparent)]
     Metadata(#[from] OperatingError),
 }

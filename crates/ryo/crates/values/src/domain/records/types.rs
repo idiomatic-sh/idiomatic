@@ -336,8 +336,11 @@ pub enum RootWords {
 /// remains Unknown, require a matching engine-issued publication at admission.
 #[derive(Clone, Debug)]
 pub struct PackedObservedRoot {
+    /// The output the root belongs to.
     pub output: ObservationIndex,
+    /// The root's encoded rows, when it carries them.
     pub words: RootWords,
+    /// Whether the producer finished the root, and when it did not, why.
     pub readiness: ProducerReadiness,
     /// Every arena actually referenced by encoded places, including inherited re-exports.
     pub arenas: Vec<ryo_relations::domain::relations::types::WorkerNumber>,
@@ -345,8 +348,11 @@ pub struct PackedObservedRoot {
 /// One closure owns its reserved arena and returns only owned bytes/words.
 #[derive(Clone, Debug)]
 pub struct CrossPublicationTransfer {
+    /// The worker whose reserved arena the roots' places point into.
     pub worker: ryo_relations::domain::relations::types::WorkerNumber,
+    /// The bytes of that arena.
     pub arena: ArenaBytes,
+    /// The named outputs the closure produced, each with its encoded rows and readiness.
     pub roots: Vec<PackedObservedRoot>,
 }
 

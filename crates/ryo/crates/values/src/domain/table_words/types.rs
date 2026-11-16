@@ -10,7 +10,9 @@ pub struct WordSlice<'a>(pub &'a [u64]);
 /// Existing diagnostic and named-publication decoding have different refusal policies.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DecodeMode {
+    /// A diagnostic read: self-tagged cells are joined even across frames of different widths.
     Permissive,
+    /// A named-publication read: the words are refused unless every frame is whole and the frames agree.
     Complete,
 }
 
@@ -54,20 +56,30 @@ pub enum TableShape {
 /// bound before any query borrow; materialization never mutates symbols.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompactTable {
+    /// The shared words the table is read from.
     pub words: std::sync::Arc<crate::domain::stored_facts::types::KeptWords>,
+    /// The kind of each column.
     pub kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
+    /// The frames the words hold, in order.
     pub frames: Vec<CompactFrame>,
+    /// How many rows the frames hold.
     pub rows: crate::domain::rows::types::RowCount,
+    /// How many cells the frames hold.
     pub cells: CellCount,
     /// Where each row starts, counted from the start of the frame its first cell is in (`CompactFrame::first_row`): four
     /// bytes a row, where a position in the whole backing takes eight.
     pub row_offsets: Vec<FrameOffset>,
 }
+/// One frame of a compact table: a run of its words holding some of its rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CompactFrame {
+    /// Where the frame starts in the words.
     pub start: PackedOffset,
+    /// Where the frame ends in the words.
     pub end: PackedOffset,
+    /// How many cells the frame holds.
     pub cells: CellCount,
+    /// The place number the frame's places are counted from.
     pub base: ryo_relations::domain::relations::types::PlaceNumber,
     /// How many rows start before this frame: the first row that starts in it, when any does.
     pub first_row: crate::domain::rows::types::RowIndex,

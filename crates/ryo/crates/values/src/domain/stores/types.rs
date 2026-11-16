@@ -173,8 +173,11 @@ impl<W> Default for HandedRows<W> {
 /// prepared rule and file identity before a warm row is read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredFrontierProof {
+    /// The stored file the proof belongs to.
     pub file: StoredFileNumber,
+    /// The frontier bucket the proof covers.
     pub bucket: Bucket,
+    /// The versioned provenance to validate before a warm row is read.
     pub proof: crate::domain::records::types::FrontierProof,
 }
 
@@ -315,7 +318,9 @@ impl<'a> From<&'a StoredCell> for Option<&'a Cell> {
 /// One existing stored file's named frontier readiness.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredFrontierReadiness {
+    /// The stored file the readiness belongs to.
     pub file: StoredFileNumber,
+    /// The readiness of the file's named frontier.
     pub root: std::sync::Arc<crate::domain::records::types::FrontierReadiness>,
 }
 

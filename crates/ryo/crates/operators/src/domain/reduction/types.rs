@@ -2,11 +2,17 @@
 /// All text is borrowed from engine-acquired backing, including authored literal lists.
 #[derive(Clone, Copy, Debug)]
 pub enum DigestDatum<'a> {
+    /// The value is not located in the row.
     Unlocated,
+    /// A text value.
     Text(ryo_values::domain::row_texts::types::CellText<'a>),
+    /// A whole number.
     Number(ryo_values::domain::plan_parts::types::WholeNumber),
+    /// A flag.
     Flag(ryo_values::domain::plan_parts::types::FlagState),
+    /// A list of whole numbers.
     Numbers(&'a [ryo_values::domain::plan_parts::types::WholeNumber]),
+    /// A list of literal texts.
     Texts(&'a [ryo_values::domain::plan_parts::types::LiteralText]),
 }
 

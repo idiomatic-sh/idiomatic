@@ -7,7 +7,10 @@ use ryo_values::domain::query_tokens::types::{QueryOrigin, QuerySpan};
 pub enum CompileError {
     /// Required external named-input metadata is invalid; this fault has no query-text span.
     #[error("invalid observation input contract: {message}")]
-    ObservationInputs { message: String },
+    ObservationInputs {
+        /// What is wrong with the metadata.
+        message: String,
+    },
     /// A lower-level refusal attributed to an original module source.
     #[error(
         "{error} (from `{source}` at byte {offset})",

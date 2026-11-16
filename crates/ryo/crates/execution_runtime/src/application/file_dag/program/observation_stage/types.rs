@@ -27,7 +27,9 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// ```
 #[derive(Debug)]
 pub struct AdmittedOutput {
+    /// The output the publication belongs to.
     pub output: ObservationIndex,
+    /// The publication the output was admitted as.
     pub publication:
         crate::application::file_dag::program::observed_publication::service::ObservedPublication,
 }

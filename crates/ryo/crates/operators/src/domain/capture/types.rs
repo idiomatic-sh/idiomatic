@@ -1,6 +1,7 @@
 //! Borrowed capture contracts; no engine authority.
 /// Engine-owned symbol collection for one complete path-capture match.
 pub trait CaptureOutput {
+    /// Receives the ranges of the slots of one complete match, in slot order.
     fn captures(&mut self, ranges: CaptureSpans<'_>);
 }
 
