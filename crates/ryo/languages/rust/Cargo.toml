@@ -61,6 +61,10 @@ harness = false
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo/fixtures"]
 
+[package.metadata.cargo-machete]
+# The two Unicode pins above are named by no source on purpose: they are the versions a consumer's fresh resolution inherits.
+ignored = ["unicode-ident", "unicode-properties"]
+
 [lints]
 workspace = true
 

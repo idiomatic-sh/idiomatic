@@ -17,6 +17,15 @@ timeout-seconds = 1800
 inputs = [".", "../../tastemaker", "../.."]
 
 [[tools]]
+id = "cargo-machete"
+group = "lint"
+# Every member's unused dependencies, as tastemaker's and asymptote's lint groups find theirs. Without `--with-metadata`: with it,
+# cargo-machete 0.9.2 reports the `dhat` of every language's harness-less allocation test and a crate's own fixtures
+# dev-dependency as unused, which the source names.
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -j '.packages[].manifest_path + \"\\u0000\"' | xargs -0 -r cargo-machete"]
+timeout-seconds = 1800
+
+[[tools]]
 id = "cargo-deny"
 group = "lint"
 run = ["cargo-deny", "check", "bans", "licenses", "sources"]

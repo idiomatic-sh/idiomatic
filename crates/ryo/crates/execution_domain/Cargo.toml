@@ -20,10 +20,7 @@ ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", ve
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.4" }
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.4" }
 thiserror.workspace = true
-memchr.workspace = true
-num-bigint.workspace = true
 hashbrown.workspace = true
-heck.workspace = true
 rustc-hash.workspace = true
 tracing.workspace = true
 
