@@ -114,6 +114,7 @@ mod cost {
     use tastemaker_core::outbound::validate_store::interface::ValidateStorePort as _;
     use tastemaker_core::outbound::{check_store, validate_store};
 
+    use crate::fixtures::{copy_roles, copy_tree};
     use crate::measure::{Measured, rounds_of};
 
     /// The store's directory beneath a project's root.
@@ -137,11 +138,7 @@ mod cost {
             &source.join("../tastemaker"),
             &copy.path().join("tastemaker"),
         );
-        // The proofs of the package's rules read the foreign package of tastemaker's replay fixtures.
-        copy_tree(
-            &source.join("tastemaker/cli/tests/fixtures/replay/roles"),
-            &copy.path().join("crates/tastemaker/cli/tests/fixtures/replay/roles"),
-        );
+        copy_roles(&source.join(".."), copy.path());
         std::fs::create_dir_all(copy.path().join(".git")).expect("a .git directory");
         std::fs::write(
             copy.path().join(".gitignore"),
@@ -149,26 +146,6 @@ mod cost {
         )
         .expect("a .gitignore");
         copy
-    }
-
-    /// `from` copied to `to`, its build trees left out.
-    fn copy_tree(from: &Path, to: &Path) {
-        std::fs::create_dir_all(to).expect("the directory");
-        for entry in std::fs::read_dir(from)
-            .expect("the directory reads")
-            .flatten()
-        {
-            let name = entry.file_name();
-            if name == "target" || name == ".tastemaker_cache" || name == ".ryo_cache" {
-                continue;
-            }
-            let path = entry.path();
-            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
-                copy_tree(&path, &to.join(&name));
-            } else {
-                let _: u64 = std::fs::copy(&path, to.join(&name)).expect("the file copies");
-            }
-        }
     }
 
     /// The edge of a command run at `root`.
