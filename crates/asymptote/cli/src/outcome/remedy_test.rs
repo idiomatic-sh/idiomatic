@@ -1,12 +1,12 @@
 //! Proves the next step each error gives.
 
 use super::{Next, Remedy as _};
-use asymptote_core::domain::selection::types::At;
-use asymptote_core::domain::violations::types::{LineNumber, RepoPath};
 use asymptote_core::inbound::use_cases::check::errors::CheckError;
 use asymptote_core::inbound::use_cases::down::errors::DownError;
 use asymptote_core::inbound::use_cases::up::errors::UpError;
 use asymptote_core::outbound::manifest::errors::ManifestError;
+use asymptote_values::domain::selection::types::At;
+use asymptote_values::domain::violations::types::{LineNumber, RepoPath};
 
 /// A command line to run is said as one.
 #[test]

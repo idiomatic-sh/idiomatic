@@ -1,8 +1,8 @@
 //! The types of the `down` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::operations::types::{PerfRecord, Record};
 use crate::domain::ratchet::types::{Compaction, Dropped, Lowered, Writing};
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::operations::types::{PerfRecord, Record};
 
 /// What `down` is asked.
 #[derive(Clone, Debug, PartialEq, Eq)]

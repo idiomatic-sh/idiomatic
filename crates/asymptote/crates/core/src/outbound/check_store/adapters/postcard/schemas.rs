@@ -13,21 +13,23 @@ use serde::{Deserialize, Serialize};
 use super::constants::{
     COMPLETED, DETACHED, EXITED, RETAINED, SIGNALLED, TIMED_OUT, UNREADABLE, UNSTARTABLE,
 };
-use crate::domain::judgement::types::{Code, Failure, Inventory, Problem, Run, Status, Tail};
-use crate::domain::manifest::types::{Pathspec, Seconds};
-use crate::domain::operations::types::{BenchmarkName, MeasureName, Number, Revision};
-use crate::domain::perf::types::{Measurement, Spread};
-use crate::domain::renames::types::Head;
-use crate::domain::reports::types::{
+use crate::outbound::check_store::types::{Build, KeptReport, Stored};
+use asymptote_values::domain::judgement::types::{
+    Code, Failure, Inventory, Problem, Run, Status, Tail,
+};
+use asymptote_values::domain::manifest::types::{Pathspec, Seconds};
+use asymptote_values::domain::operations::types::{BenchmarkName, MeasureName, Number, Revision};
+use asymptote_values::domain::perf::types::{Measurement, Spread};
+use asymptote_values::domain::renames::types::Head;
+use asymptote_values::domain::reports::types::{
     DiagnosticText, Digest, FailureOutput, FileRecord, Keeping, Moment, NamedInput, Recorded,
     Report, Scanned, Size, Stamped,
 };
-use crate::domain::violations::service::{level_of, word};
-use crate::domain::violations::types::{
+use asymptote_values::domain::violations::service::{level_of, word};
+use asymptote_values::domain::violations::types::{
     ColumnNumber, Fingerprint, Fingerprinted, Justification, LevelWord, LineNumber, MessageText,
     Place, RepoPath, RuleId, Suppression, ToolId, Violation,
 };
-use crate::outbound::check_store::types::{Build, KeptReport, Stored};
 
 /// One tool's run.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -876,6 +876,7 @@ dependencies = [
  "clap",
  "cpu-time",
  "idiomatic-sh-asymptote-core",
+ "idiomatic-sh-asymptote-values",
  "ignore",
  "indicatif",
  "mimalloc",
@@ -905,6 +906,7 @@ dependencies = [
  "cucumber",
  "globset",
  "idiomatic-sh-asymptote-core",
+ "idiomatic-sh-asymptote-values",
  "jiff",
  "nix",
  "percent-encoding",
@@ -917,6 +919,13 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "idiomatic-sh-asymptote-values"
+version = "0.1.3"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]

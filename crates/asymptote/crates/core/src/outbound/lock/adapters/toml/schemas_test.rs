@@ -2,7 +2,7 @@
 
 use super::{parse, render};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::violations::types::{Id, Key, Standing};
+use asymptote_values::domain::violations::types::{Id, Key, Standing};
 
 /// An operation's text.
 type Input = String;

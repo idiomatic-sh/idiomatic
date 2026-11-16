@@ -2,8 +2,12 @@
 //! not hold is refused.
 use super::{KeptSchema, StoreSchema};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::check::{fixtures, interface::CheckUseCase as _};
-use crate::outbound::check_store::types::{Build, Stored};
+use crate::outbound::check_store::fixtures::fake::checked;
+use crate::outbound::check_store::types::{Build, KeptReport, Stored};
+use asymptote_values::domain::judgement::types::{Code, Failure as RunFailure, Problem, Tail};
+use asymptote_values::domain::reports::service::failed;
+use asymptote_values::domain::reports::types::{FailureOutput, Keeping, Stamped};
+use asymptote_values::domain::violations::types::ToolId;
 
 #[derive(Clone, Copy, Debug)]
 enum Question {
@@ -89,28 +93,27 @@ fn subject(question: Input) -> Result<Value, Failure> {
     ) {
         return diagnostics(question);
     }
-    let scenario = fixtures::scenario();
-    drop(
-        fixtures::use_case(&scenario)
-            .check(fixtures::request())
-            .map_err(|error| error.to_string())?,
-    );
-    let scenario = if matches!(question, Question::AfterFailure) {
-        scenario.sources.write("src/a.rs", "fn a() {}\n");
-        let failing = fixtures::with_sarif(
-            scenario,
-            crate::outbound::sarif::fixtures::fake::SarifFake::default(),
-        );
-        drop(
-            fixtures::use_case(&failing)
-                .check(fixtures::request())
-                .map_err(|error| error.to_string())?,
-        );
-        failing
+    let stored = if matches!(question, Question::AfterFailure) {
+        // The failing run is current, and the completed run it replaced is retained beside it.
+        let mut stored = checked();
+        let KeptReport::Kept(report) = &mut stored.report else {
+            return Err("the checked product keeps a report".into());
+        };
+        let report = std::sync::Arc::make_mut(report);
+        for scan in &mut report.scanned {
+            scan.keeping = Keeping::Retained;
+        }
+        report.scanned.push(failed(
+            &ToolId("lint".into()),
+            RunFailure::Exited {
+                code: Code(1),
+                stderr: Tail("the tool failed".into()),
+            },
+        ));
+        stored
     } else {
-        scenario
+        checked()
     };
-    let stored = scenario.store.kept();
     let build = Build("build-1".into());
     let bytes = postcard::to_allocvec(&StoreSchema::from(KeptSchema(&stored, &build)))
         .map_err(|error| error.to_string())?;
@@ -144,12 +147,9 @@ fn subject(question: Input) -> Result<Value, Failure> {
 
 /// Exercise the production codec, including legacy bytes made with the unchanged original schema.
 fn diagnostics(question: Question) -> Result<Value, Failure> {
-    use crate::domain::judgement::types::{Failure as RunFailure, Problem, Tail};
-    use crate::domain::renames::types::Head;
-    use crate::domain::reports::types::{DiagnosticText, Digest, FailureOutput, Report, Stamped};
-    use crate::domain::violations::types::ToolId;
-    use crate::outbound::check_store::types::KeptReport;
-    let mut scan = crate::domain::reports::service::failed(
+    use asymptote_values::domain::renames::types::Head;
+    use asymptote_values::domain::reports::types::{DiagnosticText, Digest, Report};
+    let mut scan = failed(
         &ToolId("stdout-only".into()),
         RunFailure::Unreadable {
             problem: Problem("exact decoder refusal".into()),
@@ -200,7 +200,7 @@ fn diagnostics(question: Question) -> Result<Value, Failure> {
                 matches!(loaded_scan.failure_output, FailureOutput::Unavailable)
                     && matches!(
                         loaded_scan.run.status,
-                        crate::domain::judgement::types::Status::Failed(_)
+                        asymptote_values::domain::judgement::types::Status::Failed(_)
                     )
             }))
         }

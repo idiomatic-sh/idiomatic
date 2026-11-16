@@ -2,10 +2,10 @@
 
 use super::super::contract::check;
 use super::RepositoryFake;
-use crate::domain::operations::types::{OperationText, Revision};
-use crate::domain::renames::types::{Introduction, Parent, Rename, RenameEvent};
-use crate::domain::violations::types::RepoPath;
 use crate::outbound::repository::types::{Renames, TrackedFile};
+use asymptote_values::domain::operations::types::{OperationText, Revision};
+use asymptote_values::domain::renames::types::{Introduction, Parent, Rename, RenameEvent};
+use asymptote_values::domain::violations::types::RepoPath;
 
 fn rename(from: &str, to: &str) -> Rename {
     Rename {

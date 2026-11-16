@@ -95,11 +95,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn told(line: Input) -> Result<String, Failure> {
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("up").chain(line))
         .map_err(|error| Refused::Line(error.kind()))?;
-    let root = asymptote_core::domain::manifest::types::ProductRoot("/repo".into());
+    let root = asymptote_values::domain::manifest::types::ProductRoot("/repo".into());
     let edge = crate::edge::Edge {
         here: root.clone(),
         start: root,
-        store: std::path::PathBuf::from(asymptote_core::domain::operations::constants::CACHE),
+        store: std::path::PathBuf::from(asymptote_values::domain::operations::constants::CACHE),
         build: asymptote_core::outbound::check_store::types::Build("test".into()),
         format: crate::output::Format::Terminal,
         writing: if parsed.dry_run.dry_run() {

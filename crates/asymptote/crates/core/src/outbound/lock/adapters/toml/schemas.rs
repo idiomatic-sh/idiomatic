@@ -13,13 +13,13 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 use super::constants::{LOCK_VERSION, PERF};
-use crate::domain::judgement::constants::ACCEPTED;
-use crate::domain::operations::types::{
+use asymptote_values::domain::judgement::constants::ACCEPTED;
+use asymptote_values::domain::operations::types::{
     BenchmarkName, Count, Day, MeasureName, Number, Operation, OperationId, PerfKey, PerfRecord,
     Provenance, Reason, Record, Removal, Revision,
 };
-use crate::domain::violations::service::{level_of, normalize, word};
-use crate::domain::violations::types::{
+use asymptote_values::domain::violations::service::{level_of, normalize, word};
+use asymptote_values::domain::violations::types::{
     Fingerprint, Id, Key, LevelWord, MessageText, RepoPath, RuleId, Standing, ToolId,
 };
 

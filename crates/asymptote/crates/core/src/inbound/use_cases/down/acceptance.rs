@@ -4,8 +4,6 @@ use cucumber::{given, then, when};
 
 use crate::Behavior;
 
-use asymptote_core::domain::selection::types::Selectors;
-use asymptote_core::domain::violations::types::Standing;
 use asymptote_core::inbound::use_cases::check::fixtures::{
     LOG, down, down_request, lock_state, measured_product, perf_record, request, scenario,
     seed_lock, up, up_request, use_case, with_sarif,
@@ -14,6 +12,8 @@ use asymptote_core::inbound::use_cases::check::interface::CheckUseCase as _;
 use asymptote_core::inbound::use_cases::down::interface::DownUseCase as _;
 use asymptote_core::inbound::use_cases::up::interface::UpUseCase as _;
 use asymptote_core::outbound::sarif::fixtures::fake::{ignored, reading, result};
+use asymptote_values::domain::selection::types::Selectors;
+use asymptote_values::domain::violations::types::Standing;
 
 /// Names the scene the next `down` step runs.
 #[given(expr = "the down input {string}")]
@@ -100,7 +100,9 @@ fn real_down(
     let worktree = {
         use asymptote_core::outbound::repository::interface::RepositoryPort as _;
         repository::factory::git(
-            asymptote_core::domain::manifest::types::ProductRoot(root.display().to_string().into()),
+            asymptote_values::domain::manifest::types::ProductRoot(
+                root.display().to_string().into(),
+            ),
             Ok(repository::types::Worktree::default()),
         )
         .worktree()
@@ -108,30 +110,36 @@ fn real_down(
     DownUseCaseImpl::new(DownPorts {
         manifest: Arc::new(manifest::factory::toml()),
         lock: Arc::new(lock::factory::toml(
-            asymptote_core::domain::manifest::types::ProductRoot(root.display().to_string().into()),
+            asymptote_values::domain::manifest::types::ProductRoot(
+                root.display().to_string().into(),
+            ),
         )),
         accepted: AcceptedState::new(
             Arc::new(lock::factory::toml(
-                asymptote_core::domain::manifest::types::ProductRoot(
+                asymptote_values::domain::manifest::types::ProductRoot(
                     root.display().to_string().into(),
                 ),
             )),
             Arc::new(repository::factory::git(
-                asymptote_core::domain::manifest::types::ProductRoot(
+                asymptote_values::domain::manifest::types::ProductRoot(
                     root.display().to_string().into(),
                 ),
                 worktree.clone(),
             )),
         ),
         report: CachedReport::new(Arc::new(sources::factory::disk(
-            asymptote_core::domain::manifest::types::ProductRoot(root.display().to_string().into()),
+            asymptote_values::domain::manifest::types::ProductRoot(
+                root.display().to_string().into(),
+            ),
         ))),
         store: Arc::new(check_store::factory::postcard(check_store::types::Store {
-            directory: root.join(asymptote_core::domain::operations::constants::CACHE),
+            directory: root.join(asymptote_values::domain::operations::constants::CACHE),
             build: check_store::types::Build("acceptance".into()),
         })),
         repository: Arc::new(repository::factory::git(
-            asymptote_core::domain::manifest::types::ProductRoot(root.display().to_string().into()),
+            asymptote_values::domain::manifest::types::ProductRoot(
+                root.display().to_string().into(),
+            ),
             worktree.clone(),
         )),
         clock: Arc::new(clock::factory::system()),
@@ -142,7 +150,7 @@ fn real_down(
 /// records it dropped and what the lock holds after.
 #[when(expr = "down drains the measured product {string}")]
 fn drains(world: &mut Behavior, input: String) -> Result<(), Box<dyn std::error::Error>> {
-    use asymptote_core::domain::manifest::types::{Group, Groups, ProductRoot};
+    use asymptote_values::domain::manifest::types::{Group, Groups, ProductRoot};
     // The step's text, kept as the answer's type: what a cucumber argument arrives as is an owned `String`.
     let input: Box<str> = input.into();
     let (bench, groups) = match &*input {

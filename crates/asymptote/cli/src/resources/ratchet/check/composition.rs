@@ -4,11 +4,11 @@
 use std::sync::Arc;
 
 use asymptote_core::application::accepted_state::service::AcceptedState;
-use asymptote_core::domain::manifest::service::reach;
-use asymptote_core::domain::manifest::types::{ProductRoot, Reach};
 use asymptote_core::inbound::use_cases::check::interface::CheckUseCase;
 use asymptote_core::outbound::manifest::errors::ManifestError;
 use asymptote_core::outbound::manifest::types::HookTable;
+use asymptote_values::domain::manifest::service::reach;
+use asymptote_values::domain::manifest::types::{ProductRoot, Reach};
 
 /// The dependencies the caller supplies: the products the command calls.
 pub(crate) struct RatchetCheckParts<S> {
@@ -111,7 +111,7 @@ pub(crate) fn build_sarif() -> impl asymptote_core::outbound::sarif::interface::
 /// The manifest's, when a product's cannot be read.
 pub(crate) fn build_declared(
     workspace: &Reach<Box<dyn CheckUseCase>>,
-) -> Result<Vec<asymptote_core::domain::manifest::types::Group>, ManifestError> {
+) -> Result<Vec<asymptote_values::domain::manifest::types::Group>, ManifestError> {
     use asymptote_core::outbound::manifest::interface::ManifestPort as _;
 
     let manifest = asymptote_core::outbound::manifest::factory::toml();

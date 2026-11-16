@@ -1,10 +1,10 @@
 //! The `check` use case's failures.
 
-use crate::domain::operations::errors::OperationsError;
 use crate::outbound::check_store::errors::CheckStoreError;
 use crate::outbound::lock::errors::LockError;
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::repository::errors::RepositoryError;
+use asymptote_values::domain::operations::errors::OperationsError;
 
 /// Why `check` could not judge the product.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

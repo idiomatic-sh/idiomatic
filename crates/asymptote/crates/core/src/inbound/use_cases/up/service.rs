@@ -3,12 +3,12 @@
 use std::collections::BTreeMap;
 
 use super::types::UpRequest;
-use crate::domain::manifest::types::Percent;
-use crate::domain::operations::types::{Folded, PerfRecord};
-use crate::domain::perf::types::ToleranceKey;
-use crate::domain::reports::service::measured;
-use crate::domain::reports::types::Report;
 use crate::domain::seeding::service::seeding;
+use asymptote_values::domain::manifest::types::Percent;
+use asymptote_values::domain::operations::types::{Folded, PerfRecord};
+use asymptote_values::domain::perf::types::ToleranceKey;
+use asymptote_values::domain::reports::service::measured;
+use asymptote_values::domain::reports::types::Report;
 
 /// The perf records the last check's medians seed or raise, when the selectors leave perf to be chosen: they are
 /// chosen by the tool selectors alone, as a rule, a path or a place names a finding.

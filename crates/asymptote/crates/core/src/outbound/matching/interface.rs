@@ -1,8 +1,8 @@
 //! What the `matching` port asks of the outside, in the core's own vocabulary.
 
 use super::errors::MatchingError;
-use crate::domain::selection::types::{PathMatch, PathPattern};
-use crate::domain::violations::types::RepoPath;
+use asymptote_values::domain::selection::types::{PathMatch, PathPattern};
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// What every `matching` adapter implements.
 pub trait MatchingPort: std::fmt::Debug + Send + Sync {

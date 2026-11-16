@@ -3,11 +3,11 @@
 //! renames `b.rs` to `c.rs`.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::manifest::types::Pathspec;
-use crate::domain::operations::types::Revision;
-use crate::domain::renames::types::{Head, HistoryStart};
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::interface::RepositoryPort;
+use asymptote_values::domain::manifest::types::Pathspec;
+use asymptote_values::domain::operations::types::Revision;
+use asymptote_values::domain::renames::types::{Head, HistoryStart};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]
@@ -145,7 +145,7 @@ pub fn check(adapter: &impl RepositoryPort) {
         panic!("the repository has a head");
     };
     let subject = |question: Input| -> Result<String, Failure> {
-        let renames = |list: &[crate::domain::renames::types::Rename]| {
+        let renames = |list: &[asymptote_values::domain::renames::types::Rename]| {
             list.iter()
                 .map(|rename| format!("{}>{}", rename.from.0, rename.to.0))
                 .collect::<Vec<_>>()
@@ -166,7 +166,7 @@ pub fn check(adapter: &impl RepositoryPort) {
             Question::Introductions => {
                 let found = adapter.introductions(&head, &lock)?.0;
                 let root_commit = found.iter().all(|introduction| {
-                    introduction.parent == crate::domain::renames::types::Parent::Root
+                    introduction.parent == asymptote_values::domain::renames::types::Parent::Root
                 });
                 format!(
                     "{} {}",

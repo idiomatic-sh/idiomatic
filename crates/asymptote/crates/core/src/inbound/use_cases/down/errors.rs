@@ -1,9 +1,9 @@
 //! The `down` use case's failures.
 
-use crate::domain::operations::errors::OperationsError;
 use crate::outbound::lock::errors::LockError;
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::repository::errors::RepositoryError;
+use asymptote_values::domain::operations::errors::OperationsError;
 
 /// Why `down` drained nothing.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

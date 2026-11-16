@@ -3,10 +3,10 @@
 // Error locations are contractual; diagnostic wording belongs to each implementation.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::manifest::types::{Group, Hook, HookName, Manifest, ProductRoot};
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::Products;
+use asymptote_values::domain::manifest::types::{Group, Hook, HookName, Manifest, ProductRoot};
 
 /// Where the search starts: at the root, or a missing place.
 type Input = Start;

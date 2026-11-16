@@ -2,15 +2,15 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::judgement::types::Inventory;
-use crate::domain::judgement::types::{Judgement, Run};
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::violations::types::{
-    Fingerprinted, Justification, Level, MessageText, RepoPath, Suppression,
-};
 use crate::outbound::sarif::errors::SarifError;
 use crate::outbound::sarif::interface::SarifPort;
 use crate::outbound::sarif::types::{Read, Reported, SarifText};
+use asymptote_values::domain::judgement::types::Inventory;
+use asymptote_values::domain::judgement::types::{Judgement, Run};
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::violations::types::{
+    Fingerprinted, Justification, Level, MessageText, RepoPath, Suppression,
+};
 
 /// The key the fake reads a text by: the text itself.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
@@ -74,14 +74,14 @@ pub fn reading(said: &str, results: Vec<Reported>) -> SarifFake {
 pub fn result(path: &str, line: u32) -> Reported {
     Reported {
         path: RepoPath(path.into()),
-        place: crate::domain::violations::types::Place::Line(
-            crate::domain::violations::types::LineNumber(line),
+        place: asymptote_values::domain::violations::types::Place::Line(
+            asymptote_values::domain::violations::types::LineNumber(line),
         ),
         end: crate::outbound::sarif::types::End {
             line: crate::outbound::sarif::types::Bound::Absent,
             column: crate::outbound::sarif::types::Bound::Absent,
         },
-        rule: crate::domain::violations::types::RuleId("r".into()),
+        rule: asymptote_values::domain::violations::types::RuleId("r".into()),
         level: Level::Warning,
         suppression: Suppression::Unsuppressed,
         message: MessageText("m".into()),

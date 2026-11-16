@@ -4,15 +4,15 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::constants::{BMF, FIX_KEY, HEADER, PRODUCT, RUN_KEY, SARIF, TIMEOUT};
-use crate::domain::captures::service::uncaptured;
-use crate::domain::captures::types::CommandKey;
-use crate::domain::manifest::service::{hook, known_hooks};
-use crate::domain::manifest::types::{
+use asymptote_values::domain::captures::service::uncaptured;
+use asymptote_values::domain::captures::types::CommandKey;
+use asymptote_values::domain::manifest::service::{hook, known_hooks};
+use asymptote_values::domain::manifest::types::{
     Argument, Argv, Fix, Group, Hook, HookWord, Manifest, Member, Output, Pathspec, Percent, Pin,
     Seconds, Tool, Version,
 };
-use crate::domain::operations::types::MeasureName;
-use crate::domain::violations::types::ToolId;
+use asymptote_values::domain::operations::types::MeasureName;
+use asymptote_values::domain::violations::types::ToolId;
 
 /// The file as written.
 #[derive(Debug, serde::Deserialize)]

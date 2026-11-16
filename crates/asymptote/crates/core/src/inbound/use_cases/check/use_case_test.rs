@@ -9,16 +9,16 @@ use super::fixtures::{
 use super::interface::CheckUseCase as _;
 use super::types::{Against, CheckRequest, Fixing, Reuse};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::judgement::types::Status;
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::operations::types::{Day, Operation, Provenance, Reason, Revision};
 use crate::domain::ratchet::service::accepting;
-use crate::domain::reports::service::failures;
-use crate::domain::selection::types::Selectors;
 use crate::inbound::use_cases::up::interface::UpUseCase as _;
 use crate::outbound::check_store::types::KeptReport;
 use crate::outbound::lock::interface::LockPort as _;
 use crate::outbound::sarif::fixtures::fake::SarifFake;
+use asymptote_values::domain::judgement::types::Status;
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::operations::types::{Day, Operation, Provenance, Reason, Revision};
+use asymptote_values::domain::reports::service::failures;
+use asymptote_values::domain::selection::types::Selectors;
 
 /// What happens before the check that is judged.
 #[derive(Clone, Copy, Debug)]
@@ -319,7 +319,7 @@ fn initial(scene: Input) -> Scenario {
             Scenario {
                 repository: std::sync::Arc::new(
                     crate::outbound::repository::fixtures::fake::RepositoryFake {
-                        head: crate::domain::renames::types::Head::Detached,
+                        head: asymptote_values::domain::renames::types::Head::Detached,
                         ..crate::outbound::repository::fixtures::fake::RepositoryFake::default()
                     },
                 ),
@@ -541,7 +541,7 @@ fn captured_failure(scenario: &Scenario, scene: Scene) -> Result<String, Failure
     let Some(run) = first.runs.first() else {
         panic!("one failed tool");
     };
-    let crate::domain::reports::types::FailureOutput::Captured {
+    let asymptote_values::domain::reports::types::FailureOutput::Captured {
         stdout,
         stderr,
         inputs,
@@ -560,7 +560,7 @@ fn captured_failure(scenario: &Scenario, scene: Scene) -> Result<String, Failure
         "stderr is not truncated"
     );
     if matches!(scene, Scene::LongStderrFailure) {
-        let Status::Failed(crate::domain::judgement::types::Failure::Exited {
+        let Status::Failed(asymptote_values::domain::judgement::types::Failure::Exited {
             stderr: displayed,
             ..
         }) = &run.run.status
@@ -573,7 +573,10 @@ fn captured_failure(scenario: &Scenario, scene: Scene) -> Result<String, Failure
         );
     }
     assert!(
-        matches!(inputs, crate::domain::reports::types::Stamped::Digested(_)),
+        matches!(
+            inputs,
+            asymptote_values::domain::reports::types::Stamped::Digested(_)
+        ),
         "capture binds the command and input stamp"
     );
     Ok("retained full streams; failed twice".into())
@@ -584,7 +587,7 @@ fn told(scene: Input) -> Result<String, Failure> {
     match scene {
         Scene::DualFailure => {
             scenario.lock.append(&Operation {
-                parents: vec![crate::domain::operations::types::OperationId(
+                parents: vec![asymptote_values::domain::operations::types::OperationId(
                     "missing-parent".into(),
                 )],
                 covers: Vec::new(),

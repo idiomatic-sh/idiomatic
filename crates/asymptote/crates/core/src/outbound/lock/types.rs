@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::operations::types::{Operation, OperationId};
+use asymptote_values::domain::operations::types::{Operation, OperationId};
 
 /// The operation files of a lock, sorted by id.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

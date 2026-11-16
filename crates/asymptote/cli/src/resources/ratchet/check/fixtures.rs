@@ -70,13 +70,13 @@ pub(crate) fn ignoring() -> std::io::Result<tempfile::TempDir> {
     )
 )]
 pub(crate) fn edge(directory: &tempfile::TempDir) -> crate::edge::Edge {
-    let root = asymptote_core::domain::manifest::types::ProductRoot(
+    let root = asymptote_values::domain::manifest::types::ProductRoot(
         directory.path().display().to_string().into(),
     );
     crate::edge::Edge {
         here: root.clone(),
         start: root,
-        store: std::path::PathBuf::from(asymptote_core::domain::operations::constants::CACHE),
+        store: std::path::PathBuf::from(asymptote_values::domain::operations::constants::CACHE),
         build: asymptote_core::outbound::check_store::types::Build("test".into()),
         format: crate::output::Format::Terminal,
         writing: asymptote_core::domain::ratchet::types::Writing::Write,

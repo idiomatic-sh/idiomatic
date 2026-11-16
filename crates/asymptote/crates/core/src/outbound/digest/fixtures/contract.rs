@@ -2,9 +2,9 @@
 //! differently come to different digests.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::violations::types::SourceText;
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestParts;
+use asymptote_values::domain::violations::types::SourceText;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

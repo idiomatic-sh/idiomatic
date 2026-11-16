@@ -5,10 +5,10 @@ use std::sync::atomic::Ordering;
 
 use super::interface::UpUseCase as _;
 use super::types::UpRequest;
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::selection::types::{At, Selectors};
-use crate::domain::violations::types::{LineNumber, RepoPath};
 use crate::inbound::use_cases::check::fixtures::{scenario, up, up_request};
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::selection::types::{At, Selectors};
+use asymptote_values::domain::violations::types::{LineNumber, RepoPath};
 
 /// The value the tests use.
 #[must_use]

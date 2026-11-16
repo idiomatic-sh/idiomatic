@@ -7,14 +7,14 @@ use std::path::{Component, Path};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::settings::SourcesDiskSettings;
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::reports::constants::ABSENT;
-use crate::domain::reports::types::{
-    Digest, FileDigest, FileDigests, FileStat, FileState, Moment, Size, Stats,
-};
-use crate::domain::violations::types::{Located, RepoPath, SourceText};
 use crate::outbound::sources::errors::SourcesError;
 use crate::outbound::sources::interface::SourcesPort;
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::reports::constants::ABSENT;
+use asymptote_values::domain::reports::types::{
+    Digest, FileDigest, FileDigests, FileStat, FileState, Moment, Size, Stats,
+};
+use asymptote_values::domain::violations::types::{Located, RepoPath, SourceText};
 
 /// The disk sources adapter.
 #[derive(Debug)]

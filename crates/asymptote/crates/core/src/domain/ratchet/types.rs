@@ -1,10 +1,10 @@
 //! The types of the `ratchet` concept: plain data, public fields and derives, with no constructor and no inherent
 //! impl.
 
-use crate::domain::judgement::types::Resolution;
-use crate::domain::operations::types::{Count, Record};
-use crate::domain::renames::types::Changes;
-use crate::domain::violations::types::RepoPath;
+use asymptote_values::domain::judgement::types::Resolution;
+use asymptote_values::domain::operations::types::{Count, Record};
+use asymptote_values::domain::renames::types::Changes;
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// What `up` records.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

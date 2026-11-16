@@ -3,9 +3,9 @@
 //! store has the mode any written file has.
 use super::constants::{DIAGNOSTICS, FILE};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::inbound::use_cases::check::{fixtures, interface::CheckUseCase as _};
 use crate::outbound::check_store::errors::CheckStoreError;
 use crate::outbound::check_store::fixtures::contract::check;
+use crate::outbound::check_store::fixtures::fake::checked;
 use crate::outbound::check_store::interface::CheckStorePort as _;
 use crate::outbound::check_store::{
     factory,
@@ -95,20 +95,6 @@ fn mode(path: &std::path::Path) -> u32 {
     bits
 }
 
-/// What the fixture product's first check keeps.
-fn checked() -> Stored {
-    let scenario = fixtures::scenario();
-    let report = fixtures::use_case(&scenario)
-        .check(fixtures::request())
-        .expect("initial report");
-    assert_eq!(
-        report.outcome.new.len(),
-        2,
-        "the fixture product's first check reports its two new violations"
-    );
-    scenario.store.kept()
-}
-
 /// A newly persisted check atomically replaces the prior diagnostic artifact.
 fn diagnostics(
     adapter: &impl crate::outbound::check_store::interface::CheckStorePort,
@@ -120,15 +106,17 @@ fn diagnostics(
     };
     let report = std::sync::Arc::make_mut(report);
     let scan = report.scanned.first_mut().expect("tool scan");
-    scan.run.status = crate::domain::judgement::types::Status::Failed(
-        crate::domain::judgement::types::Failure::Exited {
-            code: crate::domain::judgement::types::Code(7),
-            stderr: crate::domain::judgement::types::Tail::default(),
+    scan.run.status = asymptote_values::domain::judgement::types::Status::Failed(
+        asymptote_values::domain::judgement::types::Failure::Exited {
+            code: asymptote_values::domain::judgement::types::Code(7),
+            stderr: asymptote_values::domain::judgement::types::Tail::default(),
         },
     );
-    scan.failure_output = crate::domain::reports::types::FailureOutput::Captured {
-        stdout: crate::domain::reports::types::DiagnosticText("stdout-only failure".into()),
-        stderr: crate::domain::reports::types::DiagnosticText::default(),
+    scan.failure_output = asymptote_values::domain::reports::types::FailureOutput::Captured {
+        stdout: asymptote_values::domain::reports::types::DiagnosticText(
+            "stdout-only failure".into(),
+        ),
+        stderr: asymptote_values::domain::reports::types::DiagnosticText::default(),
         inputs: scan.stamp.clone(),
     };
     adapter.keep(&stored)?;

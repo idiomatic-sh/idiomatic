@@ -8,12 +8,7 @@ use super::fixtures::{at, manifest_missing};
 use super::interface::UpUseCase as _;
 use super::types::UpRequest;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::judgement::types::Verdict;
-use crate::domain::operations::types::Revision;
 use crate::domain::ratchet::types::Writing;
-use crate::domain::renames::types::Head;
-use crate::domain::selection::types::{PathPattern, Selectors};
-use crate::domain::violations::types::{RepoPath, RuleId};
 use crate::inbound::use_cases::check::fixtures::{
     LOG, ROOT, Scenario, request, scenario, up, up_request, use_case, with_sarif,
 };
@@ -22,6 +17,11 @@ use crate::outbound::manifest::fixtures::fake::ManifestFake;
 use crate::outbound::repository::fixtures::fake::RepositoryFake;
 use crate::outbound::sarif::fixtures::fake::{SarifFake, reading, result};
 use crate::outbound::sources::fixtures::fake::SourcesFake;
+use asymptote_values::domain::judgement::types::Verdict;
+use asymptote_values::domain::operations::types::Revision;
+use asymptote_values::domain::renames::types::Head;
+use asymptote_values::domain::selection::types::{PathPattern, Selectors};
+use asymptote_values::domain::violations::types::{RepoPath, RuleId};
 
 /// What `up` is asked, and what happens before.
 #[derive(Clone, Copy, Debug)]

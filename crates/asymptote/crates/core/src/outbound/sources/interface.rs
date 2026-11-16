@@ -1,8 +1,8 @@
 //! What the `sources` port asks of the outside, in the core's own vocabulary.
 
 use super::errors::SourcesError;
-use crate::domain::reports::types::{FileDigests, Stats};
-use crate::domain::violations::types::{Located, RepoPath, SourceText};
+use asymptote_values::domain::reports::types::{FileDigests, Stats};
+use asymptote_values::domain::violations::types::{Located, RepoPath, SourceText};
 
 /// What every `sources` adapter implements.
 pub trait SourcesPort: std::fmt::Debug + Send + Sync {

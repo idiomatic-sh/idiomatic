@@ -2,14 +2,14 @@
 //! changes nothing, and a key's id depends on everything that identifies it.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::operations::types::{
-    Count, Day, Operation, OperationId, OperationText, Provenance, Reason, Record,
-};
-use crate::domain::violations::types::{
-    Fingerprint, Key, Level, MessageText, RepoPath, RuleId, Standing, ToolId,
-};
 use crate::outbound::lock::errors::LockError;
 use crate::outbound::lock::interface::LockPort;
+use asymptote_values::domain::operations::types::{
+    Count, Day, Operation, OperationId, OperationText, Provenance, Reason, Record,
+};
+use asymptote_values::domain::violations::types::{
+    Fingerprint, Key, Level, MessageText, RepoPath, RuleId, Standing, ToolId,
+};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

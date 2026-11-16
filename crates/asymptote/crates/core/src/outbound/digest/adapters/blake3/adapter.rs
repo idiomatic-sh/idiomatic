@@ -14,13 +14,13 @@ use super::constants::{
     ARROW, ASYNC, BINDINGS, BODY, CONTROL, FUNCTION, IMPL, ITEMS, METHOD, PUB_OPEN, QUALIFIERS,
     SPACED_ITEMS, SPACED_WHERE, WHERE,
 };
-use crate::domain::reports::types::Digest;
-use crate::domain::violations::types::{Fingerprint, SourceText};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::{
     Binding, Body, Declaration, Declares, DigestParts, Indent, ItemWord, LineFingerprints,
     LineText, Open, Reading, Words,
 };
+use asymptote_values::domain::reports::types::Digest;
+use asymptote_values::domain::violations::types::{Fingerprint, SourceText};
 
 /// The BLAKE3 digest adapter.
 #[derive(Debug)]
