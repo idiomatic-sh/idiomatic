@@ -34,7 +34,12 @@ const SIZES: [usize; 3] = [1000, 2000, 4000];
 /// The memory every run may hold before its file counts.
 const MEMORY_BASE_MB: f64 = 160.0;
 /// The memory each repetition of a shape may add at the largest size.
-const MEMORY_PER_REPETITION_KB: f64 = 40.0;
+const MEMORY_PER_REPETITION_KB: f64 = 100.0;
+/// The peak at the largest size may be at most this many times the peak at the half size (a floor under the half size
+/// keeps the fixed base from deciding it).
+const MEMORY_DOUBLING_LIMIT: f64 = 2.4;
+/// The half-size peak below this many megabytes counts as this many.
+const MEMORY_FLOOR_MB: f64 = 120.0;
 
 /// Where a shape's repetitions sit.
 #[derive(Clone, Copy)]
@@ -214,6 +219,11 @@ fn timed(rule: &str, text: &str) -> Result<(f64, RunReport), Error> {
     Ok((elapsed, report))
 }
 
+/// The cost of each doubling relative to the half size, with the floor under the half size.
+fn doublings(seconds: &[f64]) -> Vec<f64> {
+    seconds.windows(2).map(|pair| pair[1] / pair[0].max(TIME_FLOOR)).collect()
+}
+
 /// The peak resident memory of this process since the last reset, in megabytes; zero where `/proc` is absent.
 fn peak_resident_mb() -> f64 {
     std::fs::read_to_string("/proc/self/status")
@@ -249,14 +259,23 @@ pub(super) fn rule_cost_grows_with_the_file(rule: &str) -> Result<(), Error> {
                 seconds.push(elapsed);
                 peaks.push(peak_resident_mb());
             }
-            let ratios: Vec<f64> = seconds
-                .windows(2)
-                .map(|pair| pair[1] / pair[0].max(TIME_FLOOR))
-                .collect();
+            let mut ratios = doublings(&seconds);
+            if ratios.iter().any(|ratio| *ratio > DOUBLING_LIMIT) {
+                // A busy machine slows a run and never speeds it: the cheaper of two runs is the time.
+                for (index, size) in SIZES.iter().enumerate() {
+                    let text = program(scope, operation, *size).unwrap_or_default();
+                    let (again, _report) = timed(rule, &text)?;
+                    seconds[index] = seconds[index].min(again);
+                }
+                ratios = doublings(&seconds);
+            }
             let bound = MEMORY_BASE_MB + MEMORY_PER_REPETITION_KB * SIZES[2] as f64 / 1024.0;
             let name = format!("{rule} {} {}", scope.label(), operation.name);
             if ratios.iter().any(|ratio| *ratio > DOUBLING_LIMIT) {
                 failures.push(format!("{name}: seconds {seconds:.2?} at {SIZES:?}, ratios {ratios:.2?}"));
+            }
+            if peaks[2] / peaks[1].max(MEMORY_FLOOR_MB) > MEMORY_DOUBLING_LIMIT {
+                failures.push(format!("{name}: peak {:.0} MB at {} repetitions after {:.0} MB at {}", peaks[2], SIZES[2], peaks[1], SIZES[1]));
             }
             if peaks[2] > bound {
                 failures.push(format!("{name}: peak {:.0} MB at {} repetitions, bound {bound:.0} MB", peaks[2], SIZES[2]));

@@ -37,8 +37,12 @@ let missing_read_rows = select l.reference as reference, l.name as name, l.phase
 let unbound_reads = select l.reference as id, l.name as name, l.phase as phase, l.file as file, r.at as read_at from missing_read_rows as l join global_positions as r on l.reference = r.id and l.file = r.file;
 let eager_unbound_reads = select l.id as id, l.name as name, l.file as file, l.read_at as read_at from unbound_reads as l join global_module_phases as r on l.phase = r.id and l.file = r.file;
 let deferred_unbound_reads = antijoin(left=unbound_reads, right=eager_unbound_reads, left-on=["id", "file"], right-on=["id", "file"]);
-let deferred_global_reads = select l.id as id from deferred_unbound_reads as l join global_declared_names as r on l.name = r.name and l.file = r.file;
-let eager_global_reads = select l.id as id from eager_unbound_reads as l join eager_global_names as r on l.name = r.name and l.file = r.file where r.declared_at < l.read_at;
+let global_declared_name_keys = select name, file from global_declared_names;
+let deferred_global_reads = select l.id as id from deferred_unbound_reads as l join global_declared_name_keys as r on l.name = r.name and l.file = r.file;
+let eager_global_events = select m.id as scope, m.id as phase, l.name as name, l.file as file, l.declared_at as ordinal from eager_global_names as l join global_module_phases as m on l.file = m.file;
+let eager_global_probes = select m.id as scope, m.id as phase, l.name as name, l.file as file, l.read_at as ordinal from eager_unbound_reads as l join global_module_phases as m on l.file = m.file;
+let eager_global_hits = latest_before(events=eager_global_events, probes=eager_global_probes);
+let eager_global_reads = select l.id as id from eager_unbound_reads as l join eager_global_hits as r on l.name = r.name and l.file = r.file and l.read_at = r.point;
 let same_scope_declarations = select name, func as owner, file from global_owner_rows;
 let same_scope_global_reads = select l.reference as id from missing_read_rows as l join same_scope_declarations as r on l.name = r.name and l.scope = r.owner and l.file = r.file;
 let global_reads0 = union(left=deferred_global_reads, right=eager_global_reads);
