@@ -99,6 +99,7 @@ pub(crate) fn complete(
         rules,
         Arc::clone(kept),
         0,
+        super::counting::Work::Uncounted,
         |counted, output, report| (counted, Complete { output, report }),
     )
     .expect(run)

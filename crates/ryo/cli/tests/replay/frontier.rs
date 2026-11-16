@@ -80,16 +80,20 @@ fn no_rule_is_handed_words_in_proportion_to_the_elements_of_a_file() {
     let (files, functions) = (4, 5);
     let (small, large) = (corpus(files, functions, 6), corpus(files, functions, 60));
     let mut grown = Vec::new();
+    let mut handing = 0_usize;
     for (name, _) in counting::runnable() {
         let ((few, few_found), (many, many_found)) = (
             handed_by(small.path(), &name),
             handed_by(large.path(), &name),
         );
         eprintln!("FRONTIER {name} {few} {many} (findings {few_found} and {many_found})");
+        handing += usize::from(few > 0);
         if many > few + files * functions * 64 {
             grown.push(format!("{name}: {few} -> {many}"));
         }
     }
+    // A run in which no rule handed anything would hold the bound: some rule is held to hand words over.
+    assert!(handing > 0, "no recorded rule handed the finish anything");
     assert!(
         grown.is_empty(),
         "ten times the tokens hand over more than a row of 64 words for each function: {grown:?}"
@@ -107,15 +111,14 @@ fn handovers_over(root: &std::path::Path) -> Vec<ryo_values::domain::runs::types
         .into_iter()
         .map(|(_, rule)| rule)
         .collect();
-    base::COUNTING.store(true, Ordering::Relaxed);
     let handed = counting::lint_observing(
         root,
         rules,
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
         0,
+        counting::Work::Counted,
         |_, _, report| report.handovers,
     );
-    base::COUNTING.store(false, Ordering::Relaxed);
     handed.expect("the rules run")
 }
 
@@ -124,6 +127,12 @@ fn no_file_of_ruff_hands_a_rule_more_than_four_rows_for_each_row_of_its_tree() {
     let _beside = crate::beside();
     let copy = crate::ruff::ruff_copy();
     let mut handovers = handovers_over(copy.path());
+    // A run that counted nothing would hold every bound: the run is held to have counted a handover for most of ruff's files.
+    assert!(
+        handovers.len() > 10_000,
+        "the counting run reports a handover for each file that handed something, not {}",
+        handovers.len()
+    );
     // Widest first: the hundredths of a row handed for each row of the tree, a tree of no rows counted as one row.
     let width = |each: &ryo_values::domain::runs::types::Handover| {
         u128::from(each.handed.0) * 100 / u128::from(each.parsed.0.max(1))
