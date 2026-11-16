@@ -25,6 +25,21 @@ fn join_rel_left(at: u32, key: u32) -> Operation {
     }
 }
 
+/// One line per run of a shape, the hosted text empty then populated, each unobserved then observed: `label`, the run, and
+/// what `run` answered.
+fn each_run(label: &str, run: impl Fn(bool, bool) -> String) -> String {
+    let mut lines = String::new();
+    for populated in [false, true] {
+        for observe in [false, true] {
+            let answer = run(populated, observe);
+            lines.push_str(&format!(
+                "{label} pop={populated} obs={observe}: {answer}\n"
+            ));
+        }
+    }
+    lines
+}
+
 /// Every reviewed shape's answers, in the order the review listed them.
 fn answered() -> String {
     let mut out = String::new();
@@ -85,12 +100,9 @@ fn answered() -> String {
         ),
     ];
     for (name, steps, emit, frontier) in &mixed {
-        for populated in [false, true] {
-            for observe in [false, true] {
-                let a = both_passes(steps, *emit, frontier.clone(), populated, observe);
-                out.push_str(&format!("MX {name} pop={populated} obs={observe}: {a}\n"));
-            }
-        }
+        out.push_str(&each_run(&format!("MX {name}"), |populated, observe| {
+            both_passes(steps, *emit, frontier.clone(), populated, observe)
+        }));
     }
     let skipped: Vec<(&str, Vec<(StepScope, Operation)>, u32, Vec<Input>)> = vec![
         (
@@ -107,12 +119,9 @@ fn answered() -> String {
         ),
     ];
     for (name, steps, emit, frontier) in &skipped {
-        for populated in [false, true] {
-            for observe in [false, true] {
-                let a = after_the_files(steps, *emit, frontier.clone(), populated, observe);
-                out.push_str(&format!("SK {name} pop={populated} obs={observe}: {a}\n"));
-            }
-        }
+        out.push_str(&each_run(&format!("SK {name}"), |populated, observe| {
+            after_the_files(steps, *emit, frontier.clone(), populated, observe)
+        }));
     }
     let table = source();
     let nr = [
@@ -130,28 +139,23 @@ fn answered() -> String {
             3,
         ),
     ];
+    // After the files the function's facts are never read: only its refusal is run there.
+    let runs = [
+        (PF, "PF", "refused", vec![]),
+        (PF, "PF", "read", vec![(Relation::Function, &table)]),
+        (XF, "XF", "refused", vec![]),
+    ];
     for (name, ops, emit) in &nr {
-        for (scope, pass) in [(PF, "PF"), (XF, "XF")] {
-            let steps: Vec<_> = ops.iter().cloned().map(|o| (scope, o)).collect();
-            for (rel, facts) in [
-                ("refused", vec![]),
-                ("read", vec![(Relation::Function, &table)]),
-            ] {
-                for populated in [false, true] {
-                    for observe in [false, true] {
-                        let a = if scope == PF {
-                            per_file(&steps, *emit, populated, observe, &facts)
-                        } else if rel == "read" {
-                            continue;
-                        } else {
-                            after_the_files(&steps, *emit, vec![], populated, observe)
-                        };
-                        out.push_str(&format!(
-                            "NR {pass} {name} function={rel} pop={populated} obs={observe}: {a}\n"
-                        ));
-                    }
+        for (scope, pass, rel, facts) in &runs {
+            let steps: Vec<_> = ops.iter().cloned().map(|o| (*scope, o)).collect();
+            let label = format!("NR {pass} {name} function={rel}");
+            out.push_str(&each_run(&label, |populated, observe| {
+                if *scope == PF {
+                    per_file(&steps, *emit, populated, observe, facts)
+                } else {
+                    after_the_files(&steps, *emit, vec![], populated, observe)
                 }
-            }
+            }));
         }
     }
     out
