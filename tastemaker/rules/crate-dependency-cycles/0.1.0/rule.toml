@@ -88,3 +88,100 @@ fixtures = []
 [dev-dependencies]
 alpha = { path = ".", features = ["fixtures"] }
 '''
+
+[[scenarios]]
+id = 'three-cycles-and-a-self-dependency'
+scenario = 'Three cycles of local packages, through a dev-dependency, through a build dependency and of three packages, are reported at every manifest on them; a package that dev-depends on itself for its fixtures feature, and a package that only depends into a cycle, are not.'
+given.files.'crates/beta/Cargo.toml' = '''
+[package]
+name = "beta"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+alpha = { path = "../alpha" }
+'''
+given.files.'crates/beta/src/lib.rs' = ''
+given.files.'crates/gamma/Cargo.toml' = '''
+[package]
+name = "gamma"
+version = "0.1.0"
+edition = "2024"
+
+[build-dependencies]
+delta = { path = "../delta" }
+'''
+given.files.'crates/gamma/src/lib.rs' = ''
+given.files.'crates/delta/Cargo.toml' = '''
+[package]
+name = "delta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gamma = { path = "../gamma" }
+'''
+given.files.'crates/delta/src/lib.rs' = ''
+given.files.'crates/epsilon/Cargo.toml' = '''
+[package]
+name = "epsilon"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+zeta = { path = "../zeta" }
+'''
+given.files.'crates/epsilon/src/lib.rs' = ''
+given.files.'crates/zeta/Cargo.toml' = '''
+[package]
+name = "zeta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eta = { path = "../eta" }
+'''
+given.files.'crates/zeta/src/lib.rs' = ''
+given.files.'crates/eta/Cargo.toml' = '''
+[package]
+name = "eta"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+epsilon = { path = "../epsilon" }
+'''
+given.files.'crates/eta/src/lib.rs' = ''
+given.files.'crates/theta/Cargo.toml' = '''
+[package]
+name = "theta"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+
+[dev-dependencies]
+theta = { path = ".", features = ["fixtures"] }
+'''
+given.files.'crates/theta/src/lib.rs' = ''
+given.files.'crates/iota/Cargo.toml' = '''
+[package]
+name = "iota"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+alpha = { path = "../alpha" }
+theta = { path = "../theta" }
+'''
+given.files.'crates/iota/src/lib.rs' = ''
+then.findings = [
+  { path = 'crates/alpha/Cargo.toml', line = 1 },
+  { path = 'crates/beta/Cargo.toml', line = 1 },
+  { path = 'crates/delta/Cargo.toml', line = 1 },
+  { path = 'crates/epsilon/Cargo.toml', line = 1 },
+  { path = 'crates/eta/Cargo.toml', line = 1 },
+  { path = 'crates/gamma/Cargo.toml', line = 1 },
+  { path = 'crates/zeta/Cargo.toml', line = 1 },
+]
