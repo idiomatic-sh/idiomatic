@@ -51,6 +51,25 @@ impl EvidencePort for EvidenceBmfAdapter {
         output.flush()?;
         Ok(())
     }
+    fn verification(
+        &self,
+        linter: &ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName,
+        timings: &std::collections::BTreeMap<
+            ryo::linter::RuleId,
+            crate::domain::suite::types::RuleTiming,
+        >,
+    ) -> Result<(), Error> {
+        let bytes = schemas::verification(linter, timings)?;
+        let mut output = self
+            .connection
+            .output
+            .lock()
+            .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
+        output.write_all(&bytes)?;
+        output.write_all(constants::NEWLINE)?;
+        output.flush()?;
+        Ok(())
+    }
     fn parity(
         &self,
         parity: &ryo_benchmark_contracts::domain::reports::types::ParityReport<'_>,

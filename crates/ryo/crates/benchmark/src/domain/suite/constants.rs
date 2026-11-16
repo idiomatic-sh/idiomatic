@@ -64,6 +64,8 @@ pub(crate) const MISSING_VERIFICATION_COMMAND: &str = "missing verification comm
 pub(crate) const BENCHMARK_CASE_V2: &str = "benchmark-case/v2";
 /// Refuse certification without executable cases.
 pub(crate) const NO_CASES: &str = "no executable rule cases";
+/// How long one case's whole run may take to verify: the one limit of every linter's verification.
+pub const CASE_TIME_LIMIT: std::time::Duration = std::time::Duration::from_millis(100);
 /// Separate complete fixture failure records.
 pub(crate) const LINE_SEPARATOR: &str = "\n";
 /// A process-failure reference can only be verified by a direct no-deadline observer.

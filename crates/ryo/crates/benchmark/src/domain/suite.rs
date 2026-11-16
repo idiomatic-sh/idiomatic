@@ -5,6 +5,8 @@ pub mod service;
 pub mod types;
 
 pub(crate) mod constants;
+/// How long one case's whole run may take to verify, for every linter.
+pub use constants::CASE_TIME_LIMIT;
 
 #[cfg(test)]
 mod service_test;

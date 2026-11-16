@@ -24,6 +24,18 @@ pub trait EvidencePort {
         comparison: ReportComparison,
         contract: ComparisonContract,
     ) -> Result<(), Error>;
+    /// Publish how long each rule's cases took to verify, two BMF measures per rule, `verify/<linter>/<rule>-total-ms` and `verify/<linter>/<rule>-max-case-ms`.
+    ///
+    /// # Errors
+    /// Returns encoding, stream-write or flush failures.
+    fn verification(
+        &self,
+        linter: &ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName,
+        timings: &std::collections::BTreeMap<
+            ryo::linter::RuleId,
+            crate::domain::suite::types::RuleTiming,
+        >,
+    ) -> Result<(), Error>;
     /// Publish the differing-rule and unaccepted-difference counts of a corpus parity as metrics, and its
     /// per-rule document on the comparison stream. The counts of every parity published through this boundary
     /// are one document, each under its reference's name, written when the boundary is done.

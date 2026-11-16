@@ -50,6 +50,7 @@ fn verify(
         candidate,
         execution,
         &inventory,
+        &crate::outbound::evidence::fixtures::fake::EvidenceFake,
     )
     .verify_cases(
         rules,

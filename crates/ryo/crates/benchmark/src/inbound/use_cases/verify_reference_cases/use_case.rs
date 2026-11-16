@@ -11,6 +11,7 @@ pub struct VerifyReferenceCasesUseCaseImpl<'a> {
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
     execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
     inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
+    evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
 }
 impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
     /// Borrow the boundaries already composed by the caller.
@@ -23,6 +24,7 @@ impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
         execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
         inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
+        evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
     ) -> Self {
         Self {
             suite,
@@ -32,6 +34,7 @@ impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
             reference,
             execution,
             inventory,
+            evidence,
         }
     }
 }
@@ -43,7 +46,7 @@ impl VerifyReferenceCasesUseCase for VerifyReferenceCasesUseCaseImpl<'_> {
             rules,
             scratch,
         )?;
-        super::service::verify_prepared_reference_cases(
+        let verified = super::service::verify_prepared_reference_cases(
             self.suite,
             self.host,
             self.receipts,
@@ -53,6 +56,18 @@ impl VerifyReferenceCasesUseCase for VerifyReferenceCasesUseCaseImpl<'_> {
             self.inventory,
             rules,
             cases,
-        )
+        )?;
+        let tool = self
+            .suite
+            .profile(crate::outbound::suite::types::ArtifactPath(
+                rules.parent().ok_or_else(|| {
+                    ReportsError::Invalid(
+                    crate::application::input_metadata::constants::MISSING_CASE_PROFILE_BOUNDARY
+                        .into(),
+                )
+                })?,
+            ))?;
+        self.evidence.verification(&tool.tool, &verified.timings)?;
+        Ok(verified.count)
     }
 }
