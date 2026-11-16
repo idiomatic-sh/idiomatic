@@ -3,9 +3,6 @@
 
 use tastemaker_cli::resources::workspace::check::command::{CheckArguments, run};
 
-#[path = "../../../../tests/fixtures/replay/pinned.rs"]
-mod pinned;
-
 /// The `check` workload: the command run once per round through its own composition, its answer checked.
 pub(crate) fn workload() -> crate::measure::Measured {
     let directory = crate::fixtures::workspace();
@@ -100,75 +97,6 @@ pub(crate) fn instances() -> crate::measure::Measured {
                 tastemaker_cli::outcome::Outcome::Success,
                 "`check` over fifty instances ends as it should"
             );
-        },
-    )
-}
-
-/// The kibibytes of the largest resident set `tm check` reached over a copy of the repository at its `HEAD`, run in
-/// `crates/ryo`, cold: a fresh copy and no cache of Tastemaker's own, taken in the process the command line runs as.
-#[expect(
-    clippy::expect_used,
-    clippy::panic,
-    reason = "a benchmark fails by panicking: a copy that cannot be made, or a run that checked nothing, leaves nothing to measure, and the message names which"
-)]
-pub(crate) fn cold_peak() -> crate::measure::Measured {
-    crate::measure::require_pinned();
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(3)
-        .expect("the repository root")
-        .to_path_buf();
-    crate::measure::peaks(
-        "workspace/check-ryo-cold",
-        3,
-        || {
-            let scratch = tempfile::tempdir().expect("the scene directory");
-            let archive = std::process::Command::new("sh")
-                .arg("-c")
-                .arg("git -C \"$1\" archive HEAD | tar -x -C \"$2\"")
-                .arg("sh")
-                .arg(&root)
-                .arg(scratch.path())
-                .status()
-                .expect("git archive starts");
-            assert!(archive.success(), "the repository is archived");
-            pinned::pinned(&scratch.path().join("crates/ryo/tastemaker.toml"))
-                .expect("the workspace pinned to the built tm");
-            let init = std::process::Command::new("git")
-                .args(["init", "-q"])
-                .arg(scratch.path())
-                .status()
-                .expect("git starts");
-            assert!(init.success(), "git init succeeds");
-            scratch
-        },
-        |scratch| {
-            let output = std::process::Command::new("/usr/bin/time")
-                .args(["-f", "peak-kib %M", env!("CARGO_BIN_EXE_tm"), "check", "--format", "json"])
-                .current_dir(scratch.path().join("crates/ryo"))
-                .output()
-                .expect("tm starts");
-            let said = String::from_utf8_lossy(&output.stderr).into_owned();
-            // The peak says something of memory only for a run that checked the tree: it ends clean (0) or with findings
-            // (1) and its report holds a finding or a suppressed one (crates/ryo always has suppressed ones).
-            assert!(
-                matches!(output.status.code(), Some(0 | 1)),
-                "tm check did not check the tree (exit {:?}):\n{said}",
-                output.status.code()
-            );
-            let report: serde_json::Value = serde_json::from_slice(&output.stdout)
-                .unwrap_or_else(|error| panic!("tm check answered no report ({error}):\n{said}"));
-            let reported = |key: &str| report[key].as_array().map_or(0, Vec::len);
-            assert!(
-                reported("findings") + reported("suppressed") > 0,
-                "tm check reported nothing over crates/ryo, so it checked nothing:\n{said}"
-            );
-            let kibibytes = said
-                .lines()
-                .find_map(|line| line.strip_prefix("peak-kib ")?.trim().parse::<f64>().ok())
-                .unwrap_or_else(|| panic!("`time` reported no peak:\n{said}"));
-            drop(scratch);
-            kibibytes
         },
     )
 }
