@@ -1,6 +1,6 @@
 //! Every verified rule reports the time of its own cases, and a rule the profile only loads for another's sake reports none.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::inbound::use_cases::verify_cases::fixtures::shard::{Shape, prepared};
+use crate::inbound::use_cases::verify_cases::fixtures::shard::{Shape, prepared, succeeding};
 use crate::inbound::use_cases::verify_cases::service::verify_prepared_shard;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::{
@@ -85,7 +85,7 @@ fn subject(compiled: Input) -> Result<Value, Failure> {
         rules.push(ryo::linter::RuleId::try_from("SUPPORT").map_err(|error| error.to_string())?);
     }
     let execution = CompilingExecution {
-        inner: ExecutionFake::default(),
+        inner: succeeding(),
         compiled: rules,
     };
     let verified = verify_prepared_shard(
