@@ -37,6 +37,7 @@ impl ManifestFake {
                         output: Output::Sarif,
                         group: Group("lint".into()),
                         timeout: Seconds(60),
+                        tolerance: std::collections::BTreeMap::new(),
                         inputs: vec![Pathspec(".".into())],
                     })
                     .collect(),

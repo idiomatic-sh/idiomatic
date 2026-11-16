@@ -178,16 +178,16 @@ timeout-seconds = 3600
 inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../.."]
 
 [[tools]]
-id = "tm-peak"
+id = "memory-commands"
 group = "memory"
-# The peak resident set of `tm check` over crates/ryo, cold (`cli/tests/replay/check.rs`), as one BMF measure
-# (`crates-ryo/cold-peak-kib`): the lock holds its best and a run fails when it rises over it by more than the tolerance of `RATCHET_TOLERANCES` below. That tolerance is
-# the noise of a resident set, which moves with how many workers hold their tables at once; the test itself holds no bound.
-# Target, not a gate: 500 MB.
-run = ["bash", "-c", "set -eo pipefail; mkdir -p target/memory; out=\"$PWD/target/memory/tm-peak.json\"; rm -f \"$out\"; RATCHET_BMF_FILE=\"$out\" RATCHET_TOLERANCES=cold-peak-kib=5 cargo test --locked --package idiomatic-sh-tastemaker --test replay -- --exact check::checking_crates_ryo_cold_peaks_at_its_measure >&2; cat \"$out\""]
+# The peak resident set (`peak-kib`) of the command line's cold `tm check` over crates/ryo, the memory row of the `commands` bench
+# alone (its `--memory` flag, Linux): three runs over copies of their own, the median held to its best with the tolerance stated at
+# `performance`, 5%. Target, not a gate: 500 MB.
+run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-tastemaker", "--bench", "commands", "--", "--memory"]
 output = "bmf"
+tolerance-percent = { peak-kib = 5 }
 timeout-seconds = 3600
-inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../..", "../../tools/ratchet"]
+inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../.."]
 
 [[tools]]
 id = "performance"
@@ -195,6 +195,9 @@ group = "perf"
 # The benches print the Bencher Metric Format: the lock holds each measure's best and asymptote judges against it.
 run = ["cargo", "bench", "--locked", "--workspace", "--bench", "commands"]
 output = "bmf"
+# `workspace/check-ryo-cold/peak-kib`, the peak resident set of the command line's cold `check` over crates/ryo (Linux), moves with how
+# many workers hold their tables at once, so it is held to its best with a tolerance of 5%; the CPU measures are held to their best exactly.
+tolerance-percent = { peak-kib = 5 }
 timeout-seconds = 3600
 inputs = [".", "../ryo", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../.."]
 

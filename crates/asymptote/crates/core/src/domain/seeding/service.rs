@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::domain::manifest::types::Percent;
 use crate::domain::operations::types::Reason;
 use crate::domain::operations::types::{PerfKey, PerfRecord};
 use crate::domain::perf::service::standing_of;
@@ -27,7 +28,7 @@ pub fn seeding(
         let key = each.key.clone();
         let mut reasons = match recorded.get(&key).copied() {
             None => Vec::new(),
-            Some(record) if standing_of(each, record.best).is_gt() => record.reasons.clone(),
+            Some(record) if standing_of(each, record.best, Percent::default()).is_gt() => record.reasons.clone(),
             Some(_) => continue,
         };
         reasons.push(reason.clone());

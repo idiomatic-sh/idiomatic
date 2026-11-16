@@ -14,11 +14,11 @@ use crate::domain::judgement::service::{compare, tail, verdict, with_perf};
 use crate::domain::judgement::types::{Code, Failure, Inventory, Problem, Run, Status, Tail};
 use crate::domain::manifest::constants::MANIFEST;
 use crate::domain::manifest::service::selects;
-use crate::domain::manifest::types::{Fix, Output, Pathspec, ProductRoot, Running, Tool};
+use crate::domain::manifest::types::{Fix, Output, Pathspec, Percent, ProductRoot, Running, Tool};
 use crate::domain::operations::constants::LOCK_SEGMENT;
 use crate::domain::operations::types::{Operation, Record, Revision};
 use crate::domain::perf::service::{judge, rewritten};
-use crate::domain::perf::types::{Measurement, PerfOutcome, Rewriting};
+use crate::domain::perf::types::{Measurement, PerfOutcome, Rewriting, ToleranceKey};
 use crate::domain::renames::types::Head;
 use crate::domain::reports::service::{
     completed, failed, measured, range_ends, recorded, stamp_parts, unlisted, unread,
@@ -309,6 +309,7 @@ impl CheckUseCaseImpl {
         scanned: &[Scanned],
         runs: &[Run],
         excluded: &[ToolId],
+        tools: &[Tool],
         request: &CheckRequest,
     ) -> Result<PerfOutcome, CheckError> {
         let folded = self.ports.accepted.folded()?;
@@ -323,7 +324,23 @@ impl CheckUseCaseImpl {
             .filter(|record| !excluded.contains(&record.key.tool))
             .cloned()
             .collect();
-        let mut perf = judge(&measured(scanned), &records, &ran);
+        let allowed: BTreeMap<ToleranceKey, Percent> = tools
+            .iter()
+            .flat_map(|tool| {
+                tool.tolerance
+                    .iter()
+                    .map(|(measure, percent)| {
+                        (
+                            ToleranceKey {
+                                tool: tool.id.clone(),
+                                measure: measure.clone(),
+                            },
+                            *percent,
+                        )
+                    })
+            })
+            .collect();
+        let mut perf = judge(&measured(scanned), &records, &ran, &allowed);
         let improved = rewritten(&perf);
         if request.fixing == Fixing::Fix || matches!(request.against, Against::Since(_)) {
             perf.rewriting = Rewriting::Withheld;
@@ -419,7 +436,7 @@ impl CheckUseCase for CheckUseCaseImpl {
         stored.recorded.files.extend(judged.files);
         stored.recorded.taken = stored.recorded.taken.min(judged.taken);
         let outcome = compare(&violations, &accepted, &runs);
-        let perf = self.perf(&scanned, &runs, &excluded, &request)?;
+        let perf = self.perf(&scanned, &runs, &excluded, &manifest.tools, &request)?;
         let verdict = with_perf(verdict(&runs, &outcome), &perf);
         // A failed tool's run is kept, so `up` and `down` see the failure; the run it replaces is kept beside it, so the
         // answer of the last completed run is still reusable.

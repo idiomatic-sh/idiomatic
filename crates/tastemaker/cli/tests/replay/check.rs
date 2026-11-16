@@ -1,6 +1,6 @@
 //! `tm check`, over each sample: the rule `tm create` writes reports where its own failing scenario says.
 
-use crate::fixes::{CLEAN, FOUND, tm};
+use crate::fixes::{FOUND, tm};
 use crate::languages::{
     RULE, copied, created, created_rule, ended, initialized, over_samples, ran, reported,
 };
@@ -315,70 +315,4 @@ fn check_proves_only_what_changed_since_its_last_run() {
             ))
         }
     });
-}
-
-/// `tm check` over a `git archive` copy of the repository, in `crates/ryo`, cold, peaks at a resident set that it hands as a Bencher
-/// Metric Format document to the file the tool names, the measure asymptote's ratchet holds (tool `tm-peak`).
-#[test]
-#[cfg(target_os = "linux")]
-fn checking_crates_ryo_cold_peaks_at_its_measure() {
-    let scratch = tempfile::tempdir().expect("the scene directory");
-    let archive = std::process::Command::new("sh")
-        .arg("-c")
-        .arg("git -C \"$1\" archive HEAD | tar -x -C \"$2\"")
-        .arg("sh")
-        .arg(crate::fixes::root())
-        .arg(scratch.path())
-        .status()
-        .expect("git archive starts");
-    assert!(archive.success(), "the repository is archived");
-    crate::fixes::pinned(&scratch.path().join("crates/ryo/tastemaker.toml"))
-        .expect("the workspace pinned to the built tm");
-    let init = std::process::Command::new("git")
-        .args(["init", "-q"])
-        .arg(scratch.path())
-        .status()
-        .expect("git starts");
-    assert!(init.success(), "git init succeeds");
-    let output = std::process::Command::new("/usr/bin/time")
-        .args([
-            "-f",
-            "peak-kib %M",
-            env!("CARGO_BIN_EXE_tm"),
-            "check",
-            "--format",
-            "json",
-        ])
-        .current_dir(scratch.path().join("crates/ryo"))
-        .output()
-        .expect("tm starts");
-    let said = String::from_utf8_lossy(&output.stderr).into_owned();
-    // The peak says something of memory only for a run that checked the tree. A run that checked it ends clean (exit 0)
-    // or with findings (exit 1), and its report holds every finding and every suppressed one: crates/ryo always has
-    // suppressed findings, so a report with neither checked nothing. A run that could not check (exit 2, such as a
-    // definition refused for want of a proof) stops in seconds, and its peak proves nothing.
-    assert!(
-        matches!(output.status.code(), Some(CLEAN | FOUND)),
-        "tm check did not check the tree (exit {:?}):\n{said}",
-        output.status.code()
-    );
-    let report: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .unwrap_or_else(|error| panic!("tm check answered no report ({error}):\n{said}"));
-    let reported = |key: &str| report[key].as_array().map_or(0, Vec::len);
-    assert!(
-        reported("findings") + reported("suppressed") > 0,
-        "tm check reported no finding and no suppressed finding over crates/ryo, so it checked nothing:\n{said}"
-    );
-    let peak = said
-        .lines()
-        .find_map(|line| line.strip_prefix("peak-kib "))
-        .and_then(|kib| kib.trim().parse::<u64>().ok())
-        .unwrap_or_else(|| panic!("`time` reported no peak:\n{said}"));
-    idiomatic_sh_ratchet::write(
-        "crates-ryo",
-        &[idiomatic_sh_ratchet::Measure {
-            name: "cold-peak-kib",
-            value: peak,
-        }],
-    );
 }

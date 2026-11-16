@@ -1,10 +1,10 @@
 //! What ryo costs over ruff, as one Bencher Cost Format document on stdout (everything meant for a person goes to
 //! stderr): `{ "<target>": { "<metric>": { "value": 831, "lower_value": 794, "upper_value": 893 } } }`. The benchmark is
 //! the target the cost is of (`ruff`), the measure is the metric (`cold-milliseconds`,
-//! `cold-cpu-milliseconds`, `spike-cpu-milliseconds`, `warm-milliseconds`, `edit-milliseconds`, `peak-megabytes`,
-//! `store-megabytes`, `store-files`); `value` is the median of the rounds, `lower_value` and `upper_value` the fastest
-//! and the slowest. Asymptote's `perf` group judges the document against the ratchet it keeps in its lock (best,
-//! tolerance, machine class); this bench asserts no budget and keeps no ratchet of its own.
+//! `cold-cpu-milliseconds`, `spike-cpu-milliseconds`, `warm-milliseconds`, `edit-milliseconds`, `peak-megabytes` (the cold run's), `warm-peak-megabytes`,
+//! `store-bytes`, `store-megabytes`, `store-files`); `value` is the median of the rounds, `lower_value` and `upper_value` the fastest
+//! and the slowest. Asymptote's `perf` group judges the document against the ratchet it keeps in its lock (best, and the tolerance of each measure, which the
+//! tool's definition holds); this bench asserts no budget and keeps no ratchet of its own. The `blocks` bench prints the same format.
 //!
 //! The method: a cost is judged by the MEDIAN of several rounds, not by one run, because one run moves with the load of
 //! the machine and, for the peak, with how many workers hold their tables at once. The cold cost of ruff and its CPU
@@ -27,12 +27,6 @@
 //!
 //! The store a warm run leaves in the cache directory of a target (v1 left an 18 GB store; the store here is bounded)
 //! is one file.
-
-/// How many rounds every cost is taken over, but the cold cost of ruff: the median of these is the `value`.
-pub(crate) const ROUNDS: usize = 3;
-
-/// How many rounds the cold cost of ruff and its CPU are taken over.
-pub(crate) const COLD_ROUNDS: usize = 5;
 
 /// One cost of one target, a metric of it, and the value of each of its rounds.
 pub(crate) struct Cost {

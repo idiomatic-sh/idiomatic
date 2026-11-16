@@ -4,7 +4,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::bmf::{COLD_ROUNDS, Cost};
+use crate::bmf::Cost;
+use crate::rounds::COLD_ROUNDS;
 
 /// The workers a run over ruff is taken on.
 const WORKERS: usize = 10;

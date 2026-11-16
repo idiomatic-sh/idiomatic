@@ -502,6 +502,7 @@ pub fn improving() -> Scenario {
         output: Output::Bmf,
         group: Group("perf".into()),
         timeout: Seconds(60),
+        tolerance: std::collections::BTreeMap::new(),
         inputs: vec![Pathspec(".".into())],
     });
     Scenario {

@@ -62,8 +62,6 @@ ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk" }
 idiomatic-sh-ryo = { path = ".", features = ["rust", "fixtures"] }
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", features = ["fixtures"] }
 dhat.workspace = true
-# What a memory test writes for asymptote's ratchet: one writer for the tests of ryo and of Tastemaker.
-idiomatic-sh-ratchet = { path = "../../../tools/ratchet" }
 toml.workspace = true
 # The language with its fixtures, which the call-count test reads.
 ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../languages/rust", features = ["fixtures"] }
@@ -93,6 +91,8 @@ harness = false
 # Every language is a default: a plain `cargo install` reads all of them, and a registry's build or a check names its own set with `--no-default-features --features ...`.
 [features]
 distribution = []
+# A diagnostic build of the `lint` bench: `dhat` is its allocator, for the `--dhat` run (the allocation profile of a cold run).
+dhat-heap = []
 default = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = []

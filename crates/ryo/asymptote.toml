@@ -254,40 +254,12 @@ inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml",
 
 [[tools]]
 id = "peak"
-group = "memory"
-# The warm run's peak resident memory over ruff (`cli/tests/replay/peak.rs`, in a process of its own), as one BMF measure
-# (`ruff/warm-peak-bytes`): the lock holds its best and a run fails when it rises over it by more than the tolerance of `RATCHET_TOLERANCES` below. That tolerance is
-# the noise of a resident set, which moves with how many workers hold their tables at once; the test itself holds no bound.
-# Target, not a gate: the release build's run, 87 MB.
-run = ["bash", "-c", "set -eo pipefail; mkdir -p target/memory; out=\"$PWD/target/memory/peak.json\"; rm -f \"$out\"; RATCHET_BMF_FILE=\"$out\" RATCHET_TOLERANCES=warm-peak-bytes=5 cargo test --locked --package idiomatic-sh-ryo --test replay -- --exact peak::a_warm_unchanged_run_over_ruff_peaks --test-threads=1 >&2; cat \"$out\""]
-output = "bmf"
+group = "perf"
+# A warm run over ruff in a process of its own reads no file (`cli/tests/replay/peak.rs`): run here, apart from the release's
+# tests, which skip it. Its memory is measured by `memory-lint`.
+run = ["cargo", "nextest", "run", "--package", "idiomatic-sh-ryo", "--locked", "-E", "test(/^peak::/)"]
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tools/ratchet"]
-
-[[tools]]
-id = "memory-store"
-group = "memory"
-# The bytes of the store a run over ruff leaves (`cli/tests/replay/cache.rs`), as one BMF measure (`ruff/store-bytes`): the lock
-# holds its best and a run fails when it rises over it by more than the tolerance of `RATCHET_TOLERANCES` below. That tolerance is small because the store is the same
-# bytes for the same files and rules, and only the order the workers hand their buckets in can move it.
-# Target, not a gate: a store of a few MB (five).
-run = ["bash", "-c", "set -eo pipefail; mkdir -p target/memory; out=\"$PWD/target/memory/memory-store.json\"; rm -f \"$out\"; RATCHET_BMF_FILE=\"$out\" RATCHET_TOLERANCES=store-bytes=1 cargo test --locked --package idiomatic-sh-ryo --test replay -- --exact cache::the_store_every_recorded_rule_keeps_over_ruff_is_measured >&2; cat \"$out\""]
-output = "bmf"
-timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tools/ratchet"]
-
-[[tools]]
-id = "memory-blocks"
-group = "memory"
-# The allocation profile of a run over ruff (`cli/tests/blocks.rs`), as two BMF measures. `ruff/dhat-gmax-bytes`, the bytes
-# live at the run's global maximum, rises over its best by at most its tolerance below: `dhat` counts every allocation, so the bytes repeat
-# from run to run and only the order the workers' tables meet at the maximum moves them. `ruff/big-blocks`, the count of
-# blocks of a megabyte or more, has none: it is whole blocks that the workers and the rules make. The test keeps its own
-# ceiling on the big blocks (the workers and the rules, 64 tables each) until the ratchet holds them.
-run = ["bash", "-c", "set -eo pipefail; mkdir -p target/memory; out=\"$PWD/target/memory/memory-blocks.json\"; rm -f \"$out\"; RATCHET_BMF_FILE=\"$out\" RATCHET_TOLERANCES=dhat-gmax-bytes=1,big-blocks=0 cargo test --locked --package idiomatic-sh-ryo --test blocks >&2; cat \"$out\""]
-output = "bmf"
-timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tools/ratchet"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 
 [[tools]]
 id = "performance-lint"
@@ -295,6 +267,39 @@ group = "perf"
 # ryo's cost over ruff on the same target: the medians of five rounds (cold) and three (the rest), with an equal page cache; run it on a quiet machine.
 run = ["cargo", "bench", "--locked", "--workspace", "--bench", "lint"]
 output = "bmf"
+# The memory measures move a little between runs, and each is held to its best with a tolerance the tool's definition states: the
+# peaks (`peak-megabytes` of the cold run, `warm-peak-megabytes`) are resident sets, which move with how many workers hold their
+# tables at once, so 5%; `store-bytes` is the same bytes for the same files and rules, which only the order the workers hand their
+# buckets in can move, so 1%. The same three measures are taken alone by `memory-lint`.
+tolerance-percent = { peak-megabytes = 5, warm-peak-megabytes = 5, store-bytes = 1 }
+timeout-seconds = 3600
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+
+[[tools]]
+id = "memory-lint"
+group = "memory"
+# The memory rows of the `lint` bench alone, over ruff: the peak of a cold run (`peak-megabytes`) and of a warm one
+# (`warm-peak-megabytes`), each the median of three rounds in a process of its own, and the bytes of the store the run leaves
+# (`store-bytes`). It is the part of `performance-lint` a pull request can afford (a few minutes, not the whole bench), and
+# it is the same code, the bench's `--memory` flag. Each measure is held to its best, with the tolerance stated at
+# `performance-lint`: the peaks 5%, the store 1%. Targets, not gates: a peak under the release build's 87 MB, a store of a few MB (five).
+run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--bench", "lint", "--", "--memory"]
+output = "bmf"
+tolerance-percent = { peak-megabytes = 5, warm-peak-megabytes = 5, store-bytes = 1 }
+timeout-seconds = 3600
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+
+[[tools]]
+id = "memory-dhat"
+group = "memory"
+# One cold run over ruff under `dhat` (the `lint` bench's `--dhat` run, which `--features dhat-heap` gives `dhat` as the allocator:
+# no time or peak is taken beside it): the bytes live at the run's global maximum (`dhat-gmax-bytes`) and the count of blocks of a
+# megabyte or more (`big-blocks`). `dhat` counts every allocation, so both repeat from run to run: the bytes may rise by 1%, which
+# only the order the workers' tables meet at the maximum moves, the count by none. `tests/blocks.rs` keeps its ceiling on the big
+# blocks (the workers and the rules, each with 64 tables) until the ratchet holds them.
+run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--features", "dhat-heap", "--bench", "lint", "--", "--dhat"]
+output = "bmf"
+tolerance-percent = { dhat-gmax-bytes = 1, big-blocks = 0 }
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
 

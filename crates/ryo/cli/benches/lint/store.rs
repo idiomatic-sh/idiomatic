@@ -47,6 +47,11 @@ pub(crate) fn of_each_target() -> Vec<Cost> {
         );
         metrics.push(Cost {
             target: name,
+            metric: "store-bytes",
+            rounds: vec![bytes],
+        });
+        metrics.push(Cost {
+            target: name,
             metric: "store-megabytes",
             rounds: vec![bytes >> 20_i32],
         });

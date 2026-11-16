@@ -3,6 +3,12 @@
 //! taken), and what a person reads (the rows of each set of rules, the rounds of each metric) on stderr; Asymptote's
 //! `perf` group judges the document against the ratchet, and this bench asserts no budget.
 //!
+//! `--features dhat-heap -- --dhat` takes one cold run under `dhat`: the bytes live at its global maximum and its blocks of a
+//! megabyte or more (`dhat` replaces the allocator, so no other measure is taken in that run).
+//!
+//! `-- --memory` runs the memory rows alone (the peaks of a cold and a warm run and the store, taken over the same rounds), for the
+//! asymptote tool that holds them to their best on every pull request.
+//!
 //! Run it with `cargo bench --locked -p idiomatic-sh-ryo --bench lint` on a quiet machine, never in a batch (a full run
 //! takes several minutes; `--rounds <n>` takes the cache rows over n rounds, a seed takes six or more). Run as a test
 //! (`cargo test --all-targets` passes no `--bench`), it proves the workloads run on a small tree and measures nothing.
@@ -26,6 +32,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 /// The allocator wherever jemalloc builds: jemalloc, as ruff and uv ship it.
 #[cfg(all(
+    not(feature = "dhat-heap"),
     not(target_os = "windows"),
     not(target_os = "openbsd"),
     not(target_os = "aix"),
@@ -39,6 +46,12 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 ))]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
+/// The allocator of a `--dhat` run, which counts every allocation of the process (`--features dhat-heap`); no run that measures
+/// time or the peak is taken under it.
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static GLOBAL: dhat::Alloc = dhat::Alloc;
 
 #[path = "../tests/fixtures/replay/base.rs"]
 mod base;
@@ -54,6 +67,11 @@ mod cold;
 mod counting;
 #[path = "../tests/fixtures/replay/phases.rs"]
 mod phases;
+#[cfg(feature = "dhat-heap")]
+#[path = "../tests/fixtures/replay/profile.rs"]
+mod profile;
+#[path = "lint/rounds.rs"]
+mod rounds;
 #[path = "lint/rows.rs"]
 mod rows;
 #[path = "../tests/fixtures/replay/ruff.rs"]
@@ -88,7 +106,7 @@ fn main() {
     let rounds = arguments
         .iter()
         .position(|each| each == "--rounds")
-        .map_or(bmf::ROUNDS, |at| {
+        .map_or(rounds::ROUNDS, |at| {
             arguments
                 .get(at + 1)
                 .expect("--rounds requires a positive integer")
@@ -116,8 +134,59 @@ fn main() {
     assert_eq!(expected.len(), declared.len(), "duplicate declared rules");
     assert_eq!(actual.len(), runnable.len(), "duplicate runnable rules");
     assert_eq!(actual, expected, "benchmark must run every configured rule");
-    let mut metrics = cold::every_rule();
-    metrics.extend(cache::of_ruff(rounds));
+    // `--memory` takes the memory of a cold and a warm run and of the store alone, the part of the bench a pull request can afford.
+    let memory = arguments.iter().any(|each| each == "--memory");
+    if arguments.iter().any(|each| each == "--dhat") {
+        dhat_run();
+        return;
+    }
+    let mut metrics = if memory {
+        Vec::new()
+    } else {
+        cold::every_rule()
+    };
+    metrics.extend(cache::of_ruff(
+        rounds,
+        if memory {
+            &["cold", "warm"]
+        } else {
+            &["plain", "cold", "warm", "edit", "body", "rename"]
+        },
+    ));
     metrics.extend(store::of_each_target());
     bmf::print(&metrics);
+}
+
+/// The allocation profile of one cold run over ruff, under `dhat`: the bytes live at its global maximum and the count of blocks of a
+/// megabyte or more, as one document. `dhat` counts every allocation, so one run is the whole sample.
+#[cfg(feature = "dhat-heap")]
+fn dhat_run() {
+    let rules: Vec<_> = counting::runnable()
+        .into_iter()
+        .map(|(_, rule)| rule)
+        .collect();
+    let cache = tempfile::tempdir().expect("a cache directory");
+    let (counted, profile) = profile::profiled(|| {
+        counting::lint_counting(&base::snapshot::ruff(), rules, base::store_at(cache.path()))
+            .expect("the rules run")
+    });
+    assert!(counted.reads > 0, "a cold run reads ruff's files");
+    bmf::print(&[
+        bmf::Cost {
+            target: "ruff",
+            metric: "dhat-gmax-bytes",
+            rounds: vec![u128::from(profile.gmax_bytes)],
+        },
+        bmf::Cost {
+            target: "ruff",
+            metric: "big-blocks",
+            rounds: vec![u128::from(profile.big_blocks)],
+        },
+    ]);
+}
+
+/// Without `dhat` as the allocator there is no profile to take.
+#[cfg(not(feature = "dhat-heap"))]
+fn dhat_run() {
+    panic!("`--dhat` needs the `dhat-heap` feature: `cargo bench --features dhat-heap --bench lint -- --dhat`");
 }

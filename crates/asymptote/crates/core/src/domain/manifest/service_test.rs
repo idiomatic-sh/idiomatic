@@ -183,6 +183,7 @@ fn tool(id: &str) -> Tool {
         output: Output::ExitStatus,
         group: group("check"),
         timeout: Seconds(60),
+        tolerance: std::collections::BTreeMap::new(),
         inputs: Vec::new(),
     }
 }

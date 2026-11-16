@@ -2,19 +2,28 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::types::{Holding, Improvement, Measured, PerfOutcome, Regression, Spread, Unseeded};
+use super::types::{
+    Holding, Improvement, Measured, PerfOutcome, Regression, Spread, ToleranceKey, Unseeded,
+};
+use crate::domain::manifest::types::Percent;
 use crate::domain::operations::types::{Count, Number, PerfKey, PerfRecord};
 use crate::domain::violations::types::ToolId;
 
-/// How the run stands against `best`: `Greater` when even the low end of its spread is above it, `Less` when even the
-/// high end is below it, `Equal` otherwise; a bound the tool did not report is the median.
-pub(crate) fn standing_of(measurement: &Measured, best: Number) -> std::cmp::Ordering {
+/// How the run stands against `best`: `Greater` when even the low end of its spread is above the best raised by the
+/// `tolerance` (the best itself when it is none), `Less` when even the high end is below the best, `Equal` otherwise; a bound
+/// the tool did not report is the median.
+pub(crate) fn standing_of(
+    measurement: &Measured,
+    best: Number,
+    tolerance: Percent,
+) -> std::cmp::Ordering {
+    let ceiling = best.0 * (1.0_f64 + f64::from(tolerance.0) / 100.0_f64);
     let bound = |spread: Spread| match spread {
         Spread::Given(number) => number.0,
         Spread::Absent => measurement.value.0,
     };
     let (low, high) = (bound(measurement.lower), bound(measurement.upper));
-    if low > best.0 {
+    if low > ceiling {
         std::cmp::Ordering::Greater
     } else if high < best.0 {
         std::cmp::Ordering::Less
@@ -34,10 +43,16 @@ pub fn resolved(measured: &[Measured], records: &[PerfRecord], ran: &[ToolId]) -
         .collect()
 }
 
-/// Judges `measured` against `records`: a run whose low end is above the best is regressed, one whose high end is below it
-/// improved, one with no record unseeded; a record of a tool in `ran` that reports it no longer is resolved.
+/// Judges `measured` against `records`: a run whose low end is above the best raised by its measure's tolerance in `allowed`
+/// (none, for a measure it does not name) is regressed, one whose high end is below the best improved, one with no record
+/// unseeded; a record of a tool in `ran` that reports it no longer is resolved.
 #[must_use]
-pub fn judge(measured: &[Measured], records: &[PerfRecord], ran: &[ToolId]) -> PerfOutcome {
+pub fn judge(
+    measured: &[Measured],
+    records: &[PerfRecord],
+    ran: &[ToolId],
+    allowed: &BTreeMap<ToleranceKey, Percent>,
+) -> PerfOutcome {
     let recorded: BTreeMap<&PerfKey, &PerfRecord> =
         records.iter().map(|record| (&record.key, record)).collect();
     let mut outcome = PerfOutcome::default();
@@ -51,7 +66,14 @@ pub fn judge(measured: &[Measured], records: &[PerfRecord], ran: &[ToolId]) -> P
             continue;
         };
         // Only `up` raises a best: whatever its spread says, a check rewrites a best only to a lower value.
-        let spread = standing_of(each, record.best);
+        let tolerance = allowed
+            .get(&ToleranceKey {
+                tool: each.key.tool.clone(),
+                measure: each.key.measure.clone(),
+            })
+            .copied()
+            .unwrap_or_default();
+        let spread = standing_of(each, record.best, tolerance);
         let standing = if value.0 < record.best.0 {
             spread
         } else {
