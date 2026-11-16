@@ -20,7 +20,9 @@ fn locks(root: &Path, from: &Path, found: &mut Vec<PathBuf>) -> io::Result<()> {
         let path = entry.path();
         if entry.file_type()?.is_dir() {
             locks(root, &path, found)?;
-        } else if name == "tastemaker.lock" {
+            continue;
+        }
+        if name == "tastemaker.lock" {
             found.push(
                 path.strip_prefix(root)
                     .map_err(io::Error::other)?
