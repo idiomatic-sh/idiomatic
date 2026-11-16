@@ -116,7 +116,10 @@ fn handovers_over(root: &std::path::Path) -> Vec<ryo_values::domain::runs::types
         rules,
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
         0,
-        counting::Work::Counted,
+        Some(|| {
+            Arc::new(ryo_execution_runtime::outbound::observer::factory::counting())
+                as Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>
+        }),
         |_, _, report| report.handovers,
     );
     handed.expect("the rules run")

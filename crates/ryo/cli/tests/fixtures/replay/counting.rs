@@ -134,19 +134,14 @@ pub(crate) fn lint_with_workers(
         rules,
         lint_store,
         workers,
-        Work::Uncounted,
+        None,
         |counted, _output, _report| counted,
     )
 }
 
-/// Whether a lint counts its own work: the rows each step is fed and what each file hands the steps after the files.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Work {
-    /// The run counts its work, and its report holds it.
-    Counted,
-    /// The run counts nothing.
-    Uncounted,
-}
+/// The observer a lint counts its own work with: the rows each step is fed and what each file hands the steps after the files.
+pub(crate) type Counter =
+    fn() -> Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>;
 
 /// Lints `root` with `rules` on `workers` workers, keeping what it found in `lint_store`, and gives `observe` what the run counted with its
 /// complete emitted output and report: each test keeps what it reads of them.
@@ -159,7 +154,7 @@ pub(crate) fn lint_observing<T>(
     rules: Vec<Rule>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     workers: usize,
-    work: Work,
+    work: Option<Counter>,
     observe: impl FnOnce(
         Counted,
         row_sink::types::Collected,
@@ -241,9 +236,8 @@ pub(crate) fn lint_observing<T>(
     };
     // The rows each step is fed and what each file hands over are counted when the caller asks, and only then.
     let use_case = match work {
-        Work::Counted => use_case
-            .counting(|| Arc::new(ryo_execution_runtime::outbound::observer::factory::counting())),
-        Work::Uncounted => use_case,
+        Some(counter) => use_case.counting(counter),
+        None => use_case,
     };
     let request = LintRequest {
         source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
