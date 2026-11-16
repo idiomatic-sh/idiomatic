@@ -23,4 +23,5 @@ pub(super) enum EngineScenario {
     SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth,
     Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth,
     ActualRootedQueriesKeepTheirSparseAxis,
+    LookupRulesCostGrowsWithTheFileNotItsSquare,
 }

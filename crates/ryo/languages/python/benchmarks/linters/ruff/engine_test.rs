@@ -172,6 +172,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || EngineScenario::ActualRootedQueriesKeepTheirSparseAxis,
         expect: Expect::Value(true),
     },
+    Case {
+        name: CaseName("lookup_rules_cost_grows_with_the_file_not_its_square"),
+        word: Word::Succeeds,
+        input: || EngineScenario::LookupRulesCostGrowsWithTheFileNotItsSquare,
+        expect: Expect::Value(true),
+    },
 ];
 fn exercise(scenario: Input) -> Result<Value, Error> {
     if scenario == EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile {
@@ -216,6 +222,10 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     }
     if scenario == EngineScenario::ActualRootedQueriesKeepTheirSparseAxis {
         return sparse_traversal_test::actual_rooted_queries_keep_their_sparse_axis()
+            .map(|()| true);
+    }
+    if scenario == EngineScenario::LookupRulesCostGrowsWithTheFileNotItsSquare {
+        return lookup_linearity_test::lookup_rules_cost_grows_with_the_file_not_its_square()
             .map(|()| true);
     }
     let root = tempfile::tempdir()?;
@@ -292,6 +302,8 @@ mod project_inputs_test;
 mod i001_observation_test;
 
 mod sparse_traversal_test;
+
+mod lookup_linearity_test;
 
 mod rejected_syntax_consumer_test;
 
