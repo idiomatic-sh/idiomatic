@@ -206,3 +206,9 @@ expected = []
 name = "class-getattr-does-not-resolve-module-export"
 files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nclass C:\n def __getattr__(self,name): return 1\n__all__=[\"Foo\"]\n" }
 expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 73, "end" = 76 }]
+
+[[cases]]
+name = "conditional-runtime-import-is-no-fallback"
+comparison = "full"
+files = { "case.py" = "from typing import TYPE_CHECKING\n\nHAS_PYARROW = True\n\nif HAS_PYARROW:\n    import pyarrow as pa\n\nif TYPE_CHECKING:\n    import pyarrow as pa\n\n\ndef is_arrow(value):\n    return isinstance(value, pa.DataType)\n\n\ntry:\n    import json\nexcept ImportError:\n    json = None\n\nif TYPE_CHECKING:\n    import json\n\nfor _ in range(1):\n    import csv\n\nif TYPE_CHECKING:\n    import csv\n\n\ndef dump(value):\n    return json.dumps(value), csv.writer\n\n\nif TYPE_CHECKING:\n    import decimal\nelse:\n    decimal = None\n\n\ndef number():\n    return decimal\n" }
+expected = [{ rule = "TC004", file = "case.py", start = 136, end = 138 }, { rule = "TC004", file = "case.py", start = 293, end = 297 }, { rule = "TC004", file = "case.py", start = 363, end = 366 }]
