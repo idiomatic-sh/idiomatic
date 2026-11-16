@@ -15,7 +15,7 @@ autobenches = false
 name = "ryo_language"
 
 [dependencies]
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.4" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
 thiserror.workspace = true
 hashbrown.workspace = true
 dhat = { workspace = true, optional = true }

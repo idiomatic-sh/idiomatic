@@ -13,22 +13,22 @@ autobenches = false
 name = "ryo_execution_domain"
 
 [dependencies]
-ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.4" }
-ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.4" }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.4" }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.4" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.4" }
-ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.4" }
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.2.0" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.2.0" }
 thiserror.workspace = true
 hashbrown.workspace = true
 rustc-hash.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.4", features = ["fixtures"] }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.4", features = ["fixtures"] }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.4", features = ["fixtures"] }
-ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.4", features = ["fixtures"] }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0", features = ["fixtures"] }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0", features = ["fixtures"] }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0", features = ["fixtures"] }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.2.0", features = ["fixtures"] }
 
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).

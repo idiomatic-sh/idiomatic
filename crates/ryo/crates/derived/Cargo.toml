@@ -13,8 +13,8 @@ autobenches = false
 name = "ryo_derived"
 
 [dependencies]
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.4" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.4" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
 hashbrown.workspace = true
 rustc-hash.workspace = true
 
