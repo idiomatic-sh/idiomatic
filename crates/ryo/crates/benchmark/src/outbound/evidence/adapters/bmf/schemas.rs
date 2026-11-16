@@ -238,8 +238,8 @@ pub(super) fn parity_counts(parity: &ParityReport<'_>) -> (ReportName, ParityCou
     )
 }
 
-/// The verification times of every rule as one BMF document: benchmark `verify`, and for each rule the measures
-/// `verify/<linter>/<rule>-total-ms`, `-max-case-ms` and `-compile-ms`.
+/// The verification times of every rule as one BMF document: one benchmark for each rule, `verify/<linter>/<rule>`, with the
+/// measures `total-ms`, `max-case-ms` and `compile-ms`, so a tool states one tolerance for each measure across its rules.
 pub(super) fn verification(
     linter: &ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName,
     timings: &BTreeMap<ryo::linter::RuleId, crate::domain::suite::types::RuleTiming>,
@@ -252,15 +252,18 @@ pub(super) fn verification(
             upper_value: milliseconds,
         }
     };
-    let mut measures = BTreeMap::new();
+    let mut document = BTreeMap::new();
     for (rule, timing) in timings {
-        let prefix = format!("{}/{}/{rule}", constants::VERIFY, linter.0);
-        let _total = measures.insert(format!("{prefix}-total-ms"), measure(timing.total));
-        let _slowest = measures.insert(format!("{prefix}-max-case-ms"), measure(timing.slowest));
-        let _compile = measures.insert(format!("{prefix}-compile-ms"), measure(timing.compile));
+        let _previous = document.insert(
+            format!("{}/{}/{rule}", constants::VERIFY, linter.0),
+            BTreeMap::from([
+                (constants::TOTAL_MS, measure(timing.total)),
+                (constants::MAX_CASE_MS, measure(timing.slowest)),
+                (constants::COMPILE_MS, measure(timing.compile)),
+            ]),
+        );
     }
-    serde_json::to_vec(&BTreeMap::from([(constants::VERIFY, measures)]))
-        .map_err(|error| Error::Json(Box::new(error)))
+    serde_json::to_vec(&document).map_err(|error| Error::Json(Box::new(error)))
 }
 
 /// Every parity report's counts as one BMF document, each under its reference's name.

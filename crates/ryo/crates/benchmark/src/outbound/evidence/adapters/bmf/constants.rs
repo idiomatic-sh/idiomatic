@@ -46,5 +46,14 @@ pub(super) const MISSING_CLASS: &str = "-missing";
 pub(super) const EXTRA_CLASS: &str = "-extra";
 /// The suffix of a contestant's end key in an end-difference sample, after its name.
 pub(super) const END_KEY: &str = "_end";
-/// The benchmark and measure prefix of the verification times.
+/// The prefix of the benchmark of each rule's verification times.
 pub(super) const VERIFY: &str = "verify";
+
+/// The measure of a rule's verification: how long all its cases took, in milliseconds.
+pub(super) const TOTAL_MS: &str = "total-ms";
+
+/// The measure of a rule's verification: how long its slowest case took, in milliseconds.
+pub(super) const MAX_CASE_MS: &str = "max-case-ms";
+
+/// The measure of a rule's verification: how long its query took to compile, in milliseconds.
+pub(super) const COMPILE_MS: &str = "compile-ms";
