@@ -18,28 +18,3 @@ use ryo_execution_domain::domain::operator::types::RowsFed;
 /// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FedTotals(pub Vec<Vec<RowsFed>>);
-
-/// The rows one file handed the steps after the files of one rule, every input of it together, against the rows of the file's syntax
-/// tree: how far the rule's per-file steps widen what the language read of the file.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
-/// use ryo_execution_runtime::outbound::observer::types::FileHandover;
-/// use ryo_values::domain::runs::types::{ParsedRows, RowsHanded};
-/// use ryo_relations::domain::relations::types::FileId;
-/// let handover = FileHandover { file: FileId(0), rule: RuleIndex(1), handed: RowsHanded(8), parsed: ParsedRows(4) };
-/// assert_eq!(handover.handed, RowsHanded(8));
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct FileHandover {
-    /// The file.
-    pub file: ryo_relations::domain::relations::types::FileId,
-    /// The rule.
-    pub rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
-    /// The rows the file handed the rule's steps after the files.
-    pub handed: ryo_values::domain::runs::types::RowsHanded,
-    /// The rows of the file's syntax tree.
-    pub parsed: ryo_values::domain::runs::types::ParsedRows,
-}

@@ -171,9 +171,11 @@ impl FileRun<'_> {
         if let Some(observer) = self.services.observer()
             && handed != 0
         {
-            observer.handed(crate::outbound::observer::types::FileHandover {
+            observer.handed(ryo_values::domain::runs::types::FileHandover {
                 file,
-                rule,
+                rule: ryo_values::domain::runs::types::RuleNumber(
+                    u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,
+                ),
                 handed: ryo_values::domain::runs::types::RowsHanded(handed),
                 parsed: ryo_values::domain::runs::types::ParsedRows(
                     read(Relation::SyntaxTree).map_or(0, |rows| {

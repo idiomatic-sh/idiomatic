@@ -113,14 +113,14 @@ fn subject(input: Input) -> Value {
 
 /// Tells the observer `COUNTED_HANDOVERS` handovers and one more: the one past the bound is refused, and those within are kept.
 fn past_handovers() -> Value {
-    use crate::outbound::observer::types::FileHandover;
+    use ryo_values::domain::runs::types::FileHandover;
     use ryo_values::domain::runs::types::{ParsedRows, RowsHanded};
     let observer = counting();
     let handover = |file: usize| FileHandover {
         file: ryo_relations::domain::relations::types::FileId(
             u32::try_from(file).unwrap_or(u32::MAX),
         ),
-        rule: RuleIndex(0),
+        rule: ryo_values::domain::runs::types::RuleNumber(0),
         handed: RowsHanded(1),
         parsed: ParsedRows(1),
     };

@@ -119,11 +119,11 @@ pub fn check(adapter: &impl ObserverPort) {
 /// Tells the adapter one handover of `file` and compares its handovers after it with those before, the one told put in the order
 /// of the files.
 fn handovers(adapter: &impl ObserverPort, file: FileId) -> Value {
-    use crate::outbound::observer::types::FileHandover;
+    use ryo_values::domain::runs::types::FileHandover;
     use ryo_values::domain::runs::types::{ParsedRows, RowsHanded};
     let handover = FileHandover {
         file,
-        rule: RuleIndex(3),
+        rule: ryo_values::domain::runs::types::RuleNumber(3),
         handed: RowsHanded(6),
         parsed: ParsedRows(2),
     };

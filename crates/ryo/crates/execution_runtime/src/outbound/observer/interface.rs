@@ -1,10 +1,10 @@
 //! What the `observer` port asks of the outside, in the core's own vocabulary.
 
 use super::types::FedTotals;
-use super::types::FileHandover;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::LogicalCounts;
+use ryo_values::domain::runs::types::FileHandover;
 
 /// What the engine reports about its own work, to a caller that asked for it. Nothing the engine answers depends on it.
 ///

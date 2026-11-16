@@ -11,5 +11,5 @@ pub(crate) struct CountedFed(pub std::sync::Mutex<FedTotals>);
 /// `COUNTED_HANDOVERS` of them.
 #[derive(Debug, Default)]
 pub(crate) struct CountedHandovers(
-    pub std::sync::Mutex<Vec<crate::outbound::observer::types::FileHandover>>,
+    pub std::sync::Mutex<Vec<ryo_values::domain::runs::types::FileHandover>>,
 );

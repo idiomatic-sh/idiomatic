@@ -2,10 +2,10 @@
 
 use crate::outbound::observer::interface::ObserverPort;
 use crate::outbound::observer::types::FedTotals;
-use crate::outbound::observer::types::FileHandover;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
+use ryo_values::domain::runs::types::FileHandover;
 use std::sync::Mutex;
 
 /// What the core's tests stand in for `observer` with: every report in the order it came, and their sum.

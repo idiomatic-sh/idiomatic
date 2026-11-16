@@ -6,10 +6,10 @@ use super::types::CountedFed;
 use super::types::CountedHandovers;
 use crate::outbound::observer::interface::ObserverPort;
 use crate::outbound::observer::types::FedTotals;
-use crate::outbound::observer::types::FileHandover;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
+use ryo_values::domain::runs::types::FileHandover;
 
 /// The counting observer: what it is told is added up by rule and step, for at most `COUNTED_FED` rules and `COUNTED_HANDOVERS`
 /// handovers. Addition commutes, so
