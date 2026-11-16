@@ -1,0 +1,6 @@
+version = 1
+parents = ["71a25258def868d8a68238f66f454066d9aa4bd574558856890426e9bf43067e"]
+
+removed = [
+  { tool = "cargo-clippy", rule = "clippy::double_must_use", path = "cli/src/resources.rs", level = "warning", fingerprint = "c349e8c6fad8fb6d" },
+]
