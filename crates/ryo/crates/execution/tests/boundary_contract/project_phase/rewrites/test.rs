@@ -6,7 +6,7 @@
 //! holds, never by a span.
 use super::fixtures::{FILE, ID, NAME, SPAN, files, function_columns, functions_kept, rows};
 use ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::{
-    narrowed, regrouped, selections_pushed,
+    cut, narrowed, regrouped, selections_pushed,
 };
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
 use ryo_values::domain::plan_parts::types::RepeatedRows;
@@ -302,4 +302,40 @@ fn the_proofs_name_the_function_relations_columns_by_place() {
             CellKind::Span
         ]
     );
+}
+
+#[test]
+fn cutting_a_join_in_each_file_to_the_columns_read_after_the_files_keeps_the_rows() {
+    let files = files();
+    let kept = [ID, FILE, SPAN];
+    let at = |place: u32| ColumnIndex(place);
+    // The pairs of functions of each file, joined in it on the file (id, file, other id), read after the files for the two ids.
+    let steps = vec![
+        functions_kept(&kept),
+        functions_kept(&kept),
+        in_each_file(join(
+            StepId(0),
+            StepId(1),
+            (at(1), at(1)),
+            vec![
+                column(Side::Left, at(0)),
+                column(Side::Left, at(1)),
+                column(Side::Right, at(0)),
+            ],
+        )),
+        after_the_files(Operation::Project {
+            from: Input::Step(StepId(2)),
+            columns: vec![at(0), at(2)],
+            distinct: RepeatedRows::Dropped,
+        }),
+    ];
+    let emitted = StepId(3);
+    let before = rows(steps.clone(), emitted, &files);
+    assert!(!before.is_empty());
+    let (after, after_emitted) = cut(steps.clone(), emitted);
+    assert_ne!(
+        after, steps,
+        "the join is read after the files for two of its three columns, so it hands over those two"
+    );
+    assert_eq!(rows(after, after_emitted, &files), before);
 }
