@@ -298,8 +298,7 @@ pub(super) fn copy_buffered(
     Ok(())
 }
 
-/// Reads the old snapshot at a position of its own, leaving the file's own cursor where it is.
-#[cfg(unix)]
+/// Reads the old snapshot at a position of its own, leaving the file's own cursor where it is where the system allows.
 pub(super) struct PositionalReader<'a> {
     pub file: &'a std::fs::File,
     pub at: FileOffset,
@@ -321,7 +320,25 @@ impl Read for PositionalReader<'_> {
     }
 }
 
-#[cfg(unix)]
+/// Where the system has no read at a position, the file's own cursor is moved to it and read from there.
+#[cfg(not(unix))]
+impl Read for PositionalReader<'_> {
+    fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+        use std::io::Seek as _;
+
+        let mut file = self.file;
+        file.seek(SeekFrom::Start(self.at.0))?;
+        let read = file.read(into)?;
+        self.at = FileOffset(
+            self.at
+                .0
+                .checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
+                .ok_or_else(|| invalid(OLD_ROW_POSITION_OVERFLOWS))?,
+        );
+        Ok(read)
+    }
+}
+
 impl Seek for PositionalReader<'_> {
     fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
         let at = match from {

@@ -566,10 +566,7 @@ impl ReadStore for PostcardRead {
             return Err(self.adapter.unreadable(&OLD_ROW_BELONGS_TO_ANOTHER_STORE));
         }
         let opened = self.opened.as_ref().ok_or(LintStoreError::NothingRead)?;
-        #[cfg(unix)]
         let opened = locked(opened);
-        #[cfg(not(unix))]
-        let mut opened = locked(opened);
         let bucket = self
             .buckets
             .iter()
@@ -591,18 +588,8 @@ impl ReadStore for PostcardRead {
             })
             .ok_or_else(|| self.adapter.unreadable(&OLD_ROW_BUCKET_OR_SPAN_IS))?;
         let held = opened.length;
-        #[cfg(unix)]
         let read = super::writer::read_old_file_in(
             &opened.file,
-            held,
-            StoreSnapshot(self.session.0),
-            bucket.span,
-            words,
-            into,
-        );
-        #[cfg(not(unix))]
-        let read = super::writer::read_old_in(
-            &mut opened.file,
             held,
             StoreSnapshot(self.session.0),
             bucket.span,

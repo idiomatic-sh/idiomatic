@@ -2,7 +2,6 @@
 
 use crate::outbound::lint_store::adapters::postcard::connection::BUFFER_BYTES;
 use crate::outbound::lint_store::adapters::postcard::connection::BucketReader;
-#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::connection::PositionalReader;
 use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
 use crate::outbound::lint_store::adapters::postcard::connection::copy_buffered;
@@ -258,7 +257,6 @@ pub(super) fn read_old_in(
 
 /// Resolve an old row without changing the shared snapshot file cursor. This keeps
 /// the exact requested-row read and late truncation checks of `read_old_in`.
-#[cfg(unix)]
 pub(super) fn read_old_file_in(
     file: &std::fs::File,
     held: SectionLength,
