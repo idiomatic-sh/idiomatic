@@ -80,13 +80,11 @@ pub(super) fn verify_prepared_shard(
         ));
     }
     let mut timings: BTreeMap<ryo::linter::RuleId, RuleTiming> = BTreeMap::new();
-    // The rules compile once, ahead of the cases: an execution that keeps its plans reports what each rule took.
-    for (rule, elapsed) in execution
+    // The rules compile once, ahead of the cases: an execution that keeps its plans reports what each rule took. It reports
+    // every rule its profile loads, supporting rules and the frontend projection among them, which have no cases here.
+    let compiled = execution
         .compile(&candidate.prepare(&first.request)?)
-        .unwrap_or_default()
-    {
-        timings.entry(rule).or_default().compile = elapsed;
-    }
+        .unwrap_or_default();
     let started = Instant::now();
     let mut initial = Some(run_candidate(
         suite,
@@ -204,6 +202,12 @@ pub(super) fn verify_prepared_shard(
         let timing = timings.entry(case.rule.clone()).or_default();
         timing.total += elapsed;
         timing.slowest = timing.slowest.max(elapsed);
+    }
+    // Only a rule with cases of its own has times: a rule the profile loads for another's sake reports none.
+    for (rule, elapsed) in compiled {
+        if let Some(timing) = timings.get_mut(&rule) {
+            timing.compile = elapsed;
+        }
     }
     if failures.is_empty() {
         debug_assert!(

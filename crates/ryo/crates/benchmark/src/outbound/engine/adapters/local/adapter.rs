@@ -179,14 +179,28 @@ impl EnginePort for EngineLocalAdapter {
             return None;
         };
         let mut compiled = BTreeMap::new();
-        for (id, rule) in rules {
+        let mut together = Vec::new();
+        for (id, rule) in &rules {
             let started = std::time::Instant::now();
-            // A rule that needs what only a run declares is compiled by the run: it has no time to report here.
             if engine
-                .prepare(&BTreeMap::from([(id.clone(), rule)]), &[])
+                .prepare(&BTreeMap::from([(id.clone(), rule.clone())]), &[])
                 .is_ok()
             {
-                let _previous = compiled.insert(id, started.elapsed());
+                let _previous = compiled.insert(id.clone(), started.elapsed());
+            } else {
+                together.push(id.clone());
+            }
+        }
+        // A rule that reads what other rules produce compiles only beside its producers, as a run compiles it: all the rules
+        // together, the rest already compiled and skipped, the time shared among the rules that needed it. A rule that needs
+        // what only a run declares is compiled by the run, and has no time to report here.
+        if !together.is_empty() {
+            let started = std::time::Instant::now();
+            if engine.prepare(&rules, &[]).is_ok() {
+                let share = started.elapsed() / u32::try_from(together.len()).unwrap_or(1);
+                for id in together {
+                    let _previous = compiled.insert(id, share);
+                }
             }
         }
         Some(compiled)
