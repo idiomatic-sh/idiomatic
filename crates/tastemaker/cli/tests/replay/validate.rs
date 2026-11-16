@@ -79,10 +79,11 @@ fn validated(directory: &std::path::Path) -> Result<(), String> {
     }
 }
 
-/// Validating the definitions of the repository itself succeeds, cold and then warm. How long it takes and how much memory it reaches
-/// are measured by the `commands` bench (`workspace/validate-repository`), which asymptote holds to its best.
+/// Validating the crate's own distribution fixture package (a rule with its scenarios) succeeds, cold and then warm. How long validating
+/// takes and how much memory it reaches are measured over a pinned target by the `distribution` bench's memory run, which asymptote
+/// holds to its best.
 #[test]
-fn validating_the_repository_s_definitions_succeeds_cold_and_warm() {
+fn validating_the_distribution_fixture_succeeds_cold_and_warm() {
     let scratch = tempfile::tempdir().expect("the scene directory");
     let git = std::process::Command::new("git")
         .args(["init", "-q"])
@@ -91,23 +92,16 @@ fn validating_the_repository_s_definitions_succeeds_cold_and_warm() {
         .expect("git starts");
     assert!(git.success(), "git init succeeds");
     crate::fixes::copy(
-        &crate::fixes::root().join("tastemaker"),
-        &scratch.path().join("tastemaker"),
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/distribution/cargo"),
+        &scratch.path().join("policy"),
     )
-    .expect("the definitions copied");
-    // The proofs of the definitions read the foreign package of the replay fixtures (`collection-members`).
-    let roles = "crates/tastemaker/cli/tests/fixtures/replay/roles";
-    crate::fixes::copy(
-        &crate::fixes::root().join(roles),
-        &scratch.path().join(roles),
-    )
-    .expect("the foreign package copied");
+    .expect("the fixture copied");
     std::fs::write(
         scratch.path().join("tastemaker.toml"),
         concat!(
             "tastemaker = \"",
             env!("CARGO_PKG_VERSION"),
-            "\"\nworkspace = { name = \"bar\", dependencies = [{ package = \"idiomatic.arch\", path = \"tastemaker\" }] }\n"
+            "\"\nworkspace = { name = \"bar\", dependencies = [{ package = \"idiomatic.arch\", path = \"policy\" }] }\n"
         ),
     )
     .expect("the workspace written");

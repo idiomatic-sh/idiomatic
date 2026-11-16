@@ -1,0 +1,29 @@
+description = "A target's one-file edit, as `git diff` prints it: applied to the project after the warm run, it changes one tracked source file so that an expected finding appears or disappears, and the run after it is the one timed against `edit-milliseconds`."
+why = "The run after an edit is what a person waits on while working, and it only counts when the edit changes the answer."
+content = '''
+{% if scaffold | default(false) %}
+This target's one-file edit, as `git diff` prints it, replaces this line.
+{% endif %}
+'''
+
+[given]
+file = 'edit.patch'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'edit.patch' = '''
+diff --git a/crates/ryo/README.md b/crates/ryo/README.md
+--- a/crates/ryo/README.md
++++ b/crates/ryo/README.md
+@@ -1 +1,2 @@
+ # ryo
++
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'target-edit#count', path = '.' },
+]
