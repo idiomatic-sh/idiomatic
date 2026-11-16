@@ -1,5 +1,4 @@
-//! The stores a replay test runs over: the fact store counting the words its workers keep for the finish, and the store of what a
-//! run keeps counting what each keep is given.
+//! The stores a replay test runs over: the store of what a run keeps, counting what each keep is given.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -7,71 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use ryo_core::outbound::lint_store::errors::LintStoreError;
 use ryo_core::outbound::lint_store::interface::{LintStorePort, ReadStore};
-use ryo_execution_runtime::outbound::facts::errors::FactsError;
-use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
-use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
-use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
-use ryo_relations::domain::relations::types::ColumnsView;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
-
-/// The adapter, counting the words the files leave for the finish.
-pub(crate) struct Counting {
-    /// The store it counts for.
-    pub store: Arc<dyn FactsPort>,
-    /// The words its workers kept.
-    pub words: Arc<AtomicUsize>,
-}
-
-/// A handle of the adapter, counting the words its worker keeps.
-pub(crate) struct CountingWorker {
-    inner: Box<dyn FactsWorker>,
-    words: Arc<AtomicUsize>,
-}
-
-impl FactsWorker for CountingWorker {
-    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
-        self.inner.columns_mut()
-    }
-    fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
-        self.inner.rows(relation)
-    }
-    fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
-        // A packed word ends at the byte whose high bit is clear: the count is of words, not of bytes.
-        let count = words
-            .words
-            .0
-            .iter()
-            .filter(|byte| *byte & 0x80 == 0)
-            .count();
-        let _before = self.words.fetch_add(count, Ordering::Relaxed);
-        self.inner.keep(bucket, words)
-    }
-    fn release(&mut self) -> Result<(), FactsError> {
-        self.inner.release()
-    }
-    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
-        self.inner.finished()
-    }
-}
-
-impl FactsPort for Counting {
-    fn worker(&self) -> Result<Box<dyn FactsWorker>, FactsError> {
-        Ok(Box::new(CountingWorker {
-            inner: self.store.worker()?,
-            words: Arc::clone(&self.words),
-        }))
-    }
-    fn finish(
-        &self,
-        workers: &mut dyn Iterator<Item = Box<dyn FactsWorker>>,
-    ) -> Result<Box<dyn FactsFinish>, FactsError> {
-        self.store.finish(workers)
-    }
-}
 
 /// The complete emitted output and report of a run, which the cache must give again unchanged.
 pub(crate) struct Complete {

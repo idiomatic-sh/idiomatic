@@ -65,11 +65,15 @@ mod child;
 mod cold;
 #[path = "../tests/fixtures/replay/counting.rs"]
 mod counting;
+#[path = "../tests/fixtures/replay/frontier.rs"]
+mod frontier;
 #[path = "../tests/fixtures/replay/phases.rs"]
 mod phases;
 #[cfg(feature = "dhat-heap")]
 #[path = "../tests/fixtures/replay/profile.rs"]
 mod profile;
+#[path = "lint/frontier.rs"]
+mod frontier_rows;
 #[path = "lint/rounds.rs"]
 mod rounds;
 #[path = "lint/rows.rs"]
@@ -79,7 +83,7 @@ mod ruff;
 #[path = "lint/store.rs"]
 mod store;
 
-/// The measures `--memory` takes, and `--timing` leaves to it: each is held to its best by one asymptote tool.
+/// The measures `--memory` takes (and each rule's `<rule>-words`), and `--timing` leaves to it: each is held to its best by one asymptote tool.
 const MEMORY: [&str; 4] = [
     "peak-megabytes",
     "warm-peak-megabytes",
@@ -144,7 +148,11 @@ fn main() {
     assert_eq!(actual, expected, "benchmark must run every configured rule");
     // `--memory` takes the memory of a cold and a warm run and of the store alone, the part of the bench a pull request can afford.
     let memory = arguments.iter().any(|each| each == "--memory");
+    if memory {
+        rounds::require_pinned();
+    }
     if arguments.iter().any(|each| each == "--dhat") {
+        rounds::require_pinned();
         dhat_run();
         return;
     }
@@ -162,10 +170,11 @@ fn main() {
         },
     ));
     metrics.extend(store::of_each_target());
+    metrics.extend(frontier_rows::of_each_rule());
     // A measure is held under one tool: the memory measures by the `--memory` run, every other by `--timing`; no flag gives all.
     let timing = arguments.iter().any(|each| each == "--timing");
     metrics.retain(|cost| {
-        let held = MEMORY.contains(&cost.metric);
+        let held = MEMORY.contains(&cost.metric) || cost.metric.ends_with("-words");
         if memory {
             held
         } else {
@@ -189,7 +198,7 @@ fn dhat_run() {
             &base::snapshot::ruff(),
             rules,
             base::store_at(cache.path()),
-            rounds::WORKERS,
+            rounds::MEMORY_WORKERS,
         )
         .expect("the rules run")
     });

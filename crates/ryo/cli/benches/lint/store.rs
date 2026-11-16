@@ -34,7 +34,7 @@ pub(crate) fn of_each_target() -> Vec<Cost> {
                 &at,
                 rules.clone(),
                 kept(),
-                crate::rounds::WORKERS,
+                crate::rounds::MEMORY_WORKERS,
             )
             .expect("the rules run");
         assert!(cold.reads > 0, "the cold run reads the target's files");
@@ -44,7 +44,7 @@ pub(crate) fn of_each_target() -> Vec<Cost> {
                 &at,
                 rules.clone(),
                 kept(),
-                crate::rounds::WORKERS,
+                crate::rounds::MEMORY_WORKERS,
             )
             .expect("the rules run");
         assert_eq!(

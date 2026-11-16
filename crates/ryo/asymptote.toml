@@ -278,11 +278,14 @@ group = "memory"
 # (`warm-peak-megabytes`), each the median of three rounds in a process of its own, and the bytes of the store the run leaves
 # (`store-bytes`) and its files (`store-files`). It is the part of the bench a pull request can afford (a few minutes, not the
 # whole bench), the bench's `--memory` flag, and `performance-lint` takes the rest with `--timing`: each measure has one bench run and one
-# best. Every run is taken on the same ten workers (`WORKERS` in the bench), so the lock needs no machine. The tolerances: the peaks
+# best. The whole run is held to the first four processors (`taskset -c 0-3`, which fails on a machine with fewer, and the bench checks it) and the bench runs four workers (`MEMORY_WORKERS`): the engine starts no more workers than the machine has, so the same four on every machine and the lock needs no machine. The tolerances: the peaks
 # (`peak-megabytes` of the cold run, `warm-peak-megabytes`) are resident sets, which move with how many workers hold their tables at
 # once, so 5%; `store-bytes` is the same bytes for the same files and rules, which only the order the workers hand their buckets in
-# can move, so 1%; `store-files` is exact. Targets, not gates: a peak under the release build's 87 MB, a store of a few MB (five).
-run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--bench", "lint", "--", "--memory"]
+# can move, so 1%; `store-files` is exact. The words each rule hands the cross-file finish
+# (`frontier/<rule>-words`, over four files of five functions of sixty statements) are counts of the same corpus, so they repeat
+# exactly and are held exactly. Target, not a gate: a row for each function and none for a token, which the engine does not yet meet
+# for `duplicate-function-bodies` and `no-reexports` until cross-file pruning. Targets, not gates: a peak under the release build's 87 MB, a store of a few MB (five).
+run = ["taskset", "-c", "0-3", "cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--bench", "lint", "--", "--memory"]
 output = "bmf"
 tolerance-percent = { peak-megabytes = 5, warm-peak-megabytes = 5, store-bytes = 1 }
 timeout-seconds = 3600
@@ -295,8 +298,8 @@ group = "memory"
 # no time or peak is taken beside it): the bytes live at the run's global maximum (`dhat-gmax-bytes`) and the count of blocks of a
 # megabyte or more (`big-blocks`). `dhat` counts every allocation, so both repeat from run to run: the bytes may rise by 1%, which
 # only the order the workers' tables meet at the maximum moves, the count by none. `tests/blocks.rs` keeps its ceiling on the big
-# blocks (the workers and the rules, each with 64 tables) until the ratchet holds them. The run is on the same ten workers as the rest.
-run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--features", "dhat-heap", "--bench", "lint", "--", "--dhat"]
+# blocks (the workers and the rules, each with 64 tables) until the ratchet holds them. The run is pinned to four processors and four workers, as `memory-lint` is.
+run = ["taskset", "-c", "0-3", "cargo", "bench", "--locked", "--package", "idiomatic-sh-ryo", "--features", "dhat-heap", "--bench", "lint", "--", "--dhat"]
 output = "bmf"
 tolerance-percent = { dhat-gmax-bytes = 1, big-blocks = 0 }
 timeout-seconds = 3600

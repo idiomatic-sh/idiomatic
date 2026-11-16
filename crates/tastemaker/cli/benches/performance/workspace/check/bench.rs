@@ -104,8 +104,9 @@ pub(crate) fn instances() -> crate::measure::Measured {
     )
 }
 
-/// The processors `tm check` is held to in the peak, so that it runs the same workers on every machine (four: the fewest a runner has).
-const CPUS: &str = "0-3";
+/// The processors the peak is taken on: the command line runs a worker for each processor it may use, and the lock holds no machine,
+/// so the run is held to four (`taskset -c 0-3`, the fewest a runner has), which the bench checks.
+const CPUS: usize = 4;
 
 /// The kibibytes of the largest resident set `tm check` reached over a copy of the repository at its `HEAD`, run in
 /// `crates/ryo`, cold: a fresh copy and no cache of Tastemaker's own, taken in the process the command line runs as.
@@ -115,6 +116,11 @@ const CPUS: &str = "0-3";
     reason = "a benchmark fails by panicking: a copy that cannot be made, or a run that checked nothing, leaves nothing to measure, and the message names which"
 )]
 pub(crate) fn cold_peak() -> crate::measure::Measured {
+    let processors = std::thread::available_parallelism().map_or(0, std::num::NonZero::get);
+    assert_eq!(
+        processors, CPUS,
+        "the peak is taken on {CPUS} processors, as `taskset -c 0-3 cargo bench ...` does; this process may use {processors}"
+    );
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -145,10 +151,7 @@ pub(crate) fn cold_peak() -> crate::measure::Measured {
             scratch
         },
         |scratch| {
-            // The command line runs a worker for each processor it may use, and the lock holds no machine: the run is held to
-            // the first `CPUS` processors, so its workers, and the tables each holds, are the same on every machine.
-            let output = std::process::Command::new("taskset")
-                .args(["-c", CPUS, "/usr/bin/time"])
+            let output = std::process::Command::new("/usr/bin/time")
                 .args(["-f", "peak-kib %M", env!("CARGO_BIN_EXE_tm"), "check", "--format", "json"])
                 .current_dir(scratch.path().join("crates/ryo"))
                 .output()
