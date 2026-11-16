@@ -15,8 +15,8 @@ cases; none is deferred.
 the files oxlint's JavaScript-only rules run on;
 `fragments/quoted-strings.ryoql` gives the `string-literal` values written in quotes, without the templates that relation also
 answers: the strings the rules read where oxlint reads a string literal alone;
-`fragments/constructors.ryoql` gives every constructor of a class, by oxlint's `MethodDefinitionKind::Constructor` (a `constructor`
-key, plain or quoted, neither static nor computed), with or without a body;
+`fragments/constructors.ryoql` gives every constructor of a class, by oxlint's `MethodDefinitionKind::Constructor` (a key whose name or
+decoded string value is `constructor`, neither static nor computed), with or without a body;
 `fragments/super-calls.ryoql` gives the calls whose callee is `super`;
 `fragments/control-flow.ryoql` gives each of those with a body, with its function, the block of the control flow graph it starts
 in and its superclass as oxlint's constructor-super classifies it: none, `null`, invalid or valid.

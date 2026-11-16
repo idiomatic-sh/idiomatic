@@ -1187,3 +1187,29 @@ expected = []
 name = "lr-nu-export-default"
 files = { "case.ts" = "export default function f() { return; g(); }" }
 expected = []
+
+[[cases]]
+name = "constructor-key-double-quoted"
+files = { "case.ts" = "class A extends B { \"constructor\"() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 47 }]
+
+[[cases]]
+name = "constructor-key-single-quoted"
+files = { "case.ts" = "class A extends B { 'constructor'() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 47 }]
+
+[[cases]]
+name = "constructor-key-unicode-escape"
+files = { "case.ts" = "class A extends B { \"constr\\u0075ctor\"() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 52 }]
+
+[[cases]]
+name = "constructor-key-hex-escape"
+files = { "case.ts" = "class A extends B { \"constr\\x75ctor\"() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 50 }]
+
+[[cases]]
+name = "constructor-key-code-point-escape"
+files = { "case.ts" = "class A extends B { \"constr\\u{75}ctor\"() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 52 }]
+

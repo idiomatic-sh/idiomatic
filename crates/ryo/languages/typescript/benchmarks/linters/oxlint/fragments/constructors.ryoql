@@ -6,8 +6,7 @@ let identifier_keys = select method, part as key from part_kinds where field = "
 let key_tokens = select l.method as method, r.child as token from identifier_keys as l join "semantic-child" as r on l.key = r.parent;
 let named_keys = select l.method as method from key_tokens as l join "semantic-syntax" as r on l.token = r.id where r.kind = "identifier-token" and r.text = "constructor";
 let literal_keys = select method, part as key from part_kinds where field = "key" and kind = "literal";
-let literal_tokens = select l.method as method, r.child as token from literal_keys as l join "semantic-child" as r on l.key = r.parent;
-let quoted_keys = select l.method as method from literal_tokens as l join "semantic-syntax" as r on l.token = r.id where r.kind = "string" and matches(r.text, "^.constructor.$");
+let quoted_keys = select l.method as method from literal_keys as l join "string-literal" as r on l.key = r.occurrence where r.value = "constructor";
 let keyed = union(left=named_keys, right=quoted_keys);
 let modified = select method from part_kinds where (kind = "keyword" and text = "static") or (kind = "punctuator" and text = "[");
 let constructor_methods = antijoin(left=keyed, right=modified, left-on=["method"], right-on=["method"]);
