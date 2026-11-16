@@ -1,12 +1,14 @@
 # The store main's engine keeps over ruff with the replay's live rules, measured once: the figure the release gate in
 # replay/cache.rs compares this engine's store with, on the same rules, the same languages and the same files.
-# Measured in a temporary checkout of main at `commit` in a builder's worktree: each recording held its live rule's query as
-# `query.ryoql` and this branch's `parameters.toml` and `scope.toml`, main's replay linked Rust and TOML, and its walk skipped the
-# directories `ryo` skips. A rule main cannot run is dropped from both sides and named under `dropped`.
+# `measured.patch`, beside this file, is everything the measurement changes in a clean checkout of main at `commit`: each
+# recording holds its live rule's query as `query.ryoql` with this branch's `parameters.toml` and `scope.toml` (no
+# `pending.txt`), the replay's walk skips the directories `ryo` skips, and the test `measure_on_main` lints a ruff copy with
+# Rust and TOML linked and prints the store's bytes. `command`, run from the root of this repository, re-measures it. A rule
+# main cannot run is dropped from both sides and named under `dropped`.
 [main]
 commit = "acf3e1b27be4ecd722b978802e17a732765d8dc0"
 measured = "2026-11-16"
-command = "flock /workspaces/.cargo-build.lock cargo nextest run -p idiomatic-sh-ryo --test replay -E 'test(measure_on_main)' --no-capture"
+command = "git worktree add ../ryo-main-measure acf3e1b27be4ecd722b978802e17a732765d8dc0 && git -C ../ryo-main-measure apply \"$PWD/crates/ryo/cli/tests/fixtures/measured.patch\" && cd ../ryo-main-measure/crates/ryo && cargo nextest run -p idiomatic-sh-ryo --test replay -E 'test(measure_on_main)' --no-capture"
 bytes = 2279490860
 languages = ["rust", "toml"]
 rules = [
