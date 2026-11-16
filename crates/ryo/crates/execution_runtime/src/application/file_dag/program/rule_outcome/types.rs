@@ -4,6 +4,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rows::types::Table;
+#[derive(Debug)]
 pub enum RootOutcome {
     Complete(Table),
     /// Usable diagnostic rows and the exact physical partitions still uncertain.
@@ -21,22 +22,26 @@ pub enum RootOutcome {
     },
 }
 /// What became of one declared output of a rule.
+#[derive(Debug)]
 pub struct OutputOutcome {
     pub output: ObservationIndex,
     pub outcome: RootOutcome,
 }
 /// What became of one declared output of a project rule.
+#[derive(Debug)]
 pub struct ProjectOutputOutcome {
     pub output: ObservationIndex,
     pub outcome: ProjectObservation,
 }
 /// What became of one rule: its emitted root and each declared output. The observation type names the kind of
 /// output: a file rule yields `OutputOutcome`, a project rule `ProjectOutputOutcome`.
+#[derive(Debug)]
 pub struct RuleOutcome<O = OutputOutcome> {
     pub emit: RootOutcome,
     pub observations: Vec<O>,
 }
 /// A project named root can be Complete only with the admitted owner proof.
+#[derive(Debug)]
 pub enum ProjectObservation {
     Complete {
         table: Table,
@@ -50,6 +55,7 @@ pub enum ProjectObservation {
     Other(RootOutcome),
 }
 /// Completed results retain declaration order if the required host guard refuses advancement.
+#[derive(Debug)]
 pub enum ProjectBatch<T, E> {
     Complete(Vec<T>),
     Refused { completed: Vec<T>, error: E },

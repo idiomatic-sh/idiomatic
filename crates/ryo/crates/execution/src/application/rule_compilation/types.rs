@@ -33,6 +33,7 @@ pub(crate) struct CachedPlan {
 }
 
 /// Retained rule identities and the required semantic layout for named frontier bits.
+#[derive(Debug)]
 pub struct PreparedRuleIdentities {
     pub rules: Vec<ryo_values::domain::stores::types::StoredRule>,
     pub observations: ObservationIdentity,

@@ -6,7 +6,9 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 use ryo_language::domain::names::service::{derived_of, places_of};
 use ryo_language::domain::symbols::service::place_of;
-use ryo_relations::domain::relations::types::{CROSS_FILE, Origin, TextHash, Value};
+use ryo_relations::domain::relations::types::{CROSS_FILE, Origin, TextHash};
+#[cfg(test)]
+use ryo_relations::domain::relations::types::Value;
 
 /// Checks that the names the files handed over are the same entity exactly when they are spelled the same: the cross-file steps
 /// compare names by their hash, so two spellings with one hash would join as one.

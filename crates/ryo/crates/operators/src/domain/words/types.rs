@@ -5,6 +5,7 @@ pub trait WordOutput {
 }
 
 /// The engine-owned scratch one word is built in; it keeps its capacity between calls.
+#[derive(Debug)]
 pub struct WordScratch<'a>(pub &'a mut String);
 
 /// What a words lowers to: the text column.

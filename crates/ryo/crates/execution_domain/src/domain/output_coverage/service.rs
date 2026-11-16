@@ -373,7 +373,7 @@ pub fn output_coverage(
 /// from that same source. Only a declared file/node partition key certifies
 /// that missing rows cannot change answers in another physical file.
 pub fn ordered_output_coverage(
-    partition: &[ryo_values::domain::plan_parts::types::ColumnIndex],
+    partition: &[ColumnIndex],
     output_kinds: &[ryo_relations::domain::relations::types::CellKind],
     source: &InputCoverage<'_>,
 ) -> CoverageState {

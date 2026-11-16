@@ -14,7 +14,6 @@ use crate::domain::lowering::types::{
 use crate::domain::syntax::constants::slot_name;
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
-use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Where the column called `name` sits among `fields`.

@@ -44,7 +44,7 @@ impl Publications<'_> {
         facts: &dyn FactsFinish,
         scoping: crate::application::file_dag::frontiers::types::PhaseScoping<'_>,
         frames: &[FileObservationReadiness],
-        first_bucket: &[ryo_values::domain::stored_facts::types::Bucket],
+        first_bucket: &[Bucket],
         selected: &[RuleSelection],
     ) -> Result<(), OperatingError> {
         let program: &PreparedProgram = &execution.program;
@@ -71,7 +71,7 @@ impl Publications<'_> {
             Err(error) => return Err(error),
         };
         let mut physical = BTreeMap::<
-            ryo_values::domain::stored_facts::types::Bucket,
+            Bucket,
             Result<RestoredOutput, OperatingError>,
         >::new();
         for (slot, root) in metadata.frontiers.iter().enumerate() {
@@ -131,7 +131,7 @@ impl Publications<'_> {
                         decoded: std::cell::OnceCell::new(),
                     })
                 })();
-                entry.insert(restored);
+                let _: &mut Result<RestoredOutput, OperatingError> = entry.insert(restored);
             }
             match physical.get(&bucket).ok_or(OperatingError::NotRun)? {
                 Ok(restored) => self.install_restored(FrontierSlot(slot), restored, &readiness)?,
@@ -148,11 +148,13 @@ impl Publications<'_> {
         words: &ryo_values::domain::stored_facts::types::KeptWords,
     ) -> Result<Vec<WorkerNumber>, OperatingError> {
         let mut symbols = Symbols::default();
-        decode_complete(&words.0, places_mut(&mut symbols)).map_err(|error| {
-            OperatingError::ObservationIncomplete {
-                reason: error.to_string(),
-            }
-        })?;
+        drop(
+            decode_complete(&words.0, places_mut(&mut symbols)).map_err(|error| {
+                OperatingError::ObservationIncomplete {
+                    reason: error.to_string(),
+                }
+            })?,
+        );
         let mut arenas = Vec::new();
         for place in ryo_language::domain::names::service::places_of(&symbols) {
             if let Origin::Derived(worker) = place.origin {

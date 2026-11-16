@@ -59,7 +59,7 @@ impl PreparedMatchers {
                 Operation::Replace { pattern, .. } | Operation::SourceMatches { pattern, .. } => {
                     prepared.declare(
                         Test::Matches,
-                        crate::domain::table_texts::types::TextView(&pattern.0),
+                        TextView(&pattern.0),
                     );
                     continue;
                 }

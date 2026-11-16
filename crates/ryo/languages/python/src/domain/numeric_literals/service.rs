@@ -84,7 +84,7 @@ pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> NumericClassific
         Some(INTEGER_SCALAR) => {
             match value.filter(|value| canonical_integer(*value) == Flag::Raised) {
                 Some(value) => NumericClassification::Known(NumericLiteral {
-                    kind: NameText(crate::domain::syntax::constants::INTEGER_SCALAR),
+                    kind: NameText(INTEGER_SCALAR),
                     value: NumericValue::Integer(value),
                 }),
                 None => NumericClassification::MissingPayload,
@@ -95,7 +95,7 @@ pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> NumericClassific
             Err(_) => None,
         }) {
             Some(bits) => NumericClassification::Known(NumericLiteral {
-                kind: NameText(crate::domain::syntax::constants::FLOAT_SCALAR),
+                kind: NameText(FLOAT_SCALAR),
                 value: NumericValue::Float(FloatBits(bits)),
             }),
             None => NumericClassification::MissingPayload,

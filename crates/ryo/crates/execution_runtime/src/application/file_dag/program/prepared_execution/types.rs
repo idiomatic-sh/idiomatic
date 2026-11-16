@@ -23,6 +23,12 @@ use std::sync::Arc;
 pub struct PreparedExecutionProgram {
     pub(crate) parts: ProgramParts,
 }
+impl std::fmt::Debug for PreparedExecutionProgram {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
 /// The members of a prepared program, reachable only inside the runtime.
 pub(crate) struct ProgramParts {
     pub(crate) inner:
@@ -72,6 +78,7 @@ pub enum ObservationContract {
 /// let named = NamedLayout { layout: ObservationReadinessLayout(Digest([0; 16])), frontiers: &frontiers };
 /// assert_eq!(named.frontiers.len(), 1);
 /// ```
+#[derive(Debug)]
 pub struct NamedLayout<'a> {
     pub layout: ObservationReadinessLayout,
     pub frontiers: &'a [ObservedFrontierRoot],
@@ -133,6 +140,7 @@ pub struct RuleBatches<'a>(
 pub struct Demands(pub Vec<Demand>);
 
 /// The named layout of the program's observations, when it declares any.
+#[derive(Debug)]
 pub struct ObservationLayout<'a>(pub Option<NamedLayout<'a>>);
 
 /// The relations a rule's observation reads.

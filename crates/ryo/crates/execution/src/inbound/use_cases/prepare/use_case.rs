@@ -7,6 +7,7 @@ use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use std::sync::Arc;
 
 /// Prepares programs over the operators it is given.
+#[derive(Debug)]
 pub struct PrepareUseCaseImpl {
     operators: Arc<dyn OperatorsPort>,
 }

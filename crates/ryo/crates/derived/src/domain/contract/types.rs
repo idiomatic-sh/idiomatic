@@ -21,6 +21,7 @@ pub enum BuildOutcome {
 }
 
 /// Borrowing an existing payload cannot build, acquire inputs, or mutate its storage.
+#[derive(Debug)]
 pub enum DerivedView<'a> {
     /// The key index.
     Equality(&'a KeyIndex),
@@ -84,8 +85,29 @@ pub enum BuildInputs<'a> {
     Native(NativeForm),
 }
 
+impl std::fmt::Debug for BuildInputs<'_> {
+    /// The borrowed row and text sources are trait objects with no `Debug`: the output names the kind and the plain fields.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Rows(_) => formatter.debug_tuple("Rows").finish(),
+            Self::Membership { space, .. } => formatter
+                .debug_struct("Membership")
+                .field("space", space)
+                .finish_non_exhaustive(),
+            Self::Partition { positions, key, .. } => formatter
+                .debug_struct("Partition")
+                .field("positions", positions)
+                .field("key", key)
+                .finish_non_exhaustive(),
+            Self::Ordered { .. } => formatter.debug_struct("Ordered").finish_non_exhaustive(),
+            Self::Dfs { .. } => formatter.debug_struct("Dfs").finish_non_exhaustive(),
+            Self::Native(form) => formatter.debug_tuple("Native").field(form).finish(),
+        }
+    }
+}
+
 /// Scratch the caller lends one build.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct BuildWorkspace {
     /// A row buffer reused across the build.
     pub row: Vec<Value>,

@@ -104,10 +104,8 @@ pub(crate) fn failure_partials(
     file: FileId,
     detail: FailureDetail<'_>,
     observed_file: ObservedFile,
-) -> Vec<ryo_values::domain::stored_facts::types::ReadInPart> {
-    use ryo_values::domain::stored_facts::types::{
-        PartialAt, PartialCause, PartialScope, ReadInPart,
-    };
+) -> Vec<ReadInPart> {
+    use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope};
     wanted
         .iter()
         .filter(|relation| {
@@ -153,7 +151,7 @@ pub(crate) fn buckets_of(
     rules: Option<&[PlacedRule]>,
 ) -> Vec<Bucket> {
     let mut buckets = Vec::new();
-    for (place, (rule, start)) in metadata.iter().zip(first).enumerate() {
+    for (place, (_rule, start)) in metadata.iter().zip(first).enumerate() {
         let rule = PlacedRule(u32::try_from(place).unwrap_or(u32::MAX));
         if rules.is_some_and(|rules| rules.binary_search_by_key(&rule.0, |each| each.0).is_err()) {
             continue;

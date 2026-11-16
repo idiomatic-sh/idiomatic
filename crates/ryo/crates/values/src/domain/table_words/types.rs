@@ -63,7 +63,7 @@ pub struct CompactTable {
     /// bytes a row, where a position in the whole backing takes eight.
     pub row_offsets: Vec<FrameOffset>,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CompactFrame {
     pub start: PackedOffset,
     pub end: PackedOffset,

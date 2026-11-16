@@ -4,6 +4,7 @@
 pub struct ReplacementText<'a>(pub &'a str);
 
 /// The engine-owned scratch the replaced text is built in.
+#[derive(Debug)]
 pub struct ReplacedText<'a>(pub &'a mut String);
 
 /// What a replace lowers to: the text column, the pattern and the replacement.

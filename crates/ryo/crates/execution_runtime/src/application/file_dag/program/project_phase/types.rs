@@ -101,6 +101,7 @@ pub enum PhaseStop<E> {
 ///     let _ = &handle.request;
 /// }
 /// ```
+#[derive(Debug)]
 pub struct ProjectPhase<'a> {
     pub(crate) request:
         &'a crate::application::file_dag::program::request_execution::types::RequestExecution,
@@ -116,9 +117,9 @@ pub(crate) struct HandedFrom {
     /// The files the rule reads.
     pub(crate) files: Box<[ryo_relations::domain::relations::types::FileId]>,
     /// The files read in part.
-    pub(crate) covered: Box<[ryo_execution_domain::domain::coverage::types::Covered]>,
+    pub(crate) covered: Box<[Covered]>,
     /// The files skipped.
-    pub(crate) skipped: Box<[ryo_values::domain::runs::types::Skipped]>,
+    pub(crate) skipped: Box<[Skipped]>,
     /// The files the rule does not apply to.
     pub(crate) inapplicable: Box<[ryo_relations::domain::relations::types::FileId]>,
     /// The files the rule was refused on.
@@ -129,7 +130,7 @@ pub(crate) struct HandedFrom {
 #[derive(Clone, Debug)]
 pub(crate) struct HandoverDeclaration {
     /// The rule.
-    pub(crate) rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+    pub(crate) rule: RuleIndex,
     /// The files.
     pub(crate) from: HandedFrom,
 }

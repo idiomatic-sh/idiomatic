@@ -89,7 +89,7 @@ impl SemanticLookup for SemanticState {
                 return Err(OperatingError::SemanticBatchShape);
             }
             for (request, answer) in unique.into_iter().zip(answers) {
-                answers_by_key.insert(request, answer);
+                drop(answers_by_key.insert(request, answer));
             }
         }
         let mut ordered = Vec::with_capacity(requests.len());

@@ -5,7 +5,7 @@ use crate::application::publication::service::publication;
 use crate::application::publication::types::PublicationInput;
 
 /// Publishes a producer's table; the normalization is the engine's own.
-#[derive(Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PublicationUseCaseImpl;
 
 impl PublicationUseCaseImpl {

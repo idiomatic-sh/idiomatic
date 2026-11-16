@@ -33,6 +33,16 @@ pub enum SemanticSlot {
     Begun(Box<dyn SemanticSession>),
 }
 
+impl std::fmt::Debug for SemanticSlot {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Empty => formatter.write_str("Empty"),
+            Self::Retained(_) => formatter.write_str("Retained(..)"),
+            Self::Begun(_) => formatter.write_str("Begun(..)"),
+        }
+    }
+}
+
 impl From<SemanticSlot> for Option<Box<dyn SemanticSession>> {
     fn from(slot: SemanticSlot) -> Self {
         match slot {

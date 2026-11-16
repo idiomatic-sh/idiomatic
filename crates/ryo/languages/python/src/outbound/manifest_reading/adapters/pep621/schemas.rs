@@ -210,10 +210,12 @@ fn projected(schema: PyprojectSchema) -> Result<Declared, ManifestReadingError> 
             GroupEntrySchema::Inclusion {} => None,
         });
     for text in normal.chain(optional).chain(build).chain(groups) {
-        text.parse::<pep508_rs::Requirement<pep508_rs::VerbatimUrl>>()
-            .map_err(|error| ManifestReadingError::Unreadable {
-                reason: error.to_string(),
-            })?;
+        drop(
+            text.parse::<pep508_rs::Requirement<pep508_rs::VerbatimUrl>>()
+                .map_err(|error| ManifestReadingError::Unreadable {
+                    reason: error.to_string(),
+                })?,
+        );
     }
     Ok(Declared::from(schema))
 }

@@ -36,7 +36,6 @@ pub fn declarations(relations: &[HostRelation]) -> Vec<HostedRelation> {
 /// arbitrary text may itself contain tabs, newlines or the prefixes printed by `lines`.
 #[must_use]
 pub fn identity(relations: &[HostRelation]) -> super::types::HostIdentity {
-    use crate::domain::hosted::types::HostKind;
     fn tally<I: IntoIterator>(out: &mut super::types::HostIdentity, items: I)
     where
         I::IntoIter: ExactSizeIterator,

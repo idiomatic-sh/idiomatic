@@ -28,6 +28,7 @@ fn same(left: &Datum<'_>, right: &Datum<'_>) -> PredicateOutcome {
 }
 
 /// `equality`, one item of the `comparisons` collection.
+#[derive(Clone, Copy, Debug)]
 pub struct EqualityItem;
 
 impl ComparisonsItem for EqualityItem {

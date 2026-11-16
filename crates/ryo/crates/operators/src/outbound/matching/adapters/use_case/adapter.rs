@@ -15,7 +15,7 @@ pub(crate) struct MatchingUseCaseAdapter<Semantics> {
 
 impl<Semantics> MatchingUseCaseAdapter<Semantics> {
     /// The adapter over one use case.
-    pub const fn new(semantics: Semantics) -> Self {
+    pub(crate) const fn new(semantics: Semantics) -> Self {
         Self { semantics }
     }
 }

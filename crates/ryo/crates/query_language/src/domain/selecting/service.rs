@@ -11,7 +11,6 @@ use crate::domain::planning::service::{push, pushed};
 use crate::domain::resolving::service::{column_of, position, read_source, repeated_rows};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// The alternatives of a `where`, each the tests that all hold for it: one when there is no `or`, and an `or` inside an

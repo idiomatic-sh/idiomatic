@@ -283,7 +283,7 @@ fn walk_with<L>(
         return;
     }
     if language.completion_requirement()
-        == crate::domain::elements::types::CompletionRequirement::PreparedModel
+        == CompletionRequirement::PreparedModel
     {
         crate::application::completion::service::prepare(
             elements,

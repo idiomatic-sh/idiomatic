@@ -19,6 +19,7 @@ pub struct GroupDigest(pub i64);
 pub struct ValueHash(pub u64);
 
 /// The engine-owned scratch the distinct value hashes of one group are collected in.
+#[derive(Debug)]
 pub struct HashScratch<'a>(pub &'a mut Vec<u64>);
 
 /// The hashes of a group's values a worker keeps between groups, for a group digest.

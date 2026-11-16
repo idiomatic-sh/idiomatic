@@ -1,6 +1,6 @@
 //! Plain values for the decoded brace-format parser.
 use crate::domain::format_syntax::types::{
-    FormatCharacter, FormatFieldOrdinal, RetainedFormatIndex,
+    FormatCharacter, FormatFieldOrdinal,
 };
 
 /// Stable categories reported by the brace field parser.

@@ -5,7 +5,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Append the selected cells to an engine-owned scratch row.
 /// The caller clears the row before this operation and publishes it only on success.
-pub fn project(
+pub(crate) fn project(
     row: &[Value],
     columns: &[ColumnIndex],
     projected: &mut Vec<Value>,

@@ -25,6 +25,7 @@ use ryo_values::domain::stored_facts::types::Bucket;
 ///     admitted.output
 /// }
 /// ```
+#[derive(Debug)]
 pub struct AdmittedOutput {
     pub output: ObservationIndex,
     pub publication:
@@ -117,6 +118,7 @@ impl std::fmt::Debug for ObservationBatches<'_> {
 /// };
 /// assert!(install.publications.is_empty());
 /// ```
+#[derive(Debug)]
 pub struct Install {
     /// What the occurrence transfers to the stage's arenas.
     pub transfer: CrossPublicationTransfer,
@@ -146,4 +148,10 @@ pub struct Install {
 pub struct ObservationStage<'a> {
     pub(crate) phase: ProjectPhase<'a>,
     pub(crate) publications: crate::application::file_dag::publications::types::Publications<'a>,
+}
+impl std::fmt::Debug for ObservationStage<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
 }

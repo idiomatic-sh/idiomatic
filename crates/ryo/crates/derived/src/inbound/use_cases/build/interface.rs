@@ -1,5 +1,4 @@
 //! The portable contract that builds the payload of a prepared derived request from finite borrowed inputs.
-use crate::domain::contract::types::derived_payload::value::DerivedPayload;
 use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
 use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, Recycled};
 use crate::domain::fault::types::DerivedFault;

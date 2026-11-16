@@ -15,6 +15,7 @@ use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 
 /// `glob`, one item of the `comparisons` collection, matching through the semantics its parent hands it.
+#[derive(Debug)]
 pub struct GlobItem<'a>(pub PatternMatcher<'a>);
 
 /// Uses a fixed operand's compiled matcher; a column operand remains row-dependent.

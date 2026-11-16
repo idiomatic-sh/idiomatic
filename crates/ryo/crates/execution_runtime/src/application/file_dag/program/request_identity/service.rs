@@ -33,7 +33,7 @@ impl RequestIdentity {
                 },
                 CorpusInput::ReadFailed { .. } | CorpusInput::Unreadable { .. } => None,
             };
-            available
+            let _: &mut Option<ryo_relations::domain::relations::types::FileId> = available
                 .entry(path.clone())
                 .and_modify(|entry| *entry = None)
                 .or_insert(file);

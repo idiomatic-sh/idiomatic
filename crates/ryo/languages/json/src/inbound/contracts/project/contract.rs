@@ -32,7 +32,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut ryo::languages::ProjectEntries,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 
@@ -63,7 +63,7 @@ impl Project for ProjectContract {
 
     fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
         // standard: RFC 8259 (STD 90), section 2: a JSON text is one value, and the standard names no project manifest.
-        languages::absent(languages::AbsenceCause::NoManifests)
+        languages::absent(AbsenceCause::NoManifests)
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
@@ -74,7 +74,7 @@ impl Project for ProjectContract {
         &self,
     ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         // standard: RFC 8259 (STD 90), section 2: a JSON text is one value, and the standard names no project manifest.
-        languages::absent(languages::AbsenceCause::NoManifests)
+        languages::absent(AbsenceCause::NoManifests)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

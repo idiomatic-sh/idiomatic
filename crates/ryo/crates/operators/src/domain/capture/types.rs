@@ -13,6 +13,7 @@ pub struct SlotPattern<'a>(pub &'a str);
 pub struct SlotSubject<'a>(pub &'a str);
 
 /// The engine-owned ranges of the slots matched so far.
+#[derive(Debug)]
 pub struct CaptureSlots<'a>(pub &'a mut Vec<std::ops::Range<usize>>);
 
 /// How many slots a path pattern has: the columns a capture appends to each row.

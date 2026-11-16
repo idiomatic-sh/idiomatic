@@ -75,7 +75,7 @@ impl PreparedProgram {
                 .iter()
                 .any(|consumer| reach.needed[consumer.0] == Visit::Reached)
             {
-                buckets.insert(ryo_values::domain::stored_facts::service::frontier_bucket(
+                let _: bool = buckets.insert(ryo_values::domain::stored_facts::service::frontier_bucket(
                     *first.get(root.producer.0).ok_or(OperatingError::NotRun)?,
                     root.frontier,
                 ));

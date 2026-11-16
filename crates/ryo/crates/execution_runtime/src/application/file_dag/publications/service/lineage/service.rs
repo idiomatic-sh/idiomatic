@@ -66,7 +66,7 @@ fn output_of(
         Input::BoundObservation(input) => binding_of(pass, bindings, rule, input, visiting),
         Input::Relation(relation) => one_file(relation_kinds(relation)),
     };
-    visiting.pop();
+    let _: Option<RuleIndex> = visiting.pop();
     lineage
 }
 

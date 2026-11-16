@@ -290,11 +290,11 @@ pub enum Freshness {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FrontierReadiness {
     /// Encoding version; old versions cannot establish completion.
-    pub version: crate::domain::records::types::ObservationReadinessVersion,
+    pub version: ObservationReadinessVersion,
     /// Stable ordered producer/output/query/config identity for these bits.
-    pub layout: crate::domain::records::types::ObservationReadinessLayout,
+    pub layout: ObservationReadinessLayout,
     /// Exact number of logical roots represented.
-    pub slots: crate::domain::records::types::ObservationReadinessCount,
+    pub slots: ObservationReadinessCount,
     /// Successful production bits, including actual complete zero-row outputs.
     pub complete: ReadinessBits,
     /// Explicit not-applicable bits; empty storage means no skips, never completion.
@@ -310,7 +310,7 @@ pub struct ReadinessBits(pub Vec<u64>);
 /// One explicitly unavailable root; ordinary pending slots need no owned reason.
 pub struct FrontierRefusal {
     /// Position in the enclosing validated map.
-    pub slot: crate::domain::records::types::ObservationReadinessSlot,
+    pub slot: ObservationReadinessSlot,
     /// Why production cannot establish complete rows.
     pub reason: FrontierRefusalReason,
 }
@@ -327,7 +327,7 @@ pub enum FrontierRefusalReason {
 #[derive(Clone, Debug)]
 pub enum RootWords {
     /// The packed words of the root's table.
-    Published(crate::domain::stored_facts::types::KeptWords),
+    Published(KeptWords),
     /// The root carries no words: its readiness says why.
     Withheld,
 }
@@ -338,7 +338,7 @@ pub enum RootWords {
 pub struct PackedObservedRoot {
     pub output: ObservationIndex,
     pub words: RootWords,
-    pub readiness: crate::domain::records::types::ProducerReadiness,
+    pub readiness: ProducerReadiness,
     /// Every arena actually referenced by encoded places, including inherited re-exports.
     pub arenas: Vec<ryo_relations::domain::relations::types::WorkerNumber>,
 }
@@ -356,7 +356,7 @@ pub struct ObservationReadinessVersion(pub u32);
 
 /// Semantic identity of ordered producer/output definitions plus query/config/schema identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ObservationReadinessLayout(pub crate::domain::stored_facts::types::Digest);
+pub struct ObservationReadinessLayout(pub Digest);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Number of logical status slots in the current semantic layout.

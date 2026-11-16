@@ -28,7 +28,7 @@ pub(crate) fn imported_roots(notes: &[Option<Note>]) -> Vec<ImportedRoot> {
             else {
                 continue;
             };
-            roots.insert(ImportedRoot {
+            let _: bool = roots.insert(ImportedRoot {
                 file: FileId(u32::try_from(number).unwrap_or(u32::MAX)),
                 root: root.into(),
                 path: ImportPath(import.path.0.clone()),
@@ -109,7 +109,7 @@ pub(crate) fn candidates(
     for search in search_roots {
         for name in &names {
             for probe in entry_paths(search, name) {
-                candidates.insert(probe.path);
+                let _: bool = candidates.insert(probe.path);
             }
         }
     }
@@ -204,14 +204,14 @@ pub(crate) fn memberships(
             })
         };
         if present(classified.get(path)) && !present(classified.get(&parent)) {
-            classified.insert(path.clone(), vec![EntryKind::Unknown]);
+            drop(classified.insert(path.clone(), vec![EntryKind::Unknown]));
         }
     }
 
     let mut rows = BTreeSet::new();
     for imported in roots {
         for prefix in prefixes(&imported.path) {
-            rows.insert(ImportedRoot {
+            let _: bool = rows.insert(ImportedRoot {
                 file: imported.file,
                 root: imported.root.clone(),
                 path: prefix.dotted,

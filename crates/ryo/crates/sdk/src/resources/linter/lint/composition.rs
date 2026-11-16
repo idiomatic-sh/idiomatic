@@ -108,7 +108,7 @@ pub(crate) fn build(
     settings: LinterLintSettings,
 ) -> impl LintUseCase {
     let LinterLintSettings { root, budget } = settings;
-    let spill: Arc<dyn ryo_execution_runtime::outbound::facts::interface::FactsPort> =
+    let spill: Arc<dyn facts::interface::FactsPort> =
         match &connections.spill {
             Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
             Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
@@ -151,7 +151,7 @@ pub(crate) fn build(
             let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
             let analysis_digest: Arc<
-                dyn ryo_execution_runtime::outbound::digest::interface::DigestPort,
+                dyn digest::interface::DigestPort,
             > = Arc::new(digest::factory::blake3());
             ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
                 ryo_core::application::file_analysis::service::FileAnalysis::new(
@@ -162,14 +162,14 @@ pub(crate) fn build(
                 ),
                 ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                     &analysis_corpus,
-                ), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
+                ), Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
                 Arc::clone(&analysis_corpus),
                 spill,
                 analysis_language,
                 matching,
                 query,
                 analysis_memory,
-                Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(), ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
+                Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(), ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
                 pool,
                 workers,
                 Arc::new(row_sink::factory::collect(collector)),
@@ -323,7 +323,7 @@ impl From<DependencyBytes<'_>> for DependencyFingerprint {
     fn from(bytes: DependencyBytes<'_>) -> Self {
         use ryo_execution_runtime::outbound::digest::interface::DigestPort as _;
         let digest = digest::factory::blake3().digest(
-            ryo_execution_runtime::outbound::digest::types::DigestBytes(bytes.0),
+            digest::types::DigestBytes(bytes.0),
         );
         Self(digest.0)
     }

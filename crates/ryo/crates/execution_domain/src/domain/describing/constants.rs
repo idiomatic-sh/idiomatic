@@ -164,7 +164,7 @@ pub(crate) fn replace() -> OperatorDescription {
                 Required,
             ),
             field(
-                ryo_values::domain::descriptions::constants::OUTPUT,
+                OUTPUT,
                 "New output column.",
                 Required,
             ),
@@ -195,7 +195,7 @@ pub(crate) fn ordered_match() -> OperatorDescription {
             field("left-order", "Left numeric order.", Required),
             field("right-order", "Right numeric order.", Required),
             field(
-                ryo_values::domain::descriptions::constants::OUTPUT,
+                OUTPUT,
                 "Named columns with explicit input sources.",
                 Required,
             ),

@@ -11,21 +11,25 @@ pub enum SourceLanguage {
     Unrecognized,
 }
 /// The semantic session a file may be read with.
+#[derive(Debug)]
 pub enum SemanticSupport<'a> {
     Supplied(&'a dyn SemanticLookup),
     Absent,
 }
 /// The kind vocabulary a file may be prepared with.
+#[derive(Debug)]
 pub enum KindSupport {
     Prepared(Arc<PreparedVocabulary>),
     Absent,
 }
 /// What the file's run observed of the producers that feed named observations.
+#[derive(Debug)]
 pub enum FinishedReadiness {
     Observed(Arc<ryo_values::domain::records::types::FrontierReadiness>),
     Unobserved,
 }
 /// Output storage only; source file and rule digest come from the bound session.
+#[derive(Debug)]
 pub struct CaptureContext<'a> {
     pub worker: ryo_relations::domain::relations::types::WorkerNumber,
     /// The arena the finished rows are written into.
@@ -55,6 +59,12 @@ pub struct FileRunInput<'a> {
     /// The first frontier bucket of each rule, in rule order.
     pub first: &'a [ryo_values::domain::stored_facts::types::Bucket],
 }
+impl std::fmt::Debug for FileRunInput<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
 /// Which partiality a file's rules are evaluated with; publication always sees the physical one.
 ///
 /// # Examples
@@ -79,6 +89,7 @@ pub enum FileStop {
     Reader,
 }
 /// What a rule's run came to after its emitted root.
+#[derive(Debug)]
 pub enum RuleAfter {
     /// Its frontiers were captured, and the kept ones kept and committed.
     Ran {
@@ -91,6 +102,7 @@ pub enum RuleAfter {
     Stopped(FileStop),
 }
 /// The root a rule emitted for its caller.
+#[derive(Debug)]
 pub enum EmittedRoot {
     /// The rule's diagnostic is delivered: its emitted root.
     Delivered(crate::application::file_dag::program::rule_outcome::types::RootOutcome),
@@ -98,6 +110,7 @@ pub enum EmittedRoot {
     Withheld,
 }
 /// What one rule of a file came to, in the order it ran.
+#[derive(Debug)]
 pub struct RanRule {
     /// The rule.
     pub rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
@@ -105,6 +118,7 @@ pub struct RanRule {
     pub after: RuleAfter,
 }
 /// How a file's run ended.
+#[derive(Debug)]
 pub enum FileEnd {
     /// Every rule ran and the session finished.
     Finished(FinishedReadiness),
@@ -114,6 +128,7 @@ pub enum FileEnd {
     Refused(FileStop),
 }
 /// What the rules of one file came to: each rule's run, how the file ended, and the file's physical partiality.
+#[derive(Debug)]
 pub struct FileRules {
     pub rules: Vec<RanRule>,
     pub end: FileEnd,
@@ -122,7 +137,7 @@ pub struct FileRules {
 }
 
 /// The frontiers a rule captured for the cross-file steps, one per captured input.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FrontierCaptures(
     pub Vec<ryo_execution_domain::domain::frontier_capture::types::FrontierCapture>,
 );

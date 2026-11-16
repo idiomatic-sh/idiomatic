@@ -4,6 +4,7 @@ use crate::application::rule_compilation::service::CompiledRules;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 
 /// Where the plans of a request come from.
+#[derive(Debug)]
 pub enum PlanSource {
     /// Plans and their bindings as the caller authored them.
     Authored {
@@ -15,6 +16,7 @@ pub enum PlanSource {
 }
 
 /// What a caller asks to have prepared.
+#[derive(Debug)]
 pub struct PrepareRequest {
     pub plans: PlanSource,
     pub rules: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,

@@ -128,7 +128,7 @@ pub fn escape_cross_publication(
                 }
                 let at = PlaceNumber(at);
                 places.push(*old);
-                remapped.insert(name_place, at);
+                let _: Option<PlaceNumber> = remapped.insert(name_place, at);
                 at
             };
             *value = Value::Name(ryo_relations::domain::relations::types::Name {

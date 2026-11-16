@@ -306,7 +306,7 @@ impl Project for ProjectContract {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-        _entries: &mut ryo::languages::ProjectEntries,
+        _entries: &mut languages::ProjectEntries,
     ) {
     }
 

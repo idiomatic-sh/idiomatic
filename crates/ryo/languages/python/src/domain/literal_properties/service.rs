@@ -83,7 +83,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
             LiteralClassification::MissingPayload,
             |value| {
                 flag(
-                    NameText(crate::domain::syntax::constants::BYTES_SCALAR),
+                    NameText(BYTES_SCALAR),
                     Flag::Lowered,
                     if value.0.is_empty() {
                         Flag::Raised
@@ -117,7 +117,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
         INTEGER_SCALAR => {
             payload(tree, at, SCALAR_VALUE).map_or(LiteralClassification::MissingPayload, |value| {
                 flag(
-                    NameText(crate::domain::syntax::constants::INTEGER_SCALAR),
+                    NameText(INTEGER_SCALAR),
                     if value.0 == constants::ZERO_PAYLOAD {
                         Flag::Raised
                     } else {
@@ -135,7 +135,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
             })
             .map_or(LiteralClassification::MissingPayload, |bits| {
                 flag(
-                    NameText(crate::domain::syntax::constants::FLOAT_SCALAR),
+                    NameText(FLOAT_SCALAR),
                     if f64::from_bits(bits) == 0.0_f64 {
                         Flag::Raised
                     } else {
@@ -160,7 +160,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
                 LiteralClassification::MissingPayload,
                 |(real, imaginary)| {
                     flag(
-                        NameText(crate::domain::syntax::constants::COMPLEX_SCALAR),
+                        NameText(COMPLEX_SCALAR),
                         if f64::from_bits(real) == 0.0_f64 && f64::from_bits(imaginary) == 0.0_f64 {
                             Flag::Raised
                         } else {
@@ -178,7 +178,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
             })
             .map_or(LiteralClassification::MissingPayload, |boolean| {
                 flag(
-                    NameText(crate::domain::syntax::constants::BOOLEAN_SCALAR),
+                    NameText(BOOLEAN_SCALAR),
                     Flag::Lowered,
                     Flag::Lowered,
                     if boolean { Flag::Raised } else { Flag::Lowered },
@@ -191,7 +191,7 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
             Flag::Lowered,
         ),
         ELLIPSIS_SCALAR => flag(
-            NameText(crate::domain::syntax::constants::ELLIPSIS_SCALAR),
+            NameText(ELLIPSIS_SCALAR),
             Flag::Lowered,
             Flag::Lowered,
             Flag::Lowered,

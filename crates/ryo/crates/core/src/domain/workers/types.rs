@@ -291,7 +291,7 @@ pub(crate) struct CrossReading<'a, W> {
     /// The files each rule was refused on, by rule: acceptance undetermined or applicability metadata unavailable.
     pub refused: &'a std::collections::BTreeMap<RuleId, std::collections::BTreeSet<FilePath>>,
     /// The files no language read, and why.
-    pub unread: &'a [ryo_values::domain::records::types::Unread],
+    pub unread: &'a [Unread],
     /// The store's handle of each worker.
     pub workers: Vec<W>,
 }

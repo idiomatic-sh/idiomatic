@@ -25,7 +25,7 @@ pub(crate) struct FormatSpecificationItem;
 
 /// Whether the parser decoded every input the specifications are read from.
 fn completeness(
-    observations: &crate::domain::format_specification::types::Observations,
+    observations: &Observations,
 ) -> ObservationCompleteness {
     observations.completeness
 }
@@ -67,7 +67,7 @@ fn invalid_type_symbol(
 ryo::reads! {
     FormatSpecificationItem => languages::FormatSpecification, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given braces = prepare(&RuffLiteralBraceFormat, tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
+        given braces = prepare(&RuffLiteralBraceFormat, tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
         given observations = observed(tree,&braces,model.language_target,&model.scratch);
         each (observations.rows.iter()) as spec {
             require crate::domain::semantic_syntax::service::visibility(tree,model,spec.id,symbols) == Visibility::Visible;

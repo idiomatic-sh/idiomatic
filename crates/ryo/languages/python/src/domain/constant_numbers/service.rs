@@ -1,13 +1,10 @@
 //! Normalize parser-provided numeric literals into exact, hashable constant-key numbers.
 use crate::domain::{
     constant_numbers::types::{Binary64, ExactInteger, FloatPayload, NumberKey, RealKey},
-    syntax::{
-        constants::{
+    syntax::constants::{
             BOOLEAN_SCALAR, COMPLEX_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR, SCALAR_IMAGINARY,
             SCALAR_KIND, SCALAR_VALUE,
         },
-        service::literal,
-    },
 };
 use ryo::languages::{self, Position, Tree};
 

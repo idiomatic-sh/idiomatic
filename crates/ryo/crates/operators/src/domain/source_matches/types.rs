@@ -1,5 +1,6 @@
 //! Borrowed source matches contracts; no engine authority.
 /// The engine lends exactly one checked source interval and its acquired matcher.
+#[derive(Debug)]
 pub struct SourceMatchesInput<'a> {
     pub row: &'a [ryo_relations::domain::relations::types::Value],
     pub source: LineBytes<'a>,

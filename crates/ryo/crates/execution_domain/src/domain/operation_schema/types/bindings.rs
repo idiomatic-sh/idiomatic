@@ -1,6 +1,6 @@
 //! One value with behaviour: its declaration and impls, and its proof.
 
-pub mod value;
+pub(crate) mod value;
 
 #[cfg(test)]
 mod value_test;

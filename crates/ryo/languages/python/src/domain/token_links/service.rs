@@ -8,9 +8,9 @@ use crate::domain::{
 use ryo::languages::{self, NameText, Position, Tree};
 
 /// Native root extent excludes separately adopted embedded expressions.
-pub(crate) fn scan<'tree, 'source, 'stack>(
-    tree: &'tree Tree<'source>,
-    mut stack: std::cell::RefMut<'stack, Vec<Opener>>,
+pub(crate) fn scan(
+    tree: &Tree<'_>,
+    mut stack: std::cell::RefMut<'_, Vec<Opener>>,
 ) -> impl Iterator<Item = Event> {
     stack.clear();
     let end = if languages::end_of(tree.elements).0 == 0 {

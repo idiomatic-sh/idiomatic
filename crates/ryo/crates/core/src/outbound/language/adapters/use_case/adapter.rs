@@ -209,7 +209,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
             }
             if language
                 .project
-                .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+                .primary_role(SourcePath(&file.path.0))
                 == ryo_language::domain::files::types::PrimaryFileRole::Configuration
             {
                 return FileReading::Manifest;
@@ -245,7 +245,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 if self.languages.iter().any(|language| {
                     language
                         .project
-                        .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+                        .primary_role(SourcePath(&file.path.0))
                         == ryo_language::domain::files::types::PrimaryFileRole::Configuration
                 }) {
                     FileReading::Manifest

@@ -91,8 +91,8 @@ impl StagingConnection {
         }
         let span = StagedWords {
             session: self.session,
-            offset: ryo_values::domain::records::types::PayloadOffset(self.length.0),
-            length: ryo_values::domain::records::types::PayloadLength(length),
+            offset: PayloadOffset(self.length.0),
+            length: PayloadLength(length),
         };
         self.length = PayloadLength(end);
         Ok(span)

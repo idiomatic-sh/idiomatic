@@ -327,7 +327,7 @@ pub enum MadeAgain {
     /// Every one: what a file shows the project or every rule changed, or files were added or removed.
     All,
     /// These, by their place, in order: what the changed files hand them changed, and nothing else did.
-    These(Vec<crate::domain::row_texts::types::PlacedRule>),
+    These(Vec<PlacedRule>),
 }
 
 /// How much of what the last run kept a run uses again.

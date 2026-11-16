@@ -6,7 +6,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub struct InputSlot(pub usize);
 
 /// Portable failures; an interrupted engine callback retains its exact error outside this crate.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DerivedFault {
     /// The request names an input the caller did not give.
     MissingInput {

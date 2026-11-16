@@ -114,7 +114,7 @@ impl Publications<'_> {
                         .get_mut(worker_place(arena).0)
                         .ok_or_else(incomplete)?;
                     *added = added.checked_add(1).ok_or(OperatingError::NotRun)?;
-                    self.references
+                    let _: usize = self.references
                         .get(worker_place(arena).0)
                         .ok_or_else(incomplete)?
                         .0
