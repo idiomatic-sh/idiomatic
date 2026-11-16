@@ -24,7 +24,7 @@ pub trait EvidencePort {
         comparison: ReportComparison,
         contract: ComparisonContract,
     ) -> Result<(), Error>;
-    /// Publish how long each rule's cases took to verify, two BMF measures per rule, `verify/<linter>/<rule>-total-ms` and `verify/<linter>/<rule>-max-case-ms`.
+    /// Publish how long each rule's cases took to verify, three BMF measures per rule, `verify/<linter>/<rule>-total-ms`, `-max-case-ms` and `-compile-ms`.
     ///
     /// # Errors
     /// Returns encoding, stream-write or flush failures.

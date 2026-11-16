@@ -2,9 +2,9 @@
 use super::constants::{
     CASE_RECEIPT_DESTINATION_MUST_BE_N, DUPLICATE_CASE_SHARD_ARGUMENT, EXPECTED_SHARD_INDEX_COUNT,
     INVALID_CASE_SHARD_COUNT, INVALID_CASE_SHARD_INDEX, SHARD, SHARD_SEPARATOR,
-    UNEXPECTED_VERIFY_CASES_ARGUMENT,
+    UNEXPECTED_VERIFY_CASES_ARGUMENT, VERIFY_TIMES, VERIFY_TIMES_DESTINATION_MUST_BE_NONEMPTY,
 };
-use super::types::{CaseArgument, CaseRun};
+use super::types::{CaseArgument, CaseRun, VerifyTimes};
 use crate::outbound::receipts::types::CaseReceipts;
 use ryo_benchmark_contracts::domain::receipts::constants::CASE_RECEIPTS_ARGUMENT;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -18,10 +18,17 @@ use std::path::PathBuf;
 pub(super) fn select(arguments: &[CaseArgument]) -> Result<CaseRun, Error> {
     let mut case_receipts = None;
     let mut shard = ShardPartition::All;
+    let mut times = None;
     for argument in arguments {
         if let Some(path) = argument.0.strip_prefix(CASE_RECEIPTS_ARGUMENT) {
             if path.is_empty() || case_receipts.replace(PathBuf::from(path)).is_some() {
                 return Err(Error::Invalid(CASE_RECEIPT_DESTINATION_MUST_BE_N.into()));
+            }
+        } else if let Some(path) = argument.0.strip_prefix(VERIFY_TIMES) {
+            if path.is_empty() || times.replace(PathBuf::from(path)).is_some() {
+                return Err(Error::Invalid(
+                    VERIFY_TIMES_DESTINATION_MUST_BE_NONEMPTY.into(),
+                ));
             }
         } else if argument.0.starts_with(SHARD) {
             if !matches!(shard, ShardPartition::All) {
@@ -35,6 +42,7 @@ pub(super) fn select(arguments: &[CaseArgument]) -> Result<CaseRun, Error> {
     Ok(CaseRun {
         receipts: case_receipts.map_or(CaseReceipts::Unrecorded, CaseReceipts::Recorded),
         shard,
+        timings: times.map_or(VerifyTimes::Unrecorded, VerifyTimes::Recorded),
     })
 }
 

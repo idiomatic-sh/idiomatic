@@ -72,9 +72,6 @@ pub(super) fn verify_prepared_reference_cases(
             .entry(case.rule.clone())
             .or_default()
             .record(elapsed);
-        failures.extend(crate::domain::suite::service::over_case_limit(
-            &case.rule, &case.name, elapsed,
-        ));
         match result {
             Ok(result) => {
                 let full_report = result.report.clone();

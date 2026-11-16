@@ -30,3 +30,13 @@ pub fn local_with_diagnostic_events(
 ) -> impl super::interface::EnginePort {
     EngineLocalAdapter::with_diagnostic_events(languages, events, Some(projection))
 }
+
+/// Construct an engine for a verification: the rules load once and every case runs over one SDK engine, so the plans compile
+/// once and the cases share them.
+#[must_use]
+pub fn retaining_with_frontend_diagnostic(
+    languages: ryo::linter::Languages,
+    projection: FrontendDiagnosticProjection,
+) -> impl super::interface::EnginePort {
+    EngineLocalAdapter::retaining(languages, Some(projection))
+}

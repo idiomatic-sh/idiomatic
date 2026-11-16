@@ -326,3 +326,27 @@ impl From<DependencyBytes<'_>> for DependencyFingerprint {
 }
 /// What joins the parts of a path the walk skips, on every platform.
 const SKIP_SEPARATOR: char = '/';
+
+/// Compiles `rules` into the plans every run over `engine` shares, as a run compiles them before it reads a file.
+pub(crate) fn compile(
+    engine: &LinterLintEngine,
+    rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
+    hosted: &[ryo_values::domain::hosted::types::HostRelation],
+) -> Result<(), ryo_core::inbound::use_cases::lint::errors::LintError> {
+    use ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase as _;
+    let digest: Arc<dyn digest::interface::DigestPort> = Arc::new(digest::factory::blake3());
+    let _compiled =
+        ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl::new(
+            Arc::clone(&engine.query_language),
+            digest,
+        )
+        .compiling_into(engine.plans.clone())
+        .compile_rules(
+            ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest {
+                rules,
+                hosted,
+                vocabularies: &engine.language.kind_vocabularies(),
+            },
+        )?;
+    Ok(())
+}

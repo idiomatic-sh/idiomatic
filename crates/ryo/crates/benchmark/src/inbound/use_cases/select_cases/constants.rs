@@ -16,3 +16,8 @@ pub(super) const EXPECTED_SHARD_INDEX_COUNT: &str = "expected --shard=INDEX/COUN
 pub(super) const INVALID_CASE_SHARD_INDEX: &str = "invalid case shard index";
 /// The refusal for a shard count that is not a number.
 pub(super) const INVALID_CASE_SHARD_COUNT: &str = "invalid case shard count";
+/// The flag that names the file a run writes its verification times to, as BMF.
+pub(super) const VERIFY_TIMES: &str = "--verify-times=";
+/// The refusal for a times destination that is empty or given twice.
+pub(super) const VERIFY_TIMES_DESTINATION_MUST_BE_NONEMPTY: &str =
+    "verify times destination must be nonempty and supplied once";

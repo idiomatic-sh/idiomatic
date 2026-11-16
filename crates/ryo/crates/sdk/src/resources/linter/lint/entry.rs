@@ -52,6 +52,49 @@ impl Linter {
     }
 }
 
+#[expect(
+    clippy::multiple_inherent_impl,
+    reason = "the entry file holds the entries over a linter; the constructor is its sibling in the same file"
+)]
+impl Linter {
+    /// Compiles `rules` ahead of any run, into the plans every `lint_with` over this linter shares, so a later run of the same
+    /// rules finds them compiled and spends its time on the files. A rule already compiled is not compiled again.
+    ///
+    /// # Errors
+    ///
+    /// `Rule` for a rule whose query is not correct, `MissingParameter` for a parameter nothing is bound to, as `lint` answers
+    /// them before it reads a file.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::collections::BTreeMap;
+    /// use std::num::NonZeroUsize;
+    /// use ryo::linter::{Cache, Languages, Linter, MemoryBudget, WorkerPool, Workers};
+    ///
+    /// let linter = Linter::new(
+    ///     Languages::default(),
+    ///     WorkerPool::from(Workers(NonZeroUsize::MIN)),
+    ///     MemoryBudget::Machine,
+    ///     Cache::None,
+    /// );
+    /// linter.prepare(&BTreeMap::new(), &[]).expect("no rule to compile is compiled");
+    /// ```
+    pub fn prepare(
+        &self,
+        rules: &std::collections::BTreeMap<super::types::RuleId, super::types::Rule>,
+        hosted: &[super::types::HostRelation],
+    ) -> Result<(), LintError> {
+        let rules = schemas::core_rules(rules.clone());
+        let hosted = schemas::host_relations(hosted.to_vec())?;
+        let specs: Vec<_> = rules
+            .iter()
+            .map(ryo_values::domain::rule_requests::types::RuleSpec::from)
+            .collect();
+        super::composition::compile(self.engine(), &specs, &hosted).map_err(LintError::from_core)
+    }
+}
+
 /// `linter lint` over `linter`: checks rules over a repository, as `lint` does, with no setup of its own.
 ///
 /// # Errors

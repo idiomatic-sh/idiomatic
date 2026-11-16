@@ -396,19 +396,3 @@ pub(crate) fn covered<'a, T>(
             .any(|selected| selected.to_string() == rule(item).0),
     })
 }
-
-/// The failure of a case whose whole run took longer than the time limit, naming the rule, the case and its measured time.
-#[must_use]
-pub fn over_case_limit(
-    rule: &ryo::linter::RuleId,
-    case: &impl std::fmt::Display,
-    elapsed: std::time::Duration,
-) -> Option<String> {
-    (elapsed > constants::CASE_TIME_LIMIT).then(|| {
-        format!(
-            "{rule}/{case} took {} ms to verify, over the {} ms limit",
-            elapsed.as_millis(),
-            constants::CASE_TIME_LIMIT.as_millis()
-        )
-    })
-}

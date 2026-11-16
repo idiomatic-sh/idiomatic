@@ -28,6 +28,8 @@ pub struct RuleTiming {
     pub total: std::time::Duration,
     /// The time of the rule's slowest case.
     pub slowest: std::time::Duration,
+    /// The time the rule's query took to compile before its first case, none where each case compiles for itself.
+    pub compile: std::time::Duration,
 }
 impl RuleTiming {
     /// Count one case that took `elapsed`.

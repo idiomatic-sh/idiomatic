@@ -28,6 +28,69 @@ pub(crate) struct EngineLocalAdapter {
     diagnostic_events: Option<std::path::PathBuf>,
     /// Optional explicit query mapping provider diagnostics to benchmark findings.
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
+    /// What a verification keeps across its cases: the rules loaded once and one SDK engine, whose compiled plans every case
+    /// shares. Absent for a run that is one child's only case.
+    retained: Option<Retained>,
+}
+/// The rules and the SDK engine one verification keeps across the cases of its profile.
+#[derive(Debug, Default)]
+struct Retained {
+    /// The rules loaded from the profile's query files.
+    rules: std::sync::OnceLock<BTreeMap<RuleId, Rule>>,
+    /// The SDK engine every case runs over.
+    linter: std::sync::OnceLock<linter::Linter>,
+}
+impl EngineLocalAdapter {
+    /// Bind language support for a verification whose cases all run over one engine and one set of loaded rules.
+    pub(crate) fn retaining(
+        languages: Languages,
+        frontend_diagnostic: Option<FrontendDiagnosticProjection>,
+    ) -> Self {
+        Self {
+            languages,
+            trace: None,
+            diagnostic_events: None,
+            frontend_diagnostic,
+            retained: Some(Retained::default()),
+        }
+    }
+    /// The rules of `request`: loaded from its query files, once when this adapter retains them.
+    fn rules(&self, request: &WorkerRequest) -> Result<BTreeMap<RuleId, Rule>, Error> {
+        let load = || {
+            super::schemas::load_rules(
+                &request.rules,
+                &request.query_modules,
+                &request.rule_applicability,
+                self.frontend_diagnostic.clone(),
+                match &request.rule_observations {
+                    ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
+                        declared,
+                    ) => Some(declared),
+                    ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => {
+                        None
+                    }
+                },
+            )
+        };
+        match &self.retained {
+            None => load(),
+            Some(retained) => {
+                if let Some(rules) = retained.rules.get() {
+                    return Ok(rules.clone());
+                }
+                let rules = load()?;
+                Ok(retained.rules.get_or_init(|| rules).clone())
+            }
+        }
+    }
+    /// The pool the files of a run are read on: rayon's own size, `RAYON_NUM_THREADS` when the caller sets it.
+    fn pool() -> Result<WorkerPool, Error> {
+        Ok(WorkerPool::from(std::sync::Arc::new(
+            rayon::ThreadPoolBuilder::new()
+                .build()
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+        )))
+    }
 }
 impl EngineLocalAdapter {
     /// Bind language support and optional profiling output once at composition.
@@ -41,6 +104,7 @@ impl EngineLocalAdapter {
             trace,
             diagnostic_events: None,
             frontend_diagnostic,
+            retained: None,
         }
     }
     /// Bind an explicit live JSONL diagnostic sink without changing the timing worker.
@@ -54,6 +118,7 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: Some(path),
             frontend_diagnostic,
+            retained: None,
         }
     }
 }
@@ -78,20 +143,7 @@ impl EnginePort for EngineLocalAdapter {
         } else {
             None
         };
-        let rules = super::schemas::load_rules(
-            &request.rules,
-            &request.query_modules,
-            &request.rule_applicability,
-            self.frontend_diagnostic.clone(),
-            match &request.rule_observations {
-                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
-                    declared,
-                ) => Some(declared),
-                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => {
-                    None
-                }
-            },
-        )?;
+        let rules = self.rules(request)?;
         Ok(LoadedEngineSession::new(
             request,
             rules,
@@ -104,6 +156,38 @@ impl EnginePort for EngineLocalAdapter {
                 _trace: trace,
             }),
         ))
+    }
+    fn compile(
+        &self,
+        request: &WorkerRequest,
+    ) -> Result<BTreeMap<RuleId, std::time::Duration>, Error> {
+        let Some(retained) = &self.retained else {
+            return Ok(BTreeMap::new());
+        };
+        let engine = match retained.linter.get() {
+            Some(engine) => engine,
+            None => {
+                let engine = linter::Linter::new(
+                    self.languages.clone(),
+                    Self::pool()?,
+                    MemoryBudget::Machine,
+                    Cache::None,
+                );
+                retained.linter.get_or_init(|| engine)
+            }
+        };
+        let mut compiled = BTreeMap::new();
+        for (id, rule) in self.rules(request)? {
+            let started = std::time::Instant::now();
+            // A rule that needs what only a run declares is compiled by the run: it has no time to report here.
+            if engine
+                .prepare(&BTreeMap::from([(id.clone(), rule)]), &[])
+                .is_ok()
+            {
+                let _previous = compiled.insert(id, started.elapsed());
+            }
+        }
+        Ok(compiled)
     }
 }
 
@@ -139,11 +223,6 @@ impl EngineExecution for LocalEngineSession<'_> {
         let (sources, accepted) = super::schemas::source_inputs(&request, &selected_missing)?;
         // The files run on rayon's own pool size: `RAYON_NUM_THREADS` when the caller sets it (the harness sets one), else one
         // thread per core.
-        let pool = WorkerPool::from(std::sync::Arc::new(
-            rayon::ThreadPoolBuilder::new()
-                .build()
-                .map_err(|error| Error::Invalid(error.to_string()))?,
-        ));
         let cache = match &request.state {
             ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh => Cache::None,
             ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(path) => {
@@ -159,14 +238,32 @@ impl EngineExecution for LocalEngineSession<'_> {
             }
         };
         let retained_rules: std::collections::BTreeSet<RuleId> = rules.keys().cloned().collect();
-        let engine = linter::Linter::new(
-            adapter.languages.clone(),
-            pool,
-            MemoryBudget::Machine,
-            cache,
-        );
+        let built;
+        let engine = match &adapter.retained {
+            Some(retained) => match retained.linter.get() {
+                Some(engine) => engine,
+                None => {
+                    let engine = linter::Linter::new(
+                        adapter.languages.clone(),
+                        EngineLocalAdapter::pool()?,
+                        MemoryBudget::Machine,
+                        Cache::None,
+                    );
+                    retained.linter.get_or_init(|| engine)
+                }
+            },
+            None => {
+                built = linter::Linter::new(
+                    adapter.languages.clone(),
+                    EngineLocalAdapter::pool()?,
+                    MemoryBudget::Machine,
+                    cache,
+                );
+                &built
+            }
+        };
         let report = linter::lint_with(
-            &engine,
+            engine,
             LintRequest {
                 source_language: match &request.source_language {
                     ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => ryo::linter::SourceLanguage::Recognized,
