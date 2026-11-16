@@ -1,9 +1,0 @@
-
-# What asymptote checks this target with: a run places this file in the project's directory, under asymptote's own name for it.
-[[tools]]
-id = "tastemaker"
-group = "lint"
-run = [".tastemaker/bin/tm", "check", "--format", "sarif"]
-output = "sarif"
-timeout-seconds = 120
-inputs = [".", "tastemaker.toml", "tastemaker.lock", ".policy"]

@@ -11,4 +11,3 @@
 repository = "https://github.com/honojs/hono"
 revision = "7c050b2840bd94baa2a71d8ed0786c7d07bcc1b9"
 directory = "."
-dependencies = [{ source = "crates/tastemaker/cli/tests/fixtures/distribution/npm", destination = ".policy" }, { source = "tastemaker/benchmarks", destination = ".benchmarks" }, { source = "crates/tastemaker/distribution/registries/npm/targets/hono/configuration.toml", destination = "tastemaker.toml" }]
