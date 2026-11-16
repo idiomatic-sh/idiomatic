@@ -1,8 +1,6 @@
-//! How the work of the control-flow rules grows with a constructor: each rule linted alone over one derived constructor of
-//! 1k, 2k and 4k statements of branches, loops and try blocks, less the lint of the same file with `eslint.no-debugger` (one
-//! pass over the syntax: the reading, the directives and the run every rule shares), the work at each size no more than 2.2
-//! times the work at the half (the fastest of five runs each). A rule whose work is quadratic in the constructor's blocks
-//! grows four times; what the debug build and the load of the machine add to every lint cancels in the difference.
+//! How the time of the control-flow rules grows with a constructor: each rule linted alone over one derived constructor of
+//! 1k, 2k and 4k statements of branches, loops and try blocks, the time at each size no more than 2.2 times the time at the
+//! half (the fastest of five runs each): a rule whose work, or whose reading, is quadratic in the constructor grows four times.
 use super::fixtures::{constructor, fastest, rule};
 use ryo::linter::{Cache, Linter, RuleId};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
@@ -12,8 +10,6 @@ use std::borrow::Cow;
 const SIZES: [usize; 3] = [1000, 2000, 4000];
 /// The most the work may grow when the constructor doubles: linear growth and noise, not quadratic.
 const MOST_GROWTH: f64 = 2.2;
-/// The rule whose lint of the same file is subtracted: one pass over the syntax, linear by construction.
-const BASELINE: &str = "eslint.no-debugger";
 
 type Input = &'static str;
 type Value = Cow<'static, str>;
@@ -51,14 +47,9 @@ fn subject(id: Input) -> Result<Value, Failure> {
         ryo::linter::MemoryBudget::Machine,
         Cache::None,
     );
-    let baseline = rule(BASELINE)?;
-    let baseline_id = RuleId::try_from(BASELINE).map_err(|error| Cow::Owned(error.to_string()))?;
     let mut times = Vec::with_capacity(SIZES.len());
     for size in SIZES {
-        let text = constructor(size);
-        let whole = fastest(&linter, &rule_id, &checked, &text)?;
-        let shared = fastest(&linter, &baseline_id, &baseline, &text)?;
-        times.push(whole.saturating_sub(shared));
+        times.push(fastest(&linter, &rule_id, &checked, &constructor(size))?);
     }
     let growths: Vec<f64> = times
         .windows(2)
@@ -71,7 +62,7 @@ fn subject(id: Input) -> Result<Value, Failure> {
         Ok(Cow::Borrowed("linear"))
     } else {
         Err(Cow::Owned(format!(
-            "{id} at {SIZES:?} statements took {times:?} beyond {BASELINE}: grew {growths:?}"
+            "{id} at {SIZES:?} statements took {times:?}: grew {growths:?}"
         )))
     }
 }
