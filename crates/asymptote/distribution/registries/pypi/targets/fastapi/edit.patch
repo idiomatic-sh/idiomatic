@@ -1,0 +1,11 @@
+diff --git a/fastapi/background.py b/fastapi/background.py
+index 203578a..0a94c78 100644
+--- a/fastapi/background.py
++++ b/fastapi/background.py
+@@ -57,3 +57,6 @@ class BackgroundTasks(StarletteBackgroundTasks):
+         [FastAPI docs for Background Tasks](https://fastapi.tiangolo.com/tutorial/background-tasks/).
+         """
+         return super().add_task(func, *args, **kwargs)
++
++# distribution-proof
++import os

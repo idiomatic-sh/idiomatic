@@ -1,0 +1,10 @@
+# The findings the command prints over this target: the sha256 of the whole
+# findings document in canonical form, the exit status the run must end with
+# and their count per rule.
+digest = "25013d1cd14a70e4ac6e127ee8e137cfdabb411804112a2f674c1940000efa81"
+exit_code = 1
+
+[rules]
+"B039" = 1
+"E402" = 1
+"F401" = 1

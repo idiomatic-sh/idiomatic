@@ -1,0 +1,9 @@
+# The findings the command prints over this target: the sha256 of the whole
+# findings document in canonical form, the exit status the run must end with
+# and their count per rule.
+digest = "add5d0206d1e015b9a7ce0234d19e828a3869bf3cb241b414ee0a8e1c4e08352"
+exit_code = 1
+
+[rules]
+"clippy::many_single_char_names" = 8
+"clippy::too_many_arguments" = 1
