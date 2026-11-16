@@ -208,6 +208,36 @@ impl FileBuffers {
         table.count = ryo_values::domain::rows::types::RowCount(kept);
     }
 
+    /// A node that holds no row takes `kinds` as its columns; a node with rows, or with none made, is left as it is. This is the
+    /// engine's other change to rows the operators lent it: a step whose schema refusal is deferred to its rows answers no
+    /// column to a step reading it, as the interpreter's reader of a refused step read none, so a reader of two such steps
+    /// meets the same columns on both sides.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.empty_as(PlanNodeId(0), &[]);
+    /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
+    /// ```
+    pub fn empty_as(
+        &mut self,
+        node: PlanNodeId,
+        kinds: &[ryo_relations::domain::relations::types::CellKind],
+    ) {
+        if let Some(Some(table)) = self
+            .nodes
+            .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+            && table.count.0 == 0
+        {
+            table.kinds.clear();
+            table.kinds.extend_from_slice(kinds);
+            table.cells.clear();
+        }
+    }
+
     /// The node's last consumer is done: its buffer returns to the worker's pool. At the file's end, when the engine releases
     /// every node, a shared index whose last probe it is is emptied with it.
     ///

@@ -19,8 +19,8 @@ use ryo_values::domain::plans::types::PlanStep;
 use ryo_values::domain::rows::service::reset;
 use ryo_values::domain::rows::types::Table;
 
-/// Runs `node` as its answer needs, each move through `step`, the pass's own: the node itself when it answers rows
-/// (`NodeMove::Run`); for a node whose refusal is answered after its inputs, each input in the order it reads them, a node the
+/// Runs `node` as its answer needs, each move through `step`, the pass's own: when it answers rows, each node it reads the same
+/// way (a deferred refusal among them answering no column, `NodeMove::Empty`) and then the node itself (`NodeMove::Run`); for a node whose refusal is answered after its inputs, each input in the order it reads them, a node the
 /// same way and any other read (`NodeMove::Read`: a relation's facts admitted, a frontier entry or a bound observation held),
 /// so a refusal or a withholding of theirs comes first, and then its own refusal, without running its kernel. The one check of
 /// both passes, in each file and after the files.
@@ -34,7 +34,20 @@ pub(crate) fn ran_answering(
     step: &mut dyn FnMut(NodeMove) -> Result<(), OperatingError>,
 ) -> Result<(), OperatingError> {
     match layout(program, node) {
-        Ok(_) => step(NodeMove::Run(node)),
+        Ok(_) => {
+            // Its node inputs run first, in the order it reads them, as the interpreter ran a step's inputs before the step:
+            // a refusal or row error of theirs comes first, and the step is fed nothing; a deferred refusal among them that
+            // holds no row answers it no column.
+            for input in node_inputs(program, node) {
+                if let PlanInput::Node(read) = input {
+                    ran_answering(program, *read, step)?;
+                    if deferred_layout(program, *read).is_some() {
+                        step(NodeMove::Empty(*read))?;
+                    }
+                }
+            }
+            step(NodeMove::Run(node))
+        }
         Err(refusal) => {
             for input in node_inputs(program, node) {
                 match input {
@@ -86,8 +99,9 @@ pub(crate) fn held(withholdings: &Withholdings, rows: HeldRows<'_>) -> Result<()
 }
 
 /// What the kernels of `node`, the node of plan step `step`, read of each of the step's inputs when it ran: none when it never
-/// ran (no root reached it, or it answered a refusal without running its kernel), and none for a slot the step names no input
-/// at (a hosted step reads a request source, no input). The one count of both passes.
+/// ran (no root reached it, an input of it refused, or it answered a refusal without running its kernel), none for a slot the
+/// step names no input at (a hosted step reads a request source, no input), and none for a slot naming an input an earlier
+/// slot names. The one count of both passes.
 pub(crate) fn step_fed(
     buffers: &FileBuffers,
     step: &PlanStep,
@@ -96,15 +110,18 @@ pub(crate) fn step_fed(
     let Ok(node) = node else {
         return RowsFed::default();
     };
-    let inputs = named(&inputs_of(&step.operation)).len();
+    let read = inputs_of(&step.operation);
+    let inputs = named(&read);
     let NodeFed(rows) = buffers.fed(*node);
     let mut fed = RowsFed::default();
-    for (slot, (count, each)) in fed
-        .0
-        .iter_mut()
-        .zip(rows.iter().enumerate().map(|(at, count)| (count, at)))
-    {
-        if each < inputs {
+    for (at, (slot, count)) in fed.0.iter_mut().zip(rows.iter()).enumerate() {
+        // A step that names one input twice was fed it once, at its first naming.
+        let first = inputs.get(at).is_some_and(|input| {
+            !inputs
+                .get(..at)
+                .is_some_and(|earlier| earlier.contains(input))
+        });
+        if first {
             *slot = u64::try_from(count.0).unwrap_or(u64::MAX);
         }
     }

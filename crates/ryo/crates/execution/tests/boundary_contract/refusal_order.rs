@@ -3,5 +3,7 @@
 #[cfg(test)]
 mod fixtures;
 mod frontiers;
+mod generated;
 #[cfg(test)]
 mod test;
+mod shapes;

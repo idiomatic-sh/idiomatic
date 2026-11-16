@@ -75,3 +75,64 @@ pub(in crate::refusal_order) fn join_functions(at: u32, key: u32) -> Operation {
         reach: None,
     }
 }
+
+/// The intersection of steps `left` and `right`.
+pub(in crate::refusal_order) const fn i(left: u32, right: u32) -> Operation {
+    Operation::Intersection {
+        left: s(left),
+        right: s(right),
+    }
+}
+
+/// A join of steps `left` and `right` on their column 0, keeping the left's column 0.
+pub(in crate::refusal_order) fn join(left: u32, right: u32) -> Operation {
+    Operation::Join {
+        left: s(left),
+        right: s(right),
+        left_on: vec![ColumnIndex(0)],
+        right_on: vec![ColumnIndex(0)],
+        output: vec![JoinColumn {
+            side: Side::Left,
+            column: ColumnIndex(0),
+        }],
+        filter: vec![],
+        view: vec![],
+        reach: None,
+    }
+}
+
+/// The rows of step `left` whose column 0 is in no row of step `right`'s column 0: a probe of the right by the left.
+pub(in crate::refusal_order) fn antijoin(left: u32, right: u32) -> Operation {
+    Operation::Antijoin {
+        left: s(left),
+        right: s(right),
+        left_on: vec![ColumnIndex(0)],
+        right_on: vec![ColumnIndex(0)],
+    }
+}
+
+/// Every row of step `at`, every column kept.
+pub(in crate::refusal_order) fn select_all(at: u32) -> Operation {
+    Operation::Select {
+        from: s(at),
+        comparisons: vec![],
+        kept: vec![],
+    }
+}
+
+/// The words of step `at`'s column 0.
+pub(in crate::refusal_order) const fn words0(at: u32) -> Operation {
+    Operation::Words {
+        from: s(at),
+        text: ColumnIndex(0),
+    }
+}
+
+/// Column 99 of the function relation, which it does not have: refused before any row, once its facts are admitted.
+pub(in crate::refusal_order) fn function99() -> Operation {
+    Operation::Select {
+        from: Input::Relation(Relation::Function),
+        comparisons: vec![],
+        kept: vec![ColumnIndex(99)],
+    }
+}

@@ -79,6 +79,10 @@ impl StepRun<'_, '_, '_> {
         ran_answering(&batch.pass.program, node, &mut |each| match each {
             NodeMove::Run(read) => self.ran(symbols, read),
             NodeMove::Read(input) => self.read(input),
+            NodeMove::Empty(read) => {
+                self.buffers.empty_as(read, &[]);
+                Ok(())
+            }
         })?;
         let table = ran_rows(&batch.pass.program, self.buffers, node)?;
         let coverage = self.coverage(step)?;

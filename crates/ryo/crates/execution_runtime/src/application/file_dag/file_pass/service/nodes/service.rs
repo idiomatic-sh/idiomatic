@@ -311,6 +311,10 @@ pub(crate) fn file_step(
 ) -> Result<(), OperatingError> {
     match step {
         NodeMove::Run(node) => ran_node(at, symbols, node),
+        NodeMove::Empty(node) => {
+            at.buffers.empty_as(node, &[]);
+            Ok(())
+        }
         NodeMove::Read(PlanInput::Relation(relation)) => {
             if native_form(relation).is_none()
                 && matches!(at.inputs.facts(relation), FactRows::Refused)

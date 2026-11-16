@@ -248,12 +248,15 @@ pub(crate) struct OpenedFile<'a> {
     pub(crate) first: &'a [ryo_values::domain::stored_facts::types::Bucket],
 }
 
-/// One move of answering a node whose refusal waits for its inputs: run a node, or read an input of another kind (admit a
-/// relation's facts, or hold a frontier entry or a bound observation, a withheld one answering why).
+/// One move of answering a node: run a node, read an input of another kind before a refusal (admit a relation's facts, or
+/// hold a frontier entry or a bound observation, a withheld one answering why), or answer a deferred refusal's empty rows with
+/// no column.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum NodeMove {
     /// Run the node.
     Run(PlanNodeId),
     /// Read the input, which is no node.
     Read(PlanInput),
+    /// Answer no column of the node to its readers: it holds no row and its refusal is deferred to its rows.
+    Empty(PlanNodeId),
 }
