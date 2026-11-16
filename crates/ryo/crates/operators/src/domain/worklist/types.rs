@@ -60,13 +60,50 @@ pub(crate) struct HeldState {
     pub(crate) state: StatePlace,
 }
 
-/// Whether one state of a lattice is at or below another.
+/// A state's rank: its place in an order of the lattice's states that puts each one before every state above it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct StateRank(pub(crate) u32);
+
+/// Sixty-four bits of a state's set of the states at or above it, a bit for each state by its rank.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct OrderWord(pub(crate) u64);
+
+/// How many 64-bit words a set of the lattice's states takes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum StateOrder {
-    /// It is at or below it.
-    AtOrBelow,
-    /// It is not.
-    Unordered,
+pub(crate) struct SetWords(pub(crate) usize);
+
+/// A lattice row: a lower state and an upper state above it, by their places.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct Cover {
+    /// The lower state.
+    pub(crate) lower: StatePlace,
+    /// The upper state.
+    pub(crate) upper: StatePlace,
+}
+
+/// The place of a lattice row among the rows sorted by lower state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CoverPlace(pub(crate) usize);
+
+/// Where the walk that orders a lattice is with a state.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum RankVisit {
+    /// Not reached yet.
+    #[default]
+    Unseen,
+    /// Reached, its upper states still being walked: reaching it again closes a cycle.
+    Open,
+    /// Ranked, every state above it known.
+    Done,
+}
+
+/// A state the walk is in, and the next of its rows to follow.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct WalkFrame {
+    /// The state.
+    pub(crate) state: StatePlace,
+    /// Its next row.
+    pub(crate) next: CoverPlace,
 }
 
 /// Which state of a lattice row a cell is.
@@ -78,10 +115,6 @@ pub(crate) enum LatticeSide {
     Upper,
 }
 
-/// The place of a pair of states in a lattice's order table: the first's place times the states, plus the second's.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct OrderPlace(pub(crate) usize);
-
 /// A worklist's declared lattice, tabled before any run: its states, the order between them, the least upper bound of every
 /// two, and the least state; its capacity kept across nodes and files.
 #[derive(Debug, Default)]
@@ -90,8 +123,18 @@ pub(crate) struct LatticeTable {
     pub(crate) states: Vec<Value>,
     /// The cell each state is written as: the first lattice cell of its text, in `states`' order.
     pub(crate) named: Vec<Value>,
-    /// Whether one state is at or below another, row-major by the first state's place.
-    pub(crate) below: Vec<StateOrder>,
+    /// The rows between two states, sorted by lower state.
+    pub(crate) covers: Vec<Cover>,
+    /// Where the ordering walk is with each state, by its place.
+    pub(crate) visits: Vec<RankVisit>,
+    /// The ordering walk's open states.
+    pub(crate) frames: Vec<WalkFrame>,
+    /// Each state's rank, by its place.
+    pub(crate) ranks: Vec<StateRank>,
+    /// The state of each rank.
+    pub(crate) by_rank: Vec<StatePlace>,
+    /// Each state's set of the states at or above it, a bit per rank, row-major by the state's place.
+    pub(crate) above: Vec<OrderWord>,
     /// The least upper bound of each pair of states, row-major by the first state's place.
     pub(crate) joins: Vec<StatePlace>,
     /// The least state, which every entity holds before any join.
