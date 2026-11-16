@@ -2,11 +2,13 @@
 
 ## 0.12.2
 
-The `commands` template's `run` carries no `#[must_use]`: it returns `std::process::ExitCode`, which is already `#[must_use]`, so the attribute is a clippy `double_must_use` finding on every command line that places the template. Every rendering of `run` in the `commands` template and in the scenarios that show it drops the attribute; `command()` and the other functions keep theirs.
+`commands` renders `run(start, build) -> std::process::ExitCode` without `#[must_use]`: `ExitCode` is `#[must_use]` already, so the attribute on the function repeats it, and clippy's `double_must_use` reports the repeat. A command line that leaves it out passes (`rendered-template-passes`), and one that keeps it is more than the template and still passes (`run-needs-no-must-use`). `command()` keeps its `#[must_use]`: its return type, `clap::Command`, is not marked.
+
+Edited in place: none. The rest of the spec is 0.12.1.
 
 ### Moving up from 0.12.1
 
-- Remove `#[must_use]` from `pub fn run` in `src/resources.rs`.
+- Optional, and needed to pass clippy's `double_must_use`: delete the `#[must_use]` line above `pub fn run(start: &str, build: &str) -> std::process::ExitCode` in `src/resources.rs`.
 
 ## 0.12.1
 
