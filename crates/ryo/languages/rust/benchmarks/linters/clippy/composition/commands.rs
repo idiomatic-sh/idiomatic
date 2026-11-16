@@ -28,7 +28,12 @@ use ryo_benchmark::outbound::worker::{interface::WorkerPort, types::WorkerSource
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
-use std::{path::PathBuf, sync::Arc};
+use ryo_benchmark::application::rule_profiles::service::verify_each;
+use ryo_benchmark::inbound::use_cases::select_cases::types::CaseRun;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 /// Execute one explicit child request, optionally writing a separately labelled trace.
 pub(super) fn worker(
@@ -96,7 +101,6 @@ pub(super) fn worker(
 pub(super) fn verify_cases(
     mut args: impl Iterator<Item = BenchmarkArgument>,
 ) -> Result<CaseCount, Error> {
-    let execution = Arc::new(ryo_benchmark::outbound::execution::factory::process());
     let executable = PathBuf::from(
         args.next()
             .map(|argument| argument.0)
@@ -112,6 +116,23 @@ pub(super) fn verify_cases(
     let run =
         ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl::new()
             .select_cases(&flags)?;
+    // Each rule is verified under its own settings profile, reached through the harness's one registrar.
+    verify_each(
+        &ryo_benchmark::outbound::suite::factory::local(),
+        &ryo_benchmark::outbound::inventory::factory::local(),
+        &source,
+        run.shard,
+        constants::VERIFY_CASES_SCRATCH,
+        &mut |profile| verify_profile(&executable, profile, &run).map(|count| count.0),
+    )
+    .map(CaseCount)
+}
+
+/// Verify the profile at `source` against both contestants, its rules under its one settings profile.
+fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<CaseCount, Error> {
+    let execution = Arc::new(ryo_benchmark::outbound::execution::factory::process());
+    let executable = executable.to_owned();
+    let source = source.to_owned();
     let suite_source: Arc<dyn SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let tool = suite_source.profile(ArtifactPath(&source))?;
@@ -155,7 +176,7 @@ pub(super) fn verify_cases(
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
             suite_source.as_ref(),
             &ryo_benchmark::outbound::host::factory::local(),
-            &ryo_benchmark::outbound::receipts::factory::local(run.receipts),
+            &ryo_benchmark::outbound::receipts::factory::local(run.receipts.clone()),
             &ryo_benchmark::outbound::context::factory::local(),
             reference.as_ref(),
             candidate.as_ref(),
@@ -176,8 +197,6 @@ pub(super) fn verify_cases(
 pub(super) fn verify_reference_cases(
     mut args: impl Iterator<Item = BenchmarkArgument>,
 ) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, Error>{
-    let suite_source = ryo_benchmark::outbound::suite::factory::local();
-    let execution = ryo_benchmark::outbound::execution::factory::process();
     let executable = PathBuf::from(
         args.next()
             .map(|argument| argument.0)
@@ -187,6 +206,27 @@ pub(super) fn verify_reference_cases(
     let source = args
         .next()
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
+    // Each rule is checked under its own settings profile, reached through the harness's one registrar.
+    verify_each(
+        &ryo_benchmark::outbound::suite::factory::local(),
+        &ryo_benchmark::outbound::inventory::factory::local(),
+        &source,
+        ryo_benchmark_contracts::domain::requests::types::ShardPartition::All,
+        constants::VERIFY_REFERENCE_SCRATCH,
+        &mut |profile| verify_reference_profile(&executable, profile).map(|count| count.0),
+    )
+    .map(ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount)
+}
+
+/// Validate the fixture expectations of the profile at `source` against the reference, without loading a candidate.
+fn verify_reference_profile(
+    executable: &Path,
+    source: &Path,
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, Error>{
+    let suite_source = ryo_benchmark::outbound::suite::factory::local();
+    let execution = ryo_benchmark::outbound::execution::factory::process();
+    let executable = executable.to_owned();
+    let source = source.to_owned();
     let tool = suite_source.profile(ArtifactPath(&source))?;
     let scratch = default_scratch(
         &suite_source,

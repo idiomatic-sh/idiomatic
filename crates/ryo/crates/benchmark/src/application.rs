@@ -16,6 +16,7 @@ pub mod publication;
 pub mod receipt_validation;
 pub mod registered_certification;
 pub mod registration;
+pub mod rule_profiles;
 pub mod suite_auditing;
 pub mod suite_staging;
 pub mod worker_identity;
