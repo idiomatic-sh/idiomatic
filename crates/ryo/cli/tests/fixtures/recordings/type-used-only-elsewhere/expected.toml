@@ -1,4 +1,0 @@
-rows = [
-  { path = "crates/ruff_db/src/lib.rs", key = "4158..4390" },
-  { path = "crates/ruff_python_semantic/src/analyze/typing.rs", key = "937..1117" },
-]

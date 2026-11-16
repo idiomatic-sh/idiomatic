@@ -1,7 +1,7 @@
 //! What a run keeps of the steps of the rules that cross files, with the real Rust language, the real fact store and the
-//! real store file: what the cross-file steps found is kept while what every file shows the others is as it was, so an edit
-//! that leaves that as it was keeps it, and one that changes it reads every file again. The rows of the cross-file steps that have no
-//! place leave in one order, however the workers made them.
+//! real store file: a file added changes the answer, and a definition removed is found from what the file that calls it handed,
+//! without reading that file again. The rows of the cross-file steps that have no place leave in one order, however the workers
+//! made them.
 
 /// The same query of rows with no place, over the core's sources, gives the same bytes every time it runs: the order of the rows
 /// does not follow which worker read which file first.
@@ -33,8 +33,7 @@ fn rows_with_no_place_leave_in_one_order() {
     }
 }
 
-use crate::cache::{function, sorted, write};
-use crate::counting;
+use crate::cache::{sorted, write};
 use crate::unbounded;
 use std::sync::Arc;
 
@@ -136,55 +135,4 @@ fn removing_the_definition_is_found_from_what_the_file_that_calls_handed() {
         sorted(after.rows),
         uncached(root.path(), calls_without_a_definition())
     );
-}
-
-#[test]
-fn an_edit_that_leaves_what_a_file_shows_the_others_as_it_was_keeps_the_cross_file_findings() {
-    let _beside = crate::beside();
-    let root = tempfile::tempdir().expect("a directory");
-    let store = crate::base::store_at(root.path());
-    let duplicates: Vec<Rule> = counting::runnable()
-        .into_iter()
-        .filter(|(name, _)| name == "duplicate-function-bodies")
-        .map(|(_, rule)| rule)
-        .collect();
-    write(
-        root.path(),
-        &[
-            ("one.rs", function("copied", 40, "1")),
-            ("two.rs", function("copied", 40, "1")),
-            ("three.rs", function("alone", 40, "2")),
-        ],
-    );
-    let cold = unbounded::lint_counting(root.path(), duplicates.clone(), Arc::clone(&store))
-        .expect("a cold run");
-    assert!(!cold.rows.is_empty());
-    // A comment of the file the rule found nothing in is written over with another: the file's bytes are others, what it
-    // shows the others is not.
-    write(
-        root.path(),
-        &[(
-            "three.rs",
-            function("alone", 40, "2").replace("// TODO 0", "// TODO 7"),
-        )],
-    );
-    let edited = unbounded::lint_counting(root.path(), duplicates.clone(), Arc::clone(&store))
-        .expect("a run after the edit");
-    assert_eq!(edited.reads, 1, "only the file edited is read");
-    assert_eq!(sorted(edited.rows), sorted(cold.rows));
-    // A change to the code is another matter: the steps are made again, and still only the file edited is read.
-    write(
-        root.path(),
-        &[(
-            "three.rs",
-            function("alone", 40, "2").replace("value_3", "other_3"),
-        )],
-    );
-    let changed = unbounded::lint_counting(root.path(), duplicates.clone(), store)
-        .expect("a run after the change");
-    assert_eq!(
-        changed.reads, 1,
-        "a body edit that changes what the file shows reads exactly that file"
-    );
-    assert_eq!(sorted(changed.rows), uncached(root.path(), duplicates));
 }

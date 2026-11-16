@@ -61,8 +61,6 @@ ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk" }
 # with `fixtures`, so the replay links the languages the command links (`linked_connections`).
 idiomatic-sh-ryo = { path = ".", features = ["rust", "fixtures"] }
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", features = ["fixtures"] }
-dhat.workspace = true
-libtest-mimic.workspace = true
 toml.workspace = true
 # The language with its fixtures, which the call-count test reads.
 ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../languages/rust", features = ["fixtures"] }
@@ -72,10 +70,6 @@ trycmd.workspace = true
 tempfile.workspace = true
 snapbox.workspace = true
 shlex = "=2.0.1"
-
-[[test]]
-name = "blocks"
-harness = false
 
 [[bench]]
 name = "commands"

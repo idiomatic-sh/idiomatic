@@ -2,7 +2,11 @@
 
 ## 0.12.3
 
-The per-rule bench (`benches/lint.rs` and its parts in `benches/lint/`) is no longer placed: benches over Tastemaker rules leave the command line (owner, ryo-b1gq.66), and each language's bench measures ryo over its projects instead. A command line that links the engine no longer owes one. Nothing else changes.
+The per-rule bench (`benches/lint.rs` and its parts in `benches/lint/`) and the allocation test (`tests/blocks.rs`, `cli-allocation-test`) are no longer placed: both ran the recorded Tastemaker rules, and tests and benches over Tastemaker rules leave the command line (owner, ryo-b1gq.66); each language's bench measures ryo over its projects instead. A command line that links the engine no longer owes either, so the `links-engine` condition, its `engine-linked` rule and the scenarios that proved it (`complete-with-rules`, `languages-without-rule-files`, `rule-files-without-languages`) go with them. Nothing else changes.
+
+### Moving up from 0.12.2
+
+- Delete `benches/lint.rs`, `benches/lint/` and `tests/blocks.rs`, and their `[[bench]]` and `[[test]]` entries in the crate's manifest.
 
 ## 0.12.2
 

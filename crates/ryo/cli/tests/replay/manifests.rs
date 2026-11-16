@@ -56,7 +56,7 @@ fn a_member_of_a_workspace_the_scope_does_not_list_is_found() {
 }
 
 #[test]
-fn a_package_the_scope_does_not_list_is_found_by_the_recorded_workspace_completeness_query() {
+fn a_package_the_scope_does_not_list_is_found_by_the_workspace_completeness_query() {
     let _beside = crate::beside();
     let root = workspace();
     let query = base::rules::query("workspace-completeness");
