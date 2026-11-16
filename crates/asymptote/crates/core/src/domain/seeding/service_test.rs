@@ -3,12 +3,12 @@
 
 use super::service::seeding;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::manifest::types::Percent;
 use crate::domain::operations::types::Reason;
 use crate::domain::operations::types::{BenchmarkName, MeasureName, Number, PerfKey, PerfRecord};
-use crate::domain::manifest::types::Percent;
 use crate::domain::perf::types::{Measured, Spread, ToleranceKey};
-use std::collections::BTreeMap;
 use crate::domain::violations::types::ToolId;
+use std::collections::BTreeMap;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 
 use super::types::UpRequest;
 use crate::domain::manifest::types::Percent;
-use crate::domain::perf::types::ToleranceKey;
 use crate::domain::operations::types::{Folded, PerfRecord};
+use crate::domain::perf::types::ToleranceKey;
 use crate::domain::reports::service::measured;
 use crate::domain::reports::types::Report;
 use crate::domain::seeding::service::seeding;
