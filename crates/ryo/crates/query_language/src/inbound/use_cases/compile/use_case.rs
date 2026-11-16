@@ -11,7 +11,7 @@ use crate::domain::linking::errors::LinkingError;
 use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::interface::SyntaxPort;
-use ryo_values::domain::plans::types::QueryRequest;
+use ryo_values::domain::query_requests::types::QueryRequest;
 
 /// `compile`, over the syntax and the catalog it calls.
 pub struct CompileUseCaseImpl {

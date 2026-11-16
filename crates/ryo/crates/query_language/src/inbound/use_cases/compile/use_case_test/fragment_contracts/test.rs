@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plans::types::QueryRequest;
+use ryo_values::domain::query_requests::types::QueryRequest;
 
 type Input = fn();
 type Value = ();

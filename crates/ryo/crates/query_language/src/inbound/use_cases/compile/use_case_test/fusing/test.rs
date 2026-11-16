@@ -9,7 +9,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::plans::types::{Operation, QueryRequest};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_requests::types::QueryRequest;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 
 /// `fragments/noqa-line-map.ryoql:2-13`: the closure is the left input of the join that reads it, keyed on its destination.

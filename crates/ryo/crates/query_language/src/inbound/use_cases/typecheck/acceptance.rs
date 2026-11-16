@@ -8,7 +8,7 @@ use std::sync::Arc;
 use ryo_query_language::inbound::use_cases::typecheck::interface::TypecheckUseCase as _;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::plans::types::QueryRequest;
+use ryo_values::domain::query_requests::types::QueryRequest;
 
 /// Names the scene the next `typecheck` step runs.
 #[given(expr = "the typecheck input {string}")]

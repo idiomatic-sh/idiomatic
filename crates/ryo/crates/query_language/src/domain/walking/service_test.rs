@@ -4,7 +4,8 @@ use std::borrow::Cow;
 
 use ryo_relations::domain::relations::types::Relation;
 
-use super::service::{fuse_descents, fuse_neighbours};
+use super::service::fuse_descents;
+use super::service::neighbours::service::fuse_neighbours;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Direction;
