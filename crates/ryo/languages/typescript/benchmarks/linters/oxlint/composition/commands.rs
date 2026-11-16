@@ -180,6 +180,17 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
         Arc::new(ryo_benchmark::outbound::context::factory::local());
     let worker = InProcessRyo { engine, context };
     let execution = ryo_benchmark::outbound::execution::factory::in_process(&worker);
+    // The times of a verification go to its times file when the run names one, and nowhere when it does not.
+    let evidence: Box<dyn ryo_benchmark::outbound::evidence::interface::EvidencePort> =
+        match &run.timings {
+            VerifyTimes::Recorded(path) => {
+                Box::new(ryo_benchmark::outbound::evidence::factory::bmf_appending(path.clone()))
+            }
+            VerifyTimes::Unrecorded => Box::new(ryo_benchmark::outbound::evidence::factory::bmf(
+                Box::new(std::io::sink()),
+                Box::new(std::io::sink()),
+            )),
+        };
     let reference = Arc::new(reference(executable, staged));
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
@@ -194,10 +205,7 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
                 candidate: &execution,
             },
             &ryo_benchmark::outbound::inventory::factory::local(),
-            &ryo_benchmark::outbound::evidence::factory::bmf_appending(match &run.timings {
-                VerifyTimes::Recorded(path) => Some(path.as_path()),
-                VerifyTimes::Unrecorded => None,
-            })?,
+            evidence.as_ref(),
         )
         .verify_cases(
             &profile.join(constants::RULES_DIRECTORY),
@@ -376,7 +384,7 @@ impl std::fmt::Debug for InProcessRyo {
             .finish_non_exhaustive()
     }
 }
-impl ryo_benchmark::outbound::execution::interface::InProcessWorker for InProcessRyo {
+impl ryo_benchmark::outbound::execution::types::InProcessWorker for InProcessRyo {
     fn run(
         &self,
         request: &ryo_benchmark::outbound::execution::types::StoredRequest,

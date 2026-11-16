@@ -91,6 +91,7 @@ impl ExecutablesPort for ExecutablesFake {
         &self,
         executable: &Path,
         arguments: &RunArguments,
+        _progress: &mut dyn std::io::Write,
     ) -> Result<RunVerdict, Error> {
         let _executable = std::fs::metadata(executable)?;
         self.record(ExecutablesCall::Check(
@@ -106,6 +107,7 @@ impl ExecutablesPort for ExecutablesFake {
         arguments: &RunArguments,
         document: &Path,
         output: &mut dyn std::io::Write,
+        _progress: &mut dyn std::io::Write,
     ) -> Result<RunVerdict, Error> {
         let _executable = std::fs::metadata(executable)?;
         self.record(ExecutablesCall::Run(

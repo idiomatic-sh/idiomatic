@@ -260,9 +260,9 @@ fn compare(
     .admit(&suite)?;
     let evidence: Arc<dyn EvidencePort> =
         Arc::new(ryo_benchmark::outbound::evidence::factory::bmf_document(
-            &document,
+            document,
             Box::new(std::io::stderr()),
-        )?);
+        ));
     let suffixes = constants::SOURCE_SUFFIXES.map(SourceSuffix);
     let language = constants::RUST.into();
     let invalid_syntax = ryo::linter::RuleId::try_from(crate::constants::INVALID_SYNTAX)
@@ -294,7 +294,7 @@ fn compare(
         &CorpusMeasurement {
             bench: &directory(),
             projects: suite.projects,
-            growth: None,
+            growth: ryo_benchmark::domain::growth::types::CorpusGrowth::Ungrown,
             verification: &verification,
             cache: &cache,
             frozen_workload: &workload,

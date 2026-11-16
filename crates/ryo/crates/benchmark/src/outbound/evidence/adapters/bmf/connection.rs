@@ -3,10 +3,20 @@ use super::types::MeasureDocument;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{io::Write, sync::Mutex};
 
+/// Where the one document is written when the run finishes; a file is opened only then.
+pub(crate) enum DocumentDestination {
+    /// A stream the composition supplied.
+    Stream(Mutex<Box<dyn Write + Send>>),
+    /// A new file at this path.
+    Created(std::path::PathBuf),
+    /// The file at this path, appended to.
+    Appended(std::path::PathBuf),
+}
+
 /// Resource lifetime is bounded by the configured adapter instance.
 pub(crate) struct EvidenceBmfConnection {
-    /// Serialized access to the externally supplied evidence destination.
-    pub output: Mutex<Box<dyn Write + Send>>,
+    /// Where the document goes.
+    pub output: DocumentDestination,
     /// Serialized access to the externally supplied comparison evidence destination.
     pub comparison: Mutex<Box<dyn Write + Send>>,
     /// Every measure added so far, written once by `finish`; `None` once it is written.
@@ -19,39 +29,28 @@ impl std::fmt::Debug for EvidenceBmfConnection {
     }
 }
 impl EvidenceBmfConnection {
-    /// The document goes to a new file at `document`, and the comparison evidence to `comparison`.
+    /// Write the whole document to its destination, opening a file destination now.
     ///
     /// # Errors
-    /// Refuses a document file that cannot be created.
-    pub(crate) fn document(
-        document: &std::path::Path,
-        comparison: Box<dyn Write + Send>,
-    ) -> Result<Self, Error> {
-        Ok(Self {
-            output: Mutex::new(Box::new(std::fs::File::create(document)?)),
-            comparison: Mutex::new(comparison),
-            document: Mutex::new(Some(MeasureDocument::default())),
-        })
-    }
-    /// The document goes to the file at `destination`, appended to, or nowhere when the run names none; the comparison
-    /// evidence goes nowhere.
-    ///
-    /// # Errors
-    /// Refuses a destination that cannot be opened for appending.
-    pub(crate) fn appending(destination: Option<&std::path::Path>) -> Result<Self, Error> {
-        let output: Box<dyn Write + Send> = match destination {
-            Some(path) => Box::new(
-                std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(path)?,
-            ),
-            None => Box::new(std::io::sink()),
+    /// Refuses a destination that cannot be opened or written.
+    pub(crate) fn write_document(&self, bytes: &[u8]) -> Result<(), Error> {
+        let mut file = match &self.output {
+            DocumentDestination::Stream(stream) => {
+                let mut output = stream
+                    .lock()
+                    .map_err(|_poisoned| Error::Invalid(super::constants::POISONED.into()))?;
+                output.write_all(bytes)?;
+                output.flush()?;
+                return Ok(());
+            }
+            DocumentDestination::Created(path) => std::fs::File::create(path)?,
+            DocumentDestination::Appended(path) => std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)?,
         };
-        Ok(Self {
-            output: Mutex::new(output),
-            comparison: Mutex::new(Box::new(std::io::sink())),
-            document: Mutex::new(Some(MeasureDocument::default())),
-        })
+        file.write_all(bytes)?;
+        file.flush()?;
+        Ok(())
     }
 }

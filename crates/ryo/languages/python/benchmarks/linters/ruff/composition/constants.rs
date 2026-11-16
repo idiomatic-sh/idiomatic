@@ -77,10 +77,8 @@ const STUB_EXTENSION: &str = ".pyi";
 pub(crate) const SOURCE_SUFFIXES: [&str; 2] = [PYTHON_EXTENSION, STUB_EXTENSION];
 /// Stable command, artifact or observation identity for rules directory.
 pub(crate) const RULES_DIRECTORY: &str = "rules";
-/// Where each rule's own settings profile is, relative to this bench.
-pub(crate) const RULE_PROFILES_DIRECTORY: &str = "profiles";
-/// The name of the one source file each growth program is written as.
-pub(crate) const GROWTH_SOURCE: &str = "case.py";
+/// The language's growth table, from this linter's bench: `languages/<lang>/benchmarks/growth.toml`.
+pub(crate) const GROWTH_TABLE: &str = "../../growth.toml";
 /// Refusal of a measure without the file its document is written to.
 pub(crate) const EXPECTED_DOCUMENT: &str = "expected --document=<file>";
 /// Refusal of a measure without the verification's directory.

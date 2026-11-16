@@ -1,19 +1,12 @@
 //! The plan of a growth run, its bounds and what it observed.
 use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
 use ryo_benchmark_contracts::domain::measurements::types::{DoublingRatio, GrowthShape};
+use ryo_benchmark_contracts::domain::growth::types::{GrowthSize, SourceFileName};
 use std::collections::BTreeMap;
 
 /// A shape's program at one size.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GrownProgram(pub String);
-
-/// How many repetitions (or statements) a program holds.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct GrowthSize(pub usize);
-
-/// The name the program's one source file is written under, the language's (`case.py`, `case.ts`).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SourceFileName(pub String);
 
 /// A query module the rule imports, by its name.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -68,4 +61,26 @@ pub struct GrowthPlan {
     pub request: ryo_benchmark_contracts::domain::requests::types::WorkerRequest,
     /// The shapes.
     pub shapes: BTreeMap<GrowthShape, ShapePrograms>,
+}
+
+/// Where a language's growth is read from, and what its programs are linted with.
+#[derive(Clone, Copy, Debug)]
+pub struct GrowthSource<'a> {
+    /// The linter's bench directory: the rules' profiles and query modules are below it.
+    pub bench: &'a std::path::Path,
+    /// The bench's rules directory.
+    pub rules: &'a std::path::Path,
+    /// The language's `growth.toml`.
+    pub table: &'a std::path::Path,
+    /// The parser configuration every program is linted with.
+    pub parser: &'a ryo_benchmark_contracts::domain::requests::types::ParserSelection,
+}
+
+/// Whether a language grows its rules, and where from.
+#[derive(Clone, Copy, Debug)]
+pub enum CorpusGrowth<'a> {
+    /// The language's growth table and what its programs are linted with.
+    Grown(GrowthSource<'a>),
+    /// The language grows no rule.
+    Ungrown,
 }

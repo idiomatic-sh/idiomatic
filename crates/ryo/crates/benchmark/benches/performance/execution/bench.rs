@@ -10,8 +10,8 @@
 use ryo_benchmark::outbound::execution::factory::{direct, timed};
 use ryo_benchmark::outbound::execution::{
     factory::{bounded, in_process, process},
-    interface::{ExecutionPort as _, InProcessWorker},
-    types::{RuleCompileTimes, StoredRequest},
+    interface::ExecutionPort as _,
+    types::{InProcessWorker, RuleCompileTimes, StoredRequest},
 };
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 /// Construct the same explicit child workload for each execution adapter.

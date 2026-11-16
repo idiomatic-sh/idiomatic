@@ -261,14 +261,14 @@ fn compare(
     .admit(&suite)?;
     let evidence: Arc<dyn EvidencePort> =
         Arc::new(ryo_benchmark::outbound::evidence::factory::bmf_document(
-            &document,
+            document,
             Box::new(std::io::stderr()),
-        )?);
+        ));
     let suffixes = constants::SOURCE_SUFFIXES.map(SourceSuffix);
     let language = constants::TYPESCRIPT.into();
-    let growth = super::growth::plan(suite_source.as_ref(), &parser)?;
     let invalid_syntax = ryo::linter::RuleId::try_from(crate::constants::INVALID_SYNTAX)
         .map_err(|error| Error::Invalid(error.to_string()))?;
+    let bench = directory();
     MeasureCorpusUseCaseImpl::new(
         Arc::<super::super::adapter::LinterOxlintAdapter>::clone(&reference),
         Arc::<_>::clone(&candidate),
@@ -294,9 +294,16 @@ fn compare(
     )
     .measure_corpus(
         &CorpusMeasurement {
-            bench: &directory(),
+            bench: &bench,
             projects: suite.projects,
-            growth: Some(&growth),
+            growth: ryo_benchmark::domain::growth::types::CorpusGrowth::Grown(
+                ryo_benchmark::domain::growth::types::GrowthSource {
+                    bench: &bench,
+                    rules: &bench.join(constants::RULES_DIRECTORY),
+                    table: &bench.join(constants::GROWTH_TABLE),
+                    parser: &parser,
+                },
+            ),
             verification: &verification,
             cache: &cache,
             frozen_workload: &workload,

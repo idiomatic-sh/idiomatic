@@ -35,6 +35,7 @@ pub enum Operation {
     WriteAndRead,
     CreateAndRead,
     AcceptedMissing,
+    GrowthMissing,
     TotalSize,
     QueryModules,
     MaterializeIsolated,
@@ -186,6 +187,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing accepted differences are refused"),
         word: Word::Refuses,
         input: || Operation::AcceptedMissing,
+        expect: Expect::Error(Failure::MissingArtifact),
+    },
+    Case {
+        name: CaseName("a missing growth table is refused"),
+        word: Word::Refuses,
+        input: || Operation::GrowthMissing,
         expect: Expect::Error(Failure::MissingArtifact),
     },
     Case {
@@ -367,6 +374,10 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
             Operation::AcceptedMissing => adapter
                 .accepted_differences(ArtifactPath(&missing))
                 .map(|accepted| accepted.rules.len())
+                .map_err(classify),
+            Operation::GrowthMissing => adapter
+                .growth_table(ArtifactPath(&missing))
+                .map(|table| table.rules.len())
                 .map_err(classify),
             Operation::TotalSize => {
                 let store = store(temporary.path()).map_err(|_| Failure::Unexpected)?;

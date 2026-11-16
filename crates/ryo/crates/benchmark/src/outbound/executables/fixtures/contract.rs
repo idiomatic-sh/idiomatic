@@ -129,6 +129,7 @@ pub fn check(adapter: &impl ExecutablesPort) {
                     &RunArguments(Vec::new()),
                     &root.path().join("document.bmf"),
                     &mut Vec::new(),
+                    &mut Vec::new(),
                 )
                 .map(|_verdict| Outcome::Answered)
                 .map_err(refused),
@@ -136,6 +137,7 @@ pub fn check(adapter: &impl ExecutablesPort) {
                 .check_sealed(
                     &root.path().join("absent-executable"),
                     &RunArguments(Vec::new()),
+                    &mut Vec::new(),
                 )
                 .map(|_verdict| Outcome::Answered)
                 .map_err(refused),

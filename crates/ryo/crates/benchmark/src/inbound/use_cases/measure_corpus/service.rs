@@ -86,7 +86,8 @@ pub(super) fn measure_corpus(
     if !timings.0.is_empty() {
         evidence.verification(corpus.language.id, &timings)?;
     }
-    if let Some(plan) = corpus.growth {
+    if let crate::domain::growth::types::CorpusGrowth::Grown(source) = corpus.growth {
+        let plan = crate::application::growth::service::plan(boundaries.suite, source)?;
         let scenes = boundaries
             .suite
             .ensure_directory(ArtifactPath(&corpus.cache.join(SCENES_DIRECTORY)))?;
@@ -96,7 +97,7 @@ pub(super) fn measure_corpus(
             boundaries.suite,
             boundaries.meter,
             ArtifactPath(&scenes),
-            plan,
+            &plan,
         )?;
         evidence.growth(corpus.language.id, &grown)?;
     }

@@ -195,17 +195,32 @@ fn missing() -> Invocation {
 /// # Panics
 ///
 /// Panics when fixture setup fails or the implementation violates a contract observation.
+/// The promises every execution keeps, whether or not it launches children, over `child`, an invocation that is no
+/// worker request: it compiles no rule ahead, and its profile and exit observation answer the same on every call.
+pub fn check_with(adapter: &impl ExecutionPort, child: &Invocation) {
+    assert!(
+        adapter
+            .compile(child)
+            .is_none_or(|compiled| compiled.is_empty()),
+        "an invocation that is no worker request compiles no rule"
+    );
+    assert_eq!(
+        adapter.profile(),
+        adapter.profile(),
+        "the profile is fixed for the execution's lifetime"
+    );
+    assert_eq!(
+        adapter.exit_observation(),
+        adapter.exit_observation(),
+        "the exit observation is fixed for the execution's lifetime"
+    );
+}
 #[expect(
     clippy::expect_used,
     reason = "fixture setup failures must fail the contract test"
 )]
 pub fn check(adapter: &impl ExecutionPort) {
-    assert!(
-        adapter
-            .compile(&invocation())
-            .is_none_or(|compiled| compiled.is_empty()),
-        "an invocation that is no worker request compiles no rule"
-    );
+    check_with(adapter, &invocation());
     let subject = |input| {
         let profile = adapter.profile();
         let mode = adapter.exit_observation();

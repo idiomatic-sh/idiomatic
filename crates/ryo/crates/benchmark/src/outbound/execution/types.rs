@@ -19,3 +19,23 @@ pub struct StoredRequest(pub std::path::PathBuf);
 /// The compile time of each rule a stored request names.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct RuleCompileTimes(pub std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>);
+
+/// The language's worker, run in this process in place of a child: the bench composes it over its engine.
+pub trait InProcessWorker: Send + Sync + std::fmt::Debug {
+    /// Run the request stored at `request` and write its response to `response`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request cannot be read, run or answered.
+    fn run(
+        &self,
+        request: &StoredRequest,
+        response: Box<dyn std::io::Write + Send>,
+    ) -> Result<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError>;
+    /// Compile the rules of the request stored at `request` ahead of its first run, answering each rule's time.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request cannot be read.
+    fn compile(&self, request: &StoredRequest) -> Result<RuleCompileTimes, ryo_benchmark_contracts::domain::reports::errors::ReportsError>;
+}

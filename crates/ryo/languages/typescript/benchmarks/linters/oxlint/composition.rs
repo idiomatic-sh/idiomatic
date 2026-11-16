@@ -18,7 +18,6 @@ use std::{path::PathBuf, sync::Arc};
 mod certification;
 mod commands;
 pub(crate) mod constants;
-mod growth;
 mod locations;
 mod measure;
 pub(crate) mod profile;

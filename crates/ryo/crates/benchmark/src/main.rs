@@ -115,6 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 bench: BenchDirectory(bench.into()),
             },
             &mut std::io::stdout().lock(),
+            &mut std::io::stderr().lock(),
         )?;
         return if report.verdict == OperationVerdict::Passed {
             Ok(())

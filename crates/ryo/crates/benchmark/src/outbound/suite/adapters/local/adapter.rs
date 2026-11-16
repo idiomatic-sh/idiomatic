@@ -157,6 +157,12 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
         super::accepted::schemas::accepted(&std::fs::read(file)?)
     }
+    fn growth_table(
+        &self,
+        ArtifactPath(file): ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::growth::types::GrowthTable, Error> {
+        super::growth::schemas::growth(&std::fs::read_to_string(file)?)
+    }
     fn source_text(
         &self,
         ArtifactPath(file): ArtifactPath<'_>,

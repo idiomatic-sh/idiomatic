@@ -74,6 +74,7 @@ impl OperateUseCase for OperateUseCaseImpl {
         &self,
         request: &OperationRequest,
         output: &mut dyn std::io::Write,
+        observations: &mut dyn std::io::Write,
     ) -> Result<OperationReport, Error> {
         // Every timed measure is taken on four processors; a run the bench tool's `taskset` did not pin is refused first.
         let processors = self.host.processors().0.get();
@@ -105,6 +106,7 @@ impl OperateUseCase for OperateUseCaseImpl {
         if self.executables.check_sealed(
             &worker.path,
             &RunArguments(vec![VERIFY_TOOL.into(), reference.path.clone().into()]),
+            observations,
         )? == RunVerdict::Failed
         {
             return Err(Error::Invalid(REFERENCE_NOT_VERIFIED.into()));
@@ -147,6 +149,7 @@ impl OperateUseCase for OperateUseCaseImpl {
                 )),
                 &document(&layout),
                 output,
+                observations,
             )?),
         };
         Ok(OperationReport { verdict: answer })

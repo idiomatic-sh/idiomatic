@@ -162,6 +162,14 @@ pub trait SuitePort: Send + Sync {
         &self,
         file: ArtifactPath<'_>,
     ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error>;
+    /// A language's growth table, as its `growth.toml` writes it.
+    ///
+    /// # Errors
+    /// Refuses a missing file, a malformed table, an invalid rule name, or a table that grows nothing.
+    fn growth_table(
+        &self,
+        file: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::growth::types::GrowthTable, Error>;
     /// The UTF-8 text of one source file.
     ///
     /// # Errors

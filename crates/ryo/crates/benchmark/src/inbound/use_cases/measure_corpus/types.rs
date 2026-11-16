@@ -64,8 +64,8 @@ pub struct CorpusMeasurement<'a> {
     pub bench: &'a Path,
     /// The projects measured, in order.
     pub projects: Vec<Project>,
-    /// The composition's growth plan, if its language grows its rules.
-    pub growth: Option<&'a crate::domain::growth::types::GrowthPlan>,
+    /// Whether the language grows its rules, and where from.
+    pub growth: crate::domain::growth::types::CorpusGrowth<'a>,
     /// The times file of each rule the inventory verified.
     pub verification: &'a crate::outbound::evidence::types::VerificationTimesFiles,
     /// The directory retained state and trial directories live under.

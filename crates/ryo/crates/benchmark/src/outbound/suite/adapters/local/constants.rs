@@ -204,3 +204,10 @@ pub(super) const ACCEPTED_SYNTAX: &str =
     ryo_benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;
 /// The directory below a bench holding the dedicated settings profile of a rule.
 pub(super) const SETTINGS_PROFILES: &str = "profiles";
+/// The refusal of a growth table with no rule, no size or no operation: a run that grew nothing would hold every bound.
+pub(super) const GROWTH_EMPTY: &str = "a growth table names at least one rule, one size and one operation";
+/// The refusal of a whole size that has no whole half.
+pub(super) const GROWTH_ODD_SIZE: &str = "every growth size is even and above zero, so its half is whole";
+/// The refusal of an operation grown in no frame, in a frame the table does not define, or with a segment of no line.
+pub(super) const GROWTH_OPERATION: &str =
+    "the operation names no frame, a frame the table does not define, or a segment with no line";

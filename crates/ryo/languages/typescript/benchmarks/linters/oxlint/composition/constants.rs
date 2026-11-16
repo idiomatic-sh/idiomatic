@@ -97,5 +97,5 @@ pub(crate) const RULES_DIRECTORY: &str = "rules";
 pub(crate) const EXPECTED_DOCUMENT: &str = "expected --document=<file>";
 /// Refusal of a measure without the verification's directory.
 pub(crate) const EXPECTED_VERIFICATION: &str = "expected --verification=<inventory directory>";
-/// The name of the one source file each growth program is written as.
-pub(crate) const GROWTH_SOURCE: &str = "case.ts";
+/// The language's growth table, from this linter's bench: `languages/<lang>/benchmarks/growth.toml`.
+pub(crate) const GROWTH_TABLE: &str = "../../growth.toml";

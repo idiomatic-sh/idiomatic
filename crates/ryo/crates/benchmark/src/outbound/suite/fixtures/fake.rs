@@ -126,6 +126,12 @@ impl SuitePort for SuiteFake {
     ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
         local().accepted_differences(file)
     }
+    fn growth_table(
+        &self,
+        file: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::growth::types::GrowthTable, Error> {
+        local().growth_table(file)
+    }
     fn source_text(&self, file: ArtifactPath<'_>) -> Result<ryo::linter::SourceText, Error> {
         local().source_text(file)
     }

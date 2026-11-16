@@ -1,8 +1,8 @@
 //! A worker's request runs in this process through the language's worker; the composition chooses this execution for the
 //! candidate, and any invocation that is no worker request is refused.
 use super::constants::{COMPLETED, FAILED, NOT_A_WORKER_REQUEST, RESPONSE_POISONED};
-use crate::outbound::execution::interface::{ExecutionPort, InProcessWorker};
-use crate::outbound::execution::types::StoredRequest;
+use crate::outbound::execution::interface::ExecutionPort;
+use crate::outbound::execution::types::{InProcessWorker, StoredRequest};
 use ryo_benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ExecutionProfile, Invocation, ProcessExitCode, ProcessOutput,
     ResourceObservation, TerminationSignal,

@@ -14,3 +14,9 @@ pub(super) const SCENE: &str = "scene-";
 pub(super) const NO_SHAPE: &str = "the growth plan holds no shape";
 /// Between two failures of one growth run.
 pub(super) const FAILURE_SEPARATOR: &str = "\n";
+/// Where a template text writes its repetition's index.
+pub(super) const INDEX: &str = "{i}";
+/// Between the parts of a shape's name: rule, frame, operation and whole size.
+pub(super) const SHAPE_SEPARATOR: &str = "/";
+/// The refusal of an operation naming a frame its table does not define.
+pub(super) const UNKNOWN_FRAME: &str = "a frame the growth table does not define";

@@ -235,7 +235,7 @@ fn measured<R>(
     operate(&CorpusMeasurement {
         bench,
         projects,
-        growth: None,
+        growth: crate::domain::growth::types::CorpusGrowth::Ungrown,
         verification: &crate::outbound::evidence::types::VerificationTimesFiles::default(),
         cache,
         frozen_workload: std::path::Path::new("workload"),

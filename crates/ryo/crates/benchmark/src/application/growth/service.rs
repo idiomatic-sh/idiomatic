@@ -1,6 +1,9 @@
 //! Grow each shape: write its scene, lint the half and the whole program, and refuse a doubling over the limits.
 use super::constants;
-use crate::domain::growth::types::{GrownProgram, GrowthPlan, ShapePrograms};
+use crate::domain::growth::constants::{CPU_FLOOR, MEMORY_BOUND};
+use crate::domain::growth::types::{
+    GrowthModule, GrownProgram, GrowthPlan, RuleModules, ShapePrograms,
+};
 use crate::outbound::process_meter::interface::ProcessMeterPort;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::ArtifactPath;
@@ -9,14 +12,116 @@ use ryo_benchmark_contracts::domain::measurements::types::{
     DoublingRatio, GrowthShape, ResidentBytes, ShapeGrowth, ShapeGrowths,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::growth::types::{
+    GrowthFrame, GrowthOperation, GrowthSize,
+};
 use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, QueryModuleName, WorkerRequest,
+    CohortSelection, ContextSeal, InputDeclaration, ParserSelection, ProviderSelection,
+    QueryModuleName, RuleContextPreparation, SearchRoots, WorkerRequest, WorkerState,
 };
 use std::collections::BTreeMap;
 use std::time::Duration;
 
 /// One lint of a grown program, as the use case composes it (prepare, load, configure, execute; refused unless complete).
 pub type Lint<'a> = &'a dyn Fn(&WorkerRequest) -> Result<(), Error>;
+
+/// The growth plan of a language: its table read through the suite, every rule with the query modules its profile
+/// registers, over every operation in every frame the operation names, at each whole size and its half; held to the one
+/// CPU floor and memory bound.
+///
+/// # Errors
+/// A table or a rule profile the suite refuses.
+pub fn plan(
+    suite: &dyn SuitePort,
+    source: crate::domain::growth::types::GrowthSource<'_>,
+) -> Result<GrowthPlan, Error> {
+    let table = suite.growth_table(ArtifactPath(source.table))?;
+    let mut shapes = BTreeMap::new();
+    let mut applicability = BTreeMap::new();
+    for grown in &table.rules {
+        let profile = suite.profile(ArtifactPath(&source.bench.join(&grown.profile)))?;
+        applicability.extend(profile.rule_applicability);
+        let modules = RuleModules(
+            profile
+                .query_modules
+                .into_iter()
+                .map(|(name, path)| (GrowthModule(name.0), path))
+                .collect(),
+        );
+        for operation in &table.operations {
+            for frame_name in &operation.frames {
+                let Some(frame) = table.frames.get(frame_name) else {
+                    return Err(Error::Invalid(format!(
+                        "{}: {}",
+                        frame_name.0,
+                        constants::UNKNOWN_FRAME
+                    )));
+                };
+                for whole in &table.sizes {
+                    let name = [
+                        grown.rule.to_string(),
+                        frame_name.0.clone(),
+                        operation.name.0.clone(),
+                        whole.0.to_string(),
+                    ]
+                    .join(constants::SHAPE_SEPARATOR);
+                    let _previous = shapes.insert(
+                        GrowthShape(name),
+                        ShapePrograms {
+                            rule: grown.rule.clone(),
+                            modules: modules.clone(),
+                            half: program(frame, operation, GrowthSize(whole.0 / 2)),
+                            whole: program(frame, operation, *whole),
+                            size: *whole,
+                        },
+                    );
+                }
+            }
+        }
+    }
+    Ok(GrowthPlan {
+        floor: CPU_FLOOR,
+        memory: MEMORY_BOUND,
+        file: table.file.clone(),
+        request: WorkerRequest {
+            performance: Default::default(),
+            selected_rules: CohortSelection::Explicit(Vec::new()),
+            rule_observations: InputDeclaration::Undeclared,
+            rule_context: RuleContextPreparation::Unconfigured,
+            project_search_roots: SearchRoots::Undeclared,
+            given_project_inventory: Default::default(),
+            project_context_mode: Default::default(),
+            context_manifest: ContextSeal::Unsealed,
+            rules: source.rules.to_owned(),
+            root: source.bench.to_owned(),
+            query_modules: BTreeMap::new(),
+            rule_applicability: applicability,
+            parser_configuration: source.parser.clone(),
+            source_language: ProviderSelection::Unspecified,
+            files: Vec::new(),
+            state: WorkerState::Fresh,
+        },
+        shapes,
+    })
+}
+
+/// The operation's program at `size` in the frame: the frame's head, each segment's repetitions with every line indented,
+/// then the frame's tail.
+fn program(frame: &GrowthFrame, operation: &GrowthOperation, size: GrowthSize) -> GrownProgram {
+    let mut text = frame.head.0.clone();
+    for segment in &operation.segments {
+        let count = segment.repetitions.fixed.0 + segment.repetitions.per_size.0 * size.0;
+        for (index, line) in segment.lines.iter().cycle().take(count).enumerate() {
+            for written in line.0.replace(constants::INDEX, &index.to_string()).lines() {
+                text.push_str(&frame.indent.0);
+                text.push_str(written);
+                text.push('\n');
+            }
+        }
+    }
+    text.push_str(&frame.tail.0);
+    GrownProgram(text)
+}
 
 /// Lint every shape of `plan` at both sizes through `lint`, fastest of five. Each program's scene is a fresh directory
 /// under `scenes` (`SuitePort::retained_directory`), its modules copied in (`copy_file`) and its program written as the

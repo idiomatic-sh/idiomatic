@@ -1,7 +1,7 @@
 //! Seals the executables the build tool builds and runs them, publishing only the document a run writes.
 use super::constants::{
-    BENCH, BUILD_FAILED, LOCKED, MESSAGE_FORMAT, NO_RUN, OPERATIONS_RUN_ON_UNIX, SEAL_SUFFIX,
-    TOOL_NOT_FOUND,
+    BENCH, BUILD_FAILED, CHUNK, LOCKED, MESSAGE_FORMAT, NO_OUTPUT, NO_RUN, OPERATIONS_RUN_ON_UNIX,
+    SEAL_SUFFIX, TOOL_NOT_FOUND,
 };
 use super::settings::ExecutablesCargoSettings;
 use super::types::BuildPlatform;
@@ -12,6 +12,7 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use sha2::{Digest as _, Sha256};
 use std::ffi::OsStr;
+use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -136,18 +137,9 @@ impl ExecutablesPort for ExecutablesCargoAdapter {
         &self,
         executable: &Path,
         arguments: &RunArguments,
+        progress: &mut dyn std::io::Write,
     ) -> Result<RunVerdict, Error> {
-        let status = Command::new(executable)
-            .args(&arguments.0)
-            .stdin(Stdio::null())
-            .stdout(Stdio::from(std::io::stderr()))
-            .stderr(Stdio::inherit())
-            .status()?;
-        Ok(if status.success() {
-            RunVerdict::Passed
-        } else {
-            RunVerdict::Failed
-        })
+        streamed(executable, arguments, progress)
     }
 
     fn run_sealed(
@@ -156,18 +148,46 @@ impl ExecutablesPort for ExecutablesCargoAdapter {
         arguments: &RunArguments,
         document: &Path,
         output: &mut dyn std::io::Write,
+        progress: &mut dyn std::io::Write,
     ) -> Result<RunVerdict, Error> {
-        let status = Command::new(executable)
-            .args(&arguments.0)
-            .stdin(Stdio::null())
-            .stdout(Stdio::from(std::io::stderr()))
-            .stderr(Stdio::inherit())
-            .status()?;
-        if !status.success() {
+        if streamed(executable, arguments, progress)? == RunVerdict::Failed {
             return Ok(RunVerdict::Failed);
         }
         output.write_all(&std::fs::read(document)?)?;
         output.flush()?;
         Ok(RunVerdict::Passed)
     }
+}
+
+/// Run a sealed executable, streaming its standard output to `progress` as it comes and its errors to this process's
+/// error stream, and answer its verdict.
+fn streamed(
+    executable: &Path,
+    arguments: &RunArguments,
+    progress: &mut dyn std::io::Write,
+) -> Result<RunVerdict, Error> {
+    let mut child = Command::new(executable)
+        .args(&arguments.0)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    let mut stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| Error::Invalid(NO_OUTPUT.into()))?;
+    let mut chunk = [0_u8; CHUNK];
+    loop {
+        let read = stdout.read(&mut chunk)?;
+        let Some(bytes) = chunk.get(..read).filter(|bytes| !bytes.is_empty()) else {
+            break;
+        };
+        progress.write_all(bytes)?;
+        progress.flush()?;
+    }
+    Ok(if child.wait()?.success() {
+        RunVerdict::Passed
+    } else {
+        RunVerdict::Failed
+    })
 }

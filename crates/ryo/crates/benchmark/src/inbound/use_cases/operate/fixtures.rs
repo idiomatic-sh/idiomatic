@@ -168,6 +168,7 @@ pub fn observe(
                 bench: BenchDirectory(bench),
             },
             &mut stdout,
+            &mut std::io::sink(),
         )
         .map(|report| report.verdict)
         .map_err(|error| {
