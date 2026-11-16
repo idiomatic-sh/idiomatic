@@ -602,3 +602,93 @@ expected = [{ file = "case.ts", start = 45, end = 52 }]
 name = "directive"
 files = { "case.ts" = "class A extends B {\n  // eslint-disable-next-line constructor-super\n  constructor() {}\n}\n" }
 expected = []
+
+[[cases]]
+name = "worklist-order-rand-11-209"
+files = { "case.ts" = "class A extends B { constructor() { if (x) { {} } else { super(); super(); } } }\n" }
+expected = [{ file = "case.ts", start = 66, end = 73 }]
+
+[[cases]]
+name = "worklist-order-rand-23-435"
+files = { "case.ts" = "class A extends B { constructor() { try { super() || super(); } catch (e) { return; } if (x) { (x && super()); } } }\n" }
+expected = [{ file = "case.ts", start = 53, end = 60 }]
+
+[[cases]]
+name = "worklist-order-rand-11-273"
+files = { "case.ts" = "class A extends B { constructor() { try { { x || super(); (x && super()); super(); super(); } } finally { switch (x) { case 1: (x && super()); case 2: (x && super()); break; default: super(); } } } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 197 }, { file = "case.ts", start = 83, end = 90 }, { file = "case.ts", start = 183, end = 190 }]
+
+[[cases]]
+name = "worklist-order-rand-11-147"
+files = { "case.ts" = "class A extends B { constructor() { try { try { l: { super() || super(); break l; return; } } finally { while (true) { (x && super()); } } } finally { do { try { {} } catch (e) { {} } finally { x(); } } while (x); } throw e; super(); super(); } }\n" }
+expected = [{ file = "case.ts", start = 64, end = 71 }]
+
+[[cases]]
+name = "worklist-order-rand-11-247"
+files = { "case.ts" = "class A extends B { constructor() { try { super() || super(); } catch (e) { if (super()) {} } finally { x || super(); } } }\n" }
+expected = [{ file = "case.ts", start = 53, end = 60 }, { file = "case.ts", start = 80, end = 87 }]
+
+[[cases]]
+name = "worklist-order-rand-11-294"
+files = { "case.ts" = "class A extends B { constructor() { l: { try { { super() || super(); x ? super() : y(); super() || super(); } } catch (e) { for (let i = 0; i < n; i++) { if (y) { x ? super() : y(); break; } throw e; } } break l; switch (x) { case 1: try { {} } catch (e) { super(); } finally { x ? super() : y(); } case 2: if (x) { return a; } break; default: while (x) { super(); } } } while (x) { x ? super() : y(); } } }\n" }
+expected = [{ file = "case.ts", start = 60, end = 67 }, { file = "case.ts", start = 73, end = 80 }, { file = "case.ts", start = 88, end = 95 }, { file = "case.ts", start = 99, end = 106 }, { file = "case.ts", start = 167, end = 174 }, { file = "case.ts", start = 257, end = 264 }, { file = "case.ts", start = 282, end = 289 }, { file = "case.ts", start = 356, end = 363 }, { file = "case.ts", start = 387, end = 394 }]
+
+[[cases]]
+name = "worklist-order-rand-11-375"
+files = { "case.ts" = "class A extends B { constructor() { try { l: { super() || super(); break l; super(); } } catch (e) { for (;;) { {} } } } }\n" }
+expected = [{ file = "case.ts", start = 58, end = 65 }]
+
+[[cases]]
+name = "worklist-order-rand-11-396"
+files = { "case.ts" = "class A extends B { constructor() { if (x) { x || super(); } else { super() || super(); } for (const a of b) { while (x) { while (x) { x(); } } } } }\n" }
+expected = [{ file = "case.ts", start = 79, end = 86 }]
+
+[[cases]]
+name = "worklist-order-rand-23-15"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); super(); } catch (e) { x(); } finally { x || super(); } if (x) { for (;;) { switch (x) { case 1: (x && super()); case 2: super(); break; default: super(); } } } } }\n" }
+expected = [{ file = "case.ts", start = 51, end = 58 }, { file = "case.ts", start = 172, end = 179 }, { file = "case.ts", start = 197, end = 204 }]
+
+[[cases]]
+name = "worklist-order-rand-23-29"
+files = { "case.ts" = "class A extends B { constructor() { switch (x) { case 1: super(); case 2: x ? super() : y(); break; default: x || super(); } try { super() || super(); } catch (e) { return a; } finally { super(); super(); } } }\n" }
+expected = [{ file = "case.ts", start = 78, end = 85 }, { file = "case.ts", start = 131, end = 138 }, { file = "case.ts", start = 142, end = 149 }, { file = "case.ts", start = 187, end = 194 }, { file = "case.ts", start = 196, end = 203 }]
+
+[[cases]]
+name = "worklist-order-rand-23-148"
+files = { "case.ts" = "class A extends B { constructor() { try { try { x ? super() : y(); } finally { super(); } } catch (e) { while (x) { x || super(); } } } }\n" }
+expected = [{ file = "case.ts", start = 79, end = 86 }]
+
+[[cases]]
+name = "worklist-order-rand-23-169"
+files = { "case.ts" = "class A extends B { constructor() { if (x) { (x && super()); } else { super(); super(); } } }\n" }
+expected = [{ file = "case.ts", start = 79, end = 86 }]
+
+[[cases]]
+name = "worklist-order-rand-23-210"
+files = { "case.ts" = "class A extends B { constructor() { if (x) { switch (x) { case 1: x(); case 2: x(); break; default: super(); super(); } } else { if (x) { super(); super(); } else { if (super()) {} } } try { return; } catch (e) { x(); } try { return; } finally { return a; } switch (x) { case 1: return a; case 2: (x && super()); break; default: super(); super(); } } }\n" }
+expected = [{ file = "case.ts", start = 109, end = 116 }, { file = "case.ts", start = 138, end = 145 }, { file = "case.ts", start = 147, end = 154 }, { file = "case.ts", start = 169, end = 176 }, { file = "case.ts", start = 329, end = 336 }, { file = "case.ts", start = 338, end = 345 }]
+
+[[cases]]
+name = "worklist-order-rand-23-238"
+files = { "case.ts" = "class A extends B { constructor() { switch (x) { case 1: {} case 2: (x && super()); break; default: x(); } try { try { super(); super(); } catch (e) { (x && super()); } } finally { if (x) { (x && super()); } else { x ? super() : y(); } } } }\n" }
+expected = [{ file = "case.ts", start = 128, end = 135 }, { file = "case.ts", start = 219, end = 226 }]
+
+[[cases]]
+name = "worklist-order-rand-23-287"
+files = { "case.ts" = "class A extends B { constructor() { l: { try { super() || super(); } catch (e) { return a; } finally { return; } break l; while (true) { {} } } for (let i = 0; i < n; i++) { if (y) { super(); super(); break; } return; } } }\n" }
+expected = [{ file = "case.ts", start = 58, end = 65 }, { file = "case.ts", start = 183, end = 190 }, { file = "case.ts", start = 192, end = 199 }]
+
+[[cases]]
+name = "worklist-order-rand-23-542"
+files = { "case.ts" = "class A extends B { constructor() { try { for (let i = 0; i < n; i++) { if (y) { { throw e; super(); super(); super(); } break; } for (;;) { throw e; } } } catch (e) { if (x) { if (x) { x ? super() : y(); } else { return a; } } } l: { if (x) { super(); super(); } else { (x && super()); } break l; do { return; } while (x); } } }\n" }
+expected = [{ file = "case.ts", start = 244, end = 251 }, { file = "case.ts", start = 253, end = 260 }]
+
+[[cases]]
+name = "worklist-order-rand-23-564"
+files = { "case.ts" = "class A extends B { constructor() { try { super() || super(); } catch (e) { {} } if (x) { while (true) { try { if (super()) {} } catch (e) { return a; } } } else { if (x) { l: { x(); break l; return; } } } } }\n" }
+expected = [{ file = "case.ts", start = 53, end = 60 }, { file = "case.ts", start = 115, end = 122 }]
+
+[[cases]]
+name = "worklist-order-rand-23-582"
+files = { "case.ts" = "class A extends B { constructor() { switch (x) { case 1: x(); case 2: (x && super()); break; default: super(); super(); } } }\n" }
+expected = [{ file = "case.ts", start = 111, end = 118 }]
