@@ -67,6 +67,21 @@ pub(crate) struct PassScratch {
     pub(crate) outputs: Vec<Vec<OutputState>>,
     /// Each rule's named outputs' rows in the open file, by rule and output, for the bound observations of the rules after it.
     pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
+    /// The relations the open file's sources are asked for: those of the rules that run on it.
+    pub(crate) demand: Vec<ryo_relations::domain::relations::types::Relation>,
+    /// Whether a rule that runs on the open file can run each node, by node.
+    pub(crate) live: Vec<NodeInFile>,
+}
+
+/// Whether a rule that runs on the open file can run a node: a step in each file of such a rule can; any other node runs
+/// nothing in the file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum NodeInFile {
+    /// No rule that runs on the file can run it.
+    #[default]
+    Unrunnable,
+    /// A rule that runs on the file can run it.
+    Runnable,
 }
 
 /// What one step's rows rest on: every relation read on the way to them, and the reads whose absence of rows a step on the way

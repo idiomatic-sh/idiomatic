@@ -6,7 +6,9 @@ use crate::application::file_dag::file_pass::types::{
     FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
     RootKindNodes, TreeStart,
 };
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::publications::service::bound::service::held_observation;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::{assemble, logical, root_kinds};
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
@@ -17,6 +19,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::{
     portable_fault, rendered_batch, unsupported_render,
 };
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::trust::service::{needs_of, physical_reads};
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_language::domain::elements::service::{kind_at, kind_names, positions};
@@ -40,7 +43,7 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{HostedNumber, Input};
-use ryo_values::domain::plans::service::{inputs_of, named, reads_of};
+use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::row_texts::types::CellText;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -50,18 +53,29 @@ pub(crate) mod inputs;
 pub(crate) mod nodes;
 pub(crate) mod rules;
 
-/// The relations `plans` read, each once, in the order they are first read: what each file's sources are asked for, so a file
-/// reads exactly what its request's rules can read.
-pub(crate) fn demanded<P: std::borrow::Borrow<Plan>>(plans: &[P]) -> Box<[Relation]> {
-    let mut demanded: Vec<Relation> = Vec::new();
-    for plan in plans {
-        for relation in reads_of(plan.borrow()).0 {
-            if !demanded.contains(&relation) {
-                demanded.push(relation);
+/// Writes into `into` the relations the rules that run on a file read, each once, in rule order: the union of `reads` over the
+/// rules whose intent for the file is Run. A rule that does not run on the file evaluates none of its nodes there, so nothing
+/// only it reads is asked of the file's sources.
+pub(crate) fn file_demand(
+    program: &PreparedProgram,
+    intents: &[FileRuleIntent],
+    into: &mut Vec<Relation>,
+) {
+    into.clear();
+    for (rule, intent) in intents.iter().enumerate() {
+        if !matches!(intent, FileRuleIntent::Run { .. }) {
+            continue;
+        }
+        // A rule the program does not hold runs nothing, so it reads nothing.
+        let Ok(reads) = program.reads(RuleIndex(rule)) else {
+            continue;
+        };
+        for relation in &reads.0 {
+            if !into.contains(relation) {
+                into.push(*relation);
             }
         }
     }
-    demanded.into_boxed_slice()
 }
 
 /// The roots of `program`, before any file.

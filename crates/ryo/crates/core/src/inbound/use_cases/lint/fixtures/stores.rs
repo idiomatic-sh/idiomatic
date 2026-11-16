@@ -4,19 +4,15 @@ use super::super::errors::LintError;
 use super::super::interface::LintUseCase as _;
 use super::given::Given;
 use super::given::SOURCES;
-use super::given::World;
 use super::given::request;
 use super::lifecycle::counted_lint;
 use super::lifecycle::reading_the_project;
-use super::worlds::scheduled_world_with_query;
+use super::worlds::compiled_lint;
 use super::worlds::world;
 use crate::inbound::use_cases::lint::fixtures::given::violations;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
 use crate::outbound::row_sink;
-use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
-use crate::outbound::scheduler::interface::SchedulerPort;
-use crate::outbound::scheduler::types::WorkerCount;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_execution_runtime::outbound::observer::factory::counting;
 use ryo_language::domain::files::types::FilePath;
@@ -305,7 +301,8 @@ pub(crate) fn partial_of_a_reused_file_after_a_file_is_listed_before_it()
         ..violations()
     };
     let linted = |given: Given| -> Result<(Vec<row_sink::types::KeptRow>, String), LintError> {
-        let (world, report) = compiled_lint(given)?;
+        let asked = request(&given);
+        let (world, report) = compiled_lint(given, asked)?;
         let rows = std::mem::take(
             &mut world
                 .collected
@@ -356,35 +353,4 @@ pub(crate) fn partial_of_a_reused_file_after_a_file_is_listed_before_it()
         "the part of `b.rs` the edit run keeps is the one a cold run keeps"
     );
     Ok((usize::from(covered == fresh_covered), 0))
-}
-
-/// One lint of `given` with the real query compiler: the world, for its collected rows, and the report.
-pub(crate) fn compiled_lint(
-    given: Given,
-) -> Result<(World, crate::inbound::use_cases::lint::types::LintReport), LintError> {
-    use ryo_execution::outbound::query_language::factory;
-    let syntax = || Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
-    let catalog = || Arc::new(ryo_query_language::outbound::catalog::factory::language());
-    let compile = Arc::new(
-        ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
-            syntax(),
-            catalog(),
-        ),
-    );
-    let typecheck = Arc::new(
-        ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
-            syntax(),
-            catalog(),
-        ),
-    );
-    let asked = request(&given);
-    let scheduler: Arc<dyn SchedulerPort> = Arc::new(SchedulerFake::default());
-    let world = scheduled_world_with_query(
-        given,
-        scheduler,
-        WorkerCount(1),
-        Arc::new(factory::use_case(compile, typecheck)),
-    );
-    let report = world.use_case.lint(asked)?;
-    Ok((world, report))
 }

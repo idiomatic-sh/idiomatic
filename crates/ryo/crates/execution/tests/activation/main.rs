@@ -124,7 +124,7 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         name: CaseName("no_demanded_rule_allocates_the_same_beside_128_dormant_rules"),
         word: Word::Succeeds,
         input: || Input::RunEmpty,
-        expect: Expect::Value((windows(&[]), SAME)),
+        expect: Expect::Value((windows(&[]), NOTHING)),
     },
     Case {
         name: CaseName(
@@ -180,6 +180,12 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
 /// What a whole run answers when dormant rules cost it nothing.
 const SAME: Answer = Answer::RunSame {
     allocates: true,
+    same: true,
+};
+/// What a whole run of no demanded rule answers: no rule runs on the file, so its sources are asked for nothing and the run
+/// allocates nothing, beside dormant rules as alone. The meter is shown live by the run of one demanded rule.
+const NOTHING: Answer = Answer::RunSame {
+    allocates: false,
     same: true,
 };
 fn main() {

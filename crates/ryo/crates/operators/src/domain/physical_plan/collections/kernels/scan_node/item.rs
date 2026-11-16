@@ -89,13 +89,15 @@ pub(crate) fn hold(
     if let Some(slot) = buffers.pending.get_mut(place) {
         *slot = pending;
     }
-    if let (Some(left), Some(physical)) = (buffers.remaining.get_mut(place), plan.nodes.get(place))
-    {
-        *left = physical.readers;
-    }
-    if let (Some(left), Some(physical)) =
-        (buffers.engine_left.get_mut(place), plan.nodes.get(place))
-    {
-        *left = physical.engine;
+    // The readers and engine uses the file was done with before it made the node are not waited for.
+    if let Some(physical) = plan.nodes.get(place) {
+        let readers = buffers.done.readers_left(node, physical.readers);
+        let engine = buffers.done.engine_left(node, physical.engine);
+        if let Some(left) = buffers.remaining.get_mut(place) {
+            *left = readers;
+        }
+        if let Some(left) = buffers.engine_left.get_mut(place) {
+            *left = engine;
+        }
     }
 }

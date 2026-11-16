@@ -171,7 +171,8 @@ pub fn logical<'p>(
             scope: draft.scope,
         });
     }
-    let consumers = held(&mut program, rules, &nodes, &inputs.lists)?;
+    let mut engine = Vec::with_capacity(rules.len());
+    let consumers = held(&mut program, rules, &nodes, &inputs.lists, &mut engine)?;
     let roots = derived_roots(&drafts, &inputs.lists);
     let schemas = drafts.iter().map(|draft| draft.schema.clone()).collect();
     let reach = observation_reaches(&drafts, &inputs.lists);
@@ -179,6 +180,7 @@ pub fn logical<'p>(
         program,
         rules: nodes,
         consumers,
+        engine,
         roots,
         schemas,
         scopes,
@@ -202,6 +204,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
     let LogicalBuild {
         rules,
         consumers,
+        engine,
         roots,
         schemas,
         scopes,
@@ -212,6 +215,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         plan,
         rules,
         consumers,
+        engine,
         roots,
         schemas,
         scopes,
@@ -291,6 +295,32 @@ pub fn consumers(
         .consumers
         .get(usize::try_from(node.0).unwrap_or(usize::MAX))
         .copied()
+        .ok_or(OperatingError::NotRun)
+}
+
+/// The engine uses of `rule`, the uses of a node that are not node readers: the node it emits, then each node it holds for a
+/// frontier or a named output, each once per use, as the operators count them.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, engine_uses, logical};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// assert!(engine_uses(&program, ryo_execution_domain::domain::coverage::types::RuleIndex(0)).is_err());
+/// ```
+///
+/// # Errors
+///
+/// `NotRun` for a rule the program does not have.
+pub fn engine_uses(
+    program: &ExecutableProgram,
+    rule: RuleIndex,
+) -> Result<&[PlanNodeId], OperatingError> {
+    program
+        .engine
+        .get(rule.0)
+        .map(Vec::as_slice)
         .ok_or(OperatingError::NotRun)
 }
 

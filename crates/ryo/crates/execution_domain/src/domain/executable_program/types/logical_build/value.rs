@@ -29,6 +29,8 @@ pub struct LogicalBuild<'p> {
     pub(crate) rules: Vec<RuleNodes>,
     /// Each node's consumers, by node.
     pub(crate) consumers: Vec<Consumers>,
+    /// Each rule's engine uses, in rule order: the node it emits, then each node it holds.
+    pub(crate) engine: Vec<Vec<PlanNodeId>>,
     /// The nodes that start from the tree nodes of a kind, by the text the plans write for the kind.
     pub(crate) roots: hashbrown::HashMap<LiteralText, Vec<PlanNodeId>>,
     /// Each node's output columns, or the schema fault of it or of a node it reads, by node.

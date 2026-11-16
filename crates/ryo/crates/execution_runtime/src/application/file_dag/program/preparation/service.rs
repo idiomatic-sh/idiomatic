@@ -62,9 +62,16 @@ impl PreparedProgram {
             .copied()
             .ok_or(OperatingError::NotRun)
     }
-    /// The relations each file's sources are asked for: those the request's plans read.
-    pub(crate) fn demanded(&self) -> &[ryo_relations::domain::relations::types::Relation] {
-        &self.demanded
+    /// The relations `rule`'s steps read, each once, in the order first read.
+    ///
+    /// # Errors
+    ///
+    /// `NotRun` for a rule the request does not hold.
+    pub(crate) fn reads(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<&ryo_values::domain::plans::types::RuleReads, OperatingError> {
+        self.reads.get(rule.0).ok_or(OperatingError::NotRun)
     }
     pub(crate) fn hosted(&self) -> &[HostRelation] {
         &self.hosted
@@ -255,7 +262,10 @@ pub(crate) fn prepare(
         schedule,
         semantic_metadata: ryo_values::domain::run_metadata::service::from_plans(&owned),
         hosted: hosted.to_vec().into_boxed_slice(),
-        demanded: crate::application::file_dag::file_pass::service::demanded(&owned),
+        reads: owned
+            .iter()
+            .map(ryo_values::domain::plans::service::reads_of)
+            .collect(),
     }))
 }
 

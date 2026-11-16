@@ -3,6 +3,7 @@
 
 pub mod bound_observation_place;
 pub mod candidates;
+pub(crate) mod consumers_done;
 pub mod fact_rows;
 pub mod file_buffers;
 pub mod frontier_place;

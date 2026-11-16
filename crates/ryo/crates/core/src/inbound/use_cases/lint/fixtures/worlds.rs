@@ -15,6 +15,7 @@ use crate::outbound::row_sink;
 use crate::outbound::row_sink::fixtures::fake::Ends;
 use crate::outbound::row_sink::fixtures::fake::RowSinkFake;
 use crate::outbound::row_sink::interface::RowSinkPort;
+use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::WorkerCount;
 use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
@@ -256,4 +257,35 @@ pub(crate) fn again(
         rules: vec![rule],
         ..violations()
     })
+}
+
+/// One lint of `asked` over the world of `given` with the real query compiler: the world, for its collected rows, and the report.
+pub(crate) fn compiled_lint(
+    given: Given,
+    asked: crate::inbound::use_cases::lint::types::LintRequest,
+) -> Result<(World, crate::inbound::use_cases::lint::types::LintReport), LintError> {
+    use ryo_execution::outbound::query_language::factory;
+    let syntax = || Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
+    let catalog = || Arc::new(ryo_query_language::outbound::catalog::factory::language());
+    let compile = Arc::new(
+        ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl::new(
+            syntax(),
+            catalog(),
+        ),
+    );
+    let typecheck = Arc::new(
+        ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl::new(
+            syntax(),
+            catalog(),
+        ),
+    );
+    let scheduler: Arc<dyn SchedulerPort> = Arc::new(SchedulerFake::default());
+    let world = scheduled_world_with_query(
+        given,
+        scheduler,
+        WorkerCount(1),
+        Arc::new(factory::use_case(compile, typecheck)),
+    );
+    let report = world.use_case.lint(asked)?;
+    Ok((world, report))
 }
