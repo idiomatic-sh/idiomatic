@@ -1,0 +1,49 @@
+description = "Diagnostic command and workspace phase observation."
+why = "Keeps optional process resource observation private to the existing CLI subscriber, without a runtime metrics port."
+content = '''
+//! Diagnostic-only outer command phase observation.
+#[cfg(test)]
+#[path = "phases_test.rs"]
+mod tests;
+
+pub(super) fn install()
+-> Result<Box<dyn std::any::Any + Send>, tracing::subscriber::SetGlobalDefaultError> {
+    todo!()
+}
+'''
+
+[given]
+file = 'src/timings/phases.rs'
+
+[[scenarios]]
+id = 'complete-private-declarations-pass'
+scenario = 'The complete private declarations pass.'
+given.files.'src/timings/phases.rs' = '''
+//! Diagnostic-only outer command phase observation.
+#[cfg(test)]
+#[path = "phases_test.rs"]
+mod tests;
+
+pub(super) fn install()
+-> Result<Box<dyn std::any::Any + Send>, tracing::subscriber::SetGlobalDefaultError> {
+    todo!()
+}
+'''
+
+[[scenarios]]
+id = 'missing-declaration'
+scenario = 'Missing private declarations are refused.'
+given.files.'src/timings/phases.rs' = '''
+// Missing the required diagnostic declaration.
+'''
+then.findings = [
+  { rule = 'timings-phases#template', path = 'src/timings/phases.rs' },
+  { rule = 'timings-phases#template', path = 'src/timings/phases.rs' },
+]
+
+[[scenarios]]
+id = 'required-placed-file-absent'
+scenario = 'A required placed file is absent.'
+then.findings = [
+  { rule = 'timings-phases#count', path = '.' },
+]

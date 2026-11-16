@@ -1,0 +1,32 @@
+description = "The proof of a command line's linked languages, beside `src/languages.rs`: the directories they declare skipped reach the walks the command line builds, and `explain` lists who declares them."
+why = "A skip is declared once, by a language, and read by every walk of the repository; a test that hands a walk a list it made up proves the walk, not that the languages the build links declare what the walks skip. This test reads the linked set itself, so a language that declares nothing, or a declaration that does not reach a walk, fails it. A command line that links no language has neither the module nor its proof."
+content = '''
+//! Proves the skips of the languages this build links are what the walks read: the languages' own declarations, not a list a test hands in.
+'''
+
+[given]
+file = 'cli/src/languages_test.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'cli/src/languages_test.rs' = '''
+//! Proves the skips of the languages this build links are what the walks read: the languages' own declarations, not a list a test hands in.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template, such as its tests.'
+given.files.'cli/src/languages_test.rs' = '''
+//! Proves the skips of the languages this build links are what the walks read: the languages' own declarations, not a list a test hands in.
+
+#[test]
+fn the_walk_skips_what_the_languages_declare() {}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'languages-test#count', path = '.' },
+]

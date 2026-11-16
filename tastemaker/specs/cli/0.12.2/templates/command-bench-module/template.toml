@@ -1,0 +1,65 @@
+description = "A command's bench module file: declares the command's bench."
+why = "Declares one command's bench, so every command's workload is compiled into the command benches."
+content = '''
+//! `{{ resource }} {{ command }}`'s bench.
+
+mod bench;
+'''
+
+[params]
+resource = { type = "identifier", description = "The resource, captured from its path." }
+command = { type = "identifier", description = "The command, captured from its path." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'cli/benches/performance/greeting/show.rs'
+given.params = { resource = 'greeting', command = 'show' }
+given.files.'cli/benches/performance/greeting/show.rs' = '''
+//! `greeting show`'s bench.
+
+mod bench;
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'cli/benches/performance/greeting/show.rs'
+given.params = { resource = 'greeting', command = 'show' }
+given.files.'cli/benches/performance/greeting/show.rs' = '''
+//! `greeting show`'s bench.
+
+mod bench;
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'cli/benches/performance/greeting/show.rs'
+given.params = { resource = 'greeting', command = 'show' }
+then.findings = [
+  { rule = 'command-bench-module#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'bench-inline'
+scenario = 'The bench is written in the module file, not in bench.rs.'
+given.file = 'cli/benches/performance/greeting/show.rs'
+given.params = { resource = 'greeting', command = 'show' }
+given.files.'cli/benches/performance/greeting/show.rs' = '''
+//! `greeting show`'s workload.
+
+#[divan::bench]
+fn show() -> std::process::ExitCode {
+    let services = cli::composition::Services::default();
+    cli::resources::greeting::show::command::run(
+        cli::resources::greeting::show::command::ShowArguments {},
+        &services,
+    )
+}
+'''
+then.findings = [
+  { rule = 'command-bench-module#template', path = 'cli/benches/performance/greeting/show.rs' },
+]

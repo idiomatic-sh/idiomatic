@@ -1,0 +1,77 @@
+description = "The command benches' entry: a `harness = false` target that takes every command's workload and prints one Bencher Metric Format document on stdout."
+why = "Gives every command line one performance entry that prints Bencher Metric Format, so Asymptote's `performance` tool judges it against its lock and the bench keeps no budget of its own."
+content = '''
+//! The command benches' entry: every command's workload, taken for its rounds and printed as one Bencher Metric Format
+//! document on stdout, which Asymptote's `performance` tool judges against its lock. It asserts no budget.
+mod measure;
+{% for resource in captures.resource | default([]) %}
+mod {{ resource }};
+{%- endfor %}
+
+fn main() {
+    measure::print(&[]);
+}
+'''
+
+[given]
+file = 'cli/benches/performance/main.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'cli/benches/performance/main.rs' = '''
+//! The command benches' entry: every command's workload, taken for its rounds and printed as one Bencher Metric Format
+//! document on stdout, which Asymptote's `performance` tool judges against its lock. It asserts no budget.
+mod measure;
+
+fn main() {
+    measure::print(&[]);
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'cli/benches/performance/main.rs' = '''
+//! The command benches' entry: every command's workload, taken for its rounds and printed as one Bencher Metric Format
+//! document on stdout, which Asymptote's `performance` tool judges against its lock. It asserts no budget.
+mod measure;
+
+fn main() {
+    measure::print(&[]);
+}
+
+mod fixtures;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'performance-main#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'no-main'
+scenario = 'The bench entry has no main.'
+given.files.'cli/benches/performance/main.rs' = '''
+//! The command benches' entry: every command's workload, taken for its rounds and printed as one Bencher Metric Format
+//! document on stdout, which Asymptote's `performance` tool judges against its lock. It asserts no budget.
+mod measure;
+'''
+then.findings = [
+  { rule = 'performance-main#template', path = 'cli/benches/performance/main.rs' },
+]
+
+[[scenarios]]
+id = 'no-measure'
+scenario = 'The bench entry does not declare the measure module.'
+given.files.'cli/benches/performance/main.rs' = '''
+//! The command benches' entry: every command's workload, taken for its rounds and printed as one Bencher Metric Format
+//! document on stdout, which Asymptote's `performance` tool judges against its lock. It asserts no budget.
+
+fn main() {}
+'''
+then.findings = [
+  { rule = 'performance-main#template', path = 'cli/benches/performance/main.rs' },
+]

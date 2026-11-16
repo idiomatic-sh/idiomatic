@@ -1,0 +1,60 @@
+description = "The product README's Usage, run against the built binary."
+why = "A command line's README shows its commands run, and a README that no test runs drifts from the binary. The crate spec's end-to-end target, which ran it, is gone (the crate's behaviour is a feature file per use case); the README is the command line's own, so the cli spec places the one test that runs it."
+content = '''
+//! The product README's Usage, each command run and its output compared.
+
+#[test]
+fn readme() {
+    trycmd::TestCases::new().case("../README.md");
+}
+'''
+
+[given]
+file = 'cli/tests/readme.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'cli/tests/readme.rs' = '''
+//! The product README's Usage, each command run and its output compared.
+
+#[test]
+fn readme() {
+    trycmd::TestCases::new().case("../README.md");
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'cli/tests/readme.rs' = '''
+//! The product README's Usage, each command run and its output compared.
+
+#[test]
+fn readme() {
+    trycmd::TestCases::new().case("../README.md");
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'readme-test#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'no-test'
+scenario = 'The readme test is not a test.'
+given.files.'cli/tests/readme.rs' = '''
+//! The product README's Usage.
+
+fn readme() {
+    trycmd::TestCases::new().case("../README.md");
+}
+'''
+then.findings = [
+  { rule = 'readme-test#template', path = 'cli/tests/readme.rs' },
+]
