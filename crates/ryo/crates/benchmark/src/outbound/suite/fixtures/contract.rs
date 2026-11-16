@@ -1,5 +1,5 @@
 //! Physical artifact observations shared by suite adapters; audit policy stays in application.
-use super::samples::{escaping_case, given_file, request, store, tool};
+use super::samples::{classify, escaping_case, given_file, request, store, tool};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::{
     interface::SuitePort,
@@ -9,7 +9,7 @@ use crate::outbound::suite::{
     },
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+
 #[derive(Clone, Copy, Debug)]
 pub enum Operation {
     Profile,
@@ -35,7 +35,6 @@ pub enum Operation {
     WriteAndRead,
     CreateAndRead,
     AcceptedMissing,
-    GrowthMissing,
     TotalSize,
     QueryModules,
     MaterializeIsolated,
@@ -184,15 +183,9 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(3_002_010),
     },
     Case {
-        name: CaseName("missing accepted differences are refused"),
+        name: CaseName("missing accepted differences, and a missing growth table, are refused"),
         word: Word::Refuses,
         input: || Operation::AcceptedMissing,
-        expect: Expect::Error(Failure::MissingArtifact),
-    },
-    Case {
-        name: CaseName("a missing growth table is refused"),
-        word: Word::Refuses,
-        input: || Operation::GrowthMissing,
         expect: Expect::Error(Failure::MissingArtifact),
     },
     Case {
@@ -233,14 +226,6 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
         let missing = temporary.path().join("missing");
         let destination = temporary.path().join("destination");
         let rules = temporary.path().join("rules");
-        let classify = |error: Error| match error {
-            Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                Failure::MissingArtifact
-            }
-            Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
-                Failure::Unexpected
-            }
-        };
         let refused = |_error: &dyn std::fmt::Debug| Failure::Refused;
         match operation {
             Operation::Profile => adapter
@@ -374,10 +359,7 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
             Operation::AcceptedMissing => adapter
                 .accepted_differences(ArtifactPath(&missing))
                 .map(|accepted| accepted.rules.len())
-                .map_err(classify),
-            Operation::GrowthMissing => adapter
-                .growth_table(ArtifactPath(&missing))
-                .map(|table| table.rules.len())
+                .or_else(|_refused| adapter.growth_table(ArtifactPath(&missing)).map(|_| 0))
                 .map_err(classify),
             Operation::TotalSize => {
                 let store = store(temporary.path()).map_err(|_| Failure::Unexpected)?;

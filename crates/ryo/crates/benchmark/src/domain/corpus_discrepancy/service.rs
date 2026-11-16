@@ -294,7 +294,7 @@ pub(crate) fn skip_problems(
     problems
 }
 
-/// Judge one measured pair rule by rule: `located` holds the selected rules' comparisons first, `selected` of them, then
+/// Judge one measured pair rule by rule: `located` holds the selected rules' comparisons first, one for each of `selected`, then
 /// the rules outside the selection. Every unaccepted or stale difference of a selected rule, every finding outside the
 /// selection the rejected-syntax rule does not explain, and every unexplained skip is a problem.
 #[must_use]
@@ -302,7 +302,7 @@ pub(crate) fn judge(
     located: &[ryo_benchmark_contracts::domain::reports::types::RuleComparison<
         ryo_benchmark_contracts::domain::reports::types::LocatedFinding,
     >],
-    selected: usize,
+    selected: &[ryo::linter::RuleId],
     accepted: &AdmittedDifferences,
     reports: [&ryo_benchmark_contracts::domain::reports::types::RunReport; 2],
     syntax: &ryo::linter::RuleId,
@@ -310,7 +310,7 @@ pub(crate) fn judge(
     use ryo_benchmark_contracts::domain::reports::types::{
         DifferenceSide, FindingCount, LocatedDifference, LocatedFinding,
     };
-    let (rules, outside) = located.split_at(selected.min(located.len()));
+    let (rules, outside) = located.split_at(selected.len().min(located.len()));
     let differences = |side: DifferenceSide, findings: &[LocatedFinding]| {
         findings
             .iter()

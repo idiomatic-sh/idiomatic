@@ -1,5 +1,9 @@
 # benchmark
 
+## 0.2.7
+
+Places `growth.toml`, the language's growth table the shared harness reads (PM ruling on ryo-b1gq.66: growth shapes are data), and `benchmark-linter` 0.2.6. Nothing else changes.
+
 ## 0.2.6
 
 Places `benchmark-linter` 0.2.5, the Ruff harness move with a reason that names DEFERRED publication. Nothing else changes.

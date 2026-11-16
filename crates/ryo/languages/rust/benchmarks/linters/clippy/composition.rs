@@ -21,6 +21,7 @@ pub(crate) mod constants;
 mod locations;
 mod measure;
 pub(crate) mod profile;
+mod worker;
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
 pub(crate) fn run(
     arguments: Vec<BenchmarkArgument>,

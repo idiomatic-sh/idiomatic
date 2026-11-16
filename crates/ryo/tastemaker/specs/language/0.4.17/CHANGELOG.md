@@ -1,5 +1,9 @@
 # language 0.4.16
 
+## 0.4.17
+
+Places `benchmark` 0.2.7. Nothing else changes.
+
 Places `concept` 0.1.3, which places `value-module` 0.2.0. Everything else is as in 0.4.15.
 
 # language 0.4.15

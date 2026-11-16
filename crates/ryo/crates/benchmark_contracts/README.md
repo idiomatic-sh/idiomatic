@@ -20,6 +20,10 @@ The candidate's cost over each project of a language bench: each condition's CPU
 
 The registered case and native observation documents are plain values that both the suite and the inventory ports read and write.
 
+### growth
+
+A language's growth table as its `growth.toml` writes it: the rules and their profiles, the whole sizes, and the frames and operations the shared harness expands into programs.
+
 ### hosts
 
 The kernel, container and file-permission facts a host port reports, as plain values.

@@ -106,7 +106,7 @@ pub(in super::super) fn growth(text: &str) -> Result<GrowthTable, Error> {
             || operation.segments.iter().any(|segment| segment.lines.is_empty())
         {
             return Err(Error::Invalid(format!(
-                "{}: {}",
+                "growth operation `{}`: {}",
                 operation.name,
                 super::super::constants::GROWTH_OPERATION
             )));

@@ -92,7 +92,7 @@ pub(crate) fn finding_counts(report: &RunReport) -> FindingCounts<'_> {
 /// A write the observations stream refuses.
 pub(crate) fn observe(
     output: &mut dyn std::io::Write,
-    name: &str,
+    name: &ryo_benchmark_contracts::domain::measurements::types::SampleName,
     measurement: &Measurement,
     order: RunOrder,
 ) -> Result<(), Error> {
@@ -103,14 +103,16 @@ pub(crate) fn observe(
     match measurement.resources {
         ResourceObservation::Collected(resources) => writeln!(
             output,
-            "sample: name={name} order={order} wall_seconds={} cpu_seconds={} rss_bytes={}",
+            "sample: name={} order={order} wall_seconds={} cpu_seconds={} rss_bytes={}",
+            name.0,
             measurement.wall.as_secs_f64(),
             resources.cpu.as_secs_f64(),
             resources.peak_rss_bytes.0
         )?,
         ResourceObservation::WallOnly => writeln!(
             output,
-            "sample: name={name} order={order} wall_seconds={} resources=absent",
+            "sample: name={} order={order} wall_seconds={} resources=absent",
+            name.0,
             measurement.wall.as_secs_f64()
         )?,
     }

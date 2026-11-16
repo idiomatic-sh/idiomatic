@@ -178,7 +178,7 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
         );
     let context: Arc<dyn ryo_benchmark::outbound::context::interface::ContextPort + Send + Sync> =
         Arc::new(ryo_benchmark::outbound::context::factory::local());
-    let worker = InProcessRyo { engine, context };
+    let worker = super::worker::InProcessRyo { engine, context };
     let execution = ryo_benchmark::outbound::execution::factory::in_process(&worker);
     // The times of a verification go to its times file when the run names one, and nowhere when it does not.
     let evidence: Box<dyn ryo_benchmark::outbound::evidence::interface::EvidencePort> =
@@ -368,57 +368,4 @@ pub(super) fn frontend_diagnostic()
             .map_err(|error| Error::Invalid(error.to_string()))?,
         },
     )
-}
-
-/// The candidate's worker in this process: each stored request runs through the bench's one engine, which compiles each
-/// rule once and keeps its plans for every case.
-struct InProcessRyo {
-    /// The engine every request runs on.
-    engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync>,
-    /// Sealed project context validation and receipts.
-    context: Arc<dyn ryo_benchmark::outbound::context::interface::ContextPort + Send + Sync>,
-}
-impl std::fmt::Debug for InProcessRyo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(std::any::type_name::<Self>())
-            .finish_non_exhaustive()
-    }
-}
-impl ryo_benchmark::outbound::execution::types::InProcessWorker for InProcessRyo {
-    fn run(
-        &self,
-        request: &ryo_benchmark::outbound::execution::types::StoredRequest,
-        response: Box<dyn std::io::Write + Send>,
-    ) -> Result<(), Error> {
-        RunRyoUseCaseImpl::new(
-            Arc::<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync>::clone(
-                &self.engine,
-            ),
-            Arc::new(ryo_benchmark::outbound::worker::factory::json(
-                WorkerSource::Stored(request.0.clone()),
-                response,
-            )),
-            Arc::<dyn ryo_benchmark::outbound::context::interface::ContextPort + Send + Sync>::clone(
-                &self.context,
-            ),
-        )
-        .run_ryo()
-    }
-    fn compile(
-        &self,
-        request: &ryo_benchmark::outbound::execution::types::StoredRequest,
-    ) -> Result<ryo_benchmark::outbound::execution::types::RuleCompileTimes, Error> {
-        let read = ryo_benchmark::outbound::worker::factory::json(
-            WorkerSource::Stored(request.0.clone()),
-            Box::new(std::io::sink()),
-        )
-        .receive()?;
-        Ok(ryo_benchmark::outbound::execution::types::RuleCompileTimes(
-            ryo_benchmark::outbound::engine::interface::EnginePort::compile(
-                self.engine.as_ref(),
-                &read,
-            )
-            .unwrap_or_default(),
-        ))
-    }
 }

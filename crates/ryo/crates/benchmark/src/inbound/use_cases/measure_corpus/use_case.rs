@@ -79,12 +79,14 @@ impl MeasureCorpusUseCase for MeasureCorpusUseCaseImpl {
     ) -> Result<(), Error> {
         super::service::measure_corpus(
             &CorpusBoundaries {
-                reference: self.reference.as_ref(),
-                candidate: self.candidate.as_ref(),
+                contestants: crate::application::certified_measurement::types::Contestants {
+                    reference: self.reference.as_ref(),
+                    candidate: self.candidate.as_ref(),
+                    execution: self.execution.as_ref(),
+                    context: self.context.as_ref(),
+                    suite: self.suite.as_ref(),
+                },
                 discovery: self.discovery.as_ref(),
-                execution: self.execution.as_ref(),
-                suite: self.suite.as_ref(),
-                context: self.context.as_ref(),
                 evidence: self.evidence.as_ref(),
                 workspace: self.workspace.as_ref(),
                 host: self.host.as_ref(),

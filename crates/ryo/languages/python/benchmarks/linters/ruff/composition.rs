@@ -23,6 +23,7 @@ pub(crate) mod profile;
 mod reference_cases;
 mod request_input;
 mod targets;
+mod worker;
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
 pub(crate) fn run(
     arguments: Vec<BenchmarkArgument>,

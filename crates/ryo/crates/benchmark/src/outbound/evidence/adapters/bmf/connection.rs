@@ -1,5 +1,5 @@
 //! An injected destination stream owned by the evidence adapter.
-use super::types::MeasureDocument;
+use super::types::{EncodedDocument, MeasureDocument};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{io::Write, sync::Mutex};
 
@@ -33,7 +33,8 @@ impl EvidenceBmfConnection {
     ///
     /// # Errors
     /// Refuses a destination that cannot be opened or written.
-    pub(crate) fn write_document(&self, bytes: &[u8]) -> Result<(), Error> {
+    pub(crate) fn write_document(&self, document: &EncodedDocument) -> Result<(), Error> {
+        let bytes = document.0.as_slice();
         let mut file = match &self.output {
             DocumentDestination::Stream(stream) => {
                 let mut output = stream

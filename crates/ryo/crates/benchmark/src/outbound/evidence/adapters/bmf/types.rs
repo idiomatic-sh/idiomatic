@@ -29,3 +29,7 @@ pub(crate) struct Observed {
 pub(crate) struct MeasureDocument(
     pub std::collections::BTreeMap<BenchmarkName, std::collections::BTreeMap<MeasureName, Observed>>,
 );
+
+/// The one document of a run, encoded and ready to write.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct EncodedDocument(pub Vec<u8>);

@@ -114,7 +114,7 @@ pub fn pair(
 /// (`corpus_discrepancy::judge`) decides whether they agree, against the corpus's accepted differences, and names each
 /// difference by rule, file and line.
 #[must_use]
-pub fn unjudged(reference: Measurement, candidate: Measurement) -> Pair {
+fn unjudged(reference: Measurement, candidate: Measurement) -> Pair {
     Pair {
         eligibility: MeasurementEligibility::Diagnostic,
         reference,
@@ -154,7 +154,7 @@ pub fn conclude(
 ///
 /// # Errors
 /// Refuses a certificate whose audit leaves a default rule missing.
-pub fn require_covered(certificate: &Certificate) -> Result<(), Error> {
+fn require_covered(certificate: &Certificate) -> Result<(), Error> {
     crate::domain::suite::service::require_complete(&certificate.coverage)
 }
 
@@ -219,7 +219,7 @@ pub(crate) fn judged(
             .collect::<Result<Vec<_>, _>>()?;
     let problems = crate::domain::corpus_discrepancy::service::judge(
         &located,
-        selected.len(),
+        selected,
         accepted,
         [reference, candidate],
         syntax,
@@ -313,7 +313,7 @@ pub(crate) fn own(request: &RunRequest, contestant: Contestant) -> RunRequest {
     }
 }
 
-/// Both contestants measured under the certificate, in the requested order, each in its own state.
+/// Both contestants measured under the certificate through `measure`, in the requested order, each in its own state.
 ///
 /// # Errors
 /// Refuses a run the certificate does not admit, a contestant run that fails, and a pair it does not conclude.
@@ -322,6 +322,7 @@ pub(crate) fn measured(
     certified: Certification<'_>,
     request: &RunRequest,
     order: RunOrder,
+    measure: &dyn Fn(&dyn LinterPort, &RunRequest) -> Result<Measurement, Error>,
 ) -> Result<Pair, Error> {
     let baseline = admit(
         certified.certificate,
@@ -333,14 +334,7 @@ pub(crate) fn measured(
         request,
     )?;
     require_covered(certified.certificate)?;
-    let run = |linter: &dyn LinterPort, contestant| {
-        crate::application::measurement::service::run(
-            contestants.context,
-            linter,
-            contestants.execution,
-            &own(request, contestant),
-        )
-    };
+    let run = |linter: &dyn LinterPort, contestant| measure(linter, &own(request, contestant));
     let (reference, candidate) = match order {
         RunOrder::ReferenceFirst => (
             run(contestants.reference, Contestant::Reference)?,

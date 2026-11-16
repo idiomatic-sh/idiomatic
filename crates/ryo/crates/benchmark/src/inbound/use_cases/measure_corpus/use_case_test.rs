@@ -44,13 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a project that cannot be prepared is reported after the diagnostic line"),
         word: Word::Fails,
-        input: || {
-            (
-                1,
-                Cohort::Frozen,
-                Host::Honouring,
-            )
-        },
+        input: || (1, Cohort::Frozen, Host::Honouring),
         expect: Expect::Error((
             "corpus comparisons failed: [ProjectName(\"project-0\")]",
             "project-0: corpus comparison failed: invalid pin\n",
@@ -112,13 +106,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a frozen cohort is judged by the certificate's authored rules"),
         word: Word::Refuses,
-        input: || {
-            (
-                1,
-                Cohort::Frozen,
-                Host::Unreliable,
-            )
-        },
+        input: || (1, Cohort::Frozen, Host::Unreliable),
         expect: Expect::Error((
             "the pinned reference does not evaluate file permissions on this host",
             "",

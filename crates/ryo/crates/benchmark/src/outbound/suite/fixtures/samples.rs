@@ -113,3 +113,18 @@ pub fn store(root: &std::path::Path) -> std::io::Result<std::path::PathBuf> {
     std::fs::write(store.join("nested/two.bin"), b"abcdefg")?;
     Ok(store)
 }
+
+/// How the contract classifies a refusal: a missing artifact, or anything else.
+pub(super) fn classify(
+    error: ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+) -> super::contract::Refusal {
+    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+    match error {
+        Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            super::contract::Refusal::MissingArtifact
+        }
+        Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
+            super::contract::Refusal::Unexpected
+        }
+    }
+}

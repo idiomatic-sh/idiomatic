@@ -32,3 +32,5 @@ pub(super) const NO_SOURCE: &str = "no source left to lint after discovery and t
 pub(super) const SCENES_DIRECTORY: &str = "scenes";
 /// Refusal of a pair whose certification does not permit publishing its costs.
 pub(super) const NOT_COMPLETE: &str = "only a complete inventory's costs are published";
+/// Refusal of a growth lint that did not complete.
+pub(super) const GROWTH_INCOMPLETE: &str = "a growth lint did not complete";

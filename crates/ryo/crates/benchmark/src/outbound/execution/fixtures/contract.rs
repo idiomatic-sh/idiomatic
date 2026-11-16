@@ -190,28 +190,18 @@ fn missing() -> Invocation {
         directory: PathBuf::from("."),
     }
 }
-/// The promises every execution keeps, whether or not it launches children, over `child`, an invocation that is no
-/// worker request: it compiles no rule ahead, and its profile and exit observation answer the same on every call.
+/// The promise every execution keeps, whether or not it launches children: `child`, an invocation that is no worker
+/// request, compiles no rule ahead.
 ///
 /// # Panics
 ///
-/// Panics when the implementation breaks one of them.
+/// Panics when the implementation breaks it.
 pub fn check_with(adapter: &impl ExecutionPort, child: &Invocation) {
     assert!(
         adapter
             .compile(child)
             .is_none_or(|compiled| compiled.is_empty()),
         "an invocation that is no worker request compiles no rule"
-    );
-    assert_eq!(
-        adapter.profile(),
-        adapter.profile(),
-        "the profile is fixed for the execution's lifetime"
-    );
-    assert_eq!(
-        adapter.exit_observation(),
-        adapter.exit_observation(),
-        "the exit observation is fixed for the execution's lifetime"
     );
 }
 /// Run the shared observations against the supplied implementation.

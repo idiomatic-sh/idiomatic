@@ -11,7 +11,7 @@ use ryo_benchmark::outbound::execution::factory::{direct, timed};
 use ryo_benchmark::outbound::execution::{
     factory::{bounded, in_process, process},
     interface::ExecutionPort as _,
-    types::{InProcessWorker, RuleCompileTimes, StoredRequest},
+    types::{InProcessWorker, RuleCompileTimes, StoredRequest, WorkerResponse},
 };
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 /// Construct the same explicit child workload for each execution adapter.
@@ -110,9 +110,8 @@ impl InProcessWorker for Answering {
     fn run(
         &self,
         _request: &StoredRequest,
-        mut response: Box<dyn std::io::Write + Send>,
-    ) -> Result<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-        Ok(response.write_all(b"result")?)
+    ) -> Result<WorkerResponse, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+        Ok(WorkerResponse(b"result".to_vec()))
     }
     fn compile(
         &self,

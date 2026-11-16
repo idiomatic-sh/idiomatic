@@ -95,7 +95,8 @@ impl EvidencePort for EvidenceBmfAdapter {
         )?;
         let mut written = bytes;
         written.extend_from_slice(constants::NEWLINE);
-        self.connection.write_document(&written)?;
+        self.connection
+            .write_document(&super::types::EncodedDocument(written))?;
         *held = None;
         Ok(())
     }

@@ -2,7 +2,9 @@
 //! the shared contract's child invocations are the process implementation's, which the composition chooses for them.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::execution::interface::ExecutionPort as _;
-use crate::outbound::execution::types::{InProcessWorker, RuleCompileTimes, StoredRequest};
+use crate::outbound::execution::types::{
+    InProcessWorker, RuleCompileTimes, StoredRequest, WorkerResponse,
+};
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::requests::constants::{REQUEST_FILE, RUN_RYO};
@@ -46,14 +48,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[derive(Debug)]
 struct Worker(Worked);
 impl InProcessWorker for Worker {
-    fn run(
-        &self,
-        _request: &StoredRequest,
-        mut response: Box<dyn std::io::Write + Send>,
-    ) -> Result<(), ReportsError> {
+    fn run(&self, _request: &StoredRequest) -> Result<WorkerResponse, ReportsError> {
         match self.0 {
             Worked::Refused => Err(ReportsError::Invalid("refused".into())),
-            Worked::Completed | Worked::Child => Ok(response.write_all(RESPONSE)?),
+            Worked::Completed | Worked::Child => Ok(WorkerResponse(RESPONSE.to_vec())),
         }
     }
     fn compile(&self, _request: &StoredRequest) -> Result<RuleCompileTimes, ReportsError> {

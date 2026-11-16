@@ -239,19 +239,6 @@ pub struct AcceptanceReason(
     pub String,
 );
 
-/// Two contestants compared rule by rule over one corpus, with the differences no acceptance covers.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParityReport<'a> {
-    /// The pinned reference's name.
-    pub reference: ContestantName<'a>,
-    /// The candidate's name.
-    pub candidate: ContestantName<'a>,
-    /// Each selected rule, in selection order.
-    pub rules: Vec<RuleComparison<LocatedFinding>>,
-    /// Each difference the accepted differences do not cover.
-    pub problems: Vec<ParityProblem>,
-}
-
 /// The side of an unmatched finding in a corpus comparison.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DifferenceSide {

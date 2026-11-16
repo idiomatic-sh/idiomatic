@@ -83,18 +83,10 @@ pub struct CorpusMeasurement<'a> {
 
 /// The boundaries one corpus measurement calls, borrowed from the use case.
 pub(super) struct CorpusBoundaries<'a> {
-    /// The pinned reference linter.
-    pub reference: &'a dyn crate::outbound::linter::interface::LinterPort,
-    /// The candidate linter.
-    pub candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
+    /// The pair measured, and what their runs go through.
+    pub contestants: crate::application::certified_measurement::types::Contestants<'a>,
     /// The reference tool's own selection of a worktree's files.
     pub discovery: &'a dyn crate::outbound::discovery::interface::DiscoveryPort,
-    /// Process launch and observation.
-    pub execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
-    /// Artifact validation and fingerprinting.
-    pub suite: &'a dyn crate::outbound::suite::interface::SuitePort,
-    /// Sealed project context.
-    pub context: &'a dyn crate::outbound::context::interface::ContextPort,
     /// Sample publication and comparison evidence.
     pub evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
     /// Corpus worktrees.
@@ -106,4 +98,3 @@ pub(super) struct CorpusBoundaries<'a> {
     /// This process's CPU time and peak, around each growth lint.
     pub meter: &'a dyn crate::outbound::process_meter::interface::ProcessMeterPort,
 }
-

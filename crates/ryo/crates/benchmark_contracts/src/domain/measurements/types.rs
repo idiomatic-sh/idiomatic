@@ -161,17 +161,6 @@ pub enum InventoryStatus {
     Diagnostic,
 }
 
-/// Borrowed output data projected from an application's checked measurement sample.
-#[derive(Clone, Copy, Debug)]
-pub struct PublicationSample<'a> {
-    /// Explicit complete-inventory status; a diagnostic cannot become a metric.
-    pub inventory: InventoryStatus,
-    /// Stable project, contestant and cache-condition identity.
-    pub name: &'a SampleName,
-    /// Original observation; output adapters must not clone or replace its report.
-    pub measurement: &'a Measurement,
-}
-
 /// One generated shape, `<rule>/<scope>/<operation>`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GrowthShape(pub String);

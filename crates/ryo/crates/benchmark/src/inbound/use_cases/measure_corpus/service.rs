@@ -2,17 +2,15 @@
 //! reference, and the candidate's costs, the verification times and the growth are the bench's one document.
 use super::constants::{
     CANDIDATE_EDITED, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY, COHORT_OUTSIDE_CERTIFICATE,
-    EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, NO_SOURCE, NOT_COMPLETE, PATH_SEPARATOR,
-    REFERENCE_EDITED, REFERENCE_RETAINED, RETAINED_CACHE_CONDITION, RETAINED_DIRECTORY,
-    SCENES_DIRECTORY, TRIAL_PREFIX, TRIALS,
+    EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, GROWTH_INCOMPLETE, NO_SOURCE, NOT_COMPLETE,
+    PATH_SEPARATOR, REFERENCE_EDITED, REFERENCE_RETAINED, RETAINED_CACHE_CONDITION,
+    RETAINED_DIRECTORY, SCENES_DIRECTORY, TRIAL_PREFIX, TRIALS,
 };
 use super::types::{ComparisonName, CorpusBoundaries, CorpusMeasurement};
 use crate::application::certified_measurement::service::{
     accepted_file, admitted, judged, measured, own,
 };
-use crate::application::certified_measurement::types::{
-    Certification, Contestants, JudgedRules, Strictness,
-};
+use crate::application::certified_measurement::types::{Certification, JudgedRules, Strictness};
 use crate::application::measurement::service::{
     cost as measurement_cost, finding_counts, observe, run as execute,
 };
@@ -26,7 +24,9 @@ use ryo_benchmark_contracts::domain::costs::types::{ProjectCost, ProjectCosts, S
 use ryo_benchmark_contracts::domain::measurements::types::{Measurement, RunOrder};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, RunRequest};
+use ryo_benchmark_contracts::domain::requests::types::{
+    CohortSelection, RunRequest, WorkerRequest,
+};
 use ryo_benchmark_contracts::domain::workloads::types::Project;
 use std::path::PathBuf;
 
@@ -36,6 +36,7 @@ pub(super) fn measure_corpus(
     corpus: &CorpusMeasurement<'_>,
     observations: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
+    let contestants = boundaries.contestants;
     let covered = corpus.certificate.coverage.authored();
     if let CohortSelection::Explicit(rules) = corpus.cohort
         && !rules.iter().all(|rule| covered.contains(rule))
@@ -47,7 +48,7 @@ pub(super) fn measure_corpus(
         CohortSelection::Frozen => covered.iter().cloned().collect(),
     };
     crate::application::input_metadata::service::admit_rules(
-        boundaries.suite,
+        contestants.suite,
         boundaries.host,
         corpus.bench,
         &selected,
@@ -84,19 +85,39 @@ pub(super) fn measure_corpus(
         evidence.verification(corpus.language.id, &timings)?;
     }
     if let crate::domain::growth::types::CorpusGrowth::Grown(source) = corpus.growth {
-        let scenes = boundaries
+        let scenes = contestants
             .suite
             .ensure_directory(ArtifactPath(&corpus.cache.join(SCENES_DIRECTORY)))?;
-        let grown = crate::application::growth::service::grow_source(
-            boundaries.engine,
-            boundaries.suite,
+        let plan = crate::application::growth::service::plan(contestants.suite, source)?;
+        let lint = |request: &WorkerRequest| lint(boundaries.engine, request);
+        let grown = crate::application::growth::service::grow(
+            &lint,
+            contestants.suite,
             boundaries.meter,
             ArtifactPath(&scenes),
-            source,
+            &plan,
         )?;
         evidence.growth(corpus.language.id, &grown)?;
     }
     evidence.finish()
+}
+
+/// One growth lint, as the worker runs a request: prepare, load, configure and execute; refused unless it completes.
+fn lint(
+    engine: &dyn crate::outbound::engine::interface::EnginePort,
+    request: &WorkerRequest,
+) -> Result<(), Error> {
+    let prepared = crate::application::worker_request::service::prepare(request.clone())?;
+    let session = engine.load(&prepared.request)?;
+    let configured =
+        crate::application::worker_request::service::configure(&prepared.request, session)?;
+    if configured.execute()?.report.execution_metadata
+        == ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete
+    {
+        Ok(())
+    } else {
+        Err(Error::Invalid(GROWTH_INCOMPLETE.into()))
+    }
 }
 
 /// Measure one project in both orders, cold, retained and edited; judge every pair against the reference; and give the
@@ -109,13 +130,7 @@ fn measure_project(
     observations: &mut dyn std::io::Write,
 ) -> Result<ProjectCost, Error> {
     let language = &corpus.language;
-    let contestants = Contestants {
-        reference: boundaries.reference,
-        candidate: boundaries.candidate,
-        execution: boundaries.execution,
-        context: boundaries.context,
-        suite: boundaries.suite,
-    };
+    let contestants = boundaries.contestants;
     let certified = Certification {
         certificate: corpus.certificate,
         mode: corpus.mode,
@@ -129,6 +144,10 @@ fn measure_project(
         rule_context: corpus.rule_context,
         search_roots: corpus.search_roots,
         context_mode: corpus.context_mode,
+    };
+    let measure = |linter: &dyn crate::outbound::linter::interface::LinterPort,
+                   request: &RunRequest| {
+        execute(contestants.context, linter, contestants.execution, request)
     };
     let mut workspace = boundaries.workspace.prepare(project)?;
     let discovered = boundaries.discovery.files(workspace.root())?;
@@ -164,19 +183,14 @@ fn measure_project(
         )));
     }
     let preflight = request(
-        boundaries.context,
+        contestants.context,
         &project_corpus,
         workspace.root(),
         &files,
         &tracked_paths,
         corpus.cache.join(PREFLIGHT_DIRECTORY).join(&project.name.0),
     )?;
-    let parsed = execute(
-        boundaries.context,
-        boundaries.reference,
-        boundaries.execution,
-        &preflight,
-    )?;
+    let parsed = measure(contestants.reference, &preflight)?;
     let refused = crate::domain::source_validity::service::exclude_refused(
         &parsed.report,
         language.invalid_syntax,
@@ -202,16 +216,16 @@ fn measure_project(
         .iter()
         .map(|file| workspace.root().join(file.0.as_ref()))
         .collect();
-    let bytes = boundaries.suite.total_size(ArtifactSet(&paths))?.0;
+    let bytes = contestants.suite.total_size(ArtifactSet(&paths))?.0;
     writeln!(
         observations,
         "{}: measured source files={} bytes={bytes} digest={} input-profile={}",
         project.name,
         files.len(),
-        boundaries.suite.fingerprint(ArtifactSet(&paths))?,
+        contestants.suite.fingerprint(ArtifactSet(&paths))?,
         language.valid_profile.0
     )?;
-    let accepted_file = accepted_file(boundaries.suite, corpus.bench, project)?;
+    let accepted_file = accepted_file(contestants.suite, corpus.bench, project)?;
     let mut runs: [Vec<Measurement>; 3] = Default::default();
     let mut store = None;
     for order in [RunOrder::ReferenceFirst, RunOrder::CandidateFirst]
@@ -221,12 +235,12 @@ fn measure_project(
     {
         // A new owned directory makes both retained and clean baselines fresh,
         // even if an earlier trial left caches behind in the caller's root.
-        let trial = boundaries
+        let trial = contestants
             .suite
             .retained_directory(ArtifactPath(corpus.cache), ArtifactText(TRIAL_PREFIX))?
             .0;
         let initial = request(
-            boundaries.context,
+            contestants.context,
             &project_corpus,
             workspace.root(),
             &files,
@@ -234,15 +248,15 @@ fn measure_project(
             trial.join(RETAINED_DIRECTORY),
         )?;
         let accepted = admitted(
-            boundaries.suite,
+            contestants.suite,
             accepted_file.as_deref(),
             &initial,
             Strictness::Pinned,
         )?;
-        let cold = measured(contestants, certified, &initial, order)?;
+        let cold = measured(contestants, certified, &initial, order, &measure)?;
         if store.is_none() {
             store = Some(
-                boundaries
+                contestants
                     .suite
                     .directory_size(ArtifactPath(&own(&initial, Contestant::Candidate).state))?,
             );
@@ -254,14 +268,14 @@ fn measure_project(
             finding_counts(&cold.reference().report)
         )?;
         judged(
-            boundaries.suite,
+            contestants.suite,
             &initial,
             rules,
             &accepted,
             &cold,
             observations,
         )?;
-        let retained = measured(contestants, certified, &initial, order)?;
+        let retained = measured(contestants, certified, &initial, order, &measure)?;
         agree(
             ComparisonName(REFERENCE_RETAINED),
             &cold.reference().report,
@@ -273,7 +287,7 @@ fn measure_project(
             &retained.candidate().report,
         )?;
         judged(
-            boundaries.suite,
+            contestants.suite,
             &initial,
             rules,
             &accepted,
@@ -284,7 +298,7 @@ fn measure_project(
             .workspace
             .apply_patch(&mut workspace, &corpus.frozen_workload.join(&project.patch))?;
         let edited_request = request(
-            boundaries.context,
+            contestants.context,
             &project_corpus,
             workspace.root(),
             &files,
@@ -295,21 +309,17 @@ fn measure_project(
             state: trial.join(CLEAN_EDITED_DIRECTORY),
             ..edited_request.clone()
         };
-        let edited = measured(contestants, certified, &edited_request, order);
-        let clean_reference = execute(
-            boundaries.context,
-            boundaries.reference,
-            boundaries.execution,
+        let edited = measured(contestants, certified, &edited_request, order, &measure);
+        let clean_reference = measure(
+            contestants.reference,
             &own(&clean_request, Contestant::Reference),
         );
-        let clean_candidate = execute(
-            boundaries.context,
-            boundaries.candidate,
-            boundaries.execution,
+        let clean_candidate = measure(
+            contestants.candidate,
             &own(&clean_request, Contestant::Candidate),
         );
         let edited_accepted = admitted(
-            boundaries.suite,
+            contestants.suite,
             accepted_file.as_deref(),
             &edited_request,
             Strictness::WhereNamed,
@@ -327,7 +337,7 @@ fn measure_project(
             &clean_candidate?.report,
         )?;
         judged(
-            boundaries.suite,
+            contestants.suite,
             &edited_request,
             rules,
             &edited_accepted?,
@@ -360,7 +370,10 @@ fn measure_project(
                 )?;
                 observe(
                     observations,
-                    &format!("{}/{contestant}/{condition}", project.name),
+                    &ryo_benchmark_contracts::domain::measurements::types::SampleName(format!(
+                        "{}/{contestant}/{condition}",
+                        project.name
+                    )),
                     measurement,
                     order,
                 )?;

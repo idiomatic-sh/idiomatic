@@ -83,3 +83,5 @@ pub(crate) const GROWTH_TABLE: &str = "../../growth.toml";
 pub(crate) const EXPECTED_DOCUMENT: &str = "expected --document=<file>";
 /// Refusal of a measure without the verification's directory.
 pub(crate) const EXPECTED_VERIFICATION: &str = "expected --verification=<inventory directory>";
+/// What a worker request reports when its response cannot be read, the lock holding it poisoned.
+pub(crate) const RESPONSE_POISONED: &str = "response lock poisoned";

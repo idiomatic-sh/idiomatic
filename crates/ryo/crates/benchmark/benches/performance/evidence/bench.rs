@@ -21,7 +21,7 @@ fn timings() -> RuleTimings {
 /// Add the times and write the document.
 fn publish(evidence: &dyn EvidencePort) {
     evidence
-        .verification(&"python".into(), &timings())
+        .verification(&"fixture".into(), &timings())
         .expect("times are added");
     evidence.finish().expect("the document is written");
 }
