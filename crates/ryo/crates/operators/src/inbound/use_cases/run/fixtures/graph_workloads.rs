@@ -188,19 +188,36 @@ pub(super) fn graph_kernel_blocks() -> [u64; 2] {
     let tables = [&edges, &lattice];
     let mut buffers = FileBuffers::default();
     let mut output = Table::default();
-    let cold = graph_kernels_once(tables, &inputs, &mut resources, &mut buffers, &mut output);
-    let warm = graph_kernels_once(tables, &inputs, &mut resources, &mut buffers, &mut output);
+    let (cold, cold_rows) =
+        graph_kernels_once(tables, &inputs, &mut resources, &mut buffers, &mut output);
+    let (warm, warm_rows) =
+        graph_kernels_once(tables, &inputs, &mut resources, &mut buffers, &mut output);
+    // A kernel that answers no rows allocates nothing and proves nothing: each answers rows over the rings, the same warm
+    // as cold.
+    assert!(
+        cold_rows.iter().all(|rows| rows.0 > 0),
+        "every graph kernel (reach, ordered walk, components, worklist) answers rows over the rings: {cold_rows:?}"
+    );
+    assert_eq!(
+        cold_rows, warm_rows,
+        "the warm run answers the cold run's rows"
+    );
     [cold, warm]
 }
 
-/// The blocks one run of the four graph kernels over the edges allocates, the worklist over the lattice.
+/// The blocks one run of the four graph kernels over the edges allocates, the worklist over the lattice, and the rows each
+/// answered.
+///
+/// # Panics
+///
+/// When a kernel faults, or answers a fault of a row.
 fn graph_kernels_once(
     [edges, lattice]: [&Table; 2],
     inputs: &TableInputs,
     resources: &mut TextResources,
     buffers: &mut FileBuffers,
     output: &mut Table,
-) -> u64 {
+) -> (u64, [RowCount; 4]) {
     use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
     use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
     use crate::domain::physical_plan::collections::kernels::probe_right::item::{
@@ -265,6 +282,7 @@ fn graph_kernels_once(
         ..
     } = buffers;
     let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
+    let mut answered = [RowCount(0); 4];
     for kernel in 0..4 {
         output.cells.clear();
         output.count = RowCount(0);
@@ -306,12 +324,15 @@ fn graph_kernels_once(
                 output,
             ),
         };
-        #[expect(
-            clippy::expect_used,
-            reason = "a program that faults proves no allocation row: the panic is the failure"
-        )]
-        let _ran = fault.expect("the graph kernel runs");
+        // A kernel that faults, or answers a row's fault, proves no allocation row: the panic is the failure.
+        assert!(
+            matches!(fault, Ok(None)),
+            "graph kernel {kernel} answered {fault:?}"
+        );
+        if let Some(rows) = answered.get_mut(kernel) {
+            *rows = output.count;
+        }
     }
     let after = dhat::HeapStats::get().total_blocks;
-    after - before
+    (after - before, answered)
 }

@@ -135,7 +135,7 @@ fn text_state_and_its_name() -> Result<Value, Failure> {
         count: RowCount(1),
     };
     let mut output = Table::default();
-    let _fault = worklisted(
+    let fault = worklisted(
         &lower(shape()),
         WorklistInputs {
             roots: InputRows::Table(&roots),
@@ -147,6 +147,10 @@ fn text_state_and_its_name() -> Result<Value, Failure> {
         &mut Default::default(),
         &mut output,
     )?;
+    // A row's fault is the kernel's answer too: the case fails on one, as on a fault of the node.
+    if let Some(fault) = fault {
+        return Err(fault);
+    }
     Ok(Answered::Rows(output.count.0))
 }
 
