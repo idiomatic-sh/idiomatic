@@ -1,6 +1,7 @@
 //! A rule's steps after the files settled in plan order: the rows each antijoin or difference answered from the absence of
 //! rows that a partial operand or a file its rule skipped could change are dropped where the step stands.
 
+use crate::application::file_dag::file_pass::service::nodes::service::ran_rows;
 use crate::application::file_dag::project_pass::service::step::service::StepRun;
 use crate::application::file_dag::project_pass::types::SettledStep;
 use ryo_execution_domain::domain::completion::types::CoverageState;
@@ -11,7 +12,6 @@ use ryo_execution_domain::domain::operator::contract::service::semantics;
 use ryo_execution_domain::domain::output_coverage::types::{InputCoverage, OperandOrdinal};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PredicateOutcome;
-use ryo_operators::domain::physical_plan::types::NodeRows;
 use ryo_values::domain::plan_parts::types::{StepId, StepScope};
 use ryo_values::domain::plans::service::kind_of;
 
@@ -66,10 +66,9 @@ impl StepRun<'_, '_, '_> {
                 .map_err(Clone::clone)?;
             let each = plan.steps.get(at).ok_or(OperatingError::NotRun)?;
             self.ran(symbols, node)?;
-            let NodeRows::Materialized(table) = self.buffers.rows(node) else {
-                return Err(OperatingError::NotRun);
-            };
-            let mut kept = table.clone();
+            let ran = ran_rows(&pass.program, self.buffers, node)?;
+            let ran_count = ran.count;
+            let mut kept = ran.clone();
             let inputs: Vec<InputCoverage<'_>> = settled
                 .operands
                 .iter()
@@ -88,7 +87,7 @@ impl StepRun<'_, '_, '_> {
                 &skipped,
                 &mut kept,
             );
-            if kept.count == table.count {
+            if kept.count == ran_count {
                 continue;
             }
             // The kept rows are the step's rows less the uncertain ones, in their order: each row is kept when it is the next.

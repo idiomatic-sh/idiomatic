@@ -33,8 +33,6 @@ pub struct ExecutableProgram {
     pub(crate) consumers: Vec<Consumers>,
     /// The nodes that start from the tree nodes of a kind, by the text the plans write for the kind.
     pub(crate) roots: hashbrown::HashMap<LiteralText, Vec<PlanNodeId>>,
-    /// Each node's output columns, or the schema fault of it or of a node it reads, by node.
-    pub(crate) schemas: Vec<Result<Vec<CellKind>, OperatingError>>,
     /// The columns each node's rows answer with as a root, by node: its schema, or the empty layout of a refusal deferred to
     /// its rows.
     pub(crate) layouts: Vec<Result<Vec<CellKind>, OperatingError>>,

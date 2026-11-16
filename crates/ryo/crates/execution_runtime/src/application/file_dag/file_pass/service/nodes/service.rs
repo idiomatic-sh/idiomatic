@@ -15,6 +15,7 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::{
     consumers, layout, physical, rule as fused_rule,
 };
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
@@ -92,22 +93,33 @@ pub(crate) fn node_rows(
         });
     }
     ran_node(at, symbols, node)?;
-    // A node whose refusal comes of reading a node that defers its own is answered here, once its inputs ran without one.
-    if let Err(refusal) = layout(&at.pass.program, node) {
+    let table = ran_rows(&at.pass.program, &at.buffers, node)?.clone();
+    // What no read of the step lacks, no operator on the way can lack.
+    let coverage = match completion.coverage(&reads.uses) {
+        CoverageState::Complete => CoverageState::Complete,
+        CoverageState::Partial { .. } | CoverageState::Inapplicable { .. } => {
+            step_coverage(pass, &completion, rule, step)?
+        }
+    };
+    Ok(NodeAnswer { table, coverage })
+}
+
+/// The rows `node` answered once it ran, in a file or after the files: its refusal instead when it reads a node whose
+/// refusal is deferred to its rows and none of its inputs refused first.
+///
+/// # Errors
+///
+/// The node's refusal (`layout`), or `NotRun` for a node that holds no rows.
+pub(crate) fn ran_rows<'b>(
+    program: &ExecutableProgram,
+    buffers: &'b FileBuffers,
+    node: PlanNodeId,
+) -> Result<&'b Table, OperatingError> {
+    if let Err(refusal) = layout(program, node) {
         return Err(refusal);
     }
-    match at.buffers.rows(node) {
-        NodeRows::Materialized(table) => {
-            let table = table.clone();
-            // What no read of the step lacks, no operator on the way can lack.
-            let coverage = match completion.coverage(&reads.uses) {
-                CoverageState::Complete => CoverageState::Complete,
-                CoverageState::Partial { .. } | CoverageState::Inapplicable { .. } => {
-                    step_coverage(pass, &completion, rule, step)?
-                }
-            };
-            Ok(NodeAnswer { table, coverage })
-        }
+    match buffers.rows(node) {
+        NodeRows::Materialized(table) => Ok(table),
         NodeRows::Absent => Err(OperatingError::NotRun),
     }
 }

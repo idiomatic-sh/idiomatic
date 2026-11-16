@@ -17,6 +17,7 @@ mod pass;
 mod population_reads;
 mod restoration;
 mod rewrites;
+mod row_by_row;
 mod settle;
 mod skipped_frontier;
 pub(crate) mod source_facts;
