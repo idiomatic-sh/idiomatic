@@ -14,8 +14,8 @@ pub(crate) mod lowering;
 pub mod physical_plan;
 pub mod rule_ordinal;
 pub(crate) mod stream_scratch;
-pub(crate) mod walk_scratch;
 pub(crate) mod table_pool;
+pub(crate) mod walk_scratch;
 
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::table_texts::types::Texts;

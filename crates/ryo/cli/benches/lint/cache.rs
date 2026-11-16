@@ -19,8 +19,12 @@ pub(crate) fn of_ruff(rounds: usize, phases: &[&str]) -> Vec<Cost> {
         "cache, all rules that run, ruff copied, store kept in the copy, {rounds} rounds: {:>14} {:>9} {:>10} {:>8} {:>8}",
         "wall ms", "CPU ms", "files read", "rows", "peak MB"
     );
-    let (mut peaks, mut warm_peaks, mut warms, mut edits): (Vec<u128>, Vec<u128>, Vec<u128>, Vec<u128>) =
-        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    let (mut peaks, mut warm_peaks, mut warms, mut edits): (
+        Vec<u128>,
+        Vec<u128>,
+        Vec<u128>,
+        Vec<u128>,
+    ) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for round in 1..=rounds {
         let copy = ruff::ruff_copy();
         let directory = copy.path().to_string_lossy().into_owned();

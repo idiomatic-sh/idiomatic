@@ -33,9 +33,9 @@ fn rows_with_no_place_leave_in_one_order() {
     }
 }
 
-use crate::unbounded;
 use crate::cache::{function, sorted, write};
 use crate::counting;
+use crate::unbounded;
 use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;

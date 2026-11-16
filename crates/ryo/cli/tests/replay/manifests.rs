@@ -137,7 +137,8 @@ fn a_manifest_that_does_not_parse_is_a_finding_and_the_others_are_read_cold_and_
         !cold.rows.is_empty(),
         "the manifests that parse are still read"
     );
-    let warm = crate::unbounded::lint_counting(root.path(), vec![rule], kept()).expect("a warm run");
+    let warm =
+        crate::unbounded::lint_counting(root.path(), vec![rule], kept()).expect("a warm run");
     assert_eq!(warm.unread, cold.unread, "a warm run reports the same");
     assert_eq!(warm.rows, cold.rows);
 }

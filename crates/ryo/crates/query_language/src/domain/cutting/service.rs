@@ -211,6 +211,7 @@ fn repeats_read(operation: &Operation) -> RepeatedRows {
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }

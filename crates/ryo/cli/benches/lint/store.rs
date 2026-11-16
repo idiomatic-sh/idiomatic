@@ -29,24 +29,22 @@ pub(crate) fn of_each_target() -> Vec<Cost> {
         let copy = crate::ruff::copy_of(&root);
         let at = copy.path().join(inside);
         let kept = || crate::base::store_at(&at);
-        let cold =
-            crate::counting::lint_with_workers(
-                &at,
-                rules.clone(),
-                kept(),
-                crate::rounds::MEMORY_WORKERS,
-            )
-            .expect("the rules run");
+        let cold = crate::counting::lint_with_workers(
+            &at,
+            rules.clone(),
+            kept(),
+            crate::rounds::MEMORY_WORKERS,
+        )
+        .expect("the rules run");
         assert!(cold.reads > 0, "the cold run reads the target's files");
         let (cold_files, cold_bytes) = store_of(&at);
-        let warm =
-            crate::counting::lint_with_workers(
-                &at,
-                rules.clone(),
-                kept(),
-                crate::rounds::MEMORY_WORKERS,
-            )
-            .expect("the rules run");
+        let warm = crate::counting::lint_with_workers(
+            &at,
+            rules.clone(),
+            kept(),
+            crate::rounds::MEMORY_WORKERS,
+        )
+        .expect("the rules run");
         assert_eq!(
             warm.reads, 0,
             "the warm run reads no file, the store answers it"

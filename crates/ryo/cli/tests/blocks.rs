@@ -72,7 +72,10 @@ fn big_blocks() {
         "a Rust file of ruff was left unread"
     );
     // A profile that saw no allocation counted nothing: the allocator is the profiler's.
-    assert!(profile.gmax_bytes > 0, "the profile saw the run's allocations");
+    assert!(
+        profile.gmax_bytes > 0,
+        "the profile saw the run's allocations"
+    );
     let big = profile.big_blocks;
     // The workers the engine runs on: as many as the machine has, since the run asks for none.
     let workers = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);

@@ -67,13 +67,13 @@ mod cold;
 mod counting;
 #[path = "../tests/fixtures/replay/frontier.rs"]
 mod frontier;
+#[path = "lint/frontier.rs"]
+mod frontier_rows;
 #[path = "../tests/fixtures/replay/phases.rs"]
 mod phases;
 #[cfg(feature = "dhat-heap")]
 #[path = "../tests/fixtures/replay/profile.rs"]
 mod profile;
-#[path = "lint/frontier.rs"]
-mod frontier_rows;
 #[path = "lint/rounds.rs"]
 mod rounds;
 #[path = "lint/rows.rs"]
@@ -115,16 +115,17 @@ fn main() {
         child::smoke();
         return;
     }
-    let rounds = arguments
-        .iter()
-        .position(|each| each == "--rounds")
-        .map_or(rounds::ROUNDS, |at| {
-            arguments
-                .get(at + 1)
-                .expect("--rounds requires a positive integer")
-                .parse::<usize>()
-                .expect("--rounds requires a positive integer")
-        });
+    let rounds =
+        arguments
+            .iter()
+            .position(|each| each == "--rounds")
+            .map_or(rounds::ROUNDS, |at| {
+                arguments
+                    .get(at + 1)
+                    .expect("--rounds requires a positive integer")
+                    .parse::<usize>()
+                    .expect("--rounds requires a positive integer")
+            });
     assert!(rounds > 0, "--rounds requires a positive integer");
     if arguments.iter().any(|each| each == "--diagnostic-rules") {
         rows::sets();
@@ -175,11 +176,7 @@ fn main() {
     let timing = arguments.iter().any(|each| each == "--timing");
     metrics.retain(|cost| {
         let held = MEMORY.contains(&cost.metric) || cost.metric.ends_with("-words");
-        if memory {
-            held
-        } else {
-            !(timing && held)
-        }
+        if memory { held } else { !(timing && held) }
     });
     bmf::print(&metrics);
 }
@@ -220,5 +217,7 @@ fn dhat_run() {
 /// Without `dhat` as the allocator there is no profile to take.
 #[cfg(not(feature = "dhat-heap"))]
 fn dhat_run() {
-    panic!("`--dhat` needs the `dhat-heap` feature: `cargo bench --features dhat-heap --bench lint -- --dhat`");
+    panic!(
+        "`--dhat` needs the `dhat-heap` feature: `cargo bench --features dhat-heap --bench lint -- --dhat`"
+    );
 }

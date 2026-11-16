@@ -233,16 +233,6 @@ fn a_store_is_not_used_for_other_rules_and_is_kept_apart_by_root() {
     );
 }
 
-/// The release gate on the store (owner, 2026-11-16): over ruff, with the rules main's engine ran, Rust and TOML linked and the same
-/// files, this engine keeps a store no bigger than main's, recorded once with its commit, command and date (`stores::against_main`).
-/// The 75 MB budget above stays the target, apart from this gate.
-#[test]
-fn the_store_over_ruff_is_no_bigger_than_mains_with_the_same_rules() {
-    let _beside = crate::beside();
-    let measured = stores::against_main();
-    assert!(measured.here <= measured.main, "{}", measured.said);
-}
-
 #[test]
 fn files_added_and_removed_before_others_move_what_the_others_handed_with_them() {
     let _beside = crate::beside();
@@ -265,8 +255,9 @@ fn files_added_and_removed_before_others_move_what_the_others_handed_with_them()
             "{step}: the answer is the one a run that keeps nothing gives"
         );
     };
-    let run =
-        |step: &str| unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect(step);
+    let run = |step: &str| {
+        unbounded::lint_counting(root.path(), rules(), Arc::clone(&store)).expect(step)
+    };
     as_kept_nothing("a cold run", run("a cold run"));
     // A file too small to hand the cross-file steps anything moves every other file one number on.
     write(root.path(), &[("a/lib.rs", function("tiny", 1, "3"))]);

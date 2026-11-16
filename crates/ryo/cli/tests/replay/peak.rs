@@ -30,8 +30,9 @@ fn a_warm_unchanged_run_over_ruff_reads_nothing_in_a_process_of_its_own() {
         assert_eq!(warm.reads, 0, "a warm run reads no file");
     } else {
         let copy = ruff::ruff_copy();
-        let _cold = unbounded::lint_counting(copy.path(), rules, crate::base::store_at(copy.path()))
-            .expect("the rules run");
+        let _cold =
+            unbounded::lint_counting(copy.path(), rules, crate::base::store_at(copy.path()))
+                .expect("the rules run");
         let child = std::process::Command::new(std::env::current_exe().expect("this test program"))
             .args([
                 "--exact",

@@ -2,8 +2,8 @@
 //! that cross files; an edit of what a file declares or imports makes the cross-file steps again, and the answer is the one a run
 //! that keeps nothing gives.
 
-use crate::unbounded;
 use crate::cache::{sorted, write};
+use crate::unbounded;
 use crate::{counting, stores};
 use std::path::Path;
 use std::sync::Arc;
