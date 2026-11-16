@@ -343,7 +343,7 @@ group = "bench-verify"
 # as BMF to the file named by --verify-times, and the tool prints the file. The lock holds each measure's best, and a run fails
 # when one rises over it by more than 10%, the noise of a timing on a shared machine. The
 # target is 10 ms for every case (`max-case-ms`) and falls from there; it is a target, never a gate.
-run = ["bash", "-c", "set -eo pipefail; mkdir -p target/benchmarks/verify; out=target/benchmarks/verify/{lang}-{linter}.bmf; rm -f \"$out\"; reference=$(command -v {linter} || echo \"$(rustc --print sysroot)/bin/{linter}-driver\"); cargo bench --locked -p idiomatic-sh-ryo-{lang}-{linter}-benchmark --bench {linter} -- verify-cases \"$reference\" --verify-times=\"$out\" >&2; cat \"$out\""]
+run = ["bash", "-c", "set -eo pipefail; mkdir -p target/benchmarks/verify; out=\"$PWD/target/benchmarks/verify/{lang}-{linter}.bmf\"; rm -f \"$out\"; reference=$(command -v {linter} || echo \"$(rustc --print sysroot)/bin/{linter}-driver\"); cargo bench --locked -p idiomatic-sh-ryo-{lang}-{linter}-benchmark --bench {linter} -- verify-cases \"$reference\" . --verify-times=\"$out\" >&2; cat \"$out\""]
 output = "bmf"
 tolerance-percent = { total-ms = 10, max-case-ms = 10, compile-ms = 10 }
 timeout-seconds = 14400
