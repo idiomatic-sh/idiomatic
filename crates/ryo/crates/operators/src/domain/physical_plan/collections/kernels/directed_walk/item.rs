@@ -43,6 +43,7 @@ impl KernelsItem for DirectedWalkItem {
             | Lowering::Reach { .. }
             | Lowering::SeededReach { .. }
             | Lowering::OrderedWalk { .. }
+            | Lowering::Worklist { .. }
             | Lowering::Components { .. }
             | Lowering::TextMap { .. }
             | Lowering::OrderedMatch { .. }

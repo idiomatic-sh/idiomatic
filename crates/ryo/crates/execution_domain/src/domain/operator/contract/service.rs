@@ -121,6 +121,13 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
             Effects::DerivedText,
             3,
         ),
+        // An edge, a lattice row or a root more can change the queue, and so which rows the trace holds.
+        Worklist => (
+            DemandOrder::LeftThenRight,
+            ResourceNeeds::OrderedAdjacency,
+            Effects::Pure,
+            7,
+        ),
         Rows | Hosted => (
             DemandOrder::None,
             ResourceNeeds::None,
@@ -148,9 +155,8 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
     };
     let shape = match kind {
         Rows | Hosted => InputMode::RequestSource,
-        GroupCount | GroupDigest | OrderedMatch | Closure | Cycles | OrderedDfs | RenderSyntax => {
-            InputMode::Views
-        }
+        GroupCount | GroupDigest | OrderedMatch | Closure | Cycles | OrderedDfs | Worklist
+        | RenderSyntax => InputMode::Views,
         Replace | Select | Project | Extend | Join | Union | Intersection | Difference
         | Antijoin | Capture | Rank | Words | Axis | SpanBetween | SourceMatches | FitsRendered
         | SpanBounds => InputMode::Row {
@@ -211,7 +217,7 @@ fn presence(kind: OperationKind) -> PresenceMask {
         // The right input only removes rows.
         Antijoin | Difference => PresenceMask::AllOf(InputMask(1)),
         // The walk starts from the rows of the first input.
-        Axis | OrderedDfs => PresenceMask::AllOf(InputMask(1)),
+        Axis | OrderedDfs | Worklist => PresenceMask::AllOf(InputMask(1)),
         // No edge, no pair.
         Closure | Cycles => PresenceMask::AllOf(InputMask(1)),
         Rows | Hosted => PresenceMask::Always,
@@ -261,6 +267,8 @@ fn failure(
         Operation::OrderedMatch { .. } | Operation::OrderedDfs { .. } => {
             RowFailure::OnRows(InputMask(3))
         }
+        // Any root, edge or lattice row can name a state the lattice does not hold.
+        Operation::Worklist { .. } => RowFailure::OnRows(InputMask(7)),
         Operation::Select { comparisons, .. } => comparison_failure(comparisons, InputMask(1)),
         Operation::Join { filter, .. } => comparison_failure(filter, InputMask(2)),
         Operation::Axis { domain_filter, .. } => comparison_failure(domain_filter, InputMask(4)),
@@ -343,6 +351,7 @@ pub(crate) fn prepare_for(
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
@@ -394,6 +403,7 @@ pub(crate) fn prepare_for(
         | Operation::Words { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }

@@ -207,6 +207,7 @@ const PROBES: &[Probe] = {
         none(Some(FitsRendered), &[0]),
         none(Some(SpanBounds), &[0]),
         none(Some(OrderedDfs), &[0]),
+        none(Some(Worklist), &[0]),
         none(None, &[1]),
     ]
 };

@@ -125,6 +125,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }
@@ -267,6 +268,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_row(
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }

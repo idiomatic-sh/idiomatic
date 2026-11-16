@@ -319,6 +319,7 @@ pub fn output_coverage(
                     || proven == Proof::Proven
             }
             Operation::OrderedDfs { .. }
+            | Operation::Worklist { .. }
             | Operation::Axis { .. }
             | Operation::Closure { .. }
             | Operation::Cycles { .. } => !output_kinds.iter().copied().any(file_kind),

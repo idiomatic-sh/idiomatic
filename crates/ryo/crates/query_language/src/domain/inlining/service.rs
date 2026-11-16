@@ -176,6 +176,7 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Words { .. }
@@ -304,6 +305,7 @@ pub(crate) fn reading_through(
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Words { .. }

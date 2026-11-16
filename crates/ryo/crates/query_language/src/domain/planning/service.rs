@@ -149,6 +149,13 @@ pub(crate) fn placed(
             root_keys,
             edge_keys,
             ..
+        }
+        | plans::Operation::Worklist {
+            root,
+            source,
+            root_keys,
+            edge_keys,
+            ..
         } => {
             (keyed_on(first, &[*root], held) == FileOrigin::Held
                 || keyed_on(first, root_keys, held) == FileOrigin::Held)

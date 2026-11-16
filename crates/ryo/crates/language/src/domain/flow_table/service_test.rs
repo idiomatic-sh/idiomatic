@@ -6,8 +6,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::builders::service::{discarding_builder, table_builder};
 use crate::domain::elements::types::{Elements, TableBuilder};
 use crate::domain::flow::types::{
-    BlockNumber, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowMemberFact, FlowStepFact,
-    FlowStepKind, StepOrdinal,
+    BlockNumber, EdgeOrdinal, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowMemberFact,
+    FlowStepFact, FlowStepKind, StepOrdinal,
 };
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{Flag, Position};
@@ -33,11 +33,13 @@ const EDGES: [FlowEdgeFact; 2] = [
         source: BlockNumber(0),
         target: BlockNumber(2),
         kind: FlowEdgeKind::Jump,
+        ordinal: EdgeOrdinal(0),
     },
     FlowEdgeFact {
         source: BlockNumber(2),
         target: BlockNumber(1),
         kind: FlowEdgeKind::Backedge,
+        ordinal: EdgeOrdinal(1),
     },
 ];
 

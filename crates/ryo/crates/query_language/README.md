@@ -56,6 +56,10 @@ The `query_language` domain's `idioms` concept: the pairs of functions with equa
 
 The `query_language` domain's `inlining` concept: the views of a relation read in place, and what an operation reads of them.
 
+### iterating
+
+The `query_language` domain's `iterating` concept: the `worklist` call, a first-in-first-out fixpoint over a graph and a declared lattice, lowered to a step.
+
 ### joining
 
 The `query_language` domain's `joining` concept: the join a `select` writes, and the columns of either side its `where` names.

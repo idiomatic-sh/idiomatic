@@ -43,6 +43,7 @@ impl KernelsItem for ComponentsItem {
             | Lowering::OrderedMatch { .. }
             | Lowering::Render { .. }
             | Lowering::ScanBound { .. }
+            | Lowering::Worklist { .. }
             | Lowering::Unlowered => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }

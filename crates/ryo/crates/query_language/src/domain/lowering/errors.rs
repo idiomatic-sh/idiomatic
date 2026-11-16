@@ -213,6 +213,9 @@ impl std::fmt::Display for ArgumentFault {
             ArgumentFault::MatchingGraphEntities => "expected root, source and destination columns of the same kind",
             ArgumentFault::MatchingGraphKeys => "expected matching partition key kinds in roots and edges",
             ArgumentFault::NumericGraphOrder => "expected a numeric edge order column",
+            ArgumentFault::MatchingStates => {
+                "expected state, before, after, lower and upper columns of the same kind"
+            }
             ArgumentFault::Missing => "the argument is missing",
             ArgumentFault::ExpectedName => "expected one name",
             ArgumentFault::ExpectedNames => "expected a list of names",

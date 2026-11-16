@@ -11,7 +11,7 @@ use ryo_values::domain::observations::types::ObservationColumn;
 use ryo_values::domain::observations::types::ObservationColumnName;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plans::types::QueryRequest;
+use ryo_values::domain::query_requests::types::QueryRequest;
 
 type Input = fn();
 type Value = ();

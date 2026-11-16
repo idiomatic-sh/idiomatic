@@ -19,7 +19,7 @@ pub(crate) const DESTINATION: &str = ryo_values::domain::descriptions::constants
 pub(crate) const BOOLEAN: &str = "boolean";
 
 /// Every operator, in the order the language documents them.
-pub(crate) const OPERATORS: [QueryOperator; 25] = [
+pub(crate) const OPERATORS: [QueryOperator; 26] = [
     QueryOperator::SpanBetween,
     QueryOperator::SpanBounds,
     QueryOperator::SourceMatches,
@@ -28,6 +28,7 @@ pub(crate) const OPERATORS: [QueryOperator; 25] = [
     QueryOperator::Replace,
     QueryOperator::OrderedMatch,
     QueryOperator::OrderedDfs,
+    QueryOperator::Worklist,
     QueryOperator::Select,
     QueryOperator::Project,
     QueryOperator::Extend,
@@ -59,6 +60,7 @@ pub(crate) fn operator_name(operator: QueryOperator) -> &'static str {
         QueryOperator::Replace => "replace",
         QueryOperator::OrderedMatch => "ordered-match",
         QueryOperator::OrderedDfs => "ordered-dfs",
+        QueryOperator::Worklist => "worklist",
         QueryOperator::Select => ryo_values::domain::descriptions::constants::SELECT,
         QueryOperator::Project => ryo_values::domain::descriptions::constants::PROJECT,
         QueryOperator::Extend => "extend",
@@ -115,6 +117,12 @@ pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
         ArgumentSlot::Root => "root",
         ArgumentSlot::Order => "order",
         ArgumentSlot::Edge => "edge",
+        ArgumentSlot::State => "state",
+        ArgumentSlot::Before => "before",
+        ArgumentSlot::After => "after",
+        ArgumentSlot::Lattice => "lattice",
+        ArgumentSlot::Lower => "lower",
+        ArgumentSlot::Upper => "upper",
         ArgumentSlot::Columns => ryo_values::domain::descriptions::constants::COLUMNS,
         ArgumentSlot::Values => "values",
         ArgumentSlot::Left => "left",

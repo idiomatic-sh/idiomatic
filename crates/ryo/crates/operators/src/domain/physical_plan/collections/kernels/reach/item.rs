@@ -41,6 +41,7 @@ impl KernelsItem for ReachItem {
             | Lowering::Group { .. }
             | Lowering::Axis { .. }
             | Lowering::OrderedWalk { .. }
+            | Lowering::Worklist { .. }
             | Lowering::Components { .. }
             | Lowering::TextMap { .. }
             | Lowering::OrderedMatch { .. }

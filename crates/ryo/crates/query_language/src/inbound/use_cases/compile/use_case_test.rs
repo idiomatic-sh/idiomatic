@@ -22,7 +22,7 @@ use ryo_values::domain::observations::types::{
 };
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plans::types::QueryRequest;
+use ryo_values::domain::query_requests::types::QueryRequest;
 use std::sync::Arc;
 
 /// What a row gives the use case.
@@ -257,6 +257,9 @@ mod spans;
 
 #[cfg(test)]
 mod traversing;
+
+#[cfg(test)]
+mod iterating;
 
 #[cfg(test)]
 mod closures_and_axes;

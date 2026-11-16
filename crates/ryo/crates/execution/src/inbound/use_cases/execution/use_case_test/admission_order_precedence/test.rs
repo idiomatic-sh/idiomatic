@@ -136,6 +136,7 @@ const POLICIES: &[(OperationKind, PreflightOrder)] = {
         (FitsRendered, R),
         (SpanBounds, R),
         (OrderedDfs, R),
+        (Worklist, R),
     ]
 };
 const CASES: &[Case<Input, Value, Failure>] = &[

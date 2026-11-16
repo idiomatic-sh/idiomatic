@@ -92,6 +92,8 @@ kernels! {
     OrderedWalk => crate::domain::physical_plan::collections::kernels::ordered_walk::item::OrderedWalkItem,
     /// The `components` kernel.
     Components => crate::domain::physical_plan::collections::kernels::components::item::ComponentsItem,
+    /// The `queued_walk` kernel.
+    QueuedWalk => crate::domain::physical_plan::collections::kernels::queued_walk::item::QueuedWalkItem,
 }
 
 /// The physical plan of `program`: each node lowered once, and every registered rewrite applied.
@@ -185,6 +187,7 @@ fn flow_of(nodes: &[PhysicalNode], indexes: &[KeyedIndex], id: PlanNodeId) -> No
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }

@@ -17,6 +17,7 @@ ryo::reads! {
                 source: value(languages::Integer(i64::from(edge.source.0))),
                 target: value(languages::Integer(i64::from(edge.target.0))),
                 edge_kind: value(languages::intern_derived(symbols, tree.source, languages::flow_edge_word(edge.kind))),
+                ordinal: value(languages::Integer(i64::from(edge.ordinal.0))),
                 file: file,
             }
         }

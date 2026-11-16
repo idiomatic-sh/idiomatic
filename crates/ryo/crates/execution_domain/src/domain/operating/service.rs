@@ -31,6 +31,7 @@ pub fn portable_fault(
         }
         PortableOperatorFault::ShapeMismatch => OperatingError::ShapeMismatch,
         PortableOperatorFault::DuplicateOrder => OperatingError::DuplicateDfsOrder,
+        PortableOperatorFault::NotALattice => OperatingError::NotALattice,
         PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
         PortableOperatorFault::InvalidSpan => OperatingError::InvalidSpan,
         PortableOperatorFault::InvalidSourceMatchSpan => OperatingError::InvalidSourceMatchSpan,

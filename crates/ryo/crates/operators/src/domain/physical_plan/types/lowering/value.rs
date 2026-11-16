@@ -9,6 +9,7 @@ use crate::domain::ordered_dfs::types::DfsParts;
 use crate::domain::physical_plan::types::{IndexPlace, ProbeIndex, RowMap, RowSource};
 use crate::domain::project::types::ProjectParts;
 use crate::domain::select::types::SelectParts;
+use crate::domain::worklist::types::WorklistParts;
 use ryo_relations::domain::relations::types::TextHash;
 
 /// The kernels one node is lowered to.
@@ -107,6 +108,17 @@ pub(crate) enum Lowering {
         /// The visit.
         dfs: DfsParts,
     },
+    /// `worklist`: from each distinct partition and root, in sorted order, the edges a first-in-first-out dataflow follows.
+    Worklist {
+        /// The root rows.
+        roots: RowSource,
+        /// The edge rows.
+        edges: RowSource,
+        /// The lattice rows.
+        lattice: RowSource,
+        /// The worklist.
+        worklist: WorklistParts,
+    },
     /// `components`: each entity of a strongly connected component of more than one, or with an edge to itself, once.
     Components {
         /// The edge rows.
@@ -189,6 +201,12 @@ impl Lowering {
                 domain,
                 ..
             } => (Some(*starts), Some(*edges), Some(*domain)),
+            Self::Worklist {
+                roots,
+                edges,
+                lattice,
+                ..
+            } => (Some(*roots), Some(*edges), Some(*lattice)),
             Self::Lookup { .. } | Self::ScanBound { .. } | Self::Unlowered => (None, None, None),
         };
         first.into_iter().chain(second).chain(third)

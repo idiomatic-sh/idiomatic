@@ -3,7 +3,7 @@
 
 use super::service::{clear_flow, flow_edge_word, flow_step_word};
 use super::types::{
-    BlockNumber, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowGraph, FlowMemberFact,
+    BlockNumber, EdgeOrdinal, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowGraph, FlowMemberFact,
     FlowStepFact, FlowStepKind, StepOrdinal,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -27,6 +27,7 @@ fn a_cleared_graph_writes_no_row() -> usize {
             source: BlockNumber(0),
             target: BlockNumber(0),
             kind: FlowEdgeKind::Backedge,
+            ordinal: EdgeOrdinal(0),
         }],
         steps: vec![FlowStepFact {
             block: BlockNumber(0),

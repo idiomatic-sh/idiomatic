@@ -161,7 +161,7 @@ pub(crate) fn compiled(
     );
     ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase::compile(
         &compiler,
-        ryo_values::domain::plans::types::QueryRequest {
+        ryo_values::domain::query_requests::types::QueryRequest {
             observations: Vec::new(),
             text: ryo_values::domain::query_tokens::types::QueryBundle::from(CoreQueryText(
                 query.into(),

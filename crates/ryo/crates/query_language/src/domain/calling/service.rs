@@ -2,6 +2,7 @@
 
 use crate::domain::combining::service::call_set;
 use crate::domain::idioms::service::push_same_sets;
+use crate::domain::iterating::service::call_worklist;
 use crate::domain::joining::service::join_output;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::ArgumentFault;
@@ -85,6 +86,7 @@ pub(crate) fn lower_call(
         QueryOperator::Words => call_words(builder, name, call)?,
         QueryOperator::Rank => call_rank(builder, name, call)?,
         QueryOperator::OrderedDfs => call_ordered_dfs(builder, name, call)?,
+        QueryOperator::Worklist => call_worklist(builder, name, call)?,
         QueryOperator::Axis => call_axis(builder, name, call)?,
         QueryOperator::Rows => call_rows(builder, name, call)?,
         QueryOperator::Closure | QueryOperator::Cycles => {

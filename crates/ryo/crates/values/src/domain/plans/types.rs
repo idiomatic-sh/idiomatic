@@ -18,19 +18,6 @@ use crate::domain::query_bindings::types::PlanParameter;
 use crate::domain::query_operators::types::{LineOutput, MaxLine, TabWidth, TextOutput};
 use crate::domain::query_tokens::types::QueryOrigin;
 
-/// The RyoQL text to compile or check, and the relations the host declares beside ryo's own.
-#[derive(Clone, Debug, PartialEq)]
-pub struct QueryRequest {
-    /// The query: text that entered the engine.
-    pub text: crate::domain::query_tokens::types::QueryBundle,
-    /// The relations the host declares, which a query names as it names ryo's: their rows come with the run.
-    pub hosted: Vec<crate::domain::hosted::types::HostedRelation>,
-    /// Resolved named producer contracts from the request graph's declaration pass.
-    pub observations: Vec<crate::domain::observations::types::BoundObservationInput>,
-    /// The text's modules, parsed from the same catalog by an earlier compile of the session: empty parses them with the root.
-    pub modules: crate::domain::program::types::ParsedModules,
-}
-
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Plan {
@@ -277,6 +264,39 @@ pub enum Operation {
         order: ColumnIndex,
         /// Edge identity column, preserved on each visit.
         edge: ColumnIndex,
+        /// Partition columns of roots, in output order.
+        root_keys: Vec<ColumnIndex>,
+        /// Matching partition columns of edges.
+        edge_keys: Vec<ColumnIndex>,
+    },
+    /// A first-in-first-out worklist fixpoint over a graph, one run for each distinct partition and root: a state for each
+    /// entity from a declared lattice, the edges whose before-state an entity holds when it leaves the queue each joining their
+    /// after-state into their destination, and one row for each edge so followed.
+    Worklist {
+        /// The root rows: where each run starts, and in what state.
+        from: Input,
+        /// The edge rows: source, destination, order, and the before-state and after-state of each.
+        edges: Input,
+        /// The lattice rows: each a lower state and an upper state above it.
+        lattice: Input,
+        /// Root entity column of `from`.
+        root: ColumnIndex,
+        /// The root's starting state column of `from`.
+        state: ColumnIndex,
+        /// Source entity column of `edges`.
+        source: ColumnIndex,
+        /// Destination entity column of `edges`.
+        destination: ColumnIndex,
+        /// Numeric order column of `edges`: a source's edges are followed in ascending order.
+        order: ColumnIndex,
+        /// The state column of `edges` the source must hold for the edge to be followed.
+        before: ColumnIndex,
+        /// The state column of `edges` the edge joins into its destination.
+        after: ColumnIndex,
+        /// The lower state column of `lattice`.
+        lower: ColumnIndex,
+        /// The upper state column of `lattice`.
+        upper: ColumnIndex,
         /// Partition columns of roots, in output order.
         root_keys: Vec<ColumnIndex>,
         /// Matching partition columns of edges.

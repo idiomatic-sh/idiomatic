@@ -40,6 +40,7 @@ impl<'a> TraversalShape<'a> {
             OperationKind::Axis => axis_schema(operation, self.inputs, bindings),
             OperationKind::OrderedMatch => ordered_schema(operation, self.inputs),
             OperationKind::OrderedDfs => dfs_schema(operation, self.inputs),
+            OperationKind::Worklist => worklist_schema(operation, self.inputs),
             OperationKind::Select
             | OperationKind::Project
             | OperationKind::Extend
@@ -154,6 +155,72 @@ fn dfs_schema(
     answer.extend(projected(roots.kinds, &[*root])?);
     answer.extend(projected(edges.kinds, &[*source, *destination, *edge])?);
     answer.push(CellKind::Number);
+    Ok(answer)
+}
+
+/// A worklist's partition, endpoint, order and state columns, without running it: the roots' keys and root, the edges'
+/// source, destination, order and before-state, and the state each followed edge leaves its destination in.
+fn worklist_schema(
+    operation: &Operation,
+    inputs: &[InputShape<'_>],
+) -> Result<Vec<CellKind>, OperatingError> {
+    let Operation::Worklist {
+        root,
+        state,
+        source,
+        destination,
+        order,
+        before,
+        after,
+        lower,
+        upper,
+        root_keys,
+        edge_keys,
+        ..
+    } = operation
+    else {
+        return Err(OperatingError::WrongOperation);
+    };
+    let (roots, edges, lattice) = (
+        schema_input(inputs, InputPlace(0))?,
+        schema_input(inputs, InputPlace(1))?,
+        schema_input(inputs, InputPlace(2))?,
+    );
+    check_columns(roots.kinds, &[*root, *state])?;
+    check_columns(roots.kinds, root_keys)?;
+    check_columns(
+        edges.kinds,
+        &[*source, *destination, *order, *before, *after],
+    )?;
+    check_columns(edges.kinds, edge_keys)?;
+    check_columns(lattice.kinds, &[*lower, *upper])?;
+    let entity = column_in(roots.kinds, *root).ok_or(OperatingError::ShapeMismatch)?;
+    let held = column_in(roots.kinds, *state).ok_or(OperatingError::ShapeMismatch)?;
+    if Some(entity) != column_in(edges.kinds, *source)
+        || Some(entity) != column_in(edges.kinds, *destination)
+        || column_in(edges.kinds, *order) != Some(&CellKind::Number)
+        || [
+            column_in(edges.kinds, *before),
+            column_in(edges.kinds, *after),
+            column_in(lattice.kinds, *lower),
+            column_in(lattice.kinds, *upper),
+        ]
+        .iter()
+        .any(|kind| *kind != Some(held))
+        || root_keys.len() != edge_keys.len()
+        || root_keys.iter().zip(edge_keys).any(|(root_key, edge_key)| {
+            column_in(roots.kinds, *root_key) != column_in(edges.kinds, *edge_key)
+        })
+    {
+        return Err(OperatingError::ShapeMismatch);
+    }
+    let mut answer = projected(roots.kinds, root_keys)?;
+    answer.extend(projected(roots.kinds, &[*root])?);
+    answer.extend(projected(
+        edges.kinds,
+        &[*source, *destination, *order, *before],
+    )?);
+    answer.push(*held);
     Ok(answer)
 }
 

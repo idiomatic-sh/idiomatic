@@ -14,6 +14,9 @@ use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visi
 use crate::domain::physical_plan::collections::kernels::probe_right::item::{
     IndexBuild, ProbeScratch,
 };
+use crate::domain::physical_plan::collections::kernels::queued_walk::item::{
+    WorklistInputs, worklisted,
+};
 use crate::domain::physical_plan::collections::kernels::reach::item::{
     ReachScratch, Starts, reached,
 };
@@ -134,6 +137,21 @@ pub(crate) fn kernels(
                 edges,
                 &run.resources.texts(),
                 &mut buffers.walk,
+                output,
+            );
+        }
+        Lowering::Worklist { worklist, .. } => {
+            let inputs = WorklistInputs {
+                roots: input,
+                edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
+                lattice: third.ok_or(PortableOperatorFault::WrongOperation)?,
+            };
+            return worklisted(
+                worklist,
+                inputs,
+                &run.resources.texts(),
+                &mut buffers.worklist,
+                &mut buffers.repeats,
                 output,
             );
         }

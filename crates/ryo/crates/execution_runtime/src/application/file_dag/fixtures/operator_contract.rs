@@ -25,6 +25,7 @@ use ryo_values::domain::query_operators::types::OperationKind;
 pub mod expectations;
 pub mod inputs;
 pub mod values;
+pub mod worklist;
 use values::{DOMAIN, FROM, RIGHT, matrix, n, node, numbers, span, table, text};
 
 /// The authored rows, bindings and expected answer of one operation kind.
@@ -369,6 +370,7 @@ pub fn fixture(kind: OperationKind) -> Fixture {
                 vec![n(1), n(2), n(3), n(10), n(1)],
             ]),
         ),
+        OperationKind::Worklist => worklist::fixture(),
     };
     Fixture {
         operation,

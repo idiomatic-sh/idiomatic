@@ -184,6 +184,7 @@ pub(crate) fn output_origins<T: Copy>(
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }

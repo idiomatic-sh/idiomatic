@@ -75,6 +75,7 @@ pub(crate) fn empty_results(operation: &Operation, inputs: &[InputShape<'_>]) ->
         | Operation::Words { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
@@ -159,6 +160,7 @@ pub(crate) fn output_layout(
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Hosted { .. } => return checked.clone(),
     }

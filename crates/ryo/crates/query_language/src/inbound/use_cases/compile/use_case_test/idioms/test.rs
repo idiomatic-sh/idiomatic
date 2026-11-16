@@ -71,6 +71,7 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::SourceMatches { .. } => "source-matches",
         Operation::OrderedMatch { .. } => "ordered-match",
         Operation::OrderedDfs { .. } => "ordered-dfs",
+        Operation::Worklist { .. } => "worklist",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",

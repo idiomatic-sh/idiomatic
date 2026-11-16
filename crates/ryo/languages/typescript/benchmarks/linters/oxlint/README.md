@@ -3,9 +3,8 @@
 The TypeScript provider against oxlint 1.76.0, the standalone executable of the GitHub release `apps_v1.76.0`, which is built on
 `oxc_parser` 0.142.0, the parser the TypeScript provider links. `uv run --script tools/install.py` installs it as `oxlint`.
 
-`benchmark.toml` pins the 96 rules a plain run of oxlint 1.76.0 enables. Of them, 93 have a query, each in `rules/<plugin>.<rule>/`
-with its cases; the other 3 are `deferred`, under the limitation that blocks them: a relation the TypeScript provider does not
-answer yet.
+`benchmark.toml` pins the 96 rules a plain run of oxlint 1.76.0 enables. Each has a query in `rules/<plugin>.<rule>/` with its
+cases; none is deferred.
 `fragments/eslint-directives.ryoql` holds the `eslint-` and `oxlint-` disable directives every query honors, as oxlint reads them;
 `fragments/parenthesized.ryoql` gives the parentheses written around an expression, which the tree keeps as punctuators only;
 `fragments/constness.ryoql` gives the expressions whose truthiness is constant, as oxlint's `is_constant` decides it;
@@ -15,7 +14,12 @@ answer yet.
 `fragments/javascript-files.ryoql` gives the files read as JavaScript, whose `compiler-feature` `typescript.syntax` is lowered:
 the files oxlint's JavaScript-only rules run on;
 `fragments/quoted-strings.ryoql` gives the `string-literal` values written in quotes, without the templates that relation also
-answers: the strings the rules read where oxlint reads a string literal alone.
+answers: the strings the rules read where oxlint reads a string literal alone;
+`fragments/constructors.ryoql` gives every constructor of a class, by oxlint's `MethodDefinitionKind::Constructor` (a key whose name or
+decoded string value is `constructor`, neither static nor computed), with or without a body;
+`fragments/super-calls.ryoql` gives the calls whose callee is `super`;
+`fragments/control-flow.ryoql` gives each of those with a body, with its function, the block of the control flow graph it starts
+in and its superclass as oxlint's constructor-super classifies it: none, `null`, invalid or valid.
 
 These oxlint checks have no query and no case yet:
 

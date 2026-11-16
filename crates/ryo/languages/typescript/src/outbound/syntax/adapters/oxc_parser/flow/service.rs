@@ -12,8 +12,8 @@ use oxc_cfg::{
 };
 use oxc_semantic::{AstNodes, Semantic};
 use ryo::languages::{
-    self, BlockNumber, Flag, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowMemberFact,
-    FlowStepFact, FlowStepKind, Position, StepOrdinal, TableBuilder,
+    self, BlockNumber, EdgeOrdinal, Flag, FlowBlockFact, FlowEdgeFact, FlowEdgeKind,
+    FlowMemberFact, FlowStepFact, FlowStepKind, Position, StepOrdinal, TableBuilder,
 };
 
 /// Drafts the graphs of the file the semantic pass read: every block with its marks, every edge, every step with a node, and every
@@ -60,13 +60,26 @@ pub(in super::super) fn drafted_flow(semantic: &Semantic<'_>, draft: &mut FlowDr
             }
         }
     }
-    draft
-        .edges
-        .extend(graph.edge_references().map(|edge| FlowEdgeFact {
+    // oxc's walks follow a block's edges in the order `edges_directed` lists them: each edge's ordinal is its place there.
+    let mut ordinals = vec![EdgeOrdinal(0); graph.edge_count()];
+    for block in graph.node_indices() {
+        for (edge, place) in graph.edges_directed(block, Direction::Outgoing).zip(0..) {
+            if let Some(ordinal) = ordinals.get_mut(edge.id().index()) {
+                *ordinal = EdgeOrdinal(place);
+            }
+        }
+    }
+    draft.edges.extend(graph.edge_references().map(|edge| {
+        FlowEdgeFact {
             source: number(edge.source()),
             target: number(edge.target()),
             kind: edge_kind(edge.weight()),
-        }));
+            ordinal: ordinals
+                .get(edge.id().index())
+                .copied()
+                .unwrap_or(EdgeOrdinal(0)),
+        }
+    }));
     let nodes = semantic.nodes();
     draft
         .members

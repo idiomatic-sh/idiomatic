@@ -20,6 +20,7 @@ pub mod rows;
 
 pub mod query_bindings;
 pub mod query_operators;
+pub mod query_requests;
 pub mod query_syntax;
 pub mod query_tokens;
 pub mod rule_requests;

@@ -15,6 +15,7 @@ pub(crate) mod ordered_walk;
 pub(crate) mod probe;
 pub(crate) mod probe_right;
 pub(crate) mod project;
+pub(crate) mod queued_walk;
 pub(crate) mod reach;
 pub(crate) mod render;
 pub(crate) mod scan_bound;

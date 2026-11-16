@@ -124,6 +124,7 @@ fn step_kind(
         | Operation::FitsRendered { from, .. }
         | Operation::SpanBounds { from, .. } => column_kind(steps, memo, *from, column),
         Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
@@ -230,6 +231,7 @@ fn step_origins(
         Operation::OrderedMatch { .. }
         | Operation::Axis { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }

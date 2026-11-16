@@ -97,6 +97,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn right_of(
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. }
         | Lowering::TextMap { .. }
         | Lowering::OrderedMatch { .. }

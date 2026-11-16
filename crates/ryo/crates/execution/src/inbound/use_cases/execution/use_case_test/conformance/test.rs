@@ -214,6 +214,7 @@ const FOREIGN: &[(OperationKind, Option<OperatingError>)] = {
         (FitsRendered, W),
         (SpanBounds, W),
         (OrderedDfs, W),
+        (Worklist, W),
     ]
 };
 const CASES: &[Case<Input, Value, Failure>] = &[Case {

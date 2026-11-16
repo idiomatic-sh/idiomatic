@@ -1,0 +1,8 @@
+let starts = select id as root, file from "function";
+let roots = extend(from=starts,values={state:0});
+let raw = select id as source, id as destination, file from "function";
+let edges = extend(from=raw,values={position:0,before:0,after:1});
+let files = select file from "function";
+let lattice = extend(from=files,values={lower:0,upper:1});
+let trace = worklist(from=roots,root=root,state=state,edges=edges,source=source,destination=destination,order=position,before=before,after=after,lattice=lattice,lower=lower,upper=upper,keys=[file],output=reached);
+emit trace subject root key(before,reached);

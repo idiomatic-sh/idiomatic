@@ -9,7 +9,7 @@ use ryo_values::domain::descriptions::types::OperatorDescription;
 use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// Every operator, in the order the documentation lists them.
-pub const OPERATORS: [QueryOperator; 25] = [
+pub const OPERATORS: [QueryOperator; 26] = [
     QueryOperator::SpanBetween,
     QueryOperator::SpanBounds,
     QueryOperator::SourceMatches,
@@ -18,6 +18,7 @@ pub const OPERATORS: [QueryOperator; 25] = [
     QueryOperator::Replace,
     QueryOperator::OrderedMatch,
     QueryOperator::OrderedDfs,
+    QueryOperator::Worklist,
     QueryOperator::Select,
     QueryOperator::Project,
     QueryOperator::Extend,
@@ -52,6 +53,7 @@ pub fn describe(operator: QueryOperator) -> OperatorDescription {
         QueryOperator::FitsRendered => crate::domain::describing::constants::fits_rendered(),
         QueryOperator::Replace => crate::domain::describing::constants::replace(),
         QueryOperator::OrderedDfs => crate::domain::describing::constants::ordered_dfs(),
+        QueryOperator::Worklist => crate::domain::describing::constants::worklist(),
         QueryOperator::OrderedMatch => crate::domain::describing::constants::ordered_match(),
         QueryOperator::Select => described(
             SELECT,
