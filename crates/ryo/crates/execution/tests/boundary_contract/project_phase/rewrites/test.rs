@@ -380,3 +380,44 @@ fn cutting_a_join_in_each_file_keeps_the_rows_it_repeats_on_the_columns_read_aft
     );
     assert_eq!(rows(after, after_emitted, &files), before);
 }
+
+#[test]
+fn cutting_a_split_in_each_file_keeps_the_rows_it_repeats_on_the_columns_read_after_the_files() {
+    let files = files();
+    let at = |place: u32| ColumnIndex(place);
+    // Each function once for each word of the text "a b" appended to it (id, name, file, span, text, word), read after the files
+    // for the id and the name, which repeat once for each word, joined after the files with every name on the name.
+    let steps = vec![
+        functions_kept(&[ID, NAME, FILE, SPAN]),
+        in_each_file(Operation::Extend {
+            from: Input::Step(StepId(0)),
+            values: vec![Operand::Literal(QueryLiteral::Text(LiteralText(
+                "a b".into(),
+            )))],
+        }),
+        in_each_file(Operation::Words {
+            from: Input::Step(StepId(1)),
+            text: at(4),
+        }),
+        functions_kept(&[NAME]),
+        gathered(StepId(3), at(0)),
+        after_the_files(join(
+            StepId(2),
+            StepId(4),
+            (at(1), at(0)),
+            vec![column(Side::Left, at(0)), column(Side::Left, at(1))],
+        )),
+    ];
+    let emitted = StepId(5);
+    let before = rows(steps.clone(), emitted, &files);
+    assert!(
+        before.windows(2).any(|pair| pair[0] == pair[1]),
+        "each function is answered once for each word: {before:?}"
+    );
+    let (after, after_emitted) = cut(steps.clone(), emitted);
+    assert_ne!(
+        after, steps,
+        "the split is read after the files for two of its six columns"
+    );
+    assert_eq!(rows(after, after_emitted, &files), before);
+}
