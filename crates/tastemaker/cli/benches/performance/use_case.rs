@@ -1,4 +1,3 @@
-// ignore: idiomatic.arch/file-length - the cost workloads are one module of this file, which the cli spec places as it is: a `cost.rs` or a `use_case/` directory beside it reads as a resource and a command it would place; they share one tree, store and set of helpers.
 //! The core's workloads: one `check` of the fixture workspace over the fakes of its ports, warm (its answer kept by the
 //! runs before, so what is measured is what a run spends to find nothing changed) and cold (a use case built for each
 //! round).
