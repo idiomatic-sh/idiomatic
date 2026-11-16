@@ -229,7 +229,7 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "test-language"

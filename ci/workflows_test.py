@@ -1336,11 +1336,6 @@ def benchy(tool: dict) -> bool:
 # benchmark rules, `tastemaker/benchmarks`, is the policy the pinned targets are checked with and is kept for no other purpose.
 BENCH_ALLOWED = {"rust-toolchain.toml", ".cargo", "clippy.toml", "rustfmt.toml", "tools/install.py", "tastemaker/benchmarks"}
 PRODUCTS_AT = ("crates/ryo", "crates/tastemaker", "crates/asymptote")
-# A distribution bench installs the Tastemaker command and prepares each target's policy with the Tastemaker package, and the one
-# release step that does so for ryo and asymptote has no pinned release of it yet: the two tools below may name those, and no other tool
-# and no other path (a follow-up pins the released command and the policy, and this entry goes).
-BENCH_READS_TASTEMAKER = {("crates/ryo", "performance-distribution"), ("crates/asymptote", "performance-distribution")}
-
 
 def bench_reaches(product: Path, top: Path = ROOT, tools: list[dict] | None = None) -> list[str]:
     """Each path a bench, perf or memory tool of the asymptote.toml at `product` names in its inputs or its run that is not its own
@@ -1366,8 +1361,6 @@ def bench_reaches(product: Path, top: Path = ROOT, tools: list[dict] | None = No
                 found.append(f"{tool['id']}: {each}")
                 continue
             if relative == at or relative.startswith(at + "/") or any(relative == name or relative.startswith(name + "/") for name in BENCH_ALLOWED):
-                continue
-            if (at, tool["id"]) in BENCH_READS_TASTEMAKER and (relative in ("tastemaker", "crates/tastemaker") or relative.startswith(("tastemaker/", "crates/tastemaker/"))):
                 continue
             other = next((name for name in PRODUCTS_AT if relative == name or relative.startswith(name + "/")), None)
             inside_package = any(relative == each or relative.startswith(each + "/") for each in packages)
