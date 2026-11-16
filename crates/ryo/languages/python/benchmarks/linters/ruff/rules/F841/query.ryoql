@@ -26,7 +26,9 @@ let redirections = select occurrence as id, name from "binding-event" where kind
 let redirect_scopes = axis(from=redirections,relation="semantic-child",direction=nearest-ancestor,domain=lexical_scopes);
 let global_redirected = select related as scope, name from redirect_scopes;
 let valid_nonlocal_redirected = select scope, name from resolved_nonlocals;
-let redirected = union(left=global_redirected, right=valid_nonlocal_redirected);
+let redirected_rows = union(left=global_redirected, right=valid_nonlocal_redirected);
+let redirected_counts = group-count(from=redirected_rows, keys=["scope","name"], count="count");
+let redirected = select scope, name from redirected_counts;
 let uncancelled_unredirected = antijoin(left=final_bindings,right=redirected,left-on=["scope","name"],right-on=["scope","name"]);
 let raw_phases = select occurrence, phase from "binding-event";
 let scope_deletes = select l.occurrence as id, l.name as name, l.scope as scope, r.phase as phase, l.ordinal as ordinal, l.file as file from namespace as l join raw_phases as r on l.occurrence = r.occurrence where l.kind = "delete";
