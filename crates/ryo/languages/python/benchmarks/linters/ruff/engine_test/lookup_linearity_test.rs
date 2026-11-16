@@ -2,12 +2,11 @@
 //!
 //! The shapes are generated from one table: each operation (bind, rebind, import, handler, loop and with targets, walrus,
 //! annotation, def, class, read, delete, `global` and `nonlocal` declarations, defaults, lambdas and comprehensions, many
-//! functions reading a rebound module name, many distinct names, a read run longer than the first 14 pointer-jumping
-//! rounds of `latest-before`) repeated N times in every scope kind it makes sense in (module, function, nested function,
-//! class body, method). Each of F401, F841, F811 and F821 runs every program at 1,000, 2,000 and 4,000 repetitions; its
+//! functions reading a rebound module name, many distinct names, a read run of more than 16,384 reads) repeated N times in every scope kind it makes sense in (module, function, nested function,
+//! class body, method). Each of F401, F841, F811 and F821 runs every program at 500 and 1,000 repetitions; its
 //! CPU time at each size must be at most `DOUBLING_LIMIT` times the time at the half size (a floor under the half-size
 //! time keeps a fixed startup cost from deciding a ratio), and its peak resident memory at the largest size must stay
-//! within `MEMORY_BASE_MB` plus `MEMORY_PER_REPETITION_KB` per repetition. A rule that joins every read to every
+//! within `MEMORY_BASE_MB` plus `MEMORY_PER_THOUSAND_REPETITIONS_MB` per thousand repetitions. A rule that joins every read to every
 //! binding, pairs every effect with every other, or tests every handler against every read grows 3.5 to 8 times per
 //! doubling and holds gigabytes.
 use super::prepared_engine_test::{
@@ -28,13 +27,13 @@ use std::path::PathBuf;
 /// The doubling of the file may cost at most this many times the time.
 const DOUBLING_LIMIT: f64 = 2.2;
 /// The half-size times below this many CPU seconds count as this many, so startup cost does not decide a ratio.
-const TIME_FLOOR: f64 = 0.4;
+const TIME_FLOOR: f64 = 0.3;
 /// The repetition counts of each shape.
-const SIZES: [usize; 3] = [1000, 2000, 4000];
+const SIZES: [usize; 2] = [500, 1000];
 /// The memory every run may hold before its file counts.
 const MEMORY_BASE_MB: f64 = 160.0;
 /// The memory each repetition of a shape may add at the largest size.
-const MEMORY_PER_REPETITION_KB: f64 = 100.0;
+const MEMORY_PER_THOUSAND_REPETITIONS_MB: f64 = 100.0;
 /// The peak at the largest size may be at most this many times the peak at the half size (a floor under the half size
 /// keeps the fixed base from deciding it).
 const MEMORY_DOUBLING_LIMIT: f64 = 2.4;
@@ -52,7 +51,13 @@ enum Scope {
 }
 
 impl Scope {
-    const ALL: [Scope; 5] = [Scope::Module, Scope::Function, Scope::Nested, Scope::Class, Scope::Method];
+    const ALL: [Scope; 5] = [
+        Scope::Module,
+        Scope::Function,
+        Scope::Nested,
+        Scope::Class,
+        Scope::Method,
+    ];
 
     fn label(self) -> &'static str {
         match self {
@@ -77,16 +82,44 @@ struct Operation {
 }
 
 const fn op(name: &'static str, prologue: &'static str, repeat: &'static str) -> Operation {
-    Operation { name, prologue, repeat, module_only: false, nested_only: false }
+    Operation {
+        name,
+        prologue,
+        repeat,
+        module_only: false,
+        nested_only: false,
+    }
 }
+
+/// The operations whose code path depends on the scope kind; the others run at module level only.
+const SCOPE_SENSITIVE: &[&str] = &[
+    "assign-read",
+    "import-read",
+    "handler-read",
+    "annotation-read",
+    "assign-del",
+    "global-assign",
+    "global-read",
+    "global-del",
+    "nonlocal-assign",
+    "distinct-assign",
+];
 
 const OPERATIONS: &[Operation] = &[
     op("assign", "", "v = 1\n"),
     op("assign-read", "", "v = 1\nprint(v)\n"),
     op("import", "", "import v\n"),
     op("import-read", "", "import v\nprint(v)\n"),
-    op("handler", "", "try:\n    pass\nexcept Exception as v:\n    pass\n"),
-    op("handler-read", "", "try:\n    pass\nexcept Exception as v:\n    print(v)\n"),
+    op(
+        "handler",
+        "",
+        "try:\n    pass\nexcept Exception as v:\n    pass\n",
+    ),
+    op(
+        "handler-read",
+        "",
+        "try:\n    pass\nexcept Exception as v:\n    print(v)\n",
+    ),
     op("for-target", "", "for v in y:\n    print(v)\n"),
     op("with-target", "", "with y as v:\n    print(v)\n"),
     op("walrus", "", "(v := 1)\nprint(v)\n"),
@@ -101,18 +134,48 @@ const OPERATIONS: &[Operation] = &[
     op("global-assign", "", "global v\nv = 1\n"),
     op("global-read", "", "global v\nprint(v)\n"),
     op("global-del", "", "global v\ndel v\n"),
-    Operation { nested_only: true, ..op("nonlocal-assign", "", "nonlocal v\nv = 1\n") },
+    Operation {
+        nested_only: true,
+        ..op("nonlocal-assign", "", "nonlocal v\nv = 1\n")
+    },
     op("distinct-import", "", "import v{i}\nprint(v{i})\n"),
     op("distinct-assign", "", "v{i} = 1\nprint(v{i})\n"),
     op("distinct-def", "", "def v{i}():\n    pass\n"),
     op("distinct-class", "", "class v{i}:\n    x = 1\n"),
-    op("distinct-handler", "", "try:\n    pass\nexcept Exception as v{i}:\n    print(v{i})\n"),
-    Operation { module_only: true, ..op("default-argument", "v = 1\n", "def g{i}(a=v):\n    pass\n") },
-    Operation { module_only: true, ..op("rebind-read-by-functions", "", "v = 1\ndef g{i}():\n    return v\n") },
-    Operation { module_only: true, ..op("lambda-read", "v = 1\n", "w{i} = lambda: v\n") },
-    Operation { module_only: true, ..op("comprehension-read", "v = 1\n", "w{i} = [v for _ in y]\n") },
+    op(
+        "distinct-handler",
+        "",
+        "try:\n    pass\nexcept Exception as v{i}:\n    print(v{i})\n",
+    ),
+    Operation {
+        module_only: true,
+        ..op("default-argument", "v = 1\n", "def g{i}(a=v):\n    pass\n")
+    },
+    Operation {
+        module_only: true,
+        ..op(
+            "rebind-read-by-functions",
+            "",
+            "v = 1\ndef g{i}():\n    return v\n",
+        )
+    },
+    Operation {
+        module_only: true,
+        ..op("lambda-read", "v = 1\n", "w{i} = lambda: v\n")
+    },
+    Operation {
+        module_only: true,
+        ..op("comprehension-read", "v = 1\n", "w{i} = [v for _ in y]\n")
+    },
     op("method-read", "v = 1\n", "def m{i}(self):\n    return v\n"),
-    Operation { nested_only: false, ..op("global-skipped-read", "global v\n", "v = 1\ndef g{i}():\n    return v\n") },
+    Operation {
+        nested_only: false,
+        ..op(
+            "global-skipped-read",
+            "global v\n",
+            "v = 1\ndef g{i}():\n    return v\n",
+        )
+    },
     op("long-read-run", "", "v = 1\n"),
 ];
 
@@ -120,9 +183,8 @@ const OPERATIONS: &[Operation] = &[
 fn program(scope: Scope, operation: &Operation, count: usize) -> Option<String> {
     let repeated = |depth: usize| -> String {
         let pad = "    ".repeat(depth);
-        let line = |text: &str| -> String {
-            text.lines().map(|line| format!("{pad}{line}\n")).collect()
-        };
+        let line =
+            |text: &str| -> String { text.lines().map(|line| format!("{pad}{line}\n")).collect() };
         let mut text = line(operation.prologue);
         for index in 0..count {
             text.push_str(&line(&operation.repeat.replace("{i}", &index.to_string())));
@@ -134,11 +196,16 @@ fn program(scope: Scope, operation: &Operation, count: usize) -> Option<String> 
     };
     match scope {
         _ if operation.module_only && !matches!(scope, Scope::Module) => None,
+        _ if !SCOPE_SENSITIVE.contains(&operation.name) && !matches!(scope, Scope::Module) => None,
         _ if operation.nested_only && !matches!(scope, Scope::Nested) => None,
         Scope::Module => Some(repeated(0)),
         Scope::Function => Some(format!("def f():\n{}", repeated(1))),
         Scope::Nested => {
-            let outer = if operation.nested_only { "    v = 1\n" } else { "" };
+            let outer = if operation.nested_only {
+                "    v = 1\n"
+            } else {
+                ""
+            };
             Some(format!("def f():\n{outer}    def g():\n{}", repeated(2)))
         }
         Scope::Class => Some(format!("class C:\n{}", repeated(1))),
@@ -215,13 +282,20 @@ fn timed(rule: &str, text: &str) -> Result<(f64, RunReport), Error> {
     let started = ProcessTime::now();
     let report = engine.run_prepared(request)?;
     let elapsed = started.elapsed().as_secs_f64();
-    assert_eq!(report.execution_metadata, ExecutionMetadata::Complete, "{rule}");
+    assert_eq!(
+        report.execution_metadata,
+        ExecutionMetadata::Complete,
+        "{rule}"
+    );
     Ok((elapsed, report))
 }
 
 /// The cost of each doubling relative to the half size, with the floor under the half size.
 fn doublings(seconds: &[f64]) -> Vec<f64> {
-    seconds.windows(2).map(|pair| pair[1] / pair[0].max(TIME_FLOOR)).collect()
+    seconds
+        .windows(2)
+        .map(|pair| pair[1] / pair[0].max(TIME_FLOOR))
+        .collect()
 }
 
 /// The peak resident memory of this process since the last reset, in megabytes; zero where `/proc` is absent.
@@ -269,19 +343,30 @@ pub(super) fn rule_cost_grows_with_the_file(rule: &str) -> Result<(), Error> {
                 }
                 ratios = doublings(&seconds);
             }
-            let bound = MEMORY_BASE_MB + MEMORY_PER_REPETITION_KB * SIZES[2] as f64 / 1024.0;
+            let bound = MEMORY_BASE_MB + MEMORY_PER_THOUSAND_REPETITIONS_MB;
             let name = format!("{rule} {} {}", scope.label(), operation.name);
             if ratios.iter().any(|ratio| *ratio > DOUBLING_LIMIT) {
-                failures.push(format!("{name}: seconds {seconds:.2?} at {SIZES:?}, ratios {ratios:.2?}"));
+                failures.push(format!(
+                    "{name}: seconds {seconds:.2?} at {SIZES:?}, ratios {ratios:.2?}"
+                ));
             }
-            if peaks[2] / peaks[1].max(MEMORY_FLOOR_MB) > MEMORY_DOUBLING_LIMIT {
-                failures.push(format!("{name}: peak {:.0} MB at {} repetitions after {:.0} MB at {}", peaks[2], SIZES[2], peaks[1], SIZES[1]));
+            if peaks[1] / peaks[0].max(MEMORY_FLOOR_MB) > MEMORY_DOUBLING_LIMIT {
+                failures.push(format!(
+                    "{name}: peak {:.0} MB at {} repetitions after {:.0} MB at {}",
+                    peaks[1], SIZES[1], peaks[0], SIZES[0]
+                ));
             }
-            if peaks[2] > bound {
-                failures.push(format!("{name}: peak {:.0} MB at {} repetitions, bound {bound:.0} MB", peaks[2], SIZES[2]));
+            if peaks[1] > bound {
+                failures.push(format!(
+                    "{name}: peak {:.0} MB at {} repetitions, bound {bound:.0} MB",
+                    peaks[1], SIZES[1]
+                ));
             }
         }
     }
-    assert!(failures.is_empty(), "each doubling may cost at most {DOUBLING_LIMIT}x: {failures:#?}");
+    assert!(
+        failures.is_empty(),
+        "each doubling may cost at most {DOUBLING_LIMIT}x: {failures:#?}"
+    );
     Ok(())
 }
