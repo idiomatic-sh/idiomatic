@@ -53,10 +53,8 @@ impl MeasureCorpusUseCaseImpl {
         evidence: Arc<dyn EvidencePort>,
         workspace: Arc<dyn WorkspacePort>,
         host: Arc<dyn crate::outbound::host::interface::HostPort>,
-        (engine, meter): (
-            Arc<dyn crate::outbound::engine::interface::EnginePort>,
-            Arc<dyn crate::outbound::process_meter::interface::ProcessMeterPort>,
-        ),
+        engine: Arc<dyn crate::outbound::engine::interface::EnginePort>,
+        meter: Arc<dyn crate::outbound::process_meter::interface::ProcessMeterPort>,
     ) -> Self {
         Self {
             reference,

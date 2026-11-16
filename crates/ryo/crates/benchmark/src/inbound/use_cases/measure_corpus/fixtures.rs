@@ -153,10 +153,8 @@ fn wired(
         Arc::new(EvidenceFake),
         workspace,
         host,
-        (
-            Arc::new(crate::outbound::engine::fixtures::fake::EngineFake::default()),
-            Arc::new(crate::outbound::process_meter::fixtures::fake::ProcessMeterFake::default()),
-        ),
+        Arc::new(crate::outbound::engine::fixtures::fake::EngineFake::default()),
+        Arc::new(crate::outbound::process_meter::fixtures::fake::ProcessMeterFake::default()),
     )
 }
 
@@ -236,7 +234,10 @@ fn measured<R>(
         bench,
         projects,
         growth: crate::domain::growth::types::CorpusGrowth::Ungrown,
-        verification: &crate::outbound::evidence::types::VerificationTimesFiles::default(),
+        verification: super::types::VerifiedInventory {
+            directory: std::path::Path::new(""),
+            rules: &[],
+        },
         cache,
         frozen_workload: std::path::Path::new("workload"),
         certificate: &certificate,

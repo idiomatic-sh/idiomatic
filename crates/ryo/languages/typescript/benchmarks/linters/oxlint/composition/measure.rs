@@ -6,7 +6,6 @@ use super::commands;
 use super::constants;
 use super::constants::UNEXPECTED_MEASUREMENT_ARGUMENT;
 use super::locations::{default_scratch, directory};
-use ryo_benchmark::application::inventory_verification::service::times_files;
 use ryo_benchmark::domain::command_line::types::{
     BenchmarkArgument, Selection, measure_command::value::MeasureCommand,
 };
@@ -31,7 +30,6 @@ use ryo_benchmark::inbound::use_cases::measure_corpus::{
 };
 use ryo_benchmark::outbound::discovery::interface::DiscoveryPort;
 use ryo_benchmark::outbound::evidence::interface::EvidencePort;
-use ryo_benchmark::outbound::evidence::types::VerificationTimesFiles;
 use ryo_benchmark::outbound::execution::interface::ExecutionPort;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
 use ryo_benchmark::outbound::suite::{
@@ -106,7 +104,7 @@ pub(super) fn measure(
     if args.next().is_some() {
         return Err(Error::Invalid(UNEXPECTED_MEASUREMENT_ARGUMENT.into()));
     }
-    let verification = times_files(&verification, audit.authored());
+    let verified = audit.authored().to_vec();
     let measurement_mode =
         AdmitMeasurementUseCaseImpl::new().admit_measurement(&MeasurementAdmission {
             scope,
@@ -200,6 +198,7 @@ pub(super) fn measure(
             cache,
             workload: frozen_workload,
             verification,
+            verified,
             document,
             parser,
         },
@@ -222,8 +221,10 @@ struct Certified {
     mode: MeasurementMode,
     cache: PathBuf,
     workload: PathBuf,
-    /// The times file of each rule the bench's verification verified.
-    verification: VerificationTimesFiles,
+    /// The inventory directory the bench's verification wrote.
+    verification: std::path::PathBuf,
+    /// The rules it verified.
+    verified: Vec<ryo::linter::RuleId>,
     /// The file the bench's one document is written to.
     document: PathBuf,
     /// The parser configuration both contestants run with.
@@ -250,6 +251,7 @@ fn compare(
         cache,
         workload,
         verification,
+        verified,
         document,
         parser,
     } = certified;
@@ -281,16 +283,14 @@ fn compare(
             cache.join(constants::PROJECTS_DIRECTORY),
         )),
         Arc::new(ryo_benchmark::outbound::host::factory::local()),
-        (
-            Arc::new(
-                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
-                    ryo::linter::Languages(vec![ryo_typescript::linked()]),
-                    None,
-                    commands::frontend_diagnostic()?,
-                ),
+        Arc::new(
+            ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                ryo::linter::Languages(vec![ryo_typescript::linked()]),
+                None,
+                commands::frontend_diagnostic()?,
             ),
-            Arc::new(ryo_benchmark::outbound::process_meter::factory::linux()),
         ),
+        Arc::new(ryo_benchmark::outbound::process_meter::factory::linux()),
     )
     .measure_corpus(
         &CorpusMeasurement {
@@ -304,7 +304,10 @@ fn compare(
                     parser: &parser,
                 },
             ),
-            verification: &verification,
+            verification: ryo_benchmark::inbound::use_cases::measure_corpus::types::VerifiedInventory {
+                directory: &verification,
+                rules: &verified,
+            },
             cache: &cache,
             frozen_workload: &workload,
             certificate: &certificate,

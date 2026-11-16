@@ -5,5 +5,6 @@ pub(crate) mod constants;
 mod fixtures;
 mod rule;
 pub mod service;
+pub(crate) mod types;
 #[cfg(test)]
 mod service_test;

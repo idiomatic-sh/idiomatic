@@ -20,3 +20,5 @@ pub(super) const INDEX: &str = "{i}";
 pub(super) const SHAPE_SEPARATOR: &str = "/";
 /// The refusal of an operation naming a frame its table does not define.
 pub(super) const UNKNOWN_FRAME: &str = "a frame the growth table does not define";
+/// Refusal of a growth lint that did not complete.
+pub(super) const GROWTH_INCOMPLETE: &str = "a growth lint did not complete";

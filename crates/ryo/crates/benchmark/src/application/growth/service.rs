@@ -2,22 +2,22 @@
 use super::constants;
 use crate::domain::growth::constants::{CPU_FLOOR, MEMORY_BOUND};
 use crate::domain::growth::types::{
-    GrowthModule, GrownProgram, GrowthPlan, RuleModules, ShapePrograms,
+    GrownProgram, GrowthModule, GrowthPlan, RuleModules, ShapePrograms,
 };
+use crate::outbound::engine::interface::EnginePort;
 use crate::outbound::process_meter::interface::ProcessMeterPort;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::ArtifactPath;
 use crate::outbound::suite::types::ArtifactText;
+use ryo_benchmark_contracts::domain::growth::types::{GrowthFrame, GrowthOperation, GrowthSize};
 use ryo_benchmark_contracts::domain::measurements::types::{
     DoublingRatio, GrowthShape, ResidentBytes, ShapeGrowth, ShapeGrowths,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::growth::types::{
-    GrowthFrame, GrowthOperation, GrowthSize,
-};
+use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
 use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, ContextSeal, InputDeclaration, ParserSelection, ProviderSelection,
-    QueryModuleName, RuleContextPreparation, SearchRoots, WorkerRequest, WorkerState,
+    CohortSelection, ContextSeal, InputDeclaration, ProviderSelection, QueryModuleName,
+    RuleContextPreparation, SearchRoots, WorkerRequest, WorkerState,
 };
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -285,4 +285,35 @@ fn peak_ratio(whole: ResidentBytes, half: ResidentBytes) -> DoublingRatio {
         f64::from(u32::try_from(bytes.0 / constants::THOUSAND).unwrap_or(u32::MAX))
     };
     DoublingRatio(thousands(whole) / thousands(half))
+}
+
+/// One growth lint, as the worker runs a request: prepare, load, configure and execute; refused unless it completes.
+///
+/// # Errors
+/// A request the engine refuses, or a lint that does not complete.
+pub(crate) fn engine_lint(engine: &dyn EnginePort, request: &WorkerRequest) -> Result<(), Error> {
+    let prepared = crate::application::worker_request::service::prepare(request.clone())?;
+    let session = engine.load(&prepared.request)?;
+    let configured =
+        crate::application::worker_request::service::configure(&prepared.request, session)?;
+    if configured.execute()?.report.execution_metadata == ExecutionMetadata::Complete {
+        Ok(())
+    } else {
+        Err(Error::Invalid(constants::GROWTH_INCOMPLETE.into()))
+    }
+}
+
+/// Read the language's growth table, plan it and grow every shape, each program linted through `engine`.
+///
+/// # Errors
+/// A table or a profile the suite refuses, a scene or a lint that fails, or a shape over its bounds.
+pub(crate) fn grow_source(
+    engine: &dyn EnginePort,
+    suite: &dyn SuitePort,
+    meter: &dyn ProcessMeterPort,
+    scenes: ArtifactPath<'_>,
+    source: crate::domain::growth::types::GrowthSource<'_>,
+) -> Result<ShapeGrowths, Error> {
+    let lint = |request: &WorkerRequest| engine_lint(engine, request);
+    grow(&lint, suite, meter, scenes, &plan(suite, source)?)
 }

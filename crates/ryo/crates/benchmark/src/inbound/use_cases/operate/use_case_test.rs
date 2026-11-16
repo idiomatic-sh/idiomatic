@@ -11,7 +11,15 @@ use std::borrow::Cow;
 type Input = Scenario;
 /// The verdict, the standard output, whether that output parses as exactly one BMF document, and the artifacts requests, as
 /// text.
-type Value = (OperationVerdict, Cow<'static, str>, bool, Cow<'static, str>);
+/// Whether stdout is exactly one JSON document, what asymptote reads as the bench's BMF.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Published {
+    /// One JSON document and nothing after it.
+    OneDocument,
+    /// Anything else.
+    Other,
+}
+type Value = (OperationVerdict, Cow<'static, str>, Published, Cow<'static, str>);
 /// The refusal, the artifacts requests, as text, and whether a registration was written.
 type Failure = (Cow<'static, str>, Cow<'static, str>, bool);
 
@@ -46,7 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((
             OperationVerdict::Passed,
             Cow::Borrowed(METRICS),
-            true,
+            Published::OneDocument,
             Cow::Borrowed(BENCH_CALLS),
         )),
     },
@@ -60,7 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((
             OperationVerdict::Failed,
             Cow::Borrowed(""),
-            false,
+            Published::Other,
             Cow::Borrowed(BENCH_CALLS),
         )),
     },
@@ -74,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((
             OperationVerdict::Failed,
             Cow::Borrowed(""),
-            false,
+            Published::Other,
             Cow::Borrowed(SEALED),
         )),
     },
@@ -133,7 +141,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             verdict,
             Cow::Owned(String::from_utf8_lossy(&observed.stdout).into_owned()),
             // One JSON document and nothing after it: what asymptote reads as the bench's BMF.
-            serde_json::from_slice::<serde_json::Value>(&observed.stdout).is_ok(),
+            serde_json::from_slice::<serde_json::Value>(&observed.stdout)
+                .map_or(Published::Other, |_document| Published::OneDocument),
             calls,
         )),
         Err(refusal) => Err((Cow::Owned(refusal), calls, observed.registered)),

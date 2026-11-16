@@ -3,7 +3,7 @@
 use super::super::authority::service::{refused, verify_context};
 use super::super::constants;
 use crate::domain::suite::types::inventory::value::{FailureReason, PassedRule, RuleEvidence};
-use crate::outbound::evidence::types::VerificationTimesFile;
+use super::super::types::RuleFiles;
 use crate::outbound::{
     execution::interface::ExecutionPort,
     inventory::{
@@ -22,14 +22,14 @@ use ryo_benchmark_contracts::domain::receipts::constants::{
     CASE_RECEIPTS_ARGUMENT, CASES_JSONL, VERIFY_CASES, VERIFY_TIMES_ARGUMENT,
 };
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
 /// Verify one rule of the registration, keeping its observations in `directory` and its verification times in `times`; a refusal is the rule's failure, never
 /// the inventory's, and a deferred default answers its capability without running.
 pub(in crate::application::inventory_verification) fn verify_rule(
     registration: &Registration,
     entry: Option<&RegisteredRule>,
-    (directory, times): (&Path, &VerificationTimesFile),
+    RuleFiles { directory, times }: RuleFiles<'_>,
     suite: &dyn SuitePort,
     receipts: &dyn ReceiptsPort,
     execution: &dyn ExecutionPort,

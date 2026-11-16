@@ -22,7 +22,7 @@ pub struct ProfileLabel<'a>(pub &'a str);
 /// The names and suffixes the language gives its sources, its reference and its profiles.
 #[derive(Clone, Copy, Debug)]
 pub struct CorpusLanguage<'a> {
-    /// The language as benchmark.toml and the bench's measures name it (`python`).
+    /// The language as benchmark.toml and the bench's measures name it.
     pub id:
         &'a ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
     /// The language as observations name it.
@@ -37,25 +37,18 @@ pub struct CorpusLanguage<'a> {
     pub valid_profile: ProfileLabel<'a>,
 }
 
-/// Per-rule finding multiplicities, written explicitly rather than as debug representations.
-#[derive(Clone, Debug)]
-pub(super) struct FindingCounts<'a>(pub std::collections::BTreeMap<&'a ryo::linter::RuleId, usize>);
-
-impl std::fmt::Display for FindingCounts<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (index, (rule, count)) in self.0.iter().enumerate() {
-            if index != 0 {
-                f.write_str(super::constants::FINDING_SEPARATOR)?;
-            }
-            write!(f, "{rule}={count}")?;
-        }
-        Ok(())
-    }
-}
-
 /// What one agreement between two reports compares, named for the refusal that reports a difference.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ComparisonName(pub &'static str);
+
+/// The inventory a bench verified its rules in, and the rules it verified.
+#[derive(Clone, Copy, Debug)]
+pub struct VerifiedInventory<'a> {
+    /// The inventory directory the verification wrote.
+    pub directory: &'a Path,
+    /// The rules it verified.
+    pub rules: &'a [ryo::linter::RuleId],
+}
 
 /// One certified corpus and everything its measurement is bound to.
 #[derive(Clone, Debug)]
@@ -66,8 +59,8 @@ pub struct CorpusMeasurement<'a> {
     pub projects: Vec<Project>,
     /// Whether the language grows its rules, and where from.
     pub growth: crate::domain::growth::types::CorpusGrowth<'a>,
-    /// The times file of each rule the inventory verified.
-    pub verification: &'a crate::outbound::evidence::types::VerificationTimesFiles,
+    /// The inventory that verified the rules, whose times the bench publishes.
+    pub verification: VerifiedInventory<'a>,
     /// The directory retained state and trial directories live under.
     pub cache: &'a Path,
     /// The frozen workload directory the projects' edit patches are read from.
@@ -114,9 +107,3 @@ pub(super) struct CorpusBoundaries<'a> {
     pub meter: &'a dyn crate::outbound::process_meter::interface::ProcessMeterPort,
 }
 
-/// The corpus sources read so far, each read once when a finding in it is first placed.
-#[derive(Debug, Default)]
-pub(super) struct SourceTexts(
-    /// Each source read, by its corpus-relative path.
-    pub std::collections::BTreeMap<ryo::linter::RelativePath, ryo::linter::SourceText>,
-);

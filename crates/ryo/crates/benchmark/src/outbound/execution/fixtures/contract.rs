@@ -190,13 +190,12 @@ fn missing() -> Invocation {
         directory: PathBuf::from("."),
     }
 }
-/// Run the shared observations against the supplied implementation.
+/// The promises every execution keeps, whether or not it launches children, over `child`, an invocation that is no
+/// worker request: it compiles no rule ahead, and its profile and exit observation answer the same on every call.
 ///
 /// # Panics
 ///
-/// Panics when fixture setup fails or the implementation violates a contract observation.
-/// The promises every execution keeps, whether or not it launches children, over `child`, an invocation that is no
-/// worker request: it compiles no rule ahead, and its profile and exit observation answer the same on every call.
+/// Panics when the implementation breaks one of them.
 pub fn check_with(adapter: &impl ExecutionPort, child: &Invocation) {
     assert!(
         adapter
@@ -215,6 +214,11 @@ pub fn check_with(adapter: &impl ExecutionPort, child: &Invocation) {
         "the exit observation is fixed for the execution's lifetime"
     );
 }
+/// Run the shared observations against the supplied implementation.
+///
+/// # Panics
+///
+/// Panics when fixture setup fails or the implementation violates a contract observation.
 #[expect(
     clippy::expect_used,
     reason = "fixture setup failures must fail the contract test"
