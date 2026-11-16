@@ -138,6 +138,27 @@ pub(crate) fn observed(entity: i64, states: &[&'static str], least: &'static str
         .collect()
 }
 
+/// A graph over the chain lattice of `roots` and `edges`, unkeyed.
+pub(crate) fn chain(
+    roots: &[(i64, &'static str)],
+    edges: &[(i64, i64, i64, &'static str, &'static str)],
+) -> Graph {
+    Graph {
+        lattice: CHAIN.to_vec(),
+        roots: roots
+            .iter()
+            .map(|(root, state)| (0, *root, *state))
+            .collect(),
+        edges: edges
+            .iter()
+            .map(|(source, destination, order, before, after)| {
+                (0, *source, *destination, *order, *before, *after)
+            })
+            .collect(),
+        keyed: false,
+    }
+}
+
 /// Every text the graph names, each once.
 fn texts(graph: &Graph) -> Vec<&'static str> {
     let mut texts: Vec<&'static str> = graph
