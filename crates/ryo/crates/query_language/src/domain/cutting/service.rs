@@ -191,7 +191,34 @@ fn repeats_read(operation: &Operation) -> RepeatedRows {
             distinct: Some(_), ..
         }
         | Operation::GroupDigest { .. } => RepeatedRows::Dropped,
-        _ => RepeatedRows::Kept,
+        Operation::Project {
+            distinct: RepeatedRows::Kept,
+            ..
+        }
+        | Operation::GroupCount { distinct: None, .. }
+        | Operation::Select { .. }
+        | Operation::Extend { .. }
+        | Operation::Join { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Axis { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => RepeatedRows::Kept,
     }
 }
 
