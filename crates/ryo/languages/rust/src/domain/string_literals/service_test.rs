@@ -65,7 +65,11 @@ fn subject(source: Input) -> Result<Value, Failure> {
     };
     let mut written: Vec<&str> = languages::positions(tree.elements)
         .filter_map(|at| string_token(&tree, at))
-        .map(|token| &source[start(&tree, token).0 as usize..end(&tree, token).0 as usize])
+        .filter_map(|token| {
+            let from = usize::try_from(start(&tree, token).0).ok()?;
+            let to = usize::try_from(end(&tree, token).0).ok()?;
+            source.get(from..to)
+        })
         .collect();
     written.dedup();
     Ok(Box::leak(written.join(" ").into_boxed_str()))

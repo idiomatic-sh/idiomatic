@@ -22,10 +22,6 @@ pub(super) const INVOCATION: &str = "invocation";
 /// Text of the invocation json in this part.
 pub(super) const INVOCATION_JSON: &str =
     ryo_benchmark_contracts::domain::receipts::constants::INVOCATION_JSON;
-/// Text of the raw artifact path is not utf8 in this part.
-pub(super) const RAW_ARTIFACT_PATH_IS_NOT_UTF8: &str = "raw artifact path is not UTF8";
-/// Text of the slash in this part.
-pub(super) const SLASH: &str = "/";
 /// Refuse a process observation that has no raw artifacts to point at.
 pub(super) const PROCESS_OBSERVATION_NEEDS_RAW_ARTIFACTS: &str =
     "a process observation needs its three raw artifacts";

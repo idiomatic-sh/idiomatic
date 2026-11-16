@@ -1,5 +1,5 @@
 description = "The repository root's asymptote configuration: the workspace whose members are the products, and the tools no product owns."
-why = "Makes the root the one place the repository's own checks are declared: the checks of its files, their text and the workflows, in the root-only groups `repository` (the git hook and CI) and `repository-check` (CI), which no product has, so `asymptote check --groups repository,repository-check` at the root runs these tools and no product's, and a check that is not here or in a product runs nowhere."
+why = "Makes the root the one place the repository's own checks are declared: the checks of its files, their text and the workflows, in the root-only groups `repository` (the git hook and CI), `repository-check` (CI) and `pull-request` (CI, from the event GitHub hands the run), which no product has, so `asymptote check --groups repository,repository-check` at the root runs these tools and no product's, and a check that is not here or in a product runs nowhere."
 content = '''
 # The repository root is the asymptote workspace: its members are the products, each with an asymptote.toml and a lock of its own,
 # and its own tools are the checks no product owns: the files, their text and the workflows. A product runs from its own directory.
@@ -76,12 +76,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -175,12 +177,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -277,12 +281,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -367,12 +373,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -463,12 +471,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -560,12 +570,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -654,12 +666,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -746,12 +760,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -838,12 +854,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -932,12 +950,14 @@ timeout-seconds = 600
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -1025,12 +1045,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 
 [[tools]]
 id = "ci-tests"
@@ -1135,6 +1157,9 @@ inputs = ["."]
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
+  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
+  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
+  { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },
 ]
 
 [[scenarios]]
@@ -1216,12 +1241,14 @@ inputs = [".github"]
 
 [[tools]]
 id = "commitizen"
-group = "repository"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The pull request's title is commitizen-title's: it reads the
-# event, which no stamp holds.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+group = "pull-request"
+# The message main keeps is a conventional commit (cz.toml). Main takes squash merges alone, so a pull request lands as its title:
+# a pull request's run checks the title, and a push to main the commits it added. Both are read from the event GitHub hands the run
+# ($GITHUB_EVENT_PATH), which is no file of the repository and no stamp holds, so its group is run by a job that keeps no asymptote
+# store (check.yml's pull-request job) and it checks the live event every time. A run with no event has no message to check.
+run = ["bash", "-c", "uv run ci/scripts/checks/commitizen.py \"${GITHUB_EVENT_PATH:-}\""]
 timeout-seconds = 300
+inputs = ["cz.toml", "ci/scripts/checks/commitizen.py"]
 '''
 then.findings = [
   { rule = 'asymptote-workspace#template', path = 'asymptote.toml' },

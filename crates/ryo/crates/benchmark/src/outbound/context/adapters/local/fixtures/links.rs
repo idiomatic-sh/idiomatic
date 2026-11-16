@@ -13,10 +13,14 @@ pub(crate) fn link(target: &Path, at: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(target, at)
 }
 
-/// Platforms without symbolic links cannot build this fixture.
+/// Make `at` a symbolic link to `target`: Windows makes a directory link or a file link by what the target is.
 #[cfg(not(unix))]
-pub(crate) fn link(_target: &Path, _at: &Path) -> std::io::Result<()> {
-    Err(std::io::ErrorKind::Unsupported.into())
+pub(crate) fn link(target: &Path, at: &Path) -> std::io::Result<()> {
+    if target.is_dir() {
+        std::os::windows::fs::symlink_dir(target, at)
+    } else {
+        std::os::windows::fs::symlink_file(target, at)
+    }
 }
 /// Write a tracked tree under `root`: each file with its bytes and each link with its target text, and return every
 /// tracked path.

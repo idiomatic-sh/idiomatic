@@ -2,7 +2,7 @@
 //! worker command; an unknown verb and a path that is not a bench directory are refused.
 use super::service::{layout, operation, verb_of, worker_arguments};
 use super::types::{BenchDirectory, OperationVerb};
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Word, run, slashed};
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
@@ -102,11 +102,17 @@ fn subject((verb, bench): Input) -> Result<Value, Failure> {
     .map_err(|error| Cow::Owned(error.to_string()))?;
     let arguments = worker_arguments(chosen, &placed, Path::new("/bin/tool"))
         .iter()
-        .map(|argument| argument.to_string_lossy().into_owned())
+        .map(|argument| {
+            let text = argument.to_string_lossy();
+            match text.split_once('=') {
+                Some((flag, path)) => format!("{flag}={}", slashed(Path::new(path)).0),
+                None => slashed(Path::new(&*text)).0,
+            }
+        })
         .collect::<Vec<_>>();
     Ok(Cow::Owned(format!(
         "{}: {}",
-        placed.root.display(),
+        slashed(&placed.root).0,
         arguments.join(" ")
     )))
 }

@@ -1,6 +1,7 @@
 //! The clippy process protocol: the package manager's JSON message stream, and the dependency files that name what rustc read.
 use super::constants;
 use ryo::linter::{RelativePath, RuleId};
+use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunReport};
@@ -151,7 +152,10 @@ pub(super) fn dep_info_sources(text: &str, root: &Path) -> Result<BTreeSet<Relat
                 .extension()
                 .is_some_and(|extension| extension == constants::SOURCE_EXTENSION)
         {
-            let _new = sources.insert(RelativePath(relative.to_string_lossy().into()));
+            let file = RelativeArtifactPath::try_from(relative)
+                .and_then(|address| address.slashed())
+                .map_err(|error| Error::Invalid(error.to_string()))?;
+            let _new = sources.insert(RelativePath(file.0.into()));
         }
     }
     Ok(sources)

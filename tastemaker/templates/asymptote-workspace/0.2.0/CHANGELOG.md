@@ -3,16 +3,18 @@
 ## 0.2.0
 
 The root's tools move to root-only groups, which no product has: `repository` (tastemaker, taplo, yamllint, editorconfig, merge-conflict,
-typos, shellcheck, actionlint and commitizen) and `repository-check` (ci-tests). A check at the root of a group runs every member's tools of
+typos, shellcheck and actionlint), `repository-check` (ci-tests) and `pull-request` (commitizen). A check at the root of a group runs every member's tools of
 that group too, so the old `lint` and `check` groups ran every product's lint and test tools from the root job; now
 `asymptote check --root . --groups repository,repository-check` runs the repository's checks alone, and each product's `lint` group runs in
 that product's own job. The pre-commit hook runs `lint` and `repository`. Scenario ids are unchanged.
 
 `ci-tests` names the whole tree (`inputs = ["."]`): its suite reads the workflows, every product's manifests, `.gitleaks.toml`,
 `.gitleaksignore`, `cz.toml` and cargo's metadata of every workspace, and a persisted store reuses it while its inputs do not move.
-`commitizen` checks the branch's commits alone. The pull request's title, which it read from `$GITHUB_EVENT_PATH`, is no
-file and no stamp holds it, so a stored pass outlived an edited title: a repository checks it in a group no job keeps a store
-for. Edited in place: 0.2.0 is unreleased.
+`commitizen` checks the message main keeps, in the root-only `pull-request` group: main takes squash merges alone, so a pull
+request's run checks its title and a push to main the commits it added, both read from `$GITHUB_EVENT_PATH`
+(`ci/scripts/checks/commitizen.py`); a branch's own commits, which main never keeps, are not checked. The event is no file and no
+stamp holds it, so a stored pass would outlive an edited title: a repository runs the group in a job that keeps no store. Edited
+in place: 0.2.0 is unreleased.
 
 ## 0.1.0
 
