@@ -1,6 +1,6 @@
 //! The content seal of a listed project context: declared bytes, declared absences and the stable logical root, never the
 //! temporary physical directory.
-use super::constants::{AUXILIARY, LINK, LISTED_DISK_CONTEXT, MISSING, SOURCE};
+use super::constants::{AUXILIARY, LINK, LISTED_DISK_CONTEXT, MISSING, PORTABLE_SEPARATOR, SOURCE};
 use super::types::ContextManifest;
 use crate::domain::artifacts::types::digest::value::ArtifactDigest;
 use sha2::{Digest as _, Sha256};
@@ -20,7 +20,7 @@ fn portable(path: &Path) -> OsString {
     let mut joined = OsString::new();
     for (index, part) in path.components().enumerate() {
         if index > 0 {
-            joined.push("/");
+            joined.push(PORTABLE_SEPARATOR);
         }
         joined.push(part.as_os_str());
     }

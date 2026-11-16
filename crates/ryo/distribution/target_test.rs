@@ -95,15 +95,19 @@ fn prepare_policy(_command: &Path, project: &Path) -> std::io::Result<()> {
 
     // The released command, at the version this product's `tastemaker.toml` pins.
     let installation = project.join(".tastemaker");
-    let manifest = std::fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../tastemaker.toml"),
-    )?;
+    let manifest =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../tastemaker.toml"))?;
     let pinned = manifest
         .lines()
         .find_map(|line| line.strip_prefix("tastemaker = \"")?.strip_suffix('"'))
         .ok_or_else(|| std::io::Error::other("tastemaker.toml pins no `tastemaker` version"))?;
     run(Command::new("cargo")
-        .args(["install", "--locked", "idiomatic-sh-tastemaker", "--version"])
+        .args([
+            "install",
+            "--locked",
+            "idiomatic-sh-tastemaker",
+            "--version",
+        ])
         .arg(format!("={pinned}"))
         .arg("--root")
         .arg(&installation))?;
