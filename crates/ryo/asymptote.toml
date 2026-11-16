@@ -152,8 +152,7 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo",
 id = "test-default"
 group = "release-tests"
 # Tests are strictly pass or fail: no lock holds a failing test. nextest runs every libtest target; the BDD runners and the
-# doctests, which it cannot list, run in `test-bdd` and `test-doc`. What the recorded rules answer over ruff and the other pinned
-# targets is `bench-replay`'s, in the bench-correctness group, and the warm run's memory peak is `memory-lint`'s.
+# doctests, which it cannot list, run in `test-bdd` and `test-doc`.
 run = ["cargo", "nextest", "run", "--workspace", "--locked"]
 timeout-seconds = 3600
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
@@ -221,7 +220,7 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--bench", "commands"]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tastemaker"]
+inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "performance-distribution"
@@ -230,7 +229,7 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "test-language"
@@ -260,7 +259,7 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--bench", "lint", "--", "--timing"]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "memory-lint"
@@ -280,7 +279,7 @@ run = ["taskset", "-c", "0-3", "cargo", "bench", "--locked", "--package", "idiom
 output = "bmf"
 tolerance-percent = { peak-megabytes = 5, warm-peak-megabytes = 5, store-bytes = 1 }
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "memory-dhat"
@@ -295,7 +294,20 @@ run = ["taskset", "-c", "0-3", "cargo", "bench", "--locked", "--package", "idiom
 output = "bmf"
 tolerance-percent = { dhat-gmax-bytes = 1, big-blocks = 0 }
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "memory-allocation"
+group = "memory"
+# The core's allocation harness (`crates/core/tests/allocation.rs`, `--bmf`), over the core's own corpus and the fake language: the most
+# blocks any file allocates, after warm-up, beyond what the parser does on its own (`fake/blocks-per-file-beyond-parser`). `dhat` counts
+# every block, so the number repeats; it varies by a few blocks between files, because a vector the findings fill doubles now and then,
+# so the measure may rise 2% over its best. Target, not a gate: one block per file.
+run = ["cargo", "test", "--locked", "--package", "idiomatic-sh-ryo-core", "--all-features", "--test", "allocation", "--", "--bmf"]
+output = "bmf"
+tolerance-percent = { blocks-per-file-beyond-parser = 2 }
+timeout-seconds = 3600
+inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "build"
@@ -314,7 +326,7 @@ group = "bench-correctness"
 # runner runs this group (the bench-correctness job), never the check matrix.
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "verify-inventory", "languages/{lang}/benchmarks/linters/{linter}"]
 timeout-seconds = 21600
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "bench-replay"
@@ -338,21 +350,21 @@ group = "bench-measure"
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "measure-valid", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 timeout-seconds = 14400
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "bench-verify"
 group = "bench-verify"
 # How long each linter bench's rules take to verify against their registered cases, in this process over one SDK engine
 # per rule: the bench's verify-cases writes one benchmark `verify/<linter>/<rule>` with `total-ms`, `max-case-ms` and `compile-ms`
-# as BMF to the file named by --verify-times, and the tool prints the file. The lock holds each measure's best, and a run fails
+# as BMF to the file named by --verify-times, one document for each profile, and the tool prints them as one document. The lock holds each measure's best, and a run fails
 # when one rises over it by more than 10%, the noise of a timing on a shared machine. The
 # target is 10 ms for every case (`max-case-ms`) and falls from there; it is a target, never a gate.
-run = ["bash", "-c", "set -eo pipefail; mkdir -p target/benchmarks/verify; out=\"$PWD/target/benchmarks/verify/{lang}-{linter}.bmf\"; rm -f \"$out\"; reference=$(command -v {linter} || echo \"$(rustc --print sysroot)/bin/{linter}-driver\"); cargo bench --locked -p idiomatic-sh-ryo-{lang}-{linter}-benchmark --bench {linter} -- verify-cases \"$reference\" . --verify-times=\"$out\" >&2; cat \"$out\""]
+run = ["bash", "-c", "set -eo pipefail; mkdir -p target/benchmarks/verify; out=\"$PWD/target/benchmarks/verify/{lang}-{linter}.bmf\"; rm -f \"$out\"; reference=$(command -v {linter} || echo \"$(rustc --print sysroot)/bin/{linter}-driver\"); cargo bench --locked -p idiomatic-sh-ryo-{lang}-{linter}-benchmark --bench {linter} -- verify-cases \"$reference\" . --verify-times=\"$out\" >&2; jq -s add \"$out\""]
 output = "bmf"
 tolerance-percent = { total-ms = 10, max-case-ms = 10, compile-ms = 10 }
 timeout-seconds = 14400
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "bench-growth"
@@ -379,4 +391,4 @@ group = "bench-parity"
 run = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "parity", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]

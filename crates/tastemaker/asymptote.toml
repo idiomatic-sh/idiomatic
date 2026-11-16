@@ -165,31 +165,30 @@ timeout-seconds = 7200
 inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "memory-commands"
+id = "memory-distribution"
 group = "memory"
-# The peak resident set (`peak-kib`) of the command line's cold `tm check` over crates/ryo, the memory row of the `commands` bench
-# alone (its `--memory` flag, Linux; `performance` takes the rest): three runs over copies of their own, the whole run held to the
-# first four processors (`taskset -c 0-3`, which fails on a machine with fewer and which the bench checks) so that the command line runs
-# the same four workers on every machine and the lock needs no machine. The peak is a resident set, which moves with how many workers
-# hold their tables at once, so it may rise 5% over its best. Target, not a gate: 500 MB. The same run takes `tm validate` over the
-# repository's own definitions (`workspace/validate-repository`): its wall time cold (nothing proved yet, `cold-ms`) and warm (everything
-# proved, `warm-ms`), and the larger peak of the two (`peak-kib`, 5% as above). The times are wall clock on a shared runner: a cold run may
-# rise 25% over its best, a warm one, which is tens of milliseconds, 50%. Targets, not gates: 300 ms cold and 10 ms warm.
-run = ["taskset", "-c", "0-3", "cargo", "bench", "--locked", "--package", "idiomatic-sh-tastemaker", "--bench", "commands", "--", "--memory"]
+# The memory rows of the `distribution` bench over the cargo registry's pinned target (ruff, at its pinned revision), the part a pull
+# request can afford (`--memory`): the peak memory of the cold `tm check` (`cold-peak-kib`) and `tm validate` over the target's
+# definitions, cold (`validate-cold-ms`) and again warm (`validate-warm-ms`), with its larger peak (`validate-peak-kib`), each the median
+# of five rounds over a fresh checkout. Every run is held to four processors (the bench's `taskset --cpu-list 0-3`, which it refuses on a
+# machine without them), so the command runs the same four workers on every machine and the lock needs no machine. The peaks are resident
+# sets, which move with how many workers hold their tables at once, so 5%; the times are wall clock on a shared runner: a cold validation
+# may rise 25% over its best, a warm one, which is tens of milliseconds, 50%. `performance-distribution` takes the timings of every
+# registry's targets. Targets, not gates: a peak under 500 MB, 300 ms cold and 10 ms warm.
+run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-tastemaker", "--features", "distribution", "--bench", "distribution", "--", "--memory"]
 output = "bmf"
-tolerance-percent = { peak-kib = 5, cold-ms = 25, warm-ms = 50 }
+tolerance-percent = { cold-peak-kib = 5, validate-peak-kib = 5, validate-cold-ms = 25, validate-warm-ms = 50 }
 timeout-seconds = 3600
-inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../.."]
+inputs = [".", "../ryo/crates", "../ryo/languages", "../../rust-toolchain.toml", "../../.cargo", "../../tastemaker/benchmarks"]
 
 [[tools]]
 id = "performance"
 group = "perf"
 # The benches print the Bencher Metric Format: the lock holds each measure's best and asymptote judges against it.
-# Every measure but the memory one, which `memory-commands` holds: no measure has two bests.
 run = ["cargo", "bench", "--locked", "--workspace", "--bench", "commands"]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../ryo", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../.."]
+inputs = [".", "../ryo/crates", "../ryo/languages", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "performance-distribution"
@@ -198,7 +197,7 @@ group = "perf"
 run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
 output = "bmf"
 timeout-seconds = 7200
-inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../.."]
+inputs = [".", "../ryo/crates", "../ryo/languages", "../../rust-toolchain.toml", "../../.cargo", "../../tastemaker/benchmarks"]
 
 [[tools]]
 id = "build"

@@ -9,3 +9,5 @@ pub const AUXILIARY: &str = "auxiliary";
 pub const LINK: &str = "link";
 /// The tag the content seal of a listed project context starts with.
 pub const LISTED_DISK_CONTEXT: &str = "listed-disk-context";
+/// The separator of the platform-independent form of a sealed path.
+pub const PORTABLE_SEPARATOR: &str = "/";

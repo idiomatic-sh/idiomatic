@@ -4,6 +4,7 @@ use super::writer::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::fixtures::contract::check;
+use std::collections::BTreeMap;
 use std::io::Write as _;
 use tracing_subscriber::fmt::writer::MakeWriter as _;
 
@@ -226,6 +227,87 @@ fn resource_route_profile_preserves_generic_aggregate_payload()
     Ok(())
 }
 
+/// Each case of one verification binds its own observations: a retained worker that loaded the profile's rules for a case
+/// that declares none still binds the producers the next case declares, exactly as a fresh worker does. The rules a case runs
+/// never depend on which case came first (the order a case's expected findings put it in).
+fn each_request_binds_its_own_observations_over_retained_rules()
+-> Result<(), Box<dyn std::error::Error>> {
+    use ryo::linter::{
+        ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        ObservationKind, ObservationName, ObservationProducer, RuleId,
+    };
+    use ryo_benchmark_contracts::domain::requests::types::{InputDeclaration, WorkerRequest};
+    let root = tempfile::tempdir()?;
+    let rules = root.path().join("rules");
+    std::fs::create_dir_all(rules.join("F401"))?;
+    std::fs::write(
+        rules.join("F401/query.ryoql"),
+        "let r = select id from \"function\"; emit r subject id key(id);",
+    )?;
+    let consumer = RuleId::try_from("F401")?;
+    let binding = ObservationBinding {
+        name: ObservationBindingName("published".into()),
+        columns: vec![ObservationColumn {
+            name: ObservationColumnName("file".into()),
+            kind: ObservationKind::File,
+        }],
+        producers: vec![ObservationProducer::Output {
+            rule: RuleId::try_from("B002")?,
+            output: ObservationName("matched".into()),
+        }],
+    };
+    let request = |rule_observations| WorkerRequest {
+        performance: Default::default(),
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        rule_observations,
+        rule_context:
+            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        given_project_inventory: Default::default(),
+        project_context_mode: Default::default(),
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+        root: root.path().into(),
+        rules: rules.clone(),
+        query_modules: BTreeMap::default(),
+        rule_applicability: BTreeMap::default(),
+        parser_configuration:
+            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language:
+            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        files: vec![],
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+    };
+    let declared = InputDeclaration::Declared(
+        ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations::from(
+            BTreeMap::from([(consumer.clone(), vec![binding.clone()])]),
+        ),
+    );
+    let retained = std::sync::OnceLock::new();
+    let first = super::schemas::request_rules(
+        Some(&retained),
+        None,
+        &request(InputDeclaration::Undeclared),
+    )?;
+    assert_eq!(
+        first[&consumer].observations,
+        vec![],
+        "the first case declares no binding"
+    );
+    let second = super::schemas::request_rules(Some(&retained), None, &request(declared.clone()))?;
+    let fresh = super::schemas::request_rules(None, None, &request(declared))?;
+    assert_eq!(
+        second[&consumer].observations,
+        vec![binding],
+        "the second case runs with the producers it declares"
+    );
+    assert_eq!(
+        second[&consumer].observations, fresh[&consumer].observations,
+        "a retained worker binds as a fresh one"
+    );
+    Ok(())
+}
+
 type Scenario = fn() -> Result<(), Box<dyn std::error::Error>>;
 type Input = Scenario;
 type Value = ();
@@ -271,6 +353,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("resource_route_profile_preserves_generic_aggregate_payload"),
         word: Word::Succeeds,
         input: || resource_route_profile_preserves_generic_aggregate_payload,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("each_request_binds_its_own_observations_over_retained_rules"),
+        word: Word::Succeeds,
+        input: || each_request_binds_its_own_observations_over_retained_rules,
         expect: Expect::Value(()),
     },
 ];

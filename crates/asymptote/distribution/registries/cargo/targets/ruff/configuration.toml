@@ -1,9 +1,9 @@
-
 # What asymptote checks this target with: a run places this file in the project's directory, under asymptote's own name for it.
+# The target is Rust, and its linter is clippy, whose JSON `clippy-sarif` writes as SARIF; both are at the versions `tools/install.py` declares.
 [[tools]]
-id = "tastemaker"
+id = "clippy"
 group = "lint"
-run = [".tastemaker/bin/tm", "check", "--format", "sarif"]
+run = ["bash", "-c", "set -o pipefail; cargo clippy --workspace --message-format=json 2>/dev/null | clippy-sarif"]
 output = "sarif"
-timeout-seconds = 120
-inputs = [".", "tastemaker.toml", "tastemaker.lock", ".policy"]
+timeout-seconds = 3600
+inputs = ["."]
