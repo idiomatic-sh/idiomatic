@@ -75,9 +75,11 @@ fn one_document() -> Result<Value, Failure> {
     let before = lines()?;
     adapter.finish().map_err(|_refused| Refusal::Unexpected)?;
     let finished = lines()?;
-    if adapter.finish().is_ok() {
-        return Err(Refusal::SecondDocument);
-    }
+    let second = adapter.finish().map_err(|refused| refused.to_string());
+    second
+        .err()
+        .filter(|said| said.contains("already written"))
+        .ok_or(Refusal::SecondDocument)?;
     Ok([before, finished, lines()?])
 }
 

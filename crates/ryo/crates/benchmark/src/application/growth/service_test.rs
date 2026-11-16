@@ -6,7 +6,6 @@ use crate::domain::growth::types::{
     CpuFloor, GrownProgram, GrowthPlan, GrowthSize, MemoryBound, RuleModules, ShapePrograms,
     SourceFileName,
 };
-use crate::outbound::engine::fixtures::fake::EngineFake;
 use crate::outbound::process_meter::fixtures::fake::ProcessMeterFake;
 use crate::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
@@ -178,15 +177,15 @@ fn meter(scenario: Scenario) -> ProcessMeterFake {
 }
 
 /// How many directories below `scenes` hold a file named `case.py`.
-fn scenes_holding_the_source(scenes: &std::path::Path) -> usize {
-    std::fs::read_dir(scenes)
-        .map(|entries| {
-            entries
-                .filter_map(Result::ok)
-                .filter(|entry| entry.path().join("case.py").is_file())
-                .count()
-        })
-        .unwrap_or_default()
+fn scenes_holding_the_source(scenes: &std::path::Path) -> Result<usize, Refusal> {
+    let mut holding = 0;
+    for entry in std::fs::read_dir(scenes).map_err(|error| Refusal::Unexpected(error.to_string()))? {
+        let entry = entry.map_err(|error| Refusal::Unexpected(error.to_string()))?;
+        if entry.path().join("case.py").is_file() {
+            holding += 1;
+        }
+    }
+    Ok(holding)
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -194,7 +193,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let scenes = scratch.path().join("scenes");
     std::fs::create_dir_all(&scenes).map_err(|error| Refusal::Unexpected(error.to_string()))?;
     let grown = grow(
-        &EngineFake::default(),
+        &|_request: &WorkerRequest| Ok(()),
         &crate::outbound::suite::factory::local(),
         &meter(scenario),
         ArtifactPath(&scenes),
@@ -216,8 +215,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         .map(|shape| (shape.ratio.0 * 100.0).round())
         .ok_or_else(|| Refusal::Unexpected("the shape was not published".into()))?;
     Ok((
-        format!("{ratio}").parse().unwrap_or_default(),
-        scenes_holding_the_source(&scenes),
+        format!("{ratio}")
+            .parse()
+            .map_err(|_unparsed| Refusal::Unexpected(format!("ratio {ratio}")))?,
+        scenes_holding_the_source(&scenes)?,
     ))
 }
 

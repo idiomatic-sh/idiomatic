@@ -1,7 +1,6 @@
 //! Grow each shape: write its scene, lint the half and the whole program, and refuse a doubling over the limits.
 use super::constants;
-use crate::domain::growth::types::{GrowthPlan, ShapePrograms};
-use crate::outbound::engine::interface::EnginePort;
+use crate::domain::growth::types::{GrownProgram, GrowthPlan, ShapePrograms};
 use crate::outbound::process_meter::interface::ProcessMeterPort;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::ArtifactPath;
@@ -10,21 +9,23 @@ use ryo_benchmark_contracts::domain::measurements::types::{
     DoublingRatio, GrowthShape, ResidentBytes, ShapeGrowth, ShapeGrowths,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
 use ryo_benchmark_contracts::domain::requests::types::{
     CohortSelection, QueryModuleName, WorkerRequest,
 };
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-/// Lint every shape of `plan` at both sizes through `engine`, fastest of five. Each program's scene is a fresh directory
+/// One lint of a grown program, as the use case composes it (prepare, load, configure, execute; refused unless complete).
+pub type Lint<'a> = &'a dyn Fn(&WorkerRequest) -> Result<(), Error>;
+
+/// Lint every shape of `plan` at both sizes through `lint`, fastest of five. Each program's scene is a fresh directory
 /// under `scenes` (`SuitePort::retained_directory`), its modules copied in (`copy_file`) and its program written as the
 /// plan's one source file (`write_text`); `meter` takes the CPU time around each lint and resets and reads the peak.
 ///
 /// # Errors
 /// A scene or a lint that fails, or a shape over the CPU limit (2.2) or the plan's memory bound.
 pub fn grow(
-    engine: &dyn EnginePort,
+    lint: Lint<'_>,
     suite: &dyn SuitePort,
     meter: &dyn ProcessMeterPort,
     scenes: ArtifactPath<'_>,
@@ -34,7 +35,7 @@ pub fn grow(
         return Err(Error::Invalid(constants::NO_SHAPE.into()));
     }
     let ports = Ports {
-        engine,
+        lint,
         suite,
         meter,
         scenes,
@@ -42,8 +43,8 @@ pub fn grow(
     let mut grown = BTreeMap::new();
     let mut failures = Vec::new();
     for (shape, programs) in &plan.shapes {
-        let half = ports.size(plan, programs, &programs.half.0)?;
-        let whole = ports.size(plan, programs, &programs.whole.0)?;
+        let half = ports.size(plan, programs, &programs.half)?;
+        let whole = ports.size(plan, programs, &programs.whole)?;
         let growth = ShapeGrowth {
             ratio: DoublingRatio(
                 whole.cpu.as_secs_f64() / half.cpu.max(plan.floor.0).as_secs_f64(),
@@ -54,23 +55,24 @@ pub fn grow(
         failures.extend(over(shape, plan, programs, &half, &growth));
         let _previous = grown.insert(shape.clone(), growth);
     }
-    if failures.is_empty() {
-        Ok(ShapeGrowths(grown))
-    } else {
-        Err(Error::Invalid(failures.join("\n")))
+    match failures.into_iter().reduce(|first, next| {
+        Error::Invalid(format!("{first}{}{next}", constants::FAILURE_SEPARATOR))
+    }) {
+        None => Ok(ShapeGrowths(grown)),
+        Some(failure) => Err(failure),
     }
 }
 
 /// The ports one growth run reads and writes through, and where its scenes go.
 struct Ports<'a> {
-    engine: &'a dyn EnginePort,
+    lint: Lint<'a>,
     suite: &'a dyn SuitePort,
     meter: &'a dyn ProcessMeterPort,
     scenes: ArtifactPath<'a>,
 }
 
 /// What one size of a shape took: its fastest CPU time and its highest peak.
-struct Sized {
+struct SizeCost {
     cpu: Duration,
     peak: ResidentBytes,
 }
@@ -81,8 +83,8 @@ impl Ports<'_> {
         &self,
         plan: &GrowthPlan,
         programs: &ShapePrograms,
-        program: &str,
-    ) -> Result<Sized, Error> {
+        program: &GrownProgram,
+    ) -> Result<SizeCost, Error> {
         let scene = self
             .suite
             .retained_directory(self.scenes, ArtifactText(constants::SCENE))?
@@ -99,7 +101,7 @@ impl Ports<'_> {
         }
         self.suite.write_text(
             ArtifactPath(&scene.join(&plan.file.0)),
-            ArtifactText(program),
+            ArtifactText(&program.0),
         )?;
         let request = WorkerRequest {
             selected_rules: CohortSelection::Explicit(vec![programs.rule.clone()]),
@@ -118,30 +120,12 @@ impl Ports<'_> {
         for _lint in 0..constants::LINTS {
             self.meter.reset_peak()?;
             let started = self.meter.cpu()?;
-            self.lint(&request)?;
+            (self.lint)(&request)?;
             let finished = self.meter.cpu()?;
             cpu = cpu.min(finished.0.saturating_sub(started.0));
             peak = ResidentBytes(peak.0.max(self.meter.peak()?.0));
         }
-        Ok(Sized { cpu, peak })
-    }
-
-    /// One lint of `request`, as the worker runs it: prepare, load, configure and execute; refused unless complete.
-    fn lint(&self, request: &WorkerRequest) -> Result<(), Error> {
-        let prepared = crate::application::worker_request::service::prepare(request.clone())?;
-        let session = self.engine.load(&prepared.request)?;
-        let configured =
-            crate::application::worker_request::service::configure(&prepared.request, session)?;
-        let report = configured.execute()?.report;
-        if report.execution_metadata == ExecutionMetadata::Complete {
-            Ok(())
-        } else {
-            Err(Error::Invalid(format!(
-                "{}: the run is not complete: {:?}",
-                request.root.display(),
-                report.execution_metadata
-            )))
-        }
+        Ok(SizeCost { cpu, peak })
     }
 }
 
@@ -151,12 +135,12 @@ fn over(
     shape: &GrowthShape,
     plan: &GrowthPlan,
     programs: &ShapePrograms,
-    half: &Sized,
+    half: &SizeCost,
     growth: &ShapeGrowth,
-) -> Vec<String> {
+) -> Vec<Error> {
     let mut failures = Vec::new();
     if growth.ratio.0 > constants::DOUBLING_LIMIT.0 {
-        failures.push(format!(
+        failures.push(Error::Invalid(format!(
             "{}: its CPU ratio {:.2} is over {} ({:?} at {} after {:?} at half, floor {:?})",
             shape.0,
             growth.ratio.0,
@@ -165,7 +149,7 @@ fn over(
             programs.size.0,
             half.cpu,
             plan.floor.0
-        ));
+        )));
     }
     let memory = &plan.memory;
     let size = u64::try_from(programs.size.0).unwrap_or(u64::MAX);
@@ -174,22 +158,26 @@ fn over(
         .0
         .saturating_add(memory.per_thousand.0.saturating_mul(size) / constants::THOUSAND);
     if growth.peak.0 > bound {
-        failures.push(format!(
+        failures.push(Error::Invalid(format!(
             "{}: peak {} bytes at {} passes the bound of {bound} bytes",
             shape.0, growth.peak.0, programs.size.0
-        ));
+        )));
     }
     let floored = ResidentBytes(half.peak.0.max(memory.floor.0));
-    if kilobytes(growth.peak) / kilobytes(floored) > memory.doubling.0 {
-        failures.push(format!(
+    if peak_ratio(growth.peak, floored).0 > memory.doubling.0 {
+        failures.push(Error::Invalid(format!(
             "{}: peak {} bytes at {} grew over {} times the {} bytes at half",
             shape.0, growth.peak.0, programs.size.0, memory.doubling.0, floored.0
-        ));
+        )));
     }
     failures
 }
 
-/// Bytes in thousands, as a ratio's number: exact for any peak under four terabytes, the largest counted as that.
-fn kilobytes(bytes: ResidentBytes) -> f64 {
-    f64::from(u32::try_from(bytes.0 / constants::THOUSAND).unwrap_or(u32::MAX))
+/// The whole-size peak over the floored half-size peak, counted in thousands of bytes: exact for any peak under four
+/// terabytes, the largest counted as that.
+fn peak_ratio(whole: ResidentBytes, half: ResidentBytes) -> DoublingRatio {
+    let thousands = |bytes: ResidentBytes| {
+        f64::from(u32::try_from(bytes.0 / constants::THOUSAND).unwrap_or(u32::MAX))
+    };
+    DoublingRatio(thousands(whole) / thousands(half))
 }

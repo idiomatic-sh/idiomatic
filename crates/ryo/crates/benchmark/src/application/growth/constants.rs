@@ -12,3 +12,5 @@ pub(super) const THOUSAND: u64 = 1_000;
 pub(super) const SCENE: &str = "scene-";
 /// The refusal of a plan with no shape: a run that grew nothing would hold every bound.
 pub(super) const NO_SHAPE: &str = "the growth plan holds no shape";
+/// Between two failures of one growth run.
+pub(super) const FAILURE_SEPARATOR: &str = "\n";

@@ -1,5 +1,5 @@
 //! Atomic document encoding precedes writing to the injected destination.
-use super::{connection::EvidenceBmfConnection, constants, schemas};
+use super::{connection::EvidenceBmfConnection, constants, document, schemas};
 use crate::outbound::evidence::interface::EvidencePort;
 use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -74,27 +74,27 @@ impl EvidencePort for EvidenceBmfAdapter {
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
         costs: &ryo_benchmark_contracts::domain::costs::types::ProjectCosts,
     ) -> Result<(), Error> {
-        self.add(|document| schemas::costs(document, language, costs))
+        self.add(|held| document::schemas::costs(held, language, costs))
     }
     fn verification(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
         timings: &crate::outbound::evidence::types::RuleTimings,
     ) -> Result<(), Error> {
-        self.add(|document| schemas::verification(document, language, timings))
+        self.add(|held| document::schemas::verification(held, language, timings))
     }
     fn growth(
         &self,
         language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
         growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error> {
-        self.add(|document| schemas::growth(document, language, growth))
+        self.add(|held| document::schemas::growth(held, language, growth))
     }
     fn read_verification(
         &self,
         files: &crate::outbound::evidence::types::VerificationTimesFiles,
     ) -> Result<crate::outbound::evidence::types::RuleTimings, Error> {
-        schemas::read_verification(files)
+        document::schemas::read_verification(files)
     }
     fn finish(&self) -> Result<(), Error> {
         let mut held = self
@@ -102,7 +102,7 @@ impl EvidencePort for EvidenceBmfAdapter {
             .document
             .lock()
             .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
-        let bytes = schemas::encode_document(
+        let bytes = document::schemas::encode(
             held.as_ref()
                 .ok_or_else(|| Error::Invalid(constants::FINISHED.into()))?,
         )?;
