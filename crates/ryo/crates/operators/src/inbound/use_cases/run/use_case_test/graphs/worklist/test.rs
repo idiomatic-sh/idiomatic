@@ -28,6 +28,8 @@ enum Scenario {
     OneOrderTwice,
     OneOrderInTwoStates,
     InputFaults,
+    EmptyLattice,
+    EdgeOverEmptyLattice,
 }
 #[derive(Debug, PartialEq)]
 enum Observation {
@@ -158,6 +160,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::OneOrderInTwoStates,
         expect: Expect::Value(Observation::Trace(Cow::Borrowed("1:1>2#0 a=b"))),
+    },
+    Case {
+        name: CaseName("a_lattice_with_no_state_and_no_rows_answers_no_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::EmptyLattice,
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+    },
+    Case {
+        name: CaseName("an_edge_state_an_empty_lattice_does_not_hold_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::EdgeOverEmptyLattice,
+        expect: Expect::Error(PortableOperatorFault::NotALattice),
     },
     Case {
         name: CaseName("the_edges_fault_comes_before_the_lattices_and_the_roots"),
@@ -346,7 +360,12 @@ fn graph(scenario: Scenario) -> Graph {
         Scenario::OneOrderInTwoStates => {
             chain(&[(1, "a")], &[(1, 2, 0, "a", "b"), (1, 3, 0, "b", "b")])
         }
-        Scenario::InputFaults => Graph::default(),
+        Scenario::InputFaults | Scenario::EmptyLattice => Graph::default(),
+        // No lattice row, no root, and one edge whose states the lattice cannot hold.
+        Scenario::EdgeOverEmptyLattice => Graph {
+            edges: vec![(0, 1, 2, 0, "a", "a")],
+            ..Graph::default()
+        },
     }
 }
 
