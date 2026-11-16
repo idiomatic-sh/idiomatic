@@ -13,7 +13,7 @@ use ryo_execution_domain::domain::completion::types::RegionAdmission;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::{
-    consumers, layout, physical, rule as fused_rule,
+    consumers, layout, node_inputs, physical, rule as fused_rule,
 };
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
@@ -92,8 +92,11 @@ pub(crate) fn node_rows(
             coverage: completion.blocked_coverage(),
         });
     }
-    ran_node(at, symbols, node)?;
-    let table = ran_rows(&at.pass.program, &at.buffers, node)?.clone();
+    let pass_program = at.pass;
+    ran_answering(&pass_program.program, node, &mut |each| {
+        ran_node(at, symbols, each)
+    })?;
+    let table = ran_rows(&at.buffers, node)?.clone();
     // What no read of the step lacks, no operator on the way can lack.
     let coverage = match completion.coverage(&reads.uses) {
         CoverageState::Complete => CoverageState::Complete,
@@ -104,20 +107,35 @@ pub(crate) fn node_rows(
     Ok(NodeAnswer { table, coverage })
 }
 
-/// The rows `node` answered once it ran, in a file or after the files: its refusal instead when it reads a node whose
-/// refusal is deferred to its rows and none of its inputs refused first.
+/// Runs `node` (through `run`, the pass's node step) as its answer needs: the node itself when it answers rows; for a node whose
+/// refusal is answered after its inputs, each node it reads, so a refusal of theirs comes first, and then its own refusal,
+/// without running its kernel. The one check of both passes, in each file and after the files.
 ///
 /// # Errors
 ///
-/// The node's refusal (`layout`), or `NotRun` for a node that holds no rows.
-pub(crate) fn ran_rows<'b>(
+/// The first refusal of the node's inputs, then the node's own (`layout`); or what `run` answered.
+pub(crate) fn ran_answering(
     program: &ExecutableProgram,
-    buffers: &'b FileBuffers,
     node: PlanNodeId,
-) -> Result<&'b Table, OperatingError> {
-    if let Err(refusal) = layout(program, node) {
-        return Err(refusal);
+    run: &mut dyn FnMut(PlanNodeId) -> Result<(), OperatingError>,
+) -> Result<(), OperatingError> {
+    match layout(program, node) {
+        Ok(_) => run(node),
+        Err(refusal) => {
+            for input in node_inputs(program, node) {
+                ran_answering(program, *input, run)?;
+            }
+            Err(refusal)
+        }
     }
+}
+
+/// The rows a node answered once [`ran_answering`] ran it.
+///
+/// # Errors
+///
+/// `NotRun` for a node that holds no rows.
+pub(crate) fn ran_rows(buffers: &FileBuffers, node: PlanNodeId) -> Result<&Table, OperatingError> {
     match buffers.rows(node) {
         NodeRows::Materialized(table) => Ok(table),
         NodeRows::Absent => Err(OperatingError::NotRun),

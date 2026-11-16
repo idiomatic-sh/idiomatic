@@ -133,8 +133,8 @@ pub(crate) enum SchemaTiming {
     /// Its own refusal is its kernel's, at the first row that reaches it: as a root it answers its layout, and a node reading
     /// it reads no column of it.
     DeferredToRows,
-    /// Its refusal comes of reading a node whose refusal is deferred: it is answered once its inputs have run, after any
-    /// refusal of theirs.
+    /// Its refusal is answered once the nodes it reads have run, after any refusal of theirs: a step reading a node refuses
+    /// after its inputs, as the interpreter did, and one reading a refusal deferred to its rows reads no column of it.
     AfterInputs,
 }
 

@@ -1,7 +1,7 @@
 //! A rule's steps after the files settled in plan order: the rows each antijoin or difference answered from the absence of
 //! rows that a partial operand or a file its rule skipped could change are dropped where the step stands.
 
-use crate::application::file_dag::file_pass::service::nodes::service::ran_rows;
+use crate::application::file_dag::file_pass::service::nodes::service::{ran_answering, ran_rows};
 use crate::application::file_dag::project_pass::service::step::service::StepRun;
 use crate::application::file_dag::project_pass::types::SettledStep;
 use ryo_execution_domain::domain::completion::types::CoverageState;
@@ -65,8 +65,8 @@ impl StepRun<'_, '_, '_> {
                 .as_ref()
                 .map_err(Clone::clone)?;
             let each = plan.steps.get(at).ok_or(OperatingError::NotRun)?;
-            self.ran(symbols, node)?;
-            let ran = ran_rows(&pass.program, self.buffers, node)?;
+            ran_answering(&pass.program, node, &mut |each| self.ran(symbols, each))?;
+            let ran = ran_rows(self.buffers, node)?;
             let ran_count = ran.count;
             let mut kept = ran.clone();
             let inputs: Vec<InputCoverage<'_>> = settled

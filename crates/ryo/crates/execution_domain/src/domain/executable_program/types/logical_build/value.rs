@@ -34,6 +34,8 @@ pub struct LogicalBuild<'p> {
     /// The columns each node's rows answer with as a root, by node: its schema, or the empty layout of a refusal deferred to
     /// its rows.
     pub(crate) layouts: Vec<Result<Vec<CellKind>, OperatingError>>,
+    /// The nodes each node reads, by node, in the order it reads them.
+    pub(crate) reads: Vec<Vec<PlanNodeId>>,
     /// Where each rule's emitted step and named outputs run, in rule order.
     pub(crate) scopes: Vec<RuleScopes>,
     /// Whether each node's rows answer the phase or one occurrence, by node.

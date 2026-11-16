@@ -1,7 +1,7 @@
 //! One occurrence's node step after the files: a node run through the file pass's one node step, its rows' coverage, and the
 //! rows each of its rule's steps was fed.
 use crate::application::file_dag::file_pass::service::nodes::service::{
-    StepCoverage, handed_step, ran_rows, run_node, step_coverage_seen,
+    StepCoverage, handed_step, ran_answering, ran_rows, run_node, step_coverage_seen,
 };
 use crate::application::file_dag::file_pass::types::{NodeAnswer, NodeReads};
 use crate::application::file_dag::frontiers::service::{handed_coverage, held_frontier, reason};
@@ -76,8 +76,11 @@ impl StepRun<'_, '_, '_> {
             });
         }
         self.settled(symbols, step)?;
-        self.ran(symbols, node)?;
-        let table = ran_rows(&self.batch.pass.program, self.buffers, node)?.clone();
+        let batch = self.batch;
+        ran_answering(&batch.pass.program, node, &mut |each| {
+            self.ran(symbols, each)
+        })?;
+        let table = ran_rows(self.buffers, node)?.clone();
         let coverage = self.coverage(step)?;
         Ok(NodeAnswer { table, coverage })
     }

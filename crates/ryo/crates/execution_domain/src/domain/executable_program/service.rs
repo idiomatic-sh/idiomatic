@@ -27,7 +27,8 @@ use std::hash::{Hash, Hasher};
 pub(crate) mod logical;
 pub mod scopes;
 use logical::service::{
-    answered_steps, derived_roots, held, observation_reaches, read_inputs, stated, timed,
+    after_inputs, answered_steps, derived_roots, held, node_reads, observation_reaches,
+    read_inputs, stated, timed,
 };
 use scopes::service::scope_at;
 
@@ -115,9 +116,14 @@ pub fn logical<'p>(
                 layout,
                 timing,
             } = if read_own {
-                timed(&step.operation, &shapes, own, read_timing)
+                timed(
+                    &step.operation,
+                    &shapes,
+                    own,
+                    after_inputs(read_timing, &list),
+                )
             } else {
-                stated(own, read_timing)
+                stated(own, after_inputs(read_timing, &list))
             };
             let hash = {
                 let mut hasher = rustc_hash::FxHasher::default();
@@ -190,6 +196,7 @@ pub fn logical<'p>(
     let consumers = held(&mut program, rules, &nodes, &inputs.lists)?;
     let roots = derived_roots(&drafts, &inputs.lists);
     let layouts = drafts.iter().map(|draft| draft.layout.clone()).collect();
+    let reads = node_reads(&inputs.lists);
     let reach = observation_reaches(&drafts, &inputs.lists);
     Ok(LogicalBuild {
         program,
@@ -197,6 +204,7 @@ pub fn logical<'p>(
         consumers,
         roots,
         layouts,
+        reads,
         scopes,
         reach,
     })
@@ -220,6 +228,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         consumers,
         roots,
         layouts,
+        reads,
         scopes,
         reach,
         ..
@@ -230,6 +239,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         consumers,
         roots,
         layouts,
+        reads,
         scopes,
         reach,
     }
@@ -341,6 +351,28 @@ pub fn layout(
         Some(Err(error)) => Err(error.clone()),
         None => Err(OperatingError::NotRun),
     }
+}
+
+/// The nodes `node` reads, in the order it reads them: what runs before its refusal, when its refusal is answered after its
+/// inputs.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, node_inputs};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+/// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+/// let mut inputs = ProgramInputs::default();
+/// let program = assemble(logical(&[], &mut inputs).unwrap(), PhysicalPlan::default());
+/// assert!(node_inputs(&program, PlanNodeId(0)).is_empty());
+/// ```
+#[must_use]
+pub fn node_inputs(program: &ExecutableProgram, node: PlanNodeId) -> &[PlanNodeId] {
+    program
+        .reads
+        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+        .map_or(&[], Vec::as_slice)
 }
 
 /// The operators' plan of the program.

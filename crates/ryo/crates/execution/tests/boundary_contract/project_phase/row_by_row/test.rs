@@ -83,8 +83,8 @@ fn text(populated: bool) -> HostRelation {
 }
 
 /// What the project phase answers for a rule whose every step runs after the files: the hosted text, `operation` over it,
-/// and, when `downstream`, a projection of `operation`'s column 0, emitted.
-fn answered(operation: Operation, populated: bool, downstream: bool) -> String {
+/// and `reader` of `operation` after it, when there is one, emitted.
+fn answered(operation: Operation, populated: bool, reader: Option<Operation>) -> String {
     let mut authored = authored_request(1);
     authored.rules[0].applicability = RuleApplicability::AcceptedSyntax;
     authored.hosted = vec![text(populated)];
@@ -95,13 +95,7 @@ fn answered(operation: Operation, populated: bool, downstream: bool) -> String {
         }),
         after(operation),
     ];
-    if downstream {
-        plan.steps.push(after(Operation::Project {
-            from: Input::Step(StepId(1)),
-            columns: vec![ColumnIndex(0)],
-            distinct: RepeatedRows::Kept,
-        }));
-    }
+    plan.steps.extend(reader.map(after));
     plan.emit.step = StepId(u32::try_from(plan.steps.len() - 1).expect("a few steps"));
     plan.frontier = Vec::new();
     let skipped = vec![Skipped {
@@ -164,10 +158,19 @@ fn answered(operation: Operation, populated: bool, downstream: bool) -> String {
     }
 }
 
-#[test]
-fn row_by_row_refusals_and_their_readers_after_the_files_answer_as_the_interpreter() {
+/// A projection of step 1's `columns`.
+fn project(columns: &[u32]) -> Operation {
+    Operation::Project {
+        from: Input::Step(StepId(1)),
+        columns: columns.iter().copied().map(ColumnIndex).collect(),
+        distinct: RepeatedRows::Kept,
+    }
+}
+
+/// The steps after the files whose operator reads its operands row by row, each refusing an operand, by name.
+fn faulty() -> Vec<(&'static str, Operation)> {
     let from = Input::Step(StepId(0));
-    let steps = [
+    vec![
         (
             "capture-col99",
             Operation::Capture {
@@ -197,17 +200,74 @@ fn row_by_row_refusals_and_their_readers_after_the_files_answer_as_the_interpret
                 span: ColumnIndex(0),
             },
         ),
-    ];
+    ]
+}
+
+/// What the interpreter at checkpoint-350 answered for each multi-column reader, run there and recorded.
+const MULTI_COLUMN_READERS: &str = concat!(
+    "capture-col99 populated=false reader=project-0-99: failed Table(NoSuchColumn { index: 0 })\n",
+    "capture-col99 populated=false reader=select-0-99: failed Table(NoSuchColumn { index: 0 })\n",
+    "capture-col99 populated=true reader=project-0-99: failed Table(NoSuchColumn { index: 99 })\n",
+    "capture-col99 populated=true reader=select-0-99: failed Table(NoSuchColumn { index: 99 })\n",
+    "words-col99 populated=false reader=project-0-99: failed Table(NoSuchColumn { index: 0 })\n",
+    "words-col99 populated=false reader=select-0-99: failed Table(NoSuchColumn { index: 0 })\n",
+    "words-col99 populated=true reader=project-0-99: failed Table(NoSuchColumn { index: 99 })\n",
+    "words-col99 populated=true reader=select-0-99: failed Table(NoSuchColumn { index: 99 })\n",
+    "spanbounds-col99 populated=false reader=project-0-99: failed Table(NoSuchColumn { index: 0 })\n",
+    "spanbounds-col99 populated=false reader=select-0-99: failed Table(NoSuchColumn { index: 0 })\n",
+    "spanbounds-col99 populated=true reader=project-0-99: failed Table(NoSuchColumn { index: 99 })\n",
+    "spanbounds-col99 populated=true reader=select-0-99: failed Table(NoSuchColumn { index: 99 })\n",
+    "spanbounds-text populated=false reader=project-0-99: failed Table(NoSuchColumn { index: 0 })\n",
+    "spanbounds-text populated=false reader=select-0-99: failed Table(NoSuchColumn { index: 0 })\n",
+    "spanbounds-text populated=true reader=project-0-99: failed ShapeMismatch\n",
+    "spanbounds-text populated=true reader=select-0-99: failed ShapeMismatch\n",
+);
+
+#[test]
+fn row_by_row_refusals_and_their_readers_after_the_files_answer_as_the_interpreter() {
+    let steps = faulty();
     let mut shown = String::new();
     for (name, operation) in steps {
         for populated in [false, true] {
             for downstream in [false, true] {
                 shown.push_str(&format!(
                     "{name} populated={populated} downstream={downstream}: {}\n",
-                    answered(operation.clone(), populated, downstream)
+                    answered(
+                        operation.clone(),
+                        populated,
+                        downstream.then(|| project(&[0]))
+                    )
                 ));
             }
         }
     }
     assert_eq!(shown, AFTER_THE_FILES);
+}
+
+/// A reader of several columns of a refusal after the files is refused at the first of them, as in each file.
+#[test]
+fn multi_column_readers_after_the_files_answer_as_the_interpreter() {
+    let readers = [
+        ("project-0-99", project(&[0, 99])),
+        (
+            "select-0-99",
+            Operation::Select {
+                from: Input::Step(StepId(1)),
+                comparisons: vec![],
+                kept: vec![ColumnIndex(0), ColumnIndex(99)],
+            },
+        ),
+    ];
+    let mut shown = String::new();
+    for (name, operation) in faulty() {
+        for populated in [false, true] {
+            for (reader, read) in &readers {
+                shown.push_str(&format!(
+                    "{name} populated={populated} reader={reader}: {}\n",
+                    answered(operation.clone(), populated, Some(read.clone()))
+                ));
+            }
+        }
+    }
+    assert_eq!(shown, MULTI_COLUMN_READERS);
 }
