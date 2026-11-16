@@ -86,23 +86,11 @@ pub enum BuildInputs<'a> {
 }
 
 impl std::fmt::Debug for BuildInputs<'_> {
-    /// The borrowed row and text sources are trait objects with no `Debug`: the output names the kind and the plain fields.
+    /// The borrowed row and text sources are trait objects with no `Debug`: the output names the type only.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Rows(_) => formatter.debug_tuple("Rows").finish(),
-            Self::Membership { space, .. } => formatter
-                .debug_struct("Membership")
-                .field("space", space)
-                .finish_non_exhaustive(),
-            Self::Partition { positions, key, .. } => formatter
-                .debug_struct("Partition")
-                .field("positions", positions)
-                .field("key", key)
-                .finish_non_exhaustive(),
-            Self::Ordered { .. } => formatter.debug_struct("Ordered").finish_non_exhaustive(),
-            Self::Dfs { .. } => formatter.debug_struct("Dfs").finish_non_exhaustive(),
-            Self::Native(form) => formatter.debug_tuple("Native").field(form).finish(),
-        }
+        formatter
+            .debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
     }
 }
 

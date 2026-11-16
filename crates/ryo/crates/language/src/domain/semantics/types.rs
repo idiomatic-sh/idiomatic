@@ -34,12 +34,11 @@ pub enum SemanticSlot {
 }
 
 impl std::fmt::Debug for SemanticSlot {
+    /// The retained tree and the session are trait objects a language owns: the output names the type only.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Empty => formatter.write_str("Empty"),
-            Self::Retained(_) => formatter.write_str("Retained(..)"),
-            Self::Begun(_) => formatter.write_str("Begun(..)"),
-        }
+        formatter
+            .debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
     }
 }
 
