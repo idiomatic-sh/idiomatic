@@ -1,5 +1,9 @@
 # cli
 
+## 0.12.3
+
+The per-rule bench (`benches/lint.rs` and its parts in `benches/lint/`) is no longer placed: benches over Tastemaker rules leave the command line (owner, ryo-b1gq.66), and each language's bench measures ryo over its projects instead. A command line that links the engine no longer owes one. Nothing else changes.
+
 ## 0.12.2
 
 `commands` renders `run(start, build) -> std::process::ExitCode` without `#[must_use]`: `ExitCode` is `#[must_use]` already, so the attribute on the function repeats it, and clippy's `double_must_use` reports the repeat. A command line that leaves it out passes (`rendered-template-passes`), and one that keeps it is more than the template and still passes (`run-needs-no-must-use`). `command()` keeps its `#[must_use]`: its return type, `clap::Command`, is not marked.

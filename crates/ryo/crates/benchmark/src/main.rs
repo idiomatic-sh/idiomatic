@@ -1,6 +1,6 @@
 //! Minimal process composition; contestant clocks start inside the direct observer.
 //!
-//! The collector also runs a language bench: `bench`, with one argument, the bench directory
+//! The collector runs a language bench: `bench`, with one argument, the bench directory
 //! `languages/<lang>/benchmarks/linters/<linter>`. It refuses any count of processors but four, builds and seals the bench's
 //! worker and itself under `<target>/benchmark/<lang>/<linter>/bench/`, registers every default from the bench's
 //! `benchmark.toml` and `rules/<ID>/{query.ryoql,cases.toml}` and verifies each against its cases once, and only when every

@@ -46,10 +46,8 @@ templates = [
   { template = "languages-test", file = "src/languages_test.rs", count = { min = 0 }, description = "The proof of the linked languages, present when the command line links any: the directories they declare skipped reach its walks." },
   { template = "resource", file = "src/resources/{resource}.rs", description = "One resource of the command line: it declares its commands' modules and dispatches a parsed verb to one of them." },
   { template = "command-module", file = "src/resources/{resource}/{command}.rs", description = "One command's module file, declaring the members every command has; the command's directory is a part." },
-  # Two files the command line crate has beside its commands, each a `harness = false` target that must run alone in its process.
+  # The file the command line crate has beside its commands, a `harness = false` target that must run alone in its process.
   { template = "cli-allocation-test", file = "tests/blocks.rs", count = { when = { condition = "links-engine" }, then = 1, else = 0 }, description = "The allocation test, present exactly when the command line depends on ryo's core engine crate and so runs rules: `dhat` as the global allocator, counting the big blocks of a run, alone in its process." },
-  { template = "cli-rule-bench", file = "benches/lint.rs", count = { when = { condition = "links-engine" }, then = 1, else = 0 }, description = "The per-rule bench, present exactly when the command line depends on ryo's core engine crate and so runs rules: a process of its own for each rule, reporting wall, CPU and peak memory as Bencher Metric Format, and its parts in `benches/lint/`." },
-  { template = "cli-rule-bench-part", file = "benches/lint/{part}.rs", count = { min = 0 }, description = "One module of the per-rule bench, present when the command line runs rules and its bench is split by kind of measurement." },
   { template = "performance-main", file = "benches/performance/main.rs", description = "The performance entry of the command line, the `harness = false` bench `commands`: it takes every command's workload and prints one Bencher Metric Format document on stdout, which asymptote's `performance` tool judges." },
   { template = "performance-measure", file = "benches/performance/measure.rs", description = "The harness of the workloads: each is run for its rounds, its CPU time taken per round, and printed as Bencher Metric Format." },
   { template = "performance-fixtures", file = "benches/performance/fixtures.rs", count = { min = 0 }, description = "What the command workloads run over: the product's fixture workspace and the parse of a command's arguments." },
@@ -98706,11 +98704,6 @@ snapbox.workspace = true
 name = "blocks"
 harness = false
 
-[[bench]]
-name = "lint"
-path = "benches/lint.rs"
-harness = false
-
 [features]
 fixtures = []
 
@@ -98726,11 +98719,6 @@ given.files.'cli/README.md' = '''
 # cli
 
 Holds the demo's one app.
-'''
-given.files.'cli/benches/lint.rs' = '''
-//! Each rule of the command line, measured in a process of its own.
-
-fn main() {}
 '''
 given.files.'cli/benches/performance/greeting.rs' = '''
 //! `greeting`: one bench module per command.
@@ -101325,7 +101313,7 @@ specs = [
   { spec = "idiomatic.arch/cli", include = ["cli"], params = { library = "cli", markdown = "offered", product = "cli", writes = [] } },
 ]
 '''
-then.only = ['idiomatic.arch/cli#closed', 'idiomatic.arch/cli/languages#template', 'idiomatic.arch/cli/cli-allocation-test#count', 'idiomatic.arch/cli/cli-allocation-test#template', 'idiomatic.arch/cli/cli-rule-bench#count', 'idiomatic.arch/cli/cli-rule-bench#template', 'idiomatic.arch/crate/crate-root#template']
+then.only = ['idiomatic.arch/cli#closed', 'idiomatic.arch/cli/languages#template', 'idiomatic.arch/cli/cli-allocation-test#count', 'idiomatic.arch/cli/cli-allocation-test#template', 'idiomatic.arch/crate/crate-root#template']
 
 # The linked providers are crates outside this fixture.
 [[scenarios]]
@@ -104032,10 +104020,9 @@ specs = [
   { spec = "idiomatic.arch/cli", include = ["cli"], params = { library = "cli", markdown = "offered", product = "cli", writes = [] } },
 ]
 '''
-then.only = ['idiomatic.arch/cli#closed', 'idiomatic.arch/cli/languages#template', 'idiomatic.arch/cli/cli-allocation-test#count', 'idiomatic.arch/cli/cli-allocation-test#template', 'idiomatic.arch/cli/cli-rule-bench#count', 'idiomatic.arch/cli/cli-rule-bench#template', 'idiomatic.arch/crate/crate-root#template']
+then.only = ['idiomatic.arch/cli#closed', 'idiomatic.arch/cli/languages#template', 'idiomatic.arch/cli/cli-allocation-test#count', 'idiomatic.arch/cli/cli-allocation-test#template', 'idiomatic.arch/crate/crate-root#template']
 then.findings = [
   { rule = 'idiomatic.arch/cli/cli-allocation-test#count', path = 'cli' },
-  { rule = 'idiomatic.arch/cli/cli-rule-bench#count', path = 'cli' },
 ]
 
 # The linked providers are crates outside this fixture.
@@ -104145,11 +104132,6 @@ snapbox.workspace = true
 name = "blocks"
 harness = false
 
-[[bench]]
-name = "lint"
-path = "benches/lint.rs"
-harness = false
-
 [features]
 fixtures = []
 
@@ -104165,11 +104147,6 @@ given.files.'cli/README.md' = '''
 # cli
 
 Holds the demo's one app.
-'''
-given.files.'cli/benches/lint.rs' = '''
-//! Each rule of the command line, measured in a process of its own.
-
-fn main() {}
 '''
 given.files.'cli/benches/performance/greeting.rs' = '''
 //! `greeting`: one bench module per command.
@@ -106754,10 +106731,9 @@ specs = [
   { spec = "idiomatic.arch/cli", include = ["cli"], params = { library = "cli", markdown = "offered", product = "cli", writes = [] } },
 ]
 '''
-then.only = ['idiomatic.arch/cli#closed', 'idiomatic.arch/cli/languages#template', 'idiomatic.arch/cli/cli-allocation-test#count', 'idiomatic.arch/cli/cli-allocation-test#template', 'idiomatic.arch/cli/cli-rule-bench#count', 'idiomatic.arch/cli/cli-rule-bench#template', 'idiomatic.arch/crate/crate-root#template']
+then.only = ['idiomatic.arch/cli#closed', 'idiomatic.arch/cli/languages#template', 'idiomatic.arch/cli/cli-allocation-test#count', 'idiomatic.arch/cli/cli-allocation-test#template', 'idiomatic.arch/crate/crate-root#template']
 then.findings = [
   { rule = 'idiomatic.arch/cli/cli-allocation-test#count', path = 'cli' },
-  { rule = 'idiomatic.arch/cli/cli-rule-bench#count', path = 'cli' },
 ]
 
 [[scenarios]]
