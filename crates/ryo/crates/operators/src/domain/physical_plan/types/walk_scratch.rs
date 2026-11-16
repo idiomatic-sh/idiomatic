@@ -5,3 +5,6 @@
     reason = "the value-module template places `pub mod value`; its parent `walk_scratch` is crate-private, so nothing outside the crate reaches it"
 )]
 pub mod value;
+
+#[cfg(test)]
+mod value_test;
