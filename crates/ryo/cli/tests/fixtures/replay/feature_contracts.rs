@@ -16,6 +16,12 @@ const QUERIES: &[(&str, &str)] = &[
         "integer-successor-invariants",
         include_str!("../feature_contracts/numeric/successor-invariants.ryoql"),
     ),
+    // Every token's text, read as a number by the float-text comparison: a fused select of the tree with no kind test reads
+    // every tree node, so the comparison is fed the corpus, not the few float literals a kind-rooted rule reads.
+    (
+        "float-text-invariants",
+        include_str!("../feature_contracts/numeric/float-text-invariants.ryoql"),
+    ),
     (
         "integer-successor-witness",
         include_str!("../feature_contracts/numeric/witness.ryoql"),

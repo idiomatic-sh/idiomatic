@@ -6,7 +6,8 @@ use crate::domain::executable_program::types::executable_program::value::Executa
 use crate::domain::executable_program::types::logical_build::value::LogicalBuild;
 use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, RuleScopes, StepAt,
+    Consumers, Draft, DraftInputs, DraftedColumns, RootKind, RuleInput, RuleNodes, RuleScopes,
+    StepAt,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::service::schema_of;
@@ -24,8 +25,13 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 use std::hash::{Hash, Hasher};
 
 pub(crate) mod logical;
+pub mod refusals;
 pub mod scopes;
-use logical::service::{derived_roots, held, observation_reaches, read_inputs};
+use logical::service::{
+    after_inputs, answered_steps, derived_roots, held, observation_reaches, read_inputs, stated,
+    timed,
+};
+use refusals::service::{deferred_layouts, node_reads};
 use scopes::service::scope_at;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
@@ -61,6 +67,8 @@ pub fn logical<'p>(
         let plan: &'p Plan = input.plan;
         let mut steps: Vec<Result<PlanNodeId, OperatingError>> =
             Vec::with_capacity(plan.steps.len());
+        // Each step's own schema fault, as its operation states it, before a row-by-row operand defers it.
+        let mut own_faults: Vec<Option<OperatingError>> = Vec::with_capacity(plan.steps.len());
         let ordinal = RuleOrdinal(u32::try_from(rule).map_err(|_| OperatingError::ShapeMismatch)?);
         let observed: Vec<Vec<CellKind>> = input
             .observations
@@ -79,24 +87,45 @@ pub fn logical<'p>(
                 list,
                 shapes,
                 fault,
+                timing: read_timing,
             }) = read_inputs(named(&read), &steps, &drafts, &observed, at)
             else {
+                own_faults.push(None);
                 steps.push(Err(OperatingError::NotRun));
                 continue;
             };
+            // A hosted step reads the host relation the request declares at its place; one the request does not host is a
+            // relation nobody read.
             let host = if let Operation::Hosted { relation } = &step.operation {
-                hosted
-                    .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
-                    .map(|kinds| InputShape { kinds, tree: None })
+                Some(
+                    hosted
+                        .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
+                        .map(|kinds| InputShape { kinds, tree: None })
+                        .ok_or(OperatingError::NotRead),
+                )
             } else {
                 None
             };
-            let schema = match fault {
-                Some(error) => Err(error),
-                None => match host {
-                    Some(shape) => schema_of(&step.operation, &[shape], input.bindings.0),
-                    None => schema_of(&step.operation, &shapes, input.bindings.0),
-                },
+            let read_own = fault.is_none() && host.is_none();
+            let own = match (fault, host) {
+                (Some(error), _) | (None, Some(Err(error))) => Err(error),
+                (None, Some(Ok(shape))) => schema_of(&step.operation, &[shape], input.bindings.0),
+                (None, None) => schema_of(&step.operation, &shapes, input.bindings.0),
+            };
+            own_faults.push(own.as_ref().err().cloned());
+            let DraftedColumns {
+                schema,
+                layout,
+                timing,
+            } = if read_own {
+                timed(
+                    &step.operation,
+                    &shapes,
+                    own,
+                    after_inputs(read_timing, &list),
+                )
+            } else {
+                stated(own, after_inputs(read_timing, &list))
             };
             let hash = {
                 let mut hasher = rustc_hash::FxHasher::default();
@@ -121,6 +150,8 @@ pub fn logical<'p>(
                     rule: RuleIndex(rule),
                     scope: step.scope,
                     schema,
+                    layout,
+                    timing,
                 });
                 inputs.lists.push(list);
                 buckets.entry(hash).or_default().push(at);
@@ -130,22 +161,11 @@ pub fn logical<'p>(
                 u32::try_from(at).map_err(|_| OperatingError::ShapeMismatch)?,
             )));
         }
-        // A rule with an authoring error in any of its steps answers that error, in step order, before any row: its emit may be
-        // sound while a step after it is not.
-        let authored = steps.iter().find_map(|step| match step {
-            Ok(node) => drafts
-                .get(usize::try_from(node.0).unwrap_or(usize::MAX))
-                .and_then(|draft| draft.schema.as_ref().err().cloned()),
-            Err(error) => Some(error.clone()),
-        });
-        let emit = match (
-            authored,
-            steps.get(usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX)),
-        ) {
-            (Some(error), _) => Err(error),
-            (None, Some(Ok(node))) => Ok(*node),
-            (None, Some(Err(error))) => Err(error.clone()),
-            (None, None) => Err(OperatingError::NotRun),
+        let refused = answered_steps(plan, &mut steps, &own_faults, &drafts);
+        let emit = match steps.get(usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX)) {
+            Some(Ok(node)) => Ok(*node),
+            Some(Err(error)) => Err(error.clone()),
+            None => Err(OperatingError::NotRun),
         };
         scopes.push(RuleScopes {
             emit: scope_at(plan, plan.emit.step),
@@ -158,7 +178,11 @@ pub fn logical<'p>(
                 })
                 .collect(),
         });
-        nodes.push(RuleNodes { steps, emit });
+        nodes.push(RuleNodes {
+            steps,
+            emit,
+            refused,
+        });
     }
     inputs.hosted = hosted;
     let inputs: &'p ProgramInputs = inputs;
@@ -174,7 +198,9 @@ pub fn logical<'p>(
     let mut engine = Vec::with_capacity(rules.len());
     let consumers = held(&mut program, rules, &nodes, &inputs.lists, &mut engine)?;
     let roots = derived_roots(&drafts, &inputs.lists);
-    let schemas = drafts.iter().map(|draft| draft.schema.clone()).collect();
+    let layouts = drafts.iter().map(|draft| draft.layout.clone()).collect();
+    let reads = node_reads(&inputs.lists);
+    let deferred = deferred_layouts(&drafts);
     let reach = observation_reaches(&drafts, &inputs.lists);
     Ok(LogicalBuild {
         program,
@@ -182,7 +208,9 @@ pub fn logical<'p>(
         consumers,
         engine,
         roots,
-        schemas,
+        layouts,
+        reads,
+        deferred,
         scopes,
         reach,
     })
@@ -206,7 +234,9 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         consumers,
         engine,
         roots,
-        schemas,
+        layouts,
+        reads,
+        deferred,
         scopes,
         reach,
         ..
@@ -217,7 +247,9 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         consumers,
         engine,
         roots,
-        schemas,
+        layouts,
+        reads,
+        deferred,
         scopes,
         reach,
     }
@@ -322,37 +354,6 @@ pub fn engine_uses(
         .get(rule.0)
         .map(Vec::as_slice)
         .ok_or(OperatingError::NotRun)
-}
-
-/// The output columns of `node`.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, schema};
-/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
-/// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-/// let mut inputs = ProgramInputs::default();
-/// let program = assemble(logical(&[], &mut inputs).unwrap(), PhysicalPlan::default());
-/// assert!(schema(&program, PlanNodeId(0)).is_err());
-/// ```
-///
-/// # Errors
-///
-/// The schema fault of the node or of a node it reads; `NotRun` for a node the program does not have.
-pub fn schema(
-    program: &ExecutableProgram,
-    node: PlanNodeId,
-) -> Result<&[CellKind], OperatingError> {
-    match program
-        .schemas
-        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
-    {
-        Some(Ok(kinds)) => Ok(kinds),
-        Some(Err(error)) => Err(error.clone()),
-        None => Err(OperatingError::NotRun),
-    }
 }
 
 /// The operators' plan of the program.

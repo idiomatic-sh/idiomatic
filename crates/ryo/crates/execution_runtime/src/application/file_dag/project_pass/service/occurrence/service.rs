@@ -130,6 +130,10 @@ pub(crate) fn run_occurrence(
     // The occurrence's answer, whatever it is: the release below runs on every path, so a failed occurrence leaves no rows
     // it narrowed for the next occurrence of the rule.
     let outcome = (|| -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
+        // A step no root reads, whose schema refuses, stops the occurrence before any row.
+        if let Some(refusal) = &nodes.refused {
+            return Err(refusal.clone());
+        }
         let emit = match emit_scope(program, rule)? {
             StepScope::CrossFile => match nodes.emit.clone() {
                 Ok(node) => match step.answer(symbols, node, plan.emit.step) {
@@ -202,8 +206,7 @@ pub(crate) fn run_occurrence(
             observations.push(ProjectOutputOutcome { output, outcome });
         }
         if let Some(observer) = batch.observer {
-            let fed = step.fed(symbols, &plan, &nodes)?;
-            observer.fed(rule, fed)?;
+            observer.fed(rule, step.fed(&plan, &nodes))?;
         }
         Ok(RuleOutcome { emit, observations })
     })();

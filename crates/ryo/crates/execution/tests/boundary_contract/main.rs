@@ -121,3 +121,5 @@ mod file_run;
 
 mod combined;
 mod compiled_rules;
+#[cfg(test)]
+mod refusal_order;

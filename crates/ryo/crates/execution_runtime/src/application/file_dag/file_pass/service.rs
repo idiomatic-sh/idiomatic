@@ -48,6 +48,7 @@ use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::row_texts::types::CellText;
 use std::sync::{Arc, Mutex, PoisonError};
 
+pub(crate) mod answering;
 pub(crate) mod captures;
 pub(crate) mod inputs;
 pub(crate) mod nodes;

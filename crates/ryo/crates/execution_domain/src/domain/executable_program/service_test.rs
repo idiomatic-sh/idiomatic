@@ -55,7 +55,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Request::SchemaFault,
         expect: Expect::Value(Cow::Borrowed(
-            "nodes 1; rule 0: steps [Ok(PlanNodeId(0))] emit Err(Table(NoSuchColumn { index: 99 })); consumers [1]; inputs [[Relation(Function)]]; reach [Phase]; roots word []; roots other [];",
+            "nodes 1; rule 0: steps [Err(Table(NoSuchColumn { index: 99 }))] emit Err(Table(NoSuchColumn { index: 99 })); consumers [0]; inputs [[Relation(Function)]]; reach [Phase]; roots word []; roots other [];",
         )),
     },
     Case {

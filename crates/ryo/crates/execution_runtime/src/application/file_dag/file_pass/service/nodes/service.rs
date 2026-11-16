@@ -1,8 +1,11 @@
 //! A rule's node in the open file: run by the operators, its rows answered with their coverage, each engine use of a node done
 //! when its rule's turn ends, and every node's rows released when the file ends.
 
+use crate::application::file_dag::file_pass::service::answering::service::{
+    held, ran_answering, ran_rows,
+};
 use crate::application::file_dag::file_pass::types::{
-    NodeAnswer, NodeInFile, NodeReads, PassFile, PassProgram, PassResources,
+    NodeAnswer, NodeInFile, NodeMove, NodeReads, PassFile, PassProgram, PassResources,
 };
 use crate::application::file_dag::frontiers::service::reason;
 use crate::application::file_dag::program::rule_outcome::service::classify;
@@ -12,8 +15,9 @@ use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::completion::types::RegionAdmission;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::service::refusals::service::layout;
 use ryo_execution_domain::domain::executable_program::service::{
-    consumers, engine_uses, physical, rule as fused_rule, schema,
+    consumers, engine_uses, physical, rule as fused_rule,
 };
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -25,7 +29,7 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use ryo_operators::domain::physical_plan::types::{NodeRows, PlanInputs, PlanNodeId, Resources};
+use ryo_operators::domain::physical_plan::types::{PlanInput, PlanInputs, PlanNodeId, Resources};
 use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::relations::service::kinds as relation_kinds;
 use ryo_relations::domain::relations::types::CellKind;
@@ -86,27 +90,25 @@ pub(crate) fn node_rows(
     let completion = CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
     if completion.region_admission(&reads.needs) == RegionAdmission::Blocked {
         let mut table = Table::default();
-        reset(&mut table, schema(&at.pass.program, node)?);
+        reset(&mut table, layout(&at.pass.program, node)?);
         return Ok(NodeAnswer {
             table,
             coverage: completion.blocked_coverage(),
         });
     }
-    ran_node(at, symbols, node)?;
-    match at.buffers.rows(node) {
-        NodeRows::Materialized(table) => {
-            let table = table.clone();
-            // What no read of the step lacks, no operator on the way can lack.
-            let coverage = match completion.coverage(&reads.uses) {
-                CoverageState::Complete => CoverageState::Complete,
-                CoverageState::Partial { .. } | CoverageState::Inapplicable { .. } => {
-                    step_coverage(pass, &completion, rule, step)?
-                }
-            };
-            Ok(NodeAnswer { table, coverage })
+    let pass_program = at.pass;
+    ran_answering(&pass_program.program, node, &mut |each| {
+        file_step(at, symbols, each)
+    })?;
+    let table = ran_rows(&pass_program.program, &at.buffers, node)?;
+    // What no read of the step lacks, no operator on the way can lack.
+    let coverage = match completion.coverage(&reads.uses) {
+        CoverageState::Complete => CoverageState::Complete,
+        CoverageState::Partial { .. } | CoverageState::Inapplicable { .. } => {
+            step_coverage(pass, &completion, rule, step)?
         }
-        NodeRows::Absent => Err(OperatingError::NotRun),
-    }
+    };
+    Ok(NodeAnswer { table, coverage })
 }
 
 /// What one step's rows lack, with their cell kinds and where they come from.
@@ -153,7 +155,7 @@ pub(crate) fn handed_step(
     };
     let kinds = match node {
         Some(Ok(node)) => {
-            schema(&pass.program, node).map_or_else(|_| Vec::new(), <[CellKind]>::to_vec)
+            layout(&pass.program, node).map_or_else(|_| Vec::new(), <[CellKind]>::to_vec)
         }
         Some(Err(_)) | None => Vec::new(),
     };
@@ -212,7 +214,7 @@ pub(crate) fn step_coverage_seen(
             .collect::<Result<Vec<StepCoverage>, OperatingError>>()?;
         seen(StepId(u32::try_from(place).unwrap_or(u32::MAX)), &operands);
         let output = match nodes.steps.get(place) {
-            Some(Ok(node)) => schema(&pass.program, *node).map(<[CellKind]>::to_vec),
+            Some(Ok(node)) => layout(&pass.program, *node).map(<[CellKind]>::to_vec),
             Some(Err(error)) => Err(error.clone()),
             None => Err(OperatingError::NotRun),
         };
@@ -356,5 +358,37 @@ pub(crate) fn released(at: &mut PassFile<'_, '_, '_, '_>) {
     while consumers(&at.pass.program, node).is_ok() {
         at.buffers.release(node);
         node = PlanNodeId(node.0.saturating_add(1));
+    }
+}
+
+/// One move of [`ran_answering`] in the open file: a node run; a relation's facts admitted, a refused one stopping the file (the
+/// lookup keeps the refusal, which the file answers first); a frontier entry or a bound observation held, a withheld one
+/// answering why.
+pub(crate) fn file_step(
+    at: &mut PassFile<'_, '_, '_, '_>,
+    symbols: &mut Symbols,
+    step: NodeMove,
+) -> Result<(), OperatingError> {
+    match step {
+        NodeMove::Run(node) => ran_node(at, symbols, node),
+        NodeMove::Empty(node) => {
+            at.buffers.empty_as(node, &[]);
+            Ok(())
+        }
+        NodeMove::Read(PlanInput::Relation(relation)) => {
+            if native_form(relation).is_none()
+                && matches!(at.inputs.facts(relation), FactRows::Refused)
+            {
+                return Err(OperatingError::NotRead);
+            }
+            Ok(())
+        }
+        NodeMove::Read(PlanInput::Frontier(place)) => {
+            held(&at.inputs.withholdings, at.inputs.frontier(place))
+        }
+        NodeMove::Read(PlanInput::Observation(place)) => {
+            held(&at.inputs.withholdings, at.inputs.observation(place))
+        }
+        NodeMove::Read(PlanInput::Node(_)) => Ok(()),
     }
 }

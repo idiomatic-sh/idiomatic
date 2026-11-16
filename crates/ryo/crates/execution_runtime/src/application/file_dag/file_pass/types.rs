@@ -1,6 +1,6 @@
 //! The types of the `file_pass` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_operators::domain::physical_plan::types::PlanNodeId;
+use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::types::NodeId;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
@@ -65,8 +65,15 @@ pub(crate) struct PassScratch {
     pub(crate) roots: FileRoots,
     /// Each rule's named outputs, in rule order.
     pub(crate) outputs: Vec<Vec<OutputState>>,
-    /// Each rule's named outputs' rows in the open file, by rule and output, for the bound observations of the rules after it.
-    pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
+    /// Each rule's named outputs' rows in the open file, or what refused them, by rule and output, for the bound observations of
+    /// the rules after it.
+    pub(crate) answers: Vec<
+        Vec<
+            Option<
+                Result<NodeAnswer, ryo_execution_domain::domain::operating::errors::OperatingError>,
+            >,
+        >,
+    >,
     /// The relations the open file's sources are asked for: those of the rules that run on it.
     pub(crate) demand: Vec<ryo_relations::domain::relations::types::Relation>,
     /// Whether a rule that runs on the open file can run each node, by node.
@@ -178,8 +185,15 @@ pub(crate) struct PassFile<'f, 'p, 'a, 's> {
     pub(crate) refusals: Vec<ryo_execution_domain::domain::operating::errors::OperatingError>,
     /// Each rule's named outputs in this file, in rule order.
     pub(crate) outputs: Vec<Vec<OutputState>>,
-    /// Each rule's named outputs' rows in this file, by rule and output, for the bound observations of the rules after it.
-    pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
+    /// Each rule's named outputs' rows in this file, or what refused them, by rule and output, for the bound observations of the
+    /// rules after it.
+    pub(crate) answers: Vec<
+        Vec<
+            Option<
+                Result<NodeAnswer, ryo_execution_domain::domain::operating::errors::OperatingError>,
+            >,
+        >,
+    >,
 }
 
 /// What a rule's capture is bound to: the rule, the first bucket of each rule and the rule's capture intent.
@@ -247,4 +261,17 @@ pub(crate) struct OpenedFile<'a> {
         crate::application::file_dag::program::file_session::types::SemanticSupport<'a>,
     /// The first frontier bucket of each rule, in rule order.
     pub(crate) first: &'a [ryo_values::domain::stored_facts::types::Bucket],
+}
+
+/// One move of answering a node: run a node, read an input of another kind before a refusal (admit a relation's facts, or
+/// hold a frontier entry or a bound observation, a withheld one answering why), or answer a deferred refusal's empty rows with
+/// no column.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum NodeMove {
+    /// Run the node.
+    Run(PlanNodeId),
+    /// Read the input, which is no node.
+    Read(PlanInput),
+    /// Answer no column of the node to its readers: it holds no row and its refusal is deferred to its rows.
+    Empty(PlanNodeId),
 }
