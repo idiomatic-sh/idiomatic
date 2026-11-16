@@ -10,10 +10,13 @@ mod scaffold;
 mod update;
 mod validate;
 
-/// The memory workloads: the peak of the command line's cold `check` over `crates/ryo`, where `/usr/bin/time` reports it.
+/// The workloads taken on four processors where `/usr/bin/time` reports the peak: the command line's cold `check` over `crates/ryo`, and
+/// its `validate` over the repository's own definitions, cold and warm.
 pub(crate) fn memory() -> Vec<crate::measure::Measured> {
     if cfg!(target_os = "linux") {
-        vec![check::bench::cold_peak()]
+        let mut every = vec![check::bench::cold_peak()];
+        every.extend(validate::bench::repository());
+        every
     } else {
         Vec::new()
     }
