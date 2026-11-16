@@ -20,6 +20,7 @@ mod certification;
 mod commands;
 mod compare;
 pub(crate) mod constants;
+mod in_process;
 mod locations;
 mod measure;
 pub(crate) mod profile;

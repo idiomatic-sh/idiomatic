@@ -59,7 +59,7 @@ impl EvidencePort for EvidenceBmfAdapter {
             crate::outbound::evidence::types::RuleTiming,
         >,
     ) -> Result<(), Error> {
-        let bytes = super::verification::encode(linter, timings)?;
+        let bytes = super::verification::schemas::encode(linter, timings)?;
         let mut output = self
             .connection
             .output

@@ -64,7 +64,10 @@ fn verify_reference_profile(
         ArtifactText(constants::VERIFY_REFERENCE_SCRATCH),
     )?;
     let root = suite_source.ensure_directory(ArtifactPath(scratch.path()))?;
-    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::host::factory::local(), &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local(), &ryo_benchmark::outbound::evidence::factory::bmf_to(None)?).verify_reference_cases(
+    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::host::factory::local(), &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local(), &ryo_benchmark::outbound::evidence::factory::bmf(
+        Box::new(std::io::sink()),
+        Box::new(std::io::sink()),
+    )).verify_reference_cases(
         &source.join(constants::RULES_DIRECTORY),
         &root,
     );

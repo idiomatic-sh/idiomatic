@@ -95,3 +95,5 @@ const STUB_EXTENSION: &str = ".pyi";
 pub(crate) const SOURCE_SUFFIXES: [&str; 2] = [PYTHON_EXTENSION, STUB_EXTENSION];
 /// Stable command, artifact or observation identity for rules directory.
 pub(crate) const RULES_DIRECTORY: &str = "rules";
+/// The refusal when the in-process worker's response cannot be read back.
+pub(crate) const RESPONSE_POISONED: &str = "response lock poisoned";

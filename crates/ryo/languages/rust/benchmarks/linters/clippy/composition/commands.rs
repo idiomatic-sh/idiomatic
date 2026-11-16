@@ -13,7 +13,7 @@ use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::select_cases::types::{CaseRun, VerifyTimes};
+use ryo_benchmark::inbound::use_cases::select_cases::types::CaseRun;
 use ryo_benchmark::inbound::use_cases::verify_rule_profiles::{
     interface::VerifyRuleProfilesUseCase as _, use_case::VerifyRuleProfilesUseCaseImpl,
 };
@@ -185,18 +185,16 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
             .map_err(|error| Error::Invalid(error.to_string()))?,
         };
     // The candidate runs in this process over one engine, which compiles each rule once and keeps its plans for every case.
-    let execution = Arc::new(
-        ryo_benchmark::inbound::use_cases::verify_cases::in_process::InProcessExecution::new(
-            Box::new(ryo_benchmark::outbound::execution::factory::process()),
-            Arc::new(
-                ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
-                    languages,
-                    frontend_diagnostic,
-                ),
+    let execution = Arc::new(super::in_process::InProcessExecution::new(
+        Box::new(ryo_benchmark::outbound::execution::factory::process()),
+        Arc::new(
+            ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
+                languages,
+                frontend_diagnostic,
             ),
-            Arc::new(ryo_benchmark::outbound::context::factory::local()),
         ),
-    );
+        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+    ));
     let reference = Arc::new(reference(executable, staged, targets(&root)));
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
@@ -208,10 +206,7 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
             candidate.as_ref(),
             execution.as_ref(),
             &ryo_benchmark::outbound::inventory::factory::local(),
-            &ryo_benchmark::outbound::evidence::factory::bmf_to(match &run.timings {
-                VerifyTimes::Recorded(path) => Some(path.as_path()),
-                VerifyTimes::Unrecorded => None,
-            })?,
+            &super::in_process::rule_times(run)?,
         )
         .verify_cases(
             &profile.join(constants::RULES_DIRECTORY),
@@ -274,7 +269,10 @@ fn verify_reference_profile(
         &tool,
         &reference.version_line(&tool),
     )?;
-    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::host::factory::local(), &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local(), &ryo_benchmark::outbound::evidence::factory::bmf_to(None)?).verify_reference_cases(
+    let count = ryo_benchmark::inbound::use_cases::verify_reference_cases::use_case::VerifyReferenceCasesUseCaseImpl::new(&suite_source, &ryo_benchmark::outbound::host::factory::local(), &ryo_benchmark::outbound::receipts::factory::local(ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded), &ryo_benchmark::outbound::context::factory::local(), &reference, &execution, &ryo_benchmark::outbound::inventory::factory::local(), &ryo_benchmark::outbound::evidence::factory::bmf(
+        Box::new(std::io::sink()),
+        Box::new(std::io::sink()),
+    )).verify_reference_cases(
         &source.join(constants::RULES_DIRECTORY),
         &root,
     );

@@ -200,6 +200,12 @@ fn missing() -> Invocation {
     reason = "fixture setup failures must fail the contract test"
 )]
 pub fn check(adapter: &impl ExecutionPort) {
+    assert!(
+        adapter
+            .compile(&invocation())
+            .is_none_or(|compiled| compiled.is_empty()),
+        "an invocation that is no worker request compiles no rule"
+    );
     let subject = |input| {
         let profile = adapter.profile();
         let mode = adapter.exit_observation();
@@ -266,7 +272,10 @@ pub fn check(adapter: &impl ExecutionPort) {
 
         let output = adapter.run(call).map_err(|error| match error {
             Error::Io(error)
-                if invalid_image && error.raw_os_error() == Some(super::driver::image_error()) =>
+                if invalid_image
+                    && error
+                        .raw_os_error()
+                        .is_some_and(|code| super::driver::image_errors().contains(&code)) =>
             {
                 Failure::ExecutableFormat
             }

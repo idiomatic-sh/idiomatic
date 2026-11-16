@@ -1,8 +1,15 @@
-//! The execution of a candidate's worker request inside this process, over one engine every case shares.
-use crate::outbound::context::interface::ContextPort;
-use crate::outbound::engine::interface::EnginePort;
-use crate::outbound::execution::interface::ExecutionPort;
-use crate::outbound::worker::{factory::json, interface::WorkerPort as _, types::WorkerSource};
+//! A verification's candidate runs inside this process over one engine, and its rule times go to the file the run names.
+use ryo_benchmark::inbound::use_cases::run_ryo::{
+    interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
+};
+use ryo_benchmark::inbound::use_cases::select_cases::types::{CaseRun, VerifyTimes};
+use ryo_benchmark::outbound::context::interface::ContextPort;
+use ryo_benchmark::outbound::engine::interface::EnginePort;
+use ryo_benchmark::outbound::evidence::interface::EvidencePort;
+use ryo_benchmark::outbound::execution::interface::ExecutionPort;
+use ryo_benchmark::outbound::worker::{
+    factory::json, interface::WorkerPort as _, types::WorkerSource,
+};
 use ryo_benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ExecutionProfile, Invocation, ProcessExitCode, ProcessOutput,
     ResourceObservation, TerminationSignal,
@@ -13,7 +20,7 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 /// Runs the worker's request over the engine it was given, in this process; any other invocation runs on `process`.
-pub struct InProcessExecution {
+pub(crate) struct InProcessExecution {
     /// What every invocation but the worker's runs on.
     process: Box<dyn ExecutionPort>,
     /// The engine every worker request runs over.
@@ -23,8 +30,7 @@ pub struct InProcessExecution {
 }
 impl InProcessExecution {
     /// Bind the process execution, the engine and the context.
-    #[must_use]
-    pub fn new(
+    pub(crate) fn new(
         process: Box<dyn ExecutionPort>,
         engine: Arc<dyn EnginePort + Send + Sync>,
         context: Arc<dyn ContextPort + Send + Sync>,
@@ -65,7 +71,7 @@ impl std::io::Write for Response {
     }
 }
 impl ExecutionPort for InProcessExecution {
-    fn exit_observation(&self) -> crate::outbound::execution::types::ExitObservationMode {
+    fn exit_observation(&self) -> ryo_benchmark::outbound::execution::types::ExitObservationMode {
         self.process.exit_observation()
     }
     fn profile(&self) -> ExecutionProfile {
@@ -76,9 +82,10 @@ impl ExecutionPort for InProcessExecution {
         invocation: &Invocation,
     ) -> Option<BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
         let path = Self::request_file(invocation)?;
-        let request = json(WorkerSource::Stored(path), Box::new(Response::default()))
-            .receive()
-            .ok()?;
+        let Ok(request) = json(WorkerSource::Stored(path), Box::new(Response::default())).receive()
+        else {
+            return None;
+        };
         self.engine.compile(&request)
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
@@ -90,13 +97,7 @@ impl ExecutionPort for InProcessExecution {
         let engine: Arc<dyn EnginePort> = self.engine.clone();
         let context: Arc<dyn ContextPort> = self.context.clone();
         let started = std::time::Instant::now();
-        let worker = crate::inbound::use_cases::run_ryo::use_case::RunRyoUseCaseImpl::new(
-            engine,
-            Arc::new(transport),
-            context,
-        );
-        let outcome =
-            crate::inbound::use_cases::run_ryo::interface::RunRyoUseCase::run_ryo(&worker);
+        let outcome = RunRyoUseCaseImpl::new(engine, Arc::new(transport), context).run_ryo();
         let wall = started.elapsed();
         let stdout = response
             .0
@@ -116,4 +117,24 @@ impl ExecutionPort for InProcessExecution {
             resources: ResourceObservation::WallOnly,
         })
     }
+}
+
+/// Where the run's rule times go: the file it names, appended to, or nowhere.
+///
+/// # Errors
+/// Refuses a file that cannot be opened for appending.
+pub(crate) fn rule_times(run: &CaseRun) -> Result<impl EvidencePort, Error> {
+    let output: Box<dyn std::io::Write + Send> = match &run.timings {
+        VerifyTimes::Recorded(path) => Box::new(
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)?,
+        ),
+        VerifyTimes::Unrecorded => Box::new(std::io::sink()),
+    };
+    Ok(ryo_benchmark::outbound::evidence::factory::bmf(
+        output,
+        Box::new(std::io::sink()),
+    ))
 }

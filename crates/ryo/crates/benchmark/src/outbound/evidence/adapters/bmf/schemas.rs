@@ -15,13 +15,13 @@ use std::collections::BTreeMap;
 
 /// Median and observed extrema for one BMF metric.
 #[derive(Serialize)]
-pub(super) struct MetricSchema {
+struct MetricSchema {
     /// Median across the complete sample group.
-    pub(super) value: f64,
+    value: f64,
     /// Smallest observed sample.
-    pub(super) lower_value: f64,
+    lower_value: f64,
     /// Largest observed sample.
-    pub(super) upper_value: f64,
+    upper_value: f64,
 }
 
 /// Wire-level measurements extracted without validation or loss from one sample.

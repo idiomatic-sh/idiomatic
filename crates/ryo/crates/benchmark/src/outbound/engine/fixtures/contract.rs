@@ -105,6 +105,12 @@ pub fn check(adapter: &impl EnginePort) {
                     .map_err(|_| Failure::Unexpected)?
                     .is_empty()
             );
+            assert!(
+                adapter
+                    .compile(&request)
+                    .is_none_or(|compiled| compiled.len() <= session.rules_mut().len()),
+                "an engine compiles at most the rules it loaded, or none ahead"
+            );
             std::fs::remove_file(request.rules.join("R1/query.ryoql")).expect("loaded snapshot");
             let inputs = crate::outbound::engine::types::EngineConfiguration {
                 selected_missing: request.files.iter().cloned().collect(),

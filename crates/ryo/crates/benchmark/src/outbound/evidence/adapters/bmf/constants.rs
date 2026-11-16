@@ -57,3 +57,5 @@ pub(super) const MAX_CASE_MS: &str = "max-case-ms";
 
 /// The measure of a rule's verification: how long its query took to compile, in milliseconds.
 pub(super) const COMPILE_MS: &str = "compile-ms";
+/// Milliseconds in one second, for a duration written as BMF.
+pub(super) const MILLISECONDS_PER_SECOND: f64 = 1000.0;
