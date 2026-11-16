@@ -12,6 +12,22 @@ type Input = Edge;
 type Value = &'static str;
 type Failure = ();
 
+/// How many statements the large block holds, and how many arguments the large call passes: enough that a role read by scanning
+/// every sibling for each child costs millions of steps.
+const MANY: usize = 3000;
+
+/// A function whose block holds `MANY` call statements.
+fn large_block() -> &'static str {
+    let body: String = (0..MANY).map(|at| format!("g{at}(); ")).collect();
+    Box::leak(format!("function f() {{ {body}}}").into_boxed_str())
+}
+
+/// A call of `f` with `MANY` identifier arguments.
+fn large_call() -> &'static str {
+    let arguments: Vec<String> = (0..MANY).map(|at| format!("a{at}")).collect();
+    Box::leak(format!("f({});", arguments.join(", ")).into_boxed_str())
+}
+
 /// Reads one row's input through the concept fixtures' shared reading.
 fn subject(input: Input) -> Result<Value, Failure> {
     super::super::fixtures::subject(input)
@@ -19,6 +35,62 @@ fn subject(input: Input) -> Result<Value, Failure> {
 
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("the_last_statement_of_a_large_block_is_its_body"),
+        word: Word::Succeeds,
+        input: || {
+            edge(
+                large_block(),
+                Dialect::Plain,
+                Kind::Node(Node::BlockStatement),
+                Kind::Node(Node::ExpressionStatement),
+                MANY - 1,
+            )
+        },
+        expect: Expect::Value("body"),
+    },
+    Case {
+        name: CaseName("the_callee_of_a_call_of_many_arguments_is_its_callee"),
+        word: Word::Succeeds,
+        input: || {
+            edge(
+                large_call(),
+                Dialect::Plain,
+                Kind::Node(Node::CallExpression),
+                Kind::Node(Node::Identifier),
+                0,
+            )
+        },
+        expect: Expect::Value("callee"),
+    },
+    Case {
+        name: CaseName("the_first_argument_of_a_call_of_many_arguments_is_an_argument"),
+        word: Word::Succeeds,
+        input: || {
+            edge(
+                large_call(),
+                Dialect::Plain,
+                Kind::Node(Node::CallExpression),
+                Kind::Node(Node::Identifier),
+                1,
+            )
+        },
+        expect: Expect::Value("arguments"),
+    },
+    Case {
+        name: CaseName("the_last_argument_of_a_call_of_many_arguments_is_an_argument"),
+        word: Word::Succeeds,
+        input: || {
+            edge(
+                large_call(),
+                Dialect::Plain,
+                Kind::Node(Node::CallExpression),
+                Kind::Node(Node::Identifier),
+                MANY,
+            )
+        },
+        expect: Expect::Value("arguments"),
+    },
     Case {
         name: CaseName("the_property_of_new_target_is_the_property_role_of_its_edge"),
         word: Word::Succeeds,

@@ -43,27 +43,48 @@ pub(in super::super) const fn setting(child: Kind) -> Setting {
     }
 }
 
-/// Where `at` stands among the nodes under its parent, `aside` ones left out, and whether it is the last of them.
+/// The nodes under `holder` a place counts, in order: every node child but the ones `setting` holds aside.
+fn placed_children<'a>(
+    tree: &'a Tree<'_>,
+    holder: Position,
+) -> impl Iterator<Item = Position> + 'a {
+    languages::children(tree.elements, holder).filter(move |each| {
+        let each = *each;
+        matches!(kind(tree, each), Kind::Node(_)) && setting(kind(tree, each)) == Setting::Placed
+    })
+}
+
+/// Where `at` stands among the nodes under its parent, `aside` ones left out, and whether it is the last of them. It reads every
+/// sibling: only holders with a bounded number of children ask it.
 pub(in super::super) fn place(tree: &Tree<'_>, at: Position) -> Standing {
-    let placed: Vec<Position> = languages::children(tree.elements, parent(tree, at))
-        .filter(|each| {
-            let each = *each;
-            matches!(kind(tree, each), Kind::Node(_))
-                && setting(kind(tree, each)) == Setting::Placed
-        })
-        .collect();
-    let ordinal = placed
-        .iter()
-        .position(|each| *each == at)
-        .unwrap_or_default();
+    let mut ordinal = 0;
+    let mut last = None;
+    for (at_place, each) in placed_children(tree, parent(tree, at)).enumerate() {
+        if each == at {
+            ordinal = at_place;
+        }
+        last = Some(each);
+    }
     Standing {
         ordinal: Ordinal(ordinal),
-        lastness: if placed.last() == Some(&at) {
+        lastness: if last == Some(at) {
             Lastness::Last
         } else {
             Lastness::NotLast
         },
     }
+}
+
+/// The role of `at` by its place: the `ordinal`-th of `roles`, the last of them for every place from the last on. Only the siblings
+/// before the last role are read, so a holder of many children (the statements of a block, the arguments of a call) costs each
+/// child a constant, not a scan of the others.
+pub(in super::super) fn placed_nth(tree: &Tree<'_>, at: Position, roles: &[Field]) -> Field {
+    let bound = roles.len().saturating_sub(1);
+    let ordinal = placed_children(tree, parent(tree, at))
+        .take(bound)
+        .position(|each| each == at)
+        .unwrap_or(bound);
+    nth(roles, Ordinal(ordinal))
 }
 
 /// The tokens among the children of the parent of `at` that come before it and are spelled `marker`.
