@@ -21,7 +21,11 @@ impl ProcessMeterPort for ProcessMeterLinuxAdapter {
         let status = std::fs::read_to_string(constants::STATUS)?;
         let kibibytes = status
             .lines()
-            .find_map(|line| line.strip_prefix(constants::PEAK_LABEL)?.split_whitespace().next())
+            .find_map(|line| {
+                line.strip_prefix(constants::PEAK_LABEL)?
+                    .split_whitespace()
+                    .next()
+            })
             .ok_or_else(|| Error::Invalid(constants::NO_PEAK.into()))?
             .parse::<u64>()
             .map_err(|error| Error::Invalid(format!("{}: {error}", constants::NO_PEAK)))?;

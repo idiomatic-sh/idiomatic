@@ -39,7 +39,6 @@ impl ProcessMeterFake {
             state: Mutex::new(Reads::default()),
         }
     }
-
 }
 
 impl Default for ProcessMeterFake {

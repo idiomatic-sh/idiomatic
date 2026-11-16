@@ -23,10 +23,10 @@ impl SampleInput {
 /// One project's costs over three trials, each condition's values distinct, so a measure read under another name shows.
 #[must_use]
 pub fn costs() -> ryo_benchmark_contracts::domain::costs::types::ProjectCosts {
-    use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
     use ryo_benchmark_contracts::domain::costs::types::{
         ProjectCost, ProjectCosts, RunCost, StoreBytes, StoreFiles, StoreSize,
     };
+    use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
     use std::time::Duration;
     let run = |cpu: u64, wall: u64, peak: u64| RunCost {
         cpu: [cpu, cpu + 2, cpu + 1].map(Duration::from_millis).to_vec(),

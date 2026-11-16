@@ -1,8 +1,12 @@
 //! Only this boundary knows the BMF field and metric names.
 use super::constants;
+use super::types::{BenchmarkName, MeasureDocument, MeasureName};
 use super::types::{ParityCount, ParityCounts, ReportName};
 use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
+use crate::outbound::evidence::types::{RuleTiming, RuleTimings, VerificationTimesFiles};
+use ryo_benchmark_contracts::domain::costs::types::{ProjectCosts, RunCost};
 use ryo_benchmark_contracts::domain::measurements::types::PublicationSample;
+use ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::{
     Comparison, ComparisonContract, ExecutionMetadata, ReportComparison, RunReport,
@@ -10,13 +14,9 @@ use ryo_benchmark_contracts::domain::reports::types::{
 use ryo_benchmark_contracts::domain::reports::types::{
     EndPair, FindingPosition, LocatedFinding, ParityReport, RuleComparison,
 };
+use ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage;
 use serde::Serialize;
 use std::collections::BTreeMap;
-use super::types::{BenchmarkName, MeasureDocument, MeasureName};
-use crate::outbound::evidence::types::{RuleTiming, RuleTimings, VerificationTimesFiles};
-use ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths;
-use ryo_benchmark_contracts::domain::costs::types::{ProjectCosts, RunCost};
-use ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage;
 use std::time::Duration;
 
 /// Median and observed extrema for one BMF metric.
@@ -135,7 +135,6 @@ pub(super) fn encode(publication: &MeasuredPublication<'_>) -> Result<Vec<u8>, E
     }
     serde_json::to_vec(&document).map_err(|error| Error::Json(Box::new(error)))
 }
-
 
 /// One producer's execution metadata as the comparison evidence spells it.
 #[derive(Serialize)]

@@ -9,13 +9,13 @@ use crate::outbound::suite::types::ArtifactText;
 use ryo_benchmark_contracts::domain::measurements::types::{
     DoublingRatio, GrowthShape, ResidentBytes, ShapeGrowth, ShapeGrowths,
 };
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
 use ryo_benchmark_contracts::domain::requests::types::{
     CohortSelection, QueryModuleName, WorkerRequest,
 };
 use std::collections::BTreeMap;
 use std::time::Duration;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// Lint every shape of `plan` at both sizes through `engine`, fastest of five. Each program's scene is a fresh directory
 /// under `scenes` (`SuitePort::retained_directory`), its modules copied in (`copy_file`) and its program written as the
@@ -45,7 +45,9 @@ pub fn grow(
         let half = ports.size(plan, programs, &programs.half.0)?;
         let whole = ports.size(plan, programs, &programs.whole.0)?;
         let growth = ShapeGrowth {
-            ratio: DoublingRatio(whole.cpu.as_secs_f64() / half.cpu.max(plan.floor.0).as_secs_f64()),
+            ratio: DoublingRatio(
+                whole.cpu.as_secs_f64() / half.cpu.max(plan.floor.0).as_secs_f64(),
+            ),
             larger: whole.cpu,
             peak: whole.peak,
         };
@@ -75,7 +77,12 @@ struct Sized {
 
 impl Ports<'_> {
     /// Write `program` in a fresh scene with the rule's modules, and lint it the plan's number of times.
-    fn size(&self, plan: &GrowthPlan, programs: &ShapePrograms, program: &str) -> Result<Sized, Error> {
+    fn size(
+        &self,
+        plan: &GrowthPlan,
+        programs: &ShapePrograms,
+        program: &str,
+    ) -> Result<Sized, Error> {
         let scene = self
             .suite
             .retained_directory(self.scenes, ArtifactText(constants::SCENE))?
@@ -85,11 +92,15 @@ impl Ports<'_> {
             if let Some(parent) = destination.parent() {
                 let _created = self.suite.ensure_directory(ArtifactPath(parent))?;
             }
-            self.suite
-                .copy_file(ArtifactPath(&plan.request.root.join(path)), ArtifactPath(&destination))?;
+            self.suite.copy_file(
+                ArtifactPath(&plan.request.root.join(path)),
+                ArtifactPath(&destination),
+            )?;
         }
-        self.suite
-            .write_text(ArtifactPath(&scene.join(&plan.file.0)), ArtifactText(program))?;
+        self.suite.write_text(
+            ArtifactPath(&scene.join(&plan.file.0)),
+            ArtifactText(program),
+        )?;
         let request = WorkerRequest {
             selected_rules: CohortSelection::Explicit(vec![programs.rule.clone()]),
             query_modules: programs

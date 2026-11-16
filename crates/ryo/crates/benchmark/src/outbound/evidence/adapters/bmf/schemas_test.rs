@@ -1,12 +1,12 @@
 //! Independent BMF expectations cover aggregation and absent observations.
 use super as schemas;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::evidence::adapters::bmf::types::MeasureDocument;
+use crate::outbound::evidence::fixtures::sample;
 use ryo_benchmark_contracts::domain::measurements::types::Measurement;
 use ryo_benchmark_contracts::domain::measurements::types::Resources;
 use ryo_benchmark_contracts::domain::measurements::types::{PublicationSample, SampleName};
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use crate::outbound::evidence::adapters::bmf::types::MeasureDocument;
-use crate::outbound::evidence::fixtures::sample;
 use std::time::Duration;
 
 #[derive(Clone, Copy)]
@@ -388,7 +388,9 @@ fn document(scenario: Input) -> Result<Value, Failure> {
     let mut document = MeasureDocument::default();
     let added = match scenario {
         Scenario::Costs => schemas::costs(&mut document, &language, &sample::costs()),
-        Scenario::Verification => schemas::verification(&mut document, &language, &sample::timings()),
+        Scenario::Verification => {
+            schemas::verification(&mut document, &language, &sample::timings())
+        }
         Scenario::Growth => schemas::growth(&mut document, &language, &sample::growth()),
         Scenario::DuplicateProject => schemas::costs(&mut document, &language, &sample::costs())
             .and_then(|()| schemas::costs(&mut document, &language, &sample::costs())),
