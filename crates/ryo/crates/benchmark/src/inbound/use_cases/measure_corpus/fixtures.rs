@@ -186,7 +186,11 @@ pub fn with_cohort<R>(
         pinned(projects, "main"),
         covered,
         cohort,
-        (std::path::Path::new("cache"), &[SourceSuffix(".fixture")]),
+        (
+            std::path::Path::new(BENCH),
+            std::path::Path::new("cache"),
+            &[SourceSuffix(".fixture")],
+        ),
         operate,
     )
 }
@@ -194,7 +198,7 @@ pub fn with_cohort<R>(
 /// Hand `operate` a diagnostic corpus of one project pinned to a full commit, which the workspace checks out, matching the sources
 /// that end in one of `suffixes`, its trials kept under `cache`.
 pub fn with_suffixes<R>(
-    cache: &std::path::Path,
+    (bench, cache): (&std::path::Path, &std::path::Path),
     suffixes: &[SourceSuffix<'_>],
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
@@ -203,7 +207,7 @@ pub fn with_suffixes<R>(
         pinned(1, &"0".repeat(40)),
         &["A"],
         &CohortSelection::Frozen,
-        (cache, suffixes),
+        (bench, cache, suffixes),
         operate,
     )
 }
@@ -227,13 +231,13 @@ fn measured<R>(
     projects: Vec<Project>,
     covered: &[&str],
     cohort: &CohortSelection,
-    (cache, suffixes): (&std::path::Path, &[SourceSuffix<'_>]),
+    (bench, cache, suffixes): (&std::path::Path, &std::path::Path, &[SourceSuffix<'_>]),
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
     let certificate = certificate(covered);
     let invalid_syntax = ryo::linter::RuleId::try_from("invalid-syntax").expect("rule identifier");
     operate(&CorpusMeasurement {
-        bench: std::path::Path::new(BENCH),
+        bench,
         projects,
         scope,
         profile: SourceProfile::Full,
@@ -257,6 +261,30 @@ fn measured<R>(
             full_profile: ProfileLabel("all-fixture"),
         },
     })
+}
+
+/// A bench directory whose settings profile, `benchmark.toml`, defaults to the `rules` and asks nothing of the host,
+/// removed on drop: what the local suite reads when a run admits its rules.
+///
+/// # Panics
+/// When the directory or its profile cannot be written.
+#[must_use]
+pub fn bench_of(rules: &[&str]) -> tempfile::TempDir {
+    let bench = tempfile::tempdir().expect("a bench directory");
+    let defaults = rules
+        .iter()
+        .map(|rule| format!("'{rule}'"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    std::fs::write(
+        bench.path().join("benchmark.toml"),
+        format!(
+            "tool = 'fixture'\nversion = '1'\nsha256 = ['{}']\ndefaults = [{defaults}]\nparser-configuration = 'fixture-v1'\n",
+            "0".repeat(64)
+        ),
+    )
+    .expect("a settings profile");
+    bench
 }
 
 /// A project directory holding `files`, each one line long, removed on drop.

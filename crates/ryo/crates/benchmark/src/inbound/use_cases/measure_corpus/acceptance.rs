@@ -1,7 +1,7 @@
 //! The public corpus measurement over the fakes of its boundaries.
 use cucumber::then;
 use ryo_benchmark::inbound::use_cases::measure_corpus::{
-    fixtures::{discovering, project_of, use_case, with_corpus, with_suffixes},
+    fixtures::{bench_of, discovering, project_of, use_case, with_corpus, with_suffixes},
     interface::MeasureCorpusUseCase as _,
     types::SourceSuffix,
 };
@@ -28,8 +28,9 @@ fn suffixed(world: &mut crate::Behavior) {
     let files = ["a.ts", "b.mjs", "c.vue"];
     let root = project_of(&files);
     let cache = project_of(&[]);
+    let bench = bench_of(&["A"]);
     let mut observations = Vec::new();
-    let measured = with_suffixes(cache.path(), &suffixes, |corpus| {
+    let measured = with_suffixes((bench.path(), cache.path()), &suffixes, |corpus| {
         discovering(root.path(), &files).measure_corpus(corpus, &mut observations)
     });
     let observations = String::from_utf8_lossy(&observations);
