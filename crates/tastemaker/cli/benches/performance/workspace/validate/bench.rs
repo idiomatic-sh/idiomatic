@@ -63,13 +63,8 @@ pub(crate) fn repository() -> Vec<crate::measure::Measured> {
             .status()
             .expect("git starts");
         assert!(git.success(), "git init succeeds");
-        let copied = std::process::Command::new("cp")
-            .arg("-r")
-            .arg(root.join("tastemaker"))
-            .arg(scratch.path().join("tastemaker"))
-            .status()
-            .expect("cp starts");
-        assert!(copied.success(), "the definitions are copied");
+        crate::fixtures::copy_tree(&root.join("tastemaker"), &scratch.path().join("tastemaker"));
+        crate::fixtures::copy_roles(&root, scratch.path());
         std::fs::write(
             scratch.path().join("tastemaker.toml"),
             concat!(

@@ -95,6 +95,13 @@ fn validating_the_repository_s_definitions_succeeds_cold_and_warm() {
         &scratch.path().join("tastemaker"),
     )
     .expect("the definitions copied");
+    // The proofs of the definitions read the foreign package of the replay fixtures (`collection-members`).
+    let roles = "crates/tastemaker/cli/tests/fixtures/replay/roles";
+    crate::fixes::copy(
+        &crate::fixes::root().join(roles),
+        &scratch.path().join(roles),
+    )
+    .expect("the foreign package copied");
     std::fs::write(
         scratch.path().join("tastemaker.toml"),
         concat!(
