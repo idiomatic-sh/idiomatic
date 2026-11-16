@@ -10,7 +10,7 @@ use crate::outbound::profile_tools::types::{DumpTotal, HeapBytes};
 use ryo_benchmark_contracts::domain::measurements::types::{CapturedBytes, ProcessExitCode};
 use std::borrow::Cow;
 use std::num::NonZeroUsize;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// What each row runs and observes.
