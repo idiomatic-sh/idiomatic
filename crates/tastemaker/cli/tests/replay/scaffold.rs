@@ -124,15 +124,11 @@ fn misplaced_parts(tastemaker: &str, workspace: &Path) -> Vec<String> {
 /// A report the scaffold rows read is `tm check`'s whole report: findings, each with its rule, path and message.
 #[test]
 fn a_report_without_its_findings_is_no_report() {
-    assert!(matches!(
-        serde_json::from_slice::<crate::fixes::Report>(b"{}"),
-        Err(_)
-    ));
+    let _empty: serde_json::Error = serde_json::from_slice::<crate::fixes::Report>(b"{}")
+        .expect_err("an object without findings is no report");
     let bare = br#"{"findings": [{"rule": "x#count", "path": "languages/zz"}]}"#;
-    assert!(matches!(
-        serde_json::from_slice::<crate::fixes::Report>(bare),
-        Err(_)
-    ));
+    let _bare: serde_json::Error = serde_json::from_slice::<crate::fixes::Report>(bare)
+        .expect_err("a finding without its message is no report");
 }
 
 #[test]
