@@ -4,6 +4,9 @@ use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
 use ryo_core::inbound::use_cases::lint::types::LintRequest as CoreRequest;
 use ryo_core::inbound::use_cases::open::interface::OpenUseCase as _;
 use ryo_core::inbound::use_cases::open::types::OpenRequest;
+use ryo_core::outbound::language::interface::LanguagePort as _;
+use ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase as _;
+use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 
 use super::errors::LintError;
 use super::schemas;
@@ -91,7 +94,15 @@ impl Linter {
             .iter()
             .map(ryo_values::domain::rule_requests::types::RuleSpec::from)
             .collect();
-        super::composition::compile(self.engine(), &specs, &hosted).map_err(LintError::from_core)
+        let engine = self.engine();
+        super::composition::build_compilation(engine)
+            .compile_rules(CompileRequest {
+                rules: &specs,
+                hosted: &hosted,
+                vocabularies: &engine.language.kind_vocabularies(),
+            })
+            .map(drop)
+            .map_err(|error| LintError::from_core(error.into()))
     }
 }
 

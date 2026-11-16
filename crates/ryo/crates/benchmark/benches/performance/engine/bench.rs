@@ -4,7 +4,10 @@
     reason = "missing benchmark prerequisites must fail visibly"
 )]
 use ryo_benchmark::outbound::engine::{
-    factory::{local, local_with_diagnostic_events, local_with_frontend_diagnostic},
+    factory::{
+        local, local_with_diagnostic_events, local_with_frontend_diagnostic,
+        retaining_with_frontend_diagnostic,
+    },
     interface::EnginePort,
     types::FrontendDiagnosticProjection,
 };
@@ -53,6 +56,15 @@ fn projected(bencher: divan::Bencher<'_, '_>) {
     let request = workload(root.path());
     let adapter =
         local_with_frontend_diagnostic(ryo::linter::Languages::default(), None, projection());
+    bencher.bench_local(|| load(&adapter, &request));
+}
+#[divan::bench]
+/// Measure loading when the adapter keeps the loaded rules across loads, as a verification does.
+fn retained(bencher: divan::Bencher<'_, '_>) {
+    let root = tempfile::tempdir().expect("workload directory");
+    let request = workload(root.path());
+    let adapter =
+        retaining_with_frontend_diagnostic(ryo::linter::Languages::default(), projection());
     bencher.bench_local(|| load(&adapter, &request));
 }
 #[divan::bench(sample_count = 1, sample_size = 1)]

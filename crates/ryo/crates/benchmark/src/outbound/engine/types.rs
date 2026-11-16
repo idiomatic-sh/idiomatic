@@ -47,13 +47,3 @@ pub mod loaded_engine_session;
 
 /// A checked consuming SDK execution handle.
 pub mod configured_engine_session;
-
-/// What one verification keeps across the cases of its profile: the rules loaded once and the SDK engine every case runs over.
-#[derive(Debug, Default)]
-pub(crate) struct Retained {
-    /// The rules loaded from the profile's query files.
-    pub(crate) rules:
-        std::sync::OnceLock<std::collections::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>>,
-    /// The SDK engine every case runs over.
-    pub(crate) linter: std::sync::OnceLock<ryo::linter::Linter>,
-}

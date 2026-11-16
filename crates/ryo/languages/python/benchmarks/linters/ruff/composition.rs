@@ -17,6 +17,7 @@ use std::{path::PathBuf, sync::Arc};
 mod certification;
 mod commands;
 pub(crate) mod constants;
+mod in_process;
 mod locations;
 mod measure;
 mod parity;

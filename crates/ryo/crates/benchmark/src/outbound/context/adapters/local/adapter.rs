@@ -1,8 +1,8 @@
 //! Materialize and validate explicitly sealed project context at the filesystem boundary.
 use super::constants;
 use super::writer::{
-    PathScope, link_destination, link_text, no_symlinked_parent, no_symlinks, relative, resolve,
-    walked_dependency,
+    PathScope, link_destination, link_text, no_file_ancestors, no_symlinked_parent, no_symlinks,
+    relative, resolve, walked_dependency,
 };
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::context::types::CorpusFiles;
@@ -317,6 +317,7 @@ pub(crate) fn verify_receipt(
             }
             None if !manifest.missing.contains(&declared) => {
                 no_symlinks(&manifest.boundary, &declared)?;
+                no_file_ancestors(&manifest.boundary, &declared)?;
                 match std::fs::symlink_metadata(manifest.boundary.join(&declared)) {
                     Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
                     Err(error) => return Err(error.into()),

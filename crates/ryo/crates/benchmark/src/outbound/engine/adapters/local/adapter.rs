@@ -30,7 +30,11 @@ pub(crate) struct EngineLocalAdapter {
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     /// What a verification keeps across its cases: the rules loaded once and one SDK engine, whose compiled plans every case
     /// shares. Absent for a run that is one child's only case.
-    retained: Option<crate::outbound::engine::types::Retained>,
+    retaining: bool,
+    /// The rules loaded from the profile's query files, kept across a verification's cases.
+    kept_rules: std::sync::OnceLock<BTreeMap<RuleId, Rule>>,
+    /// The SDK engine every case of a verification runs over.
+    kept_linter: std::sync::OnceLock<linter::Linter>,
 }
 impl EngineLocalAdapter {
     /// Bind language support for a verification whose cases all run over one engine and one set of loaded rules.
@@ -43,8 +47,36 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: None,
             frontend_diagnostic,
-            retained: Some(crate::outbound::engine::types::Retained::default()),
+            retaining: true,
+            kept_rules: std::sync::OnceLock::new(),
+            kept_linter: std::sync::OnceLock::new(),
         }
+    }
+    /// The SDK engine a run goes over: the one a verification keeps for all its cases, built once, else one of the run's own over
+    /// `cache`.
+    fn engine<'a>(
+        &'a self,
+        own: &'a mut Option<linter::Linter>,
+        cache: Cache,
+    ) -> Result<&'a linter::Linter, Error> {
+        if self.retaining {
+            if let Some(engine) = self.kept_linter.get() {
+                return Ok(engine);
+            }
+            let built = linter::Linter::new(
+                self.languages.clone(),
+                Self::pool()?,
+                MemoryBudget::Machine,
+                Cache::None,
+            );
+            return Ok(self.kept_linter.get_or_init(|| built));
+        }
+        Ok(own.insert(linter::Linter::new(
+            self.languages.clone(),
+            Self::pool()?,
+            MemoryBudget::Machine,
+            cache,
+        )))
     }
     /// The pool the files of a run are read on: rayon's own size, `RAYON_NUM_THREADS` when the caller sets it.
     fn pool() -> Result<WorkerPool, Error> {
@@ -67,7 +99,9 @@ impl EngineLocalAdapter {
             trace,
             diagnostic_events: None,
             frontend_diagnostic,
-            retained: None,
+            retaining: false,
+            kept_rules: std::sync::OnceLock::new(),
+            kept_linter: std::sync::OnceLock::new(),
         }
     }
     /// Bind an explicit live JSONL diagnostic sink without changing the timing worker.
@@ -81,7 +115,9 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: Some(path),
             frontend_diagnostic,
-            retained: None,
+            retaining: false,
+            kept_rules: std::sync::OnceLock::new(),
+            kept_linter: std::sync::OnceLock::new(),
         }
     }
 }
@@ -107,7 +143,7 @@ impl EnginePort for EngineLocalAdapter {
             None
         };
         let rules = super::schemas::request_rules(
-            self.retained.as_ref(),
+            self.retaining.then_some(&self.kept_rules),
             self.frontend_diagnostic.clone(),
             request,
         )?;
@@ -125,25 +161,20 @@ impl EnginePort for EngineLocalAdapter {
         ))
     }
     fn compile(&self, request: &WorkerRequest) -> Option<BTreeMap<RuleId, std::time::Duration>> {
-        let retained = self.retained.as_ref()?;
-        let engine = match retained.linter.get() {
-            Some(engine) => engine,
-            None => {
-                let engine = linter::Linter::new(
-                    self.languages.clone(),
-                    Self::pool().ok()?,
-                    MemoryBudget::Machine,
-                    Cache::None,
-                );
-                retained.linter.get_or_init(|| engine)
-            }
+        if !self.retaining {
+            return None;
+        }
+        let mut own = None;
+        let Ok(engine) = self.engine(&mut own, Cache::None) else {
+            return None;
         };
-        let rules = super::schemas::request_rules(
-            self.retained.as_ref(),
+        let Ok(rules) = super::schemas::request_rules(
+            Some(&self.kept_rules),
             self.frontend_diagnostic.clone(),
             request,
-        )
-        .ok()?;
+        ) else {
+            return None;
+        };
         let mut compiled = BTreeMap::new();
         for (id, rule) in rules {
             let started = std::time::Instant::now();
@@ -206,30 +237,8 @@ impl EngineExecution for LocalEngineSession<'_> {
             }
         };
         let retained_rules: std::collections::BTreeSet<RuleId> = rules.keys().cloned().collect();
-        let built;
-        let engine = match &adapter.retained {
-            Some(retained) => match retained.linter.get() {
-                Some(engine) => engine,
-                None => {
-                    let engine = linter::Linter::new(
-                        adapter.languages.clone(),
-                        EngineLocalAdapter::pool()?,
-                        MemoryBudget::Machine,
-                        Cache::None,
-                    );
-                    retained.linter.get_or_init(|| engine)
-                }
-            },
-            None => {
-                built = linter::Linter::new(
-                    adapter.languages.clone(),
-                    EngineLocalAdapter::pool()?,
-                    MemoryBudget::Machine,
-                    cache,
-                );
-                &built
-            }
-        };
+        let mut own = None;
+        let engine = adapter.engine(&mut own, cache)?;
         let report = linter::lint_with(
             engine,
             LintRequest {

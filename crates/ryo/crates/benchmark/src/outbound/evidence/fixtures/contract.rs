@@ -122,6 +122,21 @@ pub fn check(adapter: &impl EvidencePort) {
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+    let times = std::collections::BTreeMap::from([(
+        ryo::linter::RuleId::try_from("R1").expect("rule identity"),
+        crate::outbound::evidence::types::RuleTiming::default(),
+    )]);
+    assert!(
+        adapter
+            .verification(
+                &ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName(
+                    "lint".into()
+                ),
+                &times,
+            )
+            .is_ok(),
+        "the verification times of a rule are accepted"
+    );
     let report = (CASES[1].input)()
         .into_iter()
         .map(|sample| sample.measurement.report)
