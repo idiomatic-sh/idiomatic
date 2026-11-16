@@ -25,9 +25,16 @@ sha256 = [
 defaults = ["F401"]
 
 [query-modules]
+"python/ruff/checker-namespace-events" = "fragments/checker-namespace-events.ryoql"
+"python/ruff/nonlocal-bindings" = "fragments/nonlocal-bindings.ryoql"
+"python/ruff/checker-type-scope-events" = "fragments/checker-type-scope-events.ryoql"
+"python/ruff/conditional-deletions" = "fragments/conditional-deletions.ryoql"
+"python/ruff/ordinary-read-uses" = "fragments/ordinary-read-uses.ryoql"
 "python/ruff/deferred-read-events" = "fragments/deferred-read-events.ryoql"
 "python/ruff/deferred-type-reads" = "fragments/deferred-type-reads.ryoql"
 "python/ruff/future-annotation-context" = "fragments/future-annotation-context.ryoql"
+"python/ruff/latest-before" = "fragments/latest-before.ryoql"
+"python/ruff/resolve-pointers" = "fragments/resolve-pointers.ryoql"
 "python/ruff/lookup-read-events" = "fragments/lookup-read-events.ryoql"
 "python/ruff/type-definition-context" = "fragments/type-definition-context.ryoql"
 "python/ruff/annotation-evaluation-context" = "fragments/annotation-evaluation-context.ryoql"

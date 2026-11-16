@@ -1624,6 +1624,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-python-ruff-benchmark"
 version = "0.2.0"
 dependencies = [
+ "cpu-time",
  "dunce",
  "idiomatic-sh-ryo-benchmark",
  "idiomatic-sh-ryo-benchmark-contracts",

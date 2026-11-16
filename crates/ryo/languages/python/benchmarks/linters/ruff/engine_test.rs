@@ -172,6 +172,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || EngineScenario::ActualRootedQueriesKeepTheirSparseAxis,
         expect: Expect::Value(true),
     },
+    Case {
+        name: CaseName("f401_cost_grows_with_the_file"),
+        word: Word::Succeeds,
+        input: || EngineScenario::RuleCostGrowsWithTheFileF401,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("f841_cost_grows_with_the_file"),
+        word: Word::Succeeds,
+        input: || EngineScenario::RuleCostGrowsWithTheFileF841,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("f811_cost_grows_with_the_file"),
+        word: Word::Succeeds,
+        input: || EngineScenario::RuleCostGrowsWithTheFileF811,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("f821_cost_grows_with_the_file"),
+        word: Word::Succeeds,
+        input: || EngineScenario::RuleCostGrowsWithTheFileF821,
+        expect: Expect::Value(true),
+    },
 ];
 fn exercise(scenario: Input) -> Result<Value, Error> {
     if scenario == EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile {
@@ -217,6 +241,18 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     if scenario == EngineScenario::ActualRootedQueriesKeepTheirSparseAxis {
         return sparse_traversal_test::actual_rooted_queries_keep_their_sparse_axis()
             .map(|()| true);
+    }
+    if scenario == EngineScenario::RuleCostGrowsWithTheFileF401 {
+        return lookup_linearity_test::rule_cost_grows_with_the_file("F401").map(|()| true);
+    }
+    if scenario == EngineScenario::RuleCostGrowsWithTheFileF841 {
+        return lookup_linearity_test::rule_cost_grows_with_the_file("F841").map(|()| true);
+    }
+    if scenario == EngineScenario::RuleCostGrowsWithTheFileF811 {
+        return lookup_linearity_test::rule_cost_grows_with_the_file("F811").map(|()| true);
+    }
+    if scenario == EngineScenario::RuleCostGrowsWithTheFileF821 {
+        return lookup_linearity_test::rule_cost_grows_with_the_file("F821").map(|()| true);
     }
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");
@@ -292,6 +328,8 @@ mod project_inputs_test;
 mod i001_observation_test;
 
 mod sparse_traversal_test;
+
+mod lookup_linearity_test;
 
 mod rejected_syntax_consumer_test;
 

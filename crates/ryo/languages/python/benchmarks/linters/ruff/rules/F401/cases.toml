@@ -441,3 +441,3252 @@ name="use-after-straight-line-rebinding"
 comparison="full"
 files={"case.py"="import os\nimport os\nprint(os)\n"}
 expected=[]
+
+[[cases]]
+name="nested-branch-rebinding-in-function-read-in-else"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-try-rebinding-in-function-read-in-except"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    try:\n        import os\n    except ImportError:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-branch-rebinding-in-class-read-in-else"
+comparison="full"
+files={"case.py"="import os\nclass C:\n    if c:\n        import os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-assignment-rebinding-in-function-read-in-else"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        os = 1\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-read-before-local-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        print(os)\n    else:\n        import os\n"}
+expected=[{rule="F401", file="case.py", start=72, end=74}]
+
+[[cases]]
+name="nested-local-rebinding-then-read-same-branch"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    import os\n    print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-delete-in-branch-read-in-else"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n        del os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-latest-branch-rebinding-is-the-one-used"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    elif d:\n        import os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-global-declared-rebinding-read-in-else"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    global os\n    if c:\n        import os\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-comprehension-reads-through-function-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    else:\n        return [os for _ in y]\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-lambda-reads-through-function-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    else:\n        return lambda: os\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-lambda-reads-rebinding-bound-after-it"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    g = lambda: os\n    if c:\n        import os\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-function-reads-through-function-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f():\n    if c:\n        import os\n    def g():\n        return os\n    return g\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-class-binding-is-not-visible-to-comprehension"
+comparison="full"
+files={"case.py"="import os\nclass C:\n    import os\n    def f(self):\n        return [os for _ in y]\n"}
+expected=[]
+
+[[cases]]
+name="nested-function-reads-later-branch-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f(c):\n    def g():\n        return os\n    if c:\n        import os\n    else:\n        pass\n    return g\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-lambda-reads-later-branch-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f(c):\n    g = lambda: os\n    if c:\n        import os\n    else:\n        pass\n    return g\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="nested-lambda-in-comprehension-reads-later-rebinding"
+comparison="full"
+files={"case.py"="import os\ndef f(c):\n    return [lambda: os for _ in c]\n    import os\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="handler-restores-module-import-for-later-read"
+comparison="full"
+files={"case.py"="import os\ndef f(c):\n    if c:\n        import os\n        try:\n            pass\n        except Exception as os:\n            pass\n    else:\n        print(os)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="handler-restoration-second-shape"
+comparison="full"
+files={"case.py"="def f():\n    import os\n    try:\n        pass\n    except Exception as os:\n        pass\n    return os\n"}
+expected=[]
+
+[[cases]]
+name="deleted-module-import-is-used"
+comparison="full"
+files={"case.py"="import os\ndel os\n"}
+expected=[]
+
+[[cases]]
+name="deleted-function-import-is-used"
+comparison="full"
+files={"case.py"="def f():\n    import os\n    del os\n"}
+expected=[]
+
+[[cases]]
+name="deleted-import-in-conditional"
+comparison="full"
+files={"case.py"="import os\nif c:\n    del os\n"}
+expected=[]
+
+[[cases]]
+name="long-rebinding-chain"
+comparison="full"
+files={"case.py"="import os\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\nos = f(os)\n"}
+expected=[]
+
+[[cases]]
+name="deletion-in-nested-function-does-not-use-module-import"
+comparison="full"
+files={"case.py"="import os\ndef g():\n    del os\n"}
+expected=[{rule="F401", file="case.py", start=7, end=9}]
+
+[[cases]]
+name="deletion-in-nested-function-does-not-use-enclosing-import"
+comparison="full"
+files={"case.py"="def f():\n    import os\n    def g():\n        del os\n    return g\n"}
+expected=[{rule="F401", file="case.py", start=20, end=22}]
+
+[[cases]]
+name="matrix-a-module-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-read+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nprint(v)\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-func-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-func-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-func-global-assign+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    v = 1\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-func-global-import+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    import v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-func-global-exc+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        pass\n    except Exception as v:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-func-global-for+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    for v in y:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-func-global-with+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    with y as v:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-func-global-walrus+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    (v := 1)\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-func-global-read+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    print(v)\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-func-global-del+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    del v\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-func-global-del+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    del v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested-global-read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-assign+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        v = 1\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-assign+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        v = 1\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-import+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        import v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-import+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        import v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-exc+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-exc+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-for+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        for v in y:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-for+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        for v in y:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-with+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        with y as v:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-with+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        with y as v:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-walrus+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        (v := 1)\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-walrus+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        (v := 1)\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-read+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        print(v)\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested-global-read+read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        print(v)\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested-global-del+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-del+read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-del+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested-global-del+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            print(v)\n        h()\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested2-global-read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            print(v)\n        h()\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested2-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-assign+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            v = 1\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-assign+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            v = 1\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-import+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            import v\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-import+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            import v\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-exc+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            try:\n                pass\n            except Exception as v:\n                pass\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-exc+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            try:\n                pass\n            except Exception as v:\n                pass\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-for+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            for v in y:\n                pass\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-for+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            for v in y:\n                pass\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-with+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            with y as v:\n                pass\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-with+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            with y as v:\n                pass\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-walrus+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            (v := 1)\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-walrus+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            (v := 1)\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-read+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            print(v)\n            print(v)\n        h()\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested2-global-read+read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            print(v)\n            print(v)\n        h()\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested2-global-del+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            del v\n            print(v)\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-del+read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            del v\n            print(v)\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-del+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            global v\n            del v\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-nested2-global-del+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        def h():\n            global v\n            del v\n            del v\n        h()\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-assign-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    v = 1\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-import-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    import v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-exc-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        pass\n    except Exception as v:\n        pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-for-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    for v in y:\n        pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-with-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    with y as v:\n        pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-walrus-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    (v := 1)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-assign+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    v = 1\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-assign+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    v = 1\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-import+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    import v\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-import+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    import v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        pass\n    except Exception as v:\n        pass\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-exc+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        pass\n    except Exception as v:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-for+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    for v in y:\n        pass\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-for+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    for v in y:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-with+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    with y as v:\n        pass\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-with+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    with y as v:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-walrus+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    (v := 1)\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-walrus+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    (v := 1)\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-read+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    print(v)\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class-global-del+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    del v\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class-global-del+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    del v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-assign+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        v = 1\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-assign+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        v = 1\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-import+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        import v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-import+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        import v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-exc+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-exc+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-for+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        for v in y:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-for+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        for v in y:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-with+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        with y as v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-with+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        with y as v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-walrus+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        (v := 1)\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-walrus+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        (v := 1)\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-read+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        print(v)\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-read+read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        print(v)\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-del+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-del+read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-del+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-class_in_func-global-del+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method-global-assign+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        v = 1\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method-global-import+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        import v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method-global-exc+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            pass\n        except Exception as v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method-global-for+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        for v in y:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method-global-with+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        with y as v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method-global-walrus+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        (v := 1)\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method-global-read+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        print(v)\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method-global-del+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method-global-del+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-assign+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            v = 1\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-assign+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            v = 1\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-import+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            import v\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-import+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            import v\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-exc+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            try:\n                pass\n            except Exception as v:\n                pass\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-exc+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            try:\n                pass\n            except Exception as v:\n                pass\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-for+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            for v in y:\n                pass\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-for+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            for v in y:\n                pass\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-with+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            with y as v:\n                pass\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-with+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            with y as v:\n                pass\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-walrus+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            (v := 1)\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-walrus+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            (v := 1)\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-read+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            print(v)\n            print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-read+read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            print(v)\n            print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-del+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            del v\n            print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-del+read-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            del v\n            print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-del+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            global v\n            del v\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-a-method_in_func-global-del+del-import-outer"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        def m(self):\n            global v\n            del v\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-assign-func-del-global-binder-first-import"
+comparison="full"
+files={"case.py"="import v\ndef g():\n    global v\n    v = 1\ndef r():\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-assign-func-del-global-reader-first-import"
+comparison="full"
+files={"case.py"="import v\ndef r():\n    global v\n    del v\ndef g():\n    global v\n    v = 1\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-import-func-del-global-binder-first-import"
+comparison="full"
+files={"case.py"="import v\ndef g():\n    global v\n    import v\ndef r():\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-import-func-del-global-reader-first-import"
+comparison="full"
+files={"case.py"="import v\ndef r():\n    global v\n    del v\ndef g():\n    global v\n    import v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-del-func-del-global-binder-first-import"
+comparison="full"
+files={"case.py"="import v\ndef g():\n    global v\n    del v\ndef r():\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-del-func-del-global-reader-first-import"
+comparison="full"
+files={"case.py"="import v\ndef r():\n    global v\n    del v\ndef g():\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-del-func-del-local-binder-first-import"
+comparison="full"
+files={"case.py"="import v\ndef g():\n    global v\n    del v\ndef r():\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-del-func-del-local-reader-first-import"
+comparison="full"
+files={"case.py"="import v\ndef r():\n    del v\ndef g():\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-only-func-del-global-binder-first-import"
+comparison="full"
+files={"case.py"="import v\ndef g():\n    global v\ndef r():\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-global-only-func-del-global-reader-first-import"
+comparison="full"
+files={"case.py"="import v\ndef r():\n    global v\n    del v\ndef g():\n    global v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-method-global-func-del-global-binder-first-import"
+comparison="full"
+files={"case.py"="import v\nclass K:\n    def g(self):\n        global v\n        v = 1\ndef r():\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-b-method-global-func-del-global-reader-first-import"
+comparison="full"
+files={"case.py"="import v\ndef r():\n    global v\n    del v\nclass K:\n    def g(self):\n        global v\n        v = 1\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-module-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-anno+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv: int\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-func-none-cdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    if c:\n        del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-func-none-anno+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v: int\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-cdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    if c:\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-aug-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    v += 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-func-global-excdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        pass\n    except Exception as v:\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-excifdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-trydel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        del v\n    except NameError:\n        pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-func-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-cdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    if c:\n        del v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-aug+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    v += 1\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-func-global-deff+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    def v():\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-cls+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    class v:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        pass\n    except Exception as v:\n        del v\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-excdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        pass\n    except Exception as v:\n        del v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-excifdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-ifbind+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    if c:\n        v = 1\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-ifelse+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    if c:\n        v = 1\n    else:\n        print(v)\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-trydel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        del v\n    except NameError:\n        pass\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-func-global-trydel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    global v\n    try:\n        del v\n    except NameError:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-none-cdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        if c:\n            del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-cdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        if c:\n            del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-cdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        if c:\n            del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-none-cdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        if c:\n            del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-anno+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        v: int\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=20, end=21}]
+
+
+[[cases]]
+name="matrix-x-nested-none-anno+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        v: int\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-none-anno+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        v: int\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-none-anno+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        v: int\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=26, end=27}]
+
+
+[[cases]]
+name="matrix-x-nested-global-cdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        if c:\n            del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-cdel-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        if c:\n            del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-cdel-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        if c:\n            del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-aug-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        v += 1\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-global-aug-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        v += 1\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-global-aug-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        v += 1\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excdel-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excdel-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excifdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excifdel-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excifdel-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-trydel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-trydel-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-trydel-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-global-read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-global-read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-cdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        if c:\n            del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-cdel+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        if c:\n            del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-cdel+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        if c:\n            del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-aug+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        v += 1\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-global-aug+read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        v += 1\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-global-aug+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        v += 1\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-deff+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        def v():\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-deff+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        def v():\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-deff+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        def v():\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-cls+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        class v:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-cls+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        class v:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-cls+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        class v:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excdel+read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excdel+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excdel+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excifdel+read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excifdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excifdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excifdel+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-excifdel+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-ifbind+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        if c:\n            v = 1\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-ifbind+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        if c:\n            v = 1\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-ifbind+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        if c:\n            v = 1\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-ifelse+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        if c:\n            v = 1\n        else:\n            print(v)\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-ifelse+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        if c:\n            v = 1\n        else:\n            print(v)\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-ifelse+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        if c:\n            v = 1\n        else:\n            print(v)\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-trydel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-trydel+read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-trydel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-global-trydel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-trydel+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    def g():\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-global-trydel+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        del v\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-aug-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        v += 1\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-aug-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        v += 1\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-aug-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        v += 1\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-deff-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        def v():\n            pass\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-deff-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        def v():\n            pass\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-deff-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        def v():\n            pass\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-cls-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        class v:\n            pass\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-cls-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        class v:\n            pass\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-cls-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        class v:\n            pass\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifbind-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifbind-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifbind-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifelse-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n        else:\n            print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifelse-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n        else:\n            print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifelse-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n        else:\n            print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-aug+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        v += 1\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-aug+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        v += 1\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-aug+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        v += 1\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-deff+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        def v():\n            pass\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-deff+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        def v():\n            pass\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-deff+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        def v():\n            pass\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-cls+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        class v:\n            pass\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-cls+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        class v:\n            pass\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-cls+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        class v:\n            pass\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifbind+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifbind+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifbind+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifelse+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n        else:\n            print(v)\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifelse+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n        else:\n            print(v)\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-nonlocal-ifelse+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        nonlocal v\n        if c:\n            v = 1\n        else:\n            print(v)\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class-none-cdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    if c:\n        del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class-global-cdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    if c:\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-deff-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    def v():\n        pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-cls-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    class v:\n        pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-excdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        pass\n    except Exception as v:\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-excifdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-ifbind-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    if c:\n        v = 1\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-ifelse-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    if c:\n        v = 1\n    else:\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-trydel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        del v\n    except NameError:\n        pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-cdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    if c:\n        del v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-deff+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    def v():\n        pass\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-deff+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    def v():\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-cls+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    class v:\n        pass\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-cls+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    class v:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        pass\n    except Exception as v:\n        del v\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-excdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        pass\n    except Exception as v:\n        del v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-excifdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-ifbind+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    if c:\n        v = 1\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-ifbind+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    if c:\n        v = 1\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-ifelse+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    if c:\n        v = 1\n    else:\n        print(v)\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-ifelse+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    if c:\n        v = 1\n    else:\n        print(v)\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-trydel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        del v\n    except NameError:\n        pass\n    print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class-global-trydel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    global v\n    try:\n        del v\n    except NameError:\n        pass\n    del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-cdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    class C:\n        if c:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-cdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        if c:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-cdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        if c:\n            del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-cdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    class C:\n        if c:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-cdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        if c:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-cdel-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        if c:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-cdel-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        if c:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-aug-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        v += 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-aug-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        v += 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-aug-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        v += 1\n"}
+expected=[{rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excdel-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excdel-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excifdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excifdel-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excifdel-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-trydel-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-trydel-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-trydel-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-cdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        if c:\n            del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-cdel+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        if c:\n            del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-cdel+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        if c:\n            del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-aug+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        v += 1\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-aug+read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        v += 1\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-aug+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        v += 1\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-deff+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        def v():\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-deff+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        def v():\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-deff+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        def v():\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-cls+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        class v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-cls+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        class v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-cls+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        class v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excdel+read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excdel+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excdel+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excifdel+read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excifdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excifdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excifdel+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-excifdel+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-ifbind+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        if c:\n            v = 1\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-ifbind+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        if c:\n            v = 1\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-ifbind+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        if c:\n            v = 1\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-ifelse+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        if c:\n            v = 1\n        else:\n            print(v)\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-ifelse+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        if c:\n            v = 1\n        else:\n            print(v)\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-ifelse+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        if c:\n            v = 1\n        else:\n            print(v)\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-trydel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-trydel+read-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-trydel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-trydel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-trydel+del-import-assign"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    v = 1\n    class C:\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-global-trydel+del-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}, {rule="F401", file="case.py", start=29, end=30}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-nonlocal-read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    class C:\n        nonlocal v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-nonlocal-read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        nonlocal v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-nonlocal-read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    class C:\n        nonlocal v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-method-none-cdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        if c:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-method-none-anno+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        v: int\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-cdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        if c:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-aug-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        v += 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-method-global-excdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-excifdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-trydel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-method-global-del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-cdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        if c:\n            del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-aug+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        v += 1\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-method-global-deff+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        def v():\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-cls+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        class v:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-excdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            pass\n        except Exception as v:\n            del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-excifdel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-ifbind+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        if c:\n            v = 1\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-ifelse+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        if c:\n            v = 1\n        else:\n            print(v)\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-trydel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-method-global-trydel+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        del v\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name = "pep695-type-parameter-shadows-import-annotation"
+comparison = "full"
+files = { "case.py" = "import T\n\n\ndef f[T](a: T) -> T:\n    return a\n" }
+expected = [{ rule = "F401", file = "case.py", start = 7, end = 8 }, { rule = "invalid-syntax", file = "case.py", start = 16, end = 19 }]
+
+[[cases]]
+name="matrix-a-module-global-assign-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv = 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-import-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nimport v\n"}
+expected=[{rule="F401", file="case.py", start=25, end=26}]
+
+
+[[cases]]
+name="matrix-a-module-global-exc-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ntry:\n    pass\nexcept Exception as v:\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-for-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nfor v in y:\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-with-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nwith y as v:\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-walrus-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\n(v := 1)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-assign+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv = 1\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-assign+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv = 1\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-import+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nimport v\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-import+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nimport v\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-for+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nfor v in y:\n    pass\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-for+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nfor v in y:\n    pass\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-with+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nwith y as v:\n    pass\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-with+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nwith y as v:\n    pass\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-walrus+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\n(v := 1)\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-module-global-walrus+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\n(v := 1)\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-func-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    try:\n        pass\n    except Exception as v:\n        pass\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        try:\n            pass\n        except Exception as v:\n            pass\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-nested2-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        def h():\n            try:\n                pass\n            except Exception as v:\n                pass\n            print(v)\n        h()\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    try:\n        pass\n    except Exception as v:\n        pass\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-class_in_func-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        try:\n            pass\n        except Exception as v:\n            pass\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        try:\n            pass\n        except Exception as v:\n            pass\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-a-method_in_func-none-exc+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        def m(self):\n            try:\n                pass\n            except Exception as v:\n                pass\n            print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-annoval-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv: int = 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-deff-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ndef v():\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-cls-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nclass v:\n    pass\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-excdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ntry:\n    pass\nexcept Exception as v:\n    del v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-excifdel-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ntry:\n    pass\nexcept Exception as v:\n    if c:\n        del v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifbind-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifelse-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\nelse:\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-annoval+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv: int = 1\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-annoval+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nv: int = 1\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-deff+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ndef v():\n    pass\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-deff+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\ndef v():\n    pass\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-cls+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nclass v:\n    pass\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-cls+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nclass v:\n    pass\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifbind+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifbind+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifelse+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\nelse:\n    print(v)\nprint(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-module-global-ifelse+del-import-noouter"
+comparison="full"
+files={"case.py"="import v\nglobal v\nif c:\n    v = 1\nelse:\n    print(v)\ndel v\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-func-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    try:\n        pass\n    except Exception as v:\n        del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-func-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-none-excdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excifdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    def g():\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-nested-none-excifdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-nested-none-excifdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    def g():\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n    g()\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    try:\n        pass\n    except Exception as v:\n        del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    try:\n        pass\n    except Exception as v:\n        if c:\n            del v\n    print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excifdel+read-none-import"
+comparison="full"
+files={"case.py"="def f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    class C:\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excifdel+read-import-import"
+comparison="full"
+files={"case.py"="import v\ndef f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[{rule="F401", file="case.py", start=7, end=8}]
+
+
+[[cases]]
+name="matrix-x-class_in_func-none-excifdel+read-assign-import"
+comparison="full"
+files={"case.py"="v = 0\ndef f():\n    import v\n    class C:\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-method-none-excdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        try:\n            pass\n        except Exception as v:\n            del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name="matrix-x-method-none-excifdel+read-import-noouter"
+comparison="full"
+files={"case.py"="import v\nclass C:\n    def m(self):\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        print(v)\n"}
+expected=[]
+
+
+[[cases]]
+name = "handler-target-in-function-hides-outer-import-from-its-read"
+comparison = "full"
+files = { "case.py" = "import e\ndef f():\n    try:\n        pass\n    except Exception as e:\n        print(e)\nf()\n" }
+expected = [{ rule = "F401", file = "case.py", start = 7, end = 8 }]
