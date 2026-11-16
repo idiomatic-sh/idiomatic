@@ -5,7 +5,7 @@ specs = [
   { spec = "idiomatic.arch/collection@0.1.1", include = ["collections/{collection}"], count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "The collections of this part: each a collection of items sharing one trait." },
 ]
 templates = [
-  { template = "idiomatic.arch/value-module@0.1.0", file = "types/{value}.rs", count = { min = 0 }, description = "An optional behavior-owning value module with its adjacent implementation and proof." },
+  { template = "idiomatic.arch/value-module@0.2.0", file = "types/{value}.rs", count = { min = 0 }, description = "An optional behavior-owning value module with its adjacent implementation and proof." },
   { template = "idiomatic.arch/value@0.1.0", file = "types/{value}/value.rs", count = { min = 0 }, description = "A value owns private representation and pure behavior, including checked construction." },
   { template = "idiomatic.arch/value-test@0.1.0", file = "types/{value}/value_test.rs", count = { min = 0 }, description = "Every behavior-owning value has its independent adjacent proof." },
   { template = "service", file = "service.rs", count = { min = 0 }, description = "The concept's service: free functions named by verb over the domain's types, with no port and no IO." },

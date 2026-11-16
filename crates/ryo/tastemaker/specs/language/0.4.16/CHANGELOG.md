@@ -1,3 +1,7 @@
+# language 0.4.16
+
+Places `concept` 0.1.3, which places `value-module` 0.2.0. Everything else is as in 0.4.15.
+
 # language 0.4.15
 
 The merge of 0.4.11 and 0.4.14, made apart (the fused integration and checkpoint 350): places `contract` 0.7.1, the merge of 0.7.0's control-flow relations and 0.6.1's semantic answers, and everything 0.4.14 places. Each change is as its version below describes.

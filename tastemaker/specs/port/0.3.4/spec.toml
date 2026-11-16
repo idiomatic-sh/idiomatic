@@ -4,7 +4,7 @@ specs = [
   { spec = "idiomatic.arch/adapter@0.4.0", params = { core = "crate" }, include = ["adapters/{implementation}"], count = { min = 0 }, description = "The implementations of the port, one part each; a port the SDK exposes as an extension point has none, every other port has at least one." },
 ]
 templates = [
-  { template = "idiomatic.arch/value-module@0.1.0", file = "types/{value}.rs", count = { min = 0 }, description = "An optional behavior-owning boundary value module with its implementation and adjacent proof." },
+  { template = "idiomatic.arch/value-module@0.2.0", file = "types/{value}.rs", count = { min = 0 }, description = "An optional behavior-owning boundary value module with its implementation and adjacent proof." },
   { template = "idiomatic.arch/value@0.1.0", file = "types/{value}/value.rs", count = { min = 0 }, description = "A boundary value owns its private representation and invariant-preserving behavior; placement alone grants no workflow authority." },
   { template = "idiomatic.arch/value-test@0.1.0", file = "types/{value}/value_test.rs", count = { min = 0 }, description = "Independent proof of the boundary value's behavior and refused construction or mutation where relevant." },
   # The adapters of the port: the list of its implementations, the factory the edge calls, and each implementation's module file. Each implementation is a part of kind adapter.

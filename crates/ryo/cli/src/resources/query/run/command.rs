@@ -10,7 +10,7 @@ use ryo_core::inbound::use_cases::lint::errors::LintError;
 #[derive(Clone, Debug, clap::Args)]
 #[expect(
     clippy::field_scoped_visibility_modifiers,
-    reason = "clap fills these fields, the command hands them to the sibling `schemas.rs` and that file's tests read them; `pub` would publish them through the library's public arguments type, and private fields would hide them from those tests"
+    reason = "clap fills these fields, the command hands them to its sibling schemas file, whose tests read them; `pub` would publish them through the library's public arguments type, and private fields would hide them from those tests"
 )]
 #[command(
     after_help = "Examples:\n  ryo query run --text 'let f = select * from \"function\"; emit f subject file key(span);'\n  ryo query run \\\n    --text 'let f = select * from \"function\"; emit f subject file key(span);' \\\n    --text 'let d = select * from \"package-dependency\"; emit d subject source key(source);'"

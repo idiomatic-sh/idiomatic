@@ -8,7 +8,7 @@ use crate::outcome::Outcome;
 #[derive(Clone, Debug, clap::Args)]
 #[expect(
     clippy::field_scoped_visibility_modifiers,
-    reason = "clap fills these fields, the command hands them to the sibling `schemas.rs` and that file's tests read them; `pub` would publish them through the library's public arguments type, and private fields would hide them from those tests"
+    reason = "clap fills these fields, the command hands them to its sibling schemas file, whose tests read them; `pub` would publish them through the library's public arguments type, and private fields would hide them from those tests"
 )]
 #[command(after_help = "Examples:\n  ryo operator describe antijoin")]
 pub struct DescribeArguments {

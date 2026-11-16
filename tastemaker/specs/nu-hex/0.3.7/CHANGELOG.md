@@ -1,3 +1,7 @@
+# nu-hex 0.3.7
+
+Places `concept` 0.1.3 and `port` 0.3.4, which place `value-module` 0.2.0: a value's `value` module may be `pub(crate)` under a module that is not public. Everything else is as in 0.3.6.
+
 # nu-hex 0.3.6
 
 Places `io-at-boundary@0.3.0`, which no longer exempts a benchmark linter's `host.rs`. Everything else is as in 0.3.5.
