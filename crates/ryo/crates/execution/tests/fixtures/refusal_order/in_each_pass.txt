@@ -110,6 +110,118 @@ PF antijoin(h,none) pop=true obs=false: complete [Symbol, Number] RowCount(0)
 PF antijoin(h,none) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0])]"]
 XF antijoin(h,none) pop=true obs=false: complete [Symbol, Number] RowCount(0)
 XF antijoin(h,none) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0])]"]
+PF project0(sound) pop=false obs=false: complete [Symbol] RowCount(0)
+PF project0(sound) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF project0(sound) pop=false obs=false: complete [Symbol] RowCount(0)
+XF project0(sound) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF project0(sound) pop=true obs=false: complete [Symbol] RowCount(1)
+PF project0(sound) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF project0(sound) pop=true obs=false: complete [Symbol] RowCount(1)
+XF project0(sound) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF project-none(sound) pop=false obs=false: complete [] RowCount(0)
+PF project-none(sound) pop=false obs=true: complete [] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF project-none(sound) pop=false obs=false: complete [] RowCount(0)
+XF project-none(sound) pop=false obs=true: complete [] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF project-none(sound) pop=true obs=false: complete [] RowCount(1)
+PF project-none(sound) pop=true obs=true: complete [] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF project-none(sound) pop=true obs=false: complete [] RowCount(1)
+XF project-none(sound) pop=true obs=true: complete [] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF select-all(sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF select-all(sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF select-all(sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF select-all(sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF select-all(sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF select-all(sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF select-all(sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF select-all(sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF words0(sound) pop=false obs=false: complete [Symbol, Number, Symbol] RowCount(0)
+PF words0(sound) pop=false obs=true: complete [Symbol, Number, Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF words0(sound) pop=false obs=false: complete [Symbol, Number, Symbol] RowCount(0)
+XF words0(sound) pop=false obs=true: complete [Symbol, Number, Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF words0(sound) pop=true obs=false: complete [Symbol, Number, Symbol] RowCount(1)
+PF words0(sound) pop=true obs=true: complete [Symbol, Number, Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF words0(sound) pop=true obs=false: complete [Symbol, Number, Symbol] RowCount(1)
+XF words0(sound) pop=true obs=true: complete [Symbol, Number, Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF union(sound,h) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF union(sound,h) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF union(sound,h) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF union(sound,h) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,h) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF union(sound,h) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF union(sound,h) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF union(sound,h) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF union(h,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF union(h,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF union(h,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF union(h,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(h,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF union(h,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF union(h,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF union(h,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF intersection(sound,h) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF intersection(sound,h) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF intersection(sound,h) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF intersection(sound,h) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,h) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF intersection(sound,h) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF intersection(sound,h) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF intersection(sound,h) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF intersection(h,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF intersection(h,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF intersection(h,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF intersection(h,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(h,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF intersection(h,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF intersection(h,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF intersection(h,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF difference(sound,h) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(sound,h) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF difference(sound,h) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(sound,h) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,h) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(sound,h) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF difference(sound,h) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(sound,h) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF difference(h,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(h,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF difference(h,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(h,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(h,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(h,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF difference(h,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(h,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF join(sound,h) pop=false obs=false: complete [Symbol] RowCount(0)
+PF join(sound,h) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF join(sound,h) pop=false obs=false: complete [Symbol] RowCount(0)
+XF join(sound,h) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,h) pop=true obs=false: complete [Symbol] RowCount(1)
+PF join(sound,h) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF join(sound,h) pop=true obs=false: complete [Symbol] RowCount(1)
+XF join(sound,h) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF join(h,sound) pop=false obs=false: complete [Symbol] RowCount(0)
+PF join(h,sound) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF join(h,sound) pop=false obs=false: complete [Symbol] RowCount(0)
+XF join(h,sound) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(h,sound) pop=true obs=false: complete [Symbol] RowCount(1)
+PF join(h,sound) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF join(h,sound) pop=true obs=false: complete [Symbol] RowCount(1)
+XF join(h,sound) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF antijoin(sound,h) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(sound,h) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF antijoin(sound,h) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(sound,h) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,h) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(sound,h) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF antijoin(sound,h) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(sound,h) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF antijoin(h,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(h,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF antijoin(h,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(h,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(h,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(h,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF antijoin(h,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(h,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
 PF project0(direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
 PF project0(direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF project0(direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
@@ -710,6 +822,46 @@ PF antijoin(none,none) pop=true obs=false: complete [Symbol, Number] RowCount(0)
 PF antijoin(none,none) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0])]"]
 XF antijoin(none,none) pop=true obs=false: complete [Symbol, Number] RowCount(0)
 XF antijoin(none,none) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0])]"]
+PF union(none,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF union(none,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF union(none,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF union(none,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(none,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF union(none,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF union(none,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF union(none,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF intersection(none,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF intersection(none,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF intersection(none,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF intersection(none,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(none,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF intersection(none,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF intersection(none,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF intersection(none,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF difference(none,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(none,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF difference(none,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(none,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(none,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(none,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF difference(none,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(none,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF join(none,sound) pop=false obs=false: complete [Symbol] RowCount(0)
+PF join(none,sound) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF join(none,sound) pop=false obs=false: complete [Symbol] RowCount(0)
+XF join(none,sound) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(none,sound) pop=true obs=false: complete [Symbol] RowCount(1)
+PF join(none,sound) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF join(none,sound) pop=true obs=false: complete [Symbol] RowCount(1)
+XF join(none,sound) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF antijoin(none,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(none,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF antijoin(none,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(none,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(none,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(none,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF antijoin(none,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(none,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
 PF union(none,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
 PF union(none,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF union(none,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
@@ -910,6 +1062,286 @@ PF antijoin(none,deferred2) pop=true obs=false: failed Table(NoSuchColumn { inde
 PF antijoin(none,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF antijoin(none,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
 XF antijoin(none,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,none) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF union(sound,none) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF union(sound,none) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF union(sound,none) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,none) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF union(sound,none) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF union(sound,none) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF union(sound,none) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF intersection(sound,none) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF intersection(sound,none) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF intersection(sound,none) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF intersection(sound,none) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,none) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF intersection(sound,none) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF intersection(sound,none) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF intersection(sound,none) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF difference(sound,none) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(sound,none) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF difference(sound,none) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(sound,none) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,none) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(sound,none) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF difference(sound,none) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(sound,none) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF join(sound,none) pop=false obs=false: complete [Symbol] RowCount(0)
+PF join(sound,none) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF join(sound,none) pop=false obs=false: complete [Symbol] RowCount(0)
+XF join(sound,none) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,none) pop=true obs=false: complete [Symbol] RowCount(1)
+PF join(sound,none) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF join(sound,none) pop=true obs=false: complete [Symbol] RowCount(1)
+XF join(sound,none) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF antijoin(sound,none) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(sound,none) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF antijoin(sound,none) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(sound,none) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,none) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(sound,none) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF antijoin(sound,none) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(sound,none) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF union(sound,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF union(sound,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF union(sound,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF union(sound,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF union(sound,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF union(sound,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF union(sound,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF intersection(sound,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF intersection(sound,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF intersection(sound,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF intersection(sound,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+PF intersection(sound,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF intersection(sound,sound) pop=true obs=false: complete [Symbol, Number] RowCount(1)
+XF intersection(sound,sound) pop=true obs=true: complete [Symbol, Number] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF difference(sound,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(sound,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF difference(sound,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(sound,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF difference(sound,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF difference(sound,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF difference(sound,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF join(sound,sound) pop=false obs=false: complete [Symbol] RowCount(0)
+PF join(sound,sound) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF join(sound,sound) pop=false obs=false: complete [Symbol] RowCount(0)
+XF join(sound,sound) pop=false obs=true: complete [Symbol] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,sound) pop=true obs=false: complete [Symbol] RowCount(1)
+PF join(sound,sound) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+XF join(sound,sound) pop=true obs=false: complete [Symbol] RowCount(1)
+XF join(sound,sound) pop=true obs=true: complete [Symbol] RowCount(1) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 1, 0])]"]
+PF antijoin(sound,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(sound,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF antijoin(sound,sound) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(sound,sound) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(sound,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+XF antijoin(sound,sound) pop=true obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(sound,sound) pop=true obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0])]"]
+PF union(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF union(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF union(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF union(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF union(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF union(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF union(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF intersection(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF intersection(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF intersection(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF intersection(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF intersection(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF intersection(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF difference(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF difference(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF difference(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF difference(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF difference(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF difference(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF join(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF join(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF join(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF join(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF join(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF join(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF antijoin(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF antijoin(sound,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF antijoin(sound,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF antijoin(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF antijoin(sound,direct) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF antijoin(sound,direct) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,relation) pop=false obs=false: filestop
+PF union(sound,relation) pop=false obs=true: filestop fed=[]
+XF union(sound,relation) pop=false obs=false: failed NotRead
+XF union(sound,relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,relation) pop=true obs=false: filestop
+PF union(sound,relation) pop=true obs=true: filestop fed=[]
+XF union(sound,relation) pop=true obs=false: failed NotRead
+XF union(sound,relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,relation) pop=false obs=false: filestop
+PF intersection(sound,relation) pop=false obs=true: filestop fed=[]
+XF intersection(sound,relation) pop=false obs=false: failed NotRead
+XF intersection(sound,relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,relation) pop=true obs=false: filestop
+PF intersection(sound,relation) pop=true obs=true: filestop fed=[]
+XF intersection(sound,relation) pop=true obs=false: failed NotRead
+XF intersection(sound,relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,relation) pop=false obs=false: filestop
+PF difference(sound,relation) pop=false obs=true: filestop fed=[]
+XF difference(sound,relation) pop=false obs=false: failed NotRead
+XF difference(sound,relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,relation) pop=true obs=false: filestop
+PF difference(sound,relation) pop=true obs=true: filestop fed=[]
+XF difference(sound,relation) pop=true obs=false: failed NotRead
+XF difference(sound,relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,relation) pop=false obs=false: filestop
+PF join(sound,relation) pop=false obs=true: filestop fed=[]
+XF join(sound,relation) pop=false obs=false: failed NotRead
+XF join(sound,relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,relation) pop=true obs=false: filestop
+PF join(sound,relation) pop=true obs=true: filestop fed=[]
+XF join(sound,relation) pop=true obs=false: failed NotRead
+XF join(sound,relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,relation) pop=false obs=false: filestop
+PF antijoin(sound,relation) pop=false obs=true: filestop fed=[]
+XF antijoin(sound,relation) pop=false obs=false: failed NotRead
+XF antijoin(sound,relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,relation) pop=true obs=false: filestop
+PF antijoin(sound,relation) pop=true obs=true: filestop fed=[]
+XF antijoin(sound,relation) pop=true obs=false: failed NotRead
+XF antijoin(sound,relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,node-relation) pop=false obs=false: filestop
+PF union(sound,node-relation) pop=false obs=true: filestop fed=[]
+XF union(sound,node-relation) pop=false obs=false: failed NotRead
+XF union(sound,node-relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,node-relation) pop=true obs=false: filestop
+PF union(sound,node-relation) pop=true obs=true: filestop fed=[]
+XF union(sound,node-relation) pop=true obs=false: failed NotRead
+XF union(sound,node-relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,node-relation) pop=false obs=false: filestop
+PF intersection(sound,node-relation) pop=false obs=true: filestop fed=[]
+XF intersection(sound,node-relation) pop=false obs=false: failed NotRead
+XF intersection(sound,node-relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,node-relation) pop=true obs=false: filestop
+PF intersection(sound,node-relation) pop=true obs=true: filestop fed=[]
+XF intersection(sound,node-relation) pop=true obs=false: failed NotRead
+XF intersection(sound,node-relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,node-relation) pop=false obs=false: filestop
+PF difference(sound,node-relation) pop=false obs=true: filestop fed=[]
+XF difference(sound,node-relation) pop=false obs=false: failed NotRead
+XF difference(sound,node-relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,node-relation) pop=true obs=false: filestop
+PF difference(sound,node-relation) pop=true obs=true: filestop fed=[]
+XF difference(sound,node-relation) pop=true obs=false: failed NotRead
+XF difference(sound,node-relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,node-relation) pop=false obs=false: filestop
+PF join(sound,node-relation) pop=false obs=true: filestop fed=[]
+XF join(sound,node-relation) pop=false obs=false: failed NotRead
+XF join(sound,node-relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,node-relation) pop=true obs=false: filestop
+PF join(sound,node-relation) pop=true obs=true: filestop fed=[]
+XF join(sound,node-relation) pop=true obs=false: failed NotRead
+XF join(sound,node-relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,node-relation) pop=false obs=false: filestop
+PF antijoin(sound,node-relation) pop=false obs=true: filestop fed=[]
+XF antijoin(sound,node-relation) pop=false obs=false: failed NotRead
+XF antijoin(sound,node-relation) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,node-relation) pop=true obs=false: filestop
+PF antijoin(sound,node-relation) pop=true obs=true: filestop fed=[]
+XF antijoin(sound,node-relation) pop=true obs=false: failed NotRead
+XF antijoin(sound,node-relation) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,deferred) pop=false obs=false: failed ShapeMismatch
+PF union(sound,deferred) pop=false obs=true: failed ShapeMismatch fed=[]
+XF union(sound,deferred) pop=false obs=false: failed ShapeMismatch
+XF union(sound,deferred) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF union(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF union(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF union(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,deferred) pop=false obs=false: failed ShapeMismatch
+PF intersection(sound,deferred) pop=false obs=true: failed ShapeMismatch fed=[]
+XF intersection(sound,deferred) pop=false obs=false: failed ShapeMismatch
+XF intersection(sound,deferred) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF intersection(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF intersection(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF intersection(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,deferred) pop=false obs=false: failed ShapeMismatch
+PF difference(sound,deferred) pop=false obs=true: failed ShapeMismatch fed=[]
+XF difference(sound,deferred) pop=false obs=false: failed ShapeMismatch
+XF difference(sound,deferred) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF difference(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF difference(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF difference(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,deferred) pop=false obs=false: failed Table(NoSuchColumn { index: 0 })
+PF join(sound,deferred) pop=false obs=true: failed Table(NoSuchColumn { index: 0 }) fed=[]
+XF join(sound,deferred) pop=false obs=false: failed Table(NoSuchColumn { index: 0 })
+XF join(sound,deferred) pop=false obs=true: failed Table(NoSuchColumn { index: 0 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF join(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF join(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF join(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,deferred) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(sound,deferred) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF antijoin(sound,deferred) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(sound,deferred) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF antijoin(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF antijoin(sound,deferred) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF antijoin(sound,deferred) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,deferred2) pop=false obs=false: failed ShapeMismatch
+PF union(sound,deferred2) pop=false obs=true: failed ShapeMismatch fed=[]
+XF union(sound,deferred2) pop=false obs=false: failed ShapeMismatch
+XF union(sound,deferred2) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF union(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF union(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF union(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,deferred2) pop=false obs=false: failed ShapeMismatch
+PF intersection(sound,deferred2) pop=false obs=true: failed ShapeMismatch fed=[]
+XF intersection(sound,deferred2) pop=false obs=false: failed ShapeMismatch
+XF intersection(sound,deferred2) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF intersection(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF intersection(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF intersection(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,deferred2) pop=false obs=false: failed ShapeMismatch
+PF difference(sound,deferred2) pop=false obs=true: failed ShapeMismatch fed=[]
+XF difference(sound,deferred2) pop=false obs=false: failed ShapeMismatch
+XF difference(sound,deferred2) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF difference(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF difference(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF difference(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,deferred2) pop=false obs=false: failed Table(NoSuchColumn { index: 0 })
+PF join(sound,deferred2) pop=false obs=true: failed Table(NoSuchColumn { index: 0 }) fed=[]
+XF join(sound,deferred2) pop=false obs=false: failed Table(NoSuchColumn { index: 0 })
+XF join(sound,deferred2) pop=false obs=true: failed Table(NoSuchColumn { index: 0 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF join(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF join(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF join(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,deferred2) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+PF antijoin(sound,deferred2) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF antijoin(sound,deferred2) pop=false obs=false: complete [Symbol, Number] RowCount(0)
+XF antijoin(sound,deferred2) pop=false obs=true: complete [Symbol, Number] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF antijoin(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF antijoin(sound,deferred2) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF antijoin(sound,deferred2) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
 PF union(direct,none) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
 PF union(direct,none) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF union(direct,none) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
@@ -950,6 +1382,46 @@ PF antijoin(direct,none) pop=true obs=false: failed Table(NoSuchColumn { index: 
 PF antijoin(direct,none) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF antijoin(direct,none) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
 XF antijoin(direct,none) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF union(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF union(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF union(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF union(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF union(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF union(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF intersection(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF intersection(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF intersection(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF intersection(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF intersection(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF intersection(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF difference(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF difference(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF difference(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF difference(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF difference(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF difference(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF join(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF join(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF join(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF join(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF join(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF join(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+PF antijoin(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF antijoin(direct,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
+XF antijoin(direct,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF antijoin(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF antijoin(direct,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF antijoin(direct,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
 PF union(direct,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
 PF union(direct,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF union(direct,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
@@ -1190,6 +1662,46 @@ PF antijoin(relation,none) pop=true obs=false: filestop
 PF antijoin(relation,none) pop=true obs=true: filestop fed=[]
 XF antijoin(relation,none) pop=true obs=false: failed NotRead
 XF antijoin(relation,none) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(relation,sound) pop=false obs=false: filestop
+PF union(relation,sound) pop=false obs=true: filestop fed=[]
+XF union(relation,sound) pop=false obs=false: failed NotRead
+XF union(relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(relation,sound) pop=true obs=false: filestop
+PF union(relation,sound) pop=true obs=true: filestop fed=[]
+XF union(relation,sound) pop=true obs=false: failed NotRead
+XF union(relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(relation,sound) pop=false obs=false: filestop
+PF intersection(relation,sound) pop=false obs=true: filestop fed=[]
+XF intersection(relation,sound) pop=false obs=false: failed NotRead
+XF intersection(relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(relation,sound) pop=true obs=false: filestop
+PF intersection(relation,sound) pop=true obs=true: filestop fed=[]
+XF intersection(relation,sound) pop=true obs=false: failed NotRead
+XF intersection(relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(relation,sound) pop=false obs=false: filestop
+PF difference(relation,sound) pop=false obs=true: filestop fed=[]
+XF difference(relation,sound) pop=false obs=false: failed NotRead
+XF difference(relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(relation,sound) pop=true obs=false: filestop
+PF difference(relation,sound) pop=true obs=true: filestop fed=[]
+XF difference(relation,sound) pop=true obs=false: failed NotRead
+XF difference(relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(relation,sound) pop=false obs=false: filestop
+PF join(relation,sound) pop=false obs=true: filestop fed=[]
+XF join(relation,sound) pop=false obs=false: failed NotRead
+XF join(relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(relation,sound) pop=true obs=false: filestop
+PF join(relation,sound) pop=true obs=true: filestop fed=[]
+XF join(relation,sound) pop=true obs=false: failed NotRead
+XF join(relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(relation,sound) pop=false obs=false: filestop
+PF antijoin(relation,sound) pop=false obs=true: filestop fed=[]
+XF antijoin(relation,sound) pop=false obs=false: failed NotRead
+XF antijoin(relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(relation,sound) pop=true obs=false: filestop
+PF antijoin(relation,sound) pop=true obs=true: filestop fed=[]
+XF antijoin(relation,sound) pop=true obs=false: failed NotRead
+XF antijoin(relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
 PF union(relation,direct) pop=false obs=false: filestop
 PF union(relation,direct) pop=false obs=true: filestop fed=[]
 XF union(relation,direct) pop=false obs=false: failed NotRead
@@ -1430,6 +1942,46 @@ PF antijoin(node-relation,none) pop=true obs=false: filestop
 PF antijoin(node-relation,none) pop=true obs=true: filestop fed=[]
 XF antijoin(node-relation,none) pop=true obs=false: failed NotRead
 XF antijoin(node-relation,none) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(node-relation,sound) pop=false obs=false: filestop
+PF union(node-relation,sound) pop=false obs=true: filestop fed=[]
+XF union(node-relation,sound) pop=false obs=false: failed NotRead
+XF union(node-relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(node-relation,sound) pop=true obs=false: filestop
+PF union(node-relation,sound) pop=true obs=true: filestop fed=[]
+XF union(node-relation,sound) pop=true obs=false: failed NotRead
+XF union(node-relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(node-relation,sound) pop=false obs=false: filestop
+PF intersection(node-relation,sound) pop=false obs=true: filestop fed=[]
+XF intersection(node-relation,sound) pop=false obs=false: failed NotRead
+XF intersection(node-relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(node-relation,sound) pop=true obs=false: filestop
+PF intersection(node-relation,sound) pop=true obs=true: filestop fed=[]
+XF intersection(node-relation,sound) pop=true obs=false: failed NotRead
+XF intersection(node-relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(node-relation,sound) pop=false obs=false: filestop
+PF difference(node-relation,sound) pop=false obs=true: filestop fed=[]
+XF difference(node-relation,sound) pop=false obs=false: failed NotRead
+XF difference(node-relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(node-relation,sound) pop=true obs=false: filestop
+PF difference(node-relation,sound) pop=true obs=true: filestop fed=[]
+XF difference(node-relation,sound) pop=true obs=false: failed NotRead
+XF difference(node-relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(node-relation,sound) pop=false obs=false: filestop
+PF join(node-relation,sound) pop=false obs=true: filestop fed=[]
+XF join(node-relation,sound) pop=false obs=false: failed NotRead
+XF join(node-relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(node-relation,sound) pop=true obs=false: filestop
+PF join(node-relation,sound) pop=true obs=true: filestop fed=[]
+XF join(node-relation,sound) pop=true obs=false: failed NotRead
+XF join(node-relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(node-relation,sound) pop=false obs=false: filestop
+PF antijoin(node-relation,sound) pop=false obs=true: filestop fed=[]
+XF antijoin(node-relation,sound) pop=false obs=false: failed NotRead
+XF antijoin(node-relation,sound) pop=false obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(node-relation,sound) pop=true obs=false: filestop
+PF antijoin(node-relation,sound) pop=true obs=true: filestop fed=[]
+XF antijoin(node-relation,sound) pop=true obs=false: failed NotRead
+XF antijoin(node-relation,sound) pop=true obs=true: failed NotRead fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
 PF union(node-relation,direct) pop=false obs=false: filestop
 PF union(node-relation,direct) pop=false obs=true: filestop fed=[]
 XF union(node-relation,direct) pop=false obs=false: failed NotRead
@@ -1670,6 +2222,46 @@ PF antijoin(deferred,none) pop=true obs=false: failed Table(NoSuchColumn { index
 PF antijoin(deferred,none) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF antijoin(deferred,none) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
 XF antijoin(deferred,none) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(deferred,sound) pop=false obs=false: failed ShapeMismatch
+PF union(deferred,sound) pop=false obs=true: failed ShapeMismatch fed=[]
+XF union(deferred,sound) pop=false obs=false: failed ShapeMismatch
+XF union(deferred,sound) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF union(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF union(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF union(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(deferred,sound) pop=false obs=false: failed ShapeMismatch
+PF intersection(deferred,sound) pop=false obs=true: failed ShapeMismatch fed=[]
+XF intersection(deferred,sound) pop=false obs=false: failed ShapeMismatch
+XF intersection(deferred,sound) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF intersection(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF intersection(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF intersection(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(deferred,sound) pop=false obs=false: failed ShapeMismatch
+PF difference(deferred,sound) pop=false obs=true: failed ShapeMismatch fed=[]
+XF difference(deferred,sound) pop=false obs=false: failed ShapeMismatch
+XF difference(deferred,sound) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF difference(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF difference(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF difference(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(deferred,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 0 })
+PF join(deferred,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 0 }) fed=[]
+XF join(deferred,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 0 })
+XF join(deferred,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 0 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF join(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF join(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF join(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(deferred,sound) pop=false obs=false: complete [] RowCount(0)
+PF antijoin(deferred,sound) pop=false obs=true: complete [] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF antijoin(deferred,sound) pop=false obs=false: complete [] RowCount(0)
+XF antijoin(deferred,sound) pop=false obs=true: complete [] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF antijoin(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF antijoin(deferred,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF antijoin(deferred,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
 PF union(deferred,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
 PF union(deferred,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF union(deferred,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
@@ -1910,6 +2502,46 @@ PF antijoin(deferred2,none) pop=true obs=false: failed Table(NoSuchColumn { inde
 PF antijoin(deferred2,none) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF antijoin(deferred2,none) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
 XF antijoin(deferred2,none) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(deferred2,sound) pop=false obs=false: failed ShapeMismatch
+PF union(deferred2,sound) pop=false obs=true: failed ShapeMismatch fed=[]
+XF union(deferred2,sound) pop=false obs=false: failed ShapeMismatch
+XF union(deferred2,sound) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF union(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF union(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF union(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF union(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(deferred2,sound) pop=false obs=false: failed ShapeMismatch
+PF intersection(deferred2,sound) pop=false obs=true: failed ShapeMismatch fed=[]
+XF intersection(deferred2,sound) pop=false obs=false: failed ShapeMismatch
+XF intersection(deferred2,sound) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF intersection(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF intersection(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF intersection(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF intersection(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(deferred2,sound) pop=false obs=false: failed ShapeMismatch
+PF difference(deferred2,sound) pop=false obs=true: failed ShapeMismatch fed=[]
+XF difference(deferred2,sound) pop=false obs=false: failed ShapeMismatch
+XF difference(deferred2,sound) pop=false obs=true: failed ShapeMismatch fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF difference(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF difference(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF difference(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF difference(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(deferred2,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 0 })
+PF join(deferred2,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 0 }) fed=[]
+XF join(deferred2,sound) pop=false obs=false: failed Table(NoSuchColumn { index: 0 })
+XF join(deferred2,sound) pop=false obs=true: failed Table(NoSuchColumn { index: 0 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF join(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF join(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF join(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF join(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(deferred2,sound) pop=false obs=false: complete [] RowCount(0)
+PF antijoin(deferred2,sound) pop=false obs=true: complete [] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+XF antijoin(deferred2,sound) pop=false obs=false: complete [] RowCount(0)
+XF antijoin(deferred2,sound) pop=false obs=true: complete [] RowCount(0) fed=["r0[RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
+PF antijoin(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+PF antijoin(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
+XF antijoin(deferred2,sound) pop=true obs=false: failed Table(NoSuchColumn { index: 99 })
+XF antijoin(deferred2,sound) pop=true obs=true: failed Table(NoSuchColumn { index: 99 }) fed=["r0[RowsFed([0, 0, 0]), RowsFed([1, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0]), RowsFed([0, 0, 0])]"]
 PF union(deferred2,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })
 PF union(deferred2,direct) pop=false obs=true: failed Table(NoSuchColumn { index: 99 }) fed=[]
 XF union(deferred2,direct) pop=false obs=false: failed Table(NoSuchColumn { index: 99 })

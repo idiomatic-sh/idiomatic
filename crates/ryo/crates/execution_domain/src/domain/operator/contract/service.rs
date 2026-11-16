@@ -7,6 +7,29 @@ use crate::domain::operator::contract::presence::{
 };
 use ryo_values::domain::query_operators::types::OperationKind;
 
+/// The input `operation` builds into an index of keys before it reads a row, if any: the set an intersection, a difference or
+/// an anti-join tests each left row against. The operation reads it as a resource, so it is fed none of its rows.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::service::indexed_input;
+/// use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepId};
+/// use ryo_values::domain::plans::types::Operation;
+/// let (left, right) = (Input::Step(StepId(0)), Input::Step(StepId(1)));
+/// assert_eq!(indexed_input(&Operation::Difference { left, right }), Some(InputNumber(1)));
+/// assert_eq!(indexed_input(&Operation::Union { left, right }), None);
+/// ```
+#[must_use]
+pub fn indexed_input(
+    operation: &ryo_values::domain::plans::types::Operation,
+) -> Option<ryo_values::domain::plan_parts::types::InputNumber> {
+    match super::resources::service::prepare(operation) {
+        super::resources::types::ResourceProgram::Index { input, .. } => Some(input),
+        _ => None,
+    }
+}
+
 /// One semantic input and dependency contract, independent of output delivery.
 pub fn semantics(kind: OperationKind) -> OperationSemantics {
     use OperationKind::*;

@@ -10,6 +10,7 @@ use ryo_execution_domain::domain::executable_program::service::refusals::service
 };
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::service::indexed_input;
 use ryo_execution_domain::domain::operator::types::RowsFed;
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
@@ -98,8 +99,9 @@ pub(crate) fn held(withholdings: &Withholdings, rows: HeldRows<'_>) -> Result<()
 }
 
 /// What the kernels of `node`, the node of plan step `step`, read of each of the step's inputs when it ran: none when it never
-/// ran (no root reached it, or it answered a refusal without running its kernel), and none for a slot the step names no input
-/// at (a hosted step reads a request source, no input). The one count of both passes.
+/// ran (no root reached it, or it answered a refusal without running its kernel), none for a slot the step names no input at
+/// (a hosted step reads a request source, no input), and none for the input it builds into an index (`indexed_input`). The
+/// one count of both passes.
 pub(crate) fn step_fed(
     buffers: &FileBuffers,
     step: &PlanStep,
@@ -109,6 +111,8 @@ pub(crate) fn step_fed(
         return RowsFed::default();
     };
     let inputs = named(&inputs_of(&step.operation)).len();
+    // An input the step builds into an index is read as a resource, never fed: its rows count nothing.
+    let indexed = indexed_input(&step.operation);
     let NodeFed(rows) = buffers.fed(*node);
     let mut fed = RowsFed::default();
     for (slot, (count, each)) in fed
@@ -116,7 +120,7 @@ pub(crate) fn step_fed(
         .iter_mut()
         .zip(rows.iter().enumerate().map(|(at, count)| (count, at)))
     {
-        if each < inputs {
+        if each < inputs && indexed.is_none_or(|input| input.0 != each) {
             *slot = u64::try_from(count.0).unwrap_or(u64::MAX);
         }
     }
