@@ -51,3 +51,9 @@ name = "multiline-f-string-occurrences"
 comparison = "full"
 files = { "case.py" = "x = f\"\"\"A\b\nB\b\"\"\"\n" }
 expected = [{ rule = "PLE2510", file = "case.py", start = 9, end = 10 }, { rule = "PLE2510", file = "case.py", start = 12, end = 13 }]
+
+[[cases]]
+name = "string-contents-parsed-as-expressions"
+comparison = "full"
+files = { "case.py" = "g(\"'\b'\")\nx: \"'\b'\" = 1\n" }
+expected = [{ rule = "PLE2510", file = "case.py", start = 4, end = 5 }, { rule = "PLE2510", file = "case.py", start = 14, end = 15 }]

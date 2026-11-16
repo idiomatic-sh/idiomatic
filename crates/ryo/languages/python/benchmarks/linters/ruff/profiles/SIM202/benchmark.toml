@@ -25,6 +25,7 @@ sha256 = [
 defaults = ["SIM202"]
 
 [query-modules]
+"python/ruff/negated-comparisons" = "fragments/negated-comparisons.ryoql"
 "python/ruff/noqa-line-map" = "fragments/noqa-line-map.ryoql"
 "python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql"
 "python/ruff/noqa-additional-locations" = "fragments/noqa-additional-locations.ryoql"
