@@ -59,6 +59,9 @@ mod verify_cases;
 #[path = "../src/inbound/use_cases/verify_reference_cases/acceptance.rs"]
 mod verify_reference_cases;
 
+#[path = "../src/inbound/use_cases/verify_rule_profiles/acceptance.rs"]
+mod verify_rule_profiles;
+
 #[path = "../src/inbound/use_cases/validate_case_receipts/acceptance.rs"]
 mod validate_case_receipts;
 

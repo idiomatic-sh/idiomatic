@@ -30,3 +30,4 @@ pub mod select_cases;
 pub mod stage_suite;
 pub mod verify_cases;
 pub mod verify_reference_cases;
+pub mod verify_rule_profiles;

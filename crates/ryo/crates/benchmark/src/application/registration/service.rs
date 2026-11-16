@@ -62,29 +62,27 @@ struct Bench<'a> {
     output: PathBuf,
 }
 
-impl<'a> Bench<'a> {
-    /// The bench at `bench`, its rules staged under `output`.
-    fn open(
-        suite: &'a dyn SuitePort,
-        inventory: &'a dyn InventoryPort,
-        bench: &Path,
-        output: &Path,
-    ) -> Result<Self, Error> {
-        let root = suite.ensure_directory(ArtifactPath(bench))?;
-        let output = suite.ensure_directory(ArtifactPath(output))?;
-        Ok(Self {
-            suite,
-            inventory,
-            repository: root
-                .ancestors()
-                .nth(constants::REPOSITORY_DEPTH)
-                .unwrap_or(&root)
-                .to_owned(),
-            profile: suite.profile(ArtifactPath(&root))?,
-            output,
-            root,
-        })
-    }
+/// The bench at `bench`, its rules staged under `output`.
+fn open_bench<'a>(
+    suite: &'a dyn SuitePort,
+    inventory: &'a dyn InventoryPort,
+    bench: &Path,
+    output: &Path,
+) -> Result<Bench<'a>, Error> {
+    let root = suite.ensure_directory(ArtifactPath(bench))?;
+    let output = suite.ensure_directory(ArtifactPath(output))?;
+    Ok(Bench {
+        suite,
+        inventory,
+        repository: root
+            .ancestors()
+            .nth(constants::REPOSITORY_DEPTH)
+            .unwrap_or(&root)
+            .to_owned(),
+        profile: suite.profile(ArtifactPath(&root))?,
+        output,
+        root,
+    })
 }
 
 /// Stage one rule of the bench at `bench` under `output` with its own settings profile, as the registration stages it, and
@@ -100,7 +98,7 @@ pub fn stage_rule_profile(
     rule: &ryo::linter::RuleId,
     output: &Path,
 ) -> Result<PathBuf, Error> {
-    let staged = Bench::open(suite, inventory, bench, output)?;
+    let staged = open_bench(suite, inventory, bench, output)?;
     let RuleCommand::Registered(Command::CaseVerification { context }) =
         stage_rule(&staged, rule)?.command
     else {
@@ -318,7 +316,7 @@ pub fn register(
     worker: &Sealed,
     output: &Path,
 ) -> Result<PathBuf, Error> {
-    let staged = Bench::open(suite, inventory, bench, output)?;
+    let staged = open_bench(suite, inventory, bench, output)?;
     let output = staged.output.clone();
     let mut rules = Vec::new();
     for rule in &staged.profile.defaults {
