@@ -3,6 +3,7 @@ mod applicability;
 mod axis;
 #[cfg(test)]
 pub(crate) mod consumers;
+mod cutting;
 #[cfg(test)]
 mod declared_empty;
 #[cfg(test)]

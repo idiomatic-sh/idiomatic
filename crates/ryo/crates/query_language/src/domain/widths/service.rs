@@ -40,6 +40,10 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
             Operation::Extend { from, values } => width_of(steps, *from)
                 .zip(counted(values))
                 .map(|(width, appended)| InputWidth(width.0.saturating_add(appended.0))),
+            // A split appends the word to the row it splits.
+            Operation::Words { from, .. } => {
+                width_of(steps, *from).map(|width| InputWidth(width.0.saturating_add(1)))
+            }
             Operation::Union { left, .. }
             | Operation::Intersection { left, .. }
             | Operation::Difference { left, .. }
@@ -54,7 +58,6 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
             | Operation::OrderedDfs { .. }
             | Operation::Capture { .. }
             | Operation::Rank { .. }
-            | Operation::Words { .. }
             | Operation::Closure { .. }
             | Operation::Cycles { .. }
             | Operation::Rows { .. }

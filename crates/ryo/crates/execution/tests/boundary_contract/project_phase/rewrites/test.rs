@@ -4,67 +4,22 @@
 //! the plans here are built by hand to show the rewrites still leave it after the files, never making it in each file, where it would
 //! answer other rows. A join on the file is made in each file. Narrowing cuts a per-file input by the nodes or files the other input
 //! holds, never by a span.
-use super::fixtures::{FILE, ID, NAME, SPAN, files, function_columns, functions_kept, rows};
+use super::fixtures::{
+    FILE, ID, NAME, SPAN, after_the_files, column, files, function_columns, functions_kept,
+    gathered, in_each_file, join, rows,
+};
 use ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::{
-    cut, narrowed, regrouped, selections_pushed,
+    narrowed, regrouped, selections_pushed,
 };
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
-use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::{
     ComparisonOrigin, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
 };
-use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plan_parts::types::{ColumnIndex, Input, StepId},
     plans::types::{Operation, PlanStep},
 };
-
-/// A step after the files.
-fn after_the_files(operation: Operation) -> PlanStep {
-    PlanStep {
-        scope: StepScope::CrossFile,
-        operation,
-    }
-}
-
-/// A step made in each file.
-fn in_each_file(operation: Operation) -> PlanStep {
-    PlanStep {
-        scope: StepScope::PerFile,
-        operation,
-    }
-}
-
-fn column(side: Side, at: ColumnIndex) -> JoinColumn {
-    JoinColumn { side, column: at }
-}
-
-fn join(
-    left: StepId,
-    right: StepId,
-    keys: (ColumnIndex, ColumnIndex),
-    output: Vec<JoinColumn>,
-) -> Operation {
-    Operation::Join {
-        left: Input::Step(left),
-        right: Input::Step(right),
-        left_on: vec![keys.0],
-        right_on: vec![keys.1],
-        output,
-        filter: vec![],
-        view: vec![],
-        reach: None,
-    }
-}
-
-/// The distinct values of one column of a per-file step, gathered after the files.
-fn gathered(from: StepId, at: ColumnIndex) -> PlanStep {
-    after_the_files(Operation::Project {
-        from: Input::Step(from),
-        columns: vec![at],
-        distinct: RepeatedRows::Dropped,
-    })
-}
 
 /// The functions named `main`, in each file.
 fn named_main(kept: &[ColumnIndex]) -> PlanStep {
@@ -302,122 +257,4 @@ fn the_proofs_name_the_function_relations_columns_by_place() {
             CellKind::Span
         ]
     );
-}
-
-#[test]
-fn cutting_a_join_in_each_file_to_the_columns_read_after_the_files_keeps_the_rows() {
-    let files = files();
-    let kept = [ID, FILE, SPAN];
-    let at = |place: u32| ColumnIndex(place);
-    // The pairs of functions of each file, joined in it on the file (id, file, other id), read after the files for the two ids.
-    let steps = vec![
-        functions_kept(&kept),
-        functions_kept(&kept),
-        in_each_file(join(
-            StepId(0),
-            StepId(1),
-            (at(1), at(1)),
-            vec![
-                column(Side::Left, at(0)),
-                column(Side::Left, at(1)),
-                column(Side::Right, at(0)),
-            ],
-        )),
-        after_the_files(Operation::Project {
-            from: Input::Step(StepId(2)),
-            columns: vec![at(0), at(2)],
-            distinct: RepeatedRows::Dropped,
-        }),
-    ];
-    let emitted = StepId(3);
-    let before = rows(steps.clone(), emitted, &files);
-    assert!(!before.is_empty());
-    let (after, after_emitted) = cut(steps.clone(), emitted);
-    assert_ne!(
-        after, steps,
-        "the join is read after the files for two of its three columns, so it hands over those two"
-    );
-    assert_eq!(rows(after, after_emitted, &files), before);
-}
-
-#[test]
-fn cutting_a_join_in_each_file_keeps_the_rows_it_repeats_on_the_columns_read_after_the_files() {
-    let files = files();
-    let kept = [ID, NAME, FILE];
-    let at = |place: u32| ColumnIndex(place);
-    // The pairs of functions of each file (id, name, other id), read after the files for the id and the name, which repeat once
-    // for each other function of the file, joined after the files with every name on the name.
-    let steps = vec![
-        functions_kept(&kept),
-        functions_kept(&kept),
-        in_each_file(join(
-            StepId(0),
-            StepId(1),
-            (at(2), at(2)),
-            vec![
-                column(Side::Left, at(0)),
-                column(Side::Left, at(1)),
-                column(Side::Right, at(0)),
-            ],
-        )),
-        functions_kept(&[NAME]),
-        gathered(StepId(3), at(0)),
-        after_the_files(join(
-            StepId(2),
-            StepId(4),
-            (at(1), at(0)),
-            vec![column(Side::Left, at(0))],
-        )),
-    ];
-    let emitted = StepId(5);
-    let before = rows(steps.clone(), emitted, &files);
-    // Each function of the first two files is answered once for each function of its file.
-    assert_eq!(before.len(), 9, "the uncut rows: {before:?}");
-    let (after, after_emitted) = cut(steps.clone(), emitted);
-    assert_ne!(
-        after, steps,
-        "the join is read after the files for two of its three columns"
-    );
-    assert_eq!(rows(after, after_emitted, &files), before);
-}
-
-#[test]
-fn cutting_a_split_in_each_file_keeps_the_rows_it_repeats_on_the_columns_read_after_the_files() {
-    let files = files();
-    let at = |place: u32| ColumnIndex(place);
-    // Each function once for each word of the text "a b" appended to it (id, name, file, span, text, word), read after the files
-    // for the id and the name, which repeat once for each word, joined after the files with every name on the name.
-    let steps = vec![
-        functions_kept(&[ID, NAME, FILE, SPAN]),
-        in_each_file(Operation::Extend {
-            from: Input::Step(StepId(0)),
-            values: vec![Operand::Literal(QueryLiteral::Text(LiteralText(
-                "a b".into(),
-            )))],
-        }),
-        in_each_file(Operation::Words {
-            from: Input::Step(StepId(1)),
-            text: at(4),
-        }),
-        functions_kept(&[NAME]),
-        gathered(StepId(3), at(0)),
-        after_the_files(join(
-            StepId(2),
-            StepId(4),
-            (at(1), at(0)),
-            vec![column(Side::Left, at(0)), column(Side::Left, at(1))],
-        )),
-    ];
-    let emitted = StepId(5);
-    let before = rows(steps.clone(), emitted, &files);
-    assert!(
-        before.windows(2).any(|pair| pair[0] == pair[1]),
-        "each function is answered once for each word: {before:?}"
-    );
-    let (after, after_emitted) = cut(steps.clone(), emitted);
-    assert_ne!(
-        after, steps,
-        "the split is read after the files for two of its six columns"
-    );
-    assert_eq!(rows(after, after_emitted, &files), before);
 }

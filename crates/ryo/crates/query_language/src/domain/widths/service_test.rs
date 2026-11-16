@@ -1,5 +1,5 @@
-//! A grouping answers its keys and what it appends, an extension the rows it reads and a column for each value, and a combination
-//! of two inputs the columns of its left input.
+//! A grouping answers its keys and what it appends, an extension the rows it reads and a column for each value, a split the rows
+//! it reads and the word, and a combination of two inputs the columns of its left input.
 
 use super::service::width_of;
 use super::types::InputWidth;
@@ -21,6 +21,8 @@ enum Scenario {
     Extended,
     /// Those functions without the functions the right input holds.
     LeftOfADifference,
+    /// The two columns, once for each word of the second.
+    Split,
 }
 
 /// The width found.
@@ -54,6 +56,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::LeftOfADifference,
         expect: Expect::Value(Some(InputWidth(2))),
     },
+    Case {
+        name: CaseName("a_split_answers_the_columns_it_reads_and_the_word"),
+        word: Word::Succeeds,
+        input: || Scenario::Split,
+        expect: Expect::Value(Some(InputWidth(3))),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -81,6 +89,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             values: vec![Operand::Literal(QueryLiteral::Number(
                 ryo_relations::domain::relations::types::Integer(1),
             ))],
+        },
+        Scenario::Split => Operation::Words {
+            from: Reads::Step(StepId(0)),
+            text: ColumnIndex(1),
         },
         Scenario::LeftOfADifference => Operation::Difference {
             left: Reads::Step(StepId(0)),

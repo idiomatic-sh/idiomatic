@@ -42,8 +42,9 @@ pub(crate) fn cut_handover_roots(steps: Vec<PlanStep>, roots: &mut [StepId]) -> 
 
 /// The plan with, for each per-file step that only cross-file steps read through some of its columns, one projection
 /// of those columns without repeats: the rows a file hands over are the distinct ones the cross-file steps ask for, not
-/// one for each place in the file, and a step of any kind (a join, an axis, a grouping) asked for fewer columns than it makes
-/// hands over only those, each of its rows kept, repeated or not. Not done when a count of rows (not of distinct values) comes
+/// one for each place in the file when every step after the files that reads them drops repeats itself (`repeats_read`), and a
+/// step of any kind (a join, an axis, a grouping) asked for fewer columns than it makes hands over only those, each of its rows
+/// kept as many times as it repeats unless those steps drop repeats. Not done when a count of rows (not of distinct values) comes
 /// after the files, which would count the repeats.
 #[must_use]
 fn reduced_frontier(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
@@ -119,7 +120,18 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
         // A step of any kind asked for fewer columns than it makes hands over only those: the steps after the files read no other.
         let narrower = width_of(&steps, Input::Step(read))
             .is_some_and(|width| usize::try_from(width.0).is_ok_and(|width| used.len() < width));
-        if !cut || used.is_empty() || !(repeats || narrower) || made == Some(used.len()) {
+        // Repeated rows are made once only when every step after the files that reads them drops repeats itself.
+        let multiplicity = if consumers
+            .iter()
+            .filter_map(|place| steps.get(*place))
+            .all(|step| repeats_read(&step.operation) == RepeatedRows::Dropped)
+        {
+            RepeatedRows::Dropped
+        } else {
+            RepeatedRows::Kept
+        };
+        let fewer = repeats && multiplicity == RepeatedRows::Dropped;
+        if !cut || used.is_empty() || !(fewer || narrower) || made == Some(used.len()) {
             continue;
         }
         // The projection follows the step it cuts, so every step reads only what comes before it.
@@ -144,13 +156,7 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
                 operation: Operation::Project {
                     from: Input::Step(read),
                     columns: used.clone(),
-                    // Rows that repeat wherever the file does are made once; the rows of any other step are kept as many as they
-                    // are, since the steps after the files may count, join or emit each of them.
-                    distinct: if repeats {
-                        RepeatedRows::Dropped
-                    } else {
-                        RepeatedRows::Kept
-                    },
+                    distinct: multiplicity,
                 },
                 scope: StepScope::PerFile,
             },
@@ -170,6 +176,23 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
         }
     }
     steps
+}
+
+/// Whether a step that reads rows drops their repeats itself, so a row repeated before it changes nothing it answers: a
+/// projection that drops repeats, a count of distinct values and a digest of distinct values do; every other step may join,
+/// count, filter or emit each repeat, and keeps them. The one definition of when a handover may make repeated rows once.
+fn repeats_read(operation: &Operation) -> RepeatedRows {
+    match operation {
+        Operation::Project {
+            distinct: RepeatedRows::Dropped,
+            ..
+        }
+        | Operation::GroupCount {
+            distinct: Some(_), ..
+        }
+        | Operation::GroupDigest { .. } => RepeatedRows::Dropped,
+        _ => RepeatedRows::Kept,
+    }
 }
 
 /// Whether the operation reads the step `read`.
