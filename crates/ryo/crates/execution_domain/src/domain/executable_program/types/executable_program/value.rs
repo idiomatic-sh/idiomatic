@@ -35,6 +35,9 @@ pub struct ExecutableProgram {
     pub(crate) roots: hashbrown::HashMap<LiteralText, Vec<PlanNodeId>>,
     /// Each node's output columns, or the schema fault of it or of a node it reads, by node.
     pub(crate) schemas: Vec<Result<Vec<CellKind>, OperatingError>>,
+    /// The columns each node's rows answer with as a root, by node: its schema, or the empty layout of a refusal deferred to
+    /// its rows.
+    pub(crate) layouts: Vec<Result<Vec<CellKind>, OperatingError>>,
     /// Where each rule's emitted step and named outputs run, in rule order.
     pub(crate) scopes: Vec<RuleScopes>,
     /// Whether each node's rows answer the phase or one occurrence, by node.

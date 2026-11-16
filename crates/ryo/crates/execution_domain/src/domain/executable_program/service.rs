@@ -6,7 +6,8 @@ use crate::domain::executable_program::types::executable_program::value::Executa
 use crate::domain::executable_program::types::logical_build::value::LogicalBuild;
 use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, RootKind, RuleInput, RuleNodes, RuleScopes, StepAt, StepUse,
+    Consumers, Draft, DraftInputs, DraftedColumns, RootKind, RuleInput, RuleNodes, RuleScopes,
+    StepAt,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::service::schema_of;
@@ -19,16 +20,15 @@ use ryo_operators::domain::physical_plan::types::{
 };
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{Input, LiteralText};
-use ryo_values::domain::plans::service::{inputs_of, kind_of, named};
+use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use std::hash::{Hash, Hasher};
 
 pub(crate) mod logical;
 pub mod scopes;
-use crate::domain::operator::contract::preflight::service::output_layout;
-use crate::domain::operator::contract::service::semantics;
-use crate::domain::operator::contract::types::PreflightOrder;
-use logical::service::{derived_roots, held, observation_reaches, read_inputs, read_steps};
+use logical::service::{
+    answered_steps, derived_roots, held, observation_reaches, read_inputs, stated, timed,
+};
 use scopes::service::scope_at;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
@@ -84,6 +84,7 @@ pub fn logical<'p>(
                 list,
                 shapes,
                 fault,
+                timing: read_timing,
             }) = read_inputs(named(&read), &steps, &drafts, &observed, at)
             else {
                 own_faults.push(None);
@@ -102,27 +103,21 @@ pub fn logical<'p>(
             } else {
                 None
             };
-            let fault_free = fault.is_none() && host.is_none();
+            let read_own = fault.is_none() && host.is_none();
             let own = match (fault, host) {
                 (Some(error), _) | (None, Some(Err(error))) => Err(error),
                 (None, Some(Ok(shape))) => schema_of(&step.operation, &[shape], input.bindings.0),
                 (None, None) => schema_of(&step.operation, &shapes, input.bindings.0),
             };
             own_faults.push(own.as_ref().err().cloned());
-            // An operator that acquires its resources before it checks its whole schema (the contract's ResourcesFirst) reads
-            // its operands row by row, and its kernel refuses one at the first row that reaches it: the step's rows keep the
-            // layout the operator contract states, so an empty input answers them, not the refusal. An operator that checks
-            // its schema first refuses before any row. Only the step's own fault defers so: one it read from an input stays
-            // that input's.
-            let schema = match own {
-                Err(error)
-                    if fault_free
-                        && semantics(kind_of(&step.operation)).contract.preflight
-                            == PreflightOrder::ResourcesFirst =>
-                {
-                    output_layout(&step.operation, &shapes, &Err(error.clone())).map_err(|_| error)
-                }
-                Err(_) | Ok(_) => own,
+            let DraftedColumns {
+                schema,
+                layout,
+                timing,
+            } = if read_own {
+                timed(&step.operation, &shapes, own, read_timing)
+            } else {
+                stated(own, read_timing)
             };
             let hash = {
                 let mut hasher = rustc_hash::FxHasher::default();
@@ -147,6 +142,8 @@ pub fn logical<'p>(
                     rule: RuleIndex(rule),
                     scope: step.scope,
                     schema,
+                    layout,
+                    timing,
                 });
                 inputs.lists.push(list);
                 buckets.entry(hash).or_default().push(at);
@@ -156,29 +153,7 @@ pub fn logical<'p>(
                 u32::try_from(at).map_err(|_| OperatingError::ShapeMismatch)?,
             )));
         }
-        // A step's schema fault belongs to the roots that read it (the emit, a frontier entry, a named output): each answers
-        // it in place of its rows. A step no root reads has no root to answer it, so its fault refuses the rule, in step order,
-        // before any row.
-        let read = read_steps(plan);
-        let authored =
-            steps
-                .iter()
-                .zip(&own_faults)
-                .zip(&read)
-                .find_map(|((step, fault), read)| match (read, step) {
-                    (StepUse::Read, _) => None,
-                    (StepUse::Unread, Ok(_)) => fault.clone(),
-                    (StepUse::Unread, Err(error)) => Some(error.clone()),
-                });
-        for step in &mut steps {
-            if let Ok(node) = step
-                && let Some(Err(error)) = drafts
-                    .get(usize::try_from(node.0).unwrap_or(usize::MAX))
-                    .map(|draft| &draft.schema)
-            {
-                *step = Err(error.clone());
-            }
-        }
+        let authored = answered_steps(plan, &mut steps, &own_faults, &drafts);
         let emit = match (
             authored,
             steps.get(usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX)),
@@ -215,6 +190,7 @@ pub fn logical<'p>(
     let consumers = held(&mut program, rules, &nodes, &inputs.lists)?;
     let roots = derived_roots(&drafts, &inputs.lists);
     let schemas = drafts.iter().map(|draft| draft.schema.clone()).collect();
+    let layouts = drafts.iter().map(|draft| draft.layout.clone()).collect();
     let reach = observation_reaches(&drafts, &inputs.lists);
     Ok(LogicalBuild {
         program,
@@ -222,6 +198,7 @@ pub fn logical<'p>(
         consumers,
         roots,
         schemas,
+        layouts,
         scopes,
         reach,
     })
@@ -245,6 +222,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         consumers,
         roots,
         schemas,
+        layouts,
         scopes,
         reach,
         ..
@@ -255,6 +233,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         consumers,
         roots,
         schemas,
+        layouts,
         scopes,
         reach,
     }
@@ -358,6 +337,39 @@ pub fn schema(
 ) -> Result<&[CellKind], OperatingError> {
     match program
         .schemas
+        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+    {
+        Some(Ok(kinds)) => Ok(kinds),
+        Some(Err(error)) => Err(error.clone()),
+        None => Err(OperatingError::NotRun),
+    }
+}
+
+/// The columns `node`'s rows answer with as a root: its schema, or, for a node whose refusal is deferred to its rows, the
+/// layout its empty rows keep.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{assemble, layout, logical};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+/// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+/// let mut inputs = ProgramInputs::default();
+/// let program = assemble(logical(&[], &mut inputs).unwrap(), PhysicalPlan::default());
+/// assert!(layout(&program, PlanNodeId(0)).is_err());
+/// ```
+///
+/// # Errors
+///
+/// The refusal the node answers with, after its inputs for one that reads a deferred refusal; `NotRun` for a node the
+/// program does not have.
+pub fn layout(
+    program: &ExecutableProgram,
+    node: PlanNodeId,
+) -> Result<&[CellKind], OperatingError> {
+    match program
+        .layouts
         .get(usize::try_from(node.0).unwrap_or(usize::MAX))
     {
         Some(Ok(kinds)) => Ok(kinds),

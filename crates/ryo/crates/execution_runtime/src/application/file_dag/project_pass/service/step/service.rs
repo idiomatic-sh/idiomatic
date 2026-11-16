@@ -17,7 +17,7 @@ use ryo_execution_domain::domain::completion::service::{lacks_of, partial_of_lac
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::completion::types::{CoverageState, RegionAdmission};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::schema;
+use ryo_execution_domain::domain::executable_program::service::layout;
 use ryo_execution_domain::domain::executable_program::types::RuleNodes;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
@@ -69,7 +69,7 @@ impl StepRun<'_, '_, '_> {
             .unwrap_or(&empty);
         if self.completion.region_admission(&reads.needs) == RegionAdmission::Blocked {
             let mut table = Table::default();
-            reset(&mut table, schema(&self.batch.pass.program, node)?);
+            reset(&mut table, layout(&self.batch.pass.program, node)?);
             return Ok(NodeAnswer {
                 table,
                 coverage: self.completion.blocked_coverage(),

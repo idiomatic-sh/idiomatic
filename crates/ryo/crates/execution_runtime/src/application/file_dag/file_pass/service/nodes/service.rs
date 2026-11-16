@@ -13,7 +13,7 @@ use ryo_execution_domain::domain::completion::types::RegionAdmission;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::{
-    consumers, physical, rule as fused_rule, schema,
+    consumers, layout, physical, rule as fused_rule,
 };
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -85,13 +85,17 @@ pub(crate) fn node_rows(
     let completion = CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
     if completion.region_admission(&reads.needs) == RegionAdmission::Blocked {
         let mut table = Table::default();
-        reset(&mut table, schema(&at.pass.program, node)?);
+        reset(&mut table, layout(&at.pass.program, node)?);
         return Ok(NodeAnswer {
             table,
             coverage: completion.blocked_coverage(),
         });
     }
     ran_node(at, symbols, node)?;
+    // A node whose refusal comes of reading a node that defers its own is answered here, once its inputs ran without one.
+    if let Err(refusal) = layout(&at.pass.program, node) {
+        return Err(refusal);
+    }
     match at.buffers.rows(node) {
         NodeRows::Materialized(table) => {
             let table = table.clone();
@@ -152,7 +156,7 @@ pub(crate) fn handed_step(
     };
     let kinds = match node {
         Some(Ok(node)) => {
-            schema(&pass.program, node).map_or_else(|_| Vec::new(), <[CellKind]>::to_vec)
+            layout(&pass.program, node).map_or_else(|_| Vec::new(), <[CellKind]>::to_vec)
         }
         Some(Err(_)) | None => Vec::new(),
     };
@@ -211,7 +215,7 @@ pub(crate) fn step_coverage_seen(
             .collect::<Result<Vec<StepCoverage>, OperatingError>>()?;
         seen(StepId(u32::try_from(place).unwrap_or(u32::MAX)), &operands);
         let output = match nodes.steps.get(place) {
-            Some(Ok(node)) => schema(&pass.program, *node).map(<[CellKind]>::to_vec),
+            Some(Ok(node)) => layout(&pass.program, *node).map(<[CellKind]>::to_vec),
             Some(Err(error)) => Err(error.clone()),
             None => Err(OperatingError::NotRun),
         };

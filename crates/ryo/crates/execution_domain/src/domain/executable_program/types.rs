@@ -116,8 +116,26 @@ pub(crate) struct Draft<'p> {
     pub(crate) rule: RuleIndex,
     /// Where it runs.
     pub(crate) scope: StepScope,
-    /// Its output's columns, or the fault of it or of a node it reads.
+    /// Its output's columns as checked, or the fault of it or of a node it reads.
     pub(crate) schema: Result<Vec<CellKind>, OperatingError>,
+    /// The columns its rows answer with as a root: its schema, or, for a refusal deferred to its rows, the layout its empty
+    /// rows keep (the operator contract's `output_layout`).
+    pub(crate) layout: Result<Vec<CellKind>, OperatingError>,
+    /// When its schema's refusal, if any, is answered.
+    pub(crate) timing: SchemaTiming,
+}
+
+/// When a drafted node's schema refusal is answered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SchemaTiming {
+    /// Its schema is as drafted: its columns, or a refusal answered before any row.
+    Stated,
+    /// Its own refusal is its kernel's, at the first row that reaches it: as a root it answers its layout, and a node reading
+    /// it reads no column of it.
+    DeferredToRows,
+    /// Its refusal comes of reading a node whose refusal is deferred: it is answered once its inputs have run, after any
+    /// refusal of theirs.
+    AfterInputs,
 }
 
 /// What a step's inputs read: the node inputs, their columns, the first schema fault among the nodes they read, and the stage
@@ -129,6 +147,8 @@ pub(crate) struct DraftInputs<'s> {
     pub(crate) shapes: Vec<InputShape<'s>>,
     /// The first schema fault of a node they read.
     pub(crate) fault: Option<OperatingError>,
+    /// `AfterInputs` when a node they read defers its refusal or answers it after its own inputs; `Stated` otherwise.
+    pub(crate) timing: SchemaTiming,
 }
 
 /// Where a step being drafted runs, the rule it is a step of and that rule's plan: what its inputs are read as.
@@ -193,4 +213,15 @@ pub enum StepUse {
     Read,
     /// No root reads the step: its fault has no root to answer it.
     Unread,
+}
+
+/// What drafting a step answers of its columns: its schema as checked, the columns its rows answer with as a root, and when
+/// its refusal, if any, is answered.
+pub(crate) struct DraftedColumns {
+    /// Its output's columns as checked, or its refusal.
+    pub(crate) schema: Result<Vec<CellKind>, OperatingError>,
+    /// The columns its rows answer with as a root.
+    pub(crate) layout: Result<Vec<CellKind>, OperatingError>,
+    /// When its refusal is answered.
+    pub(crate) timing: SchemaTiming,
 }

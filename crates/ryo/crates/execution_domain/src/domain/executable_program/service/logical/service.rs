@@ -2,13 +2,16 @@
 //! it and the operators' physical plan.
 
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, ObservationReach, RuleInput, RuleNodes, StepAt, StepUse,
+    Consumers, Draft, DraftInputs, DraftedColumns, ObservationReach, RuleInput, RuleNodes,
+    SchemaTiming, StepAt, StepUse,
 };
 use crate::domain::kind_sets::service::names_a_kind;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::KindNaming;
 use crate::domain::operation_schema::types::InputShape;
+use crate::domain::operator::contract::preflight::service::output_layout;
 use crate::domain::operator::contract::service::semantics;
+use crate::domain::operator::contract::types::PreflightOrder;
 use ryo_operators::domain::comparing::service::fixed_prefix;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;
@@ -39,6 +42,7 @@ pub(in crate::domain::executable_program) fn read_inputs<'s>(
         list: Vec::with_capacity(named.len()),
         shapes: Vec::with_capacity(named.len()),
         fault: None,
+        timing: SchemaTiming::Stated,
     };
     for each in named {
         let handed = (at.scope == StepScope::CrossFile)
@@ -61,8 +65,14 @@ pub(in crate::domain::executable_program) fn read_inputs<'s>(
                     return None;
                 };
                 let draft = drafts.get(usize::try_from(node.0).unwrap_or(usize::MAX))?;
-                if let (Err(error), None) = (&draft.schema, &read.fault) {
+                // A deferred refusal is its node's own, at its rows: its reader inherits none, it reads no column.
+                if let (Err(error), None, SchemaTiming::Stated | SchemaTiming::AfterInputs) =
+                    (&draft.schema, &read.fault, draft.timing)
+                {
                     read.fault = Some(error.clone());
+                }
+                if draft.timing != SchemaTiming::Stated {
+                    read.timing = SchemaTiming::AfterInputs;
                 }
                 (
                     match handed {
@@ -70,7 +80,13 @@ pub(in crate::domain::executable_program) fn read_inputs<'s>(
                         Some(_) | None => PlanInput::Node(node),
                     },
                     InputShape {
-                        kinds: draft.schema.as_deref().unwrap_or_default(),
+                        // A node whose refusal is deferred to its rows has no column its reader can read.
+                        kinds: match draft.timing {
+                            SchemaTiming::DeferredToRows => &[],
+                            SchemaTiming::Stated | SchemaTiming::AfterInputs => {
+                                draft.schema.as_deref().unwrap_or_default()
+                            }
+                        },
                         tree: None,
                     },
                 )
@@ -221,7 +237,7 @@ pub(in crate::domain::executable_program) fn observation_reaches(
 
 /// Whether each step of `plan` is read by one of its roots (its emitted step, a frontier entry or a named output), through the
 /// steps that read it.
-pub(in crate::domain::executable_program) fn read_steps(plan: &Plan) -> Vec<StepUse> {
+fn read_steps(plan: &Plan) -> Vec<StepUse> {
     let mut read = vec![StepUse::Unread; plan.steps.len()];
     let mut pending: Vec<StepId> = std::iter::once(Input::Step(plan.emit.step))
         .chain(plan.frontier.iter().copied())
@@ -246,4 +262,78 @@ pub(in crate::domain::executable_program) fn read_steps(plan: &Plan) -> Vec<Step
         }
     }
     read
+}
+
+/// A step's schema, the columns its rows answer with as a root, and when its refusal is answered, for a step whose own
+/// operation is at fault (none of its inputs' faults): an operator that acquires its resources before it checks its whole
+/// schema (the contract's ResourcesFirst) reads its operands row by row, and its kernel refuses one at the first row that
+/// reaches it, so as a root its rows keep the layout the operator contract states and an empty input answers them, not the
+/// refusal. An operator that checks its schema first refuses before any row.
+pub(in crate::domain::executable_program) fn timed(
+    operation: &Operation,
+    shapes: &[InputShape<'_>],
+    own: Result<Vec<CellKind>, OperatingError>,
+    read: SchemaTiming,
+) -> DraftedColumns {
+    if own.is_err()
+        && semantics(kind_of(operation)).contract.preflight == PreflightOrder::ResourcesFirst
+        && let Ok(layout) = output_layout(operation, shapes, &own)
+    {
+        return DraftedColumns {
+            schema: own,
+            layout: Ok(layout),
+            timing: SchemaTiming::DeferredToRows,
+        };
+    }
+    stated(own, read)
+}
+
+/// A step's schema as checked, answered as it is: its columns, or its refusal, timed as its inputs' (`read`) are.
+pub(in crate::domain::executable_program) fn stated(
+    own: Result<Vec<CellKind>, OperatingError>,
+    read: SchemaTiming,
+) -> DraftedColumns {
+    let timing = match own {
+        Ok(_) => SchemaTiming::Stated,
+        Err(_) => read,
+    };
+    DraftedColumns {
+        schema: own.clone(),
+        layout: own,
+        timing,
+    }
+}
+
+/// Settles a rule's `steps`, answering the refusal of the rule, if any. A step's schema fault belongs to the roots that read
+/// it (the emit, a frontier entry, a named output): each answers it in place of its rows. A step no root reads has no root
+/// to answer it, so its fault (`own_faults`, by step) refuses the rule, in step order, before any row. A refusal deferred to a
+/// node's rows, or answered after its inputs, keeps its node, so it and its inputs run (and answer their own refusals
+/// first); the file pass answers the node's layout once they have. Any other refusal is the step's, before any row.
+pub(in crate::domain::executable_program) fn answered_steps(
+    plan: &Plan,
+    steps: &mut [Result<PlanNodeId, OperatingError>],
+    own_faults: &[Option<OperatingError>],
+    drafts: &[Draft<'_>],
+) -> Option<OperatingError> {
+    let authored = steps
+        .iter()
+        .zip(own_faults)
+        .zip(&read_steps(plan))
+        .find_map(|((step, fault), read)| match (read, step) {
+            (StepUse::Read, _) => None,
+            (StepUse::Unread, Ok(_)) => fault.clone(),
+            (StepUse::Unread, Err(error)) => Some(error.clone()),
+        });
+    for step in steps.iter_mut() {
+        if let Ok(node) = step
+            && let Some(Draft {
+                schema: Err(error),
+                timing: SchemaTiming::Stated,
+                ..
+            }) = drafts.get(usize::try_from(node.0).unwrap_or(usize::MAX))
+        {
+            *step = Err(error.clone());
+        }
+    }
+    authored
 }
