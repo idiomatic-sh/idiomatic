@@ -3,4 +3,3 @@ pub(super) mod process;
 pub(super) mod timed;
 
 pub(super) mod direct;
-pub(super) mod in_process;

@@ -21,6 +21,7 @@ mod locations;
 mod measure;
 mod parity;
 pub(crate) mod profile;
+mod reference_cases;
 mod request_input;
 mod targets;
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
@@ -46,7 +47,7 @@ pub(crate) fn run(
             Ok(())
         }
         Some(VERIFY_REFERENCE_CASES) => {
-            let count = self::commands::verify_reference_cases(args.map(BenchmarkArgument))?;
+            let count = self::reference_cases::verify_reference_cases(args.map(BenchmarkArgument))?;
             writeln!(
                 output,
                 "{count} cases matched the reference; no candidate was executed"

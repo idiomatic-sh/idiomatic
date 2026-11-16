@@ -185,16 +185,18 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
             .map_err(|error| Error::Invalid(error.to_string()))?,
         };
     // The candidate runs in this process over one engine, which compiles each rule once and keeps its plans for every case.
-    let execution = Arc::new(ryo_benchmark::outbound::execution::factory::in_process(
-        ryo_benchmark::outbound::execution::factory::process(),
-        Arc::new(
-            ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
-                languages,
-                frontend_diagnostic,
+    let execution = Arc::new(
+        ryo_benchmark::inbound::use_cases::verify_cases::in_process::InProcessExecution::new(
+            Box::new(ryo_benchmark::outbound::execution::factory::process()),
+            Arc::new(
+                ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
+                    languages,
+                    frontend_diagnostic,
+                ),
             ),
+            Arc::new(ryo_benchmark::outbound::context::factory::local()),
         ),
-        Arc::new(ryo_benchmark::outbound::context::factory::local()),
-    ));
+    );
     let reference = Arc::new(reference(executable, staged));
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(

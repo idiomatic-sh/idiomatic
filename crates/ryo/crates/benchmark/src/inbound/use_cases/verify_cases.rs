@@ -1,6 +1,8 @@
 //! Public suite operation and its real behavioral controls.
+mod constants;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
+pub mod in_process;
 pub mod interface;
 mod service;
 pub mod use_case;

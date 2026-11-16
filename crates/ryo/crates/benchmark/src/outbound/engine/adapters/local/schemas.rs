@@ -290,3 +290,35 @@ fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// The rules of `request`, loaded from its query files, once when the verification retains them.
+pub(super) fn request_rules(
+    retained: Option<&crate::outbound::engine::types::Retained>,
+    frontend_diagnostic: Option<FrontendDiagnosticProjection>,
+    request: &ryo_benchmark_contracts::domain::requests::types::WorkerRequest,
+) -> Result<BTreeMap<RuleId, Rule>, Error> {
+    let load = || {
+        load_rules(
+            &request.rules,
+            &request.query_modules,
+            &request.rule_applicability,
+            frontend_diagnostic.clone(),
+            match &request.rule_observations {
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
+                    declared,
+                ) => Some(declared),
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => {
+                    None
+                }
+            },
+        )
+    };
+    let Some(retained) = retained else {
+        return load();
+    };
+    if let Some(rules) = retained.rules.get() {
+        return Ok(rules.clone());
+    }
+    let rules = load()?;
+    Ok(retained.rules.get_or_init(|| rules).clone())
+}
