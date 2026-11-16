@@ -3244,3 +3244,9 @@ comparison="full"
 files={"case.py"="import v\nclass C:\n    def m(self):\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        del v\n"}
 expected=[{rule="F401", file="case.py", start=7, end=8}]
 
+
+[[cases]]
+name = "pep695-type-parameter-shadows-import-annotation"
+comparison = "full"
+files = { "case.py" = "import T\n\n\ndef f[T](a: T) -> T:\n    return a\n" }
+expected = [{ rule = "F401", file = "case.py", start = 7, end = 8 }, { rule = "invalid-syntax", file = "case.py", start = 16, end = 19 }]

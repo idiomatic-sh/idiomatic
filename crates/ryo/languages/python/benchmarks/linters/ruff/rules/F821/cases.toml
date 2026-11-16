@@ -6246,3 +6246,81 @@ name="matrix-x-method-global-trydel+del-assign-noouter"
 comparison="full"
 files={"case.py"="v = 0\nclass C:\n    def m(self):\n        global v\n        try:\n            del v\n        except NameError:\n            pass\n        del v\n"}
 expected=[{rule="F821", file="case.py", start=135, end=136}]
+
+[[cases]]
+name="lr-cg-module-read"
+comparison="full"
+files={"case.py"="class A:\n    global g\n    g = 1\nprint(g)\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-func-read"
+comparison="full"
+files={"case.py"="class A:\n    global g\n    g = 1\ndef f():\n    return g\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-read-before"
+comparison="full"
+files={"case.py"="print(g)\nclass A:\n    global g\n    g = 1\n"}
+expected=[{rule="F821", file="case.py", start=6, end=7}]
+
+[[cases]]
+name="lr-cg-import-unused"
+comparison="full"
+files={"case.py"="class A:\n    global os\n    import os\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-import-used"
+comparison="full"
+files={"case.py"="class A:\n    global os\n    import os\nos.sep\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-del-module-import"
+comparison="full"
+files={"case.py"="import os\nclass A:\n    global os\n    del os\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-del-then-read"
+comparison="full"
+files={"case.py"="g = 1\nclass A:\n    global g\n    del g\nprint(g)\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-nested-class"
+comparison="full"
+files={"case.py"="class A:\n    class B:\n        global g\n        g = 1\nprint(g)\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-class-in-func"
+comparison="full"
+files={"case.py"="def f():\n    class A:\n        global g\n        g = 1\nf()\nprint(g)\n"}
+expected=[{rule="F821", file="case.py", start=63, end=64}]
+
+[[cases]]
+name="lr-cg-redef"
+comparison="full"
+files={"case.py"="import os\nclass A:\n    global os\n    import os\nos.sep\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-for-target"
+comparison="full"
+files={"case.py"="class A:\n    global i\n    for i in range(2):\n        pass\nprint(i)\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-def"
+comparison="full"
+files={"case.py"="class A:\n    global h\n    def h():\n        pass\nh()\n"}
+expected=[]
+
+[[cases]]
+name="lr-cg-class-read-own"
+comparison="full"
+files={"case.py"="class A:\n    global g\n    g = 1\n    y = g\n"}
+expected=[]
