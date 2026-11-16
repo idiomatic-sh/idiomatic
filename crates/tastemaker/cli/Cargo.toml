@@ -65,6 +65,8 @@ ryo_rust = { package = "idiomatic-sh-ryo-rust", version = "0.1.4" }
 ryo_toml = { package = "idiomatic-sh-ryo-toml", version = "0.1.4" }
 snapbox.workspace = true
 tempfile.workspace = true
+# What a memory test writes for asymptote's ratchet: one writer for the tests of ryo and of Tastemaker.
+idiomatic-sh-ratchet = { path = "../../../tools/ratchet" }
 trycmd.workspace = true
 shlex.workspace = true
 

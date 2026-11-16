@@ -11,10 +11,6 @@ use std::sync::atomic::Ordering;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;
 
-/// How many percent over its best the store of ruff may be: the store is the same bytes for the same files and rules, so only the
-/// order the workers hand their buckets in can move it (asymptote tool `memory-store`).
-const STORE_TOLERANCE_PERCENT: u64 = 1;
-
 /// The recorded rules that cross files and that stay in one: the first compares functions of one name in two files.
 pub(crate) fn rules() -> Vec<Rule> {
     let mut wanted = counting::runnable();
@@ -255,12 +251,11 @@ fn the_store_every_recorded_rule_keeps_over_ruff_is_measured() {
         .len();
     // The size is a measure for asymptote's ratchet (tool `memory-store`), which holds its best and fails a run that rises over it.
     assert!(size > 0, "the store of ruff holds the run: {size} bytes");
-    crate::ratchet::print(
+    idiomatic_sh_ratchet::write(
         "ruff",
-        &[crate::ratchet::Measure {
+        &[idiomatic_sh_ratchet::Measure {
             name: "store-bytes",
             value: size,
-            tolerance_percent: STORE_TOLERANCE_PERCENT,
         }],
     );
 }

@@ -317,19 +317,10 @@ fn check_proves_only_what_changed_since_its_last_run() {
     });
 }
 
-/// How many percent over its best the peak resident set of `tm check` over `crates/ryo` may be: a resident set moves with how many
-/// workers hold their tables at once, so one run is not exact; 5% is the width the warm peak of `ryo` holds (asymptote tool `tm-peak`).
-#[cfg(target_os = "linux")]
-const RYO_PEAK_TOLERANCE_PERCENT: u64 = 5;
-
-/// `tm check` over a `git archive` copy of the repository, in `crates/ryo`, cold, peaks at a resident set that it prints as a Bencher
-/// Metric Format document on stdout, the measure asymptote's ratchet holds (tool `tm-peak`).
+/// `tm check` over a `git archive` copy of the repository, in `crates/ryo`, cold, peaks at a resident set that it hands as a Bencher
+/// Metric Format document to the file the tool names, the measure asymptote's ratchet holds (tool `tm-peak`).
 #[test]
 #[cfg(target_os = "linux")]
-#[expect(
-    clippy::print_stdout,
-    reason = "the document on stdout is what the asymptote tool reads"
-)]
 fn checking_crates_ryo_cold_peaks_at_its_measure() {
     let scratch = tempfile::tempdir().expect("the scene directory");
     let archive = std::process::Command::new("sh")
@@ -383,11 +374,11 @@ fn checking_crates_ryo_cold_peaks_at_its_measure() {
         .find_map(|line| line.strip_prefix("peak-kib "))
         .and_then(|kib| kib.trim().parse::<u64>().ok())
         .unwrap_or_else(|| panic!("`time` reported no peak:\n{said}"));
-    // A value read from the status of the run, held to its best by the ratchet: the lower value is the value less the tolerance.
-    let lower = u128::from(peak) * 100 / u128::from(100 + RYO_PEAK_TOLERANCE_PERCENT);
-    let lower = u64::try_from(lower).expect("a lower value that fits a JSON number");
-    println!(
-        "{}",
-        serde_json::json!({ "crates-ryo": { "cold-peak-kib": { "value": peak, "lower_value": lower, "upper_value": peak } } })
+    idiomatic_sh_ratchet::write(
+        "crates-ryo",
+        &[idiomatic_sh_ratchet::Measure {
+            name: "cold-peak-kib",
+            value: peak,
+        }],
     );
 }

@@ -256,38 +256,38 @@ inputs = [".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml",
 id = "peak"
 group = "memory"
 # The warm run's peak resident memory over ruff (`cli/tests/replay/peak.rs`, in a process of its own), as one BMF measure
-# (`ruff/warm-peak-bytes`): the lock holds its best and a run fails when it rises over it by more than 5%. The tolerance is
+# (`ruff/warm-peak-bytes`): the lock holds its best and a run fails when it rises over it by more than the tolerance of `RATCHET_TOLERANCES` below. That tolerance is
 # the noise of a resident set, which moves with how many workers hold their tables at once; the test itself holds no bound.
 # Target, not a gate: the release build's run, 87 MB.
-run = ["bash", "-c", "set -o pipefail; cargo test --locked --package idiomatic-sh-ryo --test replay -- --exact peak::a_warm_unchanged_run_over_ruff_peaks --nocapture --test-threads=1 | grep '^{'"]
+run = ["bash", "-c", "set -eo pipefail; mkdir -p target/memory; out=\"$PWD/target/memory/peak.json\"; rm -f \"$out\"; RATCHET_BMF_FILE=\"$out\" RATCHET_TOLERANCES=warm-peak-bytes=5 cargo test --locked --package idiomatic-sh-ryo --test replay -- --exact peak::a_warm_unchanged_run_over_ruff_peaks --test-threads=1 >&2; cat \"$out\""]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tools/ratchet"]
 
 [[tools]]
 id = "memory-store"
 group = "memory"
 # The bytes of the store a run over ruff leaves (`cli/tests/replay/cache.rs`), as one BMF measure (`ruff/store-bytes`): the lock
-# holds its best and a run fails when it rises over it by more than 1%. The tolerance is small because the store is the same
+# holds its best and a run fails when it rises over it by more than the tolerance of `RATCHET_TOLERANCES` below. That tolerance is small because the store is the same
 # bytes for the same files and rules, and only the order the workers hand their buckets in can move it.
 # Target, not a gate: a store of a few MB (five).
-run = ["bash", "-c", "set -o pipefail; cargo test --locked --package idiomatic-sh-ryo --test replay -- --exact cache::the_store_every_recorded_rule_keeps_over_ruff_is_measured --nocapture | grep '^{'"]
+run = ["bash", "-c", "set -eo pipefail; mkdir -p target/memory; out=\"$PWD/target/memory/memory-store.json\"; rm -f \"$out\"; RATCHET_BMF_FILE=\"$out\" RATCHET_TOLERANCES=store-bytes=1 cargo test --locked --package idiomatic-sh-ryo --test replay -- --exact cache::the_store_every_recorded_rule_keeps_over_ruff_is_measured >&2; cat \"$out\""]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tools/ratchet"]
 
 [[tools]]
 id = "memory-blocks"
 group = "memory"
 # The allocation profile of a run over ruff (`cli/tests/blocks.rs`), as two BMF measures. `ruff/dhat-gmax-bytes`, the bytes
-# live at the run's global maximum, rises over its best by at most 1%: `dhat` counts every allocation, so the bytes repeat
+# live at the run's global maximum, rises over its best by at most its tolerance below: `dhat` counts every allocation, so the bytes repeat
 # from run to run and only the order the workers' tables meet at the maximum moves them. `ruff/big-blocks`, the count of
-# blocks of a megabyte or more, rises by none: it is whole blocks that the workers and the rules make. The test keeps its own
+# blocks of a megabyte or more, has none: it is whole blocks that the workers and the rules make. The test keeps its own
 # ceiling on the big blocks (the workers and the rules, 64 tables each) until the ratchet holds them.
-run = ["bash", "-c", "set -o pipefail; cargo test --locked --package idiomatic-sh-ryo --test blocks -- --nocapture | grep '^{'"]
+run = ["bash", "-c", "set -eo pipefail; mkdir -p target/memory; out=\"$PWD/target/memory/memory-blocks.json\"; rm -f \"$out\"; RATCHET_BMF_FILE=\"$out\" RATCHET_TOLERANCES=dhat-gmax-bytes=1,big-blocks=0 cargo test --locked --package idiomatic-sh-ryo --test blocks >&2; cat \"$out\""]
 output = "bmf"
 timeout-seconds = 3600
-inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker"]
+inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../../tools/ratchet"]
 
 [[tools]]
 id = "performance-lint"

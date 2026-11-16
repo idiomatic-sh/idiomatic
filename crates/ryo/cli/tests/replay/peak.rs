@@ -5,12 +5,6 @@ use crate::{counting, ruff};
 #[cfg(target_os = "linux")]
 use ryo_core::inbound::use_cases::lint::types::Rule;
 
-/// How many percent over its best the warm peak may be: the peak is resident memory, which moves with how many workers hold their
-/// tables at once, and the bench of `lint` measured a peak that differed by 0.2% between medians of three and a run alone is
-/// noisier (asymptote tool `peak`).
-#[cfg(target_os = "linux")]
-const WARM_PEAK_TOLERANCE_PERCENT: u64 = 5;
-
 /// The argument that names the directory a child process runs the warm run over, and so marks the process as the child.
 #[cfg(target_os = "linux")]
 const WARM_DIRECTORY: &str = "warm-peak-directory=";
@@ -78,12 +72,11 @@ fn a_warm_unchanged_run_over_ruff_peaks() {
             .expect("the child printed its peak");
         // The peak is a measure for asymptote's ratchet (tool `peak`), which holds its best and fails a run that rises over it.
         assert!(peak > 0, "the child measured a peak: {peak} bytes");
-        crate::ratchet::print(
+        idiomatic_sh_ratchet::write(
             "ruff",
-            &[crate::ratchet::Measure {
+            &[idiomatic_sh_ratchet::Measure {
                 name: "warm-peak-bytes",
                 value: peak,
-                tolerance_percent: WARM_PEAK_TOLERANCE_PERCENT,
             }],
         );
     }

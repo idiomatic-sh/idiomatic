@@ -1240,6 +1240,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 
 [[package]]
+name = "idiomatic-sh-ratchet"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-core"
 version = "0.1.4"
 dependencies = [
@@ -1537,6 +1544,7 @@ dependencies = [
  "anstream 1.0.0",
  "clap",
  "cpu-time",
+ "idiomatic-sh-ratchet",
  "idiomatic-sh-ryo-css",
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",

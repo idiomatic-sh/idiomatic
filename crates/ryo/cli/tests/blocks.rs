@@ -2,7 +2,7 @@
 //! a rule that reads across files is the tables of its one plan, decoded once for the rule from every file's buckets, so the calls
 //! that allocate a block of a megabyte or more are bounded by the workers and the rules, each with its tables, never by the files. Counted from the
 //! allocation profile `dhat` writes, as the sites whose blocks average a megabyte or more; it runs alone in its process. It also
-//! prints the bytes live at the run's global maximum (`t-gmax`) and that count of big blocks as the measures asymptote's ratchet
+//! writes the bytes live at the run's global maximum (`t-gmax`) and that count of big blocks as the measures asymptote's ratchet
 //! holds (tool `memory-blocks`); the bound on the big blocks stays a ceiling until the ratchet holds it.
 
 #![expect(
@@ -15,8 +15,6 @@
 mod base;
 #[path = "fixtures/replay/counting.rs"]
 mod counting;
-#[path = "fixtures/replay/ratchet.rs"]
-mod ratchet;
 
 /// The allocator that records every allocation of the run into the profile the blocks are counted from.
 #[global_allocator]
@@ -24,14 +22,6 @@ static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 
 /// How many tables a worker, or a rule that reads across files, owns at most: the steps and inputs of the widest plan, and its scratch.
 const TABLES: usize = 64;
-
-/// How many percent over its best the bytes at `t-gmax` may be: `dhat` counts every allocation the run makes, so the bytes are
-/// the same from run to run, and only the order the workers' tables meet at the maximum can move them.
-const GMAX_TOLERANCE_PERCENT: u64 = 1;
-
-/// How many percent over its best the count of big blocks may be: none, the count is whole blocks that the workers and the rules
-/// make and nothing else moves.
-const BIG_BLOCKS_TOLERANCE_PERCENT: u64 = 0;
 
 /// A megabyte.
 const BIG: f64 = 1_048_576.0;
@@ -87,18 +77,16 @@ fn main() {
     // The workers the engine runs on: as many as the machine has, since the run asks for none.
     let workers = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
     let most = u64::try_from((workers + crossing) * TABLES).unwrap_or(u64::MAX);
-    ratchet::print(
+    idiomatic_sh_ratchet::write(
         "ruff",
         &[
-            ratchet::Measure {
+            idiomatic_sh_ratchet::Measure {
                 name: "dhat-gmax-bytes",
                 value: u64::try_from(gmax_bytes).expect("bytes that fit 64 bits"),
-                tolerance_percent: GMAX_TOLERANCE_PERCENT,
             },
-            ratchet::Measure {
+            idiomatic_sh_ratchet::Measure {
                 name: "big-blocks",
                 value: big,
-                tolerance_percent: BIG_BLOCKS_TOLERANCE_PERCENT,
             },
         ],
     );

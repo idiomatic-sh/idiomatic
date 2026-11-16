@@ -62,6 +62,8 @@ ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk" }
 idiomatic-sh-ryo = { path = ".", features = ["rust", "fixtures"] }
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", features = ["fixtures"] }
 dhat.workspace = true
+# What a memory test writes for asymptote's ratchet: one writer for the tests of ryo and of Tastemaker.
+idiomatic-sh-ratchet = { path = "../../../tools/ratchet" }
 toml.workspace = true
 # The language with its fixtures, which the call-count test reads.
 ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../languages/rust", features = ["fixtures"] }
