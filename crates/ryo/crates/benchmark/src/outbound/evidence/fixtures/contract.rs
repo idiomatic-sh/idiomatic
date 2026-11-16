@@ -161,4 +161,48 @@ pub fn check(adapter: &impl EvidencePort) {
         Ok(()),
         "a parity report is written"
     );
+    let language: ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage =
+        "python".into();
+    assert!(
+        adapter
+            .costs(
+                &language,
+                &crate::domain::measurements::types::project_cost::value::ProjectCosts(Vec::new())
+            )
+            .is_err(),
+        "an empty set of costs is refused"
+    );
+    assert_eq!(
+        adapter
+            .costs(&language, &super::sample::costs())
+            .map_err(|_invalid_boundary_value| ()),
+        Ok(()),
+        "a project's costs are added"
+    );
+    assert_eq!(
+        adapter
+            .verification(&language, &super::sample::timings())
+            .map_err(|_invalid_boundary_value| ()),
+        Ok(()),
+        "a rule's verification times are added"
+    );
+    assert_eq!(
+        adapter
+            .growth(&language, &super::sample::growth())
+            .map_err(|_invalid_boundary_value| ()),
+        Ok(()),
+        "a shape's growth is added"
+    );
+    assert_eq!(
+        adapter
+            .read_verification(&crate::outbound::evidence::types::VerificationTimesFiles::default())
+            .map_err(|_invalid_boundary_value| ()),
+        Ok(crate::outbound::evidence::types::RuleTimings::default()),
+        "no verification file gives no times"
+    );
+    assert_eq!(
+        adapter.finish().map_err(|_invalid_boundary_value| ()),
+        Ok(()),
+        "the document of what was added is written"
+    );
 }

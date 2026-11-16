@@ -135,6 +135,12 @@ impl SuitePort for SuiteFake {
     fn total_size(&self, files: ArtifactSet<'_>) -> Result<ArtifactSize, Error> {
         local().total_size(files)
     }
+    fn directory_size(
+        &self,
+        directory: ArtifactPath<'_>,
+    ) -> Result<crate::domain::measurements::types::project_cost::value::StoreSize, Error> {
+        local().directory_size(directory)
+    }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         self.artifact_digests
             .get(path)

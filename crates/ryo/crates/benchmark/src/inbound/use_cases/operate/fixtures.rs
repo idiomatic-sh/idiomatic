@@ -12,7 +12,6 @@ use crate::domain::operations::types::{BenchDirectory, BenchOperation};
 use crate::outbound::executables::fixtures::fake::{ExecutablesCall, ExecutablesFake};
 use crate::outbound::executables::types::RunVerdict;
 use crate::outbound::execution::fixtures::fake::ExecutionFake;
-use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -22,6 +21,9 @@ pub const BENCH: &str = "languages/fixture/benchmarks/linters/lint";
 
 /// The profile of the fixture bench: the tool `lint` and one default, `R1`.
 pub const PROFILE: &str = "tool = \"lint\"\nversion = \"lint 1.0.0\"\nsha256 = [\"52367a6622b19f08825e915fad80c542ad4f4c34dbcebad9f5007994b3e39208\"]\ndefaults = [\"R1\"]\n";
+
+/// The profile's deferral of its one default: the verification passes it as DEFERRED and runs no case.
+pub const DEFERRED: &str = "\n[deferred]\ncontrol_flow = [\"R1\"]\n";
 
 /// What one scenario varies.
 #[derive(Clone, Copy, Debug)]
@@ -34,8 +36,10 @@ pub struct Scenario {
     pub verdict: OperationVerdict,
     /// Whether the bench's `rules/` holds `R9`, a rule that is neither a default nor a supporting rule.
     pub stray_rule: bool,
-    /// How many shards the correctness operation runs in.
-    pub shards: ShardCount,
+    /// Whether the profile defers its one default, so the verification passes without running a case.
+    pub deferred: bool,
+    /// How many processors the host lets the process run on.
+    pub processors: usize,
 }
 
 /// What one scenario observed: the operation's answer, its standard output, and every executables request with the
@@ -52,15 +56,18 @@ pub struct Observed {
     pub registered: bool,
 }
 
-/// Run one scenario through the use case `build` makes over its scripted executables.
+/// Run one scenario through the use case over its scripted executables and its host.
 #[must_use]
 pub fn run(scenario: Scenario) -> Observed {
-    observe(scenario, use_case)
+    observe(scenario, |executables| {
+        use_case_on(executables, scenario.processors)
+    })
 }
 
-/// The use case over the scripted executables and the local suite, inventory and receipts.
+/// The use case over the scripted executables, a host of `processors` processors and the local suite, inventory and
+/// receipts.
 #[must_use]
-pub fn use_case(executables: Arc<ExecutablesFake>) -> OperateUseCaseImpl {
+pub fn use_case_on(executables: Arc<ExecutablesFake>, processors: usize) -> OperateUseCaseImpl {
     OperateUseCaseImpl::new(
         executables,
         Arc::new(crate::outbound::suite::factory::local()),
@@ -70,6 +77,21 @@ pub fn use_case(executables: Arc<ExecutablesFake>) -> OperateUseCaseImpl {
         )),
         Arc::new(ExecutionFake::default()),
         Arc::new(crate::outbound::scheduler::factory::threads()),
+        Arc::new(crate::outbound::host::fixtures::fake::HostFake {
+            processors: crate::outbound::host::types::ProcessorCount(
+                std::num::NonZeroUsize::new(processors).unwrap_or(std::num::NonZeroUsize::MIN),
+            ),
+            ..crate::outbound::host::fixtures::fake::HostFake::default()
+        }),
+    )
+}
+
+/// The use case over the scripted executables on the four processors a bench is measured on.
+#[must_use]
+pub fn use_case(executables: Arc<ExecutablesFake>) -> OperateUseCaseImpl {
+    use_case_on(
+        executables,
+        ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS,
     )
 }
 
@@ -101,7 +123,12 @@ pub fn observe(
     let root_path = root.path().canonicalize().expect("canonical root");
     let bench = root_path.join(BENCH);
     std::fs::create_dir_all(&bench).expect("bench directory");
-    std::fs::write(bench.join("benchmark.toml"), PROFILE).expect("bench profile");
+    let profile = if scenario.deferred {
+        format!("{PROFILE}{DEFERRED}")
+    } else {
+        PROFILE.to_owned()
+    };
+    std::fs::write(bench.join("benchmark.toml"), profile).expect("bench profile");
     std::fs::create_dir_all(bench.join("rules")).expect("the bench's rules directory");
     if scenario.stray_rule {
         std::fs::create_dir_all(bench.join("rules/R9")).expect("the stray rule's directory");
@@ -139,7 +166,6 @@ pub fn observe(
             &OperationRequest {
                 operation: scenario.operation,
                 bench: BenchDirectory(bench),
-                shards: scenario.shards,
             },
             &mut stdout,
         )

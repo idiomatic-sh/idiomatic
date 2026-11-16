@@ -63,3 +63,25 @@ fn measure(scope: BenchmarkCoverage) -> (bool, String) {
         String::from_utf8_lossy(&observations).into_owned(),
     )
 }
+
+#[then("measure_corpus refuses a project whose every file the suffix filter excludes, naming it")]
+fn nothing_to_lint(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
+    let suffixes = [".ts"].map(SourceSuffix);
+    let files = ["c.vue"];
+    let root = project_of(&files);
+    let cache = project_of(&[]);
+    let bench = bench_of(&["A"]);
+    let mut observations = Vec::new();
+    let measured = with_suffixes((bench.path(), cache.path()), &suffixes, |corpus| {
+        discovering(root.path(), &files).measure_corpus(corpus, &mut observations)
+    });
+    let observations = String::from_utf8_lossy(&observations);
+    assert!(
+        observations.contains(
+            "project-0: corpus comparison failed: no source left to lint after discovery and the valid profile\n"
+        ),
+        "{measured:?}\n{observations}"
+    );
+    assert!(measured.is_err(), "{observations}");
+}

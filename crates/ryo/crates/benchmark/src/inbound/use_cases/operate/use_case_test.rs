@@ -1,12 +1,10 @@
-//! Parity runs the sealed worker on its output directory and passes its output through; measure certifies against the
-//! registration it stages; correctness audits the whole bench, then verifies in process and runs no worker; a failed worker
-//! fails the operation, and an absent reference tool is refused by name before anything is sealed.
+//! A bench refuses any count of processors but four before anything runs, verifies every default once, and only when they
+//! pass runs the sealed worker's corpus and passes its one document through; a failed inventory runs no corpus, a stray rule
+//! is refused before registering, and an absent reference tool is refused by name before anything is sealed.
 use super::fixtures::{Scenario, observe};
 use super::types::OperationVerdict;
-use super::use_case::OperateUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operations::types::BenchOperation;
-use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use std::borrow::Cow;
 
 /// The scenario a row runs.
@@ -19,151 +17,71 @@ type Failure = (Cow<'static, str>, Cow<'static, str>, bool);
 /// What the scripted worker writes.
 const METRICS: &str = "{\"metric\":{}}\n";
 
-/// The requests of a parity run: the worker sealed in its output directory, then run on the reference and that directory.
-const PARITY_CALLS: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/parity/worker\"), Run(\"<root>/target/benchmark/fixture/lint/parity/worker\", [\"parity\", \"<root>/lint\", \"<root>/target/benchmark/fixture/lint/parity\"])]";
+/// The requests of a bench whose verification passed: the worker and the collector sealed, then the worker's corpus run.
+const BENCH_CALLS: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/bench/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/bench/collector\"), Run(\"<root>/target/benchmark/fixture/lint/bench/worker\", [\"measure-valid\", \"<root>/lint\", \"<root>/target/benchmark/fixture/lint/bench/state\", \"<root>/target/benchmark/fixture/lint/bench/collector\", \"--case-inventory=<root>/target/benchmark/fixture/lint/bench/registration.json\", \"--verification=<root>/target/benchmark/fixture/lint/bench/inventory\"])]";
+
+/// The requests of a bench whose verification failed: the worker and the collector sealed, and no corpus run.
+const SEALED: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/bench/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/bench/collector\")]";
+
+/// A bench on four processors whose one default the profile defers, so its verification passes.
+const PASSING: Scenario = Scenario {
+    operation: BenchOperation::Bench,
+    tool_found: true,
+    verdict: OperationVerdict::Passed,
+    stray_rule: false,
+    deferred: true,
+    processors: 4,
+};
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(
-            "parity seals the worker and runs it on the reference and its output directory",
-        ),
+        name: CaseName("bench passes and passes the worker's one document through"),
         word: Word::Succeeds,
-        input: || Scenario {
-            operation: BenchOperation::Parity,
-            tool_found: true,
-            verdict: OperationVerdict::Passed,
-            stray_rule: false,
-            shards: ShardCount(1),
-        },
+        input: || PASSING,
         expect: Expect::Value((
             OperationVerdict::Passed,
             Cow::Borrowed(METRICS),
-            Cow::Borrowed(PARITY_CALLS),
+            Cow::Borrowed(BENCH_CALLS),
         )),
     },
     Case {
-        name: CaseName("a failed worker fails the operation"),
+        name: CaseName("a failed worker fails the bench"),
         word: Word::Succeeds,
         input: || Scenario {
-            operation: BenchOperation::Parity,
-            tool_found: true,
             verdict: OperationVerdict::Failed,
-            stray_rule: false,
-            shards: ShardCount(1),
+            ..PASSING
         },
         expect: Expect::Value((
             OperationVerdict::Failed,
             Cow::Borrowed(METRICS),
-            Cow::Borrowed(PARITY_CALLS),
+            Cow::Borrowed(BENCH_CALLS),
         )),
     },
     Case {
-        name: CaseName(
-            "measure seals the worker and the collector, registers, and certifies against the registration",
-        ),
+        name: CaseName("a failed inventory runs no corpus"),
         word: Word::Succeeds,
         input: || Scenario {
-            operation: BenchOperation::Measure,
-            tool_found: true,
-            verdict: OperationVerdict::Passed,
-            stray_rule: false,
-            shards: ShardCount(1),
-        },
-        expect: Expect::Value((
-            OperationVerdict::Passed,
-            Cow::Borrowed(METRICS),
-            Cow::Borrowed(
-                "[SealWorker(\"<root>/target/benchmark/fixture/lint/measure-valid/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/measure-valid/collector\"), Run(\"<root>/target/benchmark/fixture/lint/measure-valid/worker\", [\"measure-valid\", \"<root>/lint\", \"<root>/target/benchmark/fixture/lint/measure-valid/state\", \"<root>/target/benchmark/fixture/lint/measure-valid/collector\", \"--case-inventory=<root>/target/benchmark/fixture/lint/measure-valid/registration.json\"])]",
-            ),
-        )),
-    },
-    Case {
-        name: CaseName("correctness verifies the registration in process and runs no worker"),
-        word: Word::Succeeds,
-        input: || Scenario {
-            operation: BenchOperation::Correctness,
-            tool_found: true,
-            verdict: OperationVerdict::Passed,
-            stray_rule: false,
-            shards: ShardCount(1),
+            deferred: false,
+            ..PASSING
         },
         expect: Expect::Value((
             OperationVerdict::Failed,
             Cow::Borrowed(""),
-            Cow::Borrowed(
-                "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-inventory/worker\")]",
-            ),
+            Cow::Borrowed(SEALED),
         )),
     },
     Case {
         name: CaseName(
-            "correctness refuses a rule dir that is neither a default nor supporting, before registering",
+            "a rule dir that is neither a default nor supporting is refused before registering",
         ),
         word: Word::Refuses,
         input: || Scenario {
-            operation: BenchOperation::Correctness,
-            tool_found: true,
-            verdict: OperationVerdict::Passed,
             stray_rule: true,
-            shards: ShardCount(1),
+            ..PASSING
         },
         expect: Expect::Error((
             Cow::Borrowed("rule R9 is not a shipped default"),
-            Cow::Borrowed(
-                "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-inventory/worker\")]",
-            ),
-            false,
-        )),
-    },
-    Case {
-        name: CaseName("correctness over four shards answers as over one"),
-        word: Word::Succeeds,
-        input: || Scenario {
-            operation: BenchOperation::Correctness,
-            tool_found: true,
-            verdict: OperationVerdict::Passed,
-            stray_rule: false,
-            shards: ShardCount(4),
-        },
-        expect: Expect::Value((
-            OperationVerdict::Failed,
-            Cow::Borrowed(""),
-            Cow::Borrowed(
-                "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-inventory/worker\")]",
-            ),
-        )),
-    },
-    Case {
-        name: CaseName("zero shards are refused before any rule runs"),
-        word: Word::Refuses,
-        input: || Scenario {
-            operation: BenchOperation::Correctness,
-            tool_found: true,
-            verdict: OperationVerdict::Passed,
-            stray_rule: false,
-            shards: ShardCount(0),
-        },
-        expect: Expect::Error((
-            Cow::Borrowed("invalid case shard coordinates"),
-            Cow::Borrowed(
-                "[SealWorker(\"<root>/target/benchmark/fixture/lint/verify-inventory/worker\")]",
-            ),
-            true,
-        )),
-    },
-    Case {
-        name: CaseName("shards on measure or parity are refused"),
-        word: Word::Refuses,
-        input: || Scenario {
-            operation: BenchOperation::Parity,
-            tool_found: true,
-            verdict: OperationVerdict::Passed,
-            stray_rule: false,
-            shards: ShardCount(2),
-        },
-        expect: Expect::Error((
-            Cow::Borrowed("--shards applies to verify-inventory only"),
-            Cow::Borrowed("[]"),
+            Cow::Borrowed(SEALED),
             false,
         )),
     },
@@ -171,11 +89,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an absent reference tool is refused by name before anything is sealed"),
         word: Word::Refuses,
         input: || Scenario {
-            operation: BenchOperation::Parity,
             tool_found: false,
-            verdict: OperationVerdict::Passed,
-            stray_rule: false,
-            shards: ShardCount(1),
+            ..PASSING
         },
         expect: Expect::Error((
             Cow::Borrowed("reference tool not found: lint"),
@@ -183,11 +98,26 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             false,
         )),
     },
+    Case {
+        name: CaseName(
+            "a bench on any count of processors but four is refused naming both, before any worker is sealed",
+        ),
+        word: Word::Refuses,
+        input: || Scenario {
+            processors: 8,
+            ..PASSING
+        },
+        expect: Expect::Error((
+            Cow::Borrowed("a bench runs on 4 processors; this process may run on 8"),
+            Cow::Borrowed("[]"),
+            false,
+        )),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let observed = observe(scenario, |executables| -> OperateUseCaseImpl {
-        super::fixtures::use_case(executables)
+    let observed = observe(scenario, |executables| {
+        super::fixtures::use_case_on(executables, scenario.processors)
     });
     let calls = Cow::Owned(format!("{:?}", observed.calls));
     match observed.answer {

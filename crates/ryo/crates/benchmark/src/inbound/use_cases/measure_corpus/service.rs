@@ -2,7 +2,7 @@
 use super::constants::{
     CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY,
     COHORT_OUTSIDE_CERTIFICATE, EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, FINDING_SEPARATOR,
-    ONE_FINDING, PATH_SEPARATOR, REFERENCE_EDITED, REFERENCE_FIRST, REFERENCE_RETAINED,
+    NO_SOURCE, ONE_FINDING, PATH_SEPARATOR, REFERENCE_EDITED, REFERENCE_FIRST, REFERENCE_RETAINED,
     RETAINED_CACHE_CONDITION, RETAINED_DIRECTORY, TRIAL_PREFIX, TRIALS,
 };
 use super::types::{
@@ -150,6 +150,10 @@ fn measure_project(
                 finding.end.0
             )?;
         }
+    }
+    // A project with nothing left to lint would pass every comparison and measure nothing.
+    if files.is_empty() {
+        return Err(Error::Invalid(NO_SOURCE.into()));
     }
     let paths: Vec<_> = files
         .iter()

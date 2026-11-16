@@ -16,39 +16,49 @@ type Failure = Cow<'static, str>;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
-            "measure places its output under the target and certifies against its registration",
+            "bench places its output under the target, certifies against its registration and reads the verification's times",
         ),
         word: Word::Succeeds,
-        input: || ("measure-valid", "languages/python/benchmarks/linters/ruff"),
+        input: || ("bench", "languages/python/benchmarks/linters/ruff"),
         expect: Expect::Value(Cow::Borrowed(
-            "/target/benchmark/python/ruff/measure-valid: measure-valid /bin/tool /target/benchmark/python/ruff/measure-valid/state /target/benchmark/python/ruff/measure-valid/collector --case-inventory=/target/benchmark/python/ruff/measure-valid/registration.json",
+            "/target/benchmark/python/ruff/bench: measure-valid /bin/tool /target/benchmark/python/ruff/bench/state /target/benchmark/python/ruff/bench/collector --case-inventory=/target/benchmark/python/ruff/bench/registration.json --verification=/target/benchmark/python/ruff/bench/inventory",
         )),
     },
     Case {
-        name: CaseName("an absolute bench directory places parity by its tail"),
+        name: CaseName("an absolute bench directory places the bench by its tail"),
         word: Word::Succeeds,
         input: || {
             (
-                "parity",
+                "bench",
                 "/repository/crates/ryo/languages/typescript/benchmarks/linters/oxlint",
             )
         },
         expect: Expect::Value(Cow::Borrowed(
-            "/target/benchmark/typescript/oxlint/parity: parity /bin/tool /target/benchmark/typescript/oxlint/parity",
+            "/target/benchmark/typescript/oxlint/bench: measure-valid /bin/tool /target/benchmark/typescript/oxlint/bench/state /target/benchmark/typescript/oxlint/bench/collector --case-inventory=/target/benchmark/typescript/oxlint/bench/registration.json --verification=/target/benchmark/typescript/oxlint/bench/inventory",
         )),
     },
     Case {
-        name: CaseName("correctness runs no worker"),
-        word: Word::Succeeds,
+        name: CaseName("verify-inventory is no longer an operation"),
+        word: Word::Refuses,
         input: || {
             (
                 "verify-inventory",
                 "languages/python/benchmarks/linters/ruff",
             )
         },
-        expect: Expect::Value(Cow::Borrowed(
-            "/target/benchmark/python/ruff/verify-inventory: ",
-        )),
+        expect: Expect::Error(Cow::Borrowed("verify-inventory")),
+    },
+    Case {
+        name: CaseName("measure-valid is a worker verb, not a collector operation"),
+        word: Word::Refuses,
+        input: || ("measure-valid", "languages/python/benchmarks/linters/ruff"),
+        expect: Expect::Error(Cow::Borrowed("measure-valid")),
+    },
+    Case {
+        name: CaseName("parity is no longer an operation"),
+        word: Word::Refuses,
+        input: || ("parity", "languages/python/benchmarks/linters/ruff"),
+        expect: Expect::Error(Cow::Borrowed("parity")),
     },
     Case {
         name: CaseName("verify-cases is a worker verb, not a collector operation"),
@@ -76,7 +86,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a crate directory is not a bench directory"),
         word: Word::Refuses,
-        input: || ("parity", "crates/x"),
+        input: || ("bench", "crates/x"),
         expect: Expect::Error(Cow::Borrowed(
             "expected a bench directory languages/<lang>/benchmarks/linters/<linter>",
         )),
@@ -84,7 +94,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a language directory is not a bench directory"),
         word: Word::Refuses,
-        input: || ("parity", "languages/python"),
+        input: || ("bench", "languages/python"),
         expect: Expect::Error(Cow::Borrowed(
             "expected a bench directory languages/<lang>/benchmarks/linters/<linter>",
         )),

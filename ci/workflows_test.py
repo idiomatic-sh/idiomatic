@@ -137,7 +137,8 @@ SETUP = {"rustup toolchain install", "uv run --script tools/install.py"}
 # step, exactly its one check, its environment, and receipts uploaded even after failure.
 BENCH_CORRECTNESS_GROUP = "bench-correctness"
 BENCH_CORRECTNESS_CHECK = f"asymptote check --root crates/ryo --groups {BENCH_CORRECTNESS_GROUP}"
-BENCH_CORRECTNESS_ENV = {"RAYON_NUM_THREADS": "1", "CARGO_BUILD_JOBS": "6"}
+# The bench job sets no RAYON_NUM_THREADS of its own: the bench tool's run line pins every timed measure, once.
+BENCH_CORRECTNESS_ENV = {"CARGO_BUILD_JOBS": "6"}
 BENCH_CORRECTNESS_UPLOAD = {
     "name": "bench-correctness-${{ github.run_attempt }}",
     "path": "target/benchmark/",
@@ -1081,7 +1082,7 @@ def _check_step(job: dict) -> dict:
         pytest.param(lambda job: _check_step(job).__setitem__("run", "asymptote check --root crates/ryo --groups lint"), id="other-group"),
         pytest.param(lambda job: _check_step(job).__setitem__("shell", "bash +e {0}"), id="shell-override"),
         pytest.param(lambda job: job.__setitem__("timeout-minutes", 360), id="no-headroom"),
-        pytest.param(lambda job: job["env"].pop("RAYON_NUM_THREADS"), id="lost-environment"),
+        pytest.param(lambda job: job["env"].update({"RAYON_NUM_THREADS": "1"}), id="lost-environment"),
         pytest.param(lambda job: job["steps"][-1].pop("if"), id="upload-skipped-on-failure"),
         pytest.param(lambda job: job["steps"][-1]["with"].__setitem__("if-no-files-found", "warn"), id="receipts-optional"),
         pytest.param(lambda job: job.__setitem__("container", "example.invalid/custom:latest"), id="container"),
@@ -1573,6 +1574,35 @@ UNFILTERED_TESTS = {
     "test-default": ["cargo", "nextest", "run", "--workspace", "--locked"],
     "coverage": ["cargo", "llvm-cov", "--workspace", "--all-features", "--locked"],
 }
+
+
+GROWTH_TOOL = "bench-growth"
+
+
+def growth_problems(tools: list[dict]) -> list[str]:
+    """What turns the Ruff bench's growth back into a test or drops its ratchet: no tool in the bench-verify group running the
+    bench's `growth`, a measure with no tolerance, or a test tool that runs the bench's tests with the growth rows in them."""
+    tool = next((tool for tool in tools if tool["id"] == GROWTH_TOOL), {})
+    found = []
+    if tool.get("group") != "bench-verify" or tool.get("output") != "bmf" or "-- growth --growth-times=" not in " ".join(tool.get("run", [])):
+        found.append("bench-growth must run the ruff bench's growth as BMF in the bench-verify group")
+    if set(tool.get("tolerance-percent", {})) != {"doubling-ratio", "larger-ms"}:
+        found.append("bench-growth must hold doubling-ratio and larger-ms each to a tolerance")
+    return found
+
+
+def test_the_ruff_growth_is_a_bench_tool_with_a_ratchet() -> None:
+    """The growth of the name-resolving rules is bench-growth's, ratcheted; moved to another group, run as a test or without a
+    tolerance for a measure, it is refused."""
+    tools = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))["tools"]
+    assert growth_problems(tools) == []
+    moved = deepcopy(tools)
+    next(tool for tool in moved if tool["id"] == GROWTH_TOOL)["group"] = "check"
+    loose = deepcopy(tools)
+    del next(tool for tool in loose if tool["id"] == GROWTH_TOOL)["tolerance-percent"]["larger-ms"]
+    gone = [tool for tool in tools if tool["id"] != GROWTH_TOOL]
+    for changed in (moved, loose, gone):
+        assert growth_problems(changed)
 
 
 def replay_problems(tools: list[dict]) -> list[str]:

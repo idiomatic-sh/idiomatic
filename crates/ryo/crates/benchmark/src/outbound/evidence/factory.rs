@@ -9,6 +9,7 @@ pub fn bmf(output: Box<dyn Write + Send>, comparison: Box<dyn Write + Send>) -> 
         output: std::sync::Mutex::new(output),
         comparison: std::sync::Mutex::new(comparison),
         parity: std::sync::Mutex::default(),
+        document: std::sync::Mutex::new(Some(super::adapters::bmf::types::Document::default())),
     })
 }
 

@@ -34,3 +34,5 @@ pub(super) const CANDIDATE_EDITED: &str = "candidate edited retained vs fresh";
 /// An explicit cohort is measured only within the rules its certificate covers.
 pub(super) const COHORT_OUTSIDE_CERTIFICATE: &str =
     "measured cohort names a rule the certificate does not cover";
+/// Refusal of a project with no source left to lint after the suffix filter and the Valid profile.
+pub(super) const NO_SOURCE: &str = "no source left to lint after discovery and the valid profile";

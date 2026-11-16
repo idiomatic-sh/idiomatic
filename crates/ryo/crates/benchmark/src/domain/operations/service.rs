@@ -1,32 +1,26 @@
 //! The verbs of the operations, the directory each writes and the worker command each runs.
 use super::constants::{
-    BENCH_COMPONENTS, BENCHMARK, BENCHMARKS, CASE_INVENTORY, COLLECTOR, LANGUAGES, LINTERS,
-    NOT_A_BENCH_DIRECTORY, REGISTRATION, STATE, VERIFY_INVENTORY,
+    BENCH, BENCH_COMPONENTS, BENCHMARK, BENCHMARKS, CASE_INVENTORY, COLLECTOR, INVENTORY,
+    LANGUAGES, LINTERS, NOT_A_BENCH_DIRECTORY, REGISTRATION, STATE, VERIFICATION,
 };
 use super::types::{BenchDirectory, BenchOperation, OperationLayout, OperationVerb};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::constants::{MEASURE_ACCOUNTED_VALID, PARITY};
+use ryo_benchmark_contracts::domain::requests::constants::MEASURE_ACCOUNTED_VALID;
 use std::ffi::OsString;
 use std::path::{Component, Path};
 
 /// The operation a collector verb names.
 #[must_use]
 pub fn operation(verb: OperationVerb<'_>) -> Option<BenchOperation> {
-    [
-        BenchOperation::Correctness,
-        BenchOperation::Measure,
-        BenchOperation::Parity,
-    ]
-    .into_iter()
-    .find(|operation| verb_of(*operation).0 == verb.0)
+    [BenchOperation::Bench]
+        .into_iter()
+        .find(|operation| verb_of(*operation).0 == verb.0)
 }
 
 /// The collector verb of an operation.
 pub(crate) fn verb_of(operation: BenchOperation) -> OperationVerb<'static> {
     OperationVerb(match operation {
-        BenchOperation::Correctness => VERIFY_INVENTORY,
-        BenchOperation::Measure => MEASURE_ACCOUNTED_VALID,
-        BenchOperation::Parity => PARITY,
+        BenchOperation::Bench => BENCH,
     })
 }
 
@@ -70,25 +64,27 @@ pub fn layout(
     }
 }
 
-/// The arguments the sealed worker of a bench runs an operation with; the correctness operation runs no worker.
+/// The arguments the sealed worker of a bench runs its corpus with: `measure-valid`, certified against the registration and
+/// reading the times the verification left.
 pub(crate) fn worker_arguments(
     operation: BenchOperation,
     layout: &OperationLayout,
     tool: &Path,
 ) -> Vec<OsString> {
     match operation {
-        BenchOperation::Correctness => Vec::new(),
-        BenchOperation::Measure => {
+        BenchOperation::Bench => {
             let mut inventory = OsString::from(CASE_INVENTORY);
             inventory.push(layout.root.join(REGISTRATION));
+            let mut verification = OsString::from(VERIFICATION);
+            verification.push(layout.root.join(INVENTORY));
             vec![
                 MEASURE_ACCOUNTED_VALID.into(),
                 tool.into(),
                 layout.root.join(STATE).into(),
                 layout.root.join(COLLECTOR).into(),
                 inventory,
+                verification,
             ]
         }
-        BenchOperation::Parity => vec![PARITY.into(), tool.into(), layout.root.clone().into()],
     }
 }

@@ -88,15 +88,7 @@ pub(super) fn worker(
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
     )]);
-    let frontend_diagnostic =
-        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
-            rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
-                .map_err(|error| Error::Invalid(error.to_string()))?,
-            query: ryo::query::RyoQlQuery::try_from(
-                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?,
-        };
+    let frontend_diagnostic = frontend_diagnostic()?;
     let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
         match (tracing, trace_path) {
             (WorkerTracing::Chrome, Some(path)) => Arc::new(
@@ -214,15 +206,7 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
     )]);
-    let frontend_diagnostic =
-        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
-            rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
-                .map_err(|error| Error::Invalid(error.to_string()))?,
-            query: ryo::query::RyoQlQuery::try_from(
-                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?,
-        };
+    let frontend_diagnostic = frontend_diagnostic()?;
     // The candidate runs in this process over one engine, which compiles each rule once and keeps its plans for every case.
     let execution = Arc::new(
         ryo_benchmark::inbound::use_cases::verify_cases::in_process::InProcessExecution::new(
@@ -284,6 +268,25 @@ fn ruff_target(configuration: Option<TargetConfiguration<'_>>) -> Result<Referen
 }
 
 /// Use exactly the same explicit identity for the linked parser as the reference.
+/// The projection of the parser's diagnostics to the `invalid-syntax` rule, as every run of the candidate in this composition makes it.
+///
+/// # Errors
+///
+/// A rule id or a query the SDK refuses.
+pub(super) fn frontend_diagnostic()
+-> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error> {
+    Ok(
+        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
+            rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+            query: ryo::query::RyoQlQuery::try_from(
+                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
+            )
+            .map_err(|error| Error::Invalid(error.to_string()))?,
+        },
+    )
+}
+
 fn parser_target(
     configuration: Option<TargetConfiguration<'_>>,
 ) -> Result<ryo_python::settings::PythonTargetVersion, Error> {

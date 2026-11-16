@@ -36,6 +36,7 @@ pub enum Operation {
     CreateAndRead,
     AcceptedMissing,
     TotalSize,
+    DirectorySize,
     QueryModules,
     MaterializeIsolated,
     MaterializeInventory,
@@ -193,6 +194,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Operation::TotalSize,
         expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("the size of a directory is the bytes and the count of every file below it"),
+        word: Word::Succeeds,
+        input: || Operation::DirectorySize,
+        expect: Expect::Value(2_010),
     },
     Case {
         name: CaseName("a profile without query modules verifies"),
@@ -374,6 +381,20 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
                 adapter
                     .total_size(ArtifactSet(&[file]))
                     .map(|size| usize::try_from(size.0).unwrap_or_default())
+                    .map_err(classify)
+            }
+            Operation::DirectorySize => {
+                // Two files of 3 and 7 bytes, one of them a level down: 10 bytes in 2 files, read as 1_000 * files + bytes.
+                let store = temporary.path().join("store");
+                std::fs::create_dir_all(store.join("nested")).map_err(|_| Failure::Unexpected)?;
+                std::fs::write(store.join("one.bin"), b"abc").map_err(|_| Failure::Unexpected)?;
+                std::fs::write(store.join("nested/two.bin"), b"abcdefg")
+                    .map_err(|_| Failure::Unexpected)?;
+                adapter
+                    .directory_size(ArtifactPath(&store))
+                    .map(|size| {
+                        usize::try_from(size.files.0 * 1_000 + size.bytes.0).unwrap_or_default()
+                    })
                     .map_err(classify)
             }
             Operation::QueryModules => adapter

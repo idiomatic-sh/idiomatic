@@ -1333,6 +1333,7 @@ name = "idiomatic-sh-ryo-benchmark"
 version = "0.2.0"
 dependencies = [
  "cargo_metadata",
+ "cpu-time",
  "cucumber",
  "divan",
  "globset",

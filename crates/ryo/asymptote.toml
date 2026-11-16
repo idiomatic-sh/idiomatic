@@ -355,6 +355,22 @@ timeout-seconds = 14400
 inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../tastemaker", "../../tastemaker", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
+id = "bench-growth"
+group = "bench-verify"
+# How the Ruff bench's name-resolving rules (F401, F841, F811, F821) grow with the file, beside verify's times: the bench's
+# `growth` command runs each over every generated shape (an operation repeated in a scope) at 500 and 1,000 repetitions and
+# writes one benchmark `growth/ruff/<rule>/<scope>/<operation>` with `doubling-ratio` (the CPU time at the larger size over
+# the half size's, floored) and `larger-ms` (the CPU time at the larger size) as BMF to the file `--growth-times` names; the
+# tool prints the file. The lock holds each measure's best, and a run fails when one rises over it by more than 10%, the noise
+# of a timing on a shared machine. The bench fails on its own when a doubling costs more than 2.2 times or a run's peak is over
+# its bound, after it wrote the document. It was the `*_cost_grows_with_the_file` rows of the bench's engine tests.
+run = ["bash", "-c", "set -o pipefail; mkdir -p target/benchmarks/growth; out=target/benchmarks/growth/python-ruff.bmf; rm -f \"$out\"; status=0; cargo bench --locked -p idiomatic-sh-ryo-python-ruff-benchmark --bench ruff -- growth --growth-times=\"$out\" >&2 || status=$?; if [ -f \"$out\" ]; then cat \"$out\"; fi; exit \"$status\""]
+output = "bmf"
+tolerance-percent = { doubling-ratio = 10, larger-ms = 10 }
+timeout-seconds = 14400
+inputs = ["languages/python", "languages/python/benchmarks/linters/ruff", ".", "../tastemaker", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
 id = "bench-parity"
 group = "bench-parity"
 # Each linter bench's rule-by-rule parity with its pinned reference over every project of its language; a project's

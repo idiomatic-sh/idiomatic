@@ -111,6 +111,7 @@ pub fn unreliable_host_use_case() -> MeasureCorpusUseCaseImpl {
                 kernel: ryo_benchmark_contracts::domain::hosts::types::HostKernel::Microsoft,
                 isolation: ryo_benchmark_contracts::domain::hosts::types::HostIsolation::Bare,
             },
+            ..crate::outbound::host::fixtures::fake::HostFake::default()
         }),
     )
 }

@@ -7,6 +7,7 @@ pub mod certification_probe;
 pub mod certified_measurement;
 pub mod discrepancy_attachment;
 pub mod discrepancy_validation;
+pub mod growth;
 pub mod input_metadata;
 pub mod inventory_verification;
 pub mod measurement;

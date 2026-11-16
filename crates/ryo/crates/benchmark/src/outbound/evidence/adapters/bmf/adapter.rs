@@ -20,6 +20,24 @@ impl EvidenceBmfAdapter {
         Self { connection }
     }
 }
+impl EvidenceBmfAdapter {
+    /// Add measures to the document not yet written.
+    fn add(
+        &self,
+        adding: impl FnOnce(&mut super::types::Document) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let mut held = self
+            .connection
+            .document
+            .lock()
+            .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
+        adding(
+            held.as_mut()
+                .ok_or_else(|| Error::Invalid(constants::FINISHED.into()))?,
+        )
+    }
+}
+
 impl EvidencePort for EvidenceBmfAdapter {
     fn publish(&self, publication: &MeasuredPublication<'_>) -> Result<(), Error> {
         let bytes = schemas::encode(publication)?;
@@ -51,15 +69,43 @@ impl EvidencePort for EvidenceBmfAdapter {
         output.flush()?;
         Ok(())
     }
+    fn costs(
+        &self,
+        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        costs: &crate::domain::measurements::types::project_cost::value::ProjectCosts,
+    ) -> Result<(), Error> {
+        self.add(|document| super::document::costs(document, language, costs))
+    }
     fn verification(
         &self,
-        linter: &ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName,
-        timings: &std::collections::BTreeMap<
-            ryo::linter::RuleId,
-            crate::outbound::evidence::types::RuleTiming,
-        >,
+        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        timings: &crate::outbound::evidence::types::RuleTimings,
     ) -> Result<(), Error> {
-        let bytes = super::verification::encode(linter, timings)?;
+        self.add(|document| super::document::verification(document, language, timings))
+    }
+    fn growth(
+        &self,
+        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        growth: &crate::domain::growth::types::ShapeGrowths,
+    ) -> Result<(), Error> {
+        self.add(|document| super::document::growth(document, language, growth))
+    }
+    fn read_verification(
+        &self,
+        files: &crate::outbound::evidence::types::VerificationTimesFiles,
+    ) -> Result<crate::outbound::evidence::types::RuleTimings, Error> {
+        super::document::read_verification(files)
+    }
+    fn finish(&self) -> Result<(), Error> {
+        let mut held = self
+            .connection
+            .document
+            .lock()
+            .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
+        let bytes = super::document::encode(
+            held.as_ref()
+                .ok_or_else(|| Error::Invalid(constants::FINISHED.into()))?,
+        )?;
         let mut output = self
             .connection
             .output
@@ -68,6 +114,7 @@ impl EvidencePort for EvidenceBmfAdapter {
         output.write_all(&bytes)?;
         output.write_all(constants::NEWLINE)?;
         output.flush()?;
+        *held = None;
         Ok(())
     }
     fn parity(

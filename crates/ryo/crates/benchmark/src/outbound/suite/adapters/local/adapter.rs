@@ -182,6 +182,32 @@ impl SuitePort for SuiteLocalAdapter {
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         digest(path)
     }
+    fn directory_size(
+        &self,
+        ArtifactPath(directory): ArtifactPath<'_>,
+    ) -> Result<crate::domain::measurements::types::project_cost::value::StoreSize, Error> {
+        use crate::domain::measurements::types::project_cost::value::{
+            StoreBytes, StoreFiles, StoreSize,
+        };
+        let (mut bytes, mut files) = (0_u64, 0_u64);
+        let mut pending = vec![directory.to_path_buf()];
+        while let Some(next) = pending.pop() {
+            for entry in std::fs::read_dir(&next)? {
+                let entry = entry?;
+                let kind = entry.file_type()?;
+                if kind.is_dir() {
+                    pending.push(entry.path());
+                } else if kind.is_file() {
+                    bytes = bytes.saturating_add(entry.metadata()?.len());
+                    files = files.saturating_add(1);
+                }
+            }
+        }
+        Ok(StoreSize {
+            bytes: StoreBytes(bytes),
+            files: StoreFiles(files),
+        })
+    }
     fn settings_directory(
         &self,
         ArtifactPath(bench): ArtifactPath<'_>,

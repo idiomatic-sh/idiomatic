@@ -93,7 +93,15 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
                 })?,
             ))?;
         let (count, timings) = verified;
-        self.evidence.verification(&tool.tool, &timings)?;
+        // The times file of a verification names the tool it verified against: the bench reads it back by rule, and its own
+        // document names the language.
+        if !timings.is_empty() {
+            self.evidence.verification(
+                &tool.tool.0.as_str().into(),
+                &crate::outbound::evidence::types::RuleTimings(timings),
+            )?;
+            self.evidence.finish()?;
+        }
         Ok(count)
     }
 }

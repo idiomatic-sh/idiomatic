@@ -45,6 +45,7 @@ pub fn use_case() -> CompareCorpusUseCaseImpl {
                 kernel: HostKernel::Microsoft,
                 isolation: HostIsolation::Bare,
             },
+            ..HostFake::default()
         }),
     )
 }

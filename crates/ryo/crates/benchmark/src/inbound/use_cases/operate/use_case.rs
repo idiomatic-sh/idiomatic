@@ -1,5 +1,4 @@
 //! The `operate` use case: the struct holding only the ports it calls.
-use super::constants::SHARDS_ONLY_VERIFY_INVENTORY;
 use super::interface::OperateUseCase;
 use super::types::{OperationReport, OperationRequest, OperationVerdict};
 use crate::application::inventory_verification::service as inventory_verification;
@@ -19,6 +18,7 @@ use crate::outbound::{
     suite::{interface::SuitePort, types::ArtifactPath},
 };
 use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+use ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::{
     RegisteredCoverage, case_shard::value::ShardCount,
@@ -37,8 +37,10 @@ pub struct OperateUseCaseImpl {
     receipts: Arc<dyn ReceiptsPort>,
     /// The bounded process launch of the correctness operation.
     execution: Arc<dyn ExecutionPort>,
-    /// Runs the correctness operation's shards.
+    /// Runs the verification's rules.
     scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
+    /// The processors the bench may run on: a bench is measured on four.
+    host: Arc<dyn crate::outbound::host::interface::HostPort>,
 }
 
 impl OperateUseCaseImpl {
@@ -51,6 +53,7 @@ impl OperateUseCaseImpl {
         receipts: Arc<dyn ReceiptsPort>,
         execution: Arc<dyn ExecutionPort>,
         scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
+        host: Arc<dyn crate::outbound::host::interface::HostPort>,
     ) -> Self {
         Self {
             executables,
@@ -59,6 +62,7 @@ impl OperateUseCaseImpl {
             receipts,
             execution,
             scheduler,
+            host,
         }
     }
 }
@@ -69,8 +73,12 @@ impl OperateUseCase for OperateUseCaseImpl {
         request: &OperationRequest,
         output: &mut dyn std::io::Write,
     ) -> Result<OperationReport, Error> {
-        if request.operation != BenchOperation::Correctness && request.shards != ShardCount(1) {
-            return Err(Error::Invalid(SHARDS_ONLY_VERIFY_INVENTORY.into()));
+        // Every timed measure is taken on four processors; a run the bench tool's `taskset` did not pin is refused first.
+        let processors = self.host.processors().0.get();
+        if processors != MEASURED_WORKERS {
+            return Err(Error::Invalid(format!(
+                "a bench runs on {MEASURED_WORKERS} processors; this process may run on {processors}"
+            )));
         }
         let layout = layout(
             &self.executables.target()?,
@@ -87,64 +95,42 @@ impl OperateUseCase for OperateUseCaseImpl {
             &BenchPackage(request.bench.0.clone()),
             &layout.root.join(WORKER),
         )?;
-        let answer = match request.operation {
-            BenchOperation::Correctness => {
-                // The whole bench first, as certify does: a rule directory that is neither a default nor a supporting
-                // rule, or a query that does not read, is refused before any rule is registered.
-                let _audit = crate::application::suite_auditing::service::audit(
-                    self.suite.as_ref(),
-                    &request.bench.0,
-                    &profile,
-                )?;
-                let registration = register(
-                    self.suite.as_ref(),
-                    self.inventory.as_ref(),
-                    &request.bench.0,
-                    &reference,
-                    &worker,
-                    &layout.root,
-                )?;
-                match inventory_verification::verify(
-                    &self.inventory.load(&registration)?,
-                    &layout.root.join(INVENTORY),
-                    self.suite.as_ref(),
-                    self.receipts.as_ref(),
-                    self.execution.as_ref(),
-                    self.inventory.as_ref(),
-                    &RegisteredCoverage::Full,
-                    self.scheduler.as_ref(),
-                    request.shards,
-                )? {
-                    InventoryVerdict::Passed => OperationVerdict::Passed,
-                    InventoryVerdict::Failed => OperationVerdict::Failed,
-                }
-            }
-            BenchOperation::Measure => {
-                let _collector = self
-                    .executables
-                    .seal_current(&layout.root.join(COLLECTOR))?;
-                let _registration = register(
-                    self.suite.as_ref(),
-                    self.inventory.as_ref(),
-                    &request.bench.0,
-                    &reference,
-                    &worker,
-                    &layout.root,
-                )?;
-                OperationVerdict::from(self.executables.run_sealed(
-                    &worker.path,
-                    &RunArguments(worker_arguments(
-                        BenchOperation::Measure,
-                        &layout,
-                        &reference.path,
-                    )),
-                    output,
-                )?)
-            }
-            BenchOperation::Parity => OperationVerdict::from(self.executables.run_sealed(
+        let _collector = self
+            .executables
+            .seal_current(&layout.root.join(COLLECTOR))?;
+        // The whole bench first: a rule directory that is neither a default nor a supporting rule, or a query that does not
+        // read, is refused before any rule is registered.
+        let _audit = crate::application::suite_auditing::service::audit(
+            self.suite.as_ref(),
+            &request.bench.0,
+            &profile,
+        )?;
+        let registration = register(
+            self.suite.as_ref(),
+            self.inventory.as_ref(),
+            &request.bench.0,
+            &reference,
+            &worker,
+            &layout.root,
+        )?;
+        // Every default's cases once; a bench whose cases fail measures nothing.
+        let verified = inventory_verification::verify(
+            &self.inventory.load(&registration)?,
+            &layout.root.join(INVENTORY),
+            self.suite.as_ref(),
+            self.receipts.as_ref(),
+            self.execution.as_ref(),
+            self.inventory.as_ref(),
+            &RegisteredCoverage::Full,
+            self.scheduler.as_ref(),
+            ShardCount(1),
+        )?;
+        let answer = match verified {
+            InventoryVerdict::Failed => OperationVerdict::Failed,
+            InventoryVerdict::Passed => OperationVerdict::from(self.executables.run_sealed(
                 &worker.path,
                 &RunArguments(worker_arguments(
-                    BenchOperation::Parity,
+                    BenchOperation::Bench,
                     &layout,
                     &reference.path,
                 )),

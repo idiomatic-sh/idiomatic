@@ -5,4 +5,6 @@ use ryo_benchmark_contracts::domain::hosts::types::HostFacts;
 pub trait HostPort: Send + Sync {
     /// The kernel, container and file-permission family this process runs on.
     fn facts(&self) -> HostFacts;
+    /// How many processors this process may run on: a bench refuses any count but four.
+    fn processors(&self) -> super::types::ProcessorCount;
 }

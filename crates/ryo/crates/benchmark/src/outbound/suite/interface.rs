@@ -177,6 +177,14 @@ pub trait SuitePort: Send + Sync {
     /// # Errors
     /// Refuses a file that cannot be inspected.
     fn total_size(&self, files: ArtifactSet<'_>) -> Result<ArtifactSize, Error>;
+    /// The bytes and the count of every file below a directory, links not followed: the store a run left there.
+    ///
+    /// # Errors
+    /// Refuses a directory or an entry that cannot be inspected.
+    fn directory_size(
+        &self,
+        directory: ArtifactPath<'_>,
+    ) -> Result<crate::domain::measurements::types::project_cost::value::StoreSize, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     ///
     /// # Errors

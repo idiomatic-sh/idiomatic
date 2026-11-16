@@ -13,5 +13,6 @@ fn succeeds() {
             kernel: HostKernel::Native,
             isolation: HostIsolation::Bare,
         },
+        ..HostFake::default()
     });
 }

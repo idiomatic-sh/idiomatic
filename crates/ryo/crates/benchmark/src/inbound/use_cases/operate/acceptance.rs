@@ -1,6 +1,5 @@
-//! The operation's standard output is the worker's alone, and an absent reference tool is named.
+//! A bench's standard output is the worker's alone, a failed verification runs no corpus, and an absent reference tool is named.
 use cucumber::then;
-use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 
 use ryo_benchmark::domain::operations::types::BenchOperation;
 use ryo_benchmark::inbound::use_cases::operate::{
@@ -8,29 +7,49 @@ use ryo_benchmark::inbound::use_cases::operate::{
     types::OperationVerdict,
 };
 
-#[then("a parity operation writes exactly what its sealed worker wrote")]
-fn parity(world: &mut crate::Behavior) {
+/// A bench on four processors whose one default the profile defers, so its verification passes.
+const PASSING: Scenario = Scenario {
+    operation: BenchOperation::Bench,
+    tool_found: true,
+    verdict: OperationVerdict::Passed,
+    stray_rule: false,
+    deferred: true,
+    processors: 4,
+};
+
+#[then("a bench writes exactly what its sealed worker wrote")]
+fn bench(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
-    let observed = run(Scenario {
-        operation: BenchOperation::Parity,
-        tool_found: true,
-        verdict: OperationVerdict::Passed,
-        stray_rule: false,
-        shards: ShardCount(1),
-    });
+    let observed = run(PASSING);
     assert_eq!(observed.answer, Ok(OperationVerdict::Passed));
     assert_eq!(observed.stdout, b"{\"metric\":{}}\n");
+}
+
+#[then("a bench whose verification fails runs no corpus")]
+fn failed_inventory(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
+    let observed = run(Scenario {
+        deferred: false,
+        ..PASSING
+    });
+    assert_eq!(observed.answer, Ok(OperationVerdict::Failed));
+    assert!(observed.stdout.is_empty(), "no corpus ran");
+    assert!(
+        !observed.calls.iter().any(|call| matches!(
+            call,
+            ryo_benchmark::outbound::executables::fixtures::fake::ExecutablesCall::Run(..)
+        )),
+        "{:?}",
+        observed.calls
+    );
 }
 
 #[then("an operation without its reference tool is refused by the tool's name")]
 fn absent(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
     let observed = run(Scenario {
-        operation: BenchOperation::Measure,
         tool_found: false,
-        verdict: OperationVerdict::Passed,
-        stray_rule: false,
-        shards: ShardCount(1),
+        ..PASSING
     });
     assert!(
         observed

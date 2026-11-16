@@ -1,6 +1,5 @@
 //! What one operation is asked for and what it answers.
 use crate::domain::operations::types::{BenchDirectory, BenchOperation};
-use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 
 /// Whether an operation passed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,9 +17,6 @@ pub struct OperationRequest {
     pub operation: BenchOperation,
     /// The bench it runs on.
     pub bench: BenchDirectory,
-    /// How many shards the correctness operation verifies the inventory in at once; one verifies it serially, and every
-    /// other operation takes one.
-    pub shards: ShardCount,
 }
 
 /// What an operation answers.
