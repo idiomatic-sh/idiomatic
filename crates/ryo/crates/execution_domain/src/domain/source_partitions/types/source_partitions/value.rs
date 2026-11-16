@@ -112,7 +112,7 @@ impl SourcePartitions {
 }
 impl ProducerPartitions for SourcePartitions {
     fn hosted(&self, rule: RuleIndex, relation: HostedNumber) -> Declaration {
-        self.rule(rule)?;
+        let _: &RulePartitions = self.rule(rule)?;
         if usize::try_from(relation.0).is_ok_and(|number| number < self.hosted.0) {
             Ok(PartitionRequirement::RequestInvariant)
         } else {

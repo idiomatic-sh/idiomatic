@@ -58,7 +58,7 @@ impl FileAnalysis {
     ) -> Result<(), FileAnalysisError> {
         let setting = &visit.setting;
         worker.tables.bytes.0.clear();
-        prepare(&mut worker.tables);
+        let _: ryo_values::domain::stored_facts::types::ArenaBase = prepare(&mut worker.tables);
         clear_symbols(&mut worker.tables.symbols);
         worker.tables.language = None;
         worker.facts.release()?;

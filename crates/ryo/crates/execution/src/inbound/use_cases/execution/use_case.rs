@@ -7,7 +7,7 @@ use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
 use ryo_values::domain::files::types::CorpusInput;
 
 /// Begins request executions; every kernel and service comes with the prepared program.
-#[derive(Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct ExecutionUseCaseImpl;
 
 impl ExecutionUseCaseImpl {

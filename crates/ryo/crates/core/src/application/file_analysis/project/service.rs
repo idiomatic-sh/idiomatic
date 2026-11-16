@@ -37,7 +37,6 @@ impl FileAnalysis {
         Vec<ryo_language::inbound::use_cases::project::types::ManifestFile>,
         FileAnalysisError,
     > {
-        use crate::outbound::language::types::ManifestReading;
         use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
         use ryo_values::domain::files::types::InputReadFailure;
         let mut manifests = Vec::new();

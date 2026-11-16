@@ -91,6 +91,7 @@ pub trait ExecutionUseCase {
 }
 
 /// The observer a request execution tells of the engine's work, when the caller asks for one.
+#[derive(Debug)]
 pub enum Observing<O: ?Sized> {
     /// Tell this observer.
     Observer(std::sync::Arc<O>),

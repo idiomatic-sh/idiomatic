@@ -2,7 +2,7 @@
 //! source repository, so a version another workspace pins is read there too; production workspaces stay untouched.
 use sha2::{Digest as _, Sha256};
 use std::{
-    io,
+    io::{self, Write as _},
     path::{Path, PathBuf},
 };
 
@@ -47,12 +47,13 @@ pub(crate) fn copy_locks(scratch: &Path) -> io::Result<()> {
 }
 
 /// Change only the canonical top-level tool pin, refusing unfamiliar fixture shapes.
-fn rewritten(source: &str, version: &str) -> Result<(String, String), &'static str> {
-    let manifest: toml::Table = toml::from_str(source).map_err(|_| "invalid benchmark manifest")?;
+fn rewritten(source: &str, version: &str) -> Result<(String, String), String> {
+    let manifest: toml::Table =
+        toml::from_str(source).map_err(|error| format!("invalid benchmark manifest: {error}"))?;
     let original = manifest
         .get("tastemaker")
         .and_then(toml::Value::as_str)
-        .ok_or("benchmark fixture needs an explicit tool pin")?;
+        .ok_or_else(|| "benchmark fixture needs an explicit tool pin".to_owned())?;
     let needle = format!("tastemaker = {original:?}");
     let mut occurrences = source.match_indices(&needle).filter(|(start, _)| {
         let end = start + needle.len();
@@ -61,9 +62,9 @@ fn rewritten(source: &str, version: &str) -> Result<(String, String), &'static s
     });
     let (start, _) = occurrences
         .next()
-        .ok_or("unsupported benchmark tool-pin spelling")?;
+        .ok_or_else(|| "unsupported benchmark tool-pin spelling".to_owned())?;
     if occurrences.next().is_some() {
-        return Err("ambiguous benchmark tool pin");
+        return Err("ambiguous benchmark tool pin".to_owned());
     }
     let mut effective = source.to_owned();
     effective.replace_range(
@@ -88,7 +89,8 @@ pub(crate) fn normalize(root: &Path) -> io::Result<()> {
         .and_then(Path::parent)
         .ok_or_else(|| io::Error::other("the fixture is not at <scratch>/crates/ryo"))?;
     copy_locks(scratch)?;
-    eprintln!(
+    writeln!(
+        io::stderr(),
         "BENCH_FIXTURE_VERSION {}",
         serde_json::json!({
             "policy": "scratch-tool-pin-only/v2", "path": path,
@@ -96,12 +98,12 @@ pub(crate) fn normalize(root: &Path) -> io::Result<()> {
             "original_sha256": format!("{:x}", Sha256::digest(source.as_bytes())),
             "effective_sha256": format!("{:x}", Sha256::digest(effective.as_bytes())),
         })
-    );
+    )?;
     Ok(())
 }
 
 #[test]
-fn only_the_top_level_pin_changes() -> Result<(), &'static str> {
+fn only_the_top_level_pin_changes() -> Result<(), String> {
     let source = "# fixture\ntastemaker = \"0.1.0\"\nworkspace = { name = \"ryo\" }\n[params]\nversion = \"0.1.0\"\n";
     let (original, effective) = rewritten(source, "0.1.1")?;
     assert_eq!(original, "0.1.0");

@@ -48,7 +48,7 @@ fn phases_succeeds_without_worker_entries_or_foreign_creator_spans() {
     log.create(1, "run", own);
     log.enter(1, worker, time(5));
     log.exit(1, worker, time(6));
-    assert!(log.done.is_empty());
+    assert_eq!(log.done, Vec::<Phase>::new());
     log.enter(1, own, time(10));
     log.exit(1, own, time(30));
     assert_eq!(log.done.len(), 1);
@@ -81,10 +81,10 @@ fn phases_refuses_incomplete_and_out_of_order_diagnostic_sequences() {
     log.create(1, "run", own);
     log.exit(1, own, time(2));
     log.enter(1, own, time(3));
-    assert!(log.done.is_empty());
+    assert_eq!(log.done, Vec::<Phase>::new());
     log.close(1);
     log.exit(1, own, time(4));
-    assert!(log.done.is_empty());
+    assert_eq!(log.done, Vec::<Phase>::new());
 }
 
 /// A phase a panic unwinds through is still reported, and the caller's panic is the one it sees.

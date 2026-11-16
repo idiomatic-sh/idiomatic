@@ -26,6 +26,7 @@ pub trait ProgramRequestExecutionPort {
         &'a self,
         arenas: &'a mut crate::application::file_dag::program::request_execution::types::ObservationArenas,
     ) -> Result<ObservationStage<'a>, OperatingError>;
+    /// Ends the request's execution, releasing what it holds.
     fn finish(self)
     where
         Self: Sized;

@@ -16,6 +16,7 @@ use crate::domain::{
 use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
 
+/// The run metadata of each plan, in the plans' order.
 #[must_use]
 pub fn from_plans<P: std::borrow::Borrow<Plan>>(plans: &[P]) -> Vec<RuleRunMetadata> {
     plans.iter().map(|plan| from_plan(plan.borrow())).collect()

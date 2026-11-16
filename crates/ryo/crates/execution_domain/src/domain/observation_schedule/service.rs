@@ -64,7 +64,7 @@ pub fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, RuleIntentError> {
                                 rule: id.0.to_string(),
                             });
                         }
-                        needs[consumer].insert(producer);
+                        let _: bool = needs[consumer].insert(producer);
                     }
                     ObservationProducer::NoQuery { rule: id } if index.contains_key(id) => {
                         return Err(RuleIntentError::ExecutableNoQuery {

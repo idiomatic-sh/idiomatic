@@ -1,6 +1,48 @@
 //! Built CLI import policy distinguishes restricted visibility from actual dependencies.
 use crate::fixes::{FOUND, tm};
 
+/// The cases, each as its name, the module it writes, the text of the module and how many findings the guard makes.
+const CASES: [(&str, &str, &str, usize); 8] = [
+    (
+        "owner visibility",
+        "inner",
+        "pub(in crate::owner) struct Item;",
+        0,
+    ),
+    ("ancestor visibility", "inner", "pub(super) struct Item;", 0),
+    ("self visibility", "inner", "pub(in self) struct Item;", 0),
+    (
+        "same-path import",
+        "inner",
+        "pub(in crate::owner) struct Item;\nuse crate::owner::Owner;",
+        1,
+    ),
+    (
+        "same-path type",
+        "inner",
+        "pub(in crate::owner) struct Item;\npub struct Holder(pub crate::owner::Owner);",
+        1,
+    ),
+    (
+        "same-path call",
+        "inner",
+        "pub(in crate::owner) struct Item;\nfn run() { crate::owner::work(); }",
+        1,
+    ),
+    (
+        "renamed import",
+        "inner",
+        "pub(in crate::owner) struct Item;\nuse crate::owner::Owner as Alias;",
+        1,
+    ),
+    (
+        "new-module call",
+        "extra",
+        "pub(in crate::owner) struct Item;\nfn run() { crate::owner::work(); }",
+        1,
+    ),
+];
+
 #[test]
 fn visibility_scopes_do_not_authorize_real_imports_types_or_calls() {
     let scratch = tempfile::tempdir().unwrap();
@@ -57,46 +99,7 @@ fn visibility_scopes_do_not_authorize_real_imports_types_or_calls() {
         String::from_utf8_lossy(&proof.stderr)
     );
     let mut failures = Vec::new();
-    for (name, module, text, expected) in [
-        (
-            "owner visibility",
-            "inner",
-            "pub(in crate::owner) struct Item;",
-            0,
-        ),
-        ("ancestor visibility", "inner", "pub(super) struct Item;", 0),
-        ("self visibility", "inner", "pub(in self) struct Item;", 0),
-        (
-            "same-path import",
-            "inner",
-            "pub(in crate::owner) struct Item;\nuse crate::owner::Owner;",
-            1,
-        ),
-        (
-            "same-path type",
-            "inner",
-            "pub(in crate::owner) struct Item;\npub struct Holder(pub crate::owner::Owner);",
-            1,
-        ),
-        (
-            "same-path call",
-            "inner",
-            "pub(in crate::owner) struct Item;\nfn run() { crate::owner::work(); }",
-            1,
-        ),
-        (
-            "renamed import",
-            "inner",
-            "pub(in crate::owner) struct Item;\nuse crate::owner::Owner as Alias;",
-            1,
-        ),
-        (
-            "new-module call",
-            "extra",
-            "pub(in crate::owner) struct Item;\nfn run() { crate::owner::work(); }",
-            1,
-        ),
-    ] {
+    for (name, module, text, expected) in CASES {
         std::fs::write(
             project.join("src/owner.rs"),
             format!("pub mod {module}; pub struct Owner; pub fn work() {{}}"),
@@ -117,7 +120,7 @@ fn visibility_scopes_do_not_authorize_real_imports_types_or_calls() {
             || findings
                 .iter()
                 .any(|finding| finding["rule"] != "p/guard#imports")
-            || output.status.code() != Some(if expected == 0 { 0 } else { FOUND })
+            || output.status.code() != Some(if expected == 0 { 0_i32 } else { FOUND })
         {
             failures.push(format!(
                 "{name}: status {:?}, findings {findings:?}",

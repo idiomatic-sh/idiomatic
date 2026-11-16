@@ -7,13 +7,13 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, RepeatedRow
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct JoinShape<'a> {
     /// The left key columns.
-    pub left_on: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
+    pub left_on: &'a [ColumnIndex],
     /// The right key columns.
-    pub right_on: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
+    pub right_on: &'a [ColumnIndex],
     /// The output columns.
-    pub output: &'a [ryo_values::domain::plan_parts::types::JoinColumn],
+    pub output: &'a [JoinColumn],
     /// The logical-to-physical right column remapping.
-    pub view: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
+    pub view: &'a [ColumnIndex],
     /// The reachability lookup of a join over a closure.
     pub reach: Option<&'a ryo_values::domain::plan_parts::types::ReachLookup>,
 }

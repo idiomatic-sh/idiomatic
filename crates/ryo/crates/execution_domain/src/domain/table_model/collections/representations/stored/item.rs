@@ -37,7 +37,9 @@ impl RepresentationsItem for StoredItem {
         })
     }
     fn inspect(&self, contract: &RelationContract<'_>) -> Result<PhysicalShape, OperatingError> {
-        contract.metadata.as_ref().map_err(Clone::clone)?;
+        if let Err(refusal) = contract.metadata.as_ref() {
+            return Err(refusal.clone());
+        }
         let RepresentationInput::Stored(view) = contract.input else {
             return Err(OperatingError::WrongOperation);
         };

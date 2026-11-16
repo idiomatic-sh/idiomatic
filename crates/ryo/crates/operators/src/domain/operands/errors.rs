@@ -2,7 +2,7 @@
 
 /// Why one side of a comparison could not be read for a row.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum OperandsError {
+pub(crate) enum OperandsError {
     /// A parameter the operand reads has no binding.
     #[error("unbound parameter")]
     Unbound,

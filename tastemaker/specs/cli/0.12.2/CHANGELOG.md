@@ -1,5 +1,15 @@
 # cli
 
+## 0.12.2
+
+`commands` renders `run(start, build) -> std::process::ExitCode` without `#[must_use]`: `ExitCode` is `#[must_use]` already, so the attribute on the function repeats it, and clippy's `double_must_use` reports the repeat. A command line that leaves it out passes (`rendered-template-passes`), and one that keeps it is more than the template and still passes (`run-needs-no-must-use`). `command()` keeps its `#[must_use]`: its return type, `clap::Command`, is not marked.
+
+Edited in place: none. The rest of the spec is 0.12.1.
+
+### Moving up from 0.12.1
+
+- Optional, and needed to pass clippy's `double_must_use`: delete the `#[must_use]` line above `pub fn run(start: &str, build: &str) -> std::process::ExitCode` in `src/resources.rs`.
+
 ## 0.12.1
 
 `factory-calls` leaves the generated `src/languages.rs` out: it is the one edge that links the language providers, built by `build.rs` from the directories of `languages/`, and hands the parts of each language to the language factory as a composition does. The scenario `languages-edge-names-the-factory` holds it; every other file of the command line's own that names a factory is still a finding (`infrastructure-calls-factory`). The `languages` template and the generated file are unchanged.

@@ -24,7 +24,10 @@ pub enum LintError {
     },
     /// A required observation publication could not be admitted during execution.
     #[error("observation execution failed: {reason}")]
-    ObservationExecution { reason: String },
+    ObservationExecution {
+        /// Why the publication could not be admitted.
+        reason: String,
+    },
     /// The explicitly declared named-output dependency contract is invalid.
     #[error("invalid observation bindings: {reason}")]
     ObservationBindings {

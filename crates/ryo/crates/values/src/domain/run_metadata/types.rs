@@ -6,7 +6,9 @@ use crate::domain::query_operators::types::OperationKind;
 /// The rows counted for a feature come from every input or one source position.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FeatureSource {
+    /// The rows counted for the feature come from every input of the step.
     AllInputs,
+    /// The rows counted for the feature come from the input at this position.
     Input(SourcePosition),
 }
 
@@ -17,15 +19,20 @@ pub struct SourcePosition(pub usize);
 /// One source-bound feature of an original logical step.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FeatureSlot {
+    /// What the step does.
     pub feature: Feature,
+    /// Which input rows the feature counts.
     pub source: FeatureSource,
 }
 
 /// Only identity and accounting facts remain; the executable operation lives in the program.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StepMetadata {
+    /// The kind of operation the step runs.
     pub operation: OperationKind,
+    /// Where the step runs: in each file or across files.
     pub scope: StepScope,
+    /// The features the step shows a run to exercise, with the inputs each reads.
     pub features: Box<[FeatureSlot]>,
 }
 
@@ -59,10 +66,13 @@ pub enum FrontierFeed {
 /// The small facts needed beyond the executable program, without a retained Plan.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuleRunMetadata {
+    /// Whether the rule reads what the project writes.
     pub reads_project: ProjectRead,
+    /// Whether the rule has steps that run across files.
     pub has_cross_steps: CrossFileSteps,
     /// A `CrossFile` slot is a cross-file observation input, never a per-file captured frontier.
     pub frontier_capture: Box<[FrontierFeed]>,
+    /// The facts of each step, in step order.
     pub steps: Box<[StepMetadata]>,
 }
 

@@ -2,6 +2,7 @@
 use crate::domain::operating::errors::OperatingError;
 
 /// The outcome of capturing one frontier input.
+#[derive(Debug)]
 pub struct FrontierCapture {
     /// The frontier input.
     pub input: ryo_values::domain::plan_parts::types::InputNumber,
@@ -9,6 +10,7 @@ pub struct FrontierCapture {
     pub outcome: Result<CapturedFrontier, OperatingError>,
 }
 /// A captured frontier: its input, bucket, proof and packed words.
+#[derive(Debug)]
 pub struct CapturedFrontier {
     /// The frontier input.
     pub input: ryo_values::domain::plan_parts::types::InputNumber,

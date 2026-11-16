@@ -178,8 +178,7 @@ fn holding() -> Result<Value, Failure> {
         .workspace_file(&crate::outbound::manifest::types::DefinitionText(
             workspace.0,
         ))
-        .ok()
-        .is_some_and(|read| matches!(read.role, crate::domain::definitions::types::Role::Root(_)));
+        .is_ok_and(|read| matches!(read.role, crate::domain::definitions::types::Role::Root(_)));
     Ok(usize::from(reads)
         * HOLDING_WRITES
             .iter()

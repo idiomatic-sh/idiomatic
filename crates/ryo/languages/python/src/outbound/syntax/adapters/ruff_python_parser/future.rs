@@ -18,19 +18,14 @@ use ryo::languages::{DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, TreeIm
 use std::collections::HashSet;
 
 struct FutureImports<'a> {
-    permitted: &'a HashSet<ruff_text_size::TextRange>,
+    permitted: &'a HashSet<TextRange>,
     enabled: FutureAnnotations,
     valid: FutureValidity,
     errors: &'a mut Vec<SemanticSyntaxDiagnostic>,
 }
 
 impl FutureImports<'_> {
-    fn report(
-        &mut self,
-        code: DiagnosticCode,
-        range: ruff_text_size::TextRange,
-        message: DiagnosticMessage,
-    ) {
+    fn report(&mut self, code: DiagnosticCode, range: TextRange, message: DiagnosticMessage) {
         self.valid = FutureValidity(false);
         self.errors.push(SemanticSyntaxDiagnostic {
             message,
@@ -68,7 +63,7 @@ impl<'a> Visitor<'a> for FutureImports<'_> {
             let known = import
                 .names
                 .iter()
-                .all(|alias| super::constants::FUTURE_FEATURES.contains(&alias.name.as_str()));
+                .all(|alias| FUTURE_FEATURES.contains(&alias.name.as_str()));
             self.valid.0 &= known;
             self.enabled.0 |= valid_position
                 && !import.is_lazy

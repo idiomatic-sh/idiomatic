@@ -1,6 +1,7 @@
 //! Borrowed capture contracts; no engine authority.
 /// Engine-owned symbol collection for one complete path-capture match.
 pub trait CaptureOutput {
+    /// Receives the ranges of the slots of one complete match, in slot order.
     fn captures(&mut self, ranges: CaptureSpans<'_>);
 }
 
@@ -13,6 +14,7 @@ pub struct SlotPattern<'a>(pub &'a str);
 pub struct SlotSubject<'a>(pub &'a str);
 
 /// The engine-owned ranges of the slots matched so far.
+#[derive(Debug)]
 pub struct CaptureSlots<'a>(pub &'a mut Vec<std::ops::Range<usize>>);
 
 /// How many slots a path pattern has: the columns a capture appends to each row.

@@ -39,7 +39,7 @@ pub(crate) fn compile_globs(globs: &[PathGlob<'_>]) -> Result<GlobSet, GlobRefus
                 glob: RefusedGlob(glob.0.to_owned()),
                 reason: CompilerReason(error.to_string()),
             })?;
-        builder.add(compiled);
+        let _: &mut GlobSetBuilder = builder.add(compiled);
     }
     builder.build().map_err(|error| GlobRefusal {
         glob: RefusedGlob(String::new()),

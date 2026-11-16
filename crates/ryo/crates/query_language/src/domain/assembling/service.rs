@@ -194,7 +194,7 @@ pub(crate) fn lower_with_observations(
                     name,
                     source: parts::Input::Step(*step),
                     columns,
-                    scope: crate::domain::resolving::service::step_of(&steps, *step).scope,
+                    scope: step_of(&steps, *step).scope,
                 }
             })
             .collect();

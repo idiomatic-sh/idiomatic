@@ -1,6 +1,5 @@
 //! The `build` use case: stateless; concrete construction belongs at a composition edge.
 use super::interface::BuildUseCase;
-use crate::domain::contract::types::derived_payload::value::DerivedPayload;
 use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
 use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, Recycled};
 use crate::domain::fault::types::DerivedFault;

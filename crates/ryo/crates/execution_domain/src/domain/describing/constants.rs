@@ -163,11 +163,7 @@ pub(crate) fn replace() -> OperatorDescription {
                 "Literal replacement text.",
                 Required,
             ),
-            field(
-                ryo_values::domain::descriptions::constants::OUTPUT,
-                "New output column.",
-                Required,
-            ),
+            field(OUTPUT, "New output column.", Required),
         ],
         &[],
         r#"let example = replace(from="function", text="name", pattern="_", replacement="-", output="label"); emit example subject file key(label);"#,
@@ -195,7 +191,7 @@ pub(crate) fn ordered_match() -> OperatorDescription {
             field("left-order", "Left numeric order.", Required),
             field("right-order", "Right numeric order.", Required),
             field(
-                ryo_values::domain::descriptions::constants::OUTPUT,
+                OUTPUT,
                 "Named columns with explicit input sources.",
                 Required,
             ),

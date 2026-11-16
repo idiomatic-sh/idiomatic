@@ -422,7 +422,7 @@ fn copied(
 fn put_made(
     out: &mut std::io::BufWriter<std::fs::File>,
     at: &mut FileOffset,
-    mut by_bucket: BTreeMap<Bucket, Vec<super::types::Frame<'_>>>,
+    mut by_bucket: BTreeMap<Bucket, Vec<Frame<'_>>>,
     old: Option<&OpenedStore>,
     old_contents: Option<&[BucketSpan]>,
     kept: &KeptRows,
@@ -447,7 +447,7 @@ fn put_made(
                     .binary_search_by_key(&row.file.0, |again| again.was.0)
                     && let Some(again) = kept.file_again.get(place)
                 {
-                    rows.push(super::types::Frame {
+                    rows.push(Frame {
                         file: again.now,
                         payload: row.payload,
                     });

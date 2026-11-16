@@ -1,14 +1,24 @@
 //! Borrowed source matches contracts; no engine authority.
 /// The engine lends exactly one checked source interval and its acquired matcher.
+#[derive(Debug)]
 pub struct SourceMatchesInput<'a> {
+    /// The row the matched source belongs to.
     pub row: &'a [ryo_relations::domain::relations::types::Value],
+    /// The checked source interval to search.
     pub source: LineBytes<'a>,
+    /// Where the interval sits in the source, as a byte offset.
     pub base: SourceBase,
+    /// The text the matcher runs over.
     pub text: ryo_values::domain::row_texts::types::CellText<'a>,
+    /// The line number of the first byte of the text.
     pub line: BaseLine,
+    /// The compiled expression to match.
     pub regex: &'a ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
+    /// Whether a named capture group is emitted along with each occurrence.
     pub capture: CaptureRequest<'a>,
+    /// Where the text of each capture goes.
     pub capture_text: ryo_values::domain::query_operators::types::TextOutput,
+    /// Where the line of each capture goes.
     pub capture_line: ryo_values::domain::query_operators::types::LineOutput,
 }
 
@@ -32,6 +42,7 @@ pub enum CaptureRequest<'a> {
 
 /// Engine-owned symbol storage and row delivery. No acquisition or publication API is exposed.
 pub trait TextRowDriver {
+    /// Interns the text as a symbol and returns the value that names it.
     fn intern(
         &mut self,
         text: ryo_values::domain::row_texts::types::CellText<'_>,

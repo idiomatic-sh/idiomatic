@@ -35,11 +35,7 @@ impl Project for ProjectContract {
         languages::primary_role_from_manifests(path, self.manifests().iter().copied())
     }
 
-    fn project_entries(
-        &self,
-        _request: &ProjectRequest,
-        _entries: &mut ryo::languages::ProjectEntries,
-    ) {
+    fn project_entries(&self, _request: &ProjectRequest, _entries: &mut languages::ProjectEntries) {
     }
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
@@ -69,7 +65,7 @@ impl Project for ProjectContract {
 
     fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
         // standard: the CSS Syntax Module Level 3, §3 Tokenizing and Parsing CSS: a stylesheet is parsed from its text alone and the standard defines no manifest.
-        languages::absent(languages::AbsenceCause::NoManifests)
+        languages::absent(AbsenceCause::NoManifests)
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
@@ -81,7 +77,7 @@ impl Project for ProjectContract {
         &self,
     ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         // standard: the CSS Syntax Module Level 3, §3 Tokenizing and Parsing CSS: a stylesheet is parsed from its text alone and the standard defines no manifest.
-        languages::absent(languages::AbsenceCause::NoManifests)
+        languages::absent(AbsenceCause::NoManifests)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

@@ -260,9 +260,12 @@ pub fn use_case_of(
     )
 }
 
+/// What proves a use case: the function that makes its package, then the one that makes the repository it is proven over.
+type Proven = (fn() -> PackagesFake, fn() -> RepositoryFake);
+
 /// `use_case_of` over the scheduler the caller picks: `proven` makes the package, then the repository it is proven over.
 fn scheduled_use_case(
-    proven: (fn() -> PackagesFake, fn() -> RepositoryFake),
+    proven: Proven,
     repository: RepositoryFake,
     analysis: AnalysisFake,
     store: &StoreFake,

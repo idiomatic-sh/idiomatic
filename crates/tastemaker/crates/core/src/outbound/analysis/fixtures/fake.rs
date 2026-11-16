@@ -77,6 +77,61 @@ fn listed(corpus: &Corpus, path: &str) -> bool {
     }
 }
 
+impl AnalysisFake {
+    /// The findings of the rows a test gave the fake, for each rule whose query holds the text they were given for.
+    fn row_findings(&self, request: &AnalysisRequest, report: &mut AnalysisReport) {
+        for rule in &request.rules {
+            for (text, rows) in &self.rows {
+                if !rule.query.0.contains(&**text) {
+                    continue;
+                }
+                for (path, key) in rows {
+                    if !listed(&request.corpus, path) {
+                        continue;
+                    }
+                    let file = crate::domain::paths::types::RepoPath(path.clone());
+                    // The row's span, `start..end` as the fixture writes it, then, for a comment, whether it documents and
+                    // its text: `start..end,doc,text`.
+                    let mut parts = key.splitn(3, ',');
+                    let span = parts.next().unwrap_or_default().split_once("..").and_then(
+                        |(start, end)| {
+                            Some(crate::domain::comments::types::ByteSpan {
+                                start: crate::domain::findings::types::ByteOffset(
+                                    start.parse().ok()?,
+                                ),
+                                end: crate::domain::findings::types::ByteOffset(end.parse().ok()?),
+                            })
+                        },
+                    );
+                    report.findings.push(LintAnswer {
+                        rule: rule.id.clone(),
+                        path: file.clone(),
+                        cells: [
+                            Some(AnswerCell {
+                                name: crate::domain::definitions::types::ColumnName("file".into()),
+                                value: CellValue::File(file),
+                            }),
+                            span.map(|span| AnswerCell {
+                                name: crate::domain::definitions::types::ColumnName("span".into()),
+                                value: CellValue::Span(span),
+                            }),
+                        ]
+                        .into_iter()
+                        .flatten()
+                        .chain(["doc", "text"].into_iter().zip(parts).map(|(name, said)| {
+                            AnswerCell {
+                                name: crate::domain::definitions::types::ColumnName(name.into()),
+                                value: CellValue::Text(CellText(said.into())),
+                            }
+                        }))
+                        .collect(),
+                    });
+                }
+            }
+        }
+    }
+}
+
 impl AnalysisPort for AnalysisFake {
     fn validate(&self, query: &QueryText) -> Result<QueryVerdict, AnalysisError> {
         if query.0.trim().is_empty() || self.invalid.iter().any(|text| query.0.contains(&**text)) {
@@ -131,73 +186,8 @@ impl AnalysisPort for AnalysisFake {
             });
         }
         let mut report = AnalysisReport::default();
-        for rule in request
-            .rules
-            .iter()
-            .filter(|rule| rule.query.0.contains(MODULE_SCOPE))
-        {
-            for glob in &rule.include {
-                report.findings.push(LintAnswer {
-                    rule: rule.id.clone(),
-                    path: crate::domain::paths::types::RepoPath(glob.0.clone()),
-                    cells: ["child", "parent"]
-                        .map(|name| AnswerCell {
-                            name: crate::domain::definitions::types::ColumnName(name.into()),
-                            value: CellValue::Text(CellText("0".into())),
-                        })
-                        .into(),
-                });
-            }
-        }
-        for rule in &request.rules {
-            for (text, rows) in &self.rows {
-                if !rule.query.0.contains(&**text) {
-                    continue;
-                }
-                for (path, key) in rows {
-                    if !listed(&request.corpus, path) {
-                        continue;
-                    }
-                    let file = crate::domain::paths::types::RepoPath(path.clone());
-                    // The row's span, `start..end` as the fixture writes it, then, for a comment, whether it documents and
-                    // its text: `start..end,doc,text`.
-                    let mut parts = key.splitn(3, ',');
-                    let span = parts.next().unwrap_or_default().split_once("..").and_then(
-                        |(start, end)| {
-                            Some(crate::domain::comments::types::ByteSpan {
-                                start: crate::domain::findings::types::ByteOffset(
-                                    start.parse().ok()?,
-                                ),
-                                end: crate::domain::findings::types::ByteOffset(end.parse().ok()?),
-                            })
-                        },
-                    );
-                    report.findings.push(LintAnswer {
-                        rule: rule.id.clone(),
-                        path: file.clone(),
-                        cells: [
-                            Some(AnswerCell {
-                                name: crate::domain::definitions::types::ColumnName("file".into()),
-                                value: CellValue::File(file),
-                            }),
-                            span.map(|span| AnswerCell {
-                                name: crate::domain::definitions::types::ColumnName("span".into()),
-                                value: CellValue::Span(span),
-                            }),
-                        ]
-                        .into_iter()
-                        .flatten()
-                        .chain(["doc", "text"].into_iter().zip(parts).map(|(name, said)| {
-                            AnswerCell {
-                                name: crate::domain::definitions::types::ColumnName(name.into()),
-                                value: CellValue::Text(CellText(said.into())),
-                            }
-                        }))
-                        .collect(),
-                    });
-                }
-            }
-        }
+        module_scope_findings(&request, &mut report);
+        self.row_findings(&request, &mut report);
         Ok(report)
     }
 
@@ -239,3 +229,25 @@ impl AnalysisPort for AnalysisFake {
 #[cfg(test)]
 #[path = "fake_test.rs"]
 mod tests;
+
+/// The findings of the rules that ask for the module scope: one for each glob a rule includes.
+fn module_scope_findings(request: &AnalysisRequest, report: &mut AnalysisReport) {
+    for rule in request
+        .rules
+        .iter()
+        .filter(|rule| rule.query.0.contains(MODULE_SCOPE))
+    {
+        for glob in &rule.include {
+            report.findings.push(LintAnswer {
+                rule: rule.id.clone(),
+                path: crate::domain::paths::types::RepoPath(glob.0.clone()),
+                cells: ["child", "parent"]
+                    .map(|name| AnswerCell {
+                        name: crate::domain::definitions::types::ColumnName(name.into()),
+                        value: CellValue::Text(CellText("0".into())),
+                    })
+                    .into(),
+            });
+        }
+    }
+}

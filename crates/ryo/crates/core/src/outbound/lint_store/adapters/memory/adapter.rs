@@ -66,7 +66,7 @@ impl ReadStore for MemoryRead {
 
     fn begin_old_rows(
         &self,
-        _wanted: &ryo_values::domain::stores::types::BucketsWanted,
+        _wanted: &BucketsWanted,
     ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError>
     {
         Ok(None)

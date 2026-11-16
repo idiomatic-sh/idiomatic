@@ -1,7 +1,7 @@
 //! The `rows` concept's failures.
 
 /// Why an operation on a table failed.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum RowsError {
     /// A step reads a column its table does not have.
     #[error("the table has no column {index}")]

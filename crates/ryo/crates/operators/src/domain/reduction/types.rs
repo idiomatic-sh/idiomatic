@@ -2,11 +2,17 @@
 /// All text is borrowed from engine-acquired backing, including authored literal lists.
 #[derive(Clone, Copy, Debug)]
 pub enum DigestDatum<'a> {
+    /// The value is not located in the row.
     Unlocated,
+    /// A text value.
     Text(ryo_values::domain::row_texts::types::CellText<'a>),
+    /// A whole number.
     Number(ryo_values::domain::plan_parts::types::WholeNumber),
+    /// A flag.
     Flag(ryo_values::domain::plan_parts::types::FlagState),
+    /// A list of whole numbers.
     Numbers(&'a [ryo_values::domain::plan_parts::types::WholeNumber]),
+    /// A list of literal texts.
     Texts(&'a [ryo_values::domain::plan_parts::types::LiteralText]),
 }
 
@@ -19,6 +25,7 @@ pub struct GroupDigest(pub i64);
 pub struct ValueHash(pub u64);
 
 /// The engine-owned scratch the distinct value hashes of one group are collected in.
+#[derive(Debug)]
 pub struct HashScratch<'a>(pub &'a mut Vec<u64>);
 
 /// The hashes of a group's values a worker keeps between groups, for a group digest.

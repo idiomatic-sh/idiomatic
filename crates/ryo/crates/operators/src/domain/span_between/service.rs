@@ -7,7 +7,7 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Return left.start through right.end, checking each present operand first.
-pub fn between(
+pub(crate) fn between(
     row: &[Value],
     start: ColumnIndex,
     end: ColumnIndex,

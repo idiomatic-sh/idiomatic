@@ -158,9 +158,11 @@ pub fn admit_compact(
     })
 }
 
+/// The column kinds of a compact table, in column order.
 pub fn compact_kinds(input: &CompactTable) -> &[ryo_relations::domain::relations::types::CellKind] {
     &input.kinds
 }
+/// How many rows a compact table holds.
 pub fn compact_rows(input: &CompactTable) -> RowCount {
     input.rows
 }
@@ -210,6 +212,10 @@ fn compact_values(
     }
     Some(())
 }
+/// Reads the whole row `row` into `scratch` and returns the filled prefix, one value per column.
+///
+/// Returns `None` when the row is past the table's last row, the table's words do not hold it, or `scratch` is shorter than the
+/// table's columns.
 pub fn compact_read<'a>(
     input: &CompactTable,
     row: RowIndex,
@@ -232,6 +238,9 @@ pub fn compact_read<'a>(
     )?;
     Some(&scratch[..input.kinds.len()])
 }
+/// Reads one cell of a compact table.
+///
+/// Returns `None` when the row or the column is outside the table or the table's words do not hold the row.
 pub fn compact_cell(input: &CompactTable, row: RowIndex, column: ColumnIndex) -> Option<Value> {
     let Ok(at) = usize::try_from(column.0) else {
         return None;
@@ -264,9 +273,11 @@ pub fn compact_rectangular(input: &CompactTable) -> TableShape {
         TableShape::Ragged
     }
 }
+/// A handle on the shared words a compact table reads from, so a holder keeps them alive without copying them.
 pub fn compact_backing(input: &CompactTable) -> CompactBacking {
     CompactBacking(std::sync::Arc::clone(&input.words))
 }
+/// Where the compact table's words and row offsets sit in memory and how long each is, to tell whether two tables share storage.
 pub fn compact_storage(input: &CompactTable) -> CompactStorage {
     CompactStorage {
         words: StoragePart {

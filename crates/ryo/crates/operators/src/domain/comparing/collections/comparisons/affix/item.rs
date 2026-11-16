@@ -7,6 +7,7 @@ use crate::domain::table_texts::types::Datum;
 use ryo_values::domain::plan_parts::types::Test;
 
 /// `affix`, one item of the `comparisons` collection.
+#[derive(Clone, Copy, Debug)]
 pub struct AffixItem;
 
 impl ComparisonsItem for AffixItem {

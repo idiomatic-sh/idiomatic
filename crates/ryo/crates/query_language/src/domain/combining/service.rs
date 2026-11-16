@@ -7,7 +7,6 @@ use crate::domain::resolving::service::{bad_argument, column_of, find_column, in
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_operators::types::QueryOperator;
 use ryo_values::domain::query_syntax::types as ast;
 use ryo_values::domain::query_tokens::types as tokens;

@@ -194,15 +194,15 @@ impl ProgramObservationStagePort for ObservationStage<'_> {
                             }
                         });
                     if let Err(error) = delivered {
-                        first_error.get_or_insert(error);
+                        let _: &mut E = first_error.get_or_insert(error);
                     }
                 }
                 if let Err(error) = self.publications.finish(*rule) {
-                    first_error.get_or_insert(E::from(error));
+                    let _: &mut E = first_error.get_or_insert(E::from(error));
                 }
             }
             if let Some(error) = refused {
-                first_error.get_or_insert(error);
+                let _: &mut E = first_error.get_or_insert(error);
             }
             if let Some(error) = first_error {
                 let _finished = self.finish_stage();

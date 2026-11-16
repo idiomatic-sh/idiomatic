@@ -207,9 +207,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
                     format!("explicit source provider `{}` is ambiguous", selected.0).into(),
                 ));
             }
-            if language
-                .project
-                .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+            if language.project.primary_role(SourcePath(&file.path.0))
                 == ryo_language::domain::files::types::PrimaryFileRole::Configuration
             {
                 return FileReading::Manifest;
@@ -243,9 +241,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
         failure.map_or_else(
             || {
                 if self.languages.iter().any(|language| {
-                    language
-                        .project
-                        .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+                    language.project.primary_role(SourcePath(&file.path.0))
                         == ryo_language::domain::files::types::PrimaryFileRole::Configuration
                 }) {
                     FileReading::Manifest

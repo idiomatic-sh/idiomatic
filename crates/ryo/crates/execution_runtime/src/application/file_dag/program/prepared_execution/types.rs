@@ -23,6 +23,12 @@ use std::sync::Arc;
 pub struct PreparedExecutionProgram {
     pub(crate) parts: ProgramParts,
 }
+impl std::fmt::Debug for PreparedExecutionProgram {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
 /// The members of a prepared program, reachable only inside the runtime.
 pub(crate) struct ProgramParts {
     pub(crate) inner:
@@ -40,7 +46,9 @@ pub(crate) struct ProgramParts {
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Demand {
+    /// The request wants the rule.
     Demanded,
+    /// The request does not want the rule.
     Undemanded,
 }
 /// Whether a rule declares or consumes named observations.
@@ -53,7 +61,9 @@ pub enum Demand {
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObservationContract {
+    /// The rule declares or binds an observation.
     Declared,
+    /// The rule neither declares nor binds an observation.
     Absent,
 }
 /// The readiness layout of the named observations and the frontiers that feed them.
@@ -72,8 +82,11 @@ pub enum ObservationContract {
 /// let named = NamedLayout { layout: ObservationReadinessLayout(Digest([0; 16])), frontiers: &frontiers };
 /// assert_eq!(named.frontiers.len(), 1);
 /// ```
+#[derive(Debug)]
 pub struct NamedLayout<'a> {
+    /// The layout of the readiness the named observations are recorded in.
     pub layout: ObservationReadinessLayout,
+    /// The frontier roots the observations are read from.
     pub frontiers: &'a [ObservedFrontierRoot],
 }
 /// The rules a changed selection reaches and the producer frontiers they read.
@@ -89,7 +102,9 @@ pub struct NamedLayout<'a> {
 /// ```
 #[derive(Debug, PartialEq)]
 pub struct ReplayClosure {
+    /// How much of the earlier run is reused.
     pub reuse: Reuse,
+    /// The frontier buckets the replay reads.
     pub buckets: Vec<Bucket>,
 }
 
@@ -133,6 +148,7 @@ pub struct RuleBatches<'a>(
 pub struct Demands(pub Vec<Demand>);
 
 /// The named layout of the program's observations, when it declares any.
+#[derive(Debug)]
 pub struct ObservationLayout<'a>(pub Option<NamedLayout<'a>>);
 
 /// The relations a rule's observation reads.

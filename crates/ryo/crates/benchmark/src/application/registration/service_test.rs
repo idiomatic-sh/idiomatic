@@ -187,7 +187,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed("deferred: control_flow")),
     },
     Case {
-        name: CaseName("a default with a definition is authored: registered as executable, its policy applying"),
+        name: CaseName(
+            "a default with a definition is authored: registered as executable, its policy applying",
+        ),
         word: Word::Succeeds,
         input: || Scenario::AuthoredDefault,
         expect: Expect::Value(Cow::Borrowed(

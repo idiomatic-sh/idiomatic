@@ -41,10 +41,10 @@ impl CorpusMemoryAdapter {
             }
             match project_entries.entry(entry.path) {
                 std::collections::btree_map::Entry::Vacant(slot) => {
-                    slot.insert(entry.state);
+                    let _: &mut ObservedEntryState = slot.insert(entry.state);
                 }
                 std::collections::btree_map::Entry::Occupied(mut slot) => {
-                    slot.insert(ObservedEntryState::Unknown);
+                    let _: ObservedEntryState = slot.insert(ObservedEntryState::Unknown);
                 }
             }
         }
@@ -72,7 +72,7 @@ fn parents_of(
         if path.is_empty() {
             break;
         }
-        into.insert(ryo_language::domain::files::types::FilePath(path.into()));
+        let _: bool = into.insert(ryo_language::domain::files::types::FilePath(path.into()));
         parent = path.rsplit_once('/').map(|(next, _)| next);
     }
 }

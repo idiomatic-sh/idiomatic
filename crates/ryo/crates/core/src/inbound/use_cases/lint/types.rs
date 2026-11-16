@@ -267,7 +267,7 @@ impl From<AdmissionError> for ProviderFault {
 /// What the stages after the reading share: the rules, the files and what the store kept.
 pub(super) struct LintRun<'a> {
     /// Required file applicability for both per-file and cross-file diagnostic Emit.
-    pub placed: &'a ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
+    pub placed: &'a PlacedScopes,
     /// The sole request-prepared executable program and its required application capabilities.
     pub program:
         Arc<ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram>,

@@ -178,7 +178,9 @@ pub struct OperatorContract {
     pub literal_pattern: Option<ryo_values::domain::plan_parts::types::LiteralText>,
     /// The predicate program bound to the operation.
     pub predicates: PreparedPredicates,
+    /// What the operation changes in symbolic state when it succeeds.
     pub effects: Effects,
+    /// How widely the operation's result may be shared.
     pub reuse: ReuseScope,
     /// Exact typed fields, not a hash-only or Debug-text key.
     pub identity: Operation,

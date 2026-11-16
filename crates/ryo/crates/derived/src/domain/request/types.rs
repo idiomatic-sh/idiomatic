@@ -2,10 +2,10 @@
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 macro_rules! kinds {
-    ($($kind:ident = $ordinal:literal),+ $(,)?) => {
+    ($($(#[$doc:meta])* $kind:ident = $ordinal:literal),+ $(,)?) => {
         /// Adding a kind changes the authoritative inventory and exhaustive dispatch.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-        pub enum DerivedKind { $($kind),+ }
+        pub enum DerivedKind { $($(#[$doc])* $kind),+ }
         impl DerivedKind {
             /// Every kind, in declaration order.
             pub const ALL: &'static [Self] = &[$(Self::$kind),+];
@@ -26,14 +26,23 @@ macro_rules! kinds {
     };
 }
 kinds!(
+    /// The hash-chain index of the keys of the rows.
     Equality = 0,
+    /// The compact adjacency over two endpoint columns.
     Adjacency = 1,
+    /// The members of a column.
     Membership = 2,
+    /// The typed partition order of the rows.
     PartitionOrder = 3,
+    /// The closure partition of an adjacency.
     ClosureAdjacency = 4,
+    /// The cycle graph of an adjacency.
     CycleAdjacency = 5,
+    /// The ordered matching of two sides.
     OrderedKeys = 6,
+    /// The prepared depth-first lookup.
     OrderedDfs = 7,
+    /// The native finding of a table.
     NativeLookup = 8,
 );
 

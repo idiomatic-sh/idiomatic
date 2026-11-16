@@ -35,11 +35,7 @@ impl Project for ProjectContract {
         languages::primary_role_from_manifests(path, self.manifests().iter().copied())
     }
 
-    fn project_entries(
-        &self,
-        _request: &ProjectRequest,
-        _entries: &mut ryo::languages::ProjectEntries,
-    ) {
+    fn project_entries(&self, _request: &ProjectRequest, _entries: &mut languages::ProjectEntries) {
     }
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
@@ -69,7 +65,7 @@ impl Project for ProjectContract {
 
     fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
         // standard: mdast.md and micromark-util-types.d.ts: neither defines a project manifest; a Markdown file is a document, not a package.
-        languages::absent(languages::AbsenceCause::NoManifests)
+        languages::absent(AbsenceCause::NoManifests)
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
@@ -80,7 +76,7 @@ impl Project for ProjectContract {
         &self,
     ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
         // standard: mdast.md and micromark-util-types.d.ts: neither defines a project manifest; a Markdown file is a document, not a package.
-        languages::absent(languages::AbsenceCause::NoManifests)
+        languages::absent(AbsenceCause::NoManifests)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

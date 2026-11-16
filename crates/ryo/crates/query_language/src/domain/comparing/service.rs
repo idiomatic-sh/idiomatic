@@ -15,8 +15,6 @@ use crate::domain::lowering::types::{
 use crate::domain::resolving::service::{column_of, find_parameter, parameter_of, position};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plan_parts::types::ComparisonOriginId;
-use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_syntax::types::{
     Alias, ColumnReference, Filter, WrittenApplied, WrittenFunction, WrittenOperand, WrittenTest,

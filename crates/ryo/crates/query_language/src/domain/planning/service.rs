@@ -4,7 +4,6 @@
 use ryo_relations::domain::catalog::service::scope_of as relation_scope;
 use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::lineage::service::anchor_of;
 use ryo_values::domain::lineage::types::ColumnAnchor;
 
@@ -15,7 +14,6 @@ use crate::domain::resolving::service::{column_of, relation_fields, step_of};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_tokens::types as tokens;
 
 /// The step the next one pushed onto `items` will be.

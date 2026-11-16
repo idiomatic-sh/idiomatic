@@ -173,8 +173,11 @@ impl<W> Default for HandedRows<W> {
 /// prepared rule and file identity before a warm row is read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredFrontierProof {
+    /// The stored file the proof belongs to.
     pub file: StoredFileNumber,
+    /// The frontier bucket the proof covers.
     pub bucket: Bucket,
+    /// The versioned provenance to validate before a warm row is read.
     pub proof: crate::domain::records::types::FrontierProof,
 }
 
@@ -315,7 +318,9 @@ impl<'a> From<&'a StoredCell> for Option<&'a Cell> {
 /// One existing stored file's named frontier readiness.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredFrontierReadiness {
+    /// The stored file the readiness belongs to.
     pub file: StoredFileNumber,
+    /// The readiness of the file's named frontier.
     pub root: std::sync::Arc<crate::domain::records::types::FrontierReadiness>,
 }
 
@@ -327,7 +332,7 @@ pub enum MadeAgain {
     /// Every one: what a file shows the project or every rule changed, or files were added or removed.
     All,
     /// These, by their place, in order: what the changed files hand them changed, and nothing else did.
-    These(Vec<crate::domain::row_texts::types::PlacedRule>),
+    These(Vec<PlacedRule>),
 }
 
 /// How much of what the last run kept a run uses again.

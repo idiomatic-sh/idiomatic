@@ -97,9 +97,10 @@ impl ProjectCompletion {
                 .map_err(|error| refuse(&error))?
                 .0
             {
-                let path = crossing.paths.get(index).ok_or_else(|| {
-                    refuse(&ryo_execution::inbound::use_cases::execution::interface::OperatingError::NotRun)
-                })?;
+                let path = crossing
+                    .paths
+                    .get(index)
+                    .ok_or_else(|| refuse(&OperatingError::NotRun))?;
                 // The file's own relation read in part already gives the rule's unknown there, with the relation and why.
                 if crossing.covered.iter().any(|each| {
                     usize::try_from(each.file.0) == Ok(index)

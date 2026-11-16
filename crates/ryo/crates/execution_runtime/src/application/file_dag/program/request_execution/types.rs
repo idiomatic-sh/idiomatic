@@ -17,6 +17,12 @@ pub struct RequestExecution {
     /// The program the file pass runs, planned when the program was prepared.
     pub(crate) pass: Arc<crate::application::file_dag::file_pass::types::PassProgram>,
 }
+impl std::fmt::Debug for RequestExecution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
 
 /// The arenas the cross-file observations publish their stored facts into, kept by the caller across requests.
 #[derive(Debug, Default)]

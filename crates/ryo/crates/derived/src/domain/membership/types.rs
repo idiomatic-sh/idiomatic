@@ -8,6 +8,7 @@ use ryo_relations::domain::relations::types::{FileId, Value};
 pub struct MarkCount(pub usize);
 
 /// The space the members of a column are marked in.
+#[derive(Debug)]
 pub enum MarkSpace<'a> {
     /// The member values themselves.
     Values,
@@ -32,7 +33,7 @@ pub(crate) enum DerivedMembership {
 }
 
 /// Immutable borrowed membership never lends an owned sub-allocation handle to a primitive.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum MembershipView<'a> {
     /// The member values.
     Values(&'a hashbrown::HashSet<Value>),

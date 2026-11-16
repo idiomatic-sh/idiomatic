@@ -8,7 +8,7 @@ use ryo_execution_domain::domain::{
 use ryo_relations::domain::relations::types::FileId;
 
 /// The file a proof names.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct FileGeneration {
     pub(super) file: FileId,
 }
@@ -21,7 +21,7 @@ pub(crate) struct FileGeneration {
 /// use ryo_execution_runtime::application::file_dag::program::admission::service::ApplicabilityProof;
 /// fn named(_: Option<&ApplicabilityProof>) {}
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ApplicabilityProof {
     pub(super) producer: RuleIndex,
     pub(super) file: FileGeneration,
