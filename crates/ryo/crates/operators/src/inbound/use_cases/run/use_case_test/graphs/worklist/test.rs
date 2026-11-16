@@ -1,7 +1,7 @@
 //! The worklist through `plan` and `run` only: the order an entity leaving the queue follows its edges, the queue it keeps,
 //! the state each pop reads, the row each followed edge writes, each partition and root run apart, and the lattice, order and
 //! fault-order refusals.
-use super::super::super::fixtures::worklists::{
+use super::super::super::super::fixtures::edges::{
     CALLS, CHAIN, Graph, first_faults, observed, passed, traced,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -47,61 +47,75 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_pop_follows_its_edges_in_ascending_order"),
         word: Word::Succeeds,
         input: || Scenario::Fan,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed(
+            "1:1>2#0 a=a 1:1>3#1 a=a 1:1>4#2 a=a 1:2>2#0 a=a 1:3>3#0 a=a 1:4>4#0 a=a",
+        ))),
     },
     Case {
         name: CaseName("a_destination_is_queued_once_for_each_change"),
         word: Word::Succeeds,
         input: || Scenario::QueuedPerChange,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed(
+            "1:1>2#0 never=never 1:1>5#1 never=never 1:2>6#0 never=once 1:2>4#1 never=once 1:5>6#0 never=mixed 1:6>6#0 mixed=mixed 1:4>5#0 once=multiple 1:4>6#1 once=multiple 1:6>6#0 multiple=multiple 1:5>6#0 multiple=multiple",
+        ))),
     },
     Case {
         name: CaseName("a_pop_reads_the_state_held_when_it_leaves_the_queue"),
         word: Word::Succeeds,
         input: || Scenario::RaisedBeforePop,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed(
+            "1:1>2#0 a=a 1:1>2#1 a=b 1:2>2#0 b=b",
+        ))),
     },
     Case {
         name: CaseName("a_join_that_changes_nothing_queues_nothing"),
         word: Word::Succeeds,
         input: || Scenario::CycleOfNoChange,
-        expect: Expect::Value(Observation::Rows(0)),
+        expect: Expect::Value(Observation::Rows(3)),
     },
     Case {
         name: CaseName("every_followed_edge_is_one_row_with_the_destinations_state_after_the_join"),
         word: Word::Succeeds,
         input: || Scenario::ObservedAndLatched,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed(
+            "1:1>1#0 b=b 1:1>2#1 b=a 1:2>1#0 a=b",
+        ))),
     },
     Case {
         name: CaseName("each_partition_and_root_runs_alone_from_the_least_state"),
         word: Word::Succeeds,
         input: || Scenario::PartitionsApart,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed(
+            "10/1:1>2#0 a=b 10/5:5>2#0 a=a 11/1:1>3#0 a=a",
+        ))),
     },
     Case {
         name: CaseName("a_root_given_two_states_starts_at_their_join"),
         word: Word::Succeeds,
         input: || Scenario::RootOfTwoStates,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed("1:1>1#0 mixed=mixed"))),
     },
     Case {
         name: CaseName("an_unchanged_destination_is_not_queued_again"),
         word: Word::Succeeds,
         input: || Scenario::UnchangedNotQueued,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed(
+            "1:1>2#0 a=a 1:1>3#1 a=a 1:2>4#0 a=u 1:3>4#0 a=b 1:3>2#1 a=a",
+        ))),
     },
     Case {
         name: CaseName("an_edge_is_followed_only_in_its_before_state"),
         word: Word::Succeeds,
         input: || Scenario::OtherBeforeState,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed("1:1>2#0 a=a"))),
     },
     Case {
         name: CaseName("rows_are_distinct_in_first_written_order"),
         word: Word::Succeeds,
         input: || Scenario::PoppedTwiceInOneState,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed(
+            "1:1>2#0 a=a 1:1>3#1 a=a 1:2>4#0 a=a 1:3>4#0 a=b 1:4>4#0 b=b",
+        ))),
     },
     Case {
         name: CaseName("lattice_rows_whose_order_has_a_cycle_are_refused"),
@@ -143,13 +157,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("one_order_in_two_before_states_is_accepted"),
         word: Word::Succeeds,
         input: || Scenario::OneOrderInTwoStates,
-        expect: Expect::Value(Observation::Trace(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Trace(Cow::Borrowed("1:1>2#0 a=b"))),
     },
     Case {
         name: CaseName("the_edges_fault_comes_before_the_lattices_and_the_roots"),
         word: Word::Succeeds,
         input: || Scenario::InputFaults,
-        expect: Expect::Value(Observation::Faults(Cow::Borrowed(""))),
+        expect: Expect::Value(Observation::Faults(Cow::Borrowed("edges lattice"))),
     },
 ];
 
@@ -338,7 +352,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CycleOfNoChange => {
             let trace = traced(&graph(scenario))?;
             Ok(Observation::Rows(
-                trace.split(' ').filter(|row| !row.is_empty()).count(),
+                trace.split(' ').filter(|cell| cell.contains('>')).count(),
             ))
         }
         other => traced(&graph(other)).map(|trace| Observation::Trace(trace.into())),

@@ -1,7 +1,7 @@
 //! Public canonical error/delivery parity and independent ordered-bag controls.
 use super::super::conformance::test::{compare_delivery, same_rows, settled};
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use OperationKind::{Join, Project, Select, SourceMatches, SpanBounds, Union};
+use OperationKind::{Join, Project, Select, SourceMatches, SpanBounds, Union, Worklist};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial, PartialPlace};
 use ryo_execution_domain::domain::operation_schema::{service::schema_of, types::InputShape};
 use ryo_execution_domain::domain::trust::{
@@ -116,14 +116,15 @@ const fn needs_of_function(relations: &'static [(Relation, bool, bool)]) -> Obse
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(stringify!(
-            select_join_and_union_keep_independent_ordered_bags
+            select_join_union_and_worklist_keep_independent_ordered_bags
         )),
         word: Word::Succeeds,
-        input: || (Boundary::Delivered, &[Select, Join, Union]),
+        input: || (Boundary::Delivered, &[Select, Join, Union, Worklist]),
         expect: Expect::Value(Cow::Borrowed(&[
             (Select, Observed::Delivered(3, Conformance::Conforms)),
             (Join, Observed::Delivered(3, Conformance::Conforms)),
             (Union, Observed::Delivered(3, Conformance::Conforms)),
+            (Worklist, Observed::Delivered(2, Conformance::Conforms)),
         ])),
     },
     Case {

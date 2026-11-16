@@ -48,7 +48,7 @@ pub(crate) struct WorklistParts {
 }
 
 /// A state of the declared lattice, by its place among the lattice's states in ascending cell order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct StatePlace(pub(crate) u32);
 
 /// The state an entity of the open run holds.
@@ -60,17 +60,49 @@ pub(crate) struct HeldState {
     pub(crate) state: StatePlace,
 }
 
-/// The work of a worklist, its capacity kept across nodes and files.
+/// Whether one state of a lattice is at or below another.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum StateOrder {
+    /// It is at or below it.
+    AtOrBelow,
+    /// It is not.
+    Unordered,
+}
+
+/// Which state of a lattice row a cell is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LatticeSide {
+    /// The lower state.
+    Lower,
+    /// The upper state.
+    Upper,
+}
+
+/// The place of a pair of states in a lattice's order table: the first's place times the states, plus the second's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct OrderPlace(pub(crate) usize);
+
+/// A worklist's declared lattice, tabled before any run: its states, the order between them, the least upper bound of every
+/// two, and the least state; its capacity kept across nodes and files.
 #[derive(Debug, Default)]
-pub(crate) struct WorklistScratch {
-    /// The lattice's states, ascending, each once, as canonical cells.
+pub(crate) struct LatticeTable {
+    /// The states, ascending, each once, as canonical cells.
     pub(crate) states: Vec<Value>,
     /// The cell each state is written as: the first lattice cell of its text, in `states`' order.
     pub(crate) named: Vec<Value>,
     /// Whether one state is at or below another, row-major by the first state's place.
-    pub(crate) below: Vec<bool>,
+    pub(crate) below: Vec<StateOrder>,
     /// The least upper bound of each pair of states, row-major by the first state's place.
     pub(crate) joins: Vec<StatePlace>,
+    /// The least state, which every entity holds before any join.
+    pub(crate) least: StatePlace,
+}
+
+/// The work of a worklist, its capacity kept across nodes and files.
+#[derive(Debug, Default)]
+pub(crate) struct WorklistScratch {
+    /// The lattice, tabled.
+    pub(crate) lattice: LatticeTable,
     /// The state each entity of the open run holds; an entity it holds none for holds the least state.
     pub(crate) held: hashbrown::HashTable<HeldState>,
     /// The entities waiting to leave the queue, first in first out, an entity once for each change of its state.

@@ -226,8 +226,8 @@ pub fn case_program() -> Vec<Step> {
     ]
 }
 
-/// The case program followed by one node of each text kind, each reading Defines, and a worklist: the program the catalogs of
-/// the served stages are checked over.
+/// The case program followed by one node of each text kind, each reading Defines: the program the catalogs of the served
+/// stages are checked over.
 #[must_use]
 pub fn text_program() -> Vec<Step> {
     use ryo_values::domain::plan_parts::types::{CapturePattern, ParameterId};
@@ -300,26 +300,6 @@ pub fn text_program() -> Vec<Step> {
             from: from(),
             span: ColumnIndex(6),
         }),
-        // Over the one row of node 12, a count: the root, its state, a self-edge in that state and the lattice's one state.
-        step(
-            Operation::Worklist {
-                from: node(12).0,
-                edges: node(12).0,
-                lattice: node(12).0,
-                root: ColumnIndex(0),
-                state: ColumnIndex(0),
-                source: ColumnIndex(0),
-                destination: ColumnIndex(0),
-                order: ColumnIndex(0),
-                before: ColumnIndex(0),
-                after: ColumnIndex(0),
-                lower: ColumnIndex(0),
-                upper: ColumnIndex(0),
-                root_keys: Vec::new(),
-                edge_keys: Vec::new(),
-            },
-            &[node(12).1, node(12).1, node(12).1],
-        ),
     ]);
     steps
 }

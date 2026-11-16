@@ -129,6 +129,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(0),
     },
     Case {
+        name: CaseName("worklist_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Worklist,
+        expect: Expect::Value(0),
+    },
+    Case {
         name: CaseName("rows_declares_its_driving_populations"),
         word: Word::Succeeds,
         input: || OperationKind::Rows,

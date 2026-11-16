@@ -51,8 +51,6 @@ pub(crate) mod streams;
 pub mod texts;
 pub mod trees;
 pub mod unshared;
-#[cfg(test)]
-pub(crate) mod worklists;
 use held::HeldInputs;
 
 /// The rows of relations, held as a worker's columns, lent to a run and counted per read.

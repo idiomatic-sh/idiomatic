@@ -29,7 +29,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_worklist_over_named_steps_lowers"),
         word: Word::Succeeds,
         input: || "let roots = select id as root, name as state, file from \"function\"; let lattice = select name as lower, name as upper from \"function\"; let trace = worklist(from=roots,root=root,state=state,edges=\"syntax-child\",source=parent,destination=child,order=ordinal,before=field,after=field,lattice=lattice,lower=lower,upper=upper,keys=[file],output=reached); emit trace subject root key(reached);",
-        expect: Expect::Value(0),
+        expect: Expect::Value(3),
     },
     Case {
         name: CaseName("matching_keys_of_different_kinds_are_refused"),

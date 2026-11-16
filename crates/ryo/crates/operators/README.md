@@ -135,3 +135,7 @@ Reads the cells of a file's tree rows from its elements, one cell at a time.
 ### words
 
 Splits resolved Unicode text into lowercase words using the original letter, digit, and case-boundary policy.
+
+### worklist
+
+Runs a first-in-first-out worklist over a declared lattice from each partition and root, and writes the destination's state for every edge each pop follows.

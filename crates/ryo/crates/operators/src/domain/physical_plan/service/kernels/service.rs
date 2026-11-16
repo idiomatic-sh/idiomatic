@@ -14,14 +14,14 @@ use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visi
 use crate::domain::physical_plan::collections::kernels::probe_right::item::{
     IndexBuild, ProbeScratch,
 };
+use crate::domain::physical_plan::collections::kernels::queued_walk::item::{
+    WorklistInputs, worklisted,
+};
 use crate::domain::physical_plan::collections::kernels::reach::item::{
     ReachScratch, Starts, reached,
 };
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, kinds_of, row_of,
-};
-use crate::domain::physical_plan::collections::kernels::worklist::item::{
-    WorklistInputs, worklisted,
 };
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;

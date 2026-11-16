@@ -1,6 +1,6 @@
-//! The `worklist` item's cases: which lowerings run the kernel, and how the kernel compares a text state: by the symbol its
+//! The `queued_walk` item's cases: which lowerings run the kernel, and how the kernel compares a text state: by the symbol its
 //! text interns to, so a symbol and a name of the same text are one state.
-use super::item::{WorklistInputs, WorklistItem, worklisted};
+use super::item::{QueuedWalkItem, WorklistInputs, worklisted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
@@ -73,7 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Answered::Runs(Reach::Skips)),
     },
     Case {
-        name: CaseName("only_a_worklist_lowering_runs_the_worklist_kernel"),
+        name: CaseName("only_a_worklist_lowering_runs_the_queued_walk_kernel"),
         word: Word::Succeeds,
         input: || {
             Given::Lowered(Lowering::Worklist {
@@ -89,7 +89,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_text_state_and_its_name_are_one_state"),
         word: Word::Succeeds,
         input: || Given::TextStateAndItsName,
-        expect: Expect::Value(Answered::Rows(0)),
+        expect: Expect::Value(Answered::Rows(1)),
     },
 ];
 
@@ -153,7 +153,7 @@ fn text_state_and_its_name() -> Result<Value, Failure> {
 /// Calls the part on one input; the author states it.
 fn subject(given: Input) -> Result<Value, Failure> {
     match given {
-        Given::Lowered(lowering) => Ok(Answered::Runs(WorklistItem.reached_by(&lowering))),
+        Given::Lowered(lowering) => Ok(Answered::Runs(QueuedWalkItem.reached_by(&lowering))),
         Given::TextStateAndItsName => text_state_and_its_name(),
     }
 }

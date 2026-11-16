@@ -9,8 +9,12 @@ use crate::domain::physical_plan::types::fact_rows::value::FactRows;
 use crate::domain::physical_plan::types::{InputRows, PlanInputs};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
+use crate::domain::table_texts::service::canonical_cell;
+use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::service::from_bits;
-use ryo_relations::domain::relations::types::{Bits, CellKind, ColumnsView, Relation, Value};
+use ryo_relations::domain::relations::types::{
+    Bits, CellKind, ColumnsView, Integer, Relation, Value,
+};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
 
@@ -159,28 +163,20 @@ pub(crate) fn row_of<'r>(
 )]
 pub(crate) fn canonical_cells<'c>(
     rows: InputRows<'_>,
-    columns: impl Iterator<Item = &'c ryo_values::domain::plan_parts::types::ColumnIndex> + Clone,
-    texts: &crate::domain::table_texts::types::Texts<'_>,
+    columns: impl Iterator<Item = &'c ColumnIndex> + Clone,
+    texts: &Texts<'_>,
     fresh: &mut Vec<Value>,
     into: &mut Vec<Value>,
-) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
+) -> Result<(), PortableOperatorFault> {
     let width = columns.clone().count();
     let count = count_of(rows).0;
     into.clear();
-    into.resize(
-        count * width,
-        Value::Number(ryo_relations::domain::relations::types::Integer(0)),
-    );
+    into.resize(count * width, Value::Number(Integer(0)));
     for at in (0..count).rev() {
         for (place, column) in columns.clone().enumerate() {
-            let value = cell_of(rows, ryo_values::domain::rows::types::RowIndex(at), *column)
-                .ok_or(
-                    crate::domain::contract::types::PortableOperatorFault::NoSuchColumn {
-                        index: *column,
-                    },
-                )?;
-            into[at * width + place] =
-                crate::domain::table_texts::service::canonical_cell(value, texts, fresh)?;
+            let value = cell_of(rows, RowIndex(at), *column)
+                .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })?;
+            into[at * width + place] = canonical_cell(value, texts, fresh)?;
         }
     }
     Ok(())

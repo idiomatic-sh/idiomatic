@@ -25,6 +25,7 @@ use ryo_values::domain::query_operators::types::OperationKind;
 pub mod expectations;
 pub mod inputs;
 pub mod values;
+pub mod worklist;
 use values::{DOMAIN, FROM, RIGHT, matrix, n, node, numbers, span, table, text};
 
 /// The authored rows, bindings and expected answer of one operation kind.
@@ -369,31 +370,7 @@ pub fn fixture(kind: OperationKind) -> Fixture {
                 vec![n(1), n(2), n(3), n(10), n(1)],
             ]),
         ),
-        // Root 1 holds state 0 and raises 2 to state 1; 2 records its pop through an edge to itself joining state 0.
-        OperationKind::Worklist => (
-            Operation::Worklist {
-                from: FROM,
-                edges: RIGHT,
-                lattice: DOMAIN,
-                root: ColumnIndex(0),
-                state: ColumnIndex(1),
-                source: ColumnIndex(0),
-                destination: ColumnIndex(1),
-                order: ColumnIndex(2),
-                before: ColumnIndex(3),
-                after: ColumnIndex(4),
-                lower: ColumnIndex(0),
-                upper: ColumnIndex(1),
-                root_keys: vec![],
-                edge_keys: vec![],
-            },
-            vec![
-                matrix(&[&[1, 0]]),
-                matrix(&[&[1, 2, 0, 0, 1], &[2, 2, 0, 1, 0]]),
-                matrix(&[&[0, 1]]),
-            ],
-            cells(vec![]),
-        ),
+        OperationKind::Worklist => worklist::fixture(),
     };
     Fixture {
         operation,

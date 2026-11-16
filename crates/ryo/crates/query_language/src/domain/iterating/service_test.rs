@@ -32,7 +32,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             state: "name",
             order: "ordinal",
         },
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: Expect::Value(Cow::Borrowed(
+            "1 steps, worklist: file:File id:Node parent:Node child:Node ordinal:Number field:Symbol reached:Symbol",
+        )),
     },
     Case {
         name: CaseName("a_state_column_of_another_kind_is_refused"),
