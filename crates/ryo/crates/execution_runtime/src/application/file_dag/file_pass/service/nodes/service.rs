@@ -1,8 +1,11 @@
 //! A rule's node in the open file: run by the operators, its rows answered with their coverage, and every node's rows
 //! released when the file ends.
 
+use crate::application::file_dag::file_pass::service::answering::service::{
+    held, ran_answering, ran_rows,
+};
 use crate::application::file_dag::file_pass::types::{
-    NodeAnswer, NodeReads, PassFile, PassProgram, PassResources,
+    NodeAnswer, NodeMove, NodeReads, PassFile, PassProgram, PassResources,
 };
 use crate::application::file_dag::frontiers::service::reason;
 use crate::application::file_dag::program::rule_outcome::service::classify;
@@ -12,10 +15,10 @@ use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::completion::types::RegionAdmission;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::service::refusals::service::layout;
 use ryo_execution_domain::domain::executable_program::service::{
-    consumers, layout, node_inputs, physical, rule as fused_rule,
+    consumers, physical, rule as fused_rule,
 };
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
@@ -25,7 +28,7 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use ryo_operators::domain::physical_plan::types::{NodeRows, PlanInputs, PlanNodeId, Resources};
+use ryo_operators::domain::physical_plan::types::{PlanInput, PlanInputs, PlanNodeId, Resources};
 use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::relations::service::kinds as relation_kinds;
 use ryo_relations::domain::relations::types::CellKind;
@@ -94,9 +97,9 @@ pub(crate) fn node_rows(
     }
     let pass_program = at.pass;
     ran_answering(&pass_program.program, node, &mut |each| {
-        ran_node(at, symbols, each)
+        file_step(at, symbols, each)
     })?;
-    let table = ran_rows(&at.buffers, node)?.clone();
+    let table = ran_rows(&pass_program.program, &at.buffers, node)?;
     // What no read of the step lacks, no operator on the way can lack.
     let coverage = match completion.coverage(&reads.uses) {
         CoverageState::Complete => CoverageState::Complete,
@@ -105,41 +108,6 @@ pub(crate) fn node_rows(
         }
     };
     Ok(NodeAnswer { table, coverage })
-}
-
-/// Runs `node` (through `run`, the pass's node step) as its answer needs: the node itself when it answers rows; for a node whose
-/// refusal is answered after its inputs, each node it reads, so a refusal of theirs comes first, and then its own refusal,
-/// without running its kernel. The one check of both passes, in each file and after the files.
-///
-/// # Errors
-///
-/// The first refusal of the node's inputs, then the node's own (`layout`); or what `run` answered.
-pub(crate) fn ran_answering(
-    program: &ExecutableProgram,
-    node: PlanNodeId,
-    run: &mut dyn FnMut(PlanNodeId) -> Result<(), OperatingError>,
-) -> Result<(), OperatingError> {
-    match layout(program, node) {
-        Ok(_) => run(node),
-        Err(refusal) => {
-            for input in node_inputs(program, node) {
-                ran_answering(program, *input, run)?;
-            }
-            Err(refusal)
-        }
-    }
-}
-
-/// The rows a node answered once [`ran_answering`] ran it.
-///
-/// # Errors
-///
-/// `NotRun` for a node that holds no rows.
-pub(crate) fn ran_rows(buffers: &FileBuffers, node: PlanNodeId) -> Result<&Table, OperatingError> {
-    match buffers.rows(node) {
-        NodeRows::Materialized(table) => Ok(table),
-        NodeRows::Absent => Err(OperatingError::NotRun),
-    }
 }
 
 /// What one step's rows lack, with their cell kinds and where they come from.
@@ -330,5 +298,33 @@ pub(crate) fn released(at: &mut PassFile<'_, '_, '_, '_>) {
     while consumers(&at.pass.program, node).is_ok() {
         at.buffers.release(node);
         node = PlanNodeId(node.0.saturating_add(1));
+    }
+}
+
+/// One move of [`ran_answering`] in the open file: a node run; a relation's facts admitted, a refused one stopping the file (the
+/// lookup keeps the refusal, which the file answers first); a frontier entry or a bound observation held, a withheld one
+/// answering why.
+pub(crate) fn file_step(
+    at: &mut PassFile<'_, '_, '_, '_>,
+    symbols: &mut Symbols,
+    step: NodeMove,
+) -> Result<(), OperatingError> {
+    match step {
+        NodeMove::Run(node) => ran_node(at, symbols, node),
+        NodeMove::Read(PlanInput::Relation(relation)) => {
+            if native_form(relation).is_none()
+                && matches!(at.inputs.facts(relation), FactRows::Refused)
+            {
+                return Err(OperatingError::NotRead);
+            }
+            Ok(())
+        }
+        NodeMove::Read(PlanInput::Frontier(place)) => {
+            held(&at.inputs.withholdings, at.inputs.frontier(place))
+        }
+        NodeMove::Read(PlanInput::Observation(place)) => {
+            held(&at.inputs.withholdings, at.inputs.observation(place))
+        }
+        NodeMove::Read(PlanInput::Node(_)) => Ok(()),
     }
 }

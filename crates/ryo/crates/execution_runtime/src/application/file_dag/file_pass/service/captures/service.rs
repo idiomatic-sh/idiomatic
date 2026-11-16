@@ -1,7 +1,8 @@
 //! What a rule does after its emitted node: its frontiers captured, kept and committed, and its steps reported to the
 //! observer.
 
-use crate::application::file_dag::file_pass::service::nodes::service::{node_rows, ran_node};
+use crate::application::file_dag::file_pass::service::answering::service::step_fed;
+use crate::application::file_dag::file_pass::service::nodes::service::node_rows;
 use crate::application::file_dag::file_pass::types::{
     CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile,
 };
@@ -26,7 +27,6 @@ use ryo_execution_domain::domain::rule_intent::types::{CaptureIntent, FrontierPu
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_operators::domain::physical_plan::types::NodeFed;
 use ryo_operators::domain::physical_plan::types::PlanInputs as _;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
@@ -179,7 +179,7 @@ pub(crate) fn captured_rule(
             committed(at, rule, kept.input)?;
         }
     }
-    observed(at, symbols, rule, &plan, &nodes)?;
+    observed(at, rule, &plan, &nodes)?;
     Ok(RuleAfter::Ran { captures })
 }
 
@@ -239,8 +239,7 @@ pub(crate) fn committed(
 /// Reports the rows each step of `rule` was fed to the request's observer, as its node's kernels read them in the open file;
 /// without an observer nothing is counted.
 pub(crate) fn observed(
-    at: &mut PassFile<'_, '_, '_, '_>,
-    symbols: &mut Symbols,
+    at: &PassFile<'_, '_, '_, '_>,
     rule: RuleIndex,
     plan: &Plan,
     nodes: &RuleNodes,
@@ -248,20 +247,17 @@ pub(crate) fn observed(
     let Some(observer) = at.request.observer else {
         return Ok(());
     };
-    let mut fed = Vec::with_capacity(plan.steps.len());
-    for (step, node) in plan.steps.iter().zip(&nodes.steps) {
-        // A step after the files is fed after the files: its rows are counted there.
-        if step.scope == StepScope::CrossFile {
-            fed.push(RowsFed([0_u64; 3]));
-            continue;
-        }
-        let node = node.clone()?;
-        ran_node(at, symbols, node)?;
-        let NodeFed(rows) = at.buffers.fed(node);
-        fed.push(RowsFed(
-            rows.map(|count| u64::try_from(count.0).unwrap_or(u64::MAX)),
-        ));
-    }
+    // What each step's node's kernels read in the open file, when it ran: a step after the files is fed after the files, and a
+    // step whose node never ran (no root reached it, or it answered a refusal without running its kernel) was fed none.
+    let fed: Vec<RowsFed> = plan
+        .steps
+        .iter()
+        .zip(&nodes.steps)
+        .map(|(step, node)| match step.scope {
+            StepScope::PerFile => step_fed(&at.buffers, step, node),
+            StepScope::CrossFile => RowsFed::default(),
+        })
+        .collect();
     observer.fed(
         rule,
         LogicalCounts {

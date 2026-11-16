@@ -229,6 +229,10 @@ pub(crate) fn delivered_rule(
         return Err(OperatingError::NotRun);
     }
     let nodes = fused_rule(&at.pass.program, rule)?;
+    // A step no root reads, whose schema refuses, stops the rule's run in the file before any row.
+    if let Some(refusal) = &nodes.refused {
+        return Err(refusal.clone());
+    }
     let plan = at.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
     at.inputs.bound = in_file_bound(at, rule)?;
     hosted_in_file(at, symbols, plan);

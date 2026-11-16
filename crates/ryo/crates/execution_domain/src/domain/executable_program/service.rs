@@ -25,11 +25,13 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 use std::hash::{Hash, Hasher};
 
 pub(crate) mod logical;
+pub mod refusals;
 pub mod scopes;
 use logical::service::{
-    after_inputs, answered_steps, derived_roots, held, node_reads, observation_reaches,
-    read_inputs, stated, timed,
+    after_inputs, answered_steps, derived_roots, held, observation_reaches, read_inputs, stated,
+    timed,
 };
+use refusals::service::{deferred_layouts, node_reads};
 use scopes::service::scope_at;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
@@ -159,15 +161,11 @@ pub fn logical<'p>(
                 u32::try_from(at).map_err(|_| OperatingError::ShapeMismatch)?,
             )));
         }
-        let authored = answered_steps(plan, &mut steps, &own_faults, &drafts);
-        let emit = match (
-            authored,
-            steps.get(usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX)),
-        ) {
-            (Some(error), _) => Err(error),
-            (None, Some(Ok(node))) => Ok(*node),
-            (None, Some(Err(error))) => Err(error.clone()),
-            (None, None) => Err(OperatingError::NotRun),
+        let refused = answered_steps(plan, &mut steps, &own_faults, &drafts);
+        let emit = match steps.get(usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX)) {
+            Some(Ok(node)) => Ok(*node),
+            Some(Err(error)) => Err(error.clone()),
+            None => Err(OperatingError::NotRun),
         };
         scopes.push(RuleScopes {
             emit: scope_at(plan, plan.emit.step),
@@ -180,7 +178,11 @@ pub fn logical<'p>(
                 })
                 .collect(),
         });
-        nodes.push(RuleNodes { steps, emit });
+        nodes.push(RuleNodes {
+            steps,
+            emit,
+            refused,
+        });
     }
     inputs.hosted = hosted;
     let inputs: &'p ProgramInputs = inputs;
@@ -197,6 +199,7 @@ pub fn logical<'p>(
     let roots = derived_roots(&drafts, &inputs.lists);
     let layouts = drafts.iter().map(|draft| draft.layout.clone()).collect();
     let reads = node_reads(&inputs.lists);
+    let deferred = deferred_layouts(&drafts);
     let reach = observation_reaches(&drafts, &inputs.lists);
     Ok(LogicalBuild {
         program,
@@ -205,6 +208,7 @@ pub fn logical<'p>(
         roots,
         layouts,
         reads,
+        deferred,
         scopes,
         reach,
     })
@@ -229,6 +233,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         roots,
         layouts,
         reads,
+        deferred,
         scopes,
         reach,
         ..
@@ -240,6 +245,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         roots,
         layouts,
         reads,
+        deferred,
         scopes,
         reach,
     }
@@ -318,61 +324,6 @@ pub fn consumers(
         .get(usize::try_from(node.0).unwrap_or(usize::MAX))
         .copied()
         .ok_or(OperatingError::NotRun)
-}
-
-/// The columns `node`'s rows answer with as a root: its schema, or, for a node whose refusal is deferred to its rows, the
-/// layout its empty rows keep.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::service::{assemble, layout, logical};
-/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
-/// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-/// let mut inputs = ProgramInputs::default();
-/// let program = assemble(logical(&[], &mut inputs).unwrap(), PhysicalPlan::default());
-/// assert!(layout(&program, PlanNodeId(0)).is_err());
-/// ```
-///
-/// # Errors
-///
-/// The refusal the node answers with, after its inputs for one that reads a deferred refusal; `NotRun` for a node the
-/// program does not have.
-pub fn layout(
-    program: &ExecutableProgram,
-    node: PlanNodeId,
-) -> Result<&[CellKind], OperatingError> {
-    match program
-        .layouts
-        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
-    {
-        Some(Ok(kinds)) => Ok(kinds),
-        Some(Err(error)) => Err(error.clone()),
-        None => Err(OperatingError::NotRun),
-    }
-}
-
-/// The nodes `node` reads, in the order it reads them: what runs before its refusal, when its refusal is answered after its
-/// inputs.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, node_inputs};
-/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
-/// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-/// let mut inputs = ProgramInputs::default();
-/// let program = assemble(logical(&[], &mut inputs).unwrap(), PhysicalPlan::default());
-/// assert!(node_inputs(&program, PlanNodeId(0)).is_empty());
-/// ```
-#[must_use]
-pub fn node_inputs(program: &ExecutableProgram, node: PlanNodeId) -> &[PlanNodeId] {
-    program
-        .reads
-        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
-        .map_or(&[], Vec::as_slice)
 }
 
 /// The operators' plan of the program.

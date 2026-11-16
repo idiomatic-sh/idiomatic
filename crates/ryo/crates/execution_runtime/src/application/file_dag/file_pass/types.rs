@@ -1,6 +1,6 @@
 //! The types of the `file_pass` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_operators::domain::physical_plan::types::PlanNodeId;
+use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::types::NodeId;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
@@ -246,4 +246,14 @@ pub(crate) struct OpenedFile<'a> {
         crate::application::file_dag::program::file_session::types::SemanticSupport<'a>,
     /// The first frontier bucket of each rule, in rule order.
     pub(crate) first: &'a [ryo_values::domain::stored_facts::types::Bucket],
+}
+
+/// One move of answering a node whose refusal waits for its inputs: run a node, or read an input of another kind (admit a
+/// relation's facts, or hold a frontier entry or a bound observation, a withheld one answering why).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum NodeMove {
+    /// Run the node.
+    Run(PlanNodeId),
+    /// Read the input, which is no node.
+    Read(PlanInput),
 }

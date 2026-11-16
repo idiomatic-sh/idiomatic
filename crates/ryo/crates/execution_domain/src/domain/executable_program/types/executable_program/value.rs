@@ -36,8 +36,10 @@ pub struct ExecutableProgram {
     /// The columns each node's rows answer with as a root, by node: its schema, or the empty layout of a refusal deferred to
     /// its rows.
     pub(crate) layouts: Vec<Result<Vec<CellKind>, OperatingError>>,
-    /// The nodes each node reads, by node, in the order it reads them.
-    pub(crate) reads: Vec<Vec<PlanNodeId>>,
+    /// The inputs each node reads, by node, in the order it reads them.
+    pub(crate) reads: Vec<Vec<ryo_operators::domain::physical_plan::types::PlanInput>>,
+    /// The layout of each node whose refusal is deferred to its rows, by node; none for any other.
+    pub(crate) deferred: Vec<Option<Vec<CellKind>>>,
     /// Where each rule's emitted step and named outputs run, in rule order.
     pub(crate) scopes: Vec<RuleScopes>,
     /// Whether each node's rows answer the phase or one occurrence, by node.

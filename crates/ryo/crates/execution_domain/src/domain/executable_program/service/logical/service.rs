@@ -339,33 +339,21 @@ pub(in crate::domain::executable_program) fn answered_steps(
 }
 
 /// The timing of a refusal of a node reading `list`, given the timing its inputs' refusals pass on (`read`): after its inputs
-/// when it reads a node, as the interpreter refused a step only once the steps it reads had run.
+/// when it reads a node, a frontier entry or a bound observation, as the interpreter refused a step only once the steps it
+/// reads had run and the entries it reads were held (a withheld one answering why first). One reading only relations keeps
+/// `read`: refused before any row, once its facts are admitted.
 pub(in crate::domain::executable_program) fn after_inputs(
     read: SchemaTiming,
     list: &[PlanInput],
 ) -> SchemaTiming {
-    if list.iter().any(|input| matches!(input, PlanInput::Node(_))) {
+    if list.iter().any(|input| {
+        matches!(
+            input,
+            PlanInput::Node(_) | PlanInput::Frontier(_) | PlanInput::Observation(_)
+        )
+    }) {
         SchemaTiming::AfterInputs
     } else {
         read
     }
-}
-
-/// The nodes each node reads, by node, in the order its input `lists` name them.
-pub(in crate::domain::executable_program) fn node_reads(
-    lists: &[Vec<PlanInput>],
-) -> Vec<Vec<PlanNodeId>> {
-    lists
-        .iter()
-        .map(|list| {
-            list.iter()
-                .filter_map(|input| match input {
-                    PlanInput::Node(node) => Some(*node),
-                    PlanInput::Relation(_) | PlanInput::Frontier(_) | PlanInput::Observation(_) => {
-                        None
-                    }
-                })
-                .collect()
-        })
-        .collect()
 }

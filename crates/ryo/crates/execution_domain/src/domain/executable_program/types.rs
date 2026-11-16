@@ -67,7 +67,7 @@ pub struct RuleInput<'a> {
 /// ```
 /// use ryo_execution_domain::domain::executable_program::types::RuleNodes;
 /// use ryo_operators::domain::physical_plan::types::PlanNodeId;
-/// let nodes = RuleNodes { steps: vec![Ok(PlanNodeId(0))], emit: Ok(PlanNodeId(0)) };
+/// let nodes = RuleNodes { steps: vec![Ok(PlanNodeId(0))], emit: Ok(PlanNodeId(0)), refused: None };
 /// assert_eq!(nodes.emit, Ok(PlanNodeId(0)));
 /// ```
 #[derive(Clone, Debug, PartialEq)]
@@ -76,6 +76,9 @@ pub struct RuleNodes {
     pub steps: Vec<Result<PlanNodeId, OperatingError>>,
     /// The node the rule emits, or the schema fault of it or of a step it reads.
     pub emit: Result<PlanNodeId, OperatingError>,
+    /// The schema fault of the first step no root reads, in step order: it has no root to answer it, so it stops the rule's
+    /// run, in each file and after the files, before any row.
+    pub refused: Option<OperatingError>,
 }
 
 /// How many consumers a node has: node readers, the rules that emit it and the holds that keep it.
