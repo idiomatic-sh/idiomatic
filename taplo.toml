@@ -30,7 +30,7 @@ exclude = [
   "tastemaker/rules/collection-members/0.2.0/**",
   "tastemaker/rules/no-reexports/0.6.0/**",
   "tastemaker/specs/idiomatic-rust/0.1.14/**",
-  "tastemaker/specs/adapter/0.4.0/**",
+  "tastemaker/specs/adapter/0.4.1/**",
   "crates/ryo/tastemaker/rules/program-implementation-boundary/0.4.0/**",
 ]
 

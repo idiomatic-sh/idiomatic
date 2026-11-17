@@ -1,6 +1,6 @@
 # test-directory-layout 0.2.1
 
-Every join of the query now plans under the engine's growth check, which refuses a join keyed on the file alone unless one side is proven to hold each file once. The `#[path]` metadata is read from the proof files, a projection on `file` (one row per file), where 0.2.0 joined the union of proofs itself. The findings and the scenarios are as in 0.2.0.
+Every join of the query now plans under the engine's growth check, which refuses a join keyed on the file alone unless one side is proven to hold each file once. The `#[path]` metadata is read from the proof files, a projection on `file` (one row per file), where 0.2.0 joined the union of proofs itself. The findings and the scenarios are as in 0.2.0, which is removed with this version: no lock reads it.
 
 # test-directory-layout 0.2.0
 

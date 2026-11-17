@@ -1,6 +1,6 @@
 # crate-dependency-cycles 0.1.2
 
-Every join of the query now plans under the engine's growth check, which refuses a join keyed on the file alone unless one side is proven to hold each file once. The dependency edges are now taken between manifest files, each joined to the set of manifest files (a projection on `file`, one row per file), and the cycle's manifests are found by file; the manifest node is read only for the finding's span. The findings and the scenarios are as in 0.1.1.
+Every join of the query now plans under the engine's growth check, which refuses a join keyed on the file alone unless one side is proven to hold each file once. The dependency edges are now taken between manifest files, each joined to the set of manifest files (a projection on `file`, one row per file), and the cycle's manifests are found by file; the manifest node is read only for the finding's span. The findings and the scenarios are as in 0.1.1, which is removed with this version: no lock reads it.
 
 # crate-dependency-cycles 0.1.1
 

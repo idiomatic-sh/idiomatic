@@ -1,6 +1,6 @@
 # driver-implementers 0.1.1
 
-Every join of the query now plans under the engine's growth check, which refuses a join keyed on the file alone unless one side is proven to hold each file once. An implementation is matched to an import of the same file by the imported binding as well as the file, as one key, where 0.1.0 joined every import of the file and then compared the binding. The findings and the scenarios are as in 0.1.0.
+Every join of the query now plans under the engine's growth check, which refuses a join keyed on the file alone unless one side is proven to hold each file once. An implementation is matched to an import of the same file by the imported binding as well as the file, as one key, where 0.1.0 joined every import of the file and then compared the binding. The findings and the scenarios are as in 0.1.0, which is removed with this version: no lock reads it.
 
 # driver-implementers 0.1.0
 

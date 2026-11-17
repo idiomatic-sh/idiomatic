@@ -1,0 +1,76 @@
+description = "No string literal of the code is a path of one machine: not /tmp, /home, /usr, /etc, /var, /opt, /root, /mnt, /Users or a container's workspace mount, and not a drive letter."
+why = "A path written into code runs on the machine it was written on and breaks on every other: a benchmark that opens a path under a container's workspace mount, a store under /tmp, a test that reads /home/someone. A path is given to the code (a flag, a request field, a temporary directory the run makes), never written in it. The product's tests and benches are not held to this, since they run where they are written."
+
+query = '''
+let literals = project(from="string-literal", columns=["file", "span", "value"]);
+let absolute = select * from literals where glob_any(value, "{/tmp/*,/home/*,/usr/*,/etc/*,/var/*,/opt/*,/root/*,/mnt/*,/Users/*,/workspaces/*,?:[\\]*}");
+emit absolute subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{value}` is a path of one machine"
+help = "Take the path as a request field or a flag, or make it (a temporary directory the run creates), and never write it in code."
+
+[given]
+include = ['**/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'machine-path'
+scenario = 'A path under /tmp.'
+given.files.'src/lib.rs' = '''
+//! The demo.
+
+/// The cache.
+pub fn cache() -> &'static str {
+    "/tmp/cache"
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'relative-path'
+scenario = 'A relative path: nothing is reported.'
+given.files.'src/lib.rs' = '''
+//! The demo.
+
+/// The cache.
+pub fn cache() -> &'static str {
+    "cache/files"
+}
+'''
+
+[[scenarios]]
+id = 'drive-letter'
+scenario = 'A drive letter: it is reported.'
+given.files.'src/lib.rs' = '''
+//! The demo.
+
+/// The cache.
+pub fn cache() -> &'static str {
+    "C:\\cache"
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'colon-text'
+scenario = 'A colon in a text that is not a path.'
+given.files.'src/lib.rs' = '''
+//! The demo.
+
+/// The cache.
+pub fn cache() -> &'static str {
+    "key:value"
+}
+'''
