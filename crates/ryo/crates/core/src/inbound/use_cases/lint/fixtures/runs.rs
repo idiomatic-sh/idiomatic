@@ -42,6 +42,10 @@ use std::sync::Arc;
 use std::sync::PoisonError;
 use std::sync::atomic::Ordering;
 
+/// The workers the corpus runs on.
+pub(super) const WORKERS: crate::outbound::scheduler::types::WorkerCount =
+    crate::outbound::scheduler::types::WorkerCount(1);
+
 /// The compiler of queries the use cases are given.
 pub(super) fn compile() -> CompileUseCaseImpl {
     CompileUseCaseImpl::new(
@@ -142,7 +146,7 @@ pub(super) fn use_case_over(
             Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(), ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
             scheduler,
-            crate::outbound::scheduler::types::WorkerCount(1),
+            WORKERS,
             rows,
             Arc::clone(&analysis_digest),
             store,

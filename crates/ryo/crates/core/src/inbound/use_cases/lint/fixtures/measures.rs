@@ -1,4 +1,9 @@
-//! What the whole per-file path must pass over the corpus: its allocation, its call count, its streaming and its output.
+//! What the whole per-file path must pass over the corpus: its allocation, its call count, its streaming, its output and its big blocks.
+
+#![expect(
+    clippy::expect_used,
+    reason = "a measure that cannot keep its store has nothing to measure: the panic is the failure of the row"
+)]
 
 use super::corpus::Corpus;
 use super::corpus::files;
@@ -6,6 +11,8 @@ use super::runs::Written;
 use super::runs::agrees;
 use super::runs::given;
 use super::runs::lint;
+use super::runs::WORKERS;
+use super::runs::lint_keeping;
 use super::runs::run_query;
 use super::runs::write_all;
 use crate::domain::allocation_verdict::service::{differences, most};
@@ -29,6 +36,27 @@ pub(super) const FILES: u32 = 60;
 
 /// How many times the rows of every file the larger call-count corpus has.
 pub(super) const TIMES: usize = 10;
+
+/// How many files the big-blocks run lints: more than its rules and its one worker own tables.
+const BLOCK_FILES: u32 = 300;
+
+/// The rows beyond the first the fake language reads of each file of the big-blocks run: a file's tables stay well under a megabyte,
+/// and what every file hands the rule across them is several megabytes, so a table of the whole project made again for each file is
+/// a big block each time.
+const BLOCK_ROWS: u32 = 1_000;
+
+/// The rules of the big-blocks run, by id: one over each file, and one across them that joins every function of every file with
+/// itself by its id, which no file can answer alone.
+const BLOCK_RULES: [(&str, &str); 2] = [
+    (
+        "each-file",
+        "let names = project(from=\"function\", columns=[\"name\", \"file\"]);\nemit names subject file key(name);",
+    ),
+    (
+        "across-files",
+        "let rows = join(left=\"function\", right=\"function\", left-on=[\"id\"], right-on=[\"id\"], output={id:[left,id],file:[left,file]});\nlet counted = group-count(from=rows, keys=[\"file\"], count=\"functions\");\nemit counted subject file key(file);",
+    ),
+];
 
 /// The allocation row of the whole per-file path: the most blocks a file, after warm-up, allocates beyond what the parser library
 /// does on its own for it (`library` does only that). It is a measure, not a bound: the target is one block, for the findings the
@@ -99,6 +127,67 @@ pub fn allocation(corpus: &Corpus, library: &dyn Fn(&[u8])) -> u64 {
     streaming(corpus);
     output_path(corpus, library);
     beyond
+}
+
+/// The run the big-blocks row profiles: the fake language reads each of [`BLOCK_FILES`] files as a table of [`BLOCK_ROWS`] rows, for
+/// a rule over each file and one across them, on one worker, keeping its store on disk as a lint does. What
+/// is big in a worker is owned by the worker and kept between files, and what is big in a rule across files is the tables of its
+/// plan, so the blocks of a megabyte or more the run allocates are bounded by the workers and the rules, never by the files. Answers
+/// the workers it ran on and the rules, which bound them.
+///
+/// # Panics
+///
+/// When a file is left unread or a rule gives no row.
+#[must_use]
+pub fn blocks() -> (usize, usize) {
+    let corpus = Corpus {
+        language: Arc::new(crate::outbound::language::fixtures::fake::LanguageFake {
+            extra_rows: BLOCK_ROWS,
+            constant_name: true,
+            ..Default::default()
+        }),
+        rules: BLOCK_RULES
+            .iter()
+            .map(|(id, query)| ((*id).to_owned(), ((*query).to_owned(), "**/*.rs".to_owned())))
+            .collect(),
+        ..super::corpus::fake_corpus()
+    };
+    let copies = files(
+        &corpus,
+        CopyNaming::Copy {
+            digits: CopyDigits(3),
+        },
+        BLOCK_FILES,
+        1,
+    );
+    let cache = tempfile::tempdir().expect("a cache directory");
+    let found = Arc::new(TallyRowSinkFake::default());
+    lint_keeping(
+        &corpus,
+        Arc::new(SchedulerFake::default()),
+        Arc::new(facts::factory::memory()),
+        copies,
+        Arc::<TallyRowSinkFake>::clone(&found),
+        Arc::new(crate::outbound::lint_store::factory::postcard(
+            crate::outbound::lint_store::types::Store {
+                directory: crate::outbound::lint_store::types::CacheDirectory(
+                    cache.path().to_string_lossy().into(),
+                ),
+                build: crate::outbound::lint_store::types::BuildIdentity("blocks".into()),
+            },
+        )),
+    );
+    let counts = found.counts.lock().unwrap_or_else(PoisonError::into_inner);
+    for (id, _) in BLOCK_RULES {
+        assert!(
+            counts.get(id).copied().unwrap_or(0) > 0,
+            "the rule {id} gives its rows"
+        );
+    }
+    (
+        usize::try_from(WORKERS.0).unwrap_or(usize::MAX),
+        BLOCK_RULES.len(),
+    )
 }
 
 /// The call-count row of the whole per-file path: a port is called for a file, never for a row.
