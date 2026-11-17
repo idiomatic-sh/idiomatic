@@ -46,6 +46,8 @@ mod counting;
 mod ecosystems;
 #[path = "../fixtures/replay/fetch.rs"]
 mod fetch;
+#[path = "../fixtures/replay/loading.rs"]
+mod loading;
 #[path = "../fixtures/replay/spans.rs"]
 mod spans;
 #[path = "../fixtures/replay/tools.rs"]
@@ -61,6 +63,7 @@ mod finish;
 mod governing;
 mod languages;
 mod linking;
+mod planning;
 mod lowering;
 mod manifests;
 #[cfg(feature = "typescript")]

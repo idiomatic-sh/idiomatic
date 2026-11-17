@@ -147,10 +147,10 @@ fn no_language_names_finds_what_its_scenarios_state() {
 }
 
 /// The relation Tastemaker hosts for the crates it places.
-const PLACED: &str = "tastemaker.placed";
+pub(crate) const PLACED: &str = "tastemaker.placed";
 
 /// The values a scenario binds the rule's params to, each as `base::parameter` binds it: a value it cannot bind fails.
-fn parameters_of(given: Option<&toml::Table>) -> Vec<RuleParameter> {
+pub(crate) fn parameters_of(given: Option<&toml::Table>) -> Vec<RuleParameter> {
     let Some(params) = given
         .and_then(|given| given.get("params"))
         .and_then(toml::Value::as_table)
@@ -168,7 +168,7 @@ fn parameters_of(given: Option<&toml::Table>) -> Vec<RuleParameter> {
 
 /// `tastemaker.placed` as the fixtures' Tastemaker fills it: every manifest of the tree is placed with the `cargo-package` template, and
 /// every `smoke_test.rs` with `smoke-test`.
-fn placed_manifests(root: &Path) -> HostRelation {
+pub(crate) fn placed_manifests(root: &Path) -> HostRelation {
     let columns = ["path", "entry", "package", "template", "version", "spec"];
     let mut manifests = Vec::new();
     let mut pending = vec![root.to_path_buf()];

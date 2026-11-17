@@ -69,6 +69,36 @@ pub(crate) fn parameter(name: &str, value: &toml::Value) -> Option<RuleParameter
                     .collect(),
             )
         }
+        // A list of tables (`list<table>`), each cell text under its key.
+        toml::Value::Array(items)
+            if items.iter().all(|table| {
+                table
+                    .as_table()
+                    .is_some_and(|cells| cells.values().all(toml::Value::is_str))
+            }) =>
+        {
+            ParameterValue::Tables(
+                items
+                    .iter()
+                    .filter_map(toml::Value::as_table)
+                    .map(|cells| {
+                        ryo_core::inbound::use_cases::lint::types::ParameterTable(
+                            cells
+                                .iter()
+                                .filter_map(|(key, value)| {
+                                    value.as_str().map(|text| {
+                                        ryo_core::inbound::use_cases::lint::types::ParameterCell {
+                                            key: LiteralText(key.as_str().into()),
+                                            value: LiteralText(text.into()),
+                                        }
+                                    })
+                                })
+                                .collect(),
+                        )
+                    })
+                    .collect(),
+            )
+        }
         toml::Value::Float(_)
         | toml::Value::Datetime(_)
         | toml::Value::Array(_)
