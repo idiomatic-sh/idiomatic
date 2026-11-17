@@ -8,9 +8,9 @@ use crate::domain::contract::types::PortableOperatorFault;
 #[cfg(test)]
 use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::types::CellStart;
-use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
 use ryo_values::domain::rows::types::Table;
@@ -57,7 +57,7 @@ pub(crate) fn projected(
     row: &[Value],
     columns: &[ColumnIndex],
     distinct: RepeatedRows,
-    repeats: &mut KeyedRows,
+    repeats: &mut RowSet,
     output: &mut Table,
 ) -> Result<(), PortableOperatorFault> {
     let start = CellStart(output.cells.len());

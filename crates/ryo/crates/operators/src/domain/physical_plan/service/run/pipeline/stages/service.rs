@@ -4,13 +4,14 @@
 use super::super::super::types::{ChainRows, ChainStage, StagePrepared};
 use super::super::sources::service::{in_place, pending_of, rows_count, rows_kinds};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::equality_join::service::answer_kinds;
 use crate::domain::physical_plan::collections::kernels::extend::item::{
     extended, kind_of, resolved,
 };
 use crate::domain::physical_plan::collections::kernels::filter::item::{
     filter, keep, kept_kinds, readied,
 };
-use crate::domain::physical_plan::collections::kernels::probe::item::{answer_kinds, probe_rows};
+use crate::domain::physical_plan::collections::kernels::probe::item::probe_rows;
 use crate::domain::physical_plan::collections::kernels::probe_right::item::{
     ProbeScratch, probe_prepared,
 };
@@ -24,6 +25,7 @@ use crate::domain::physical_plan::collections::kernels::text_map::item::{
 use crate::domain::physical_plan::service::indexes::service::{probe_build, probe_index};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::shared_index::value::IndexKind;
 use crate::domain::physical_plan::types::stream_scratch::value::{
     CellBound, ChunkRead, ChunkStop, ProbeWork, RowChunk, StageOwn,
 };
@@ -76,7 +78,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
                         .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })
                 })
                 .collect::<Result<_, _>>()?;
-            buffers.indexes.refilled(&mut own.repeats);
+            buffers.pools.rows.refilled(&mut own.repeats);
             StagePrepared { kinds, fault: None }
         }
         // An extension's values are made before its rows are read: making a name changes the file's names, and reading
@@ -110,9 +112,10 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
             } else {
                 rows_count(right)
             };
-            buffers.indexes.refilled(&mut own.repeats);
+            buffers.pools.rows.refilled(&mut own.repeats);
             if *index == ProbeIndex::Own {
-                buffers.indexes.refilled(&mut own.index);
+                own.index
+                    .readied(IndexKind::of_probe(&probe.key), &mut buffers.pools);
             }
             own.work = ProbeWork::Pending;
             if let Some(fault) = pending_of(right) {

@@ -50,6 +50,7 @@ pub(crate) fn lookups(
     };
     let view = facts(run.inputs, relation)?;
     let texts_of = run.resources.texts();
+    buffers.pools.keyed.refilled(&mut buffers.index);
     texts(&view, *column, &texts_of, &mut buffers.index);
     for lookup in &shared.readers {
         let place = usize::try_from(lookup.0).unwrap_or(usize::MAX);

@@ -24,6 +24,7 @@ use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
 };
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::shared_index::value::{IndexKind, IndexRows};
 use crate::domain::physical_plan::types::{CellStart, KernelRun, PlanNodeId};
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -49,7 +50,7 @@ pub(crate) fn kernels(
     match lowering {
         Lowering::Distinct { .. } => {
             output.kinds = kinds.to_vec();
-            buffers.repeats.cleared();
+            buffers.pools.rows.refilled(&mut buffers.repeats);
             for source in std::iter::once(input).chain(other) {
                 if kinds_of(source) != kinds {
                     return Err(PortableOperatorFault::ShapeMismatch);
@@ -69,6 +70,7 @@ pub(crate) fn kernels(
             }
         }
         Lowering::Group { group, .. } => {
+            buffers.pools.keyed.refilled(&mut buffers.index);
             let scratch = GroupScratch {
                 index: &mut buffers.index,
                 row: &mut buffers.row,
@@ -92,7 +94,14 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
-            // The seeded join's own right rows and key columns, for this run.
+            buffers.pools.keyed.refilled(&mut buffers.index);
+            buffers.pools.rows.refilled(&mut buffers.repeats);
+            // The seeded join's own index, right rows and key columns, for this run.
+            if let Lowering::SeededReach { join, .. } = lowering {
+                buffers
+                    .second
+                    .readied(IndexKind::of_probe(&join.probe.key), &mut buffers.pools);
+            }
             let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
             let scratch = ReachScratch {
                 index: &mut buffers.index,
@@ -121,9 +130,15 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
+            buffers.pools.keyed.refilled(&mut buffers.index);
+            // The domain is keyed: the second index is readied as keyed rows.
+            buffers.second.readied(IndexKind::Keyed, &mut buffers.pools);
+            let IndexRows::Keyed(domain) = &mut buffers.second else {
+                return Err(PortableOperatorFault::WrongOperation);
+            };
             let tables = AxisTables {
                 edges: &mut buffers.index,
-                domain: &mut buffers.second,
+                domain,
                 decisions,
             };
             return walked(axis, inputs, run, tables, &mut buffers.walk, output);
@@ -140,6 +155,7 @@ pub(crate) fn kernels(
             );
         }
         Lowering::Worklist { worklist, .. } => {
+            buffers.pools.rows.refilled(&mut buffers.repeats);
             let inputs = WorklistInputs {
                 roots: input,
                 edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
@@ -155,6 +171,7 @@ pub(crate) fn kernels(
             );
         }
         Lowering::Components { cycles, .. } => {
+            buffers.pools.keyed.refilled(&mut buffers.index);
             return cyclic(
                 cycles,
                 input,
