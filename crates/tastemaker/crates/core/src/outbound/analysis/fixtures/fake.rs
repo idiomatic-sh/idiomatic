@@ -1,7 +1,6 @@
 //! The fake of the `analysis` port: the answers a test gives, by rule, and every request kept for the test to read.
 
 use std::collections::BTreeMap;
-use std::sync::Mutex;
 use tastemaker_values::domain::applications::types::{AnswerCell, CellText, CellValue, LintAnswer};
 
 use crate::outbound::analysis::errors::AnalysisError;
@@ -63,8 +62,6 @@ pub struct AnalysisFake {
     pub unrunnable: Vec<Box<str>>,
     /// Whether the engine fails the lint of the rules; a call that hosts its rows still answers.
     pub fails: bool,
-    /// Every lint request sent, in order.
-    pub sent: Mutex<Vec<AnalysisRequest>>,
 }
 
 /// Whether the lint call reads `path`: listed or given by `corpus`. A rule's rows may name any file it reads, as ryo's do: which of
@@ -99,7 +96,9 @@ impl AnalysisFake {
                                 start: tastemaker_values::domain::findings::types::ByteOffset(
                                     start.parse().ok()?,
                                 ),
-                                end: tastemaker_values::domain::findings::types::ByteOffset(end.parse().ok()?),
+                                end: tastemaker_values::domain::findings::types::ByteOffset(
+                                    end.parse().ok()?,
+                                ),
                             })
                         },
                     );
@@ -108,11 +107,15 @@ impl AnalysisFake {
                         path: file.clone(),
                         cells: [
                             Some(AnswerCell {
-                                name: tastemaker_values::domain::definitions::types::ColumnName("file".into()),
+                                name: tastemaker_values::domain::definitions::types::ColumnName(
+                                    "file".into(),
+                                ),
                                 value: CellValue::File(file),
                             }),
                             span.map(|span| AnswerCell {
-                                name: tastemaker_values::domain::definitions::types::ColumnName("span".into()),
+                                name: tastemaker_values::domain::definitions::types::ColumnName(
+                                    "span".into(),
+                                ),
                                 value: CellValue::Span(span),
                             }),
                         ]
@@ -120,7 +123,9 @@ impl AnalysisFake {
                         .flatten()
                         .chain(["doc", "text"].into_iter().zip(parts).map(|(name, said)| {
                             AnswerCell {
-                                name: tastemaker_values::domain::definitions::types::ColumnName(name.into()),
+                                name: tastemaker_values::domain::definitions::types::ColumnName(
+                                    name.into(),
+                                ),
                                 value: CellValue::Text(CellText(said.into())),
                             }
                         }))
@@ -143,10 +148,6 @@ impl AnalysisPort for AnalysisFake {
     }
 
     fn lint(&self, request: AnalysisRequest) -> Result<AnalysisReport, AnalysisError> {
-        self.sent
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(request.clone());
         // As the port's contract says: two rules of one id are refused whole, since one of them would never run.
         let mut ids = std::collections::BTreeSet::new();
         if let Some(rule) = request.rules.iter().find(|rule| !ids.insert(&rule.id)) {
@@ -243,7 +244,9 @@ fn module_scope_findings(request: &AnalysisRequest, report: &mut AnalysisReport)
                 path: tastemaker_values::domain::paths::types::RepoPath(glob.0.clone()),
                 cells: ["child", "parent"]
                     .map(|name| AnswerCell {
-                        name: tastemaker_values::domain::definitions::types::ColumnName(name.into()),
+                        name: tastemaker_values::domain::definitions::types::ColumnName(
+                            name.into(),
+                        ),
                         value: CellValue::Text(CellText("0".into())),
                     })
                     .into(),
