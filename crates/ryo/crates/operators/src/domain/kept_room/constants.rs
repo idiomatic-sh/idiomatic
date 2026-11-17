@@ -1,4 +1,7 @@
 //! The caps on the room a worker's scratch keeps past the end of a file, and on how many emptied buffers its pools keep.
+//!
+//! `KEPT_ROOM` and `POOL_INDEXES` are tuned for a file as the unit. They are re-measured when segment batches land (plan
+//! Phase 0 M10). The `StreamScratch` and stage hunks are expected to be rewritten with the typed kernels (plan step 6).
 
 /// The most room, in items, a worker's scratch buffer keeps past the end of a file: 4 Ki, 64 KiB of 16-byte cells.
 pub(crate) const KEPT_ROOM: usize = 1 << 12;

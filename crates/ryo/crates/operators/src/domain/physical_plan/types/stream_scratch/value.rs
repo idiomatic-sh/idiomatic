@@ -147,7 +147,13 @@ pub(crate) struct RightPlace(pub(crate) usize);
 impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
     fn kept(&mut self) {
         for level in &mut self.levels {
+            level.head.cells.kept();
+            level.head.kinds.kept();
             for stage in &mut level.stages {
+                for table in [&mut stage.out, &mut stage.own.kept] {
+                    table.cells.kept();
+                    table.kinds.kept();
+                }
                 stage.own.repeats.kept();
                 stage.own.index.kept();
             }
@@ -206,8 +212,11 @@ impl StageScratch {
                 table.cells.shrink_to(STREAM_CHUNK_CELLS);
             }
         }
-        let _ = (indexes, PoolSize(POOL_INDEXES));
-        self.own.index.cleared();
+        indexes.pooled(std::mem::take(&mut self.own.index), PoolSize(POOL_INDEXES));
+        indexes.pooled(
+            std::mem::take(&mut self.own.repeats),
+            PoolSize(POOL_INDEXES),
+        );
         self.fault = None;
     }
 }

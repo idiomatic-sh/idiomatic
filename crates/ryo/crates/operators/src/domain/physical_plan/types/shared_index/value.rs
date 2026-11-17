@@ -34,8 +34,7 @@ impl SharedIndex {
     /// Gives its rows to the worker's index pool, which keeps their room only within its caps, and counts no probe still to
     /// come: the next probe takes room from the pool and builds it anew.
     pub(crate) fn given_back(&mut self, indexes: &mut KeptPool<KeyedRows>) {
-        let _ = (indexes, PoolSize(POOL_INDEXES));
-        self.rows.cleared();
+        indexes.pooled(std::mem::take(&mut self.rows), PoolSize(POOL_INDEXES));
         self.remaining = NodeReaders(0);
     }
 }
@@ -77,7 +76,6 @@ impl SharedIndexes {
         for place in self.opened.drain(..) {
             if let Some(index) = self.indexes.get_mut(place.0) {
                 index.given_back(indexes);
-                crate::domain::kept_room::types::KeptRoom::kept(&mut index.rows);
                 index.listed = Touch::Untouched;
             }
         }

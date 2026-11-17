@@ -76,7 +76,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
                         .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })
                 })
                 .collect::<Result<_, _>>()?;
-            own.repeats.cleared();
+            buffers.indexes.refilled(&mut own.repeats);
             StagePrepared { kinds, fault: None }
         }
         // An extension's values are made before its rows are read: making a name changes the file's names, and reading
@@ -110,7 +110,10 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
             } else {
                 rows_count(right)
             };
-            own.repeats.cleared();
+            buffers.indexes.refilled(&mut own.repeats);
+            if *index == ProbeIndex::Own {
+                buffers.indexes.refilled(&mut own.index);
+            }
             own.work = ProbeWork::Pending;
             if let Some(fault) = pending_of(right) {
                 return Ok(StagePrepared {
