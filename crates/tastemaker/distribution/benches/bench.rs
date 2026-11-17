@@ -114,7 +114,9 @@ fn memory_round(
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
     taken.validate_cold.push(cold);
     taken.validate_warm.push(warm);
-    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    taken
+        .validate_peak
+        .push(kibibytes(cold_peak.max(warm_peak)));
     Ok(())
 }
 
