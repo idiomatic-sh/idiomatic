@@ -142,15 +142,16 @@ fn subject(text: Input) -> Result<Value, Failure> {
             };
             let after: Vec<String> = steps
                 .iter()
-                .filter_map(|reader| match &reader.operation {
-                    Operation::Select {
+                .filter_map(|reader| {
+                    let Operation::Select {
                         from: Reads::Step(id),
                         comparisons: tested,
                         ..
-                    } if usize::try_from(id.0).unwrap_or(usize::MAX) == at => {
-                        Some(comparisons(tested))
-                    }
-                    _ => None,
+                    } = &reader.operation
+                    else {
+                        return None;
+                    };
+                    (usize::try_from(id.0).unwrap_or(usize::MAX) == at).then(|| comparisons(tested))
                 })
                 .collect();
             Some(format!(
