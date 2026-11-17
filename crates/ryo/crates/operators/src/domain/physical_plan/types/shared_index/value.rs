@@ -65,6 +65,7 @@ impl IndexKind {
     /// The kind a shared index of `key` keeps.
     pub(crate) fn of_index(key: &IndexKey) -> Self {
         match key {
+            IndexKey::Rows => Self::Rows,
             IndexKey::Text(_) | IndexKey::Cells(_) => Self::Keyed,
         }
     }

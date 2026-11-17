@@ -265,6 +265,8 @@ pub(crate) enum IndexKey {
     Text(ColumnIndex),
     /// The cells of the key columns.
     Cells(Vec<ColumnIndex>),
+    /// The whole row, every cell, asked only whether a row is there: a set operation's right side.
+    Rows,
 }
 
 /// The index a probe reads: built by each of its runs, or shared with every probe of its right rows and key.

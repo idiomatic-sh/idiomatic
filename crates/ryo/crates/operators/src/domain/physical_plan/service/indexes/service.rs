@@ -14,8 +14,9 @@ use crate::domain::physical_plan::types::{
     ProbeIndex,
 };
 
-/// Shares one `hash_index` between the probes of one right source and key: a planning step, not a rewrite, since an unshared
-/// plan answers the same rows. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
+/// Shares one index between the probes of one right source and key: a planning step, not a rewrite, since an unshared plan
+/// answers the same rows. A probe of whole rows (an intersection's or a difference's) shares a row set, keyed
+/// `IndexKey::Rows`; any other a `hash_index` of its key columns. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
 /// ordered probe, which turns each key's first row into its extremum, and a probe alone on its right source and key; a probe
 /// that walks the tree has no index to share. Run after the rewrites, which change a probe's right rows, key, mode and index.
 pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
@@ -27,15 +28,18 @@ pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<Keyed
             index: ProbeIndex::Own,
             ..
         } = &node.lowering
-            && let ProbeKey::Columns { right: on, .. } = &probe.key
             && probe.filter.comparisons.is_empty()
             && !matches!(probe.mode, ProbeMode::Ordered(_))
         {
+            let key = match &probe.key {
+                ProbeKey::Columns { right: on, .. } => IndexKey::Cells(on.clone()),
+                ProbeKey::Whole => IndexKey::Rows,
+            };
             let _: IndexPlace = read_by(
                 &mut keyed,
                 IndexIdentity {
                     source: *right,
-                    key: IndexKey::Cells(on.clone()),
+                    key,
                 },
                 id,
             );

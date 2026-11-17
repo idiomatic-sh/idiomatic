@@ -255,15 +255,13 @@ pub(crate) fn probe_prepared(
             (ProbeKey::Columns { .. }, IndexRows::Keyed(rows)) => {
                 cells(KeyedSide { rows: right, on }, rows)
             }
-            (ProbeKey::Whole, IndexRows::Keyed(rows)) => cells(KeyedSide { rows: right, on }, rows),
             (ProbeKey::Whole, IndexRows::Rows(set)) => {
                 set.built(count_of(right), kinds_of(right), |row, column| {
                     cell_of(right, row, column)
                 })
             }
-            (ProbeKey::Columns { .. }, IndexRows::Rows(_)) => {
-                Err(PortableOperatorFault::WrongOperation)
-            }
+            (ProbeKey::Columns { .. }, IndexRows::Rows(_))
+            | (ProbeKey::Whole, IndexRows::Keyed(_)) => Err(PortableOperatorFault::WrongOperation),
         };
         if let Err(fault) = built {
             // A partial index is no index: the next probe of a shared one builds it again.

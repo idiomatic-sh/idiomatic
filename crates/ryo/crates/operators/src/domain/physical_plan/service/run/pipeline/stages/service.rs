@@ -114,7 +114,8 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
             };
             buffers.pools.rows.refilled(&mut own.repeats);
             if *index == ProbeIndex::Own {
-                own.index.readied(IndexKind::Keyed, &mut buffers.pools);
+                own.index
+                    .readied(IndexKind::of_probe(&probe.key), &mut buffers.pools);
             }
             own.work = ProbeWork::Pending;
             if let Some(fault) = pending_of(right) {

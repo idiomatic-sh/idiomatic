@@ -2,7 +2,7 @@
 //! their capacity kept across files.
 
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
-use crate::domain::kept_room::constants::POOL_TABLES;
+use crate::domain::kept_room::constants::{POOL_INDEXES, POOL_TABLES};
 use crate::domain::kept_room::types::KeptRoom as _;
 use crate::domain::kept_room::types::PoolSize;
 use crate::domain::kept_room::types::kept_pool::value::KeptPool;
@@ -48,7 +48,8 @@ pub struct FileBuffers {
     pub(crate) pools: crate::domain::physical_plan::types::shared_index::value::IndexPools,
     /// Each filtering node's comparison scratch, by node id, kept across files.
     pub(crate) decisions: Vec<NodeDecisions>,
-    /// The keyed-row table a node builds for itself: a probe's own index, a group's, or the lookups' while it answers them.
+    /// The keyed-row table a node builds for itself: a group's, a closure's or a cycle search's edges, or the lookups' while
+    /// it answers them; readied from the keyed pool and given back to it at the file's end.
     pub(crate) index: KeyedRows,
     /// The row a kernel is reading, decoded from the facts one row at a time.
     pub(crate) row: Vec<Value>,
@@ -63,13 +64,14 @@ pub struct FileBuffers {
     /// The hashes of a group's values, which a group digest folds.
     pub(crate) hashes: crate::domain::reduction::types::GroupHashes,
     /// The second index a kernel reads beside `index`, of the kind it needs: a seeded closure's held probe's own index, or
-    /// an axis's domain, keyed.
+    /// an axis's domain, keyed; given back to the pool of its kind at the file's end.
     pub(crate) second: IndexRows,
     /// The work of the graph walks, its capacity kept across nodes and files.
     pub(crate) walk: crate::domain::physical_plan::types::walk_scratch::value::WalkScratch,
     /// The work arrays of a cycle search, kept across files.
     pub(crate) cycles: crate::domain::cycles::types::CycleScratch,
-    /// The rows `distinct` kept so far, once each, its capacity kept across nodes.
+    /// The rows `distinct`, a seeded closure's probe or a worklist kept so far, once each; readied from the row-set pool and
+    /// given back to it at the file's end.
     pub(crate) repeats: crate::domain::physical_plan::types::row_set::value::RowSet,
     /// The tree nodes one left row of a tree probe found, its capacity kept across files.
     pub(crate) found: Vec<NodeId>,
@@ -341,9 +343,10 @@ impl FileBuffers {
 }
 
 impl FileBuffers {
-    /// Ends the open file: each node it touched is released, and each shared index it opened and each streamed stage's own
-    /// index and repeats give their rows to the worker's index pool, no other, so the work is the file's, not the program's;
-    /// its scratch keeps its room for the next file only within the cap.
+    /// Ends the open file: each node it touched is released, and each shared index it opened, each streamed stage's own
+    /// index and repeats, and the worker's own index, second index and repeats give their rows to the worker's index pools,
+    /// each to the pool of its kind, no other, so the work is the file's, not the program's; its other scratch keeps its room
+    /// for the next file only within the cap.
     ///
     /// # Examples
     ///
@@ -372,9 +375,13 @@ impl FileBuffers {
             self.ending.0 += self.shared.opened.len();
         }
         self.shared.ended(&mut self.pools);
-        self.index.kept();
-        self.second.kept();
-        self.repeats.kept();
+        self.pools
+            .keyed
+            .pooled(std::mem::take(&mut self.index), PoolSize(POOL_INDEXES));
+        self.second.given_back(&mut self.pools);
+        self.pools
+            .rows
+            .pooled(std::mem::take(&mut self.repeats), PoolSize(POOL_INDEXES));
         self.stream.given_back(&mut self.pools);
         self.stream.kept();
         self.values.kept();

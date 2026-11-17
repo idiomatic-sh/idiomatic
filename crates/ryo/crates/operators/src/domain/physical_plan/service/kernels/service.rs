@@ -50,7 +50,7 @@ pub(crate) fn kernels(
     match lowering {
         Lowering::Distinct { .. } => {
             output.kinds = kinds.to_vec();
-            buffers.repeats.cleared();
+            buffers.pools.rows.refilled(&mut buffers.repeats);
             for source in std::iter::once(input).chain(other) {
                 if kinds_of(source) != kinds {
                     return Err(PortableOperatorFault::ShapeMismatch);
@@ -70,6 +70,7 @@ pub(crate) fn kernels(
             }
         }
         Lowering::Group { group, .. } => {
+            buffers.pools.keyed.refilled(&mut buffers.index);
             let scratch = GroupScratch {
                 index: &mut buffers.index,
                 row: &mut buffers.row,
@@ -93,6 +94,8 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
+            buffers.pools.keyed.refilled(&mut buffers.index);
+            buffers.pools.rows.refilled(&mut buffers.repeats);
             // The seeded join's own index, right rows and key columns, for this run.
             if let Lowering::SeededReach { join, .. } = lowering {
                 buffers
@@ -127,6 +130,7 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
+            buffers.pools.keyed.refilled(&mut buffers.index);
             // The domain is keyed: the second index is readied as keyed rows.
             buffers.second.readied(IndexKind::Keyed, &mut buffers.pools);
             let IndexRows::Keyed(domain) = &mut buffers.second else {
@@ -151,6 +155,7 @@ pub(crate) fn kernels(
             );
         }
         Lowering::Worklist { worklist, .. } => {
+            buffers.pools.rows.refilled(&mut buffers.repeats);
             let inputs = WorklistInputs {
                 roots: input,
                 edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
@@ -166,6 +171,7 @@ pub(crate) fn kernels(
             );
         }
         Lowering::Components { cycles, .. } => {
+            buffers.pools.keyed.refilled(&mut buffers.index);
             return cyclic(
                 cycles,
                 input,

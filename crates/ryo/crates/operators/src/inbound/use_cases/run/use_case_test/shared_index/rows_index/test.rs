@@ -10,9 +10,14 @@ use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::worker_meters::value::IndexBuilds;
 use crate::domain::physical_plan::types::{PlanInput, PlanInputs, PlanNodeId, Resources};
-use crate::inbound::use_cases::run::fixtures::cases::{DEFINES, defines, input_of, named, select};
+use crate::inbound::use_cases::run::fixtures::cases::{
+    DEFINES, compared, defines, input_of, select,
+};
 use crate::inbound::use_cases::run::fixtures::unshared::emitted_unshared;
 use crate::inbound::use_cases::run::fixtures::{TableInputs, TextResources, emitted};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, LiteralText, Operand, QueryLiteral, Test,
+};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
@@ -69,11 +74,22 @@ const TEXTS: &[&str] = &["kind", "r", "n1", "n2", "a"];
 /// The names of each file's rows of `DEFINES`, in order.
 const FILES: [&[&str]; 2] = [&["n1", "n2", "n1", "a"], &["n2", "a", "n2"]];
 
-/// The differences, the nodes they emit: `DEFINES` less its rows named `n1`, then its rows named `n2` less them.
+/// The differences, the nodes they emit: `DEFINES` less its rows named `n1…`, then its rows named `n2…` less them.
 const DIFFERENCES: [PlanNodeId; 2] = [PlanNodeId(2), PlanNodeId(3)];
 
-/// The program of the first `count` differences: two selects of `DEFINES` by name, then each difference, a whole-row probe of
-/// the rows named `n1`.
+/// The rows of `DEFINES` whose name starts with `prefix`: a select of a prefix is no lookup, so no keyed index is built
+/// beside the differences' own.
+fn prefixed(prefix: &str) -> Step {
+    let name = Operand::Column(ColumnIndex(3));
+    let prefix = Operand::Literal(QueryLiteral::Text(LiteralText(prefix.into())));
+    select(
+        PlanInput::Relation(DEFINES),
+        vec![compared(Test::StartsWith, name, prefix)],
+    )
+}
+
+/// The program of the first `count` differences: two selects of `DEFINES` by a prefix of its names, then each difference, a
+/// whole-row probe of the rows named `n1`.
 fn steps(count: usize) -> Vec<Step> {
     let rows = PlanInput::Relation(DEFINES);
     let ones = PlanInput::Node(PlanNodeId(0));
@@ -85,8 +101,8 @@ fn steps(count: usize) -> Vec<Step> {
         inputs: vec![left, ones],
     };
     [
-        select(rows, vec![named("n1")]),
-        select(rows, vec![named("n2")]),
+        prefixed("n1"),
+        prefixed("n2"),
         less(rows),
         less(PlanInput::Node(PlanNodeId(1))),
     ]
