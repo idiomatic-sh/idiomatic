@@ -48,8 +48,14 @@ macro_rules! lowerings {
                 }
             }
 
-            /// How its rows grow: its operator's declaration for this instance. Read by the tests until the plan check reads it.
-            #[cfg(test)]
+            /// The name of its kind, as a refusal of the plan's growth check names it.
+            pub(crate) fn kind_name(&self) -> &'static str {
+                match self {
+                    $( Self::$variant(_) => stringify!($variant), )+
+                }
+            }
+
+            /// How its rows grow: its operator's declaration for this instance, which the plan's growth check reads.
             pub(crate) fn growth(&self) -> $crate::domain::growth::types::Growth {
                 match self {
                     $( Self::$variant(node) => <$node as $crate::domain::growth::types::Operator>::growth(node), )+

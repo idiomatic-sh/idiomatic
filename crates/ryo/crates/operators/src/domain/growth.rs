@@ -1,5 +1,6 @@
 //! How an operator's rows grow with its inputs: the one declaration every operator of the physical plan makes, and the one
 //! algebra that composes a plan's declarations.
+pub mod errors;
 pub(crate) mod service;
 pub mod types;
 

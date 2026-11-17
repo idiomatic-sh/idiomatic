@@ -1,6 +1,7 @@
 //! The one algebra composes a node's bound from its declaration and its inputs' bounds.
-use super::service::composed;
-use super::types::{Bound, Degree, Fan, Growth, NodeBound};
+use super::errors::GrowthError;
+use super::service::judged;
+use super::types::{Bound, Degree, Fan, Growth, GrowthKind, GrowthNode, NodeBound};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// A node of this growth over two relations' rows.
@@ -8,7 +9,7 @@ type Input = Growth;
 /// Its bound.
 type Value = NodeBound;
 /// The algebra refuses nothing.
-type Failure = std::convert::Infallible;
+type Failure = GrowthError;
 
 /// `rows^a · depth^b · repeats^c`.
 const fn bound(rows: u8, depth: u8, repeats: u8) -> Bound {
@@ -66,12 +67,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("a_file_only_probe_writes_the_product_of_its_sides"),
-        word: Word::Succeeds,
+        name: CaseName("a_file_only_probe_writing_the_product_of_its_sides_is_refused"),
+        word: Word::Refuses,
         input: || Growth::Keyed(Fan::FileProduct),
-        expect: Expect::Value(NodeBound {
-            output: bound(2, 0, 0),
-            work: bound(2, 0, 0),
+        expect: Expect::Error(GrowthError::Superlinear {
+            node: GrowthNode(0),
+            kind: GrowthKind("Probe"),
+            degree: Degree(2),
         }),
     },
     Case {
@@ -104,10 +106,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject(growth: Input) -> Result<Value, Failure> {
-    Ok(composed(growth, &[bound(1, 0, 0), bound(1, 0, 0)]))
+    judged(
+        growth,
+        &[bound(1, 0, 0), bound(1, 0, 0)],
+        GrowthNode(0),
+        GrowthKind("Probe"),
+    )
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

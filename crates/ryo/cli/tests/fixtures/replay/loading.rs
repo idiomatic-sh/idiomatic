@@ -8,6 +8,7 @@ use ryo_core::outbound::language::interface::LanguagePort as _;
 use ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase as _;
 use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::prepare::interface::{
     ObservationIdentity, PrepareUseCase as _,
 };
@@ -37,9 +38,10 @@ pub(crate) const BENCHMARKS: [&str; 3] = [
     "languages/rust/benchmarks/linters/clippy",
 ];
 
-/// How a rule fared: planned, or not loaded, with the reason.
+/// How a rule fared: planned, refused by the plan's growth check, or not loaded for another reason, with the reason.
 pub(crate) enum Loaded {
     Planned,
+    Refused(String),
     Unloaded(String),
 }
 
@@ -105,6 +107,7 @@ impl Production {
             observations: ObservationIdentity::Independent,
         }) {
             Ok(_) => Loaded::Planned,
+            Err(error @ OperatingError::Superlinear { .. }) => Loaded::Refused(error.to_string()),
             Err(error) => Loaded::Unloaded(error.to_string()),
         }
     }

@@ -1,8 +1,8 @@
 //! The plan's growth check: every live node's bound composed through the one algebra, in id order, and the first node whose rows
 //! grow past its inputs' refused.
-use super::errors::GrowthError;
-use crate::domain::growth::service::{ROWS, composed};
-use crate::domain::growth::types::{Bound, Degree, Fan, Growth, NodeBound};
+use crate::domain::growth::errors::GrowthError;
+use crate::domain::growth::service::{ROWS, composed, judged};
+use crate::domain::growth::types::{Bound, GrowthKind, GrowthNode, NodeBound};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{EngineUses, NodeReaders, PlanNodeId, RowSource};
 
@@ -36,25 +36,18 @@ pub(crate) fn checked(nodes: &[PhysicalNode]) -> Result<Vec<NodeBound>, GrowthEr
             .sources()
             .map(|source| source_bound(source, &made))
             .collect();
-        let bound = composed(growth, &inputs);
-        let widest = inputs
-            .iter()
-            .map(|input| input.rows)
-            .max()
-            .unwrap_or(Degree(1));
-        let degree = bound.output.rows.max(bound.work.rows);
         let live = node.readers != NodeReaders(0) || node.engine != EngineUses(0);
-        let declared = matches!(
-            growth,
-            Growth::Keyed(Fan::DeclaredPairs) | Growth::Banded(Fan::DeclaredPairs)
-        );
-        if live && !declared && degree > Degree(1) && degree > widest {
-            return Err(GrowthError::Superlinear {
-                node: id,
+        // A node a rewrite left unread is not judged: its bound is still made, for the nodes that read it.
+        let bound = if live {
+            judged(
                 growth,
-                degree,
-            });
-        }
+                &inputs,
+                GrowthNode(id.0),
+                GrowthKind(node.lowering.kind_name()),
+            )?
+        } else {
+            composed(growth, &inputs)
+        };
         made.push(bound);
     }
     Ok(made)

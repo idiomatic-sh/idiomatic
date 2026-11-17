@@ -62,4 +62,29 @@ impl<'p> LogicalBuild<'p> {
     pub fn program(&self) -> &LogicalProgram<'p> {
         &self.program
     }
+
+    /// The rule that built `node`, by its place in rule order: the first rule a step of which is the node. A node two rules
+    /// share is the first one's, and a node only the engine keeps (held, never read by a rule's emit) is still the rule's whose
+    /// step it is. None for a node the program does not have.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_domain::domain::executable_program::service::logical;
+    /// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+    /// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+    /// let mut inputs = ProgramInputs::default();
+    /// let build = logical(&[], &mut inputs).unwrap();
+    /// assert_eq!(build.building_rule(PlanNodeId(0)), None);
+    /// ```
+    #[must_use]
+    pub fn building_rule(
+        &self,
+        node: PlanNodeId,
+    ) -> Option<crate::domain::coverage::types::RuleIndex> {
+        self.rules
+            .iter()
+            .position(|rule| rule.steps.iter().any(|step| step.as_ref() == Ok(&node)))
+            .map(crate::domain::coverage::types::RuleIndex)
+    }
 }

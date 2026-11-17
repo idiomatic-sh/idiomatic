@@ -4,4 +4,5 @@ mod demand;
 #[cfg(test)]
 mod fixtures;
 mod lifetimes;
+mod naming;
 mod roots;
