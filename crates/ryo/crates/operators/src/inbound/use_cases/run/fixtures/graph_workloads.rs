@@ -54,7 +54,7 @@ fn edge_rows(pairs: impl Iterator<Item = (u32, u32)>, resources: &TextResources)
 
 /// Edge rows as left rows of Defines' shape, each its parent as its node (columns 0 and 4) and its field as its name
 /// (columns 1 to 3), lent whole: a relation's rows are never lent short of its kinds.
-pub(crate) fn defines_of_edges(edges: &Table) -> Table {
+pub fn defines_of_edges(edges: &Table) -> Table {
     let width = kinds(EDGES).len();
     let span = Value::Span(Span {
         start: Offset(0),
