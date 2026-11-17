@@ -3,8 +3,9 @@
 
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::observation_schedule::types::{
-    BindingCount, EscapingOutputs, ExportedOutputs, LinkedObservationPlans, PendingStep,
-    ResolvedObservationBinding, ResolvedObservationProducer, UsedInputs, WantedSteps,
+    BindingCount, EscapingOutputs, ExportedOutputs, LinkedObservationPlans, OutputPlaces,
+    PendingStep, Pruned, ResolvedObservationBinding, ResolvedObservationProducer, UsedInputs,
+    WantedSteps,
 };
 use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -92,14 +93,18 @@ pub fn link(
         }
     }
     let escapes = cross_file_exports(&plans, &bindings, &wanted)?;
-    let mut output_maps = Vec::with_capacity(plans.len());
+    // A plan pruning keeps whole stays the one the compilation holds; only a pruned plan is new.
+    let mut output_maps: Vec<Option<OutputPlaces>> = Vec::with_capacity(plans.len());
     for (rule, plan) in plans.iter_mut().enumerate() {
-        output_maps.push(prune(
-            std::sync::Arc::make_mut(plan),
-            &wanted[rule],
-            &exports[rule],
-            &escapes[rule],
-        )?);
+        output_maps.push(
+            match prune(plan, &wanted[rule], &exports[rule], &escapes[rule])? {
+                Pruned::Unchanged => None,
+                Pruned::Changed(pruned, places) => {
+                    *plan = std::sync::Arc::new(pruned);
+                    Some(places)
+                }
+            },
+        );
     }
     let mut kept_bindings = Vec::new();
     for (rule, inputs) in bindings.into_iter().enumerate() {
@@ -118,11 +123,16 @@ pub fn link(
                     let Ok(at) = usize::try_from(output.0) else {
                         return Err(RuleIntentError::InvalidReference);
                     };
-                    *output = output_maps
-                        .get(rule.0)
-                        .and_then(|mapping| mapping.get(at))
-                        .and_then(|id| *id)
-                        .ok_or(RuleIntentError::InvalidReference)?;
+                    *output = match output_maps.get(rule.0) {
+                        Some(Some(places)) => places.0.get(at).and_then(|id| *id),
+                        // A plan kept whole keeps each output in its place.
+                        Some(None) => plans
+                            .get(rule.0)
+                            .filter(|plan| at < plan.observations.len())
+                            .map(|_| *output),
+                        None => None,
+                    }
+                    .ok_or(RuleIntentError::InvalidReference)?;
                 }
             }
             kept.push(binding);
@@ -243,11 +253,16 @@ pub(super) fn mark_escapes(
 
 /// Reindex all step references together, preserving original rule identities and parameter positions.
 pub(super) fn prune(
-    plan: &mut Plan,
+    plan: &Plan,
     wanted: &WantedSteps,
     exports: &ExportedOutputs,
     escapes: &EscapingOutputs,
-) -> Result<Vec<Option<ObservationIndex>>, RuleIntentError> {
+) -> Result<Pruned, RuleIntentError> {
+    if plan.steps.is_empty() && plan.observations.is_empty() {
+        return Ok(Pruned::Unchanged);
+    }
+    let mut owned = plan.clone();
+    let plan = &mut owned;
     let mut step_map = vec![None; plan.steps.len()];
     let mut next = StepId(0);
     for (at, keep) in wanted.0.iter().copied().enumerate() {
@@ -313,7 +328,7 @@ pub(super) fn prune(
             plan.frontier.push(input);
         }
     }
-    Ok(output_map)
+    Ok(Pruned::Changed(owned, OutputPlaces(output_map)))
 }
 
 /// The step number after `id`; a plan cannot have more steps than numbers.

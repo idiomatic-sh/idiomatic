@@ -182,6 +182,19 @@ pub(crate) struct ExportedOutputs(pub Vec<bool>);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct EscapingOutputs(pub Vec<bool>);
 
+/// Where each named output of a plan went when linking pruned it: its new place, or none when it was not kept.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct OutputPlaces(pub Vec<Option<ryo_values::domain::records::types::ObservationIndex>>);
+
+/// What pruning made of one plan: the plan as it was, shared as it is, or a new plan of only the kept steps and outputs.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Pruned {
+    /// Every step and output is kept and the frontier is the one the plan has: the plan is shared, not copied.
+    Unchanged,
+    /// The plan of the kept steps and outputs, each list exactly as long as what it keeps, and where each output went.
+    Changed(Plan, OutputPlaces),
+}
+
 /// The bound inputs of one rule that a kept step reads, by the input's place.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct UsedInputs(pub Vec<bool>);

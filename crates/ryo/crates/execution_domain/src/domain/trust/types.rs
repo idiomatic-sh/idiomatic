@@ -4,9 +4,12 @@ use ryo_relations::domain::relations::types::Relation;
 
 use ryo_values::domain::plan_parts::types::PlanComparison;
 
+pub mod read_set;
+pub mod read_sets;
+
 /// A place where a plan reads a relation: the relation, and the comparisons on its `kind` column that the rows must satisfy
 /// to get any further, when the step that reads it is a `select`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub struct RelationRead {
     /// The relation read.
     pub relation: Relation,
@@ -69,3 +72,34 @@ pub(crate) struct StepReads {
 /// The inputs, by position, whose absence of rows a step's operator trusts: bit `n` is the `n`th named input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AbsenceInputs(pub u8);
+
+/// Whether two read sets are one stored set or two equal copies.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::trust::types::SetSharing;
+/// assert_ne!(SetSharing::Shared, SetSharing::Copied);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SetSharing {
+    /// One stored set.
+    Shared,
+    /// Two stored sets.
+    Copied,
+}
+
+/// How many distinct read sets a program stores.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::trust::types::StoredSets;
+/// assert_eq!(StoredSets(2).0, 2);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StoredSets(pub usize);
+
+/// The hash of a read set, by which a program's stored sets are found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ReadSetHash(pub u64);

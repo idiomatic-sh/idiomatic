@@ -6,6 +6,7 @@ use super::reads::{
 };
 use ryo_relations::domain::relations::types::Relation;
 
+use super::types::read_sets::value::{PlanReadSets, ReadSets, StepReadSets};
 use super::types::{AbsenceInputs, Bearing, Blocking, Needs, Passage, RelationRead, StepReads};
 use crate::domain::coverage::constants::REPOSITORY;
 use crate::domain::coverage::service::unknown_message;
@@ -308,4 +309,39 @@ pub fn observed_reads(plan: &Plan) -> Vec<RelationRead> {
         absorb(&mut reads, each.iter().cloned());
     }
     reads
+}
+
+/// What each step of `plan` reads: every relation read on the way to its rows (none for a step refused for an authoring error,
+/// which never runs), and the reads whose absence of rows it or a step it reads trusts, each set stored once in `sets`, which
+/// the program's other plans share.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::trust::service::step_read_sets;
+/// use ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets;
+/// use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
+/// use ryo_values::domain::plans::types::{Emit, Plan};
+/// let plan = Plan {
+///     observation_inputs: Vec::new(),
+///     parameters: Vec::new(),
+///     steps: Vec::new(),
+///     comparison_origins: Vec::new(),
+///     observations: Vec::new(),
+///     emit: Emit { step: StepId(0), subject: ColumnIndex(0), key: Vec::new(), headings: Vec::new() },
+///     frontier: Vec::new(),
+/// };
+/// assert!(step_read_sets(&plan, &mut ReadSets::default()).0.is_empty());
+/// ```
+#[must_use]
+pub fn step_read_sets(plan: &Plan, sets: &mut ReadSets) -> PlanReadSets {
+    PlanReadSets(
+        plan.steps
+            .iter()
+            .map(|_| StepReadSets {
+                uses: sets.shared(Vec::new()),
+                needs: sets.shared(Vec::new()),
+            })
+            .collect(),
+    )
 }
