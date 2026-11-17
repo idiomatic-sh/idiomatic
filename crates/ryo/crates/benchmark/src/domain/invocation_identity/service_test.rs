@@ -83,6 +83,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed("OTHER=$STATE RAYON_NUM_THREADS=1")),
     },
     Case {
+        name: CaseName("cargo's job count is spelled as one worker"),
+        word: Word::Succeeds,
+        input: || {
+            asking(
+                Operation::Environment,
+                vec!["CARGO_BUILD_JOBS=4".into()],
+                ".",
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed("CARGO_BUILD_JOBS=1")),
+    },
+    Case {
+        name: CaseName(
+            "the value after a thread-count flag is spelled as one worker, every other argument as it is",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            asking(
+                Operation::Invocation,
+                vec![
+                    "--threads".into(),
+                    "4".into(),
+                    "--format".into(),
+                    "4".into(),
+                ],
+                ".",
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed("--threads 1 --format 4|$ROOT")),
+    },
+    Case {
         name: CaseName("a non UTF8 argument is refused"),
         word: Word::Refuses,
         input: || asking(Operation::Invocation, vec![non_utf8()], "."),

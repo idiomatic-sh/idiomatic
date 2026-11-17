@@ -137,3 +137,33 @@ pub enum Refusal {
     /// The adapter refused the request.
     Refused,
 }
+
+/// A growth bench under `bench`: its profile declares accepted-syntax for F401 and OTHER, its one grown rule F401's own
+/// profile declares always for F401, and its growth table grows F401 over one operation in one frame.
+///
+/// # Errors
+/// The error of writing a file.
+pub fn growth_bench(bench: &std::path::Path) -> std::io::Result<()> {
+    let profile = |defaults: &str, applicability: &str| {
+        format!(
+            "tool = 'fixture'\nversion = '1'\nsha256 = ['{}']\ndefaults = [{defaults}]\n[rule-applicability]\n{applicability}",
+            "0".repeat(64)
+        )
+    };
+    std::fs::create_dir_all(bench.join("profiles/F401"))?;
+    std::fs::write(
+        bench.join("benchmark.toml"),
+        profile(
+            "'F401', 'OTHER'",
+            "F401 = 'accepted-syntax'\nOTHER = 'accepted-syntax'\n",
+        ),
+    )?;
+    std::fs::write(
+        bench.join("profiles/F401/benchmark.toml"),
+        profile("'F401'", "F401 = 'always'\n"),
+    )?;
+    std::fs::write(
+        bench.join("growth.toml"),
+        "file = \"case.py\"\nsizes = [1000]\n[[rules]]\nrule = \"F401\"\nprofile = \"profiles/F401\"\n[frames.module]\nhead = \"\"\nindent = \"\"\ntail = \"\"\n[[operations]]\nname = \"assign\"\nframes = [\"module\"]\nsegments = [{ lines = [\"v = 1\\n\"], fixed = 0, per-size = 1 }]\n",
+    )
+}

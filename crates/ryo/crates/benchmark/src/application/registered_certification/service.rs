@@ -102,6 +102,16 @@ pub fn admit(
     ])
 }
 
+/// The registered rules certification verifies: those the coverage covers but the deferred ones, which have no query and no
+/// verification command; the registration accounts for them and nothing certifies them.
+pub(crate) fn certified_rules<'a>(
+    coverage: &'a RegisteredCoverage,
+    rules: &'a [RegisteredRule],
+) -> impl Iterator<Item = &'a RegisteredRule> + 'a {
+    crate::domain::suite::service::covered(coverage, rules, |entry| &entry.rule_id)
+        .filter(|entry| !matches!(entry.command, RuleCommand::Deferred(_)))
+}
+
 /// Require the registration's defaults to be the measured profile's: all of them, but those registered as deferred, for full
 /// coverage; the selected ones, each a registered default, for a selection.
 ///

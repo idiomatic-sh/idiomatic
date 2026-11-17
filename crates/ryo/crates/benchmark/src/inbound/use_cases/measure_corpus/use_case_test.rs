@@ -238,7 +238,10 @@ fn certified(
     let bench = bench_of(covered);
     with_certificate(
         (bench.path(), cache.path()),
-        &[super::types::SourceSuffix(".fixture")],
+        (
+            &[super::types::SourceSuffix(".fixture")],
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
+        ),
         |corpus| {
             assert_eq!(
                 corpus.projects.len(),
@@ -268,3 +271,5 @@ fn without_digest(observations: &str) -> String {
         })
         .collect()
 }
+
+mod edited;
