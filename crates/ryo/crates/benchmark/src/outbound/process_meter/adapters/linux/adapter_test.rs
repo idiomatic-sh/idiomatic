@@ -34,7 +34,52 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
+/// The name this test's own run is told apart by: a second exact filter it is re-run with, which names no test.
+const ALONE: &str = "alone";
+
+/// This test's name in the test binary, and the filter that tells its own run apart.
+fn names() -> (String, String) {
+    let module = module_path!()
+        .split_once("::")
+        .map_or(module_path!(), |(_, path)| path);
+    let test = format!("{module}::succeeds");
+    let alone = format!("{test}::{ALONE}");
+    (test, alone)
+}
+
+/// Each row reads the peak, which is the whole process's: in the test binary's shared process another test's thread may grow
+/// it between a row's reset and its read. So a row is measured in a process the meter owns: this test binary re-run on this
+/// test alone, on one thread, with the [`ALONE`] filter, where each row reads the peak in place.
 fn subject(input: Input) -> Result<Value, Failure> {
+    let (test, alone) = names();
+    if std::env::args().any(|argument| argument == alone) {
+        in_place(input)
+    } else {
+        own_process(&test, &alone)
+    }
+}
+
+/// This test, re-run alone in a process of its own, where each row reads the peak in place: true when it passed, having run
+/// exactly this one test.
+fn own_process(test: &str, alone: &str) -> Result<Value, Failure> {
+    let output =
+        std::process::Command::new(std::env::current_exe().map_err(|error| error.to_string())?)
+            .args(["--exact", test, alone, "--test-threads=1"])
+            .output()
+            .map_err(|error| error.to_string())?;
+    let printed = String::from_utf8_lossy(&output.stdout);
+    if !output.status.success() {
+        return Err(format!(
+            "the meter's own process ended with {}: {printed}{}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    Ok(printed.contains("test result: ok. 1 passed;"))
+}
+
+/// The row read in this process, which is the meter's own.
+fn in_place(input: Input) -> Result<Value, Failure> {
     let meter = ProcessMeterLinuxAdapter;
     match input {
         Probe::Contract => {
