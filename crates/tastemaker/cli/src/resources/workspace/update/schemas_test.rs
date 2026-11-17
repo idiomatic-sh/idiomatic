@@ -39,10 +39,10 @@ fn subject(line: Input) -> Result<Value, Failure> {
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("update").chain(line))
         .map_err(|_error| Next::Report)?;
     let edge = crate::resources::edge_at(
-        tastemaker_core::domain::files::types::MachinePath("/repo".into()),
-        tastemaker_core::domain::settings::types::Build("test".into()),
+        tastemaker_values::domain::files::types::MachinePath("/repo".into()),
+        tastemaker_values::domain::settings::types::Build("test".into()),
         crate::output::Format::Terminal,
-        tastemaker_core::domain::writing::types::Writing::Write,
+        tastemaker_values::domain::writing::types::Writing::Write,
     );
     super::request(parsed.arguments.entry, parsed.arguments.to, &edge)
         .map(|_| true)

@@ -1,8 +1,10 @@
 //! The types of the `list` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::entries::types::Description;
-use crate::domain::files::types::MachinePath;
-use crate::domain::packages::types::{DefinitionKind, DefinitionName, PackageName, VersionText};
+use tastemaker_values::domain::entries::types::Description;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::{
+    DefinitionKind, DefinitionName, PackageName, VersionText,
+};
 
 /// Which kinds of definition are listed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -3,50 +3,8 @@
 use sha2::{Digest as _, Sha256};
 use std::{
     io::{self, Write as _},
-    path::{Path, PathBuf},
+    path::Path,
 };
-
-/// The directories a lock is never looked for in: build trees, caches and git's own.
-const SKIPPED: [&str; 4] = ["target", ".tastemaker_cache", ".ryo_cache", ".git"];
-
-/// The path, relative to `root`, of every `tastemaker.lock` beneath `from`.
-fn locks(root: &Path, from: &Path, found: &mut Vec<PathBuf>) -> io::Result<()> {
-    for entry in std::fs::read_dir(from)? {
-        let entry = entry?;
-        let name = entry.file_name();
-        if SKIPPED.iter().any(|skipped| name == *skipped) {
-            continue;
-        }
-        let path = entry.path();
-        if entry.file_type()?.is_dir() {
-            locks(root, &path, found)?;
-            continue;
-        }
-        if name == "tastemaker.lock" {
-            found.push(
-                path.strip_prefix(root)
-                    .map_err(io::Error::other)?
-                    .to_path_buf(),
-            );
-        }
-    }
-    Ok(())
-}
-
-/// Copies every lock of the source repository to the same path in the scratch repository `scratch`.
-pub(crate) fn copy_locks(scratch: &Path) -> io::Result<()> {
-    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
-    let mut found = Vec::new();
-    locks(&source, &source, &mut found)?;
-    for relative in found {
-        let to = scratch.join(&relative);
-        if let Some(parent) = to.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let _: u64 = std::fs::copy(source.join(&relative), to)?;
-    }
-    Ok(())
-}
 
 /// Change only the canonical top-level tool pin, refusing unfamiliar fixture shapes.
 fn rewritten(source: &str, version: &str) -> Result<(String, String), String> {
@@ -90,7 +48,8 @@ pub(crate) fn normalize(root: &Path) -> io::Result<()> {
         .parent()
         .and_then(Path::parent)
         .ok_or_else(|| io::Error::other("the fixture is not at <scratch>/crates/ryo"))?;
-    copy_locks(scratch)?;
+    let source = crate::fixes::root();
+    crate::locks::copy_locks(&source, &source, scratch)?;
     writeln!(
         io::stderr(),
         "BENCH_FIXTURE_VERSION {}",

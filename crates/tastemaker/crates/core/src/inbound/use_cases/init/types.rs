@@ -1,7 +1,7 @@
 //! Initialization requests and reports.
-use crate::domain::files::types::MachinePath;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 /// The existing project to initialize.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InitRequest {

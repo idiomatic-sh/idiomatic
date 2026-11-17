@@ -1,8 +1,8 @@
 //! The types of the `check` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::files::types::MachinePath;
-use crate::domain::findings::types::Report;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::findings::types::Report;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Whether a check rewrites the lock when it is stale.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,7 +23,7 @@ pub struct CheckRequest {
     /// Whether a stale lock is rewritten.
     pub fixing: Fixing,
     /// Whether the check writes its lock, or `-n/--dry-run` only says it would.
-    pub writing: crate::domain::writing::types::Writing,
+    pub writing: tastemaker_values::domain::writing::types::Writing,
 }
 
 /// Whether the lock was rewritten.
@@ -62,11 +62,11 @@ pub struct LintInputs<'a> {
 #[derive(Debug)]
 pub struct PreparedPlan {
     /// The plan.
-    pub plan: crate::domain::applications::types::Plan,
+    pub plan: tastemaker_values::domain::applications::types::Plan,
     /// The lock the load made, its packages.
-    pub lock: Vec<crate::domain::packages::types::LockedPackage>,
+    pub lock: Vec<tastemaker_values::domain::packages::types::LockedPackage>,
     /// What loading found: the format findings and the variables'.
-    pub findings: Vec<crate::domain::findings::types::Finding>,
+    pub findings: Vec<tastemaker_values::domain::findings::types::Finding>,
     /// The definition files read, each in its package.
     pub read: Vec<crate::domain::loading::types::ReadFile>,
 }

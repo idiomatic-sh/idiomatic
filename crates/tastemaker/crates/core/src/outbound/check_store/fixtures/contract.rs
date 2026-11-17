@@ -32,15 +32,17 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 ///
 /// When the implementation breaks the contract.
 pub fn check(adapter: &impl CheckStorePort) {
-    use crate::domain::digests::types::Digest;
-    use crate::domain::files::types::Stamp;
-    use crate::domain::findings::types::{Column, Finding, Fingerprint, Help, Line};
-    use crate::domain::findings::types::{MessageText, Place, Reason, Region, RuleId, Suppression};
     use crate::outbound::check_store::types::{Checked, CheckedFile, CheckedPath, SourcedFile};
+    use tastemaker_values::domain::digests::types::Digest;
+    use tastemaker_values::domain::files::types::Stamp;
+    use tastemaker_values::domain::findings::types::{Column, Finding, Fingerprint, Help, Line};
+    use tastemaker_values::domain::findings::types::{
+        MessageText, Place, Reason, Region, RuleId, Suppression,
+    };
     let finding = |place, help| Finding {
-        path: crate::domain::paths::types::RepoPath("src/a.rs".into()),
+        path: tastemaker_values::domain::paths::types::RepoPath("src/a.rs".into()),
         place,
-        rule: crate::domain::findings::service::of_rule(RuleId("p/a".into())),
+        rule: tastemaker_values::domain::findings::service::of_rule(RuleId("p/a".into())),
         message: MessageText("a marker".into()),
         help,
         fingerprint: Fingerprint(7),
@@ -49,8 +51,8 @@ pub fn check(adapter: &impl CheckStorePort) {
         path: CheckedPath(path.into()),
         digest: Digest(format!("d{size}").into()),
         stamp: Stamp {
-            size: crate::domain::files::types::FileSize(size),
-            modified: crate::domain::files::types::ModifiedTime(4),
+            size: tastemaker_values::domain::files::types::FileSize(size),
+            modified: tastemaker_values::domain::files::types::ModifiedTime(4),
         },
     };
     // A file and a package's file; a finding at a region, one at a line, one about a whole file and one accepted.
@@ -74,8 +76,8 @@ pub fn check(adapter: &impl CheckStorePort) {
             reason: Reason("it is generated".into()),
         }],
         evaluated: [
-            crate::domain::findings::service::of_rule(RuleId("p/a".into())),
-            crate::domain::findings::service::check_id("p/s", "count"),
+            tastemaker_values::domain::findings::service::of_rule(RuleId("p/a".into())),
+            tastemaker_values::domain::findings::service::check_id("p/s", "count"),
         ]
         .into(),
         known: Digest("rules".into()),

@@ -6,11 +6,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::types::{Held, Typing};
-use crate::domain::contracts::constants::{
+use tastemaker_values::domain::contracts::constants::{
     ARGUMENT_SEPARATOR, BODIES, BRACKETS, HELD, PARTS, TYPED,
 };
-use crate::domain::contracts::service::holding;
-use crate::domain::contracts::types::{
+use tastemaker_values::domain::contracts::service::holding;
+use tastemaker_values::domain::contracts::types::{
     AttributeText, DataRow, Declaration, DeclarationKind, DeclarationName, Decorations, Facts,
     Holding, PartText, RowNode, RowPlace,
 };

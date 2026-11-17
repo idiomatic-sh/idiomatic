@@ -1,9 +1,9 @@
 //! The types of the `analysis` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::applications::types::{PlacedRow, PlannedRule};
-use crate::domain::contracts::types::RenderedContent;
-use crate::domain::files::types::MachinePath;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::applications::types::{PlacedRow, PlannedRule};
+use tastemaker_values::domain::contracts::types::RenderedContent;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// How the ryo adapter runs every lint call: the invocation's one pool it reads files on, and the most memory it may use.
 /// The edge sets them once, beside where the adapter keeps its work, which its factory takes.
@@ -65,10 +65,10 @@ pub enum Hosted {
     Nothing,
     /// The scenarios' findings and expectations, for the verdict queries: the relations `tastemaker.expected`,
     /// `tastemaker.found`, `tastemaker.only`, `tastemaker.own` and `tastemaker.evaluated`.
-    Verdict(crate::domain::scenario_judging::types::VerdictRows),
+    Verdict(tastemaker_values::domain::scenario_judging::types::VerdictRows),
     /// The counts and pairs a check left waiting, for the count queries: the relations `tastemaker.template-entry` and
     /// `tastemaker.condition-answer`.
-    Counts(crate::domain::judging::types::CountRows),
+    Counts(tastemaker_values::domain::judging::types::CountRows),
 }
 
 /// A file given as text.
@@ -84,9 +84,9 @@ pub struct GivenFile {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AnalysisReport {
     /// The rows the rules selected, each file relative to the lint call's root.
-    pub findings: Vec<crate::domain::applications::types::LintAnswer>,
+    pub findings: Vec<tastemaker_values::domain::applications::types::LintAnswer>,
     /// What they could not decide.
-    pub unknowns: Vec<crate::domain::applications::types::LintUnknown>,
+    pub unknowns: Vec<tastemaker_values::domain::applications::types::LintUnknown>,
     /// The files no linked language read.
     pub unread: Vec<RepoPath>,
 }

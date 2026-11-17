@@ -1,13 +1,13 @@
 //! What the schemas of `check` accept and refuse, and the SARIF log they make: every result an error, suppressions and
 //! fingerprints as the first Tastemaker wrote them.
 
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::findings::types::{
+use tastemaker_core::inbound::use_cases::check::types::{CheckReport, LockOutcome};
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::findings::types::{
     Column, Finding, Fingerprint, Help, Line, MessageText, Place, Reason, Region, Report, RuleId,
     Suppression,
 };
-use tastemaker_core::domain::paths::types::RepoPath;
-use tastemaker_core::inbound::use_cases::check::types::{CheckReport, LockOutcome};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 use super::answer;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -92,9 +92,9 @@ fn refused() -> Result<Value, Failure> {
             .map_err(|_error| Next::Report)?;
     let edge = crate::resources::edge_at(
         MachinePath("/repo".into()),
-        tastemaker_core::domain::settings::types::Build("test".into()),
+        tastemaker_values::domain::settings::types::Build("test".into()),
         Format::Terminal,
-        tastemaker_core::domain::writing::types::Writing::Write,
+        tastemaker_values::domain::writing::types::Writing::Write,
     );
     let error = super::request(parsed.arguments.paths, parsed.arguments.fix, &edge)
         .err()
@@ -111,7 +111,7 @@ fn finding() -> Finding {
             end_line: Line(2),
             end_column: Column(4),
         }),
-        rule: tastemaker_core::domain::findings::service::of_rule(RuleId("p/r".into())),
+        rule: tastemaker_values::domain::findings::service::of_rule(RuleId("p/r".into())),
         message: MessageText("a {thing}".into()),
         help: Help::Said(MessageText("fix it".into())),
         fingerprint: Fingerprint(0xab),
@@ -124,7 +124,7 @@ fn interpolated() -> Result<Value, Failure> {
     other.help = Help::Said(MessageText("fix that".into()));
     other.fingerprint = Fingerprint(0xcd);
     let mut report = Report {
-        workspace: tastemaker_core::domain::findings::types::WorkspaceName("w".into()),
+        workspace: tastemaker_values::domain::findings::types::WorkspaceName("w".into()),
         ..Report::default()
     };
     report.findings.push(finding());
@@ -157,7 +157,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::PathNotText => return refused(),
     };
     let mut report = Report {
-        workspace: tastemaker_core::domain::findings::types::WorkspaceName("w".into()),
+        workspace: tastemaker_values::domain::findings::types::WorkspaceName("w".into()),
         ..Report::default()
     };
     if ignored {

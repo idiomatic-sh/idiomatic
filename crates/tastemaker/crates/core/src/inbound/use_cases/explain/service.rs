@@ -1,15 +1,17 @@
 //! The `explain` service: local free-function helpers, private to this use case.
 
 use super::errors::ExplainError;
-use crate::domain::applications::types::Plan;
-use crate::domain::definitions::types::{ErrorFile, LoadedWorkspace};
-use crate::domain::explanations::constants::{AUTHORING_TITLE, TOPICS_TITLE};
-use crate::domain::explanations::service::workspace_sections;
-use crate::domain::explanations::types::{Section, SectionLine, SectionTitle, Tally, Totals};
-use crate::domain::files::types::SkippedDirectory;
-use crate::domain::placement::types::Placement;
-use crate::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD};
-use crate::domain::topics::service::{authoring, names};
+use tastemaker_values::domain::applications::types::Plan;
+use tastemaker_values::domain::definitions::types::{ErrorFile, LoadedWorkspace};
+use tastemaker_values::domain::explanations::constants::{AUTHORING_TITLE, TOPICS_TITLE};
+use tastemaker_values::domain::explanations::service::workspace_sections;
+use tastemaker_values::domain::explanations::types::{
+    Section, SectionLine, SectionTitle, Tally, Totals,
+};
+use tastemaker_values::domain::files::types::SkippedDirectory;
+use tastemaker_values::domain::placement::types::Placement;
+use tastemaker_values::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD};
+use tastemaker_values::domain::topics::service::{authoring, names};
 
 /// What `explain` says asked nothing: the workspace's totals and scopes, every topic, and how each kind of asset is
 /// written.

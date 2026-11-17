@@ -1,6 +1,6 @@
 //! The types of the `keyed` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::contracts::types::{Declaration, DeclarationName};
+use tastemaker_values::domain::contracts::types::{Declaration, DeclarationName};
 
 /// A declaration within a table, and its name from the table: `id` for `tools.[0].id`.
 #[derive(Clone, Debug)]

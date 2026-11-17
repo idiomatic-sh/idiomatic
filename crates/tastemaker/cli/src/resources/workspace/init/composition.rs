@@ -15,7 +15,7 @@ where
 }
 /// Selects the filesystem repository.
 pub(crate) fn build(
-    store: &tastemaker_core::domain::files::types::DirectoryName,
+    store: &tastemaker_values::domain::files::types::DirectoryName,
 ) -> impl InitUseCase {
     compose(WorkspaceInitParts {
         service: tastemaker_core::inbound::use_cases::init::use_case::InitUseCaseImpl::new(

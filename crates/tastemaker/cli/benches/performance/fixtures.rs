@@ -135,19 +135,19 @@ pub(crate) fn workspace() -> tempfile::TempDir {
 /// The edge of a command run in `directory`, its answer printed nowhere (`-q`).
 pub(crate) fn edge(directory: &tempfile::TempDir) -> tastemaker_cli::edge::Edge {
     tastemaker_cli::resources::edge_at(
-        tastemaker_core::domain::files::types::MachinePath(
+        tastemaker_values::domain::files::types::MachinePath(
             directory.path().display().to_string().into(),
         ),
-        tastemaker_core::domain::settings::types::Build("bench".into()),
+        tastemaker_values::domain::settings::types::Build("bench".into()),
         tastemaker_cli::output::Format::Quiet,
-        tastemaker_core::domain::writing::types::Writing::Write,
+        tastemaker_values::domain::writing::types::Writing::Write,
     )
 }
 
 /// `edge` with `-n/--dry-run` given: the command writes nothing.
 pub(crate) fn dry(edge: tastemaker_cli::edge::Edge) -> tastemaker_cli::edge::Edge {
     tastemaker_cli::edge::Edge {
-        writing: tastemaker_core::domain::writing::types::Writing::DryRun,
+        writing: tastemaker_values::domain::writing::types::Writing::DryRun,
         ..edge
     }
 }

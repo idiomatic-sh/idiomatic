@@ -1,7 +1,7 @@
 //! The types of the `validate` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::files::types::MachinePath;
-use crate::domain::proofs::types::{Proof, Subject};
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::proofs::types::{Proof, Subject};
 
 /// What `validate` is asked.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -48,9 +48,9 @@ pub(crate) struct Version {
     /// The version, as a message names it.
     pub subject: Subject,
     /// Its release.
-    pub release: crate::domain::packages::types::Release,
+    pub release: tastemaker_values::domain::packages::types::Release,
     /// The directory of its package.
-    pub package: crate::domain::packages::types::PackageRoot,
+    pub package: tastemaker_values::domain::packages::types::PackageRoot,
     /// Its definition files, read when it is proved.
     pub files: Vec<crate::outbound::packages::types::PackageFile>,
 }
@@ -60,7 +60,7 @@ pub(crate) struct VersionFile {
     /// Its path in its package.
     pub path: crate::outbound::packages::types::PackageFile,
     /// Its text.
-    pub text: crate::domain::files::types::FileText,
+    pub text: tastemaker_values::domain::files::types::FileText,
 }
 
 /// What places the definition a scenario proves when its files bring no `tastemaker.toml`: the version proven, and how
@@ -77,14 +77,14 @@ pub(crate) enum FixturePlace {
     /// A shared definition: an entry of the root `tastemaker.toml` naming it.
     Shared {
         /// Its kind, package and name.
-        placed: crate::domain::packages::types::PlacedDefinition,
+        placed: tastemaker_values::domain::packages::types::PlacedDefinition,
     },
     /// A definition a spec owns: a wrapper of the spec, holding only it, applied at the project's root.
     Owned {
         /// Rule or template.
-        kind: crate::domain::packages::types::DefinitionKind,
+        kind: tastemaker_values::domain::packages::types::DefinitionKind,
         /// Its name.
-        name: crate::domain::packages::types::DefinitionName,
+        name: tastemaker_values::domain::packages::types::DefinitionName,
         /// Its directory, in the package.
         directory: crate::outbound::packages::types::PackageFile,
     },
@@ -94,15 +94,15 @@ pub(crate) enum FixturePlace {
 /// expects; or the problem that kept it from being checked.
 pub(crate) enum ProjectJudged {
     /// The project was checked.
-    Checked(crate::domain::findings::types::Report),
+    Checked(tastemaker_values::domain::findings::types::Report),
     /// It could not be: the problem.
-    Unchecked(crate::domain::proofs::types::Problem),
+    Unchecked(tastemaker_values::domain::proofs::types::Problem),
 }
 
 /// One file of a scenario's project: its text, and the directory of the asset it is written in.
 pub(crate) struct Materialized {
     /// Its text.
-    pub text: crate::domain::files::types::FileText,
+    pub text: tastemaker_values::domain::files::types::FileText,
     /// The file of the asset it is written in, in its package.
     pub origin: crate::outbound::packages::types::PackageFile,
 }
@@ -116,48 +116,48 @@ pub(crate) struct Materialized {
 pub(crate) struct Digesting {
     /// Each version's own files' digest, by its directory.
     pub contents: std::collections::BTreeMap<
-        crate::domain::proofs::types::ProofFile,
-        crate::domain::digests::types::Digest,
+        tastemaker_values::domain::proofs::types::ProofFile,
+        tastemaker_values::domain::digests::types::Digest,
     >,
     /// The versions each version's definitions name, read this run.
     pub direct: std::collections::BTreeMap<
-        crate::domain::packages::types::Release,
-        Vec<crate::domain::packages::types::Release>,
+        tastemaker_values::domain::packages::types::Release,
+        Vec<tastemaker_values::domain::packages::types::Release>,
     >,
     /// The versions each version uses: those it names, and those they use in turn.
     pub uses: std::collections::BTreeMap<
-        crate::domain::packages::types::Release,
-        Vec<crate::domain::packages::types::Release>,
+        tastemaker_values::domain::packages::types::Release,
+        Vec<tastemaker_values::domain::packages::types::Release>,
     >,
     /// Each version's digest, its uses' included.
     pub done: std::collections::BTreeMap<
-        crate::domain::packages::types::Release,
-        crate::domain::digests::types::Digest,
+        tastemaker_values::domain::packages::types::Release,
+        tastemaker_values::domain::digests::types::Digest,
     >,
     /// Each version's stamp and its uses', all told, as a row keeps it.
     pub kept: std::collections::BTreeMap<
-        crate::domain::packages::types::Release,
-        crate::domain::files::types::Stamp,
+        tastemaker_values::domain::packages::types::Release,
+        tastemaker_values::domain::files::types::Stamp,
     >,
     /// Each version's stamp, taken this run.
     pub stamps: std::collections::BTreeMap<
-        crate::domain::packages::types::Release,
-        crate::domain::files::types::Stamp,
+        tastemaker_values::domain::packages::types::Release,
+        tastemaker_values::domain::files::types::Stamp,
     >,
     /// The versions each package offers of each of its definitions, by its directory.
     pub offered: std::collections::BTreeMap<
-        crate::domain::packages::types::PackageRoot,
+        tastemaker_values::domain::packages::types::PackageRoot,
         std::collections::BTreeMap<
-            crate::domain::packages::types::DefinitionKey,
-            Vec<crate::domain::packages::types::VersionText>,
+            tastemaker_values::domain::packages::types::DefinitionKey,
+            Vec<tastemaker_values::domain::packages::types::VersionText>,
         >,
     >,
     /// The versions whose uses were read from their definitions this run.
-    pub resolved: std::collections::BTreeSet<crate::domain::packages::types::Release>,
+    pub resolved: std::collections::BTreeSet<tastemaker_values::domain::packages::types::Release>,
     /// Where each package a scenario's own `tastemaker.toml` names is.
     pub located: std::collections::HashMap<
-        crate::domain::packages::types::PackageName,
-        crate::domain::packages::types::PackageRoot,
+        tastemaker_values::domain::packages::types::PackageName,
+        tastemaker_values::domain::packages::types::PackageRoot,
     >,
 }
 
@@ -166,7 +166,7 @@ pub(crate) struct AskedProof {
     /// The version.
     pub version: Version,
     /// The key of its proof.
-    pub key: crate::domain::digests::types::Digest,
+    pub key: tastemaker_values::domain::digests::types::Digest,
     /// The proof held for that key.
     pub held: Option<Proof>,
 }
@@ -181,7 +181,7 @@ pub(crate) struct Parses(
             std::sync::Arc<
                 Result<
                     crate::domain::loading::types::Parsed,
-                    crate::domain::proofs::types::Problem,
+                    tastemaker_values::domain::proofs::types::Problem,
                 >,
             >,
         >,
@@ -192,9 +192,9 @@ pub(crate) struct Parses(
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ParseKey {
     /// What it is.
-    pub kind: crate::domain::packages::types::DefinitionKind,
+    pub kind: tastemaker_values::domain::packages::types::DefinitionKind,
     /// Its package.
-    pub package: crate::domain::packages::types::PackageRoot,
+    pub package: tastemaker_values::domain::packages::types::PackageRoot,
     /// The file.
     pub file: crate::domain::loading::types::DefinitionFile,
 }
@@ -205,8 +205,10 @@ pub(crate) struct ParseKey {
 pub(crate) struct Manifests(
     pub  std::sync::Mutex<
         std::collections::HashMap<
-            crate::domain::packages::types::PackageRoot,
-            std::sync::Arc<Result<crate::domain::packages::types::PackageManifest, Unread>>,
+            tastemaker_values::domain::packages::types::PackageRoot,
+            std::sync::Arc<
+                Result<tastemaker_values::domain::packages::types::PackageManifest, Unread>,
+            >,
         >,
     >,
 );
@@ -227,7 +229,7 @@ pub(crate) struct Offers(
     pub  std::sync::Mutex<
         std::collections::HashMap<
             (
-                crate::domain::packages::types::PackageRoot,
+                tastemaker_values::domain::packages::types::PackageRoot,
                 crate::outbound::packages::types::PackageFile,
             ),
             Result<
@@ -243,7 +245,7 @@ pub(crate) struct Offers(
 pub(crate) struct Verdicts(
     pub  std::sync::Mutex<
         std::collections::HashMap<
-            crate::domain::definitions::types::QueryText,
+            tastemaker_values::domain::definitions::types::QueryText,
             crate::outbound::analysis::types::QueryVerdict,
         >,
     >,
@@ -256,25 +258,29 @@ pub(crate) struct Wrappers(
     pub std::sync::Mutex<std::collections::HashMap<WrapperKey, std::sync::Arc<Wrapped>>>,
 );
 
-/// One wrapper package: made once, by the first scenario that asks for it, and the directory the packages port holds it
-/// at; or why it could not be made.
+/// One wrapper package: made once, by the first scenario that asks for it.
 #[derive(Debug, Default)]
-pub(crate) struct Wrapped(
-    pub  std::sync::OnceLock<
-        Result<crate::domain::packages::types::PackageRoot, crate::domain::proofs::types::Problem>,
-    >,
-);
+pub(crate) struct Wrapped(pub std::sync::OnceLock<WrapperMade>);
+
+/// What making a wrapper package came to: the directory the packages port holds it at, or why it could not be made.
+#[derive(Clone, Debug)]
+pub(crate) enum WrapperMade {
+    /// The packages port holds it at this directory.
+    Held(tastemaker_values::domain::packages::types::PackageRoot),
+    /// It could not be made.
+    Refused(tastemaker_values::domain::proofs::types::Problem),
+}
 
 /// What a wrapper package holds: the package it wraps, the directory of the definition it holds, and the text of its own
 /// definition file.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct WrapperKey {
     /// The package it wraps.
-    pub package: crate::domain::packages::types::PackageRoot,
+    pub package: tastemaker_values::domain::packages::types::PackageRoot,
     /// The directory of the definition it holds.
     pub directory: crate::outbound::packages::types::PackageFile,
     /// The text of its own definition file.
-    pub owner: crate::domain::files::types::FileText,
+    pub owner: tastemaker_values::domain::files::types::FileText,
 }
 
 /// The five caches a run keeps, lent.

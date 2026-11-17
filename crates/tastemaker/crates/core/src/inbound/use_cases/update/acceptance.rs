@@ -3,9 +3,6 @@
 use crate::Behavior;
 use cucumber::{given, then, when};
 use std::sync::Arc;
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::packages::types::{DefinitionName, VersionText};
-use tastemaker_core::domain::writing::types::Writing;
 use tastemaker_core::inbound::use_cases::check::fixtures::{
     PACKAGE, RULE, SPEC, TEMPLATE, WORKSPACE,
 };
@@ -15,6 +12,9 @@ use tastemaker_core::inbound::use_cases::update::use_case::UpdateUseCaseImpl;
 use tastemaker_core::outbound::manifest::interface::ManifestPort as _;
 use tastemaker_core::outbound::manifest::types::DefinitionText;
 use tastemaker_core::outbound::{manifest, matching, packages, repository};
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::{DefinitionName, VersionText};
+use tastemaker_values::domain::writing::types::Writing;
 
 /// A lock that pins `marker` and `part` at their first versions.
 const LOCKED: &str = "version = 1\ndependencies = [\"p\"]\n\n[packages.p]\npath = \"p\"\n\n[packages.p.rules]\nmarker = \"0.1.0\"\n\n[packages.p.specs]\npart = \"0.1.0\"\n";
@@ -131,7 +131,7 @@ fn runs(world: &mut Behavior) -> Result<(), Box<dyn std::error::Error>> {
     let update = UpdateUseCaseImpl::new(
         Arc::new(repository::factory::disk(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         )),
         Arc::new(manifest::factory::toml()),
         Arc::new(packages::factory::path()),

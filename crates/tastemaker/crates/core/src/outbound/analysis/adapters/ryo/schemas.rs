@@ -14,22 +14,22 @@ use ryo::linter::{
 };
 
 use super::constants::{PLACED, PLACED_COLUMNS, RYO_STORE, SPAN_TEXT};
-use crate::domain::applications::types::{
+use crate::outbound::analysis::errors::AnalysisError;
+use crate::outbound::analysis::types::{AnalysisReport, AnalysisRequest, Corpus, Hosted};
+use tastemaker_values::domain::applications::types::{
     AnswerCell, CellText, CellValue, GlobText, LintAnswer, LintRuleId, LintUnknown, PlacedRow,
     PlacingSpec,
 };
-use crate::domain::catalog::types::{
+use tastemaker_values::domain::catalog::types::{
     CatalogColumn, CatalogEntry, CatalogField, CatalogLanguage, CatalogName, CatalogText,
     OperatorPage, Reading, RelationPage, Requirement,
 };
-use crate::domain::comments::types::ByteSpan;
-use crate::domain::definitions::types::ColumnName;
-use crate::domain::entries::types::Value;
-use crate::domain::findings::types::{ByteOffset, MessageText};
-use crate::domain::paths::types::RepoPath;
-use crate::domain::scalars::types::FlagValue;
-use crate::outbound::analysis::errors::AnalysisError;
-use crate::outbound::analysis::types::{AnalysisReport, AnalysisRequest, Corpus, Hosted};
+use tastemaker_values::domain::comments::types::ByteSpan;
+use tastemaker_values::domain::definitions::types::ColumnName;
+use tastemaker_values::domain::entries::types::Value;
+use tastemaker_values::domain::findings::types::{ByteOffset, MessageText};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::scalars::types::FlagValue;
 
 /// The port's engine error carrying `reason`.
 fn engine(reason: impl std::fmt::Display) -> AnalysisError {
@@ -109,13 +109,15 @@ fn number_cell(number: u32) -> Cell {
 
 /// The relations of a verdict call: what the scenarios expected and found, what their `only` names, the rules they
 /// prove and every rule and check their checks ran.
-fn verdict(rows: &crate::domain::scenario_judging::types::VerdictRows) -> Vec<HostRelation> {
-    use crate::domain::scenario_judging::constants::{
+fn verdict(
+    rows: &tastemaker_values::domain::scenario_judging::types::VerdictRows,
+) -> Vec<HostRelation> {
+    use tastemaker_values::domain::scenario_judging::constants::{
         EVALUATED, EXPECTED, FINDING, FINDING_PATH, FOUND, FULL, LINE, ONLY, ONLY_RULE, OWN, PLACE,
         RULE, SCENARIO,
     };
     let (number, text) = (HostKind::Number, HostKind::Text);
-    let rules = |listed: &[crate::domain::scenario_judging::types::RuleRow]| {
+    let rules = |listed: &[tastemaker_values::domain::scenario_judging::types::RuleRow]| {
         listed
             .iter()
             .map(|row| HostRow(vec![number_cell(row.scenario.0), text_cell(&row.rule.0)]))
@@ -193,14 +195,14 @@ fn verdict(rows: &crate::domain::scenario_judging::types::VerdictRows) -> Vec<Ho
 
 /// The relations of a count call: the counts and pairs a check left waiting, each with its bounds, and what each
 /// condition they read answered; a flag or an answer as the number the count queries read.
-fn counts(rows: &crate::domain::judging::types::CountRows) -> Vec<HostRelation> {
-    use crate::domain::judging::constants::{
+fn counts(rows: &tastemaker_values::domain::judging::types::CountRows) -> Vec<HostRelation> {
+    use tastemaker_values::domain::judging::constants::{
         CONDITION, CONDITION_ANSWER, ELSE_MAX, ELSE_MIN, ENTRY_NUMBER, FOUND, HOLDS, HOLDS_NO,
         HOLDS_UNANSWERED, HOLDS_YES, IDENTITY, KIND_COUNT, KIND_PAIR, MAX, MIN, PAIR_FLAG,
         SCOPE_INDEX, TEMPLATE_ENTRY, THEN_MAX, THEN_MIN,
     };
-    use crate::domain::judging::types::EntryKind;
-    use crate::domain::scopes::types::{Answer, ScopeIndex};
+    use tastemaker_values::domain::judging::types::EntryKind;
+    use tastemaker_values::domain::scopes::types::{Answer, ScopeIndex};
     let (number, text) = (HostKind::Number, HostKind::Text);
     let scope = |at: ScopeIndex| number_cell(u32::try_from(at.0).unwrap_or(u32::MAX));
     vec![
@@ -269,13 +271,13 @@ fn counts(rows: &crate::domain::judging::types::CountRows) -> Vec<HostRelation> 
 
 /// The relations of the closed query: the closed directories and the files beneath them, the files templates place and the
 /// `tastemaker.toml` files, the instances nested in the directories and the directories their scopes placed files in.
-fn closings(rows: &crate::domain::closing::types::Closings) -> Vec<HostRelation> {
-    use crate::domain::closing::constants::{
+fn closings(rows: &tastemaker_values::domain::closing::types::Closings) -> Vec<HostRelation> {
+    use tastemaker_values::domain::closing::constants::{
         CLOSED_DIR, CLOSED_UNDER, DEPTH, GROUP, HOME, LAST, NESTED_DIR, OCCUPIED, OWN_FILE, OWNER,
         PATH, PLACED_FILE, PREFIX, STRAY,
     };
     let (number, text) = (HostKind::Number, HostKind::Text);
-    let scope = |at: crate::domain::scopes::types::ScopeIndex| {
+    let scope = |at: tastemaker_values::domain::scopes::types::ScopeIndex| {
         number_cell(u32::try_from(at.0).unwrap_or(u32::MAX))
     };
     vec![
@@ -287,7 +289,10 @@ fn closings(rows: &crate::domain::closing::types::Closings) -> Vec<HostRelation>
                 .map(|row| {
                     HostRow(vec![
                         number_cell(row.group.0),
-                        text_cell(&crate::domain::closing::service::prefix_of(&row.directory).0),
+                        text_cell(
+                            &tastemaker_values::domain::closing::service::prefix_of(&row.directory)
+                                .0,
+                        ),
                         row.owners
                             .last()
                             .map_or_else(|| number_cell(0), |owner| scope(owner.scope)),
@@ -520,12 +525,14 @@ pub(super) fn error(error: LintError) -> AnalysisError {
 }
 
 /// Where ryo keeps its work for `store`: in the store's own directory, or nowhere under `-n/--dry-run`.
-pub(super) fn cache(store: &crate::domain::settings::types::Store) -> ryo::linter::Cache {
+pub(super) fn cache(
+    store: &tastemaker_values::domain::settings::types::Store,
+) -> ryo::linter::Cache {
     match store.writing {
-        crate::domain::writing::types::Writing::Write => {
+        tastemaker_values::domain::writing::types::Writing::Write => {
             ryo::linter::Cache::At(std::path::PathBuf::from(&*store.directory.0).join(RYO_STORE))
         }
-        crate::domain::writing::types::Writing::DryRun => ryo::linter::Cache::None,
+        tastemaker_values::domain::writing::types::Writing::DryRun => ryo::linter::Cache::None,
     }
 }
 

@@ -6,12 +6,12 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::digests::types::Digest;
-use crate::domain::files::types::Stamp;
-use crate::domain::packages::types::{
+use tastemaker_values::domain::digests::types::Digest;
+use tastemaker_values::domain::files::types::Stamp;
+use tastemaker_values::domain::packages::types::{
     DefinitionKind, DefinitionName, Ownership, PackageName, Release, VersionText,
 };
-use crate::domain::proofs::types::ProvenVersion;
+use tastemaker_values::domain::proofs::types::ProvenVersion;
 
 /// The number a text is kept under in `strings`.
 type Text = u32;
@@ -138,8 +138,10 @@ impl StoreSchema {
                 Some(ProvenVersion {
                     release: self.release(&row.version)?,
                     stamp: Stamp {
-                        size: crate::domain::files::types::FileSize(row.size),
-                        modified: crate::domain::files::types::ModifiedTime(row.modified),
+                        size: tastemaker_values::domain::files::types::FileSize(row.size),
+                        modified: tastemaker_values::domain::files::types::ModifiedTime(
+                            row.modified,
+                        ),
                     },
                     digest: Digest(self.text(row.digest)?.into()),
                     uses,
@@ -149,7 +151,10 @@ impl StoreSchema {
     }
 
     /// The store of `build` holding `rows`, each text kept once.
-    fn with(build: &crate::domain::settings::types::Build, rows: &[ProvenVersion]) -> Self {
+    fn with(
+        build: &tastemaker_values::domain::settings::types::Build,
+        rows: &[ProvenVersion],
+    ) -> Self {
         let mut numbers = StringsSchema {
             strings: Vec::new(),
             numbers: HashMap::new(),
@@ -190,7 +195,7 @@ pub(super) struct ReadSchema<'a> {
     /// The bytes kept.
     pub bytes: &'a [u8],
     /// The build that runs.
-    pub build: &'a crate::domain::settings::types::Build,
+    pub build: &'a tastemaker_values::domain::settings::types::Build,
 }
 
 /// Why a kept store holds nothing for the run that reads it.
@@ -218,7 +223,7 @@ impl TryFrom<ReadSchema<'_>> for Vec<ProvenVersion> {
 /// The versions the kept store `bytes` holds when `build` wrote it; none when another build wrote it or it does not read.
 pub(super) fn definitions(
     bytes: &[u8],
-    build: &crate::domain::settings::types::Build,
+    build: &tastemaker_values::domain::settings::types::Build,
 ) -> Option<Vec<ProvenVersion>> {
     Vec::<ProvenVersion>::try_from(ReadSchema { bytes, build }).ok() // ignore: idiomatic.arch/no-ok-on-result - a store another build wrote, or that does not read, holds nothing for this run (the doc above)
 }
@@ -229,7 +234,7 @@ pub(super) fn definitions(
 ///
 /// When postcard cannot write them.
 pub(super) fn bytes(
-    build: &crate::domain::settings::types::Build,
+    build: &tastemaker_values::domain::settings::types::Build,
     rows: &[ProvenVersion],
 ) -> Result<Vec<u8>, postcard::Error> {
     postcard::to_allocvec(&StoreSchema::with(build, rows))

@@ -32,21 +32,21 @@ fn main() -> std::process::ExitCode {
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |since| since.as_nanos());
     let version =
-        tastemaker_core::domain::packages::types::VersionText(env!("CARGO_PKG_VERSION").into());
+        tastemaker_values::domain::packages::types::VersionText(env!("CARGO_PKG_VERSION").into());
     let build = std::env::current_exe()
         .and_then(std::fs::File::open)
         .and_then(|mut file| {
-            tastemaker_core::domain::settings::service::build(
+            tastemaker_values::domain::settings::service::build(
                 &version,
-                &mut tastemaker_core::domain::settings::types::Executable(&mut file),
+                &mut tastemaker_values::domain::settings::types::Executable(&mut file),
             )
         })
         .unwrap_or_else(|_| {
-            tastemaker_core::domain::settings::service::unread(
+            tastemaker_values::domain::settings::service::unread(
                 &version,
-                tastemaker_core::domain::settings::types::ProcessStart {
-                    id: tastemaker_core::domain::settings::types::ProcessId(std::process::id()),
-                    started: tastemaker_core::domain::settings::types::StartedAt(now),
+                tastemaker_values::domain::settings::types::ProcessStart {
+                    id: tastemaker_values::domain::settings::types::ProcessId(std::process::id()),
+                    started: tastemaker_values::domain::settings::types::StartedAt(now),
                 },
             )
         });

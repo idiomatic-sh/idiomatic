@@ -2,8 +2,10 @@
 //! An in-source ignore, `ignore: <package/rule> - <reason>` in a line comment, accepts the findings of one rule where
 //! it is written.
 
-use crate::domain::comments::types::{ByteSpan, LineIndex};
-use crate::domain::findings::types::{Finding, MessageText, Reason, RuleId, Suppression};
+use tastemaker_values::domain::comments::types::{ByteSpan, LineIndex};
+use tastemaker_values::domain::findings::types::{
+    Finding, MessageText, Reason, RuleId, Suppression,
+};
 
 /// What an ignore comment says.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -2,11 +2,11 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::entries::types::Setting;
-use crate::domain::files::types::MachinePath;
-use crate::domain::packages::types::DefinitionName;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::entries::types::Setting;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::DefinitionName;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 
 /// What `scaffold` is asked.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -38,5 +38,5 @@ pub struct Workspace {
     /// Where the workspace was found.
     pub found: std::sync::Arc<dyn crate::outbound::repository::interface::FoundRepository>,
     /// The workspace and everything it names, read.
-    pub loaded: crate::domain::definitions::types::LoadedWorkspace,
+    pub loaded: tastemaker_values::domain::definitions::types::LoadedWorkspace,
 }

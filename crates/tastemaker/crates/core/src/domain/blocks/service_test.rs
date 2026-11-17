@@ -3,13 +3,13 @@
 
 use super::service::{blocks, sequence};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::comments::types::ByteSpan;
-use crate::domain::contracts::service::facts;
-use crate::domain::contracts::types::{
+use tastemaker_values::domain::comments::types::ByteSpan;
+use tastemaker_values::domain::contracts::service::facts;
+use tastemaker_values::domain::contracts::types::{
     ComparedText, DataRow, RowKey, RowNode, RowPlace, Syntax, SyntaxKind, TemplateIdentity,
     WrittenValue,
 };
-use crate::domain::findings::types::ByteOffset;
+use tastemaker_values::domain::findings::types::ByteOffset;
 
 /// A document of a section, a run of prose on one line and a literal opened by a line of its own.
 const DOCUMENT: &str = "# demo\n\nOne line.\n\n~~~ one\nx\n~~~\n";

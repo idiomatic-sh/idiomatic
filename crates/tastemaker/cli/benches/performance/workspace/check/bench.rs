@@ -58,12 +58,12 @@ fn instance_workspace() -> tempfile::TempDir {
 pub(crate) fn instances() -> crate::measure::Measured {
     let directory = instance_workspace();
     let edge = tastemaker_cli::resources::edge_at(
-        tastemaker_core::domain::files::types::MachinePath(
+        tastemaker_values::domain::files::types::MachinePath(
             directory.path().display().to_string().into(),
         ),
-        tastemaker_core::domain::settings::types::Build("bench".into()),
+        tastemaker_values::domain::settings::types::Build("bench".into()),
         tastemaker_cli::output::Format::Quiet,
-        tastemaker_core::domain::writing::types::Writing::Write,
+        tastemaker_values::domain::writing::types::Writing::Write,
     );
     let line = |words: &[&str]| {
         let command = <CheckArguments as clap::Args>::augment_args(clap::Command::new("check"));

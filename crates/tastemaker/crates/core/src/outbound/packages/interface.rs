@@ -2,8 +2,8 @@
 
 use super::errors::PackagesError;
 use super::types::{Located, PackageFile};
-use crate::domain::files::types::FileText;
-use crate::domain::packages::types::{Dependency, PackageRoot, SourcePath};
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::packages::types::{Dependency, PackageRoot, SourcePath};
 
 /// What every `packages` adapter implements.
 pub trait PackagesPort: Send + Sync {
@@ -61,7 +61,7 @@ pub trait PackagesPort: Send + Sync {
     fn stamps(
         &self,
         files: &[crate::outbound::packages::types::PackagedFile],
-    ) -> crate::domain::files::types::Stamps;
+    ) -> tastemaker_values::domain::files::types::Stamps;
 
     /// Holds a package the run made in memory, for as long as the adapter lives, and answers the directory it is read
     /// at: its files, by their paths in it, are read, listed and located as any package's are, and written nowhere.

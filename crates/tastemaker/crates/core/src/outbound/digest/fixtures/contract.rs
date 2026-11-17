@@ -1,9 +1,9 @@
 //! What every `digest` adapter must pass.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::findings::types::{Identifying, IdentityParts, Ordinal};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestParts;
+use tastemaker_values::domain::findings::types::{Identifying, IdentityParts, Ordinal};
 
 /// Two lists of parts, or two findings with the same parts at two ordinals.
 #[derive(Clone, Copy, Debug)]

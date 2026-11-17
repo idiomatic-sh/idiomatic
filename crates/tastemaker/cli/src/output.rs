@@ -119,11 +119,11 @@ pub fn present(format: Format, answer: &impl Encoded, outcome: Outcome) -> Outco
 /// under `-n/--dry-run`: stdout holds what a command answers, never what it only says it would do.
 pub fn present_planned(
     format: Format,
-    writing: tastemaker_core::domain::writing::types::Writing,
+    writing: tastemaker_values::domain::writing::types::Writing,
     answer: &impl Encoded,
     outcome: Outcome,
 ) -> Outcome {
-    if writing != tastemaker_core::domain::writing::types::Writing::DryRun {
+    if writing != tastemaker_values::domain::writing::types::Writing::DryRun {
         return present(format, answer, outcome);
     }
     progress::settle();

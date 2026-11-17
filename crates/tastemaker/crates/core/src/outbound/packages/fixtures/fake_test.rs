@@ -2,7 +2,7 @@
 
 use super::super::contract::check;
 use super::PackagesFake;
-use crate::domain::packages::types::PackageRoot;
+use tastemaker_values::domain::packages::types::PackageRoot;
 
 #[test]
 fn succeeds() {

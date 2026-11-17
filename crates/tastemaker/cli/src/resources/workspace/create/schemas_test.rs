@@ -3,8 +3,8 @@
 use super::super::command::CreateArguments;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outcome::remedy::{Next, Remedy as _};
-use tastemaker_core::domain::packages::types::{DefinitionKind, DefinitionName};
 use tastemaker_core::inbound::use_cases::create::types::CreateReport;
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
 
 /// What a row asks of `create`.
 #[derive(Clone, Debug)]
@@ -90,17 +90,17 @@ fn subject(asked: Input) -> Result<Value, Failure> {
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("create").chain(line))
         .map_err(|_error| Next::Report)?;
     let edge = crate::resources::edge_at(
-        tastemaker_core::domain::files::types::MachinePath("/repo".into()),
-        tastemaker_core::domain::settings::types::Build("test".into()),
+        tastemaker_values::domain::files::types::MachinePath("/repo".into()),
+        tastemaker_values::domain::settings::types::Build("test".into()),
         crate::output::Format::Terminal,
-        tastemaker_core::domain::writing::types::Writing::Write,
+        tastemaker_values::domain::writing::types::Writing::Write,
     );
     super::request(
         parsed.arguments.definition,
         parsed.arguments.package,
         parsed.arguments.set,
         &edge,
-        &crate::languages::linked(),
+        &super::super::composition::reads_scenarios,
     )
     .map(|_| true)
     .map_err(|error| match (&error, error.next()) {
@@ -124,16 +124,16 @@ fn refuses() {
 
 /// What the answer says when it lacks a part it must name, or names a command the command line has not; empty when not.
 fn next_line((kind, part): (DefinitionKind, &'static str)) -> String {
-    let word = tastemaker_core::domain::packages::service::kind_word(kind).0;
+    let word = tastemaker_values::domain::packages::service::kind_word(kind).0;
     let report = CreateReport {
-        package: tastemaker_core::domain::files::types::MachinePath("/repo/p".into()),
-        file: tastemaker_core::domain::paths::types::RepoPath(
+        package: tastemaker_values::domain::files::types::MachinePath("/repo/p".into()),
+        file: tastemaker_values::domain::paths::types::RepoPath(
             format!("{word}s/x/0.1.0/{word}.toml").into(),
         ),
         kind,
         name: DefinitionName("x".into()),
     };
-    let start = tastemaker_core::domain::files::types::MachinePath("/repo".into());
+    let start = tastemaker_values::domain::files::types::MachinePath("/repo".into());
     let said = super::answer(&report, false, &start).to_string();
     let tree = crate::resources::command();
     let unknown = said

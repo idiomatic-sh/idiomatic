@@ -2,13 +2,15 @@
 
 use super::service::{answered, judge};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::types::{AnswerCell, CellText, CellValue, FoundAt, Rendering};
-use crate::domain::comments::types::ByteSpan;
-use crate::domain::definitions::types::{ColumnName, Diagnostic};
-use crate::domain::findings::types::ByteOffset;
-use crate::domain::findings::types::MessageTemplate;
-use crate::domain::findings::types::{MessageText, RuleId};
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::applications::types::{
+    AnswerCell, CellText, CellValue, FoundAt, Rendering,
+};
+use tastemaker_values::domain::comments::types::ByteSpan;
+use tastemaker_values::domain::definitions::types::{ColumnName, Diagnostic};
+use tastemaker_values::domain::findings::types::ByteOffset;
+use tastemaker_values::domain::findings::types::MessageTemplate;
+use tastemaker_values::domain::findings::types::{MessageText, RuleId};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]
@@ -139,8 +141,8 @@ fn not_a_span_said() -> (String, String) {
 
 /// What the Unreached question says, and what it should say.
 fn unreached_said() -> (String, String) {
-    use crate::domain::applications::types::{LintRuleId, LintUnknown, Plan, Purpose};
-    use crate::domain::imports::types::Relation;
+    use tastemaker_values::domain::applications::types::{LintRuleId, LintUnknown, Plan, Purpose};
+    use tastemaker_values::domain::imports::types::Relation;
     let id = LintRuleId("imports-edges".into());
     let mut plan = Plan::default();
     drop(
@@ -185,7 +187,7 @@ fn unreached_said() -> (String, String) {
         .map(|finding| {
             format!(
                 "{} {}",
-                crate::domain::findings::service::printed(&finding.rule).0,
+                tastemaker_values::domain::findings::service::printed(&finding.rule).0,
                 finding.path.0
             )
         })

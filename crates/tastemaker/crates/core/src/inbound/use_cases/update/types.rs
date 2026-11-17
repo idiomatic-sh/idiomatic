@@ -1,9 +1,9 @@
 //! The types of the `update` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::files::types::MachinePath;
-use crate::domain::packages::types::{DefinitionName, VersionText};
-use crate::domain::paths::types::RepoPath;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::{DefinitionName, VersionText};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 
 /// Which entries `update` moves.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -46,7 +46,7 @@ pub struct Move {
     /// The version it follows.
     pub to: VersionText,
     /// The changelog sections crossed, when the asset supplies them.
-    pub changes: crate::domain::packages::types::ChangeLog,
+    pub changes: tastemaker_values::domain::packages::types::ChangeLog,
 }
 
 /// What `update` answers.

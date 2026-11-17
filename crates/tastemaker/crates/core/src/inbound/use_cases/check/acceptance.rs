@@ -7,12 +7,12 @@ use std::sync::Arc;
 /// What an acceptance step fails with: any error the use cases or the filesystem raise.
 type Failure = Box<dyn std::error::Error + Send + Sync>;
 
-use tastemaker_core::domain::files::types::{FileText, MachinePath};
-use tastemaker_core::domain::paths::types::RepoPath;
 use tastemaker_core::inbound::use_cases::check::errors::CheckError;
 use tastemaker_core::inbound::use_cases::check::fixtures::{analysis, repository, use_case};
 use tastemaker_core::inbound::use_cases::check::interface::CheckUseCase as _;
 use tastemaker_core::inbound::use_cases::check::types::{CheckRequest, Fixing};
+use tastemaker_values::domain::files::types::{FileText, MachinePath};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// A TOML file whose second line's finding is ignored, and whose third line's ignore covers nothing.
 const IGNORED: &str = "kept = 1\nother = 2 # ignore: p/marker - accepted here\nstale = 3 # ignore: p/marker - nothing here\n";
@@ -103,9 +103,9 @@ fn runs(world: &mut Behavior) -> Result<(), Failure> {
         within: Vec::new(),
         fixing: Fixing::Fix,
         writing: if dry {
-            tastemaker_core::domain::writing::types::Writing::DryRun
+            tastemaker_values::domain::writing::types::Writing::DryRun
         } else {
-            tastemaker_core::domain::writing::types::Writing::Write
+            tastemaker_values::domain::writing::types::Writing::Write
         },
     }) {
         // Under `-n/--dry-run` the answer is whether the lock `--fix` would rewrite was written; the store's own adapter
@@ -123,7 +123,9 @@ fn runs(world: &mut Behavior) -> Result<(), Failure> {
                 .report
                 .findings
                 .iter()
-                .map(|finding| tastemaker_core::domain::findings::service::printed(&finding.rule).0)
+                .map(|finding| {
+                    tastemaker_core::inbound::use_cases::check::fixtures::printed_rule(finding).0
+                })
                 .collect::<Vec<_>>();
             rules.sort();
             let suppressed = report.report.suppressed.len();
@@ -153,7 +155,7 @@ fn real_check(project: &std::path::Path) -> String {
         start: MachinePath(project.display().to_string().into()),
         within: Vec::new(),
         fixing: Fixing::Fix,
-        writing: tastemaker_core::domain::writing::types::Writing::Write,
+        writing: tastemaker_values::domain::writing::types::Writing::Write,
     }) {
         Ok(report) if report.report.findings.is_empty() => "clean".to_owned(),
         Ok(report) => format!("unexpected findings: {:?}", report.report.findings),
@@ -183,7 +185,7 @@ pub(super) fn real_services(
     let repository: Arc<dyn repository::interface::RepositoryPort> =
         Arc::new(repository::factory::disk(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         ));
     let manifest: Arc<dyn manifest::interface::ManifestPort> = Arc::new(manifest::factory::toml());
     let packages: Arc<dyn packages::interface::PackagesPort> = Arc::new(packages::factory::path());
@@ -195,10 +197,10 @@ pub(super) fn real_services(
         },
     ));
     // Where the store is, and the build that writes it: values only, each store opens its own file.
-    let store_at = tastemaker_core::domain::settings::types::Store {
+    let store_at = tastemaker_values::domain::settings::types::Store {
         directory: MachinePath(start.join(".tastemaker_cache").display().to_string().into()),
-        build: tastemaker_core::domain::settings::types::Build(build.into()),
-        writing: tastemaker_core::domain::writing::types::Writing::Write,
+        build: tastemaker_values::domain::settings::types::Build(build.into()),
+        writing: tastemaker_values::domain::writing::types::Writing::Write,
     };
     let digest: Arc<dyn digest::interface::DigestPort> = Arc::new(digest::factory::blake3());
     let matching: Arc<dyn matching::interface::MatchingPort> =
@@ -219,7 +221,7 @@ pub(super) fn real_services(
     let fixtures: Arc<dyn repository::interface::RepositoryPort> =
         Arc::new(repository::factory::memory(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         ));
     let fixture_reporting = Arc::new(
         tastemaker_core::application::reporting::service::ReportingService::new(
@@ -409,7 +411,7 @@ fn real_validate(world: &mut Behavior) -> Result<(), Failure> {
     let proven = report
         .proved
         .iter()
-        .all(|proved| proved.proof == tastemaker_core::domain::proofs::types::Proof::Proven);
+        .all(|proved| proved.proof == tastemaker_values::domain::proofs::types::Proof::Proven);
     if proven { "proven" } else { "failed" }.clone_into(&mut world.answer);
     Ok(())
 }
@@ -444,9 +446,9 @@ fn delete_proof_input(world: &mut Behavior, path: String) -> Result<(), Failure>
 /// Validates the consumer from two builds at once, then validates and checks it under each in turn.
 #[when("two builds validate concurrently and each validates and checks the consumer")]
 fn concurrent_builds(world: &mut Behavior) -> Result<(), Failure> {
-    use tastemaker_core::domain::writing::types::Writing;
     use tastemaker_core::inbound::use_cases::validate::interface::ValidateUseCase as _;
     use tastemaker_core::inbound::use_cases::validate::types::ValidateRequest;
+    use tastemaker_values::domain::writing::types::Writing;
     let root = MachinePath(root(world)?.display().to_string().into());
     let barrier = std::sync::Barrier::new(2);
     std::thread::scope(|scope| -> Result<(), Failure> {
@@ -462,7 +464,7 @@ fn concurrent_builds(world: &mut Behavior) -> Result<(), Failure> {
                 })?;
                 assert!(
                     report.proved.iter().all(|proved| proved.proof
-                        == tastemaker_core::domain::proofs::types::Proof::Proven),
+                        == tastemaker_values::domain::proofs::types::Proof::Proven),
                     "every proof holds under each build"
                 );
                 Ok(())
@@ -511,8 +513,8 @@ fn answers(world: &mut Behavior, expected: String) {
 /// Checks the consumer through a store reopened and edited between runs.
 #[when("the real consumer checks through a reopened and edited store")]
 fn persistent_lifecycle(world: &mut Behavior) -> Result<(), Failure> {
-    use tastemaker_core::domain::writing::types::Writing;
     use tastemaker_core::inbound::use_cases::check::types::LockOutcome;
+    use tastemaker_values::domain::writing::types::Writing;
     let project = root(world)?;
     let request = CheckRequest {
         start: MachinePath(project.display().to_string().into()),
@@ -553,7 +555,7 @@ fn persistent_lifecycle(world: &mut Behavior) -> Result<(), Failure> {
         "the finding is in the file that was added"
     );
     assert_eq!(
-        &*tastemaker_core::domain::findings::service::printed(&finding.rule).0,
+        &*tastemaker_core::inbound::use_cases::check::fixtures::printed_rule(finding).0,
         "a/marker",
         "the finding is the marker rule's"
     );

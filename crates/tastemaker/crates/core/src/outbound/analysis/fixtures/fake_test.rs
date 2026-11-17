@@ -2,7 +2,7 @@
 
 use super::super::contract::check;
 use super::AnalysisFake;
-use crate::domain::files::types::MachinePath;
+use tastemaker_values::domain::files::types::MachinePath;
 
 #[test]
 fn succeeds() {

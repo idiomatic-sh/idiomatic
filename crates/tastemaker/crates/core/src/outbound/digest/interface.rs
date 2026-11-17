@@ -1,8 +1,8 @@
 //! What the `digest` port asks of the outside, in the core's own vocabulary.
 
 use super::types::DigestParts;
-use crate::domain::digests::types::Digest;
-use crate::domain::findings::types::{Fingerprint, Identifying};
+use tastemaker_values::domain::digests::types::Digest;
+use tastemaker_values::domain::findings::types::{Fingerprint, Identifying};
 
 /// What every `digest` adapter implements.
 pub trait DigestPort: Send + Sync {

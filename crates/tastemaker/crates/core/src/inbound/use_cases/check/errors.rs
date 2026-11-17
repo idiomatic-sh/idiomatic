@@ -1,10 +1,10 @@
 //! The `check` use case's failures.
 
-use crate::domain::placement::errors::PlacementError;
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::packages::errors::PackagesError;
 use crate::outbound::repository::errors::RepositoryError;
+use tastemaker_values::domain::placement::errors::PlacementError;
 
 /// Why `check` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

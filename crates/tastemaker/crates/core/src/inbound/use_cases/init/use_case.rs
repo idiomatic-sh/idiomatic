@@ -2,17 +2,17 @@
 use super::errors::InitError;
 use super::interface::InitUseCase;
 use super::types::{InitReport, InitRequest};
-use crate::domain::definitions::constants::WORKSPACE_FILE;
-use crate::domain::definitions::types::Role;
-use crate::domain::files::types::FileText;
-use crate::domain::packages::constants::{INIT_WORKSPACE_FILE, INITIAL_FILES};
-use crate::domain::paths::types::RepoPath;
-use crate::domain::writing::types::Writing;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::DefinitionText;
 use crate::outbound::repository::interface::{Repository, RepositoryPort};
 use crate::outbound::repository::types::Presence;
 use std::sync::Arc;
+use tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
+use tastemaker_values::domain::definitions::types::Role;
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::packages::constants::{INIT_WORKSPACE_FILE, INITIAL_FILES};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 /// Initialization over the repository supplied by the edge.
 pub struct InitUseCaseImpl {
     /// Reads and writes the workspace's files.

@@ -9,14 +9,14 @@ type Failure = Box<dyn std::error::Error + Send + Sync>;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::packages::types::DefinitionName;
-use tastemaker_core::domain::paths::types::RepoPath;
-use tastemaker_core::domain::writing::types::Writing;
 use tastemaker_core::inbound::use_cases::check::fixtures::{package, repository};
 use tastemaker_core::inbound::use_cases::scaffold::interface::ScaffoldUseCase as _;
 use tastemaker_core::inbound::use_cases::scaffold::types::ScaffoldRequest;
 use tastemaker_core::inbound::use_cases::scaffold::use_case::ScaffoldUseCaseImpl;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::DefinitionName;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 
 /// Sets what the `scaffold` scenario hands the use case.
 #[given(expr = "the scaffold input {string}")]
@@ -75,11 +75,11 @@ fn answers(world: &mut Behavior, expected: String) {
 
 /// The production repository, package, template and Ryo adapters settle a workspace on disk.
 fn on_disk(input: &str) -> Result<String, Failure> {
-    use tastemaker_core::domain::entries::types::Setting;
     use tastemaker_core::inbound::use_cases::scaffold::errors::ScaffoldError;
     use tastemaker_core::outbound::{
         analysis, manifest, matching, packages, repository, templates,
     };
+    use tastemaker_values::domain::entries::types::Setting;
     let directory = tempfile::tempdir()?;
     let root = directory.path();
     assert!(
@@ -95,7 +95,7 @@ fn on_disk(input: &str) -> Result<String, Failure> {
     let scaffold = ScaffoldUseCaseImpl::new(
         Arc::new(repository::factory::disk(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         )),
         Arc::new(manifest::factory::toml()),
         Arc::new(packages::factory::path()),

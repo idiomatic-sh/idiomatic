@@ -3,14 +3,14 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
-use crate::domain::definitions::types::{
-    Definition, RuleFile, SpecFile, TemplateFile, WorkspaceFile,
-};
-use crate::domain::files::types::FileText;
-use crate::domain::packages::types::{DefinitionKind, Lock, PackageManifest};
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
+use tastemaker_values::domain::definitions::types::{
+    Definition, RuleFile, SpecFile, TemplateFile, WorkspaceFile,
+};
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::packages::types::{DefinitionKind, Lock, PackageManifest};
 
 /// What the core's tests stand in for `manifest` with: each definition by the text that names it.
 #[derive(Debug, Default)]
@@ -36,13 +36,13 @@ fn missing(text: &DefinitionText) -> ManifestError {
     }
 }
 
-impl crate::domain::entries::types::ValueWriter for ManifestFake {
+impl tastemaker_values::domain::entries::types::ValueWriter for ManifestFake {
     fn write(
         &self,
-        value: &crate::domain::entries::types::Value,
-    ) -> crate::domain::entries::types::ValueText {
+        value: &tastemaker_values::domain::entries::types::Value,
+    ) -> tastemaker_values::domain::entries::types::ValueText {
         // The fake writes a value as the TOML adapter does: it reads definitions, never writes their format its own way.
-        crate::domain::entries::types::ValueWriter::write(
+        tastemaker_values::domain::entries::types::ValueWriter::write(
             &crate::outbound::manifest::factory::toml(),
             value,
         )
@@ -124,21 +124,21 @@ impl ManifestPort for ManifestFake {
     fn rebased(
         &self,
         file: &FileText,
-        _: &crate::domain::paths::types::RepoPath,
+        _: &tastemaker_values::domain::paths::types::RepoPath,
     ) -> Result<FileText, ManifestError> {
         Ok(file.clone())
     }
 
     fn scenario_root(
         &self,
-        root: &crate::domain::scenario_files::types::ScenarioRoot<'_>,
+        root: &tastemaker_values::domain::scenario_files::types::ScenarioRoot<'_>,
     ) -> DefinitionText {
         DefinitionText(format!("{root:?}").into())
     }
 
     fn scenario_wrapper(
         &self,
-        wrapper: &crate::domain::scenario_files::types::Wrapper<'_>,
+        wrapper: &tastemaker_values::domain::scenario_files::types::Wrapper<'_>,
     ) -> DefinitionText {
         DefinitionText(format!("{wrapper:?}").into())
     }

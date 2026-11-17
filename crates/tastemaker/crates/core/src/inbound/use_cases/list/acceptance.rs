@@ -5,11 +5,11 @@ use cucumber::{given, then, when};
 use crate::Behavior;
 use std::sync::Arc;
 
-use tastemaker_core::domain::files::types::MachinePath;
 use tastemaker_core::inbound::use_cases::check::fixtures::{package, repository};
 use tastemaker_core::inbound::use_cases::list::interface::ListUseCase as _;
 use tastemaker_core::inbound::use_cases::list::types::{Kinds, ListRequest, SearchTerm};
 use tastemaker_core::inbound::use_cases::list::use_case::ListUseCaseImpl;
+use tastemaker_values::domain::files::types::MachinePath;
 
 /// Sets what the `list` scenario hands the use case.
 #[given(expr = "the list input {string}")]
