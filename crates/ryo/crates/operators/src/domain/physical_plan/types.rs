@@ -13,6 +13,7 @@ pub mod logical_program;
 pub(crate) mod lowering;
 pub mod node_counters;
 pub mod physical_plan;
+pub(crate) mod row_set;
 pub mod rule_ordinal;
 pub(crate) mod shared_index;
 pub(crate) mod stream_scratch;

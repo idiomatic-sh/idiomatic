@@ -8,9 +8,10 @@ use crate::domain::kept_room::types::{KeptRoom as _, PoolSize, Room};
 use crate::domain::physical_plan::fixtures::{DEFINES, Step, defines_rows};
 use crate::domain::physical_plan::types::Resources as _;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
+use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::worker_meters::value::EndWork;
 use crate::domain::physical_plan::types::{
@@ -41,9 +42,9 @@ enum Scenario {
     MemoRoom,
     /// A big file, then a small one: the room the tables of the rows a union and a distinct projection kept keep.
     RepeatsRoom,
-    /// A streamed projection that drops repeats, its worker's index pool holding one emptied table.
+    /// A streamed projection that drops repeats, its worker's row-set pool holding one emptied set.
     PooledProjection,
-    /// A streamed probe of its own index, its worker's index pool holding two emptied tables.
+    /// A streamed probe of its own index, its worker's keyed pool holding one emptied table and its row-set pool one set.
     PooledProbe,
 }
 
@@ -54,8 +55,8 @@ enum Observation {
     EndWork(EndWork, EndWork),
     /// Whether the big file grew the room past the cap, and whether the room kept after the small file's end is within it.
     Room { grew: bool, kept: bool },
-    /// The tables the worker's index pool keeps after the file ended.
-    Pooled(PoolSize),
+    /// The keyed-row tables and the row sets the worker's index pools keep after the file ended.
+    Pooled(PoolSize, PoolSize),
 }
 
 type Input = Scenario;
@@ -106,13 +107,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_prepared_stage_reuses_pooled_room"),
         word: Word::Succeeds,
         input: || Scenario::PooledProjection,
-        expect: Expect::Value(Observation::Pooled(PoolSize(1))),
+        expect: Expect::Value(Observation::Pooled(PoolSize(0), PoolSize(1))),
     },
     Case {
         name: CaseName("a_prepared_probe_of_its_own_index_reuses_pooled_room"),
         word: Word::Succeeds,
         input: || Scenario::PooledProbe,
-        expect: Expect::Value(Observation::Pooled(PoolSize(2))),
+        expect: Expect::Value(Observation::Pooled(PoolSize(1), PoolSize(1))),
     },
 ];
 
@@ -355,21 +356,20 @@ fn room(of: fn(RetainedRoom) -> Room) -> Result<Observation, Failure> {
     })
 }
 
-/// The tables the worker's index pool keeps after the small file runs a select of its names and `stage` over it and ends, the
-/// pool holding `tables` emptied tables of 1 Ki rows' room before: as many when each stage readied its buffers from it.
-fn pooled(stage: Step, tables: usize) -> Result<Observation, Failure> {
+/// The tables and sets the worker's index pools keep after the small file runs a select of its names and `stage` over it and
+/// ends, the pools holding `[keyed, sets]` of 1 Ki rows' room before: as many when each stage readied its buffers from them.
+fn pooled(stage: Step, [keyed, sets]: [usize; 2]) -> Result<Observation, Failure> {
     let plan = plan_of(&[select(Test::StartsWith, "n"), stage], &[PlanNodeId(1)])?;
     let mut buffers = FileBuffers::default();
-    for _ in 0..tables {
-        let mut rows = KeyedRows::default();
-        rows.next.resize(1 << 10, NO_ROW);
-        buffers.indexes.pooled(rows, PoolSize(POOL_INDEXES));
-    }
+    let (pools, room, most) = (&mut buffers.pools, Room(1 << 10), PoolSize(POOL_INDEXES));
+    (0..keyed).for_each(|_| pools.keyed.pooled(KeyedRows::with_room(room), most));
+    (0..sets).for_each(|_| pools.rows.pooled(RowSet::with_room(room), most));
     let (mut resources, table) = file(SMALL);
     let inputs = TableInputs::new(&[(DEFINES, &table)]);
     ran(&plan, PlanNodeId(1), &mut buffers, &inputs, &mut resources)?;
     buffers.ended();
-    Ok(Observation::Pooled(buffers.indexes.len()))
+    let pools = &buffers.pools;
+    Ok(Observation::Pooled(pools.keyed.len(), pools.rows.len()))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -385,8 +385,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::SharedRoom => room(|room| room.shared),
         Scenario::MemoRoom => room(|room| room.memo),
         Scenario::RepeatsRoom => room(|room| room.repeats),
-        Scenario::PooledProjection => pooled(names(node(0), RepeatedRows::Dropped), 1),
-        Scenario::PooledProbe => pooled(probe(node(0)), 2),
+        Scenario::PooledProjection => pooled(names(node(0), RepeatedRows::Dropped), [0, 1]),
+        Scenario::PooledProbe => pooled(probe(node(0)), [1, 1]),
     }
 }
 

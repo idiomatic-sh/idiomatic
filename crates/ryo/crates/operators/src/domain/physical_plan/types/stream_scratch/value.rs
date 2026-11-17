@@ -3,8 +3,9 @@
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::kept_room::constants::POOL_INDEXES;
 use crate::domain::kept_room::types::PoolSize;
-use crate::domain::kept_room::types::kept_pool::value::KeptPool;
+use crate::domain::physical_plan::types::shared_index::value::IndexPools;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::{IndexPlace, InputRows, PlanNodeId};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -92,8 +93,8 @@ pub(crate) struct StageScratch {
 pub(crate) struct StageOwn {
     /// An extension's values, resolved once before its first row.
     pub(crate) values: Vec<Value>,
-    /// The rows a tail that drops repeated rows kept so far, keyed by their cells in its table.
-    pub(crate) repeats: KeyedRows,
+    /// The rows a stage that drops repeated rows kept so far, once each.
+    pub(crate) repeats: RowSet,
     /// A probe's own index of its right rows; a probe of a shared index or of the tree builds none.
     pub(crate) index: KeyedRows,
     /// The right rows a probe's filter kept, read by every left row.
@@ -184,13 +185,15 @@ impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
 }
 
 impl StreamScratch {
-    /// The open file ended: each stage's own index and repeats go to the worker's index pool, which keeps their room only
-    /// within its caps. Within a file a stage keeps them across its chain's runs, so an index past `KEPT_ROOM` is not made
+    /// The open file ended: each stage's own index and repeats go to the worker's index pools, each to the pool of its kind,
+    /// which keeps their room only within its caps. Within a file a stage keeps them across its chain's runs, so an index past `KEPT_ROOM` is not made
     /// again for each run.
-    pub(crate) fn given_back(&mut self, indexes: &mut KeptPool<KeyedRows>) {
+    pub(crate) fn given_back(&mut self, pools: &mut IndexPools) {
         for stage in self.levels.iter_mut().flat_map(|level| &mut level.stages) {
-            indexes.pooled(std::mem::take(&mut stage.own.index), PoolSize(POOL_INDEXES));
-            indexes.pooled(
+            pools
+                .keyed
+                .pooled(std::mem::take(&mut stage.own.index), PoolSize(POOL_INDEXES));
+            pools.rows.pooled(
                 std::mem::take(&mut stage.own.repeats),
                 PoolSize(POOL_INDEXES),
             );

@@ -4,8 +4,19 @@ use crate::domain::kept_room::constants::POOL_INDEXES;
 use crate::domain::kept_room::types::PoolSize;
 use crate::domain::kept_room::types::kept_pool::value::KeptPool;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::touched_nodes::value::Touch;
 use crate::domain::physical_plan::types::{IndexPlace, NodeReaders, PlanNodeId};
+
+/// The emptied index tables a worker keeps for its next indexes and repeats, by kind: keyed-row tables for indexes of a key,
+/// row sets for rows kept once. Each kind is given back to its own pool.
+#[derive(Debug, Default)]
+pub(crate) struct IndexPools {
+    /// The keyed-row tables.
+    pub(crate) keyed: KeptPool<KeyedRows>,
+    /// The row sets.
+    pub(crate) rows: KeptPool<RowSet>,
+}
 
 /// The probe indexes a plan shares, as one worker holds them.
 #[derive(Debug, Default)]
@@ -33,8 +44,10 @@ pub(crate) struct SharedIndex {
 impl SharedIndex {
     /// Gives its rows to the worker's index pool, which keeps their room only within its caps, and counts no probe still to
     /// come: the next probe takes room from the pool and builds it anew.
-    pub(crate) fn given_back(&mut self, indexes: &mut KeptPool<KeyedRows>) {
-        indexes.pooled(std::mem::take(&mut self.rows), PoolSize(POOL_INDEXES));
+    pub(crate) fn given_back(&mut self, pools: &mut IndexPools) {
+        pools
+            .keyed
+            .pooled(std::mem::take(&mut self.rows), PoolSize(POOL_INDEXES));
         self.remaining = NodeReaders(0);
     }
 }
@@ -42,16 +55,11 @@ impl SharedIndex {
 impl SharedIndexes {
     /// A probe of the index at `at`, of `readers` probes, runs: the first of the file counts every probe as still to come,
     /// and readies the index's rows with room from the worker's index pool.
-    pub(crate) fn opened(
-        &mut self,
-        at: IndexPlace,
-        readers: NodeReaders,
-        indexes: &mut KeptPool<KeyedRows>,
-    ) {
+    pub(crate) fn opened(&mut self, at: IndexPlace, readers: NodeReaders, pools: &mut IndexPools) {
         if let Some(index) = self.indexes.get_mut(at.0)
             && index.remaining == NodeReaders(0)
         {
-            indexes.refilled(&mut index.rows);
+            pools.keyed.refilled(&mut index.rows);
             index.remaining = readers;
             if index.listed == Touch::Untouched {
                 index.listed = Touch::Touched;
@@ -61,21 +69,21 @@ impl SharedIndexes {
     }
 
     /// `node` is released: the index whose last probe it is gives its rows to the worker's index pool.
-    pub(crate) fn released(&mut self, node: PlanNodeId, indexes: &mut KeptPool<KeyedRows>) {
+    pub(crate) fn released(&mut self, node: PlanNodeId, pools: &mut IndexPools) {
         if let Some(Some(closed)) = self
             .closing
             .get(usize::try_from(node.0).unwrap_or(usize::MAX))
             && let Some(index) = self.indexes.get_mut(closed.0)
         {
-            index.given_back(indexes);
+            index.given_back(pools);
         }
     }
 
     /// The open file ended: each index it opened gives its rows to the worker's index pool, and no other is visited.
-    pub(crate) fn ended(&mut self, indexes: &mut KeptPool<KeyedRows>) {
+    pub(crate) fn ended(&mut self, pools: &mut IndexPools) {
         for place in self.opened.drain(..) {
             if let Some(index) = self.indexes.get_mut(place.0) {
-                index.given_back(indexes);
+                index.given_back(pools);
                 index.listed = Touch::Untouched;
             }
         }

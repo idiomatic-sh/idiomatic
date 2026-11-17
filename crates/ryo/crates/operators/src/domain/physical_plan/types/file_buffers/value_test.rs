@@ -227,7 +227,7 @@ fn given_back(given: Shared) -> Result<Given, Failure> {
         }
     }
     Ok((
-        buffers.indexes.len(),
+        buffers.pools.keyed.len(),
         buffers
             .shared
             .indexes

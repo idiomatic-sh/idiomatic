@@ -107,7 +107,7 @@ pub(crate) fn opened(plan: &PhysicalPlan, buffers: &mut FileBuffers, at: IndexPl
         buffers.shared.opened(
             at,
             NodeReaders(u32::try_from(index.readers.len()).unwrap_or(u32::MAX)),
-            &mut buffers.indexes,
+            &mut buffers.pools,
         );
     }
 }
@@ -118,7 +118,7 @@ pub(crate) fn closed(buffers: &mut FileBuffers, at: IndexPlace) {
     if let Some(shared) = buffers.shared.indexes.get_mut(at.0) {
         shared.remaining = NodeReaders(shared.remaining.0.saturating_sub(1));
         if shared.remaining == NodeReaders(0) {
-            shared.given_back(&mut buffers.indexes);
+            shared.given_back(&mut buffers.pools);
         }
     }
 }

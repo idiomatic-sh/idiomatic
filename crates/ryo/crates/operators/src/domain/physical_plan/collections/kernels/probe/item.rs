@@ -17,9 +17,10 @@ use super::super::scan_facts::item::{
 use super::super::scan_roots::item::{keyed_roots, next_found, tree_cell};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{Existence, PartitionExtremum, ProbeMode, ProbeParts};
-use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, KeyedRun, NO_ROW};
+use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRun, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::stream_scratch::value::{
     CellBound, ChunkRead, ChunkStop, RowChunk,
 };
@@ -323,7 +324,7 @@ fn answered(
     at: RowIndex,
     right_row: RowIndex,
     output: &mut Table,
-    repeats: &mut KeyedRows,
+    repeats: &mut RowSet,
     left_cell: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
     right_cell: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
 ) -> Option<PortableOperatorFault> {

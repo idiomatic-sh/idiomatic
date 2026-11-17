@@ -16,6 +16,7 @@ use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedSide, NodeFed, TreeRead};
 use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -64,7 +65,7 @@ pub(crate) struct ProbeScratch<'s> {
     /// The row a filter writes.
     pub(crate) written: &'s mut Vec<Value>,
     /// The answers kept, keyed by their cells, when repeats are dropped.
-    pub(crate) repeats: &'s mut KeyedRows,
+    pub(crate) repeats: &'s mut RowSet,
     /// The right filter's decisions.
     pub(crate) decisions: &'s mut NodeDecisions,
     /// The tree nodes one left row found, for a probe that walks the tree.
@@ -95,7 +96,7 @@ pub(crate) struct ProbeReads<'a> {
     /// The row read, decoded.
     pub(crate) row: &'a mut Vec<Value>,
     /// The answers kept, keyed by their cells, when repeats are dropped.
-    pub(crate) repeats: &'a mut KeyedRows,
+    pub(crate) repeats: &'a mut RowSet,
     /// The right filter's decisions.
     pub(crate) decisions: &'a mut NodeDecisions,
     /// The tree nodes one left row found.

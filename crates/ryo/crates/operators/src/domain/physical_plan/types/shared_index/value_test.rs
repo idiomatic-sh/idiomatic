@@ -2,7 +2,7 @@
 //! open file opened, closed and opened again is listed once, and the file's end gives it back and lists none.
 use super::value::{SharedIndex, SharedIndexes};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::kept_room::types::kept_pool::value::KeptPool;
+use crate::domain::physical_plan::types::shared_index::value::IndexPools;
 use crate::domain::physical_plan::types::keyed_rows::value::{
     IndexKeyHash, IndexedRow, KeyedRun, NO_ROW,
 };
@@ -64,7 +64,7 @@ fn built() -> SharedIndex {
 }
 
 fn subject(given: Input) -> Result<Value, Failure> {
-    let mut pool = KeptPool::default();
+    let mut pool = IndexPools::default();
     let mut shared = SharedIndexes {
         indexes: vec![SharedIndex::default(), built()],
         ..SharedIndexes::default()

@@ -36,6 +36,15 @@ pub(crate) struct IndexedRow(pub(crate) u32);
 pub(crate) const NO_ROW: IndexedRow = IndexedRow(u32::MAX);
 
 impl KeyedRows {
+    /// A table of no row with `room` for rows' links: what the room cases give a stage or a pool.
+    #[cfg(test)]
+    pub(crate) fn with_room(room: crate::domain::kept_room::types::Room) -> Self {
+        Self {
+            keys: hashbrown::HashTable::new(),
+            next: Vec::with_capacity(room.0),
+        }
+    }
+
     /// Empties the table for its next rows, keeping its room.
     pub(crate) fn cleared(&mut self) {
         self.keys.clear();

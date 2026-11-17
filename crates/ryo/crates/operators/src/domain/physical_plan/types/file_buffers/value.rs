@@ -42,8 +42,9 @@ pub struct FileBuffers {
     pub(crate) done: crate::domain::physical_plan::types::consumers_done::value::ConsumersDone,
     /// The emptied node tables kept for the next nodes, capped.
     pub(crate) pool: KeptPool<ryo_values::domain::rows::types::Table>,
-    /// The emptied keyed-row tables kept for the next indexes, shared and streamed alike, capped.
-    pub(crate) indexes: KeptPool<KeyedRows>,
+    /// The emptied keyed-row tables and row sets kept for the next indexes and repeats, shared and streamed alike, each kind
+    /// in its own pool, capped.
+    pub(crate) pools: crate::domain::physical_plan::types::shared_index::value::IndexPools,
     /// Each filtering node's comparison scratch, by node id, kept across files.
     pub(crate) decisions: Vec<NodeDecisions>,
     /// The keyed-row table a node builds for itself: a probe's own index, a group's, or the lookups' while it answers them.
@@ -66,8 +67,8 @@ pub struct FileBuffers {
     pub(crate) walk: crate::domain::physical_plan::types::walk_scratch::value::WalkScratch,
     /// The work arrays of a cycle search, kept across files.
     pub(crate) cycles: crate::domain::cycles::types::CycleScratch,
-    /// The rows `distinct` kept so far, keyed by all their cells in `hash_index`'s table, its capacity kept across nodes.
-    pub(crate) repeats: KeyedRows,
+    /// The rows `distinct` kept so far, once each, its capacity kept across nodes.
+    pub(crate) repeats: crate::domain::physical_plan::types::row_set::value::RowSet,
     /// The tree nodes one left row of a tree probe found, its capacity kept across files.
     pub(crate) found: Vec<NodeId>,
     /// The probe indexes the plan shares, those the open file opened, and the node whose release empties each.
@@ -313,7 +314,7 @@ impl FileBuffers {
         {
             self.ending.0 += 1;
         }
-        self.shared.released(node, &mut self.indexes);
+        self.shared.released(node, &mut self.pools);
         if let Ok(at) = usize::try_from(node.0)
             && let Some(held) = self.nodes.get_mut(at)
         {
@@ -368,11 +369,11 @@ impl FileBuffers {
         {
             self.ending.0 += self.shared.opened.len();
         }
-        self.shared.ended(&mut self.indexes);
+        self.shared.ended(&mut self.pools);
         self.index.kept();
         self.second.kept();
         self.repeats.kept();
-        self.stream.given_back(&mut self.indexes);
+        self.stream.given_back(&mut self.pools);
         self.stream.kept();
         self.values.kept();
         self.hashes.0.kept();
