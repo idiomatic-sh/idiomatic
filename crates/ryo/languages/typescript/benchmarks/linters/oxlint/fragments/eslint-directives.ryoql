@@ -13,7 +13,7 @@ let candidate_bounds = span-bounds(from=candidate_starts, span="span", start-out
 let next_line = select id, file, span from applying where matches(text, "^\s*(?:eslint|oxlint)-disable-next-line(?:\s|$)");
 let next_line_ends = source-matches(from=next_line, span="span", pattern="\z", output="after");
 let next_line_bounds = span-bounds(from=next_line_ends, span="span", start-output="dbegin", end-output="dfinish");
-let next_line_pairs = select l.id as id, l.file as file, l.span as span, l.before as before, r.after as after from candidate_bounds as l join next_line_bounds as r on l.file = r.file where l.begin >= r.dfinish;
+let next_line_pairs = select l.id as id, l.file as file, l.span as span, l.before as before, r.after as after from candidate_bounds as l all-pairs join next_line_bounds as r on l.file = r.file where l.begin >= r.dfinish;
 let next_line_gaps = span-between(from=next_line_pairs, start="after", end="before", output="gap");
 let next_line_hits = source-matches(from=next_line_gaps, span="gap", pattern="\A[^\n]*\n[^\n]*\z", output="hit");
 let next_line_suppressed = select id, file, span from next_line_hits;
@@ -21,11 +21,11 @@ let same_line = select id, file, span from applying where matches(text, "^\s*(?:
 let same_line_starts = source-matches(from=same_line, span="span", pattern="\A", output="dstart");
 let same_line_ends = source-matches(from=same_line_starts, span="span", pattern="\z", output="after");
 let same_line_bounds = span-bounds(from=same_line_ends, span="span", start-output="dbegin", end-output="dfinish");
-let leading_pairs = select l.id as id, l.file as file, l.span as span, l.before as before, r.after as after from candidate_bounds as l join same_line_bounds as r on l.file = r.file where l.begin >= r.dfinish;
+let leading_pairs = select l.id as id, l.file as file, l.span as span, l.before as before, r.after as after from candidate_bounds as l nearest join same_line_bounds as r on l.file = r.file where l.begin >= r.dfinish;
 let leading_gaps = span-between(from=leading_pairs, start="after", end="before", output="gap");
 let leading_hits = source-matches(from=leading_gaps, span="gap", pattern="\A[^\n]*\z", output="hit");
 let leading_suppressed = select id, file, span from leading_hits;
-let trailing_pairs = select l.id as id, l.file as file, l.span as span, l.before as before, r.dstart as dstart from candidate_bounds as l join same_line_bounds as r on l.file = r.file where l.begin < r.dbegin;
+let trailing_pairs = select l.id as id, l.file as file, l.span as span, l.before as before, r.dstart as dstart from candidate_bounds as l nearest join same_line_bounds as r on l.file = r.file where l.begin < r.dbegin;
 let trailing_gaps = span-between(from=trailing_pairs, start="before", end="dstart", output="gap");
 let trailing_hits = source-matches(from=trailing_gaps, span="gap", pattern="\A[^\n]*\z", output="hit");
 let trailing_suppressed = select id, file, span from trailing_hits;
@@ -44,7 +44,7 @@ let open_disables = antijoin(left=all_disables, right=closed_blocks, left-on=["i
 let open_starts = select id, file, finish as begin from open_disables;
 let open_blocks = extend(from=open_starts, values={last: 4294967295});
 let blocks = union(left=closed_blocks, right=open_blocks);
-let block_hits = select l.id as id, l.file as file, l.span as span from candidate_bounds as l join blocks as r on l.file = r.file where l.finish > r.begin and l.begin < r.last;
+let block_hits = select l.id as id, l.file as file, l.span as span from candidate_bounds as l all-pairs join blocks as r on l.file = r.file where l.finish > r.begin and l.begin < r.last;
 let line_suppressed = union(left=next_line_suppressed, right=leading_suppressed);
 let near_suppressed = union(left=line_suppressed, right=trailing_suppressed);
 let suppressed = union(left=near_suppressed, right=block_hits);

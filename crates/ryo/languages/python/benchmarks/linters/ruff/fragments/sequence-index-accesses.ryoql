@@ -36,7 +36,11 @@ let without_values = antijoin(left=assign_targets, right=values, left-on=["state
 let skipped_annotations = select statement, file from without_values where kind = "ann-assign";
 let live_targets = antijoin(left=assign_targets, right=skipped_annotations, left-on=["statement","file"], right-on=["statement","file"]);
 let named_targets = select l.statement as statement, l.file as file, r.name as name from live_targets as l join named as r on l.target = r.id and l.file = r.file;
-let name_mutations = select l.context as context, l.file as file, r.statement as statement from contexts as l join named_targets as r on l.file = r.file where r.name = l.sequence or r.name = l.index or r.name = l.value;
+let sequence_mutations = select l.context as context, l.file as file, r.statement as statement from contexts as l join named_targets as r on l.sequence = r.name and l.file = r.file;
+let index_mutations = select l.context as context, l.file as file, r.statement as statement from contexts as l join named_targets as r on l.index = r.name and l.file = r.file;
+let value_mutations = select l.context as context, l.file as file, r.statement as statement from contexts as l join named_targets as r on l.value = r.name and l.file = r.file;
+let sequence_index_mutations = union(left=sequence_mutations, right=index_mutations);
+let name_mutations = union(left=sequence_index_mutations, right=value_mutations);
 let subscript_targets = select l.statement as statement, l.file as file, r.id as id, r.sequence as sequence, r.index as index from live_targets as l join indexed_names as r on l.target = r.id and l.file = r.file;
 let indexed_mutations = select l.context as context, l.file as file, r.statement as statement from contexts as l join subscript_targets as r on l.sequence = r.sequence and l.index = r.index and l.file = r.file;
 let mutations = union(left=name_mutations, right=indexed_mutations);

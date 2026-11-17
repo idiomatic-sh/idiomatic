@@ -1,3 +1,4 @@
 output relation<file: file>;
-let javascript = select file from "compiler-feature" where feature = "typescript.syntax" and enabled = "false";
+let javascript_rows = select file from "compiler-feature" where feature = "typescript.syntax" and enabled = "false";
+let javascript = project(from=javascript_rows, columns=["file"]);
 return javascript;

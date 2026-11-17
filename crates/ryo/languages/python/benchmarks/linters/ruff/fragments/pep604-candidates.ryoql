@@ -57,7 +57,8 @@ let modern = select l.id as id, l.operator as operator, l.file as file from acce
 let stub_rows = select l.id as id, l.operator as operator, l.file as file from acceptable as l join stubs as r on l.id = r.id and l.file = r.file;
 let future_files = select file from "compiler-feature" where feature = "python.future-annotations" and enabled = "true";
 let legacy_files0 = select file from "language-target" where major = 3 and minor >= 7 and minor < 10;
-let legacy_files = select l.file as file from legacy_files0 as l join future_files as r on l.file = r.file;
+let legacy_files_rows = select l.file as file from legacy_files0 as l join future_files as r on l.file = r.file;
+let legacy_files = project(from=legacy_files_rows, columns=["file"]);
 let annotated = select id, file from contexts;
 let legacy_contexts = union(left=annotated, right=embedded);
 let legacy_candidates = select l.id as id, l.operator as operator, l.file as file from acceptable as l join legacy_files as r on l.file = r.file;

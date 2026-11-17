@@ -22,7 +22,10 @@ let direct_imports = antijoin(left=import_events, right=deep_modules, left-on=["
 let known_direct_imports = select context, expression, target as path, file from direct_imports where target = "builtins.type" or target = "abc.ABCMeta" or target = "enum.EnumMeta" or target = "enum.EnumType" or target = "builtins.str" or target = "builtins.tuple" or target = "builtins.dict" or target = "builtins.StopIteration" or target = "typing.Protocol" or target = "typing_extensions.Protocol";
 let bare_import_origins = select r.context as context, l.expression as expression, r.path as path, l.file as file from name_expressions as l join known_direct_imports as r on l.root = r.expression and l.file = r.file;
 let named_builtin_roots = select l.expression as expression, r.name as name, l.file as file from name_expressions as l join "identifier" as r on l.expression = r.id and l.file = r.file where r.name = "type" or r.name = "str" or r.name = "tuple" or r.name = "dict" or r.name = "StopIteration";
-let contextual_builtin_roots = select l.context as context, r.expression as expression, r.name as name, l.file as file from symbol_contexts as l join named_builtin_roots as r on l.file = r.file where l.stage = 0 or l.context = r.expression;
+let current_symbol_contexts = select * from symbol_contexts where stage = 0;
+let current_builtin_roots = select l.context as context, r.expression as expression, r.name as name, l.file as file from current_symbol_contexts as l all-pairs join named_builtin_roots as r on l.file = r.file;
+let own_builtin_roots = select l.context as context, r.expression as expression, r.name as name, l.file as file from symbol_contexts as l join named_builtin_roots as r on l.context = r.expression and l.file = r.file;
+let contextual_builtin_roots = union(left=current_builtin_roots, right=own_builtin_roots);
 let unbound_builtin_roots = antijoin(left=contextual_builtin_roots, right=root_events, left-on=["context", "expression", "file"], right-on=["context", "expression", "file"]);
 let raw_type_builtins = select context, expression, file from unbound_builtin_roots where name = "type";
 let raw_str_builtins = select context, expression, file from unbound_builtin_roots where name = "str";

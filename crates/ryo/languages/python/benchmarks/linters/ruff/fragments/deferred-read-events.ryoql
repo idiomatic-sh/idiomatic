@@ -19,7 +19,8 @@ let type_parameters = select id, name, file from "defines" where refinement = "t
 let deferred_contexts = deferred_context(expressions=expressions);
 let deferred_types = select id, file from deferred_contexts where visit = "deferred";
 let unvisited_types = select id, file from deferred_contexts where visit = "unvisited";
-let all_points = select ordinal as point, file from events;
+let all_points_rows = select ordinal as point, file from events;
+let all_points = project(from=all_points_rows, columns=["point", "file"]);
 let point_pairs = ordered-match(left=all_points, right=all_points, left-on=[file], right-on=[file], left-order="point", right-order="point", output={point:[left,point], file:[left,file]});
 let final_points = antijoin(left=all_points, right=point_pairs, left-on=["point", "file"], right-on=["point", "file"]);
 let deferred_reads = select l.id as id, r.scope as initial_scope, l.file as file from deferred_types as l join reads as r on l.id = r.id and l.file = r.file;
@@ -30,7 +31,9 @@ let local_events0 = lookup_events(ordered_contexts=contexts, expressions=express
 let local_events = select context, expression, occurrence, scope, kind, file from local_events0 where context = expression;
 let local_bound = select context as id, file from local_events where kind = "bind" or kind = "annotation" and matches(file, "[.]pyi$");
 let modules = select id, file from nodes where kind = "module";
-let module_context_points = select l.context as context, r.id as initial_scope, l.point as point, l.header_point as header_point, l.stage as stage, l.file as file from contexts as l join modules as r on l.file = r.file;
+let context_nodes = select context as id, file from contexts;
+let context_modules = axis(from=context_nodes, relation="semantic-child", direction=nearest-ancestor, domain=modules);
+let module_context_points = select l.context as context, r.related as initial_scope, l.point as point, l.header_point as header_point, l.stage as stage, l.file as file from contexts as l join context_modules as r on l.context = r.id and l.file = r.file;
 let module_contexts = select context, initial_scope, point, header_point, stage, file from module_context_points;
 let module_events0 = lookup_events(ordered_contexts=module_contexts, expressions=expressions);
 let module_bound = select context as id, occurrence, kind, file from module_events0 where context = expression and kind = "bind";
