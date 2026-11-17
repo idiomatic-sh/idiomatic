@@ -54,7 +54,7 @@ enum Observation {
     EndWork(EndWork, EndWork),
     /// Whether the big file grew the room past the cap, and whether the room kept after the small file's end is within it.
     Room { grew: bool, kept: bool },
-    /// The tables the worker's index pool keeps after the file's nodes ran.
+    /// The tables the worker's index pool keeps after the file ended.
     Pooled(PoolSize),
 }
 
@@ -355,8 +355,8 @@ fn room(of: fn(RetainedRoom) -> Room) -> Result<Observation, Failure> {
     })
 }
 
-/// The tables the worker's index pool keeps after the small file runs a select of its names and `stage` over it, the pool
-/// holding `tables` emptied tables of 1 Ki rows' room before: as many when each stage readied its buffers from the pool.
+/// The tables the worker's index pool keeps after the small file runs a select of its names and `stage` over it and ends, the
+/// pool holding `tables` emptied tables of 1 Ki rows' room before: as many when each stage readied its buffers from it.
 fn pooled(stage: Step, tables: usize) -> Result<Observation, Failure> {
     let plan = plan_of(&[select(Test::StartsWith, "n"), stage], &[PlanNodeId(1)])?;
     let mut buffers = FileBuffers::default();
@@ -368,6 +368,7 @@ fn pooled(stage: Step, tables: usize) -> Result<Observation, Failure> {
     let (mut resources, table) = file(SMALL);
     let inputs = TableInputs::new(&[(DEFINES, &table)]);
     ran(&plan, PlanNodeId(1), &mut buffers, &inputs, &mut resources)?;
+    buffers.ended();
     Ok(Observation::Pooled(buffers.indexes.len()))
 }
 

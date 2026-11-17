@@ -183,10 +183,24 @@ impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
     }
 }
 
+impl StreamScratch {
+    /// The open file ended: each stage's own index and repeats go to the worker's index pool, which keeps their room only
+    /// within its caps. Within a file a stage keeps them across its chain's runs, so an index past `KEPT_ROOM` is not made
+    /// again for each run.
+    pub(crate) fn given_back(&mut self, indexes: &mut KeptPool<KeyedRows>) {
+        for stage in self.levels.iter_mut().flat_map(|level| &mut level.stages) {
+            indexes.pooled(std::mem::take(&mut stage.own.index), PoolSize(POOL_INDEXES));
+            indexes.pooled(
+                std::mem::take(&mut stage.own.repeats),
+                PoolSize(POOL_INDEXES),
+            );
+        }
+    }
+}
+
 impl ChainScratch {
-    /// Empties the chain after its run: its head chunk and each stage, none keeping more room in its tables than the bound,
-    /// each stage's own index and repeats given to the worker's index pool.
-    pub(crate) fn settled(&mut self, indexes: &mut KeptPool<KeyedRows>) {
+    /// Empties the chain after its run: its head chunk and each stage, none keeping more room in its tables than the bound.
+    pub(crate) fn settled(&mut self) {
         self.head.kinds.clear();
         self.head.cells.clear();
         self.head.count = RowCount(0);
@@ -195,15 +209,15 @@ impl ChainScratch {
             self.head.cells.shrink_to(STREAM_CHUNK_CELLS);
         }
         for stage in &mut self.stages {
-            stage.settled(indexes);
+            stage.settled();
         }
     }
 }
 
 impl StageScratch {
-    /// Empties the stage after its chain's run, keeping no more room in its tables than the bound; its own index and repeats
-    /// go to the worker's index pool, which keeps their room only within its caps.
-    pub(crate) fn settled(&mut self, indexes: &mut KeptPool<KeyedRows>) {
+    /// Empties the stage after its chain's run, keeping no more room in its tables than the bound, and its index empty. Its
+    /// own index and repeats keep their room for the chain's next run in the file; the file's end gives them to the pool.
+    pub(crate) fn settled(&mut self) {
         for table in [&mut self.out, &mut self.own.kept] {
             table.kinds.clear();
             table.cells.clear();
@@ -212,11 +226,7 @@ impl StageScratch {
                 table.cells.shrink_to(STREAM_CHUNK_CELLS);
             }
         }
-        indexes.pooled(std::mem::take(&mut self.own.index), PoolSize(POOL_INDEXES));
-        indexes.pooled(
-            std::mem::take(&mut self.own.repeats),
-            PoolSize(POOL_INDEXES),
-        );
+        self.own.index.cleared();
         self.fault = None;
     }
 }

@@ -338,9 +338,9 @@ impl FileBuffers {
 }
 
 impl FileBuffers {
-    /// Ends the open file: each node it touched is released and each shared index it opened gives its rows to the worker's
-    /// index pool, no other, so the work is the file's, not the program's; its scratch keeps its room for the next file only
-    /// within the cap.
+    /// Ends the open file: each node it touched is released, and each shared index it opened and each streamed stage's own
+    /// index and repeats give their rows to the worker's index pool, no other, so the work is the file's, not the program's;
+    /// its scratch keeps its room for the next file only within the cap.
     ///
     /// # Examples
     ///
@@ -372,6 +372,7 @@ impl FileBuffers {
         self.index.kept();
         self.second.kept();
         self.repeats.kept();
+        self.stream.given_back(&mut self.indexes);
         self.stream.kept();
         self.values.kept();
         self.hashes.0.kept();
