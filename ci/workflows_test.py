@@ -15,6 +15,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from ci.groups import composition as groups_composition
+from ci.groups.use_case import Request as GroupsRequest
 from ci.tag.use_case import PRODUCTS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -854,9 +856,27 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
     linux, check = jobs["check-linux"], jobs["check"]
     assert linux["runs-on"] == "ubuntu-26.04"
     (linux_checking,) = [step["run"] for step in linux["steps"] if "asymptote check" in step.get("run", "")]
-    assert linux_checking == "asymptote check --root crates/${{ matrix.product }} --groups " + ",".join(LINUX_GROUPS)
+    assert linux_checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ steps.groups.outputs.groups }}"
+    # It asks each product the groups of `LINUX_GROUPS` its tools declare, through the one command that keeps them.
+    (asking,) = [step for step in linux["steps"] if step.get("id") == "groups"]
+    assert asking["run"] == "uv run ci/groups/command.py --product ${{ matrix.product }} --groups " + ",".join(LINUX_GROUPS)
+    # asymptote declares no `memory` group, so its Linux job asks the five others; ryo and Tastemaker declare all six.
+    for manifest in listed(ROOT, "crates/*/asymptote.toml"):
+        read(manifest)
+    asked = groups_composition.build()
+    assert {product: asked.run(GroupsRequest(product, LINUX_GROUPS)) for product in PRODUCTS} == {
+        "ryo": LINUX_GROUPS,
+        "tastemaker": LINUX_GROUPS,
+        "asymptote": ("lint", "clippy", "check", "release-tests", "release-coverage"),
+    }
     (checking,) = [step["run"] for step in check["steps"] if "asymptote check" in step.get("run", "")]
-    assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.groups }}"
+    assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ steps.groups.outputs.groups }}"
+    (asking,) = [step for step in check["steps"] if step.get("id") == "groups"]
+    assert asking["run"] == "uv run ci/groups/command.py --product ${{ matrix.product }} --groups ${{ matrix.check.groups }}"
+    # Every product declares every group of every row, so no row of the check matrix runs less than it names.
+    for row in check["strategy"]["matrix"]["check"]:
+        for product in PRODUCTS:
+            assert asked.run(GroupsRequest(product, tuple(row["groups"].split(",")))) == tuple(row["groups"].split(",")), (product, row)
     # The same machines and groups as the release's check, split in two: the pull request's Linux job, which every event runs, and
     # the rows a push to main and a hand run add, a row's groups sharing one asymptote call and so one build.
     release = yaml.safe_load(read(DIRECTORY / "release.yml"))["jobs"]["check"]["strategy"]["matrix"]["include"]
