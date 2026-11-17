@@ -240,7 +240,7 @@ expected = [{ file = "case.js", start = 18, end = 23 }]
 
 [[cases]]
 name = "js-unused-const-in-module"
-files = { "case.js" = "export const test = 1\nconst ttest = test\nconst view = 'mxd'\n" }
+files = { "case.js" = "export const test = 1\nconst other = test\nconst view = 'mxd'\n" }
 expected = [{ file = "case.js", start = 28, end = 33 }, { file = "case.js", start = 47, end = 51 }]
 
 [[cases]]

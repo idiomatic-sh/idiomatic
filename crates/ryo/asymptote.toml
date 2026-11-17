@@ -286,4 +286,3 @@ output = "bmf"
 tolerance-percent = { cpu-s = 10, wall-s = 15, peak-rss-bytes = 5, warm-cpu-s = 10, warm-peak-rss-bytes = 5, edited-cpu-s = 10, edited-peak-rss-bytes = 5, store-bytes = 1, total-ms = 10, max-case-ms = 10, compile-ms = 10, doubling-ratio = 10, larger-ms = 10 }
 timeout-seconds = 21600
 inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
-
