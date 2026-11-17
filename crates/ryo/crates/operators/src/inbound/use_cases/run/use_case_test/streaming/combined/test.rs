@@ -10,10 +10,10 @@ use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::fixtures::ordered::{
     EDGES, OrderedShape, ordered_existence, ordered_existence_pair, ordered_rows,
 };
+use crate::domain::physical_plan::fixtures::text::text_program;
 use crate::domain::physical_plan::fixtures::{
     DEFINES, Step, defines_rows, over_defines, over_nodes,
 };
-use crate::domain::physical_plan::fixtures::text::text_program;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
@@ -259,6 +259,7 @@ fn ordered_over_a_select() -> Vec<Step> {
             order: 2,
             key: &[0, 1, 2],
             shared_select: false,
+            pairing: crate::domain::physical_plan::fixtures::ordered::Pairing::JoinThenSelect,
         },
     ) {
         for input in &mut step.inputs {

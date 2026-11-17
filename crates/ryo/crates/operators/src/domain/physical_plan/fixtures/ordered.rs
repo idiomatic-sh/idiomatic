@@ -25,6 +25,17 @@ pub(crate) struct OrderedShape {
     pub(crate) key: &'static [u32],
     /// Whether a second node reads the select.
     pub(crate) shared_select: bool,
+    /// How the self join pairs each row with those past it.
+    pub(crate) pairing: Pairing,
+}
+
+/// How an ordered existence's self join pairs each row with the rows past it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Pairing {
+    /// A join on the parent with a select of the order comparison after it.
+    JoinThenSelect,
+    /// The band join the band lowering writes for the same `where`: the comparison its one edge, no select.
+    Band,
 }
 
 /// The ordered existence shape over `EDGES`, starting at node `first`: a self join on the parent answering the left parent,
@@ -36,6 +47,9 @@ pub(crate) fn ordered_existence(first: u32, shape: OrderedShape) -> Vec<Step> {
         side: Side::Left,
         column: ColumnIndex(column),
     };
+    if shape.pairing == Pairing::Band {
+        return banded_existence(first, shape);
+    }
     let mut steps = vec![
         step(
             Operation::Join {
@@ -103,6 +117,65 @@ pub(crate) fn ordered_existence(first: u32, shape: OrderedShape) -> Vec<Step> {
     steps
 }
 
+/// The ordered existence shape as the band lowering writes it, starting at node `first`: a band join of `EDGES` with itself on
+/// the parent whose one edge is the order comparison, answering the left parent, child and ordinal, the distinct projection of
+/// them, and the antijoin of `EDGES` with it on `shape.key`.
+fn banded_existence(first: u32, shape: OrderedShape) -> Vec<Step> {
+    use ryo_values::domain::band_joins::types::{BandAnswer, BandEdge, BandJoin, BandTest};
+    let edges = (StepInput::Relation(EDGES), PlanInput::Relation(EDGES));
+    // `left test right`, read as `right test' left`.
+    let test = match shape.test {
+        Test::LessThan => BandTest::Above,
+        Test::LessThanOrEqual => BandTest::AtOrAbove,
+        Test::GreaterThan => BandTest::Below,
+        _ => BandTest::AtOrBelow,
+    };
+    vec![
+        step(
+            Operation::BandJoin(BandJoin {
+                left: edges.0,
+                right: edges.0,
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                band: vec![BandEdge {
+                    left: ColumnIndex(shape.order),
+                    test,
+                    right: ColumnIndex(shape.order),
+                }],
+                answer: BandAnswer::Every,
+                output: [0, 1, 2]
+                    .map(|column| JoinColumn {
+                        side: Side::Left,
+                        column: ColumnIndex(column),
+                    })
+                    .to_vec(),
+                filter: Vec::new(),
+                view: Vec::new(),
+                // Keyed on the parent, a column many rows share: the fan the query compiler proves for it.
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
+            }),
+            &[edges.1, edges.1],
+        ),
+        step(
+            Operation::Project {
+                from: node(first).0,
+                columns: vec![ColumnIndex(0), ColumnIndex(1), ColumnIndex(2)],
+                distinct: RepeatedRows::Dropped,
+            },
+            &[node(first).1],
+        ),
+        step(
+            Operation::Antijoin {
+                left: edges.0,
+                right: node(first + 1).0,
+                left_on: shape.key.iter().copied().map(ColumnIndex).collect(),
+                right_on: shape.key.iter().copied().map(ColumnIndex).collect(),
+            },
+            &[edges.1, node(first + 1).1],
+        ),
+    ]
+}
+
 /// Both ordered existence shapes, the antijoins nodes 3 and 7: per parent the rows of the greatest ordinal, then of the least.
 pub(crate) fn ordered_existence_pair() -> Vec<Step> {
     let shape = |test| OrderedShape {
@@ -110,6 +183,7 @@ pub(crate) fn ordered_existence_pair() -> Vec<Step> {
         order: 2,
         key: &[0, 1, 2],
         shared_select: false,
+        pairing: Pairing::JoinThenSelect,
     };
     let mut steps = ordered_existence(0, shape(Test::LessThan));
     steps.extend(ordered_existence(4, shape(Test::GreaterThan)));

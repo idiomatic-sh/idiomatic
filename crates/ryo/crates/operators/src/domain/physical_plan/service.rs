@@ -3,6 +3,7 @@
 pub(crate) mod indexes;
 pub(crate) mod kernels;
 pub(crate) mod lowering;
+pub(crate) mod numbers;
 pub(crate) mod run;
 
 use crate::domain::contract::types::PortableOperatorFault;

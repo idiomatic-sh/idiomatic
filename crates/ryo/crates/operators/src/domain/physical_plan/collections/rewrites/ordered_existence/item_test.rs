@@ -3,7 +3,9 @@ use super::item::OrderedExistenceItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::equality_join::types::{OrderedProbe, PartitionExtremum, ProbeKey, ProbeMode};
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem as _;
-use crate::domain::physical_plan::fixtures::ordered::{EDGES, OrderedShape, ordered_existence};
+use crate::domain::physical_plan::fixtures::ordered::{
+    EDGES, OrderedShape, Pairing, ordered_existence,
+};
 use crate::domain::physical_plan::service::plan_with;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
@@ -12,6 +14,7 @@ use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, NodeReaders, PlanInputList, PlanNodeId, RowSource,
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepScope, Test};
+use ryo_values::domain::plans::types::Operation;
 
 /// The shape of the program planned.
 type Input = OrderedShape;
@@ -39,6 +42,7 @@ const LATEST: OrderedShape = OrderedShape {
     order: 2,
     key: &[0, 1, 2],
     shared_select: false,
+    pairing: Pairing::JoinThenSelect,
 };
 
 /// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
@@ -75,6 +79,34 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             },
             unread: 3,
         }),
+    },
+    Case {
+        name: CaseName("the_band_join_the_band_lowering_writes_for_the_shape_probes_its_source"),
+        word: Word::Succeeds,
+        input: || OrderedShape {
+            pairing: Pairing::Band,
+            ..LATEST
+        },
+        expect: Expect::Value(Rewritten::Ordered {
+            right: RowSource::Facts(EDGES),
+            on_parent: true,
+            order: OrderedProbe {
+                left_order: ColumnIndex(2),
+                right_order: ColumnIndex(2),
+                extremum: PartitionExtremum::Maximum,
+            },
+            unread: 2,
+        }),
+    },
+    Case {
+        name: CaseName("a_non_strict_band_declines"),
+        word: Word::Succeeds,
+        input: || OrderedShape {
+            pairing: Pairing::Band,
+            test: Test::LessThanOrEqual,
+            ..LATEST
+        },
+        expect: Expect::Value(Rewritten::Declined),
     },
     Case {
         name: CaseName("an_order_column_not_proven_a_number_declines"),
@@ -123,16 +155,26 @@ fn subject(shape: Input) -> Result<Value, Failure> {
             scope: StepScope::PerFile,
         });
     }
-    program.emit(RuleOrdinal(0), PlanNodeId(3));
+    // The antijoin follows the self join, the select and the projection, or the band join and the projection.
+    let at = steps
+        .iter()
+        .position(|step| matches!(step.operation, Operation::Antijoin { .. }))
+        .ok_or(())?;
+    let antijoin = u32::try_from(at).map_err(|_| ())?;
+    program.emit(RuleOrdinal(0), PlanNodeId(antijoin));
     let mut plan = plan_with(&program, &[]).map_err(|_| ())?;
     OrderedExistenceItem.rewrite(&mut plan.nodes, &mut plan.indexes);
     let unread = plan
         .nodes
         .iter()
-        .take(3)
+        .take(usize::try_from(antijoin).map_err(|_| ())?)
         .filter(|node| node.readers == NodeReaders(0))
         .count();
-    let Lowering::Probe(ProbeNode { right, probe, .. }) = &plan.nodes.get(3).ok_or(())?.lowering
+    let Lowering::Probe(ProbeNode { right, probe, .. }) = &plan
+        .nodes
+        .get(usize::try_from(antijoin).map_err(|_| ())?)
+        .ok_or(())?
+        .lowering
     else {
         return Err(());
     };
