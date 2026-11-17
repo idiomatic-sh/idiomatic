@@ -266,3 +266,6 @@ mod closures_and_axes;
 
 #[cfg(test)]
 mod fusing;
+
+#[cfg(test)]
+mod selection_pushing;

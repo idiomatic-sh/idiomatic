@@ -1,33 +1,37 @@
 //! The `selection_pushing` service: free functions named by verb over the filters of a union or a join made on its inputs.
 
-use super::types::FilterGain;
 use super::types::PushedFilter;
 use super::types::SplitComparisons;
-use super::types::Tested;
-use crate::domain::lineage::service::column_kind;
-use crate::domain::lineage::types::LineageMemo;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::pruning::service::without_unused_roots;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
-use ryo_relations::domain::relations::types::CellKind;
+use crate::domain::widths::service::width_of;
 use ryo_values::domain::plan_parts::service::column_in;
-use ryo_values::domain::plan_parts::service::columns_of;
-use ryo_values::domain::plan_parts::service::remapped;
+use ryo_values::domain::plan_parts::service::fixed_prefix;
+use ryo_values::domain::plan_parts::service::remapped_comparison;
+use ryo_values::domain::plan_parts::service::rides_the_walk;
+use ryo_values::domain::plan_parts::service::step_in;
 use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::PlanComparison;
+use ryo_values::domain::plan_parts::types::RowWidth;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::{each_input, inputs_of, named};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
-/// The plan with the filters of a union made on both its inputs, `σ(A ∪ B) = σA ∪ σB`, and the comparisons of a filter of a join that
-/// test the columns of one input made on that input, `σ(L ⋈ R) = L ⋈ σR`: the union or the join combines only the rows the filter
-/// lets through. Done for a union or a join every reader of which is such a filter, one copy for each, so the whole one is no longer
-/// made; and again on the copies, until no filter moves.
+/// The plan with each filter of a join placed on the join's inputs, and the filters of a union made on both its inputs: the join or
+/// the union combines only the rows the filter lets through. A filter of a join moves the comparisons of its infallible prefix
+/// (`fixed_prefix`) that test one input: one of the left is a filter of the left; one of the right rides the probe when the probe
+/// walks the tree by a node (`rides_the_walk`), and is a filter of the right otherwise. Each filter of a join is placed on its own
+/// copy of the join, and a reader of the join that is no filter keeps reading the join. A union's filters move, their infallible
+/// prefix alone, only when every reader of the union is such a filter. The rest of a filter stays after the copy, in its order, so
+/// a comparison that may fail runs on the rows it ran on: `σ(L ⋈ R) = σL ⋈ σR` and `σ(A ∪ B) = σA ∪ σB`. Done again on the
+/// copies, until no filter moves; each move takes a filter strictly down, so it ends.
 #[must_use]
 pub(crate) fn push_selections(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
     let steps = push_selections_roots(steps, std::slice::from_mut(&mut emitted));
@@ -47,21 +51,20 @@ pub(crate) fn push_selections_roots(
             if roots.contains(&id) {
                 continue;
             }
-            let Some(reading) = readers
+            let pushed = readers
                 .get(place)
-                .and_then(|reading| filtering_readers(&steps, StepIndex(place), reading))
-            else {
+                .map(|reading| placed(&steps, id, reading))
+                .unwrap_or_default();
+            if pushed.is_empty() {
                 continue;
-            };
-            let Some(pushed) = reading
-                .iter()
-                .map(|reader| pushed_filter(&steps, id, *reader).map(|each| (*reader, each)))
-                .collect::<Option<Vec<_>>>()
-            else {
-                continue;
-            };
+            }
             // The last reader first, so the places of the ones before it stay as they are.
-            for (reader, PushedFilter { before, filter }) in pushed.into_iter().rev() {
+            for PushedFilter {
+                reader,
+                before,
+                filter,
+            } in pushed.into_iter().rev()
+            {
                 insert_before(&mut steps, roots, reader, before, filter);
             }
             readers = readers_of(&steps);
@@ -90,117 +93,47 @@ fn readers_of(steps: &[PlanStep]) -> Vec<Vec<StepIndex>> {
     readers
 }
 
-/// `readers`, the steps that read the step at `place`, when the step is one filters made before it pay for, and they are some, each a
-/// filter of it made where it is.
-fn filtering_readers<'a>(
-    steps: &[PlanStep],
-    place: StepIndex,
-    readers: &'a [StepIndex],
-) -> Option<&'a [StepIndex]> {
-    let made = steps.get(place.0)?;
-    let id = StepId(u32::try_from(place.0).unwrap_or(u32::MAX));
-    let filters = !readers.is_empty()
-        && readers.iter().all(|reader| {
+/// What takes the place of each of `readers`, the steps that read the union or the join `id`, whose comparisons move: for a join,
+/// each filter that places some on an input; for a union, every reader, when each is a filter whose infallible prefix moves, and
+/// none otherwise.
+fn placed(steps: &[PlanStep], id: StepId, readers: &[StepIndex]) -> Vec<PushedFilter> {
+    let Some(made) = step_in(steps, id) else {
+        return Vec::new();
+    };
+    // The readers that are filters of the step, made where it is.
+    let filtering: Vec<StepIndex> = readers
+        .iter()
+        .copied()
+        .filter(|reader| {
             steps.get(reader.0).is_some_and(|step| {
                 step.scope == made.scope
                     && matches!(step.operation, Operation::Select { from, .. } if from == Input::Step(id))
             })
-        });
-    (filters && gain_of(steps, &mut LineageMemo::default(), Input::Step(id)) == FilterGain::Pays)
-        .then_some(readers)
-}
-
-/// Whether the rows of `input` are made by a join keyed on the file alone, which pairs every row of a file with every row of it on the
-/// other side, or by a union of such rows: there, rows a filter takes out after the join were made by the thousand, and a filter made
-/// before it pays for a copy of the join or the union for each filter. Elsewhere a filter stays where it is.
-fn gain_of(steps: &[PlanStep], memo: &mut LineageMemo, input: Input) -> FilterGain {
-    let Input::Step(id) = input else {
-        return FilterGain::Stays;
-    };
-    let Some(made) = steps.get(usize::try_from(id.0).unwrap_or(usize::MAX)) else {
-        return FilterGain::Stays;
-    };
-    match &made.operation {
-        Operation::Union { left, right } => {
-            if gain_of(steps, memo, *left) == FilterGain::Pays
-                || gain_of(steps, memo, *right) == FilterGain::Pays
-            {
-                FilterGain::Pays
-            } else {
-                FilterGain::Stays
-            }
+        })
+        .collect();
+    if let Operation::Union { left, right } = &made.operation {
+        if filtering.is_empty() || filtering.len() != readers.len() {
+            return Vec::new();
         }
-        Operation::Join {
-            left,
-            left_on,
-            reach: None,
-            ..
-        } => {
-            if !left_on.is_empty()
-                && left_on
-                    .iter()
-                    .all(|key| column_kind(steps, memo, *left, *key) == Some(CellKind::File))
-            {
-                FilterGain::Pays
-            } else {
-                FilterGain::Stays
-            }
-        }
-        Operation::Select { .. }
-        | Operation::Project { .. }
-        | Operation::Extend { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Replace { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::Words { .. }
-        | Operation::Axis { .. }
-        | Operation::Join { .. }
-        | Operation::Closure { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Worklist { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. } => FilterGain::Stays,
-    }
-}
-
-/// Whether a comparison tests a column.
-fn tested(comparison: &PlanComparison) -> Tested {
-    if columns_of(&comparison.left).is_empty() && columns_of(&comparison.right).is_empty() {
-        Tested::ConstantsOnly
+        filtering
+            .iter()
+            .map(|reader| pushed_union(steps, id, *reader, *left, *right))
+            .collect::<Option<Vec<_>>>()
+            .unwrap_or_default()
+    } else if let Operation::Join { reach: None, .. } = &made.operation {
+        filtering
+            .iter()
+            .filter_map(|reader| pushed_join(steps, id, *reader))
+            .collect()
     } else {
-        Tested::AColumn
+        Vec::new()
     }
 }
 
-/// The comparison with each column it tests named by `map`, when `map` names every one.
-fn renamed(
-    comparison: &PlanComparison,
-    map: &dyn Fn(ColumnIndex) -> Option<ColumnIndex>,
-) -> Option<PlanComparison> {
-    Some(PlanComparison {
-        test: comparison.test,
-        left: remapped(&comparison.left, &map)?,
-        right: remapped(&comparison.right, &map)?,
-        origin: comparison.origin,
-    })
-}
-
-/// The comparisons of a filter of the join that answers `output` through `view`, by the input whose columns they test.
+/// The comparisons of a filter of the join that answers `output` through `view`, by where they are decided.
 fn split_comparisons(
     comparisons: &[PlanComparison],
-    output: &[ryo_values::domain::plan_parts::types::JoinColumn],
+    output: &[JoinColumn],
     view: &[ColumnIndex],
 ) -> SplitComparisons {
     let side_column = |side: Side| {
@@ -215,18 +148,20 @@ fn split_comparisons(
             }
         }
     };
+    let prefix = fixed_prefix(comparisons, RowWidth(output.len())).0;
     let mut split = SplitComparisons::default();
-    for comparison in comparisons {
-        if tested(comparison) == Tested::ConstantsOnly {
-            split.rest.push(comparison.clone());
-        } else if let Some(left) = renamed(comparison, &side_column(Side::Left)) {
+    for comparison in prefix {
+        if let Some(left) = remapped_comparison(comparison, &side_column(Side::Left)) {
             split.left.push(left);
-        } else if let Some(right) = renamed(comparison, &side_column(Side::Right)) {
+        } else if let Some(right) = remapped_comparison(comparison, &side_column(Side::Right)) {
             split.right.push(right);
         } else {
             split.rest.push(comparison.clone());
         }
     }
+    split
+        .rest
+        .extend(comparisons.get(prefix.len()..).unwrap_or_default().iter().cloned());
     split
 }
 
@@ -246,9 +181,15 @@ fn filter_of(
     })
 }
 
-/// What takes the place of the filter at `reader` of the union or the join `id`, when some of its comparisons move.
-fn pushed_filter(steps: &[PlanStep], id: StepId, reader: StepIndex) -> Option<PushedFilter> {
-    let made = steps.get(usize::try_from(id.0).unwrap_or(usize::MAX))?;
+/// What takes the place of the filter at `reader` of the union `id` of `left` and `right`, when its infallible prefix moves.
+fn pushed_union(
+    steps: &[PlanStep],
+    id: StepId,
+    reader: StepIndex,
+    left: Input,
+    right: Input,
+) -> Option<PushedFilter> {
+    let made = step_in(steps, id)?;
     let filtering = steps.get(reader.0)?;
     let Operation::Select {
         comparisons, kept, ..
@@ -256,90 +197,138 @@ fn pushed_filter(steps: &[PlanStep], id: StepId, reader: StepIndex) -> Option<Pu
     else {
         return None;
     };
+    let width = usize::try_from(width_of(steps, Input::Step(id))?.0).unwrap_or(usize::MAX);
+    let prefix = fixed_prefix(comparisons, RowWidth(width)).0;
+    if prefix.is_empty() {
+        return None;
+    }
     let first = StepId(u32::try_from(reader.0).unwrap_or(u32::MAX));
     let mut before = Vec::new();
-    let (combined, rest) = if let Operation::Union { left, right } = &made.operation {
-        if comparisons
-            .iter()
-            .all(|comparison| tested(comparison) == Tested::ConstantsOnly)
-        {
-            return None;
+    let filtered_left = place_after(first, &before);
+    before.push(filter_of(steps, left, prefix.to_vec())?);
+    let filtered_right = place_after(first, &before);
+    before.push(filter_of(steps, right, prefix.to_vec())?);
+    let combined = PlanStep {
+        operation: Operation::Union {
+            left: filtered_left,
+            right: filtered_right,
+        },
+        scope: made.scope,
+    };
+    let rest = comparisons.get(prefix.len()..).unwrap_or_default().to_vec();
+    Some(finished(reader, before, combined, filtering, rest, kept.clone()))
+}
+
+/// What takes the place of the filter at `reader` of the join `id`, when some of its comparisons are placed on an input.
+fn pushed_join(steps: &[PlanStep], id: StepId, reader: StepIndex) -> Option<PushedFilter> {
+    let made = step_in(steps, id)?;
+    let filtering = steps.get(reader.0)?;
+    let Operation::Select {
+        comparisons, kept, ..
+    } = &filtering.operation
+    else {
+        return None;
+    };
+    let Operation::Join {
+        left,
+        right,
+        left_on,
+        right_on,
+        output,
+        filter,
+        view,
+        reach: None,
+    } = &made.operation
+    else {
+        return None;
+    };
+    let split = split_comparisons(comparisons, output, view);
+    if split.left.is_empty() && split.right.is_empty() {
+        return None;
+    }
+    let first = StepId(u32::try_from(reader.0).unwrap_or(u32::MAX));
+    let mut before = Vec::new();
+    let mut from = |input: Input, moved: Vec<PlanComparison>| -> Option<Input> {
+        if moved.is_empty() {
+            return Some(input);
         }
-        let filtered_left = place_after(first, &before);
-        before.push(filter_of(steps, *left, comparisons.clone())?);
-        let filtered_right = place_after(first, &before);
-        before.push(filter_of(steps, *right, comparisons.clone())?);
+        let at = place_after(first, &before);
+        before.push(filter_of(steps, input, moved)?);
+        Some(at)
+    };
+    let placed_left = from(*left, split.left)?;
+    // The right comparisons ride the probe where it walks the tree by a node; elsewhere they are a filter of the right, so the
+    // probe's index is the filter's node and is shared as one.
+    let walked: Vec<PlanComparison> = filter.iter().chain(&split.right).cloned().collect();
+    let rides = !split.right.is_empty()
+        && matches!(right, Input::Relation(relation)
+            if rides_the_walk(*relation, right_on, view, &walked).is_some());
+    let (placed_right, placed_filter) = if rides {
+        (*right, walked)
+    } else {
+        (from(*right, split.right)?, filter.clone())
+    };
+    // A filter that only keeps columns, once its comparisons are placed, is the join's answer itself.
+    let (answer, kept) = if split.rest.is_empty() && !kept.is_empty() {
         (
-            Operation::Union {
-                left: filtered_left,
-                right: filtered_right,
-            },
+            kept.iter()
+                .map(|column| column_in(output, *column).copied())
+                .collect::<Option<Vec<_>>>()?,
             Vec::new(),
         )
     } else {
-        let Operation::Join {
-            left,
-            right,
-            left_on,
-            right_on,
-            output,
-            filter,
-            view,
-            reach: None,
-        } = &made.operation
-        else {
-            return None;
-        };
-        let split = split_comparisons(comparisons, output, view);
-        if split.left.is_empty() && split.right.is_empty() {
-            return None;
-        }
-        let mut from = |input: Input, moved: Vec<PlanComparison>| -> Option<Input> {
-            if moved.is_empty() {
-                return Some(input);
-            }
-            let at = place_after(first, &before);
-            before.push(filter_of(steps, input, moved)?);
-            Some(at)
-        };
-        let left = from(*left, split.left)?;
-        let right = from(*right, split.right)?;
-        (
-            Operation::Join {
-                left,
-                right,
-                left_on: left_on.clone(),
-                right_on: right_on.clone(),
-                output: output.clone(),
-                filter: filter.clone(),
-                view: view.clone(),
-                reach: None,
-            },
-            split.rest,
-        )
+        (output.clone(), kept.clone())
     };
-    // The union or the join is the filter's own step when nothing is left for the filter to do.
-    let filter = if rest.is_empty() && kept.is_empty() {
-        PlanStep {
-            operation: combined,
-            scope: filtering.scope,
-        }
-    } else {
-        let at = place_after(first, &before);
-        before.push(PlanStep {
-            operation: combined,
-            scope: made.scope,
-        });
-        PlanStep {
+    let combined = PlanStep {
+        operation: Operation::Join {
+            left: placed_left,
+            right: placed_right,
+            left_on: left_on.clone(),
+            right_on: right_on.clone(),
+            output: answer,
+            filter: placed_filter,
+            view: view.clone(),
+            reach: None,
+        },
+        scope: made.scope,
+    };
+    Some(finished(reader, before, combined, filtering, split.rest, kept))
+}
+
+/// What takes the place of `filtering`, the filter at `reader`, once `before` and the union or the join of them, `combined`, are
+/// made: `combined` itself when nothing is left for the filter to do, else a filter of it by `rest` keeping `kept`.
+fn finished(
+    reader: StepIndex,
+    mut before: Vec<PlanStep>,
+    combined: PlanStep,
+    filtering: &PlanStep,
+    rest: Vec<PlanComparison>,
+    kept: Vec<ColumnIndex>,
+) -> PushedFilter {
+    if rest.is_empty() && kept.is_empty() {
+        return PushedFilter {
+            reader,
+            before,
+            filter: PlanStep {
+                operation: combined.operation,
+                scope: filtering.scope,
+            },
+        };
+    }
+    let at = place_after(StepId(u32::try_from(reader.0).unwrap_or(u32::MAX)), &before);
+    before.push(combined);
+    PushedFilter {
+        reader,
+        before,
+        filter: PlanStep {
             operation: Operation::Select {
                 from: at,
                 comparisons: rest,
-                kept: kept.clone(),
+                kept,
             },
             scope: filtering.scope,
-        }
-    };
-    Some(PushedFilter { before, filter })
+        },
+    }
 }
 
 /// The place the next step made before the filter at `first` takes, after `made`.
@@ -350,7 +339,8 @@ fn place_after(first: StepId, made: &[PlanStep]) -> Input {
 }
 
 /// The plan with `before` made just before the step at `place`, which becomes `filter`, and every later step and root renumbered.
-fn insert_before(
+/// The one splice of the rewrites that place a step's work before it: placement here, and the lookups `push_lookups` splits.
+pub(crate) fn insert_before(
     steps: &mut Vec<PlanStep>,
     roots: &mut [StepId],
     place: StepIndex,

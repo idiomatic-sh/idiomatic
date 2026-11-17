@@ -34,27 +34,6 @@ pub struct DecisionWorkspace<'a> {
     pub memo: &'a mut crate::domain::table_scratch::types::MemoTable,
 }
 
-/// The families of comparison a `select` tests with.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Family {
-    /// Equal and not equal.
-    Equality,
-    /// Less, greater, and their or-equal.
-    Ordering,
-    /// Numbers written as text.
-    FloatText,
-    /// Exact canonical numeric text and whole numbers.
-    Numeric,
-    /// In and not in.
-    Membership,
-    /// Glob matches.
-    Glob,
-    /// Starts with and ends with.
-    Affix,
-    /// Regular expression searches.
-    Regex,
-}
-
 /// How many names a file has: the number of runs of the memo, one run per name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NameCount(pub usize);
@@ -66,9 +45,3 @@ pub(crate) struct ComparisonCount(pub usize);
 /// A comparison of a `select`, by its place among the select's comparisons.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ComparisonNumber(pub usize);
-
-/// The leading comparisons of a select that no row can make fail with an error: each tests a column the row has against a
-/// text the query wrote, by equality or by affix, so its cell's text alone decides it. The rest of the select's comparisons
-/// follow it in their order.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct FixedPrefix<'a>(pub &'a [PlanComparison]);
