@@ -2,6 +2,7 @@
 //! another build reads it as empty, a failed write keeps the previous store, damaged bytes are a cold miss, and the
 //! store has the mode any written file has.
 use super::constants::{DIAGNOSTICS, FILE};
+use super::errors::CheckStorePostcardError;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::outbound::check_store::errors::CheckStoreError;
 use crate::outbound::check_store::fixtures::contract::check;
@@ -24,10 +25,33 @@ enum Question {
     Blocked,
     /// The mode of the store, beside a file `std::fs::write` makes there.
     Mode,
+    /// The store file kept for one build, read as another's.
+    ReadForAnother,
 }
 type Input = Question;
 type Value = bool;
-type Failure = CheckStoreError;
+/// What a row fails with: the port's failure to keep the store, or the reader's refusal of the kept bytes.
+#[derive(Debug)]
+enum Refusal {
+    /// The store could not be kept.
+    Keep(CheckStoreError),
+    /// The kept bytes are no store of the reading build.
+    Read(CheckStorePostcardError),
+}
+
+impl From<CheckStoreError> for Refusal {
+    fn from(error: CheckStoreError) -> Self {
+        Self::Keep(error)
+    }
+}
+
+impl From<CheckStorePostcardError> for Refusal {
+    fn from(error: CheckStorePostcardError) -> Self {
+        Self::Read(error)
+    }
+}
+
+type Failure = Refusal;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("current_failure_artifact_replaces_stale_output"),
@@ -76,7 +100,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Fails,
         input: || Question::Blocked,
         expect: Expect::Refusal(|error| {
-            if matches!(error, CheckStoreError::Unwritable { .. }) {
+            if matches!(error, Refusal::Keep(CheckStoreError::Unwritable { .. })) {
+                Selection::Matches
+            } else {
+                Selection::Differs
+            }
+        }),
+    },
+    Case {
+        name: CaseName("the_kept_file_read_for_another_build_is_that_builds"),
+        word: Word::Refuses,
+        input: || Question::ReadForAnother,
+        expect: Expect::Refusal(|error| {
+            if matches!(error, Refusal::Read(CheckStorePostcardError::OtherBuild)) {
                 Selection::Matches
             } else {
                 Selection::Differs
@@ -164,7 +200,7 @@ fn subject(question: Input) -> Result<Value, Failure> {
                 "unchanged",
                 "a blocked write leaves the bytes in its way alone"
             );
-            result.map(|()| false)
+            result.map(|()| false).map_err(Refusal::Keep)
         }
         Question::Reopened => {
             let stored = checked();
@@ -211,6 +247,11 @@ fn subject(question: Input) -> Result<Value, Failure> {
             std::fs::write(&written, "").expect("a file written as any is");
             Ok(mode(&cache.join(FILE)) == mode(&written))
         }
+        Question::ReadForAnother => {
+            adapter.keep(&checked())?;
+            let bytes = std::fs::read(cache.join(FILE)).expect("the store's bytes");
+            Ok(super::schemas::read(&bytes, &Build("build-2".into()))? == checked())
+        }
         Question::Corrupt => {
             adapter.keep(&checked())?;
             std::fs::write(cache.join(FILE), "corrupt").expect("damage the store");
@@ -225,4 +266,9 @@ fn succeeds() {
 #[test]
 fn fails() {
     run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

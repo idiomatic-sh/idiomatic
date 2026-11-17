@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use super::constants::{
     COMPLETED, DETACHED, EXITED, RETAINED, SIGNALLED, TIMED_OUT, UNREADABLE, UNSTARTABLE,
 };
+use super::errors::CheckStorePostcardError;
 use crate::outbound::check_store::types::{Build, KeptReport, Stored};
 use asymptote_values::domain::judgement::types::{
     Code, Failure, Inventory, Problem, Run, Status, Tail,
@@ -699,42 +700,49 @@ pub(super) fn diagnostic_artifact(
     })
 }
 
-/// What the store's bytes hold; bytes that do not decode as a store, that another build wrote, or whose rows name a
-/// text they do not hold, are none.
-pub(super) fn read(bytes: &[u8], build: &Build) -> Option<Stored> {
-    let (store, remaining) = postcard::take_from_bytes::<StoreSchema>(bytes).ok()?; // ignore: idiomatic.arch/no-ok-on-result - bytes that do not decode as a store are no store: it is rebuilt, never migrated
+/// What the store's bytes hold; bytes that do not decode as a store, that another build wrote, whose rows name a text
+/// they do not hold, or whose diagnostic extension is damaged, are refused with the reason.
+pub(super) fn read(bytes: &[u8], build: &Build) -> Result<Stored, CheckStorePostcardError> {
+    let (store, remaining) = postcard::take_from_bytes::<StoreSchema>(bytes)
+        .map_err(CheckStorePostcardError::Undecodable)?;
     if *store.build != *build.0 {
-        return None;
+        return Err(CheckStorePostcardError::OtherBuild);
     }
-    let mut stored = Stored::try_from(store).ok()?; // ignore: idiomatic.arch/no-ok-on-result - malformed table references are a cold miss
+    let mut stored = Stored::try_from(store).map_err(|()| CheckStorePostcardError::Unnamed)?;
     if remaining.is_empty() {
-        return Some(stored);
+        return Ok(stored);
     }
-    let (extension, remainder) = postcard::take_from_bytes::<DiagnosticsSchema>(remaining).ok()?; // ignore: idiomatic.arch/no-ok-on-result - malformed diagnostic extensions are a cold miss
+    let (extension, remainder) = postcard::take_from_bytes::<DiagnosticsSchema>(remaining)
+        .map_err(CheckStorePostcardError::Extension)?;
     if !remainder.is_empty() {
-        return None;
+        return Err(CheckStorePostcardError::Damaged);
     }
     match &mut stored.report {
-        KeptReport::Nothing if !extension.failures.is_empty() => return None,
+        KeptReport::Nothing if !extension.failures.is_empty() => {
+            return Err(CheckStorePostcardError::Damaged);
+        }
         KeptReport::Nothing => {}
         KeptReport::Kept(report) => {
             let report = Arc::make_mut(report);
             let mut seen = BTreeSet::new();
             for diagnostic in extension.failures {
                 if !seen.insert(diagnostic.scan) {
-                    return None;
+                    return Err(CheckStorePostcardError::Damaged);
                 }
-                let scan = report.scanned.get_mut(diagnostic.scan)?;
+                let scan = report
+                    .scanned
+                    .get_mut(diagnostic.scan)
+                    .ok_or(CheckStorePostcardError::Damaged)?;
                 if scan.run.tool.0.as_ref() != diagnostic.tool
                     || !matches!(scan.run.status, Status::Failed(_))
                 {
-                    return None;
+                    return Err(CheckStorePostcardError::Damaged);
                 }
                 let failure = Failure::from(diagnostic.failure);
                 // The extension may restore detail, never change a successful or differently failed run.
                 let restored = Status::Failed(failure);
                 if outcome(&restored, scan.keeping) != outcome(&scan.run.status, scan.keeping) {
-                    return None;
+                    return Err(CheckStorePostcardError::Damaged);
                 }
                 scan.run.status = restored;
                 scan.failure_output = diagnostic.output.into();
@@ -746,11 +754,11 @@ pub(super) fn read(bytes: &[u8], build: &Build) -> Option<Stored> {
                 .count()
                 != seen.len()
             {
-                return None;
+                return Err(CheckStorePostcardError::Damaged);
             }
         }
     }
-    Some(stored)
+    Ok(stored)
 }
 
 /// The store's bytes for `stored`, kept by `build`.
