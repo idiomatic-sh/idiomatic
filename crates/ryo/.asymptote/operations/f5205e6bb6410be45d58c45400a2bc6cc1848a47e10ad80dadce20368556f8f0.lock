@@ -1,0 +1,8 @@
+version = 1
+parents = ["c69d9c6ba6146d9a4e23e7c7ef90190efd227bc6cce2804ff22332f6ebf597ea"]
+
+[[perf]]
+reasons = ["Seeded for #49 (b5d1e9a83), which added fake/blocks-per-file-beyond-parser with no record (check run 44168859733: unseeded at 238). dhat counts every block, so the count repeats: the development machine (Linux) reads 238, as the runner did."]
+records = [
+  { tool = "memory-allocation", benchmark = "fake", measure = "blocks-per-file-beyond-parser", best = 238.0 },
+]
