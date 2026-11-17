@@ -99,13 +99,15 @@ let placed = select l."file" as "file", r."span" as "span" from lacking as l joi
 emit placed subject "file" key("span");
 "#;
 const PINNED: &str = r#"let deps = select * from "package-dependency" where origin = "registry";
-let keyed = select l."source" as "file", l."package" as "package", l."requirement" as "requirement", l."exact" as "exact", r."span" as "span" from deps as l join "entry" as r on l."source" = r."file" where r."key" = l."package" and r."kind" != "mapping";
-let listed = select l."source" as "file", l."package" as "package", l."requirement" as "requirement", l."exact" as "exact", r."span" as "span" from deps as l join "sequence-element" as r on l."source" = r."file" where r."decoded" = l."package" or starts_with(r."decoded", concat(l."package", "=")) or starts_with(r."decoded", concat(l."package", "[")) or starts_with(r."decoded", concat(l."package", ">")) or starts_with(r."decoded", concat(l."package", "<")) or starts_with(r."decoded", concat(l."package", "~")) or starts_with(r."decoded", concat(l."package", "!"));
+let keyed = select l."source" as "file", l."package" as "package", l."requirement" as "requirement", l."exact" as "exact", r."span" as "span" from deps as l join "entry" as r on l."source" = r."file" and l."package" = r."key" where r."kind" != "mapping";
+let listed_exact = select l."source" as "file", l."package" as "package", l."requirement" as "requirement", l."exact" as "exact", r."span" as "span" from deps as l join "sequence-element" as r on l."source" = r."file" and l."package" = r."decoded";
+let listed_prefixed = select l."source" as "file", l."package" as "package", l."requirement" as "requirement", l."exact" as "exact", r."span" as "span" from deps as l all-pairs join "sequence-element" as r on l."source" = r."file" where starts_with(r."decoded", concat(l."package", "=")) or starts_with(r."decoded", concat(l."package", "[")) or starts_with(r."decoded", concat(l."package", ">")) or starts_with(r."decoded", concat(l."package", "<")) or starts_with(r."decoded", concat(l."package", "~")) or starts_with(r."decoded", concat(l."package", "!"));
+let listed = union(left=listed_exact, right=listed_prefixed);
 let located = union(left=keyed, right=listed);
 let found = project(from=located, columns=["file", "package"]);
 let unlocated = antijoin(left=deps, right=found, left-on=["source", "package"], right-on=["file", "package"]);
 let roots = antijoin(left="syntax-tree", right="syntax-child", left-on=["id"], right-on=["child"]);
-let placed-at-top = select l."source" as "file", l."package" as "package", l."requirement" as "requirement", l."exact" as "exact", r."span" as "span" from unlocated as l join roots as r on l."source" = r."file";
+let placed-at-top = select l."source" as "file", l."package" as "package", l."requirement" as "requirement", l."exact" as "exact", r."span" as "span" from unlocated as l all-pairs join roots as r on l."source" = r."file";
 let every = union(left=located, right=placed-at-top);
 let unpinned = select * from every where exact = "false";
 emit unpinned subject "file" key("span");
