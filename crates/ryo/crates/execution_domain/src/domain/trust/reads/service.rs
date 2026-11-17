@@ -1,6 +1,7 @@
 //! The `reads` service: free functions named by verb over the domain's types, with no IO and no ports.
 
-use super::super::types::{AbsenceInputs, ReadIndex, RelationRead, StepReads};
+use super::super::types::relation_read::value::RelationRead;
+use super::super::types::{AbsenceInputs, ReadIndex, StepReads};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::service::{columns, kind_column};
 use ryo_relations::domain::relations::types::Relation;
@@ -146,10 +147,7 @@ pub(super) fn relation_reads(relation: Relation) -> StepReads {
     let kind = kind_column_place(relation);
     let width = columns(relation).len();
     StepReads {
-        uses: vec![RelationRead {
-            relation,
-            kinds: Vec::new(),
-        }],
+        uses: vec![RelationRead::whole(relation)],
         provenance: (0..width)
             .map(|place| {
                 kind.filter(|column| usize::try_from(column.0) == Ok(place))

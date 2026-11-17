@@ -15,17 +15,11 @@ fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore(
     let applicability = [RuleApplicability::AcceptedSyntax, RuleApplicability::Always];
     let needs = [
         Needs {
-            reads: vec![RelationRead {
-                relation: Relation::Defines,
-                kinds: Vec::new(),
-            }],
+            reads: vec![RelationRead::whole(Relation::Defines)],
             ..Needs::default()
         },
         Needs {
-            reads: vec![RelationRead {
-                relation: Relation::Defines,
-                kinds: Vec::new(),
-            }],
+            reads: vec![RelationRead::whole(Relation::Defines)],
             ..Needs::default()
         },
     ];
@@ -124,10 +118,7 @@ fn own_partiality_is_one_unknown_and_foreign_partiality_is_its_own() {
         Bearing::Matters
     );
     let elsewhere = Needs {
-        reads: vec![RelationRead {
-            relation: Relation::Function,
-            kinds: Vec::new(),
-        }],
+        reads: vec![RelationRead::whole(Relation::Function)],
         ..Needs::default()
     };
     assert_eq!(

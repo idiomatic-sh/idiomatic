@@ -1,21 +1,10 @@
 //! The types of the `trust` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_relations::domain::relations::types::Relation;
-
-use ryo_values::domain::plan_parts::types::PlanComparison;
-
 pub mod read_set;
 pub mod read_sets;
+pub mod relation_read;
 
-/// A place where a plan reads a relation: the relation, and the comparisons on its `kind` column that the rows must satisfy
-/// to get any further, when the step that reads it is a `select`.
-#[derive(Clone, Debug, PartialEq, Hash)]
-pub struct RelationRead {
-    /// The relation read.
-    pub relation: Relation,
-    /// The comparisons on the kind of the rows that this read applies before anything else does.
-    pub kinds: Vec<PlanComparison>,
-}
+use relation_read::value::RelationRead;
 
 /// What the steps of a rule read of the relations, by where the steps run.
 #[derive(Clone, Debug, Default, PartialEq)]

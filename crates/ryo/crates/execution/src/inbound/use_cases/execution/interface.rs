@@ -76,7 +76,7 @@ pub use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 pub use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 pub use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 pub use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
-pub use ryo_execution_domain::domain::trust::types::RelationRead;
+pub use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
 
 /// What `execution` offers its callers.
 pub trait ExecutionUseCase {

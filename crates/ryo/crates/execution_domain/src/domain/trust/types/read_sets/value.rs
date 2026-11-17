@@ -1,9 +1,10 @@
 //! The `ReadSets` value: the read sets of one program, each stored once, so a step that rests on the reads another step
 //! rests on holds the same set, not a copy; and what each step of a plan reads, as sets of it.
+use super::super::ReadSetHash;
 #[cfg(any(test, feature = "fixtures"))]
 use super::super::StoredSets;
 use super::super::read_set::value::ReadSet;
-use super::super::{ReadSetHash, RelationRead};
+use super::super::relation_read::value::RelationRead;
 use std::hash::{Hash, Hasher};
 
 /// The read sets of one program, each stored once, found by their hash.

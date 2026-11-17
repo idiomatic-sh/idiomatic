@@ -77,8 +77,8 @@ pub(crate) fn node_rows(
         Err(error) => {
             // A step's schema fault is answered once its sources are admitted: a relation the facts refuse stops the file first.
             for read in uses {
-                if native_form(read.relation).is_none()
-                    && matches!(at.inputs.facts(read.relation), FactRows::Refused)
+                if native_form(read.relation()).is_none()
+                    && matches!(at.inputs.facts(read.relation()), FactRows::Refused)
                 {
                     break;
                 }

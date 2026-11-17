@@ -1,15 +1,13 @@
 //! The `ReadSets` value's cases.
 
 use super::value::ReadSets;
-use crate::domain::trust::types::{ReadSetHash, RelationRead, SetSharing, StoredSets};
+use crate::domain::trust::types::relation_read::value::RelationRead;
+use crate::domain::trust::types::{ReadSetHash, SetSharing, StoredSets};
 use ryo_relations::domain::relations::types::Relation;
 
 /// A read of all of `relation`.
 fn read(relation: Relation) -> RelationRead {
-    RelationRead {
-        relation,
-        kinds: Vec::new(),
-    }
+    RelationRead::whole(relation)
 }
 
 #[test]

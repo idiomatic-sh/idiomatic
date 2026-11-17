@@ -88,7 +88,7 @@ pub(crate) fn read_failure_demanded(
             && rule
                 .reads
                 .iter()
-                .any(|read| read.relation == Relation::FilesystemReadFailure)
+                .any(|read| read.relation() == Relation::FilesystemReadFailure)
     });
     if reads {
         ReadFailureDemand::Demanded

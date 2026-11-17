@@ -8,7 +8,8 @@ use ryo_relations::domain::relations::types::Relation;
 
 use super::types::read_set::value::ReadSet;
 use super::types::read_sets::value::{PlanReadSets, ReadSets, StepReadSets};
-use super::types::{AbsenceInputs, Bearing, Blocking, Needs, Passage, RelationRead, StepReads};
+use super::types::relation_read::value::RelationRead;
+use super::types::{AbsenceInputs, Bearing, Blocking, Needs, Passage, StepReads};
 use crate::domain::coverage::constants::REPOSITORY;
 use crate::domain::coverage::service::unknown_message;
 use crate::domain::coverage::types::{
@@ -98,10 +99,7 @@ pub fn needs_of(plan: &Plan) -> Vec<Vec<RelationRead>> {
 fn input_reads(reads: &[Result<StepReads, OperatingError>], input: &Input) -> Vec<RelationRead> {
     match input {
         Input::BoundObservation(_) => Vec::new(),
-        Input::Relation(relation) => vec![RelationRead {
-            relation: *relation,
-            kinds: Vec::new(),
-        }],
+        Input::Relation(relation) => vec![RelationRead::whole(*relation)],
         Input::Step(id) => match usize::try_from(id.0).map_or(None, |at| reads.get(at)) {
             Some(Ok(each)) => each.uses.clone(),
             Some(Err(_)) | None => Vec::new(),

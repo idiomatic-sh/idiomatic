@@ -153,7 +153,9 @@ pub struct ObservationLayout<'a>(pub Option<NamedLayout<'a>>);
 
 /// The relations a rule's observation reads.
 #[derive(Clone, Debug, Default)]
-pub struct RelationReads(pub Vec<ryo_execution_domain::domain::trust::types::RelationRead>);
+pub struct RelationReads(
+    pub Vec<ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead>,
+);
 
 /// The observation bindings each frontier input of a rule depends on, by input.
 #[derive(Clone, Copy, Debug)]
@@ -205,7 +207,8 @@ impl<'a> std::ops::Deref for ObservationLayout<'a> {
 }
 
 impl std::ops::Deref for RelationReads {
-    type Target = Vec<ryo_execution_domain::domain::trust::types::RelationRead>;
+    type Target =
+        Vec<ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -218,16 +221,21 @@ impl std::ops::DerefMut for RelationReads {
 }
 
 impl IntoIterator for RelationReads {
-    type Item = ryo_execution_domain::domain::trust::types::RelationRead;
-    type IntoIter = std::vec::IntoIter<ryo_execution_domain::domain::trust::types::RelationRead>;
+    type Item = ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
+    type IntoIter = std::vec::IntoIter<
+        ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead,
+    >;
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
 impl<'a> IntoIterator for &'a RelationReads {
-    type Item = &'a ryo_execution_domain::domain::trust::types::RelationRead;
-    type IntoIter = std::slice::Iter<'a, ryo_execution_domain::domain::trust::types::RelationRead>;
+    type Item = &'a ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
+    type IntoIter = std::slice::Iter<
+        'a,
+        ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead,
+    >;
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
     }

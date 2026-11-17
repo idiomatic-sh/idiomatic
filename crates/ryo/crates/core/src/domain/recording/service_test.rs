@@ -119,10 +119,7 @@ fn partial() -> Partial {
 }
 
 fn needs() -> Needs {
-    let read = RelationRead {
-        relation: Relation::Defines,
-        kinds: Vec::new(),
-    };
+    let read = RelationRead::whole(Relation::Defines);
     Needs {
         reads: vec![read.clone()],
         per_file: Vec::new(),

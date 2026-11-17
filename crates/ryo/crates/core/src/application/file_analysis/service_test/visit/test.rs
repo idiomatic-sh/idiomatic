@@ -49,10 +49,7 @@ fn invalid_injected_provider_rows_prevent_an_analysis_result() -> Result<String,
         1,
         &[RuleId("reads-functions".into())],
         &[Needs {
-            reads: vec![RelationRead {
-                relation: Relation::Function,
-                kinds: vec![],
-            }],
+            reads: vec![RelationRead::whole(Relation::Function)],
             ..Needs::default()
         }],
         Mask(vec![1]),

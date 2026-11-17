@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::source_partitions::types::ProducerPartitions as _;
 use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
-use ryo_execution_domain::domain::trust::types::RelationRead;
+use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
 
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;

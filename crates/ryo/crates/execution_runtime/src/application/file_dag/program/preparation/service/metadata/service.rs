@@ -6,9 +6,9 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
-use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_execution_domain::domain::trust::types::read_set::value::ReadSet;
 use ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets;
+use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::{Operation, Plan};
 
@@ -43,10 +43,7 @@ pub(crate) fn plans(
                                 .ok_or(OperatingError::NotRun)?
                                 .uses
                                 .clone(),
-                            Input::Relation(relation) => sets.shared(vec![RelationRead {
-                                relation,
-                                kinds: vec![],
-                            }]),
+                            Input::Relation(relation) => sets.shared(vec![RelationRead::whole(relation)]),
                             Input::BoundObservation(_) => ReadSet::default(),
                         },
                     })
