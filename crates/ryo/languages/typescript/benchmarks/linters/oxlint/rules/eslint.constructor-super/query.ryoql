@@ -115,13 +115,13 @@ let passes = select l.block as block, l.file as file, r.state as before, r.passe
 let carried = select source, target, place, file from edges where kind = "jump" or kind = "normal" or kind = "join" or kind = "finalize";
 let carried_moves = select l.source as source, l.target as target, l.place as place, r.before as before, r.passed as after, l.file as file from carried as l join passes as r on l.source = r.block and l.file = r.file;
 let raised = select source, target, place, file from edges where kind = "error-explicit";
-let raised_moves = select l.source as source, l.target as target, l.place as place, r.state as before, r.state as after, l.file as file from raised as l join states as r on l.file = r.file;
+let raised_moves = select l.source as source, l.target as target, l.place as place, r.state as before, r.state as after, l.file as file from raised as l all-pairs join states as r on l.file = r.file;
 let backs = select source, target, place, file from edges where kind = "backedge";
-let back_states = select l.source as source, l.target as target, l.place as place, r.state as before, l.file as file from backs as l join states as r on l.file = r.file;
+let back_states = select l.source as source, l.target as target, l.place as place, r.state as before, l.file as file from backs as l all-pairs join states as r on l.file = r.file;
 let back_marked = extend(from=back_states, values={after: "unreached"});
 let back_moves = select source, target, place, before, after, file from back_marked;
 let live_exits = select l.block as block, l.file as file from exit_blocks as l join marked_blocks as r on l.block = r.block and l.file = r.file;
-let exit_states = select l.block as source, l.block as target, r.state as before, l.file as file from live_exits as l join states as r on l.file = r.file;
+let exit_states = select l.block as source, l.block as target, r.state as before, l.file as file from live_exits as l all-pairs join states as r on l.file = r.file;
 let exit_marked = extend(from=exit_states, values={place: 0, after: "unreached"});
 let exit_moves = select source, target, place, before, after, file from exit_marked;
 let flow_moves = union(left=carried_moves, right=raised_moves);

@@ -49,9 +49,7 @@ let locations = select id, span, "start-byte", "end-byte", "start-line", file fr
 let test_ends = select l.root as root, r."end-byte" as test_end, l.file as file from reportable as l join locations as r on l.test = r.id and l.file = r.file;
 let colon_tokens = select id, file from "syntax-tree" where text = ":";
 let colons = select l.id as colon, r.span as colon_span, r."start-byte" as position, l.file as file from colon_tokens as l join locations as r on l.id = r.id and l.file = r.file;
-let later_colons = select l.root as root, r.colon as colon, r.colon_span as colon_span, r.position as position, l.file as file from test_ends as l join colons as r on l.file = r.file where r.position >= l.test_end;
-let not_first = select l.root as root, l.colon as colon, l.file as file from later_colons as l join later_colons as r on l.root = r.root and l.file = r.file where r.position < l.position;
-let first_colons = antijoin(left=later_colons, right=not_first, left-on=["root", "colon", "file"], right-on=["root", "colon", "file"]);
+let first_colons = select l.root as root, r.colon as colon, r.colon_span as colon_span, r.position as position, l.file as file from test_ends as l nearest join colons as r on l.file = r.file where r.position >= l.test_end;
 let ranges = select l.root as id, r.branch as branch, l.colon_span as end_span, l.file as file from first_colons as l join top_candidates as r on l.root = r.root and l.file = r.file;
 let bounds = select l.id as id, r.span as start_span, l.end_span as end_span, r."start-line" as line, l.file as file from ranges as l join locations as r on l.branch = r.id and l.file = r.file;
 let composed = span-between(from=bounds, start="start_span", end="end_span", output="span");

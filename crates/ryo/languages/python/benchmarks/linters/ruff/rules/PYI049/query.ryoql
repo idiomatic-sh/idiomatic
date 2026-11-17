@@ -4,7 +4,8 @@ let definitions = select id as binding, kind, refinement, name, owner as scope, 
 let private_definitions = select * from definitions where starts_with(name, "_");
 let uses = select binding, file from "binding-use";
 let unused_private = antijoin(left=private_definitions, right=uses, left-on=["binding", "file"], right-on=["binding", "file"]);
-let stub_files = select path as file from "filesystem.file" where ends_with(path, ".pyi");
+let stub_files_rows = select path as file from "filesystem.file" where ends_with(path, ".pyi");
+let stub_files = project(from=stub_files_rows, columns=["file"]);
 let ordinary_scopes = select id, file from "semantic-syntax" where kind = "module" or kind = "function-def" or kind = "async-function-def";
 let ordinary_scope_definitions = select l.binding as binding, l.file as file from unused_private as l join ordinary_scopes as r on l.scope = r.id and l.file = r.file;
 let stub_definitions = select l.binding as binding, l.file as file from unused_private as l join stub_files as r on l.file = r.file;

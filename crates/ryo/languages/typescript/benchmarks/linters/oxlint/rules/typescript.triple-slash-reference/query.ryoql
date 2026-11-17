@@ -21,7 +21,7 @@ let later_statements = select l.id as id from statement_bounds as l join stateme
 let first_statements = antijoin(left=statement_bounds, right=later_statements, left-on=["id"], right-on=["id"]);
 let references = select id, file, span, text from "comment" where starts_with(text, "/") and matches(text, "<reference ");
 let reference_bounds = span-bounds(from=references, span="span", start-output="begin", end-output="finish");
-let late_references = select l.id as id from reference_bounds as l join first_statements as r on l.file = r.file where l.begin >= r.begin;
+let late_references = select l.id as id from reference_bounds as l nearest join first_statements as r on l.file = r.file where l.begin >= r.begin;
 let header_references = antijoin(left=reference_bounds, right=late_references, left-on=["id"], right-on=["id"]);
 let after_open = replace(from=header_references, text="text", pattern="(?s)^.*?<reference ", replacement="", output="after");
 let closed = select id, file, span, begin, after from after_open where matches(after, "/>");

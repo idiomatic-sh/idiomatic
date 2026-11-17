@@ -37,7 +37,7 @@ let attribute_ranges = select l.attribute as attribute, l.file as file, r."end-b
 let receiver_ranges = select l.attribute as attribute, l.file as file, r."end-byte" as end_byte from attribute_receivers as l join "source-location" as r on l.receiver = r.id and l.file = r.file;
 let receiver_and_attribute_ranges = select l.attribute as attribute, l.file as file, l.end_byte as receiver_end, r.end_byte as attribute_end from receiver_ranges as l join attribute_ranges as r on l.attribute = r.attribute and l.file = r.file;
 let method_token_ranges = select l.id as token, l.text as text, r.file as file, r."start-byte" as start_byte, r."end-byte" as end_byte from method_tokens as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let valid_method_tokens = select l.attribute as attribute, l.file as file from receiver_and_attribute_ranges as l join method_token_ranges as r on l.file = r.file where r.start_byte > l.receiver_end and r.end_byte <= l.attribute_end;
+let valid_method_tokens = select l.attribute as attribute, l.file as file from receiver_and_attribute_ranges as l all-pairs join method_token_ranges as r on l.file = r.file where r.start_byte > l.receiver_end and r.end_byte <= l.attribute_end;
 let accepted_attributes = select l.attribute as attribute, l.file as file from acceptable_attribute_receivers_b as l join valid_method_tokens as r on l.attribute = r.attribute and l.file = r.file;
 let accepted_attribute_calls = select l.call as call, l.file as file, l.span as span from call_functions as l join accepted_attributes as r on l.function = r.attribute and l.file = r.file;
 let logging_calls_a = union(left=qname_logging_calls, right=accepted_attribute_calls);

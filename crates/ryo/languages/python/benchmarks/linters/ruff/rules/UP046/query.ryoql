@@ -39,7 +39,7 @@ let builtin_events = select occurrence as id, scope, name, kind, file from "bind
 let module_builtin_events = select l.id as id, l.name as name, l.kind as kind, l.file as file from builtin_events as l join module_scopes as r on l.scope = r.id and l.file = r.file;
 let builtin_points = select l.id as event, l.name as name, l.kind as kind, l.file as file, r."start-byte" as point from module_builtin_events as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let anystr_points = select l.id as id, l.file as file, r."start-byte" as point from raw_anystr_reads as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let earlier_builtin_events = select l.id as id, l.file as file, r.event as event, r.name as name, r.kind as kind, r.point as event_point from anystr_points as l join builtin_points as r on l.file = r.file where r.point < l.point;
+let earlier_builtin_events = select l.id as id, l.file as file, r.event as event, r.name as name, r.kind as kind, r.point as event_point from anystr_points as l all-pairs join builtin_points as r on l.file = r.file where r.point < l.point;
 let superseded_builtin_events = select l.id as id, l.file as file, l.event as event from earlier_builtin_events as l join earlier_builtin_events as r on l.id = r.id and l.file = r.file and l.name = r.name where l.event_point < r.event_point;
 let last_builtin_events = antijoin(left=earlier_builtin_events, right=superseded_builtin_events, left-on=["id","file","event"], right-on=["id","file","event"]);
 let shadowed_anystr = select id, file from last_builtin_events where kind = "bind";

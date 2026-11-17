@@ -20,12 +20,12 @@ let unknown_relative_locations = select l.id as id, l.file as file, l.span as sp
 let future_statement_ranges = select l.id as id, l.file as file, r."start-byte" as begin, r."end-byte" as finish from future_statements as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let star_tokens = select id, file from "syntax-tree" where text = "*";
 let star_ranges = select l.id as id, l.file as file, r.span as span, r."start-byte" as begin, r."end-byte" as finish, r."start-line" as line from star_tokens as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let future_star_tokens = select l.id as statement, l.file as file, r.id as star from future_statement_ranges as l join star_ranges as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
+let future_star_tokens = select l.id as statement, l.file as file, r.id as star from future_statement_ranges as l all-pairs join star_ranges as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
 let future_wildcard_candidates = select l.star as id, l.file as file, r.span as span, r.line as line from future_star_tokens as l join star_ranges as r on l.star = r.id and l.file = r.file;
 let f407_errors = select id, file, span from "syntax-error" where code = "future-feature-not-defined" and phase = "validation" and impact = "preserved";
 let error_ranges = select l.id as error, l.file as file, r."start-byte" as begin, r."end-byte" as finish from f407_errors as l join "source-location" as r on l.file = r.file and l.span = r.span;
 let imported_name_ranges = select l.name as name, l.alias as alias, l.file as file, r."start-byte" as begin, r."end-byte" as finish from feature_identifiers as l join "source-location" as r on l.name = r.id and l.file = r.file;
-let typed_name_hits = select l.error as error, r.alias as alias, r.file as file from error_ranges as l join imported_name_ranges as r on l.file = r.file where l.begin >= r.begin and l.finish <= r.finish;
+let typed_name_hits = select l.error as error, r.alias as alias, r.file as file from error_ranges as l all-pairs join imported_name_ranges as r on l.file = r.file where l.begin >= r.begin and l.finish <= r.finish;
 let typed_future_aliases = select l.alias as alias, l.file as file from typed_name_hits as l join future_aliases as r on l.alias = r.alias and l.file = r.file;
 let typed_future_alias_nodes = select l.alias as id, l.file as file, r.span as span from typed_future_aliases as l join "semantic-syntax" as r on l.alias = r.id and l.file = r.file;
 let typed_name_candidates = select l.id as id, l.file as file, l.span as span, r."start-line" as line from typed_future_alias_nodes as l join "source-location" as r on l.id = r.id and l.file = r.file;

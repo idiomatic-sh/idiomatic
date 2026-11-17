@@ -12,7 +12,8 @@ let violations = antijoin(left=redirected, right=exempt_files, left-on=["file"],
 let ruf100_blanket_owners = select id, file from blanket_rows where scope = 1;
 let ruf100_code_owners = select id, file from file_codes where code = "RUF101";
 let ruf100_file_owners = union(left=ruf100_blanket_owners, right=ruf100_code_owners);
-let ruf100_directives = select l.id as directive, l.file as file from ruf100_file_owners as l join redirected as r on l.file = r.file;
+let redirected_files = project(from=redirected, columns=["file"]);
+let ruf100_directives = select l.id as directive, l.file as file from ruf100_file_owners as l join redirected_files as r on l.file = r.file;
 let ruf100_used = extend(from=ruf100_directives, values={code: "RUF101"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id, span);

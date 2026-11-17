@@ -35,7 +35,7 @@ let body_ends = select l.branch as branch, r."end-line" as end_line, r.span as e
 let test_ends = select l.branch as branch, r."end-line" as start_line, l.file as file from tests as l join locations as r on l.test = r.id and l.file = r.file;
 let body_ranges = select l.branch as branch, l.end_line as end_line, r.start_line as start_line, l.file as file from body_ends as l join test_ends as r on l.branch = r.branch and l.file = r.file;
 let comment_positions = select l.id as comment, l.text as text, r."start-line" as line, r."start-byte" as position, l.file as file from "comment" as l join locations as r on l.id = r.id and l.file = r.file;
-let body_comments = select l.branch as branch, r.comment as comment, r.text as text, r.position as position, l.file as file from body_ranges as l join comment_positions as r on l.file = r.file where r.line > l.start_line and r.line <= l.end_line;
+let body_comments = select l.branch as branch, r.comment as comment, r.text as text, r.position as position, l.file as file from body_ranges as l all-pairs join comment_positions as r on l.file = r.file where r.line > l.start_line and r.line <= l.end_line;
 let comment_predecessors = select l.branch as branch, l.comment as comment, r.comment as earlier, l.file as file from body_comments as l join body_comments as r on l.branch = r.branch and l.file = r.file where r.position < l.position;
 let comment_ranks0 = group-count(from=comment_predecessors, keys=["branch", "comment", "file"], count="ordinal", distinct="earlier");
 let first_comments0 = antijoin(left=body_comments, right=comment_ranks0, left-on=["branch", "comment", "file"], right-on=["branch", "comment", "file"]);

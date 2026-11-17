@@ -9,7 +9,7 @@ let left_locations = select l.binop as binop, l.left as left, l.file as file, r.
 let right_locations = select l.binop as binop, l.right as right, l.file as file, r."start-byte" as right_start from binop_rights as l join "source-location" as r on l.right = r.id and l.file = r.file;
 let ordered_binops = select l.binop as binop, l.left as left, r.right as right, l.file as file, l.left_end as left_end, r.right_start as right_start from left_locations as l join right_locations as r on l.binop = r.binop and l.file = r.file;
 let percent_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from "syntax-tree" as l join "source-location" as r on l.id = r.id where l.text = "%";
-let modulo_candidates = select l.binop as binop, l.left as left, l.right as right, l.file as file from ordered_binops as l join percent_tokens as r on l.file = r.file where r.start >= l.left_end and r.end <= l.right_start;
+let modulo_candidates = select l.binop as binop, l.left as left, l.right as right, l.file as file from ordered_binops as l all-pairs join percent_tokens as r on l.file = r.file where r.start >= l.left_end and r.end <= l.right_start;
 let format_literals = select l.occurrence as format_id, l.value as value, l.file as file from "string-literal" as l;
 let literal_binops = select l.binop as binop, l.left as left, l.right as right, l.file as file, r.format_id as format_id, r.value as format_value from modulo_candidates as l join format_literals as r on l.left = r.format_id and l.file = r.file;
 let right_shapes = select l.binop as binop, l.right as right, l.file as file, r.kind as right_kind from literal_binops as l join "semantic-syntax" as r on l.right = r.id and l.file = r.file;

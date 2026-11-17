@@ -15,7 +15,7 @@ let ordered_pairs = select l.owner as owner, l.element as left, r.element as rig
 let left_ends = select l.owner as owner, l.left as left, l.right as right, r."end-byte" as start, l.file as file from ordered_pairs as l join "source-location" as r on l.left = r.id and l.file = r.file;
 let gaps = select l.owner as owner, l.left as left, l.right as right, l.start as start, r."start-byte" as end, l.file as file from left_ends as l join "source-location" as r on l.right = r.id and l.file = r.file;
 let and_tokens = select l.id as id, r."start-byte" as start, r."end-byte" as end, l.file as file from "syntax-tree" as l join "source-location" as r on l.id = r.id and l.file = r.file where l.text = "and";
-let and_pairs = select l.owner as owner, l.left as left, l.right as right, l.file as file from gaps as l join and_tokens as r on l.file = r.file where r.start >= l.start and r.end <= l.end;
+let and_pairs = select l.owner as owner, l.left as left, l.right as right, l.file as file from gaps as l all-pairs join and_tokens as r on l.file = r.file where r.start >= l.start and r.end <= l.end;
 let left_expressions = select left as id, file from and_pairs;
 let memberships = in_comparison(expressions=left_expressions);
 let checked_memberships = select l.owner as owner, l.right as right, r.key as key, r.container as container, l.file as file from and_pairs as l join memberships as r on l.left = r.id and l.file = r.file;

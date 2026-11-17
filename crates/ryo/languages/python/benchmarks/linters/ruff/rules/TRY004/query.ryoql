@@ -47,7 +47,7 @@ let if_clause_edges = select r.parent as owner, r.child as clause, l.file as fil
 let else_clauses = antijoin(left=if_clause_edges,right=test_fields,left-on=["clause"],right-on=["parent"]);
 let checked_if_parents = select if_node as parent, file from checked_ifs;
 let checked_clause_tests = select l.if_node as clause, l.file as file from checked_ifs as l join clause_nodes as r on l.if_node = r.id and l.file = r.file;
-let clauses_with_checked_parent = select l.parent as parent, r.clause as clause, l.file as file from checked_if_parents as l join checked_clause_tests as r on l.file = r.file;
+let clauses_with_checked_parent = select l.parent as parent, r.clause as clause, l.file as file from checked_if_parents as l all-pairs join checked_clause_tests as r on l.file = r.file;
 let typed_clause_edges = select l.owner as parent, l.clause as clause, l.file as file from if_clause_edges as l join clauses_with_checked_parent as r on l.owner = r.parent and l.clause = r.clause and l.file = r.file;
 let tested_clause_edges = select l.owner as parent, l.clause as clause, l.file as file from if_clause_edges as l join test_fields as r on l.clause = r.parent;
 let invalid_typed_clauses = antijoin(left=tested_clause_edges,right=checked_clause_tests,left-on=["clause","file"],right-on=["clause","file"]);

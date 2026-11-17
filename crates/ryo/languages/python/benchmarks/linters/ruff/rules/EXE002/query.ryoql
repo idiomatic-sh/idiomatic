@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
-let executable_files = select path as file from "filesystem.executable" where executable = "true";
+let executable_files_rows = select path as file from "filesystem.executable" where executable = "true";
+let executable_files = project(from=executable_files_rows, columns=["file"]);
 let shebangs = select file from "syntax-tree" where kind = "comment" and matches(text, "^#!");
 let missing = antijoin(left=executable_files, right=shebangs, left-on=["file"], right-on=["file"]);
 let modules = select id, file, span from "syntax-tree" where kind = "module";

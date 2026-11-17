@@ -71,7 +71,7 @@ let other_bindings = select l.id as id, l.name as name, l.phase as phase, l.file
 let earlier_other_bindings = select l.id as id, l.file as file, l.runtime_scope as runtime_scope from other_bindings as l join read_events as r on l.id = r.id and l.file = r.file where l.ordinal < r.ordinal or l.binding_phase != l.phase;
 let available_other_namespace = select l.id as id, l.file as file from earlier_other_bindings as l join candidate_reads as r on l.id = r.id and l.file = r.file where l.runtime_scope != r.owner;
 let builtin_catalog = select name, file, "since-major" as since_major, "since-minor" as since_minor from "implicit-symbol" where kind = "builtin";
-let builtin_eligible = select l.name as name, l.file as file from builtin_catalog as l join "language-target" as r on l.file = r.file where l.since_major < r.major or l.since_major = r.major and l.since_minor <= r.minor;
+let builtin_eligible = select l.name as name, l.file as file from builtin_catalog as l all-pairs join "language-target" as r on l.file = r.file where l.since_major < r.major or l.since_major = r.major and l.since_minor <= r.minor;
 let local_scopes = select id, file from nodes where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
 let nonlocal_candidates = antijoin(left=candidate_reads, right=local_scopes, left-on=["owner","file"], right-on=["id","file"]);
 let available_builtins = select l.id as id, l.file as file from nonlocal_candidates as l join builtin_eligible as r on l.name = r.name and l.file = r.file;
