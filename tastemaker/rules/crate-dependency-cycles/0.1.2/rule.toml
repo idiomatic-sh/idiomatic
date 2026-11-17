@@ -1,0 +1,188 @@
+description = "A local package on a cycle of path dependencies of the kinds `kinds` names is reported at its manifest."
+why = "Cargo refuses a cycle of normal and build dependencies but accepts one through dev-dependencies: the crate's tests then link a second copy of it, whose types are not the first copy's, so a test through the cycle compares values that can never be equal. Read from the path dependencies Cargo metadata reports between local packages, of the kinds the entry names. A package that depends on itself (a dev-dependency on its own `fixtures` feature) is no cycle: Cargo builds one copy of it. Not seen: dependencies on registry or git crates."
+
+query = '''
+param kinds: set<string>;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let counted = select * from "package-dependency" where kind in $kinds;
+let documents = select * from tree-nodes where kind = "toml";
+let manifests = project(from=documents, columns=["id", "file", "span"]);
+let manifest-files = project(from=documents, columns=["file"]);
+let from-manifests = select l."source" as "from", l."target" as "target" from counted as l join manifest-files as r on l."source" = r."file";
+let all-edges = select l."from" as "from", l."target" as "to" from from-manifests as l join manifest-files as r on l."target" = r."file";
+let edges = select * from all-edges where from != to;
+let cyclic = cycles(edges=edges, source="from", destination="to");
+let on-cycle = project(from=cyclic, columns=["from"]);
+let reported = select r."file" as "file", r."span" as "span" from on-cycle as l join manifests as r on l."from" = r."file";
+emit reported subject "file" key("file");
+'''
+
+[params.kinds]
+type = "set<string>"
+description = "The dependency kinds that form edges: any of normal, dev and build."
+
+[diagnostic]
+primary = "span"
+message = "`{file}` is on a cycle of local package dependencies"
+help = "Move what both crates share into a third crate both depend on, and test through it."
+
+[given]
+include = ['**']
+params = { kinds = ['normal', 'dev', 'build'] }
+files.'Cargo.toml' = '''
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+'''
+files.'crates/alpha/Cargo.toml' = '''
+[package]
+name = "alpha"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+beta = { path = "../beta" }
+'''
+files.'crates/alpha/src/lib.rs' = ''
+
+[[scenarios]]
+id = 'dev-cycle'
+scenario = 'A crate dev-depends on a crate that depends on it.'
+given.files.'crates/beta/Cargo.toml' = '''
+[package]
+name = "beta"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+alpha = { path = "../alpha" }
+'''
+given.files.'crates/beta/src/lib.rs' = ''
+then.findings = [
+  { path = 'crates/alpha/Cargo.toml', line = 1 },
+  { path = 'crates/beta/Cargo.toml', line = 1 },
+]
+
+[[scenarios]]
+id = 'one-way'
+scenario = 'The dependency runs one way.'
+given.files.'crates/beta/Cargo.toml' = '''
+[package]
+name = "beta"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/beta/src/lib.rs' = ''
+
+[[scenarios]]
+id = 'self-dev-dependency'
+scenario = 'A package dev-depends on itself for its fixtures feature.'
+given.files.'crates/alpha/Cargo.toml' = '''
+[package]
+name = "alpha"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+
+[dev-dependencies]
+alpha = { path = ".", features = ["fixtures"] }
+'''
+
+[[scenarios]]
+id = 'three-cycles-and-a-self-dependency'
+scenario = 'Three cycles of local packages, through a dev-dependency, through a build dependency and of three packages, are reported at every manifest on them; a package that dev-depends on itself for its fixtures feature, and a package that only depends into a cycle, are not.'
+given.files.'crates/beta/Cargo.toml' = '''
+[package]
+name = "beta"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+alpha = { path = "../alpha" }
+'''
+given.files.'crates/beta/src/lib.rs' = ''
+given.files.'crates/gamma/Cargo.toml' = '''
+[package]
+name = "gamma"
+version = "0.1.0"
+edition = "2024"
+
+[build-dependencies]
+delta = { path = "../delta" }
+'''
+given.files.'crates/gamma/src/lib.rs' = ''
+given.files.'crates/delta/Cargo.toml' = '''
+[package]
+name = "delta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gamma = { path = "../gamma" }
+'''
+given.files.'crates/delta/src/lib.rs' = ''
+given.files.'crates/epsilon/Cargo.toml' = '''
+[package]
+name = "epsilon"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+zeta = { path = "../zeta" }
+'''
+given.files.'crates/epsilon/src/lib.rs' = ''
+given.files.'crates/zeta/Cargo.toml' = '''
+[package]
+name = "zeta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eta = { path = "../eta" }
+'''
+given.files.'crates/zeta/src/lib.rs' = ''
+given.files.'crates/eta/Cargo.toml' = '''
+[package]
+name = "eta"
+version = "0.1.0"
+edition = "2024"
+
+[dev-dependencies]
+epsilon = { path = "../epsilon" }
+'''
+given.files.'crates/eta/src/lib.rs' = ''
+given.files.'crates/theta/Cargo.toml' = '''
+[package]
+name = "theta"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+
+[dev-dependencies]
+theta = { path = ".", features = ["fixtures"] }
+'''
+given.files.'crates/theta/src/lib.rs' = ''
+given.files.'crates/iota/Cargo.toml' = '''
+[package]
+name = "iota"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+alpha = { path = "../alpha" }
+theta = { path = "../theta" }
+'''
+given.files.'crates/iota/src/lib.rs' = ''
+then.findings = [
+  { path = 'crates/alpha/Cargo.toml', line = 1 },
+  { path = 'crates/beta/Cargo.toml', line = 1 },
+  { path = 'crates/delta/Cargo.toml', line = 1 },
+  { path = 'crates/epsilon/Cargo.toml', line = 1 },
+  { path = 'crates/eta/Cargo.toml', line = 1 },
+  { path = 'crates/gamma/Cargo.toml', line = 1 },
+  { path = 'crates/zeta/Cargo.toml', line = 1 },
+]
