@@ -16,8 +16,12 @@ use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
 use ryo_relations::domain::relations::constants::NO_FILE;
 use ryo_relations::domain::relations::service::from_bits;
-use ryo_relations::domain::relations::service::{all, kinds, node_position};
-use ryo_relations::domain::relations::types::{Bits, FileId, Flag, Name, Origin, Relation, Value};
+use ryo_relations::domain::relations::service::{
+    all, column_name, columns, folder_of, is_key, kinds, node_position,
+};
+use ryo_relations::domain::relations::types::{
+    Bits, ColumnKeyness, FileId, Flag, Name, Origin, Relation, Value,
+};
 use ryo_relations::domain::terms::service::unknown_reason;
 use ryo_relations::domain::terms::types::UnknownName;
 use std::path::PathBuf;
@@ -127,10 +131,42 @@ pub(super) fn rows_of_inputs_with(
             }
             return None;
         };
-        rows.extend(rows_of_relation(&read, relation, &shown));
+        let written = rows_of_relation(&read, relation, &shown);
+        judge_keys(relation, &written, &shown, findings);
+        rows.extend(written);
     }
     rows.sort();
     Some(rows)
+}
+
+/// Holds the rows a language writes for one file to the keys of their relation: no two rows hold the same cell in a column
+/// `is_key` names, since the engine reads the column as saying which row a row is (a projection that keeps it drops no row, and
+/// the growth check counts a join on it as one row per row). Each repeated cell is a finding naming the column and the cell.
+pub(super) fn judge_keys(
+    relation: Relation,
+    written: &[Vec<Cell>],
+    shown: &str,
+    findings: &mut Findings,
+) {
+    for (at, column) in columns(relation).into_iter().enumerate() {
+        if is_key(column) != ColumnKeyness::Key {
+            continue;
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        let mut repeated = std::collections::BTreeSet::new();
+        for cell in written.iter().filter_map(|row| row.get(at)) {
+            if !seen.insert(cell) {
+                let _first_repeat = repeated.insert(cell);
+            }
+        }
+        for cell in repeated {
+            findings.0.push(format!(
+                "{shown}: {} is the key of {}, but more than one row holds {cell:?}",
+                column_name(column).0,
+                folder_of(relation)
+            ));
+        }
+    }
 }
 
 /// Read exactly the bytes whose fixture configuration was already selected.
