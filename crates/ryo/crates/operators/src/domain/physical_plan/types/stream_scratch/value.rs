@@ -1,6 +1,9 @@
 //! The work of the chains of streamed stages one worker runs: each chain's nodes and each stage's chunk and own state, kept
 //! with their capacity across nodes and files, no chunk keeping more room than the bound.
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::kept_room::constants::POOL_INDEXES;
+use crate::domain::kept_room::types::PoolSize;
+use crate::domain::kept_room::types::kept_pool::value::KeptPool;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::{IndexPlace, InputRows, PlanNodeId};
 use ryo_relations::domain::relations::types::Value;
@@ -143,9 +146,17 @@ pub(crate) struct RightPlace(pub(crate) usize);
 
 impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
     fn kept(&mut self) {
-        for stage in self.levels.iter_mut().flat_map(|level| &mut level.stages) {
-            stage.own.repeats.kept();
-            stage.own.index.kept();
+        for level in &mut self.levels {
+            level.head.cells.kept();
+            level.head.kinds.kept();
+            for stage in &mut level.stages {
+                for table in [&mut stage.out, &mut stage.own.kept] {
+                    table.cells.kept();
+                    table.kinds.kept();
+                }
+                stage.own.repeats.kept();
+                stage.own.index.kept();
+            }
         }
     }
 
@@ -153,10 +164,37 @@ impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
     fn room(&self) -> crate::domain::kept_room::types::Room {
         self.levels
             .iter()
-            .flat_map(|level| &level.stages)
-            .map(|stage| stage.own.repeats.room().max(stage.own.index.room()))
+            .flat_map(|level| {
+                [level.head.cells.room(), level.head.kinds.room()]
+                    .into_iter()
+                    .chain(level.stages.iter().flat_map(|stage| {
+                        [
+                            stage.out.cells.room(),
+                            stage.out.kinds.room(),
+                            stage.own.kept.cells.room(),
+                            stage.own.kept.kinds.room(),
+                            stage.own.repeats.room(),
+                            stage.own.index.room(),
+                        ]
+                    }))
+            })
             .max()
             .unwrap_or_default()
+    }
+}
+
+impl StreamScratch {
+    /// The open file ended: each stage's own index and repeats go to the worker's index pool, which keeps their room only
+    /// within its caps. Within a file a stage keeps them across its chain's runs, so an index past `KEPT_ROOM` is not made
+    /// again for each run.
+    pub(crate) fn given_back(&mut self, indexes: &mut KeptPool<KeyedRows>) {
+        for stage in self.levels.iter_mut().flat_map(|level| &mut level.stages) {
+            indexes.pooled(std::mem::take(&mut stage.own.index), PoolSize(POOL_INDEXES));
+            indexes.pooled(
+                std::mem::take(&mut stage.own.repeats),
+                PoolSize(POOL_INDEXES),
+            );
+        }
     }
 }
 
@@ -177,7 +215,8 @@ impl ChainScratch {
 }
 
 impl StageScratch {
-    /// Empties the stage after its chain's run, keeping no more room in its tables than the bound, and its index empty.
+    /// Empties the stage after its chain's run, keeping no more room in its tables than the bound, and its index empty. Its
+    /// own index and repeats keep their room for the chain's next run in the file; the file's end gives them to the pool.
     pub(crate) fn settled(&mut self) {
         for table in [&mut self.out, &mut self.own.kept] {
             table.kinds.clear();
