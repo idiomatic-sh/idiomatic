@@ -117,6 +117,22 @@ pub(crate) enum ProbeWork {
     Done,
 }
 
+/// The work a worker's chains did: how many times they called a stage (each call a run of rows), and the most rows they
+/// handed from a stage to its reader in one chunk.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ChainWork {
+    /// The stage calls.
+    pub(crate) calls: StageCalls,
+    /// The most rows of one chunk handed on.
+    pub(crate) handed: RowCount,
+}
+
+/// How many times a worker's chains called a stage.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct StageCalls(pub(crate) usize);
+
 /// A stage's place in its chain, the head stage's first.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct StagePlace(pub(crate) usize);

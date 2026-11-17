@@ -49,6 +49,8 @@ pub(crate) struct Ran {
     pub(crate) formed: u32,
     /// How many times the first file's chains called a stage.
     pub(crate) stage_calls: usize,
+    /// The rows the emit holds after the first file: its rows before its fault, when it faulted.
+    pub(crate) held: usize,
     /// The worker's buffers after the run.
     pub(crate) buffers: FileBuffers,
 }
@@ -191,7 +193,11 @@ pub(crate) fn ran_in(
         None => answer.clone().map_err(Outcome::Fault),
     };
     let formed = buffers.meter.formed.0;
-    let stage_calls = buffers.stage_calls.0;
+    let stage_calls = buffers.chains.calls.0;
+    let held = match buffers.rows(run.emit) {
+        NodeRows::Materialized(table) => table.count.0,
+        NodeRows::Absent => 0,
+    };
     // The file ends: the engine releases every node, and the warm worker runs the next file of the same rows.
     for node in (0..u32::try_from(run.steps.len()).unwrap_or(u32::MAX)).map(PlanNodeId) {
         buffers.release(node);
@@ -205,6 +211,7 @@ pub(crate) fn ran_in(
         fed,
         formed,
         stage_calls,
+        held,
         buffers,
     })
 }
