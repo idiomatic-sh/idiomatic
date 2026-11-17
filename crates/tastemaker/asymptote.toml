@@ -33,7 +33,7 @@ group = "clippy"
 run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
-inputs = [".", "../ryo", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../ryo", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../../ci/scripts/checks/cargo_diagnostics.py"]
 
 [[tools]]
 id = "sdk-api"
@@ -93,7 +93,7 @@ group = "release-clippy"
 run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
-inputs = [".", "../ryo", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
+inputs = [".", "../ryo", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../../ci/scripts/checks/cargo_diagnostics.py"]
 
 [[tools]]
 id = "test-default"
