@@ -6,7 +6,7 @@ use crate::domain::growth::types::{InputRole, WitnessColumns, Witnessed, Witness
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
 use crate::domain::physical_plan::types::lowering::value::{AxisNode, DistinctNode, Lowering};
 use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
-use ryo_values::domain::plan_parts::types::{Direction, JoinColumn, Side};
+use ryo_values::domain::plan_parts::types::Direction;
 
 /// The lowering a node was given.
 type Input = Lowering;
@@ -45,16 +45,6 @@ fn succeeds() {
 
 impl Witnesses for AxisNode {
     fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>> {
-        let output = [
-            JoinColumn {
-                side: Side::Left,
-                column: columns.id,
-            },
-            JoinColumn {
-                side: Side::Right,
-                column: columns.id,
-            },
-        ];
         vec![Witnessed {
             node: Self {
                 starts: RowSource::Node(PlanNodeId(0)),
@@ -67,7 +57,8 @@ impl Witnesses for AxisNode {
                         parent: columns.parent,
                         child: columns.child,
                         domain_id: columns.id,
-                        output: &output,
+                        // An indexed walk answers the reached entities alone: only a tree walk writes columns.
+                        output: &[],
                     },
                     &[],
                     &[],

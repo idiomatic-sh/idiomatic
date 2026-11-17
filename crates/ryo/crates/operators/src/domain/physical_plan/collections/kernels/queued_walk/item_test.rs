@@ -177,13 +177,13 @@ impl Witnesses for WorklistNode {
                 lattice: RowSource::Node(PlanNodeId(2)),
                 worklist: lower(WorklistShape {
                     root: columns.id,
-                    state: columns.key,
+                    state: columns.state,
                     edge_columns: [
                         columns.parent,
                         columns.child,
                         columns.order,
-                        columns.key,
-                        columns.key,
+                        columns.state,
+                        columns.state,
                     ],
                     lattice_columns: [columns.parent, columns.child],
                     root_keys: &[],

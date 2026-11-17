@@ -88,7 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_instance_names_one_role_per_input"),
         word: Word::Succeeds,
         input: || Given::OneRolePerInput,
-        expect: Expect::Value(Answer::Held(31)),
+        expect: Expect::Value(Answer::Held(33)),
     },
     Case {
         name: CaseName("a_probe_grows_by_its_mode"),
@@ -96,6 +96,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Given::ProbeGrowth,
         expect: Expect::Value(Answer::Growths(std::borrow::Cow::Borrowed(&[
             (ProbeModeKind::Inner, Growth::Keyed(Fan::Repeats)),
+            (ProbeModeKind::Inner, Growth::Keyed(Fan::FileProduct)),
+            (ProbeModeKind::Inner, Growth::Keyed(Fan::DeclaredPairs)),
             (ProbeModeKind::Semi, Growth::Keyed(Fan::PerLeft)),
             (ProbeModeKind::Anti, Growth::Keyed(Fan::PerLeft)),
             (ProbeModeKind::Ordered, Growth::Keyed(Fan::PerLeft)),
@@ -130,6 +132,7 @@ const COLUMNS: WitnessColumns = WitnessColumns {
     child: ColumnIndex(4),
     text: ColumnIndex(5),
     span: ColumnIndex(6),
+    state: ColumnIndex(7),
 };
 
 /// The probe mode of an instance, when it is a probe.

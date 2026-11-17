@@ -66,25 +66,26 @@ pub enum Growth {
     GroupOutput,
 }
 
-/// How many rows of the right side a keyed or banded operator writes for each left row.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_operators::domain::growth::types::Fan;
-/// assert_ne!(Fan::PerLeft, Fan::FileProduct);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Fan {
-    /// At most one row, or the ties of one row: a semi, anti or ordered probe, a unique key, a nearest band.
-    PerLeft,
-    /// The right rows sharing its key, which repeat a bounded number of times.
-    Repeats,
-    /// Every right row of its file: a key of the file alone, a product of the file's rows. The file is the partition the
-    /// runner gives every keyed kernel (today one file).
-    FileProduct,
-    /// Every pair, as the query declared with `all-pairs join`.
-    DeclaredPairs,
+kinds! {
+    /// How many rows of the right side a keyed or banded operator writes for each left row.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::growth::types::Fan;
+    /// assert_ne!(Fan::PerLeft, Fan::FileProduct);
+    /// ```
+    pub enum Fan {
+        /// At most one row, or the ties of one row: a semi, anti or ordered probe, a unique key, a nearest band.
+        PerLeft,
+        /// The right rows sharing its key, which repeat a bounded number of times.
+        Repeats,
+        /// Every right row of its file: a key of the file alone, a product of the file's rows. The file is the partition the
+        /// runner gives every keyed kernel (today one file).
+        FileProduct,
+        /// Every pair, as the query declared with `all-pairs join`.
+        DeclaredPairs,
+    }
 }
 
 /// A degree of a size variable in a bound: `rows^2` has the rows degree 2.
@@ -143,6 +144,8 @@ pub(crate) struct WitnessColumns {
     pub(crate) text: ryo_values::domain::plan_parts::types::ColumnIndex,
     /// A span of the file.
     pub(crate) span: ryo_values::domain::plan_parts::types::ColumnIndex,
+    /// A state of a small catalogue, as a worklist's lattice holds: a catalogue does not grow with the file.
+    pub(crate) state: ryo_values::domain::plan_parts::types::ColumnIndex,
 }
 
 /// What an input of an instance holds, so a growth test generates its rows: plain rows, the edges of a graph, or the entities

@@ -83,52 +83,53 @@ pub struct WorstMaking {
     pub wrote: RowCount,
 }
 
-/// The kind of a node's kernels, as the counters report it.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_operators::domain::physical_plan::types::node_counters::value::NodeKind;
-/// assert_ne!(NodeKind::Filter, NodeKind::Probe);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NodeKind {
-    /// A filter.
-    Filter,
-    /// A lookup of a shared index.
-    Lookup,
-    /// A projection.
-    Project,
-    /// An extension.
-    Extend,
-    /// A probe: a join, an antijoin or an intersection.
-    Probe,
-    /// The rows of one input not in the other, or both inputs' rows without repeats.
-    Distinct,
-    /// A group.
-    Group,
-    /// A reach over edges.
-    Reach,
-    /// A reach from seed rows.
-    SeededReach,
-    /// An axis walk.
-    Axis,
-    /// An ordered walk.
-    OrderedWalk,
-    /// A worklist.
-    Worklist,
-    /// The components of a graph.
-    Components,
-    /// A map of each row's text.
-    TextMap,
-    /// A band join.
-    BandJoin,
-    /// An ordered match.
-    OrderedMatch,
-    /// A rendering.
-    Render,
-    /// A scan of rows the engine holds.
-    ScanBound,
+kinds! {
+    /// The kind of a node's kernels, as the counters report it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::node_counters::value::NodeKind;
+    /// assert_ne!(NodeKind::Filter, NodeKind::Probe);
+    /// ```
+    pub enum NodeKind {
+        /// A filter.
+        Filter,
+        /// A lookup of a shared index.
+        Lookup,
+        /// A projection.
+        Project,
+        /// An extension.
+        Extend,
+        /// A probe: a join, an antijoin or an intersection.
+        Probe,
+        /// The rows of one input not in the other, or both inputs' rows without repeats.
+        Distinct,
+        /// A group.
+        Group,
+        /// A reach over edges.
+        Reach,
+        /// A reach from seed rows.
+        SeededReach,
+        /// An axis walk.
+        Axis,
+        /// An ordered walk.
+        OrderedWalk,
+        /// A worklist.
+        Worklist,
+        /// The components of a graph.
+        Components,
+        /// A map of each row's text.
+        TextMap,
+        /// A band join.
+        BandJoin,
+        /// An ordered match.
+        OrderedMatch,
+        /// A rendering.
+        Render,
+        /// A scan of rows the engine holds.
+        ScanBound,
+    }
 }
 
 /// The counts of every node of a plan one worker made while counting was on, by node id.

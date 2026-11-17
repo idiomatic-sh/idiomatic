@@ -3,7 +3,6 @@
 
 /// Declares a fieldless kind and every one of its variants once: `ALL` is generated from the same list as the enum, so a kind
 /// cannot be added and left out of `ALL`.
-#[cfg(test)]
 macro_rules! kinds {
     ($(#[$meta:meta])* $vis:vis enum $kind:ident { $( $(#[$doc:meta])* $variant:ident, )+ }) => {
         $(#[$meta])*

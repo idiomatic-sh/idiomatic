@@ -77,7 +77,8 @@ impl Witnesses for TextMapNode {
                 None,
                 &LiteralText::default(),
                 None,
-                TextOutput::Appended,
+                // No capture group, so no capture text: a search that appends text needs a group.
+                TextOutput::Omitted,
                 LineOutput::Omitted,
             )),
             RowMap::SpanBounds(crate::domain::span_bounds::service::lower(columns.span)),
@@ -86,14 +87,18 @@ impl Witnesses for TextMapNode {
                 columns.span,
             )),
             RowMap::Words(crate::domain::words::service::lower(columns.text)),
+            // A rank reads its layers from its binding: one layer of one text.
             RowMap::Rank(crate::domain::rank::service::lower(
                 columns.text,
                 ParameterId(0),
-                &[],
+                &[ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(vec![
+                    vec![LiteralText::default()],
+                ])],
             )),
+            // The literals interleave the texts: one before and one after the one text.
             RowMap::FitsRendered(crate::domain::fits_rendered::service::lower(
                 &[columns.text],
-                &[],
+                &[LiteralText::default(), LiteralText::default()],
                 columns.span,
                 MaxLine(88),
                 TabWidth(4),

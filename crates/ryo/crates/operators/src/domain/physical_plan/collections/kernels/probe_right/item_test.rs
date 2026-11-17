@@ -68,7 +68,8 @@ fn succeeds() {
 }
 
 impl Witnesses for ProbeNode {
-    /// One instance per mode: inner, semi (an intersection), anti (an antijoin) and ordered.
+    /// One instance per mode and fan: inner of a shared key, of the file alone and declared, semi (an intersection), anti
+    /// (an antijoin) and ordered.
     fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>> {
         let on = [columns.key];
         let output = [
@@ -81,18 +82,21 @@ impl Witnesses for ProbeNode {
                 column: columns.id,
             },
         ];
-        let inner = crate::domain::equality_join::service::lower(
-            JoinShape {
-                left_on: &on,
-                right_on: &on,
-                output: &output,
-                view: &[],
-                reach: None,
-                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
-            },
-            &[],
-            &[],
-        );
+        // An inner probe answers the fan its proven keys answer: one instance for each key that is not unique.
+        let inner = |fan| {
+            crate::domain::equality_join::service::lower(
+                JoinShape {
+                    left_on: &on,
+                    right_on: &on,
+                    output: &output,
+                    view: &[],
+                    reach: None,
+                    fan,
+                },
+                &[],
+                &[],
+            )
+        };
         let set = |kind| match crate::domain::set_rows::service::lower(kind, &on, &on) {
             SetLowering::Probe(probe) => Some(probe),
             SetLowering::Distinct => None,
@@ -106,7 +110,9 @@ impl Witnesses for ProbeNode {
             ..probe
         });
         [
-            Some(inner),
+            Some(inner(ryo_values::domain::plan_parts::types::KeyFan::Shared)),
+            Some(inner(ryo_values::domain::plan_parts::types::KeyFan::FileOnly)),
+            Some(inner(ryo_values::domain::plan_parts::types::KeyFan::AllPairs)),
             set(SetKind::Intersection),
             set(SetKind::Antijoin),
             ordered,

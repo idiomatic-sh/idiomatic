@@ -146,15 +146,23 @@ pub(crate) fn plan_with(
             node.engine = EngineUses(node.engine.0.saturating_add(1));
         }
     }
-    let mut indexes = Vec::new();
+    Ok(finished(nodes, Vec::new(), rewrites))
+}
+
+/// The plan of `nodes`, lowered and counted, over `indexes`: `rewrites` applied in order, then every probe index it can share
+/// shared, and last each node's flow decided, which reads every node's final sources and the indexes.
+pub(crate) fn finished(
+    mut nodes: Vec<PhysicalNode>,
+    mut indexes: Vec<KeyedIndex>,
+    rewrites: &[&dyn RewritesItem],
+) -> PhysicalPlan {
     for rewrite in rewrites {
         rewrite.rewrite(&mut nodes, &mut indexes);
     }
     // After the rewrites: a rewrite changes a probe's right rows, key and mode, and replaces probes.
     indexes::service::shared_indexes(&mut nodes, &mut indexes);
-    // Last: whether a node streams reads every node's final sources and the indexes.
     flows(&mut nodes, &indexes);
-    Ok(PhysicalPlan { nodes, indexes })
+    PhysicalPlan { nodes, indexes }
 }
 
 /// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them (`flow_of`). Who reads

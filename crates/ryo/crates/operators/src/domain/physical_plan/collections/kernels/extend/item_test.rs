@@ -5,7 +5,8 @@ use crate::domain::growth::types::{InputRole, WitnessColumns, Witnessed, Witness
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
 use crate::domain::physical_plan::types::lowering::value::{ExtendNode, Lowering, ProjectNode};
 use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
-use ryo_values::domain::plan_parts::types::{Operand, RepeatedRows};
+use ryo_relations::domain::relations::types::Integer;
+use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, RepeatedRows};
 
 /// The lowering a node was given.
 type Input = Lowering;
@@ -54,12 +55,13 @@ fn succeeds() {
 }
 
 impl Witnesses for ExtendNode {
-    fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>> {
+    fn witnesses(_: WitnessColumns) -> Vec<Witnessed<Self>> {
         vec![Witnessed {
             node: Self {
                 source: RowSource::Node(PlanNodeId(0)),
+                // A literal: an extension appends values resolved once per file, never a row's column.
                 extension: crate::domain::append::service::lower(
-                    &[Operand::Column(columns.key)],
+                    &[Operand::Literal(QueryLiteral::Number(Integer(1)))],
                     &[],
                 ),
             },

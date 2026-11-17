@@ -1578,6 +1578,7 @@ name = "idiomatic-sh-ryo-operators"
 version = "0.2.0"
 dependencies = [
  "cargo_metadata",
+ "cpu-time",
  "cucumber",
  "dhat",
  "divan",

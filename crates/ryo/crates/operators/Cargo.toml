@@ -33,6 +33,7 @@ idiomatic-sh-ryo-operators = { path = ".", features = ["fixtures"] }
 idiomatic-sh-ryo-values = { path = "../values", features = ["fixtures"] }
 idiomatic-sh-ryo-relations = { path = "../relations", features = ["fixtures"] }
 cargo_metadata.workspace = true
+cpu-time.workspace = true
 cucumber.workspace = true
 divan.workspace = true
 libtest-mimic.workspace = true
