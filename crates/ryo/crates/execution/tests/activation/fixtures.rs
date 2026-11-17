@@ -1,8 +1,6 @@
 //! Real public file opening, observed without allocating in the activation subscriber.
-pub(crate) mod compared;
 pub(crate) mod file;
 pub(crate) mod gated;
-pub(crate) mod given;
 pub(crate) mod plans;
 mod program;
 pub(crate) mod project;

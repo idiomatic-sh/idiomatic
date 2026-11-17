@@ -80,7 +80,7 @@ pub(crate) struct PassScratch {
     pub(crate) demand: Vec<ryo_relations::domain::relations::types::Relation>,
     /// Whether a rule that runs on the open file can run each node, by node.
     pub(crate) live: Vec<NodeInFile>,
-    /// What the open file holds of the program's root kinds.
+    /// What the open file holds of the program's activation triggers.
     pub(crate) triggers:
         ryo_execution_domain::domain::executable_program::activation::types::Triggers,
     /// Whether each node can have a row or a row error in the open file, by node.
@@ -88,58 +88,27 @@ pub(crate) struct PassScratch {
         ryo_execution_domain::domain::executable_program::activation::types::Activities,
 }
 
-/// Whether the open file's reads are whole, or some relation was read in part.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ReadCompleteness {
-    /// Every relation was read whole.
-    Whole,
-    /// Some relation was read in part: no relation can be shown to have no row.
-    InPart,
-}
-
-/// The open file's answers to activation: each relation's rows from the file's one read of it, or present unread in a file
-/// read in part. Its borrow of the reads is taken and dropped inside each answer.
-pub(crate) struct FileLeaves<'i, 'p, 'a, 's> {
-    /// The file's reads, each relation once.
-    pub(crate) reads: &'i std::cell::RefCell<
-        crate::application::file_dag::file_pass::service::reads::types::FileReads<'p>,
+/// What the lookup answered for a demanded relation when the open file's triggers were read: its rows, or why it refused
+/// them. It is the first read of the relation in the file: the first reader answers it instead of asking the lookup, and
+/// every later reader asks the lookup as before, so the file reads each relation as often as it did with no trigger.
+#[derive(Debug)]
+pub(crate) struct FactRead<'p> {
+    /// The relation.
+    pub(crate) relation: ryo_relations::domain::relations::types::Relation,
+    /// Its rows, lent by the lookup, or the lookup's refusal; taken by the relation's first reader.
+    pub(crate) read: std::cell::RefCell<
+        Option<
+            Result<
+                ryo_relations::domain::relations::types::ColumnsView<'p>,
+                crate::outbound::facts::errors::FactsError,
+            >,
+        >,
     >,
-    /// The file's facts.
-    pub(crate) lookup: &'p crate::application::file_dag::fact_lookup::service::FactLookup<'a, 's>,
-    /// Whether the file was read whole.
-    pub(crate) completeness: ReadCompleteness,
 }
 
-impl ryo_execution_domain::domain::executable_program::activation::types::ActivationLeaves
-    for FileLeaves<'_, '_, '_, '_>
-{
-    fn rows(
-        &mut self,
-        relation: ryo_relations::domain::relations::types::Relation,
-    ) -> ryo_execution_domain::domain::executable_program::activation::types::FactAnswer {
-        use ryo_execution_domain::domain::executable_program::activation::types::FactAnswer;
-        if self.completeness == ReadCompleteness::InPart {
-            return FactAnswer::Rows;
-        }
-        match crate::application::file_dag::file_pass::service::reads::service::read(
-            self.reads,
-            self.lookup,
-            relation,
-        ) {
-            Ok(view)
-                if view
-                    .columns
-                    .first()
-                    .is_some_and(|column| column.0.is_empty()) =>
-            {
-                FactAnswer::NoRow
-            }
-            // A relation of no column cannot show it has no row.
-            Ok(_) => FactAnswer::Rows,
-            Err(_) => FactAnswer::Refused,
-        }
-    }
-}
+/// The reads the open file's triggers made, one for each demanded relation they asked about, in the plan's fact order.
+#[derive(Debug, Default)]
+pub(crate) struct FactReads<'p>(pub(crate) Vec<FactRead<'p>>);
 
 /// Whether a rule that runs on the open file can run a node: a step in each file of such a rule can; any other node runs
 /// nothing in the file.
@@ -177,18 +146,13 @@ pub(crate) struct PassInputs<'p, 'a, 's> {
     pub(crate) withholdings: crate::application::file_dag::frontiers::types::Withholdings,
     /// The host's rows of each relation a rule of this file read, in the file's symbols, by the relation's place.
     pub(crate) hosted: Vec<Option<ryo_values::domain::rows::types::Table>>,
-    /// The file's reads, each relation once: every read of a relation in the file answers the first.
-    pub(crate) reads: std::cell::RefCell<
-        crate::application::file_dag::file_pass::service::reads::types::FileReads<'p>,
-    >,
-    /// What the file holds of the program's root kinds.
-    pub(crate) triggers: &'p ryo_execution_domain::domain::executable_program::activation::types::Triggers,
-    /// Each node's state in this file, by node, once composed.
-    pub(crate) activities: std::cell::RefCell<
-        ryo_execution_domain::domain::executable_program::activation::types::Activities,
-    >,
-    /// The program, whose activation plan and layouts a node's activity is read from.
+    /// Whether each node can have a row or a row error in this file, by node.
+    pub(crate) activities:
+        &'p ryo_execution_domain::domain::executable_program::activation::types::Activities,
+    /// The program, whose layouts a dormant node answers in.
     pub(crate) program: &'p ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
+    /// What the lookup answered for each relation the file's triggers read: the file's one read of each.
+    pub(crate) read_at_open: FactReads<'p>,
 }
 
 /// What one file's kernels borrow besides rows: its symbols, bytes and tree, and the paths of the run's files.

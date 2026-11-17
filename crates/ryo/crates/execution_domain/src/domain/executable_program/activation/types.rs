@@ -111,7 +111,8 @@ pub enum TriggerPresence {
     Absent,
 }
 
-/// What one file holds of a plan's root kinds, by kind slot. A file whose reads are partial holds every kind.
+/// What one file holds of a plan's triggers: by kind slot and by fact slot. A file whose reads are refused or partial holds
+/// every trigger.
 ///
 /// # Examples
 ///
@@ -123,84 +124,8 @@ pub enum TriggerPresence {
 pub struct Triggers {
     /// Each root kind's presence, by kind slot.
     pub kinds: Vec<TriggerPresence>,
-}
-
-/// What a file's one read of a fact relation answered, as activation reads it.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::activation::types::FactAnswer;
-/// assert_ne!(FactAnswer::Rows, FactAnswer::NoRow);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FactAnswer {
-    /// Rows, or a file that cannot say it has none (a partial read).
-    Rows,
-    /// No row.
-    NoRow,
-    /// The read was refused: the reader runs and meets the refusal.
-    Refused,
-}
-
-/// The file's answers activation reads, handed in by the caller: what one read of a fact relation answered. Each relation is
-/// read once in the file, so its answer here is the read its readers get.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::activation::types::{ActivationLeaves, FactAnswer};
-/// use ryo_relations::domain::relations::types::Relation;
-/// struct Empty;
-/// impl ActivationLeaves for Empty {
-///     fn rows(&mut self, _relation: Relation) -> FactAnswer {
-///         FactAnswer::NoRow
-///     }
-/// }
-/// assert_eq!(Empty.rows(Relation::Function), FactAnswer::NoRow);
-/// ```
-pub trait ActivationLeaves {
-    /// What the file's one read of `relation` answered.
-    fn rows(&mut self, relation: Relation) -> FactAnswer;
-}
-
-/// What deciding a node's state came to.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::activation::types::NodeDecision;
-/// assert_ne!(NodeDecision::Refused, NodeDecision::Decided(Default::default()));
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NodeDecision {
-    /// Its state, from its inputs'.
-    Decided(NodeState),
-    /// A read on the way was refused: the node runs and meets the refusal.
-    Refused,
-}
-
-/// One operation's requirement over its inputs, as a decision reads it.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::activation::types::NodeInputs;
-/// use ryo_execution_domain::domain::operator::contract::presence::types::{InputMask, PresenceMask};
-/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
-/// let inputs = NodeInputs { node: PlanNodeId(0), rows: PresenceMask::Always, fallible: InputMask(0), from: &[] };
-/// assert!(inputs.from.is_empty());
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct NodeInputs<'p> {
-    /// The node.
-    pub node: PlanNodeId,
-    /// The inputs that must have a row for it to answer one.
-    pub rows: PresenceMask,
-    /// The inputs whose rows can make it fail.
-    pub fallible: InputMask,
-    /// Its inputs, in operand order.
-    pub from: &'p [ActivationInput],
+    /// Each fact relation's presence, by fact slot.
+    pub facts: Vec<TriggerPresence>,
 }
 
 /// Whether a node runs in the open file.
@@ -235,7 +160,7 @@ pub struct NodeState {
     pub faults: TriggerPresence,
 }
 
-/// Each node's state in the open file, by node id, once it was composed: cleared per file, keeping its room.
+/// Every node's state in the open file, by node id: refilled per file, keeping its room.
 ///
 /// # Examples
 ///
@@ -244,4 +169,4 @@ pub struct NodeState {
 /// assert!(Activities::default().0.is_empty());
 /// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Activities(pub Vec<Option<NodeState>>);
+pub struct Activities(pub Vec<NodeState>);

@@ -22,7 +22,7 @@ use std::sync::Arc;
 /// Delivers an operation whose listed inputs have no rows while the region that computes it runs. Each such input is
 /// the difference of its authored rows with themselves: its presence is that of the authored rows, which have some, so
 /// the operation's kernel is evaluated over an empty input instead of being found absent.
-pub(crate) fn compare_emptied(
+fn compare_emptied(
     operation: &Operation,
     inputs: &[Table],
     emptied: &[usize],

@@ -16,7 +16,7 @@ use ryo_values::domain::plans::types::Operation;
 use std::borrow::Cow;
 
 type Input = Program;
-/// Each node's activity in the file, asked in node order (`A` active, `D` dormant), then the relations read, in order.
+/// Each node's activity in the file: `A` active, `D` dormant, in node order.
 type Value = Cow<'static, str>;
 type Failure = OperatingError;
 
@@ -25,26 +25,6 @@ fn subject(program: Input) -> Result<Value, Failure> {
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_refused_fact_read_makes_its_reader_and_their_readers_run"),
-        word: Word::Succeeds,
-        input: || Program {
-            nodes: vec![
-                root(Vec::new()),
-                join(node(0), PlanInput::Relation(FACT), Vec::new()),
-                join(
-                    node(1),
-                    PlanInput::Relation(ryo_relations::domain::relations::types::Relation::Comment),
-                    Vec::new(),
-                ),
-            ],
-            roots: vec![(CLASS, vec![0])],
-            held: Vec::new(),
-            empty: Vec::new(),
-            refused: vec![FACT],
-        },
-        expect: Expect::Value(Cow::Borrowed("DAA; reads [Function, Comment]")),
-    },
     Case {
         name: CaseName("a_fallible_input_with_rows_keeps_a_rowless_node_running"),
         word: Word::Succeeds,
@@ -56,9 +36,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![0])],
             held: Vec::new(),
             empty: Vec::new(),
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("DA; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("DA")),
     },
     Case {
         name: CaseName("a_fault_carried_from_an_input_keeps_its_reader_running"),
@@ -73,9 +52,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![1])],
             held: Vec::new(),
             empty: Vec::new(),
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("ADAA; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("ADAA")),
     },
     Case {
         name: CaseName("a_live_node_runs_in_every_file"),
@@ -100,9 +78,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![0])],
             held: Vec::new(),
             empty: vec![FACT],
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("DAAA; reads []")),
+        expect: Expect::Value(Cow::Borrowed("DAAA")),
     },
     Case {
         name: CaseName("a_literal_pattern_select_with_rows_keeps_its_reader_running"),
@@ -116,9 +93,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![1])],
             held: Vec::new(),
             empty: Vec::new(),
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("ADA; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("ADA")),
     },
     Case {
         name: CaseName("a_root_select_with_a_fallible_suffix_keeps_its_reader_running"),
@@ -131,9 +107,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![0])],
             held: vec![CLASS],
             empty: vec![FACT],
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("AA; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("AA")),
     },
     Case {
         name: CaseName("a_root_select_with_a_fallible_suffix_is_dormant_where_its_kind_is_absent"),
@@ -146,9 +121,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![0])],
             held: Vec::new(),
             empty: vec![FACT],
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("DD; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("DD")),
     },
     Case {
         name: CaseName("a_hosted_node_is_live"),
@@ -167,9 +141,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: Vec::new(),
             held: Vec::new(),
             empty: vec![FACT],
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("AA; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("AA")),
     },
 ];
 

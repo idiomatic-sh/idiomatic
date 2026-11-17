@@ -10,7 +10,7 @@ use ryo_values::domain::plan_parts::types::StepScope;
 use std::borrow::Cow;
 
 type Input = Program;
-/// Each node's activity in the file, asked in node order (`A` active, `D` dormant), then the relations read, in order.
+/// Each node's activity in the file: `A` active, `D` dormant, in node order.
 type Value = Cow<'static, str>;
 type Failure = OperatingError;
 
@@ -30,9 +30,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![0])],
             held: Vec::new(),
             empty: Vec::new(),
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("DD; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("DD")),
     },
     Case {
         name: CaseName("a_root_of_two_kinds_runs_where_the_file_holds_either"),
@@ -45,9 +44,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![0]), ("function_definition", vec![0])],
             held: vec!["function_definition"],
             empty: Vec::new(),
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("AA; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("AA")),
     },
     Case {
         name: CaseName("an_antijoin_runs_where_its_left_has_rows_and_its_right_none"),
@@ -60,9 +58,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![0])],
             held: vec![CLASS],
             empty: vec![FACT],
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("AA; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("AA")),
     },
     Case {
         name: CaseName("a_union_runs_where_one_side_has_rows"),
@@ -72,9 +69,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![0])],
             held: Vec::new(),
             empty: Vec::new(),
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("DA; reads [Function]")),
+        expect: Expect::Value(Cow::Borrowed("DA")),
     },
     Case {
         name: CaseName("every_trigger_present_makes_every_node_active"),
@@ -89,9 +85,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             roots: vec![(CLASS, vec![0])],
             held: vec![CLASS],
             empty: Vec::new(),
-            refused: Vec::new(),
         },
-        expect: Expect::Value(Cow::Borrowed("AAAA; reads [Function, Function]")),
+        expect: Expect::Value(Cow::Borrowed("AAAA")),
     },
 ];
 
