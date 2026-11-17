@@ -107,16 +107,18 @@ pub(crate) fn opened(plan: &PhysicalPlan, buffers: &mut FileBuffers, at: IndexPl
         buffers.shared.opened(
             at,
             NodeReaders(u32::try_from(index.readers.len()).unwrap_or(u32::MAX)),
+            &mut buffers.indexes,
         );
     }
 }
 
-/// A probe of shared index `at` is done, whatever it answered: after the last of the file the index is emptied.
+/// A probe of shared index `at` is done, whatever it answered: after the last of the file the index gives its rows to the
+/// worker's index pool.
 pub(crate) fn closed(buffers: &mut FileBuffers, at: IndexPlace) {
     if let Some(shared) = buffers.shared.indexes.get_mut(at.0) {
         shared.remaining = NodeReaders(shared.remaining.0.saturating_sub(1));
         if shared.remaining == NodeReaders(0) {
-            shared.emptied();
+            shared.given_back(&mut buffers.indexes);
         }
     }
 }

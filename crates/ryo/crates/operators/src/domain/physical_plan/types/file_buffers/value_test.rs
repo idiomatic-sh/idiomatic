@@ -1,10 +1,15 @@
 //! Buffers answer no rows for a node they do not hold, and keep answering none once it is released; `retain` keeps the rows its
 //! predicate keeps, in their order, and every row when it keeps them all. A released node's table goes to the worker's pool,
-//! unless it is past the pool's cap on its room.
+//! unless it is past the pool's cap on its room. A released or ended shared index gives its rows to the worker's index pool,
+//! which keeps no more than its cap of them.
 use super::value::FileBuffers;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PredicateOutcome;
-use crate::domain::physical_plan::types::table_pool::value::PooledTables;
+use crate::domain::kept_room::constants::{KEPT_ROOM, POOL_INDEXES};
+use crate::domain::kept_room::types::{KeptRoom as _, PoolSize, Room};
+use crate::domain::physical_plan::types::IndexPlace;
+use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
+use crate::domain::physical_plan::types::shared_index::value::SharedIndex;
 use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::rows::service::push_row;
@@ -122,22 +127,22 @@ enum Pooled {
 }
 
 /// The pool cases: how many tables the worker's pool keeps after node 0 is released.
-const POOL_CASES: &[Case<Pooled, PooledTables, Failure>] = &[
+const POOL_CASES: &[Case<Pooled, PoolSize, Failure>] = &[
     Case {
         name: CaseName("a_released_nodes_table_goes_to_the_pool"),
         word: Word::Succeeds,
         input: || Pooled::Small,
-        expect: Expect::Value(PooledTables(1)),
+        expect: Expect::Value(PoolSize(1)),
     },
     Case {
         name: CaseName("a_table_too_large_is_dropped_not_pooled"),
         word: Word::Succeeds,
         input: || Pooled::TooManyCells,
-        expect: Expect::Value(PooledTables(0)),
+        expect: Expect::Value(PoolSize(0)),
     },
 ];
 
-fn pooled(given: Pooled) -> Result<PooledTables, Failure> {
+fn pooled(given: Pooled) -> Result<PoolSize, Failure> {
     let mut buffers = FileBuffers::default();
     let mut table = Table {
         kinds: vec![CellKind::Number],
@@ -149,10 +154,91 @@ fn pooled(given: Pooled) -> Result<PooledTables, Failure> {
     }
     buffers.nodes = vec![Some(table)];
     buffers.release(PlanNodeId(0));
-    Ok(buffers.pool.kept())
+    Ok(buffers.pool.len())
 }
 
 #[test]
 fn pools() {
     run(POOL_CASES, Word::Succeeds, pooled);
+}
+
+/// The shared indexes a worker holds before a file's end or a release gives them back.
+#[derive(Clone, Copy, Debug)]
+enum Shared {
+    /// 1,000 indexes the open file opened, each of `KEPT_ROOM` rows; then the file ends.
+    ManyEnded,
+    /// One index of a few rows, released with its last probe.
+    SmallReleased,
+    /// One index of 100 Ki rows, released with its last probe.
+    BigReleased,
+}
+
+/// The tables the worker's index pool keeps after the case, and the most room a shared index holds.
+type Given = (PoolSize, Room);
+
+const SHARED_CASES: &[Case<Shared, Given, Failure>] = &[
+    Case {
+        name: CaseName("a_worker_keeps_at_most_pool_indexes_past_a_file"),
+        word: Word::Succeeds,
+        input: || Shared::ManyEnded,
+        expect: Expect::Value((PoolSize(POOL_INDEXES), Room(0))),
+    },
+    Case {
+        name: CaseName("a_released_shared_index_holds_no_room"),
+        word: Word::Succeeds,
+        input: || Shared::SmallReleased,
+        expect: Expect::Value((PoolSize(1), Room(0))),
+    },
+    Case {
+        name: CaseName("a_released_shared_index_past_kept_room_is_dropped_not_pooled"),
+        word: Word::Succeeds,
+        input: || Shared::BigReleased,
+        expect: Expect::Value((PoolSize(0), Room(0))),
+    },
+];
+
+/// A shared index of `rows` rows.
+fn index_of(rows: usize) -> SharedIndex {
+    let mut keyed = KeyedRows::default();
+    keyed.next.resize(rows, NO_ROW);
+    SharedIndex {
+        rows: keyed,
+        ..SharedIndex::default()
+    }
+}
+
+fn given_back(given: Shared) -> Result<Given, Failure> {
+    let mut buffers = FileBuffers::default();
+    match given {
+        Shared::ManyEnded => {
+            buffers.shared.indexes = (0..1_000).map(|_| index_of(KEPT_ROOM)).collect();
+            buffers.shared.opened = (0..1_000).map(IndexPlace).collect();
+            buffers.ended();
+        }
+        Shared::SmallReleased | Shared::BigReleased => {
+            let rows = if let Shared::SmallReleased = given {
+                8
+            } else {
+                100 << 10
+            };
+            buffers.shared.indexes = vec![index_of(rows)];
+            buffers.shared.closing = vec![Some(IndexPlace(0))];
+            buffers.release(PlanNodeId(0));
+        }
+    }
+    Ok((
+        buffers.indexes.len(),
+        buffers
+            .shared
+            .indexes
+            .iter()
+            .map(|index| index.rows.room())
+            .max()
+            .unwrap_or_default(),
+    ))
+}
+
+#[test]
+fn gives_back_shared_indexes() {
+    run(SHARED_CASES, Word::Succeeds, given_back);
 }

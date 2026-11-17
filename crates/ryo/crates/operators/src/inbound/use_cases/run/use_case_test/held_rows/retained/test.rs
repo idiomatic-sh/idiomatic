@@ -3,11 +3,12 @@
 //! files after it.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::kept_room::constants::KEPT_ROOM;
-use crate::domain::kept_room::types::{KeptRoom as _, Room};
+use crate::domain::kept_room::constants::{KEPT_ROOM, POOL_INDEXES};
+use crate::domain::kept_room::types::{KeptRoom as _, PoolSize, Room};
 use crate::domain::physical_plan::fixtures::{DEFINES, Step, defines_rows};
 use crate::domain::physical_plan::types::Resources as _;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
@@ -34,12 +35,16 @@ enum Scenario {
     EndWork,
     /// A file that runs no node, in a program of few nodes and in one of many: the work of the file's end in each.
     EmptyEndWork,
-    /// A big file, then a small one: the room the shared probe indexes keep.
+    /// A big file, then a small one: the room the shared probe indexes keep, given to the worker's pool after the last probe.
     SharedRoom,
     /// A big file, then a small one: the room a filter's decisions about the file's names keep.
     MemoRoom,
     /// A big file, then a small one: the room the tables of the rows a union and a distinct projection kept keep.
     RepeatsRoom,
+    /// A streamed projection that drops repeats, its worker's index pool holding one emptied table.
+    PooledProjection,
+    /// A streamed probe of its own index, its worker's index pool holding two emptied tables.
+    PooledProbe,
 }
 
 /// What a case observed.
@@ -49,6 +54,8 @@ enum Observation {
     EndWork(EndWork, EndWork),
     /// Whether the big file grew the room past the cap, and whether the room kept after the small file's end is within it.
     Room { grew: bool, kept: bool },
+    /// The tables the worker's index pool keeps after the file's nodes ran.
+    Pooled(PoolSize),
 }
 
 type Input = Scenario;
@@ -69,11 +76,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Observation::EndWork(EndWork(0), EndWork(0))),
     },
     Case {
-        name: CaseName("a_big_files_shared_index_room_is_not_kept_past_the_cap"),
+        name: CaseName("a_big_files_shared_index_gives_its_room_back_in_the_file"),
         word: Word::Succeeds,
         input: || Scenario::SharedRoom,
         expect: Expect::Value(Observation::Room {
-            grew: true,
+            grew: false,
             kept: true,
         }),
     },
@@ -94,6 +101,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             grew: true,
             kept: true,
         }),
+    },
+    Case {
+        name: CaseName("a_prepared_stage_reuses_pooled_room"),
+        word: Word::Succeeds,
+        input: || Scenario::PooledProjection,
+        expect: Expect::Value(Observation::Pooled(PoolSize(1))),
+    },
+    Case {
+        name: CaseName("a_prepared_probe_of_its_own_index_reuses_pooled_room"),
+        word: Word::Succeeds,
+        input: || Scenario::PooledProbe,
+        expect: Expect::Value(Observation::Pooled(PoolSize(2))),
     },
 ];
 
@@ -189,15 +208,15 @@ fn select(test: Test, text: &str) -> Step {
     )
 }
 
-/// The names of `DEFINES`, their repeats `distinct`.
-fn names(distinct: RepeatedRows) -> Step {
+/// The names of `from`'s rows of `DEFINES`, their repeats `distinct`.
+fn names(from: (StepInput, PlanInput), distinct: RepeatedRows) -> Step {
     step(
         Operation::Project {
-            from: defines().0,
+            from: from.0,
             columns: vec![ColumnIndex(3)],
             distinct,
         },
-        &[defines().1],
+        &[from.1],
     )
 }
 
@@ -294,8 +313,8 @@ fn end_work(others: u32, runs: Runs) -> Result<EndWork, Failure> {
 fn rooms() -> Result<[RetainedRoom; 2], Failure> {
     let steps = [
         select(Test::StartsWith, "n"),
-        names(RepeatedRows::Dropped),
-        names(RepeatedRows::Kept),
+        names(defines(), RepeatedRows::Dropped),
+        names(defines(), RepeatedRows::Kept),
         step(
             Operation::Union {
                 left: node(1).0,
@@ -336,6 +355,22 @@ fn room(of: fn(RetainedRoom) -> Room) -> Result<Observation, Failure> {
     })
 }
 
+/// The tables the worker's index pool keeps after the small file runs a select of its names and `stage` over it, the pool
+/// holding `tables` emptied tables of 1 Ki rows' room before: as many when each stage readied its buffers from the pool.
+fn pooled(stage: Step, tables: usize) -> Result<Observation, Failure> {
+    let plan = plan_of(&[select(Test::StartsWith, "n"), stage], &[PlanNodeId(1)])?;
+    let mut buffers = FileBuffers::default();
+    for _ in 0..tables {
+        let mut rows = KeyedRows::default();
+        rows.next.resize(1 << 10, NO_ROW);
+        buffers.indexes.pooled(rows, PoolSize(POOL_INDEXES));
+    }
+    let (mut resources, table) = file(SMALL);
+    let inputs = TableInputs::new(&[(DEFINES, &table)]);
+    ran(&plan, PlanNodeId(1), &mut buffers, &inputs, &mut resources)?;
+    Ok(Observation::Pooled(buffers.indexes.len()))
+}
+
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::EndWork => Ok(Observation::EndWork(
@@ -349,6 +384,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::SharedRoom => room(|room| room.shared),
         Scenario::MemoRoom => room(|room| room.memo),
         Scenario::RepeatsRoom => room(|room| room.repeats),
+        Scenario::PooledProjection => pooled(names(node(0), RepeatedRows::Dropped), 1),
+        Scenario::PooledProbe => pooled(probe(node(0)), 2),
     }
 }
 

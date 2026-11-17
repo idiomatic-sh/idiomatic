@@ -1,7 +1,8 @@
-//! An emptied shared index holds no key, no row and no probe still to come, so the next probe builds it anew; an index the
-//! open file opened, closed and opened again is listed once, and the file's end empties it and lists none.
+//! A shared index given back holds no key, no row and no probe still to come, so the next probe builds it anew; an index the
+//! open file opened, closed and opened again is listed once, and the file's end gives it back and lists none.
 use super::value::{SharedIndex, SharedIndexes};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::kept_room::types::kept_pool::value::KeptPool;
 use crate::domain::physical_plan::types::keyed_rows::value::{
     IndexKeyHash, IndexedRow, KeyedRun, NO_ROW,
 };
@@ -11,9 +12,9 @@ use ryo_values::domain::rows::types::RowCount;
 /// What a case does to an index of one key and one row, two probes still to come.
 #[derive(Clone, Copy, Debug)]
 enum Given {
-    /// Empties it.
-    Emptied,
-    /// Opens it among two indexes, empties it, opens it again: the indexes listed.
+    /// Gives it back.
+    GivenBack,
+    /// Opens it among two indexes, gives it back, opens it again: the indexes listed.
     OpenedTwice,
     /// Opens it among two indexes, then ends the file.
     Ended,
@@ -25,9 +26,9 @@ type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("an_emptied_index_holds_nothing_for_the_next_file"),
+        name: CaseName("an_index_given_back_holds_nothing_for_the_next_file"),
         word: Word::Succeeds,
-        input: || Given::Emptied,
+        input: || Given::GivenBack,
         expect: Expect::Value((0, 0, NodeReaders(0), 0)),
     },
     Case {
@@ -63,28 +64,29 @@ fn built() -> SharedIndex {
 }
 
 fn subject(given: Input) -> Result<Value, Failure> {
+    let mut pool = KeptPool::default();
     let mut shared = SharedIndexes {
         indexes: vec![SharedIndex::default(), built()],
         ..SharedIndexes::default()
     };
     let at = IndexPlace(1);
     match given {
-        Given::Emptied => {
+        Given::GivenBack => {
             if let Some(index) = shared.indexes.get_mut(at.0) {
                 index.remaining = NodeReaders(2);
-                index.emptied();
+                index.given_back(&mut pool);
             }
         }
         Given::OpenedTwice => {
-            shared.opened(at, NodeReaders(2));
+            shared.opened(at, NodeReaders(2), &mut pool);
             if let Some(index) = shared.indexes.get_mut(at.0) {
-                index.emptied();
+                index.given_back(&mut pool);
             }
-            shared.opened(at, NodeReaders(2));
+            shared.opened(at, NodeReaders(2), &mut pool);
         }
         Given::Ended => {
-            shared.opened(at, NodeReaders(2));
-            shared.ended();
+            shared.opened(at, NodeReaders(2), &mut pool);
+            shared.ended(&mut pool);
         }
     }
     let index = shared.indexes.get(at.0).ok_or(())?;

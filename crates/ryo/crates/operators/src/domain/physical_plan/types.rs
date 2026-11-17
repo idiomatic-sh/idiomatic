@@ -16,7 +16,6 @@ pub mod physical_plan;
 pub mod rule_ordinal;
 pub(crate) mod shared_index;
 pub(crate) mod stream_scratch;
-pub(crate) mod table_pool;
 pub(crate) mod touched_nodes;
 pub(crate) mod visited_set;
 pub(crate) mod walk_scratch;

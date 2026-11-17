@@ -54,3 +54,27 @@ impl crate::domain::kept_room::types::KeptRoom for KeyedRows {
         self.keys.room().max(self.next.room())
     }
 }
+
+/// A keyed-row table a worker's pool keeps: within the room any scratch keeps past a file.
+impl crate::domain::kept_room::types::Poolable for KeyedRows {
+    fn fits(&self) -> crate::domain::kept_room::types::RoomFit {
+        use crate::domain::kept_room::constants::KEPT_ROOM;
+        if self.keys.capacity() <= KEPT_ROOM && self.next.capacity() <= KEPT_ROOM {
+            crate::domain::kept_room::types::RoomFit::Fits
+        } else {
+            crate::domain::kept_room::types::RoomFit::Exceeds
+        }
+    }
+
+    fn held(&self) -> crate::domain::kept_room::types::RoomHeld {
+        if self.keys.capacity() == 0 && self.next.capacity() == 0 {
+            crate::domain::kept_room::types::RoomHeld::Empty
+        } else {
+            crate::domain::kept_room::types::RoomHeld::Holds
+        }
+    }
+
+    fn emptied(&mut self) {
+        self.cleared();
+    }
+}

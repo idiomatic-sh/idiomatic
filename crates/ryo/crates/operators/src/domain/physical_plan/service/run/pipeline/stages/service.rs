@@ -33,8 +33,8 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// The output kinds of stage `node`, lowered to `lowering`, over input rows of `input`, and what its preparation left, in
 /// its held kernel's order: an extension's values resolved before its kinds, left empty when they fault; a probe's right
-/// side's fault before its kinds, which it leaves empty. A filter's memo is readied; a tail's
-/// repeats are emptied. A probe does its right side's work only at its first left row, as its held kernel does none for a
+/// side's fault before its kinds, which it leaves empty. A filter's memo is readied; a stage's repeats, and a probe's own
+/// index, are readied with room from the worker's index pool. A probe does its right side's work only at its first left row, as its held kernel does none for a
 /// left of no row.
 ///
 /// # Errors
