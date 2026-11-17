@@ -6,7 +6,7 @@ the product's directory.
 
     uv run ../../ci/scripts/checks/sdk_api.py
 
-The SDK is named by `[workspace.metadata.api]` of the `Cargo.toml` in the current directory; a product that names none passes.
+The SDK is named by `[workspace.metadata.api]` `package` of the `Cargo.toml` in the current directory; a product that names none passes.
 The SDK is read with all its features, the test-support `fixtures` feature included, so no feature widens the surface unrecorded;
 see `check`.
 The rustdoc JSON (written by the pinned nightly, `doc(hidden)` items included) must reach no type of an internal crate, `cargo public-api` must print the listing
@@ -157,7 +157,8 @@ def check(directory: Path) -> None:
     # Only this check owns these names. Never publish a previous run's comparison after an earlier tool failure.
     for name in ("actual.txt", "recorded.txt", "diff.txt", "metadata.json"):
         (evidence / name).unlink(missing_ok=True)
-    if not api:
+    # The SDK is its `package`: a product with no SDK may still pin `nightly` there, for `test-doc` (asymptote-config 0.9.0).
+    if "package" not in api:
         return
     root = toplevel(directory)
     workspace = directory.resolve().relative_to(root.resolve()).as_posix()

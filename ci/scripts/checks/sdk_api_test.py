@@ -161,6 +161,15 @@ def test_a_product_that_names_no_api_passes_without_running_anything(tmp_path, m
     assert calls == []
 
 
+def test_a_product_that_pins_only_the_doctest_nightly_names_no_api_and_passes(tmp_path, monkeypatch) -> None:
+    # asymptote-config 0.9.0's `test-doc` reads `nightly` from `[workspace.metadata.api]`; a product with no SDK pins it alone.
+    (tmp_path / "Cargo.toml").write_text('[workspace]\n\n[workspace.metadata.api]\nnightly = "nightly-2026-08-01"\n')
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda argv, **options: calls.append(argv))
+    sdk_api.check(tmp_path)
+    assert calls == []
+
+
 # The manifests of the baseline the last check handed to semver-checks.
 CHECKED: list[str] = []
 
