@@ -101,7 +101,10 @@ fn seen(reads: &[RelationRead]) -> Cow<'static, [Seen]> {
                 .iter()
                 .map(|kind| match &kind.right {
                     Operand::Literal(QueryLiteral::Text(text)) => Cow::Owned(text.0.to_string()),
-                    other => Cow::Owned(format!("{other:?}")),
+                    other @ (Operand::Column(_)
+                    | Operand::Parameter(_)
+                    | Operand::Literal(QueryLiteral::Number(_))
+                    | Operand::Function(_)) => Cow::Owned(format!("{other:?}")),
                 })
                 .collect(),
         })
