@@ -4,6 +4,10 @@ The value objects ryo's crates name across their boundaries: the files of a run,
 
 ## Domains
 
+### `band_joins`
+
+The `values` domain's `band_joins` concept: a join whose `where` compares its sides in order, its band and its answer.
+
 ### `compact_table`
 
 The values domain's `compact_table` concept: a table of packed words read in place, never decoded whole.

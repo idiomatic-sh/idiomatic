@@ -142,61 +142,6 @@ pub enum KeyFan {
     AllPairs,
 }
 
-/// How a band edge compares the right column with the left one.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_values::domain::plan_parts::types::BandTest;
-/// assert_ne!(BandTest::Below, BandTest::AtOrBelow);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum BandTest {
-    /// The right value is less than the left one.
-    Below,
-    /// The right value is at most the left one.
-    AtOrBelow,
-    /// The right value is greater than the left one.
-    Above,
-    /// The right value is at least the left one.
-    AtOrAbove,
-}
-
-/// One comparison of a band join between a left column and a right column: `right test left`.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_values::domain::plan_parts::types::{BandEdge, BandTest, ColumnIndex};
-/// let edge = BandEdge { left: ColumnIndex(0), test: BandTest::Below, right: ColumnIndex(1) };
-/// assert_eq!(edge.test, BandTest::Below);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct BandEdge {
-    /// The left column.
-    pub left: ColumnIndex,
-    /// How the right value compares with the left one.
-    pub test: BandTest,
-    /// The right column.
-    pub right: ColumnIndex,
-}
-
-/// Which right rows of its band a band join answers for each left row.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_values::domain::plan_parts::types::BandAnswer;
-/// assert_ne!(BandAnswer::Every, BandAnswer::Nearest);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum BandAnswer {
-    /// Every right row in the band: `join` and `all-pairs join`.
-    Every,
-    /// The right rows nearest the left row by the first edge, ties all kept: `nearest join`.
-    Nearest,
-}
-
 /// A column a join keeps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct JoinColumn {

@@ -3,6 +3,7 @@
 
 use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
 use ryo_relations::domain::relations::types::{Column, Relation};
+use ryo_values::domain::band_joins::types::BandJoin;
 
 use super::errors::VisitError;
 use super::types::{
@@ -125,7 +126,7 @@ fn reads_role(operation: &Operation) -> RoleRead {
             view,
             ..
         }
-        | Operation::BandJoin {
+        | Operation::BandJoin(BandJoin {
             left,
             right,
             left_on,
@@ -134,7 +135,7 @@ fn reads_role(operation: &Operation) -> RoleRead {
             filter,
             view,
             ..
-        } => {
+        }) => {
             (edges(*right) == EdgeInput::Edges
                 && (view.contains(&role_column())
                     || right_on.contains(&role_column())

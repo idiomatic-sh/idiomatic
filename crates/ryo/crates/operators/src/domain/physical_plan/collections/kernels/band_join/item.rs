@@ -5,20 +5,21 @@
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
-use crate::domain::band_join::service::test_of;
-use crate::domain::band_join::types::BandParts;
 use crate::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
 use crate::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
+use crate::domain::equality_join::service::test_of;
+use crate::domain::equality_join::types::BandParts;
 use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::InputRows;
 use crate::domain::physical_plan::types::lowering::value::BandJoinNode;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::table_texts::service::datum;
-use crate::domain::table_texts::types::{Datum, Texts};
+use crate::domain::table_texts::types::{Datum, TextView, Texts};
 use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::{BandAnswer, BandTest, ColumnIndex, Side, WholeNumber};
+use ryo_values::domain::band_joins::types::{BandAnswer, BandTest};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Side, WholeNumber};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 use std::cmp::Ordering;
 
@@ -39,7 +40,7 @@ impl KernelsItem for BandJoinItem {
 
 impl Operator for BandJoinNode {
     fn growth(&self) -> Growth {
-        Growth::Banded(crate::domain::band_join::service::fan(&self.band))
+        Growth::Banded(crate::domain::equality_join::service::band_fan(&self.band))
     }
 }
 
@@ -50,7 +51,7 @@ enum Rank<'a> {
     /// A number.
     Number(WholeNumber),
     /// A text.
-    Text(&'a str),
+    Text(TextView<'a>),
     /// Neither: never less or greater than anything.
     Unordered,
 }
@@ -72,7 +73,25 @@ struct Paired {
     /// The left row.
     left: RowIndex,
     /// The right row.
-    right: u32,
+    right: RowIndex,
+}
+
+/// A right row in the band's order: its index and the rank of its first-edge cell.
+#[derive(Clone, Copy, Debug)]
+struct Placed<'a> {
+    /// The row.
+    row: RowIndex,
+    /// The rank of its cell in the band's first edge.
+    rank: Rank<'a>,
+}
+
+/// Which side of a split the right rows whose rank equals the left one's fall on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Ties {
+    /// Below the split: counted among the rows below.
+    Below,
+    /// Above the split.
+    Above,
 }
 
 /// The cell of `rows` at `row` and `column`: the kernel's one accessor.
@@ -88,7 +107,7 @@ fn cell(
 fn rank<'a>(value: Value, texts: &Texts<'a>) -> Rank<'a> {
     match datum(value, texts) {
         Datum::Number(number) => Rank::Number(number),
-        Datum::Text(text) => Rank::Text(text.0),
+        Datum::Text(text) => Rank::Text(text),
         Datum::Unlocated | Datum::Flag(_) | Datum::Numbers(_) | Datum::Texts(_) => Rank::Unordered,
     }
 }
@@ -151,20 +170,21 @@ pub(crate) fn banded(
     // The right rows' keys and first-edge ranks, read once; the order is a permutation of their indexes.
     let count = count_of(right).0;
     let mut keys = Vec::with_capacity(count);
-    let mut ranks = Vec::with_capacity(count);
+    let mut order = Vec::with_capacity(count);
     let mut key = Vec::new();
     for at in 0..count {
         key_of(right, RowIndex(at), &parts.right_on, &mut key)?;
         keys.push(key.clone());
-        ranks.push(rank(cell(right, RowIndex(at), first.right)?, &texts));
+        order.push(Placed {
+            row: RowIndex(at),
+            rank: rank(cell(right, RowIndex(at), first.right)?, &texts),
+        });
     }
-    let mut order: Vec<u32> = (0..u32::try_from(count).unwrap_or(u32::MAX)).collect();
-    let at = |row: u32| usize::try_from(row).unwrap_or(usize::MAX);
     order.sort_by(|a, b| {
-        keys.get(at(*a))
-            .cmp(&keys.get(at(*b)))
-            .then_with(|| ranks.get(at(*a)).cmp(&ranks.get(at(*b))))
-            .then_with(|| a.cmp(b))
+        keys.get(a.row.0)
+            .cmp(&keys.get(b.row.0))
+            .then_with(|| a.rank.cmp(&b.rank))
+            .then_with(|| a.row.cmp(&b.row))
     });
     let mut pairs = Vec::new();
     let mut found = Vec::new();
@@ -176,43 +196,42 @@ pub(crate) fn banded(
             continue;
         }
         // The right rows of the key, and of them those whose rank is of the left one's class.
-        let start = order.partition_point(|each| keys.get(at(*each)).is_some_and(|k| *k < key));
-        let end = order.partition_point(|each| keys.get(at(*each)).is_some_and(|k| *k <= key));
+        let start = order.partition_point(|each| keys.get(each.row.0).is_some_and(|k| *k < key));
+        let end = order.partition_point(|each| keys.get(each.row.0).is_some_and(|k| *k <= key));
         let run = order.get(start..end).unwrap_or_default();
-        let rank_of = |each: &u32| ranks.get(at(*each)).copied().unwrap_or(Rank::Unordered);
-        let low = run.partition_point(|each| class(rank_of(each)) < class(wanted));
-        let high = run.partition_point(|each| class(rank_of(each)) <= class(wanted));
+        let low = run.partition_point(|each| class(each.rank) < class(wanted));
+        let high = run.partition_point(|each| class(each.rank) <= class(wanted));
         let segment = run.get(low..high).unwrap_or_default();
-        let below = |strict: bool| {
-            segment.partition_point(|each| match rank_of(each).cmp(&wanted) {
+        let below = |ties: Ties| {
+            segment.partition_point(|each| match each.rank.cmp(&wanted) {
                 Ordering::Less => true,
-                Ordering::Equal => !strict,
+                Ordering::Equal => ties == Ties::Below,
                 Ordering::Greater => false,
             })
         };
         let band = match first.test {
-            BandTest::Below => segment.get(..below(true)),
-            BandTest::AtOrBelow => segment.get(..below(false)),
-            BandTest::Above => segment.get(below(false)..),
-            BandTest::AtOrAbove => segment.get(below(true)..),
+            BandTest::Below => segment.get(..below(Ties::Above)),
+            BandTest::AtOrBelow => segment.get(..below(Ties::Below)),
+            BandTest::Above => segment.get(below(Ties::Below)..),
+            BandTest::AtOrAbove => segment.get(below(Ties::Above)..),
         }
         .unwrap_or_default();
         let kept = match (parts.answer, first.test) {
             (BandAnswer::Every, _) => band,
             (BandAnswer::Nearest, BandTest::Below | BandTest::AtOrBelow) => {
-                let nearest = band.last().map(rank_of);
-                band.get(band.partition_point(|each| Some(rank_of(each)) < nearest)..)
+                let nearest = band.last().map(|each| each.rank);
+                band.get(band.partition_point(|each| Some(each.rank) < nearest)..)
                     .unwrap_or_default()
             }
             (BandAnswer::Nearest, BandTest::Above | BandTest::AtOrAbove) => {
-                let nearest = band.first().map(rank_of);
-                band.get(..band.partition_point(|each| Some(rank_of(each)) <= nearest))
+                let nearest = band.first().map(|each| each.rank);
+                band.get(..band.partition_point(|each| Some(each.rank) <= nearest))
                     .unwrap_or_default()
             }
         };
         found.clear();
         for each in kept {
-            let other = RowIndex(at(*each));
+            let other = each.row;
             let mut inside = true;
             for edge in parts.band.get(1..).unwrap_or_default() {
                 let theirs = datum(cell(right, other, edge.right)?, &texts);
@@ -223,7 +242,7 @@ pub(crate) fn banded(
                 inside &= held == PredicateOutcome::Holds;
             }
             if inside {
-                found.push(*each);
+                found.push(each.row);
             }
         }
         found.sort_unstable();
@@ -236,7 +255,7 @@ pub(crate) fn banded(
         for column in &parts.output {
             output.cells.push(match column.side {
                 Side::Left => cell(left, pair.left, column.column)?,
-                Side::Right => cell(right, RowIndex(at(pair.right)), column.column)?,
+                Side::Right => cell(right, pair.right, column.column)?,
             });
         }
     }

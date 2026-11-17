@@ -5,6 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::query_requests::types::QueryRequest;
 
 type Input = fn();
@@ -284,10 +285,10 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
             filter: comparisons,
             ..
         }
-        | Operation::BandJoin {
+        | Operation::BandJoin(BandJoin {
             filter: comparisons,
             ..
-        } => comparisons
+        }) => comparisons
             .iter()
             .find_map(|comparison| match comparison.origin {
                 ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(id) => Some(id),

@@ -11,8 +11,9 @@ use crate::domain::physical_plan::fixtures::ordered::{
     EDGES, OrderedShape, ordered_existence, ordered_existence_pair, ordered_rows,
 };
 use crate::domain::physical_plan::fixtures::{
-    DEFINES, Step, defines_rows, over_defines, over_nodes, text_program,
+    DEFINES, Step, defines_rows, over_defines, over_nodes,
 };
+use crate::domain::physical_plan::fixtures::text::text_program;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;

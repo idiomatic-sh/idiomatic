@@ -8,6 +8,10 @@ The RyoQL front end: the parser, the lowering and the plan a query compiles to; 
 
 The `query_language` domain's `assembling` concept: a validated program lowered to a plan, by calling the concepts that lower each kind of step.
 
+### banding
+
+The `query_language` domain's `banding` concept: a join's `where` split into its band, the order comparisons between its sides, and the conditions the filter after the join keeps.
+
 ### binding
 
 The `query_language` domain's `binding` concept: what a call binds its fragment's inputs and parameters to.
@@ -43,6 +47,10 @@ The `query_language` domain's `distinctness` concept: whether the rows of a step
 ### expanding
 
 The `query_language` domain's `expanding` concept: the expansion of every imported-fragment call into fresh, identity-linked steps.
+
+### fanning
+
+The `query_language` domain's `fanning` concept: what each join's keys are proven to pair, stamped on the plan before it crosses to the operators.
 
 ### fusing
 
@@ -111,6 +119,10 @@ The `query_language` domain's `remapping` concept: the rewriting of a fragment s
 ### rendering
 
 The `query_language` domain's `rendering` concept: the calls that read the physical text of the syntax tree, its rendering of a node and the width of a replacement.
+
+### rerouting
+
+The `query_language` domain's `rerouting` concept: an operation that reads one step made to read another in its place, each column it names there renamed.
 
 ### reshaping
 

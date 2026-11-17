@@ -11,6 +11,7 @@ use crate::domain::planning::service::planned_scope;
 use crate::domain::pruning::service::without_unused_roots;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::service::remapped;
@@ -136,7 +137,7 @@ fn gain_of(steps: &[PlanStep], memo: &mut LineageMemo, input: Input) -> FilterGa
             reach: None,
             ..
         }
-        | Operation::BandJoin { left, left_on, .. } => {
+        | Operation::BandJoin(BandJoin { left, left_on, .. }) => {
             if keyed_on_file_alone(steps, memo, *left, left_on) == FileKeyed::Alone {
                 FilterGain::Pays
             } else {

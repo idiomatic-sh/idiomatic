@@ -4,6 +4,7 @@ use super::types::{
     AxisResources, BindingUse, Filtering, IndexColumns, JoinResources, ResourceProgram,
 };
 use crate::domain::derived_views::types::DfsResources;
+use ryo_values::domain::band_joins::types::BandJoin;
 
 pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -> ResourceProgram {
     use ryo_values::domain::plans::types::Operation;
@@ -50,13 +51,13 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
             },
             reach: reach.clone(),
         }),
-        Operation::BandJoin {
+        Operation::BandJoin(BandJoin {
             left_on,
             right_on,
             filter,
             view,
             ..
-        } => ResourceProgram::Join(JoinResources {
+        }) => ResourceProgram::Join(JoinResources {
             left_on: left_on.clone(),
             right_on: right_on.clone(),
             view: view.clone(),
@@ -176,7 +177,9 @@ pub(crate) fn binding_dependent(
             comparisons.as_slice()
         }
         ryo_values::domain::plans::types::Operation::Join { filter, .. }
-        | ryo_values::domain::plans::types::Operation::BandJoin { filter, .. } => filter.as_slice(),
+        | ryo_values::domain::plans::types::Operation::BandJoin(BandJoin { filter, .. }) => {
+            filter.as_slice()
+        }
         ryo_values::domain::plans::types::Operation::Axis { domain_filter, .. } => {
             domain_filter.as_slice()
         }

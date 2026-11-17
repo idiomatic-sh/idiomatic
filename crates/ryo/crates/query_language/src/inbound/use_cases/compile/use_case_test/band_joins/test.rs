@@ -4,14 +4,15 @@
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::distinctness::service::fanned;
+use crate::domain::fanning::service::fanned;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::Builder;
 use crate::domain::selecting::service::lower_select;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::selects;
-use ryo_values::domain::plan_parts::types::{BandAnswer, KeyFan};
+use ryo_values::domain::band_joins::types::{BandAnswer, BandJoin};
+use ryo_values::domain::plan_parts::types::KeyFan;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_syntax::types::Expression;
 use ryo_values::domain::query_tokens::types::QueryView;
@@ -140,9 +141,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
         .iter()
         .filter_map(|step| match &step.operation {
             Operation::Join { fan, .. } => Some(Joined::Equal(*fan)),
-            Operation::BandJoin {
+            Operation::BandJoin(BandJoin {
                 answer, band, fan, ..
-            } => Some(Joined::Band(*answer, band.len(), *fan)),
+            }) => Some(Joined::Band(*answer, band.len(), *fan)),
             _ => None,
         })
         .collect())

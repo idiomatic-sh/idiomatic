@@ -124,7 +124,7 @@ fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<K
         | Operation::Project { .. }
         | Operation::Extend { .. }
         | Operation::Join { .. }
-        | Operation::BandJoin { .. }
+        | Operation::BandJoin(_)
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Capture { .. }

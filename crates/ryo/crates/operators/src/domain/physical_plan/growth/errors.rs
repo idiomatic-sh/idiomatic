@@ -1,4 +1,4 @@
-//! The refusal of the `growth` concept's plan check.
+//! The refusal of the plan's growth check.
 
 /// Why the plan check refused a plan.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -12,8 +12,8 @@ pub(crate) enum GrowthError {
         /// The node that causes the growth.
         node: crate::domain::physical_plan::types::PlanNodeId,
         /// Its growth.
-        growth: super::types::Growth,
+        growth: crate::domain::growth::types::Growth,
         /// The degree in rows of its output or its work.
-        degree: super::types::Degree,
+        degree: crate::domain::growth::types::Degree,
     },
 }

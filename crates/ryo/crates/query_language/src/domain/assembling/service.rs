@@ -3,7 +3,7 @@
 //! `Relation`, a column becomes its position, a step becomes its number, a test becomes an enum.
 //! Nothing after this works on names.
 
-use crate::domain::distinctness::service::fanned;
+use crate::domain::fanning::service::fanned;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::Vocabulary;
 

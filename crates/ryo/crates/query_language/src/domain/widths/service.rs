@@ -2,6 +2,7 @@
 
 use super::types::InputWidth;
 use ryo_relations::domain::relations::service::columns;
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
@@ -22,7 +23,9 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
                     counted(kept)
                 }
             }
-            Operation::Join { output, .. } | Operation::BandJoin { output, .. } => counted(output),
+            Operation::Join { output, .. } | Operation::BandJoin(BandJoin { output, .. }) => {
+                counted(output)
+            }
             Operation::Project { columns, .. } => counted(columns),
             Operation::Axis { from, output, .. } => {
                 if output.is_empty() {

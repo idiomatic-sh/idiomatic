@@ -63,7 +63,7 @@ pub(crate) fn empty_results(operation: &Operation, inputs: &[InputShape<'_>]) ->
         | Operation::Project { .. }
         | Operation::Extend { .. }
         | Operation::Join { .. }
-        | Operation::BandJoin { .. }
+        | Operation::BandJoin(_)
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -152,7 +152,7 @@ pub(crate) fn output_layout(
         Operation::Project { .. }
         | Operation::Extend { .. }
         | Operation::Join { .. }
-        | Operation::BandJoin { .. }
+        | Operation::BandJoin(_)
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
