@@ -19,13 +19,15 @@ pub(crate) struct StreamScratch {
     pub(crate) levels: Vec<ChainScratch>,
 }
 
-/// One chain's scratch: its nodes, head first, a head row, and each stage's state.
+/// One chain's scratch: its nodes, head first, a head row, the head's chunk, and each stage's state.
 #[derive(Debug, Default)]
 pub(crate) struct ChainScratch {
     /// The chain's nodes, from the head stage to the tail.
     pub(crate) chain: Vec<PlanNodeId>,
     /// A head row, decoded from a relation's columns or the tree.
     pub(crate) row: Vec<Value>,
+    /// The head's rows decoded for one call of the head stage, no more cells than the bound.
+    pub(crate) head: Table,
     /// Each stage's state, by its place in the chain.
     pub(crate) stages: Vec<StageScratch>,
 }
@@ -100,6 +102,21 @@ impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
             .map(|stage| stage.own.repeats.room().max(stage.own.index.room()))
             .max()
             .unwrap_or_default()
+    }
+}
+
+impl ChainScratch {
+    /// Empties the chain after its run: its head chunk and each stage, none keeping more room in its tables than the bound.
+    pub(crate) fn settled(&mut self) {
+        self.head.kinds.clear();
+        self.head.cells.clear();
+        self.head.count = RowCount(0);
+        if self.head.cells.capacity() > STREAM_CHUNK_CELLS {
+            self.head.cells.shrink_to(STREAM_CHUNK_CELLS);
+        }
+        for stage in &mut self.stages {
+            stage.settled();
+        }
     }
 }
 

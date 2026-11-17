@@ -13,10 +13,13 @@ use crate::domain::physical_plan::types::{
 };
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::types::{Offset, Relation, Span, Value as Cell};
+use ryo_relations::domain::relations::fixtures::node_id;
+use ryo_relations::domain::relations::types::{
+    FileId, Integer, NodeId, Offset, Position, Relation, Span, Value as Cell,
+};
 use ryo_values::domain::plan_parts::types::{
     CapturePattern, ColumnIndex, Input as StepInput, JoinColumn, LiteralText, Operand,
-    PlanComparison, QueryLiteral, Side, StepId, StepScope, Test,
+    PlanComparison, QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::Table;
@@ -48,6 +51,8 @@ pub(crate) struct Ran {
     pub(crate) outcome: Result<Vec<Vec<String>>, Outcome>,
     /// How many node tables the run formed.
     pub(crate) formed: u32,
+    /// How many times the first file's chains called a stage.
+    pub(crate) stage_calls: usize,
     /// The worker's buffers after the run.
     pub(crate) buffers: FileBuffers,
 }
@@ -117,13 +122,24 @@ pub(crate) fn ran_steps(
     texts: &[&str],
     tables: &dyn Fn(&TextResources) -> Vec<(Relation, Table)>,
 ) -> Result<Ran, PortableOperatorFault> {
-    let mut resources = TextResources::new(texts);
+    ran_in(run, twin, TextResources::new(texts), tables, Vec::new())
+}
+
+/// Runs `run.steps` as `ran_steps` does, over the file of `resources` (its texts and its tree) and the relations `tables`
+/// makes from it, the engine naming `roots` as every node's tree nodes.
+pub(crate) fn ran_in(
+    run: &Steps<'_>,
+    twin: bool,
+    mut resources: TextResources,
+    tables: &dyn Fn(&TextResources) -> Vec<(Relation, Table)>,
+    roots: Vec<NodeId>,
+) -> Result<Ran, PortableOperatorFault> {
     let held = tables(&resources);
     let lent: Vec<(Relation, &Table)> = held
         .iter()
         .map(|(relation, table)| (*relation, table))
         .collect();
-    let inputs = TableInputs::new(&lent);
+    let inputs = TableInputs::new(&lent).with_roots(roots);
     let mut logical = LogicalProgram::new();
     for step in run.steps {
         let _id = logical.node(LogicalNode {
@@ -179,6 +195,7 @@ pub(crate) fn ran_steps(
         None => answer.clone().map_err(Outcome::Fault),
     };
     let formed = buffers.meter.formed.0;
+    let stage_calls = buffers.stage_calls.0;
     // The file ends: the engine releases every node, and the warm worker runs the next file of the same rows.
     for node in (0..u32::try_from(run.steps.len()).unwrap_or(u32::MAX)).map(PlanNodeId) {
         buffers.release(node);
@@ -191,6 +208,7 @@ pub(crate) fn ran_steps(
         answer,
         fed,
         formed,
+        stage_calls,
         buffers,
     })
 }
@@ -217,6 +235,117 @@ pub(crate) fn agrees(planned: &Ran, twin: &Ran) -> bool {
             (Some(planned), Some(twin)) => planned == twin,
             (None, _) | (_, None) => true,
         })
+}
+
+/// The lines of the wide tree the tree cases read: 1,700 lines of a node and two tokens, 5,101 nodes with the root.
+pub(crate) const TREE_LINES: u32 = 1_700;
+
+/// Runs `steps`, emitting `emit`, over the wide tree of `TREE_LINES` lines and the relations `tables` makes from it (given the
+/// tree's nodes), the engine naming every node of the tree as each node's tree nodes; with `twin`, as its held twin.
+pub(crate) fn ran_over_tree(
+    steps: &[Step],
+    emit: PlanNodeId,
+    twin: bool,
+    tables: &dyn Fn(&TextResources, &[NodeId]) -> Vec<(Relation, Table)>,
+) -> Result<Ran, PortableOperatorFault> {
+    let nodes: Vec<NodeId> = (0..1 + TREE_LINES * 3)
+        .map(|at| node_id(FileId(0), Position(at)))
+        .collect();
+    ran_in(
+        &Steps {
+            steps,
+            emit,
+            first: &[],
+        },
+        twin,
+        TextResources::wide_tree(TREE_LINES),
+        &|resources| tables(resources, &nodes),
+        nodes.clone(),
+    )
+}
+
+/// A select of every Defines row keeping its name and node (2 cells), an extension of it by a number, and a projection of
+/// the name and the number: three stages of one chain over `rows` rows, named in turn by three names.
+pub(crate) fn three_stages(rows: usize) -> Program {
+    let names = ["a", "b", "ab"];
+    Program {
+        steps: vec![
+            over_defines(Operation::Select {
+                from: StepInput::Relation(Relation::Defines),
+                comparisons: Vec::new(),
+                kept: vec![ColumnIndex(3), ColumnIndex(0)],
+            }),
+            over_nodes(
+                Operation::Extend {
+                    from: StepInput::Step(StepId(0)),
+                    values: vec![Operand::Literal(QueryLiteral::Number(Integer(7)))],
+                },
+                &[0],
+            ),
+            over_nodes(
+                Operation::Project {
+                    from: StepInput::Step(StepId(1)),
+                    columns: vec![ColumnIndex(0), ColumnIndex(2)],
+                    distinct: RepeatedRows::Kept,
+                },
+                &[1],
+            ),
+        ],
+        emit: PlanNodeId(2),
+        rows: (0..rows)
+            .map(|at| {
+                (
+                    names.get(at % names.len()).copied().unwrap_or("a").to_owned(),
+                    span(0, 1),
+                )
+            })
+            .collect(),
+        texts: names.iter().map(|text| (*text).to_owned()).collect(),
+    }
+}
+
+/// 20,000 Defines rows named `x` and one named `y`. A select of the row named `y` (node 0); an inner join of it with Defines
+/// on their file (node 1), so its one left row matches every row, 20,001 answers of 2 cells; and an extension of the join
+/// (node 2), so the join's answers are a chunk handed on.
+pub(crate) fn one_row_past_the_bound() -> Program {
+    let defines = (
+        StepInput::Relation(Relation::Defines),
+        PlanInput::Relation(Relation::Defines),
+    );
+    let mut rows: Vec<(String, Span)> = (0..20_000).map(|_| ("x".to_owned(), span(0, 1))).collect();
+    rows.push(("y".to_owned(), span(0, 1)));
+    Program {
+        steps: vec![
+            over_defines(Operation::Select {
+                from: defines.0,
+                comparisons: vec![against(Test::Equal, 3, "y")],
+                kept: Vec::new(),
+            }),
+            Step {
+                operation: Operation::Join {
+                    left: StepInput::Step(StepId(0)),
+                    right: defines.0,
+                    left_on: vec![ColumnIndex(5)],
+                    right_on: vec![ColumnIndex(5)],
+                    output: both_nodes(),
+                    filter: Vec::new(),
+                    view: Vec::new(),
+                    reach: None,
+                },
+                inputs: vec![PlanInput::Node(PlanNodeId(0)), defines.1],
+            },
+            over_nodes(
+                Operation::Extend {
+                    from: StepInput::Step(StepId(1)),
+                    values: vec![Operand::Literal(QueryLiteral::Number(Integer(1)))],
+                },
+                &[1],
+            ),
+        ],
+        emit: PlanNodeId(2),
+        rows,
+        texts: vec!["x".into(), "y".into()],
+    }
 }
 
 /// A capture of each name into the two slots of `{a}{b}`.

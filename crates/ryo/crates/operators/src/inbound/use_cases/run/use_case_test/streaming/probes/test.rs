@@ -1,14 +1,17 @@
 //! A probe's left rows stream into it, each against its held twin: an inner, a semi and an anti probe behind a select, the
 //! right side's fault raised before any left row, a right filter kept across every chunk of left rows, and two probes of
-//! one chain each reading its own index while both are active.
+//! one chain each reading its own index while both are active. Each kind of right rows answers over three chunks of left
+//! rows as the held twin does, and one left row whose answers pass the bound is handed on whole.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines};
+use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::cases::{compared, self_matching};
+use crate::inbound::use_cases::run::fixtures::cases::{compared, defines_of_nodes, self_matching};
 use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, agrees, both_nodes, join, left_columns, ran_after, span,
+    Program, Ran, agrees, both_nodes, join, left_columns, one_row_past_the_bound, ran_after,
+    ran_over_tree, span,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
@@ -28,6 +31,10 @@ enum Scenario {
     TwoIndexes,
     RightPendingFed,
     RightPendingFedAfterAnotherProbe,
+    InnerOfAHeldNode,
+    AntiOfAHeldNode,
+    InnerOfTheTree,
+    OneRowPastTheBound,
 }
 
 /// Whether the program run as planned answered as its held twin did, how many rows it answered, how many node tables it
@@ -45,6 +52,9 @@ struct Observation {
     fault: Cow<'static, str>,
     /// The rows the planned run's emit was fed from each input.
     fed: [usize; 3],
+    /// Whether every chunk a stage of the planned run handed on held less than the bound before the left row that wrote its
+    /// last rows.
+    within: bool,
 }
 type Input = Scenario;
 type Value = Observation;
@@ -61,6 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 1,
             fault: Cow::Borrowed(""),
             fed: [7_020, 7_020, 0],
+            within: true,
         }),
     },
     Case {
@@ -73,6 +84,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 1,
             fault: Cow::Borrowed(""),
             fed: [7_020, 7_020, 0],
+            within: true,
         }),
     },
     Case {
@@ -85,6 +97,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 2,
             fault: Cow::Borrowed(""),
             fed: [7_020, 0, 0],
+            within: true,
         }),
     },
     Case {
@@ -99,6 +112,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
             ),
             fed: [3, 0, 0],
+            within: true,
         }),
     },
     Case {
@@ -111,6 +125,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 1,
             fault: Cow::Borrowed(""),
             fed: [7_020, 7_020, 0],
+            within: true,
         }),
     },
     Case {
@@ -123,6 +138,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 1,
             fault: Cow::Borrowed(""),
             fed: [9_360, 4_680, 0],
+            within: true,
         }),
     },
     Case {
@@ -137,6 +153,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
             ),
             fed: [8, 4, 0],
+            within: true,
         }),
     },
     Case {
@@ -151,9 +168,90 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
             ),
             fed: [8, 4, 0],
+            within: true,
+        }),
+    },
+    Case {
+        name: CaseName("an_inner_probe_of_a_held_nodes_table_answers_as_the_held_twin"),
+        word: Word::Succeeds,
+        input: || Scenario::InnerOfAHeldNode,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 14_040,
+            formed: 2,
+            fault: Cow::Borrowed(""),
+            fed: [7_020, 7_020, 0],
+            within: true,
+        }),
+    },
+    Case {
+        name: CaseName("an_anti_probe_of_a_held_nodes_table_answers_as_the_held_twin"),
+        word: Word::Succeeds,
+        input: || Scenario::AntiOfAHeldNode,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 6_318,
+            formed: 2,
+            fault: Cow::Borrowed(""),
+            fed: [7_020, 702, 0],
+            within: true,
+        }),
+    },
+    Case {
+        name: CaseName("an_inner_probe_walking_the_tree_answers_as_the_held_twin"),
+        word: Word::Succeeds,
+        input: || Scenario::InnerOfTheTree,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 5_100,
+            formed: 1,
+            fault: Cow::Borrowed(""),
+            fed: [5_101, 5_100, 0],
+            within: true,
+        }),
+    },
+    Case {
+        name: CaseName("one_left_row_past_the_bound_is_handed_on_whole"),
+        word: Word::Succeeds,
+        input: || Scenario::OneRowPastTheBound,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 20_001,
+            formed: 1,
+            fault: Cow::Borrowed(""),
+            fed: [20_001, 0, 0],
+            within: true,
         }),
     },
 ];
+
+/// A select of a Defines row for each node of the wide tree (node 0) and an inner join of it with the tree's edges on their
+/// parent (node 1), which walks the tree, run as planned or as its held twin.
+fn walked_tree(twin: bool) -> Result<Ran, Failure> {
+    let edges = (
+        StepInput::Relation(Relation::SyntaxChild),
+        PlanInput::Relation(Relation::SyntaxChild),
+    );
+    let mut children = join(node(0), edges, both_nodes(), Vec::new());
+    if let Operation::Join {
+        left_on, right_on, ..
+    } = &mut children.operation
+    {
+        *left_on = vec![ColumnIndex(0)];
+        *right_on = vec![ColumnIndex(0)];
+    }
+    ran_over_tree(
+        &[every_define(), children],
+        PlanNodeId(1),
+        twin,
+        &|resources, nodes| {
+            vec![(
+                Relation::Defines,
+                defines_of_nodes(nodes, resources.symbol("word")),
+            )]
+        },
+    )
+}
 
 /// Defines' input, as an operation names it and as a node reads it.
 fn defines() -> (StepInput, PlanInput) {
@@ -208,11 +306,11 @@ fn paired(steps: Vec<Step>, rows: usize) -> Program {
     }
 }
 
-/// The program each scenario runs.
-fn program(scenario: Scenario) -> Program {
+/// The program over Defines rows each scenario runs; none for the probe walking the tree, which reads the tree's rows.
+fn program(scenario: Scenario) -> Option<Program> {
     // Rows of 7 cells: a chunk of a stage that writes Defines rows holds this many and a few more.
     let chunk = STREAM_CHUNK_CELLS / 7;
-    match scenario {
+    Some(match scenario {
         Scenario::Inner => paired(
             vec![
                 every_define(),
@@ -323,7 +421,33 @@ fn program(scenario: Scenario) -> Program {
             ],
             chunk * 2,
         ),
-    }
+        Scenario::InnerOfAHeldNode => paired(
+            vec![
+                defines_named(Test::StartsWith, "n"),
+                every_define(),
+                join(node(1), node(0), both_nodes(), Vec::new()),
+            ],
+            chunk * 3,
+        ),
+        Scenario::AntiOfAHeldNode => paired(
+            vec![
+                defines_named(Test::EndsWith, "1"),
+                every_define(),
+                Step {
+                    operation: Operation::Antijoin {
+                        left: node(1).0,
+                        right: node(0).0,
+                        left_on: vec![ColumnIndex(3)],
+                        right_on: vec![ColumnIndex(3)],
+                    },
+                    inputs: vec![node(1).1, node(0).1],
+                },
+            ],
+            chunk * 3,
+        ),
+        Scenario::OneRowPastTheBound => one_row_past_the_bound(),
+        Scenario::InnerOfTheTree => return None,
+    })
 }
 
 /// The rows of Defines whose name matches the pattern it is: a name that is no pattern faults.
@@ -336,21 +460,27 @@ fn select_of_defines_matching() -> Step {
 }
 
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
-    let program = program(scenario);
     let first: &[PlanNodeId] = if let Scenario::RightPendingFedAfterAnotherProbe = scenario {
         &[PlanNodeId(3)]
     } else {
         &[]
     };
-    let streamed = ran_after(&program, false, first)?;
-    let twin = ran_after(&program, true, first)?;
+    let (streamed, twin, emit) = match program(scenario) {
+        Some(program) => (
+            ran_after(&program, false, first)?,
+            ran_after(&program, true, first)?,
+            program.emit,
+        ),
+        None => (walked_tree(false)?, walked_tree(true)?, PlanNodeId(1)),
+    };
     Ok(Observation {
         same: agrees(&streamed, &twin),
         rows: streamed.answer.as_ref().map_or(0, Vec::len),
         formed: streamed.formed,
+        within: streamed.buffers.chunks == ChunkMeter::Within,
         fed: streamed
             .fed
-            .get(usize::try_from(program.emit.0).unwrap_or(usize::MAX))
+            .get(usize::try_from(emit.0).unwrap_or(usize::MAX))
             .copied()
             .flatten()
             .unwrap_or_default(),

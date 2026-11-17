@@ -39,9 +39,7 @@ pub(in crate::domain::physical_plan::service::run) fn streamed(
 ) -> Result<(), PortableOperatorFault> {
     let mut chain = buffers.stream.levels.pop().unwrap_or_default();
     let answered = chained(plan, run, tail, buffers, &mut chain, ready);
-    for stage in &mut chain.stages {
-        stage.settled();
-    }
+    chain.settled();
     buffers.stream.levels.push(chain);
     answered
 }
@@ -70,6 +68,7 @@ fn chained(
         chain: nodes,
         row,
         stages,
+        ..
     } = chain;
     let stages = stages
         .get_mut(..length)

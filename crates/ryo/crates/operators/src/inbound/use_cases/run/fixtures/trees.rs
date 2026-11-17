@@ -1,5 +1,5 @@
 //! The resources of the files whose trees the cases read: a file of three tokens, a file of a node of three tokens and a
-//! token, and a file of only its root.
+//! token, a file of many lines of two tokens each, and a file of only its root.
 use super::TextResources;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_field, name_kind, write_fields};
@@ -73,6 +73,38 @@ impl TextResources {
             }
         });
         name_field(&mut roles, HEAD, NameText("head"));
+        Self {
+            source,
+            symbols,
+            tree,
+            renderings: Vec::new(),
+            calls: Vec::new(),
+        }
+    }
+
+    /// The resources of a file of `parents` lines in file 0, each four digits and a space: a `file` node over one `other`
+    /// node for each line, over a token of its first two digits and a token of the rest (each a `word`). Its nodes are
+    /// the root, then each line's node and its two tokens, in tree order.
+    #[must_use]
+    pub fn wide_tree(parents: u32) -> Self {
+        let source: Vec<u8> = (0..parents)
+            .flat_map(|line| format!("{line:04} ").into_bytes())
+            .collect();
+        let (mut tree, mut symbols) = (Elements::default(), Symbols::default());
+        let mut builder = table_builder(&mut tree, &mut symbols, ByteSlice(&source));
+        enter_node(&mut builder, KindBits(1), Offset(0));
+        for line in 0..parents {
+            let start = line * 5;
+            enter_node(&mut builder, KindBits(3), Offset(start));
+            token(&mut builder, KindBits(2), Offset(start), Offset(start + 2));
+            token(&mut builder, KindBits(2), Offset(start + 2), Offset(start + 4));
+            leave_node(&mut builder, Offset(start + 4));
+        }
+        leave_node(&mut builder, Offset(parents * 5));
+        for (bits, name) in [(1, "file"), (2, "word"), (3, "other")] {
+            let mut names = completion(&mut tree, &mut symbols, ByteSlice(&source), FileId(0));
+            name_kind(&mut names, KindBits(bits), NameText(name));
+        }
         Self {
             source,
             symbols,

@@ -16,7 +16,7 @@ use ryo_relations::domain::relations::types::{
     Bits, CellKind, ColumnsView, Integer, Relation, Value,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::{RowCount, RowIndex};
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// `scan_facts`, one item of the `kernels` collection.
 #[cfg(test)]
@@ -99,23 +99,32 @@ pub(crate) fn count_of(rows: InputRows<'_>) -> RowCount {
     }
 }
 
+/// The cell of row `row` in `column` of a relation's columns, read in place; none past the row.
+pub(crate) fn facts_cell(view: &ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
+    let at = usize::try_from(column.0).unwrap_or(usize::MAX);
+    let kind = view.kinds.get(at)?;
+    let bits = view.columns.get(at)?.0.get(row.0)?;
+    Some(from_bits(*kind, Bits(*bits)))
+}
+
+/// The cell of row `row` in `column` of a table; none past the row.
+pub(crate) fn table_cell(table: &Table, row: RowIndex, column: ColumnIndex) -> Option<Value> {
+    let at = usize::try_from(column.0).unwrap_or(usize::MAX);
+    let width = table.kinds.len();
+    (at < width && row.0 < table.count.0)
+        .then(|| table.cells.get(row.0 * width + at).copied())
+        .flatten()
+}
+
 /// The cell of row `row` in `column`, read in place; none past the row.
 pub(crate) fn cell_of(rows: InputRows<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    let at = usize::try_from(column.0).unwrap_or(usize::MAX);
     match rows {
-        InputRows::Facts(view) => {
-            let kind = view.kinds.get(at)?;
-            let bits = view.columns.get(at)?.0.get(row.0)?;
-            Some(from_bits(*kind, Bits(*bits)))
-        }
+        InputRows::Facts(view) => facts_cell(view, row, column),
         InputRows::Tree(tree) => tree_cell(tree, row, column),
-        InputRows::Table(table) => {
-            let width = table.kinds.len();
-            (at < width && row.0 < table.count.0)
-                .then(|| table.cells.get(row.0 * width + at).copied())
-                .flatten()
-        }
-        InputRows::Row(cells, _) => (row.0 == 0).then(|| cells.get(at).copied()).flatten(),
+        InputRows::Table(table) => table_cell(table, row, column),
+        InputRows::Row(cells, _) => (row.0 == 0)
+            .then(|| cells.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied())
+            .flatten(),
     }
 }
 

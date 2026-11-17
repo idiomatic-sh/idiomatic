@@ -156,6 +156,10 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
         &mut stage.out
     };
     stage.last = CellStart(out.cells.len());
+    #[cfg(test)]
+    {
+        push.buffers.stage_calls.0 += 1;
+    }
     let fault = match stage_row(
         push.run,
         push.buffers,
