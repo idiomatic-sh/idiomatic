@@ -6,13 +6,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::errors::ValidateError;
 use super::types::Version;
-use crate::domain::definitions::types::ErrorFile;
-use crate::domain::packages::service::{kind_directory, kind_file, kind_word};
-use crate::domain::packages::types::{
+use tastemaker_values::domain::definitions::types::ErrorFile;
+use tastemaker_values::domain::packages::service::{kind_directory, kind_file, kind_word};
+use tastemaker_values::domain::packages::types::{
     DefinitionKind, DefinitionName, Ownership, PackageName, PackageRoot, Release, ResolvedPackage,
 };
-use crate::domain::paths::types::RepoPath;
-use crate::domain::proofs::types::{DefinitionLabel, Problem, ProofFile, ProofPath};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::proofs::types::{DefinitionLabel, Problem, ProofFile, ProofPath};
 use crate::domain::scenario_proving::service::{release_directory, subject_of};
 use crate::outbound::packages::types::PackageFile;
 
@@ -73,10 +73,10 @@ pub(super) fn unread(
 /// there are; no file is read: a version's files are read when it is proved.
 pub(super) fn versions(
     packages: &BTreeMap<PackageName, ResolvedPackage>,
-    listed: &BTreeMap<PackageRoot, Vec<crate::domain::packages::types::ReleaseFile>>,
+    listed: &BTreeMap<PackageRoot, Vec<tastemaker_values::domain::packages::types::ReleaseFile>>,
     pinned: &BTreeSet<Release>,
 ) -> Vec<Version> {
-    use crate::domain::packages::service::{held_versions, latest, owned_assets};
+    use tastemaker_values::domain::packages::service::{held_versions, latest, owned_assets};
     let _discovering = tracing::info_span!("versions").entered();
     let mut found = Vec::new();
     for (name, package) in packages {
@@ -92,7 +92,7 @@ pub(super) fn versions(
         ] {
             for (definition, offered) in held
                 .range(
-                    crate::domain::packages::types::DefinitionKey {
+                    tastemaker_values::domain::packages::types::DefinitionKey {
                         kind,
                         name: DefinitionName(Box::default()),
                     }..,
@@ -100,7 +100,7 @@ pub(super) fn versions(
                 .take_while(|(each, _)| each.kind == kind)
             {
                 let newest = latest(
-                    &crate::domain::packages::types::VersionText(Box::default()),
+                    &tastemaker_values::domain::packages::types::VersionText(Box::default()),
                     offered.iter(),
                 );
                 for version in offered {
@@ -123,7 +123,7 @@ pub(super) fn versions(
                         paths.extend(
                             owned_assets(
                                 files,
-                                &crate::domain::packages::types::ReleaseDirectory(
+                                &tastemaker_values::domain::packages::types::ReleaseDirectory(
                                     directory_text.clone(),
                                 ),
                             )

@@ -3,11 +3,11 @@
 //! writing are the wire format's, in `schemas.rs`.
 
 use super::schemas;
-use crate::domain::definitions::types::{
+use tastemaker_values::domain::definitions::types::{
     Definition, RuleFile, SpecFile, TemplateFile, WorkspaceFile,
 };
-use crate::domain::files::types::FileText;
-use crate::domain::packages::types::{DefinitionKind, Lock, PackageManifest};
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::packages::types::{DefinitionKind, Lock, PackageManifest};
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
@@ -16,11 +16,11 @@ use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 #[derive(Debug)]
 pub(crate) struct ManifestTomlAdapter;
 
-impl crate::domain::entries::types::ValueWriter for ManifestTomlAdapter {
+impl tastemaker_values::domain::entries::types::ValueWriter for ManifestTomlAdapter {
     fn write(
         &self,
-        value: &crate::domain::entries::types::Value,
-    ) -> crate::domain::entries::types::ValueText {
+        value: &tastemaker_values::domain::entries::types::Value,
+    ) -> tastemaker_values::domain::entries::types::ValueText {
         schemas::value_text(value)
     }
 }
@@ -68,14 +68,14 @@ impl ManifestPort for ManifestTomlAdapter {
 
     fn scenario_root(
         &self,
-        root: &crate::domain::scenario_files::types::ScenarioRoot<'_>,
+        root: &tastemaker_values::domain::scenario_files::types::ScenarioRoot<'_>,
     ) -> DefinitionText {
         schemas::scenario_root(root)
     }
 
     fn scenario_wrapper(
         &self,
-        wrapper: &crate::domain::scenario_files::types::Wrapper<'_>,
+        wrapper: &tastemaker_values::domain::scenario_files::types::Wrapper<'_>,
     ) -> DefinitionText {
         schemas::scenario_wrapper(wrapper)
     }
@@ -87,7 +87,7 @@ impl ManifestPort for ManifestTomlAdapter {
     fn rebased(
         &self,
         file: &FileText,
-        here: &crate::domain::paths::types::RepoPath,
+        here: &tastemaker_values::domain::paths::types::RepoPath,
     ) -> Result<FileText, ManifestError> {
         schemas::rebased(file, here)
     }

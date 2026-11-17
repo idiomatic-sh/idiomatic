@@ -1,6 +1,6 @@
 //! The `scaffold` use case's failures.
 
-use crate::domain::placement::errors::PlacementError;
+use tastemaker_values::domain::placement::errors::PlacementError;
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::packages::errors::PackagesError;
 use crate::outbound::repository::errors::RepositoryError;

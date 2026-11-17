@@ -8,9 +8,9 @@ use super::interface::AddUseCase as _;
 use super::types::{AddRequest, DefinitionAsked};
 use super::use_case::AddUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::files::types::MachinePath;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 use crate::inbound::use_cases::check::fixtures::{Workspace, package, repository_of, selection};
 use crate::outbound::repository::interface::RepositoryPort as _;
 

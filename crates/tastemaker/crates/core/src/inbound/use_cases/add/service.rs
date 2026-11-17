@@ -1,7 +1,7 @@
 //! The `add` service: local free-function helpers, private to this use case.
 
-use crate::domain::paths::service::join;
-use crate::domain::paths::types::{PathText, RepoPath};
+use tastemaker_values::domain::paths::service::join;
+use tastemaker_values::domain::paths::types::{PathText, RepoPath};
 use crate::outbound::repository::interface::FoundRepository;
 
 /// Where the entry applies, `at` given from where the command ran: relative to the workspace's directory, as every path
@@ -19,7 +19,7 @@ pub(super) fn entry_path(found: &dyn FoundRepository, at: PathText<'_>) -> RepoP
         )
     };
     if at.0.is_empty() {
-        RepoPath(crate::domain::paths::constants::CURRENT.into())
+        RepoPath(tastemaker_values::domain::paths::constants::CURRENT.into())
     } else {
         at
     }

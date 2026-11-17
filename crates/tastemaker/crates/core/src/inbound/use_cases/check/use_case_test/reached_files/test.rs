@@ -1,7 +1,7 @@
 //! The `reaching` service's cases, over the `check` fixture's workspace: the files its rule's entry reaches.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::service::known;
+use tastemaker_values::domain::applications::service::known;
 use crate::domain::reaching::service::reaches;
 use crate::domain::reaching::types::{Selection, SelectorPair};
 use crate::inbound::use_cases::check::fixtures::applications::{
@@ -52,9 +52,9 @@ fn subject(question: Input) -> Value {
     let placement = placement(&workspace);
     let applied = applications(&workspace, &placement);
     if let Question::SetRefused = question {
-        let refusing_matching = crate::domain::applications::types::Compilers {
+        let refusing_matching = tastemaker_values::domain::applications::types::Compilers {
             compile: matching().compile,
-            sets: &crate::domain::selectors::fixtures::refusing_sets,
+            sets: &tastemaker_values::domain::selectors::fixtures::refusing_sets,
         };
         let reached = reaches(
             &workspace,
@@ -64,8 +64,8 @@ fn subject(question: Input) -> Value {
             refusing_matching,
         );
         return match reached.values().next() {
-            Some(Err(crate::domain::placement::errors::PlacementError::Selector {
-                source: crate::domain::selectors::errors::SelectorsError::Pattern { pattern, .. },
+            Some(Err(tastemaker_values::domain::placement::errors::PlacementError::Selector {
+                source: tastemaker_values::domain::selectors::errors::SelectorsError::Pattern { pattern, .. },
                 ..
             })) if !pattern.is_empty() => String::new(),
             other => format!("{other:?}"),

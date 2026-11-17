@@ -9,41 +9,41 @@ use std::sync::Arc;
 use super::errors::ExplainError;
 use super::interface::ExplainUseCase;
 use super::types::{Asked, ExplainReport, ExplainRequest, NameAsked, Opened};
-use crate::domain::applications::types::{Plan, Purpose};
-use crate::domain::captures::types::Interpolations;
-use crate::domain::catalog::service::{grammar_sections, operator_sections, relation_sections};
-use crate::domain::catalog::types::{CatalogName, OperatorAnswer, RelationAnswer};
-use crate::domain::definitions::constants::WORKSPACE_FILE;
-use crate::domain::definitions::service::{local, locals, package_paths};
-use crate::domain::definitions::types::{ErrorFile, Governed, LoadedWorkspace, LocalPackage, Role};
-use crate::domain::entries::service::identity;
-use crate::domain::explanations::service::{
+use tastemaker_values::domain::applications::types::{Plan, Purpose};
+use tastemaker_values::domain::captures::types::Interpolations;
+use tastemaker_values::domain::catalog::service::{grammar_sections, operator_sections, relation_sections};
+use tastemaker_values::domain::catalog::types::{CatalogName, OperatorAnswer, RelationAnswer};
+use tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
+use tastemaker_values::domain::definitions::service::{local, locals, package_paths};
+use tastemaker_values::domain::definitions::types::{ErrorFile, Governed, LoadedWorkspace, LocalPackage, Role};
+use tastemaker_values::domain::entries::service::identity;
+use tastemaker_values::domain::explanations::service::{
     definition_explained, page, path_sections, placed_by, rule_line, scaffold_line, scope_line,
 };
-use crate::domain::explanations::types::{Section, SectionLine, SectionTitle};
-use crate::domain::files::types::{FileText, MachinePath};
+use tastemaker_values::domain::explanations::types::{Section, SectionLine, SectionTitle};
+use tastemaker_values::domain::files::types::{FileText, MachinePath};
 use crate::domain::loading::service::{begin, definition_loaded, finish, next};
-use crate::domain::packages::constants::PACKAGE_FILE;
-use crate::domain::packages::service::{kind_directory, kind_file, kind_of, latest};
-use crate::domain::packages::types::{
+use tastemaker_values::domain::packages::constants::PACKAGE_FILE;
+use tastemaker_values::domain::packages::service::{kind_directory, kind_file, kind_of, latest};
+use tastemaker_values::domain::packages::types::{
     DefinitionKind, DefinitionName, KindWord, PackageName, PackageRoot, Reach, ResolvedPackage,
     SourcePath,
 };
-use crate::domain::paths::service::{containment, join, relative};
-use crate::domain::paths::types::RepoPath;
-use crate::domain::paths::types::{Containment, PathText};
-use crate::domain::placement::service::place;
-use crate::domain::placement::types::Placement;
+use tastemaker_values::domain::paths::service::{containment, join, relative};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::paths::types::{Containment, PathText};
+use tastemaker_values::domain::placement::service::place;
+use tastemaker_values::domain::placement::types::Placement;
 use crate::domain::planning::service::plan;
-use crate::domain::scopes::service::composition_of;
-use crate::domain::scopes::types::{Identity, Origin};
-use crate::domain::selectors::service::{covers_any, first_match, resolve};
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::scopes::service::composition_of;
+use tastemaker_values::domain::scopes::types::{Identity, Origin};
+use tastemaker_values::domain::selectors::service::{covers_any, first_match, resolve};
+use tastemaker_values::domain::selectors::types::{
     Binding, Coverage, PathTest, PatternFailure, SelectionContext, Spelling,
 };
-use crate::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD, RYOQL};
-use crate::domain::topics::service::{text, topic, topics};
-use crate::domain::variables::service::apply as apply_variables;
+use tastemaker_values::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD, RYOQL};
+use tastemaker_values::domain::topics::service::{text, topic, topics};
+use tastemaker_values::domain::variables::service::apply as apply_variables;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::DefinitionText;
@@ -134,7 +134,7 @@ impl ExplainUseCaseImpl {
             return Ok(Some(grammar_sections(&self.analysis.grammar()?.0)));
         }
         Ok(
-            topic(crate::domain::topics::types::TopicName(&name.0)).map(|found| {
+            topic(tastemaker_values::domain::topics::types::TopicName(&name.0)).map(|found| {
                 vec![Section {
                     title: SectionTitle(found.name.0.into()),
                     lines: vec![SectionLine(text(&found).0.into())],
@@ -174,8 +174,8 @@ impl ExplainUseCaseImpl {
     fn sets(
         &self,
     ) -> impl Fn(
-        &[crate::domain::selectors::types::SetGlob],
-    ) -> Result<Arc<dyn crate::domain::selectors::types::PathSet>, PatternFailure>
+        &[tastemaker_values::domain::selectors::types::SetGlob],
+    ) -> Result<Arc<dyn tastemaker_values::domain::selectors::types::PathSet>, PatternFailure>
     + Sync
     + '_ {
         |globs| self.matching.compile_set(globs)
@@ -186,7 +186,7 @@ impl ExplainUseCaseImpl {
     fn governed(
         &self,
         found: &dyn FoundRepository,
-        section: &crate::domain::definitions::types::WorkspaceSection,
+        section: &tastemaker_values::domain::definitions::types::WorkspaceSection,
         file: &RepoPath,
     ) -> Result<Governed, ExplainError> {
         let repository = found;
@@ -202,8 +202,8 @@ impl ExplainUseCaseImpl {
             compile: &compile,
         };
         let selector = |source| {
-            ExplainError::Placement(crate::domain::placement::errors::PlacementError::Selector {
-                entry: crate::domain::template_placing::constants::WORKSPACE_TABLE.to_owned(),
+            ExplainError::Placement(tastemaker_values::domain::placement::errors::PlacementError::Selector {
+                entry: tastemaker_values::domain::template_placing::constants::WORKSPACE_TABLE.to_owned(),
                 source,
             })
         };
@@ -216,7 +216,7 @@ impl ExplainUseCaseImpl {
                 Coverage::Uncovered
             }
         };
-        let files = crate::domain::definitions::service::governed(
+        let files = tastemaker_values::domain::definitions::service::governed(
             repository.list(&root)?.0,
             file,
             member,
@@ -242,7 +242,7 @@ impl ExplainUseCaseImpl {
     fn resolved(
         &self,
         found: &dyn FoundRepository,
-        section: &crate::domain::definitions::types::WorkspaceSection,
+        section: &tastemaker_values::domain::definitions::types::WorkspaceSection,
     ) -> Result<BTreeMap<PackageName, ResolvedPackage>, ExplainError> {
         let project = PackageRoot(
             std::path::Path::new(&*found.root().0)
@@ -367,7 +367,7 @@ impl ExplainUseCaseImpl {
             index.push(format!("- [{}]({})\n", release.name.0, path.0));
             written.push(path);
         }
-        let path = RepoPath(crate::domain::topics::constants::INDEX.into());
+        let path = RepoPath(tastemaker_values::domain::topics::constants::INDEX.into());
         directory.write(&path, &FileText(index.concat().into()))?;
         written.push(path);
         written.sort();
@@ -381,13 +381,13 @@ impl ExplainUseCaseImpl {
         &self,
         found: &dyn FoundRepository,
         packages: &BTreeMap<PackageName, ResolvedPackage>,
-        composition: &mut crate::domain::entries::types::Composition,
-        locals: &mut [crate::domain::definitions::types::LocalFile],
+        composition: &mut tastemaker_values::domain::entries::types::Composition,
+        locals: &mut [tastemaker_values::domain::definitions::types::LocalFile],
     ) -> Result<(), ExplainError> {
         let repository = found;
         let lock_file = join(
             found.workspace(),
-            PathText(crate::domain::definitions::constants::LOCK_FILE),
+            PathText(tastemaker_values::domain::definitions::constants::LOCK_FILE),
         )
         .unwrap_or_default();
         // A lock that does not read is an error to say, never one to rewrite as if it were missing.
@@ -404,15 +404,15 @@ impl ExplainUseCaseImpl {
         // A version the package cannot list is a failure, said once the pins are made.
         let failed =
             std::cell::RefCell::new(None::<crate::outbound::packages::errors::PackagesError>);
-        let version_of = |release: &crate::domain::packages::types::Release| {
+        let version_of = |release: &tastemaker_values::domain::packages::types::Release| {
             if let Some(pinned) = pins
                 .as_ref()
-                .and_then(|lock| crate::domain::packages::service::locked_version(lock, release))
+                .and_then(|lock| tastemaker_values::domain::packages::service::locked_version(lock, release))
             {
                 return pinned;
             }
             packages.get(&release.package).map_or_else(
-                || crate::domain::packages::types::VersionText(Box::default()),
+                || tastemaker_values::domain::packages::types::VersionText(Box::default()),
                 |package| {
                     let offered = match self.packages.versions(
                         &package.directory,
@@ -425,19 +425,19 @@ impl ExplainUseCaseImpl {
                             if failed.borrow().is_none() {
                                 *failed.borrow_mut() = Some(error);
                             }
-                            return crate::domain::packages::types::VersionText(Box::default());
+                            return tastemaker_values::domain::packages::types::VersionText(Box::default());
                         }
                     };
                     latest(
-                        &crate::domain::packages::types::VersionText(Box::default()),
+                        &tastemaker_values::domain::packages::types::VersionText(Box::default()),
                         offered.iter(),
                     )
                 },
             )
         };
-        crate::domain::entries::service::pin(composition, &version_of);
+        tastemaker_values::domain::entries::service::pin(composition, &version_of);
         for each in locals {
-            crate::domain::entries::service::pin(&mut each.composition, &version_of);
+            tastemaker_values::domain::entries::service::pin(&mut each.composition, &version_of);
         }
         if let Some(error) = failed.borrow_mut().take() {
             return Err(error.into());
@@ -477,7 +477,7 @@ impl ExplainUseCaseImpl {
         )?;
         let local_packages = package_paths(
             &packages,
-            crate::domain::definitions::types::RepositoryText(&found.root().0),
+            tastemaker_values::domain::definitions::types::RepositoryText(&found.root().0),
         )
         .into_iter()
         .filter(|local| {
@@ -569,12 +569,12 @@ impl ExplainUseCaseImpl {
                 let reads = rule.include.iter().any(|glob| {
                     self.matching
                         .compile(&Spelling {
-                            glob: crate::domain::selectors::types::SpelledGlob(glob.0.clone()),
+                            glob: tastemaker_values::domain::selectors::types::SpelledGlob(glob.0.clone()),
                             binder: Binding::GlobOnly,
                             groups: Vec::new(),
                         })
                         .is_ok_and(|test| {
-                            test.passes(crate::domain::selectors::types::PathRest(rest))
+                            test.passes(tastemaker_values::domain::selectors::types::PathRest(rest))
                                 == Coverage::Covered
                         })
                 });
@@ -662,7 +662,7 @@ impl ExplainUseCase for ExplainUseCaseImpl {
             &workspace,
             &placement,
             base,
-            crate::domain::applications::types::Compilers {
+            tastemaker_values::domain::applications::types::Compilers {
                 compile: &compile,
                 sets: &self.sets(),
             },

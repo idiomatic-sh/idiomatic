@@ -2,12 +2,12 @@
 
 use super::{cell, parameter, placed, request};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::applications::types::PlannedRule;
-use crate::domain::applications::types::{GlobText, LintRuleId};
-use crate::domain::definitions::types::QueryText;
-use crate::domain::entries::types::Value as Param;
-use crate::domain::files::types::MachinePath;
-use crate::domain::scalars::types::{TextValue, ValueKey, WholeValue};
+use tastemaker_values::domain::applications::types::PlannedRule;
+use tastemaker_values::domain::applications::types::{GlobText, LintRuleId};
+use tastemaker_values::domain::definitions::types::QueryText;
+use tastemaker_values::domain::entries::types::Value as Param;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::scalars::types::{TextValue, ValueKey, WholeValue};
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
 
@@ -127,11 +127,11 @@ fn subject(question: Input) -> Result<Value, Failure> {
         ),
         Question::Cells => {
             use ryo::linter::{Cell, HostNumber, HostText, RelativePath, Slot};
-            let file = crate::domain::paths::types::RepoPath("src/a.rs".into());
+            let file = tastemaker_values::domain::paths::types::RepoPath("src/a.rs".into());
             let cell_of = |value: Slot| {
                 cell(
                     &file,
-                    crate::domain::definitions::types::ColumnName("c".into()),
+                    tastemaker_values::domain::definitions::types::ColumnName("c".into()),
                     value,
                 )
                 .value
@@ -180,10 +180,10 @@ fn subject(question: Input) -> Result<Value, Failure> {
 
 /// The `spec` cell of a placed row of no spec and of one of a spec, and what each should be.
 fn placed_spec() -> (String, &'static str) {
-    use crate::domain::applications::types::{PlacedRow, PlacingSpec};
-    use crate::domain::packages::types::{DefinitionName, PackageName, VersionText};
+    use tastemaker_values::domain::applications::types::{PlacedRow, PlacingSpec};
+    use tastemaker_values::domain::packages::types::{DefinitionName, PackageName, VersionText};
     let row = |spec: Option<&str>| PlacedRow {
-        path: crate::domain::paths::types::RepoPath("src/a.txt".into()),
+        path: tastemaker_values::domain::paths::types::RepoPath("src/a.txt".into()),
         entry: DefinitionName("p/errors".into()),
         package: PackageName("p".into()),
         template: DefinitionName("errors".into()),

@@ -1,7 +1,7 @@
 //! The fake of the `digest` port: the parts written out, so a test reads what was hashed.
 
-use crate::domain::digests::types::Digest;
-use crate::domain::findings::types::{Fingerprint, Identifying};
+use tastemaker_values::domain::digests::types::Digest;
+use tastemaker_values::domain::findings::types::{Fingerprint, Identifying};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestParts;
 

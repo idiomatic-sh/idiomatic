@@ -123,8 +123,8 @@ pub struct JudgedScenario<'a> {
 }
 
 /// Whether ryo runs a rule's query while a scenario is proved.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Running {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Running {
     /// It runs.
     Runs,
     /// It is refused.

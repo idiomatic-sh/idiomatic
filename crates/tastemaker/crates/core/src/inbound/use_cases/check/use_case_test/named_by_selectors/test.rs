@@ -2,7 +2,7 @@
 //! by the matching adapter.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::service::known;
+use tastemaker_values::domain::applications::service::known;
 use crate::inbound::use_cases::check::fixtures::applications::{placement, workspace};
 
 /// The fixture's tree.

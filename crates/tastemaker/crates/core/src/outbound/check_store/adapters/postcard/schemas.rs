@@ -6,13 +6,13 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::digests::types::Digest;
-use crate::domain::files::types::Stamp;
-use crate::domain::findings::types::{
+use tastemaker_values::domain::digests::types::Digest;
+use tastemaker_values::domain::files::types::Stamp;
+use tastemaker_values::domain::findings::types::{
     CheckChoice, CheckName, Column, Finding, FindingRule, Fingerprint, Help, Line, MessageText,
     Place, Reason, Region, RuleId, Suppression,
 };
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::paths::types::RepoPath;
 use crate::outbound::check_store::types::{Checked, CheckedFile, CheckedPath, SourcedFile};
 
 /// The number a text is kept under in `strings`.
@@ -201,8 +201,8 @@ impl StoreSchema {
                 path: CheckedPath(self.text(row.path)?.into()),
                 digest: Digest(self.text(row.digest)?.into()),
                 stamp: Stamp {
-                    size: crate::domain::files::types::FileSize(row.size),
-                    modified: crate::domain::files::types::ModifiedTime(row.modified),
+                    size: tastemaker_values::domain::files::types::FileSize(row.size),
+                    modified: tastemaker_values::domain::files::types::ModifiedTime(row.modified),
                 },
             })
         };
@@ -230,7 +230,7 @@ impl StoreSchema {
     }
 
     /// The store of `build` holding `checked`, each text kept once.
-    fn with(build: &crate::domain::settings::types::Build, checked: &Checked) -> Self {
+    fn with(build: &tastemaker_values::domain::settings::types::Build, checked: &Checked) -> Self {
         let mut numbers = StringsSchema {
             strings: Vec::new(),
             numbers: HashMap::new(),
@@ -305,7 +305,7 @@ pub(super) struct ReadSchema<'a> {
     /// The bytes kept.
     pub bytes: &'a [u8],
     /// The build that runs.
-    pub build: &'a crate::domain::settings::types::Build,
+    pub build: &'a tastemaker_values::domain::settings::types::Build,
 }
 
 /// Why a kept store holds nothing for the run that reads it.
@@ -333,7 +333,7 @@ impl TryFrom<ReadSchema<'_>> for Checked {
 /// The answer the kept store `bytes` holds when `build` wrote it; none when another build wrote it or it does not read.
 pub(super) fn checked(
     bytes: &[u8],
-    build: &crate::domain::settings::types::Build,
+    build: &tastemaker_values::domain::settings::types::Build,
 ) -> Option<Checked> {
     Checked::try_from(ReadSchema { bytes, build }).ok() // ignore: idiomatic.arch/no-ok-on-result - a store another build wrote, or that does not read, holds nothing for this run (the doc above)
 }
@@ -344,7 +344,7 @@ pub(super) fn checked(
 ///
 /// When postcard cannot write them.
 pub(super) fn bytes(
-    build: &crate::domain::settings::types::Build,
+    build: &tastemaker_values::domain::settings::types::Build,
     checked: &Checked,
 ) -> Result<Vec<u8>, postcard::Error> {
     postcard::to_allocvec(&StoreSchema::with(build, checked))

@@ -2,28 +2,28 @@
 //! lint call, with no IO and no ports. Identical applications (one release with one set of params) reaching a file merge;
 //! one release reaching a file with two sets of params is a finding.
 
-use crate::domain::findings::service::of_rule;
+use tastemaker_values::domain::findings::service::of_rule;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use rayon::prelude::*;
 
 use super::types::{Application, Applied, Group, ReachedFile};
-use crate::domain::applications::types::{
+use tastemaker_values::domain::applications::types::{
     Carried, Compilers, GlobText, HandedRule, Nameable, Plan,
 };
-use crate::domain::definitions::types::LoadedWorkspace;
-use crate::domain::findings::constants::COVERAGE;
-use crate::domain::findings::service::{check_id, error};
-use crate::domain::findings::types::{Finding, RuleId};
+use tastemaker_values::domain::definitions::types::LoadedWorkspace;
+use tastemaker_values::domain::findings::constants::COVERAGE;
+use tastemaker_values::domain::findings::service::{check_id, error};
+use tastemaker_values::domain::findings::types::{Finding, RuleId};
 use crate::domain::globs::service::{compress, counted};
-use crate::domain::packages::service::release_id;
-use crate::domain::packages::types::Release;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::placement::errors::PlacementError;
-use crate::domain::placement::types::Placement;
+use tastemaker_values::domain::packages::service::release_id;
+use tastemaker_values::domain::packages::types::Release;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::errors::PlacementError;
+use tastemaker_values::domain::placement::types::Placement;
 use crate::domain::reaching::service::reaches;
 use crate::domain::reaching::types::{Selection, SelectorPair};
-use crate::domain::scopes::types::Origin;
+use tastemaker_values::domain::scopes::types::Origin;
 
 /// Each application's reached files: one rule of the lint call each.
 fn grouped(applied: Applied) -> Vec<Group> {
@@ -119,7 +119,7 @@ pub fn matched_rules(
 /// An application that reaches no file. A spec's rule may find nothing in one of its instances (a part the instance does
 /// not have); an entry of a `tastemaker.toml` names its files itself, so one that reaches none is a `#coverage` error.
 fn unreached(
-    scope: &crate::domain::scopes::types::Scope,
+    scope: &tastemaker_values::domain::scopes::types::Scope,
     application: &Carried<'_>,
     plan: &mut Plan,
 ) {

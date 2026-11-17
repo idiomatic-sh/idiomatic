@@ -13,12 +13,12 @@ use serde_sarif::sarif::{
     Result as SarifResult, ResultLevel, Run, Sarif, Suppression as SarifSuppression,
     SupressionKind, SupressionStatus, Tool, ToolComponent, Version,
 };
-use tastemaker_core::domain::findings::types::{Finding, Help, Place, Report, Suppression};
-use tastemaker_core::domain::paths::types::RepoPath;
+use tastemaker_values::domain::findings::types::{Finding, Help, Place, Report, Suppression};
+use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_core::inbound::use_cases::check::errors::CheckError;
 use tastemaker_core::inbound::use_cases::check::types::{CheckReport, CheckRequest, Fixing};
 
-use tastemaker_core::domain::proofs::types::Proof;
+use tastemaker_values::domain::proofs::types::Proof;
 use tastemaker_core::inbound::use_cases::validate::types::{ValidateReport, ValidateRequest};
 
 use crate::outcome::Outcome;
@@ -36,7 +36,7 @@ const SOURCE_ROOT: &str = "SOURCE_ROOT";
 /// The schema a SARIF log names.
 const SCHEMA: &str = "https://json.schemastore.org/sarif-2.1.0.json";
 /// The tool a SARIF log names.
-const TOOL: &str = tastemaker_core::domain::findings::constants::TASTEMAKER;
+const TOOL: &str = tastemaker_values::domain::findings::constants::TASTEMAKER;
 /// Where the tool is documented: the public repository.
 const INFORMATION: &str = "https://github.com/idiomatic-sh/idiomatic";
 /// The tool's version, the command line crate's.
@@ -213,7 +213,7 @@ pub(super) enum PrintedSchema {
 }
 
 /// What the printed answer calls every finding: SARIF's word for a result that fails the check.
-const ERROR: &str = tastemaker_core::domain::entries::constants::ERROR_WORD;
+const ERROR: &str = tastemaker_values::domain::entries::constants::ERROR_WORD;
 
 /// The line and column a finding's place names, each absent when the place does not reach that far.
 fn position(place: Place) -> (Option<u32>, Option<u32>) {
@@ -228,7 +228,7 @@ fn position(place: Place) -> (Option<u32>, Option<u32>) {
 fn finding_schema(finding: &Finding, reason: Option<String>) -> FindingSchema {
     let (line, column) = position(finding.place);
     FindingSchema {
-        rule: tastemaker_core::domain::findings::service::printed(&finding.rule)
+        rule: tastemaker_values::domain::findings::service::printed(&finding.rule)
             .0
             .to_string(),
         path: finding.path.0.to_string(),
@@ -399,7 +399,7 @@ fn result(finding: &Finding, suppressions: Vec<SarifSuppression>) -> SarifResult
             .build(),
     };
     SarifResult::builder()
-        .rule_id(tastemaker_core::domain::findings::service::printed(&finding.rule).0)
+        .rule_id(tastemaker_values::domain::findings::service::printed(&finding.rule).0)
         .level(ResultLevel::Error)
         .message(message(finding))
         .locations(vec![
@@ -438,7 +438,7 @@ fn sarif(report: &Report, repository: &str) -> Sarif {
                 .iter()
                 .map(|rule| {
                     ReportingDescriptor::builder()
-                        .id(tastemaker_core::domain::findings::service::printed(rule).0)
+                        .id(tastemaker_values::domain::findings::service::printed(rule).0)
                         .build()
                 })
                 .collect::<Vec<_>>(),

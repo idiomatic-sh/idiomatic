@@ -1,7 +1,7 @@
 //! The digest port, implemented with blake3.
 
-use crate::domain::digests::types::Digest;
-use crate::domain::findings::types::{Fingerprint, Identifying};
+use tastemaker_values::domain::digests::types::Digest;
+use tastemaker_values::domain::findings::types::{Fingerprint, Identifying};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestParts;
 

@@ -2,9 +2,9 @@
 use crate::Behavior;
 use cucumber::{given, then, when};
 use std::sync::Arc;
-use tastemaker_core::domain::definitions::types::Role;
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::writing::types::Writing;
+use tastemaker_values::domain::definitions::types::Role;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::writing::types::Writing;
 use tastemaker_core::inbound::use_cases::init::{
     interface::InitUseCase as _, types::InitRequest, use_case::InitUseCaseImpl,
 };
@@ -35,7 +35,7 @@ fn runs(world: &mut Behavior) -> Result<(), Failure> {
     let service = InitUseCaseImpl::new(
         Arc::new(repository::factory::disk(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         )),
         Arc::new(manifest::factory::toml()),
     );
@@ -146,7 +146,7 @@ fn author_and_enforce(world: &mut Behavior) -> Result<(), Failure> {
 
 /// Creates the project's own rule, writes its query and a valid source, and adds the rule over `src`.
 fn author(root: &std::path::Path, start: &MachinePath) -> Result<(), Failure> {
-    use tastemaker_core::domain::{
+    use tastemaker_values::domain::{
         packages::types::{DefinitionKind, DefinitionName},
         paths::types::RepoPath,
     };
@@ -166,7 +166,7 @@ fn author(root: &std::path::Path, start: &MachinePath) -> Result<(), Failure> {
     let created = CreateUseCaseImpl::new(
         Arc::new(repository::factory::disk(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         )),
         Arc::new(manifest::factory::toml()),
         Arc::new(packages::factory::path()),
@@ -189,7 +189,7 @@ fn author(root: &std::path::Path, start: &MachinePath) -> Result<(), Failure> {
     let added = AddUseCaseImpl::new(
         Arc::new(repository::factory::disk(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         )),
         Arc::new(manifest::factory::toml()),
         Arc::new(packages::factory::path()),
@@ -211,7 +211,7 @@ fn author(root: &std::path::Path, start: &MachinePath) -> Result<(), Failure> {
 
 /// Validates the rule, then checks the project: the valid source and the files Asymptote adds have no finding, and a prohibited file is the one.
 fn enforce(root: &std::path::Path, start: MachinePath) -> Result<(), Failure> {
-    use tastemaker_core::domain::proofs::types::Proof;
+    use tastemaker_values::domain::proofs::types::Proof;
     use tastemaker_core::inbound::use_cases::{
         check::{
             interface::CheckUseCase as _,

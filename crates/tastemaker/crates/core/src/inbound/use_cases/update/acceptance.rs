@@ -3,9 +3,9 @@
 use crate::Behavior;
 use cucumber::{given, then, when};
 use std::sync::Arc;
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::packages::types::{DefinitionName, VersionText};
-use tastemaker_core::domain::writing::types::Writing;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::{DefinitionName, VersionText};
+use tastemaker_values::domain::writing::types::Writing;
 use tastemaker_core::inbound::use_cases::check::fixtures::{
     PACKAGE, RULE, SPEC, TEMPLATE, WORKSPACE,
 };
@@ -131,7 +131,7 @@ fn runs(world: &mut Behavior) -> Result<(), Box<dyn std::error::Error>> {
     let update = UpdateUseCaseImpl::new(
         Arc::new(repository::factory::disk(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         )),
         Arc::new(manifest::factory::toml()),
         Arc::new(packages::factory::path()),

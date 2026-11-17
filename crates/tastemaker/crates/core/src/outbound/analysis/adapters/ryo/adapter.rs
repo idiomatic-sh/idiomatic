@@ -10,11 +10,11 @@ use super::constants::{
     UNKNOWN_OPERATION,
 };
 use super::schemas::{self, error, operator_page, placed_columns, relation_page, report};
-use crate::domain::catalog::types::{
+use tastemaker_values::domain::catalog::types::{
     CatalogColumn, CatalogEntries, CatalogEntry, CatalogName, CatalogText, Grammar, OperatorAnswer,
     Production, RelationAnswer, RelationPage,
 };
-use crate::domain::definitions::types::QueryText;
+use tastemaker_values::domain::definitions::types::QueryText;
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::analysis::types::{
@@ -57,7 +57,7 @@ impl AnalysisRyoAdapter {
     pub(crate) fn kept(
         languages: Languages,
         settings: AnalysisSettings,
-        store: &crate::domain::settings::types::Store,
+        store: &tastemaker_values::domain::settings::types::Store,
     ) -> Self {
         Self::new(languages, settings, schemas::cache(store))
     }

@@ -2,12 +2,12 @@
 
 use super::service::matched_rules;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::service::known;
-use crate::domain::applications::types::Plan;
-use crate::domain::definitions::fixtures::bare;
-use crate::domain::entries::fixtures::unwritten;
-use crate::domain::placement::service::place;
-use crate::domain::selectors::fixtures::refusing;
+use tastemaker_values::domain::applications::service::known;
+use tastemaker_values::domain::applications::types::Plan;
+use tastemaker_values::domain::definitions::fixtures::bare;
+use tastemaker_values::domain::entries::fixtures::unwritten;
+use tastemaker_values::domain::placement::service::place;
+use tastemaker_values::domain::selectors::fixtures::refusing;
 
 /// The files of the tree.
 type Input = &'static [&'static str];
@@ -32,9 +32,9 @@ fn subject(files: Input) -> Value {
         &placement,
         &[],
         &known(&workspace, &placement),
-        crate::domain::applications::types::Compilers {
+        tastemaker_values::domain::applications::types::Compilers {
             compile: &refusing,
-            sets: &crate::domain::selectors::fixtures::refusing_sets,
+            sets: &tastemaker_values::domain::selectors::fixtures::refusing_sets,
         },
         &mut plan,
     ) {

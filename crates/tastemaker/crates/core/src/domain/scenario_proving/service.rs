@@ -2,21 +2,21 @@
 //! with: the workspace a spec scenario is placed in, the globs and params a rule scenario runs with, the findings a scenario's
 //! check reports, and the problems of a definition that does not explain itself.
 
-use crate::domain::definitions::constants::WORKSPACE_FILE;
-use crate::domain::definitions::service::scenario_files;
-use crate::domain::definitions::types::{Definition, RuleFile, SpecFile, TemplateFile};
-use crate::domain::entries::service::{rule_release, spec_release, template_release};
-use crate::domain::entries::types::{Composition, Described};
-use crate::domain::packages::service::{kind_directory, kind_file, kind_word};
-use crate::domain::packages::types::PlacedDefinition;
-use crate::domain::packages::types::{DefinitionKind, Ownership, Release};
-use crate::domain::paths::types::RepoPath;
-use crate::domain::proofs::types::{
+use tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
+use tastemaker_values::domain::definitions::service::scenario_files;
+use tastemaker_values::domain::definitions::types::{Definition, RuleFile, SpecFile, TemplateFile};
+use tastemaker_values::domain::entries::service::{rule_release, spec_release, template_release};
+use tastemaker_values::domain::entries::types::{Composition, Described};
+use tastemaker_values::domain::packages::service::{kind_directory, kind_file, kind_word};
+use tastemaker_values::domain::packages::types::PlacedDefinition;
+use tastemaker_values::domain::packages::types::{DefinitionKind, Ownership, Release};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::proofs::types::{
     DefinitionLabel, JudgedScenario, Problem, Subject, SubjectDirectory, SubjectId,
 };
-use crate::domain::scenario_files::constants::{EMPTY, FAILING, NOT_EMPTY, PASSING};
-use crate::domain::scenario_files::types::{WorkspaceText, WrittenWorkspace};
-use crate::domain::scenarios::types::Expectation;
+use tastemaker_values::domain::scenario_files::constants::{EMPTY, FAILING, NOT_EMPTY, PASSING};
+use tastemaker_values::domain::scenario_files::types::{WorkspaceText, WrittenWorkspace};
+use tastemaker_values::domain::scenarios::types::Expectation;
 
 /// A problem for each way the scenarios of the definition `label` fail to cover it: two with one id, none that passes,
 /// none that fails. Each says the scenario and the fix.
@@ -94,8 +94,8 @@ pub fn judged_template(template: &TemplateFile) -> Vec<JudgedScenario<'_>> {
 /// is rebased onto: where the file would be beside the definition, at its own path in the scenario's project.
 #[must_use]
 pub fn written_home(
-    directory: &crate::domain::packages::types::PackageRoot,
-    file: &crate::domain::proofs::types::ProofPath,
+    directory: &tastemaker_values::domain::packages::types::PackageRoot,
+    file: &tastemaker_values::domain::proofs::types::ProofPath,
     written: &RepoPath,
 ) -> RepoPath {
     let parent = |path: &std::path::Path| {
@@ -131,16 +131,16 @@ pub fn written_workspaces(definition: &Definition) -> Vec<WrittenWorkspace<'_>> 
 /// A problem for a blank description or why.
 pub fn explained(
     problems: &mut Vec<Problem>,
-    description: &crate::domain::entries::types::Description,
-    why: &crate::domain::definitions::types::Why,
+    description: &tastemaker_values::domain::entries::types::Description,
+    why: &tastemaker_values::domain::definitions::types::Why,
 ) {
     if description.0.trim().is_empty() {
         problems.push(Problem(
-            crate::domain::proofs::constants::BLANK_DESCRIPTION.into(),
+            tastemaker_values::domain::proofs::constants::BLANK_DESCRIPTION.into(),
         ));
     }
     if why.0.trim().is_empty() {
-        problems.push(Problem(crate::domain::proofs::constants::BLANK_WHY.into()));
+        problems.push(Problem(tastemaker_values::domain::proofs::constants::BLANK_WHY.into()));
     }
 }
 

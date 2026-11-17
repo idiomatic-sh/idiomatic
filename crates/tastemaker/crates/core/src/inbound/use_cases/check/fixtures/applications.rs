@@ -5,19 +5,19 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use super::{PACKAGE, RULE, SPEC, TEMPLATE, WORKSPACE};
-use crate::domain::applications::types::{Carried, Compilers, ParamSet};
-use crate::domain::definitions::types::{LoadedWorkspace, Role};
-use crate::domain::entries::service::rule_release;
+use tastemaker_values::domain::applications::types::{Carried, Compilers, ParamSet};
+use tastemaker_values::domain::definitions::types::{LoadedWorkspace, Role};
+use tastemaker_values::domain::entries::service::rule_release;
 use crate::domain::loading::service::{begin, finish, next, rule_read, spec_read, template_read};
-use crate::domain::packages::types::{
+use tastemaker_values::domain::packages::types::{
     PackageName, PackageRoot, Reach, ResolvedPackage, SourcePath,
 };
-use crate::domain::paths::types::RepoPath;
-use crate::domain::placement::service::place;
-use crate::domain::placement::types::Placement;
-use crate::domain::scopes::service::composition_of;
-use crate::domain::scopes::types::ScopeIndex;
-use crate::domain::selectors::types::{PathSet, PathTest, PatternFailure, SetGlob, Spelling};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::service::place;
+use tastemaker_values::domain::placement::types::Placement;
+use tastemaker_values::domain::scopes::service::composition_of;
+use tastemaker_values::domain::scopes::types::ScopeIndex;
+use tastemaker_values::domain::selectors::types::{PathSet, PathTest, PatternFailure, SetGlob, Spelling};
 use crate::outbound::manifest::interface::ManifestPort as _;
 use crate::outbound::manifest::types::DefinitionText;
 use crate::outbound::matching::interface::MatchingPort as _;
@@ -54,7 +54,7 @@ pub fn workspace_of(root: &str, spec: &str, files: &[&str]) -> LoadedWorkspace {
             PackageName("p".into()),
             ResolvedPackage {
                 directory: PackageRoot("/p".into()),
-                pin: crate::domain::packages::types::PackageSource::Path(SourcePath("p".into())),
+                pin: tastemaker_values::domain::packages::types::PackageSource::Path(SourcePath("p".into())),
                 manifest: manifest
                     .package(&DefinitionText(PACKAGE.into()))
                     .expect("the package reads"),

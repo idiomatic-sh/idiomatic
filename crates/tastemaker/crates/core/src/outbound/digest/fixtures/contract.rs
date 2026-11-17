@@ -1,7 +1,7 @@
 //! What every `digest` adapter must pass.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::findings::types::{Identifying, IdentityParts, Ordinal};
+use tastemaker_values::domain::findings::types::{Identifying, IdentityParts, Ordinal};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestParts;
 

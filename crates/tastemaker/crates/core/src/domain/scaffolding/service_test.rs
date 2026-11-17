@@ -11,13 +11,13 @@ use super::types::{
     Declaring, FirstWriting, MissingParam, Naming, Optionality, PlacedName, Unfilled, Waiting,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::captures::types::Captures;
-use crate::domain::contexts::types::ContextKey;
-use crate::domain::entries::types::{
+use tastemaker_values::domain::captures::types::Captures;
+use tastemaker_values::domain::contexts::types::ContextKey;
+use tastemaker_values::domain::entries::types::{
     Amount, Bound, ConditionName, Count, ParamSource, ParamValues, Setting,
 };
-use crate::domain::paths::types::RepoPath;
-use crate::domain::selectors::types::PathPattern;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::selectors::types::PathPattern;
 
 /// What a row asks of the service.
 #[derive(Clone, Copy, Debug)]
@@ -251,7 +251,7 @@ fn rendered_said(directory: &RepoPath) -> Result<Value, Failure> {
         &declared("lang", ParamSource::DirectoryName),
         &ParamValues::default(),
         directory,
-        &crate::domain::entries::fixtures::unwritten,
+        &tastemaker_values::domain::entries::fixtures::unwritten,
     )?;
     let keys = context
         .values
@@ -294,7 +294,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
                 named_by_directory(
                     &declared("lang", ParamSource::DirectoryName),
                     &directory,
-                    &crate::domain::findings::types::WorkspaceName("ws".into()),
+                    &tastemaker_values::domain::findings::types::WorkspaceName("ws".into()),
                 )
             ),
             &format!("{:?}", captures(&[("lang", "go")])),
@@ -331,7 +331,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
                 &declared("kind", ParamSource::Given),
                 &ParamValues::default(),
                 &directory,
-                &crate::domain::entries::fixtures::unwritten,
+                &tastemaker_values::domain::entries::fixtures::unwritten,
             )
             .map(drop)?;
             String::new()

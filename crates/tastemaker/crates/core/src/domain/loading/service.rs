@@ -2,14 +2,14 @@
 //! The caller reads each file the load asks for and hands back what it parsed; the load says what to read next.
 
 use super::types::{DefinitionFile, LoadProblem, Loading, ReadFile, Wanted, WorkspaceLoad};
-use crate::domain::definitions::types::{
+use tastemaker_values::domain::definitions::types::{
     Definition, LoadedWorkspace, RuleFile, SpecFile, TemplateFile,
 };
-use crate::domain::entries::service::{adopt, releases};
-use crate::domain::packages::service::release_file;
-use crate::domain::packages::types::{PackageRoot, Release};
-use crate::domain::variables::service::{apply, resolve};
-use crate::domain::variables::types::VariableProblem;
+use tastemaker_values::domain::entries::service::{adopt, releases};
+use tastemaker_values::domain::packages::service::release_file;
+use tastemaker_values::domain::packages::types::{PackageRoot, Release};
+use tastemaker_values::domain::variables::service::{apply, resolve};
+use tastemaker_values::domain::variables::types::VariableProblem;
 
 /// A load of `workspace`, its root file and locals read and its packages resolved: every release their entries name is
 /// asked for.

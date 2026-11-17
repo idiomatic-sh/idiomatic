@@ -9,9 +9,9 @@ use super::constants::ORDINARY_MODE;
 use super::constants::{FILE, GITIGNORE, GITIGNORE_TEXT, TAG, TAG_TEXT};
 use super::schemas::{bytes, definitions};
 use super::types::Unwritten;
-use crate::domain::proofs::types::{ProvenVersion, ProvenVersions};
-use crate::domain::settings::types::Store;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::proofs::types::{ProvenVersion, ProvenVersions};
+use tastemaker_values::domain::settings::types::Store;
+use tastemaker_values::domain::writing::types::Writing;
 use crate::outbound::validate_store::errors::ValidateStoreError;
 use crate::outbound::validate_store::interface::ValidateStorePort;
 

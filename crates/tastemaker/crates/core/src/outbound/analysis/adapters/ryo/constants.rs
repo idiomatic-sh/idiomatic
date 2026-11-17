@@ -1,15 +1,15 @@
 //! The names the ryo adapter declares to ryo.
 
 /// The host relation of placed files.
-pub(super) const PLACED: &str = crate::domain::applications::constants::PLACED;
+pub(super) const PLACED: &str = tastemaker_values::domain::applications::constants::PLACED;
 /// Its columns, in order.
 pub(super) const PLACED_COLUMNS: [&str; 6] = [
     "path",
     "entry",
-    crate::domain::packages::constants::PACKAGE_KEY,
-    crate::domain::packages::constants::TEMPLATE_WORD,
+    tastemaker_values::domain::packages::constants::PACKAGE_KEY,
+    tastemaker_values::domain::packages::constants::TEMPLATE_WORD,
     "version",
-    crate::domain::packages::constants::SPEC_WORD,
+    tastemaker_values::domain::packages::constants::SPEC_WORD,
 ];
 /// What the catalog says `tastemaker.placed` is.
 pub(super) const PLACED_SUMMARY: &str =
@@ -31,7 +31,7 @@ pub(super) const FILE_KIND: &str = "file";
 pub(super) const TEXT_KIND: &str = "text";
 
 /// How the engine writes a span as text, between its start and its end: `12..40`.
-pub(super) const SPAN_TEXT: &str = crate::domain::applications::constants::SPAN_SEPARATOR;
+pub(super) const SPAN_TEXT: &str = tastemaker_values::domain::applications::constants::SPAN_SEPARATOR;
 
 /// Ryo's own directory within the store.
 pub(super) const RYO_STORE: &str = "ryo";

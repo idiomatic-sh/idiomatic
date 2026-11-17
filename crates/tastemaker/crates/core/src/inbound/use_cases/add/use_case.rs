@@ -4,31 +4,31 @@
 use super::errors::AddError;
 use super::interface::AddUseCase;
 use super::types::{AddReport, AddRequest, Novelty, ShownEntry};
-use crate::domain::captures::types::Interpolations;
-use crate::domain::definitions::constants::{LOCK_FILE, MISSING_ROOT, WORKSPACE_FILE};
-use crate::domain::definitions::service::{description, governed, local, locals, shared, unloaded};
-use crate::domain::definitions::types::{LoadedWorkspace, LocalFile, Role};
-use crate::domain::entries::service::{derived, literal_params, pin};
-use crate::domain::files::types::FileText;
+use tastemaker_values::domain::captures::types::Interpolations;
+use tastemaker_values::domain::definitions::constants::{LOCK_FILE, MISSING_ROOT, WORKSPACE_FILE};
+use tastemaker_values::domain::definitions::service::{description, governed, local, locals, shared, unloaded};
+use tastemaker_values::domain::definitions::types::{LoadedWorkspace, LocalFile, Role};
+use tastemaker_values::domain::entries::service::{derived, literal_params, pin};
+use tastemaker_values::domain::files::types::FileText;
 use crate::domain::loading::service::{begin, definition_loaded, finish, next};
-use crate::domain::packages::constants::PACKAGE_FILE;
-use crate::domain::packages::service::{
+use tastemaker_values::domain::packages::constants::PACKAGE_FILE;
+use tastemaker_values::domain::packages::service::{
     kind_directory, kind_file, latest, lock, locked_version, root_at,
 };
-use crate::domain::packages::types::{
+use tastemaker_values::domain::packages::types::{
     DefinitionKind, DefinitionName, PackageRoot, Reach, Release, ResolvedPackage, SourcePath,
     VersionText,
 };
-use crate::domain::paths::service::join;
-use crate::domain::paths::types::{PathText, RepoPath};
-use crate::domain::selectors::errors::SelectorsError;
-use crate::domain::selectors::service::resolve as resolve_selectors;
-use crate::domain::selectors::service::{covers_any, first_match};
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::paths::service::join;
+use tastemaker_values::domain::paths::types::{PathText, RepoPath};
+use tastemaker_values::domain::selectors::errors::SelectorsError;
+use tastemaker_values::domain::selectors::service::resolve as resolve_selectors;
+use tastemaker_values::domain::selectors::service::{covers_any, first_match};
+use tastemaker_values::domain::selectors::types::{
     Coverage, PathPattern, SelectionContext, Selector, Selectors, Spelling,
 };
-use crate::domain::variables::service::apply as apply_variables;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::variables::service::apply as apply_variables;
+use tastemaker_values::domain::writing::types::Writing;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 use crate::outbound::matching::interface::MatchingPort;
@@ -66,7 +66,7 @@ impl AddUseCaseImpl {
     fn pins(
         &self,
         found: &dyn FoundRepository,
-    ) -> Result<Option<crate::domain::packages::types::Lock>, AddError> {
+    ) -> Result<Option<tastemaker_values::domain::packages::types::Lock>, AddError> {
         let repository = found;
         let lock_file = join(found.workspace(), PathText(LOCK_FILE)).unwrap_or_default();
         // Only a lock that is not there is none: one that is there and does not read fails, never a lock to rewrite.
@@ -345,7 +345,7 @@ impl AddUseCaseImpl {
         kind: DefinitionKind,
         text: &DefinitionText,
     ) -> Result<
-        crate::domain::entries::types::Description,
+        tastemaker_values::domain::entries::types::Description,
         crate::outbound::manifest::errors::ManifestError,
     > {
         self.manifest

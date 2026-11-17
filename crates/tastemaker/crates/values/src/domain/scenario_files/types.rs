@@ -89,8 +89,8 @@ pub enum ScenarioEntry {
 }
 
 /// Whether a fixture's project brings its own `tastemaker.toml`.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum OwnWorkspace {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OwnWorkspace {
     /// It does, and it was written.
     Written,
     /// It does not: one is written for it.

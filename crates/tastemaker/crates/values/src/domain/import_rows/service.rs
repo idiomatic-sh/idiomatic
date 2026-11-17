@@ -108,7 +108,7 @@ pub fn keep(
             match rows.scopes.get_mut(&path) {
                 Some(scopes) => scopes.push(scope),
                 None => {
-                    let _: Option<Vec<Scope>> = rows.scopes.insert(path, vec![scope]);
+                    drop(rows.scopes.insert(path, vec![scope]));
                 }
             }
         }

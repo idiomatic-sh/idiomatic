@@ -2,11 +2,11 @@
 
 use super::service::plan;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::definitions::fixtures::bare;
-use crate::domain::entries::fixtures::unwritten;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::placement::service::place;
-use crate::domain::selectors::fixtures::refusing;
+use tastemaker_values::domain::definitions::fixtures::bare;
+use tastemaker_values::domain::entries::fixtures::unwritten;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::service::place;
+use tastemaker_values::domain::selectors::fixtures::refusing;
 
 /// The files of the tree.
 type Input = &'static [&'static str];
@@ -29,9 +29,9 @@ fn subject(files: Input) -> Value {
         &workspace,
         &placement,
         RepoPath::default(),
-        crate::domain::applications::types::Compilers {
+        tastemaker_values::domain::applications::types::Compilers {
             compile: &refusing,
-            sets: &crate::domain::selectors::fixtures::refusing_sets,
+            sets: &tastemaker_values::domain::selectors::fixtures::refusing_sets,
         },
     ) {
         Ok(planned) => planned

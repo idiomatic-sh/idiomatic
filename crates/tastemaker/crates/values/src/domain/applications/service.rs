@@ -288,7 +288,8 @@ fn compared_paths(plan: &Plan, judged: &Judged) -> BTreeSet<RepoPath> {
 
 /// How `contract` is compared when both its files answered the rows the comparison reads; none when either went unread,
 /// lost a row, or the content answered no relation the comparison reads.
-pub(crate) fn readable_shape(
+#[must_use]
+pub fn readable_shape(
     contract: &Contract,
     Compared {
         unread, dropped, ..

@@ -1,7 +1,7 @@
 //! What every `matching` adapter must pass.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::selectors::types::{Binding, Coverage, GlobIndex, PathRest, Spelling};
+use tastemaker_values::domain::selectors::types::{Binding, Coverage, GlobIndex, PathRest, Spelling};
 use crate::outbound::matching::interface::MatchingPort;
 
 /// A glob, with no expression, and a path it is asked about.
@@ -47,8 +47,8 @@ fn answer(adapter: &impl MatchingPort, (glob, path): Input) -> Result<Value, Fai
     // The glob in a set with another passes the paths it passes alone.
     let set = adapter
         .compile_set(&[
-            crate::domain::selectors::types::SetGlob("**/never-a-file".into()),
-            crate::domain::selectors::types::SetGlob(glob.into()),
+            tastemaker_values::domain::selectors::types::SetGlob("**/never-a-file".into()),
+            tastemaker_values::domain::selectors::types::SetGlob(glob.into()),
         ])
         .map_err(|_refused| ())?;
     let mut passing = Vec::new();

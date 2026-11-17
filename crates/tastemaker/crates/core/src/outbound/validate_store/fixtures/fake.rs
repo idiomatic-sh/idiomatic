@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-use crate::domain::proofs::types::{ProvenVersion, ProvenVersions};
+use tastemaker_values::domain::proofs::types::{ProvenVersion, ProvenVersions};
 use crate::outbound::validate_store::errors::ValidateStoreError;
 use crate::outbound::validate_store::interface::ValidateStorePort;
 

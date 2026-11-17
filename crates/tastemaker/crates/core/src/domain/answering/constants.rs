@@ -2,9 +2,9 @@
 //! imports read.
 
 /// A row's span.
-pub const SPAN: &str = crate::domain::import_rows::constants::SPAN;
+pub const SPAN: &str = tastemaker_values::domain::import_rows::constants::SPAN;
 /// The directory a test lives in.
-pub const TESTS: &str = crate::domain::imports::constants::TESTS;
+pub const TESTS: &str = tastemaker_values::domain::imports::constants::TESTS;
 /// A comment row's column that says whether the comment is documentation.
 pub const DOC: &str = "doc";
 /// A comment row's column that holds its text.

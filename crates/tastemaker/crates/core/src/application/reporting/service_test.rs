@@ -6,14 +6,14 @@ use std::sync::Arc;
 
 use super::types::SourceFiles;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::types::Plan;
-use crate::domain::findings::service::{error, whole_identity};
-use crate::domain::findings::types::{Fingerprint, Identifying, Reason};
-use crate::domain::governance::types::Answers;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::applications::types::Plan;
+use tastemaker_values::domain::findings::service::{error, whole_identity};
+use tastemaker_values::domain::findings::types::{Fingerprint, Identifying, Reason};
+use tastemaker_values::domain::governance::types::Answers;
+use tastemaker_values::domain::paths::types::RepoPath;
 use crate::domain::reporting::service::fingerprinted;
 use crate::domain::reporting::types::{Candidate, Reported, Reuse, Standing};
-use crate::domain::selectors::types::{PathSet, PatternFailure, SetGlob};
+use tastemaker_values::domain::selectors::types::{PathSet, PatternFailure, SetGlob};
 use crate::outbound::matching::interface::MatchingPort as _;
 
 /// The matching adapter's compile of a set of globs, as the service is handed it.
@@ -26,9 +26,9 @@ fn sets(globs: &[SetGlob]) -> Result<Arc<dyn PathSet>, PatternFailure> {
 fn report<E>(
     reported: Reported<'_>,
     read: &impl Fn(&[RepoPath]) -> Result<SourceFiles, E>,
-    sets: &dyn crate::domain::selectors::types::SetCompiler,
+    sets: &dyn tastemaker_values::domain::selectors::types::SetCompiler,
     fingerprint: &dyn Fn(&Identifying) -> Fingerprint,
-) -> Result<crate::domain::findings::types::Report, E> {
+) -> Result<tastemaker_values::domain::findings::types::Report, E> {
     super::service::report(reported, read, sets, fingerprint, &|identity| {
         Fingerprint(
             u64::try_from(identity.parts.0[0].len() * 31 + identity.parts.0[1].len()).unwrap_or(0),
@@ -81,7 +81,7 @@ fn seven(_: &Identifying) -> Fingerprint {
 fn said(scenario: Scenario) -> (String, &'static str) {
     let plan = Plan::default();
     let finding = error(
-        crate::domain::findings::service::check_id("p/r", "count"),
+        tastemaker_values::domain::findings::service::check_id("p/r", "count"),
         RepoPath("src/lib.txt".into()),
         "wrong",
     );
@@ -110,7 +110,7 @@ fn said(scenario: Scenario) -> (String, &'static str) {
                 .map(|each| {
                     format!(
                         "{}@{}#{}",
-                        crate::domain::findings::service::printed(&each.rule).0,
+                        tastemaker_values::domain::findings::service::printed(&each.rule).0,
                         each.path.0,
                         each.fingerprint.0
                     )
@@ -120,7 +120,7 @@ fn said(scenario: Scenario) -> (String, &'static str) {
             let evaluated = made
                 .evaluated
                 .iter()
-                .map(|rule| crate::domain::findings::service::printed(rule).0)
+                .map(|rule| tastemaker_values::domain::findings::service::printed(rule).0)
                 .collect::<Vec<_>>()
                 .join(",");
             (
@@ -138,10 +138,10 @@ fn said(scenario: Scenario) -> (String, &'static str) {
 }
 
 /// Observe both accepted and standing findings from the same suppression decision.
-fn accepted(finding: crate::domain::findings::types::Finding) -> (String, &'static str) {
+fn accepted(finding: tastemaker_values::domain::findings::types::Finding) -> (String, &'static str) {
     source_lines_survive_settlement();
     let other = error(
-        crate::domain::findings::service::check_id("p/s", "count"),
+        tastemaker_values::domain::findings::service::check_id("p/s", "count"),
         RepoPath("src/lib.txt".into()),
         "also wrong",
     );
@@ -150,12 +150,12 @@ fn accepted(finding: crate::domain::findings::types::Finding) -> (String, &'stat
         vec![
             Candidate {
                 finding,
-                line: crate::domain::findings::types::FirstLine::default(),
+                line: tastemaker_values::domain::findings::types::FirstLine::default(),
                 acceptance: Standing::Accepted(Reason("why".into())),
             },
             Candidate {
                 finding: other,
-                line: crate::domain::findings::types::FirstLine::default(),
+                line: tastemaker_values::domain::findings::types::FirstLine::default(),
                 acceptance: Standing::Stands,
             },
         ],
@@ -167,7 +167,7 @@ fn accepted(finding: crate::domain::findings::types::Finding) -> (String, &'stat
             "{}:{}|{}",
             made.accepted
                 .iter()
-                .map(|each| crate::domain::findings::service::printed(&each.finding.rule).0)
+                .map(|each| tastemaker_values::domain::findings::service::printed(&each.finding.rule).0)
                 .collect::<Vec<_>>()
                 .join(","),
             made.accepted
@@ -177,7 +177,7 @@ fn accepted(finding: crate::domain::findings::types::Finding) -> (String, &'stat
                 .join(","),
             made.standing
                 .iter()
-                .map(|each| crate::domain::findings::service::printed(&each.rule).0)
+                .map(|each| tastemaker_values::domain::findings::service::printed(&each.rule).0)
                 .collect::<Vec<_>>()
                 .join(","),
         ),
@@ -188,20 +188,20 @@ fn accepted(finding: crate::domain::findings::types::Finding) -> (String, &'stat
 /// The comment the shared `comment` relation gives of `path`, answered to the comments rule `comments`: an ignore of
 /// `p/r`, at the span of the whole comment.
 fn ignoring_comment(
-    comments: crate::domain::applications::types::LintRuleId,
+    comments: tastemaker_values::domain::applications::types::LintRuleId,
     path: &RepoPath,
 ) -> Answers {
     Answers {
-        answers: vec![crate::domain::applications::types::LintAnswer {
+        answers: vec![tastemaker_values::domain::applications::types::LintAnswer {
             rule: comments,
             path: path.clone(),
             cells: vec![
                 cell(
                     "span",
-                    crate::domain::applications::types::CellValue::Span(
-                        crate::domain::comments::types::ByteSpan {
-                            start: crate::domain::findings::types::ByteOffset(10),
-                            end: crate::domain::findings::types::ByteOffset(37),
+                    tastemaker_values::domain::applications::types::CellValue::Span(
+                        tastemaker_values::domain::comments::types::ByteSpan {
+                            start: tastemaker_values::domain::findings::types::ByteOffset(10),
+                            end: tastemaker_values::domain::findings::types::ByteOffset(37),
                         },
                     ),
                 ),
@@ -215,15 +215,15 @@ fn ignoring_comment(
 
 /// Suppression and first-line identity share source text without changing global order.
 fn source_lines_survive_settlement() {
-    use crate::domain::files::types::FileText;
-    use crate::domain::findings::types::{Column, Line, Place, Region, RuleId};
+    use tastemaker_values::domain::files::types::FileText;
+    use tastemaker_values::domain::findings::types::{Column, Line, Place, Region, RuleId};
     let rule = RuleId("p/r".into());
     let path = RepoPath("a.toml".into());
     let other = RepoPath("z.toml".into());
     let unplanned = RepoPath("outside.toml".into());
     let finding_at = |located: &RepoPath, line| {
         let mut finding = error(
-            crate::domain::findings::service::of_rule(rule.clone()),
+            tastemaker_values::domain::findings::service::of_rule(rule.clone()),
             located.clone(),
             "wrong",
         );
@@ -235,8 +235,8 @@ fn source_lines_survive_settlement() {
         });
         finding
     };
-    let comments = crate::domain::applications::types::LintRuleId(
-        crate::domain::applications::constants::COMMENTS.into(),
+    let comments = tastemaker_values::domain::applications::types::LintRuleId(
+        tastemaker_values::domain::applications::constants::COMMENTS.into(),
     );
     let mut plan = Plan {
         known: BTreeSet::from([rule.clone()]),
@@ -245,7 +245,7 @@ fn source_lines_survive_settlement() {
     };
     drop(plan.purposes.insert(
         comments.clone(),
-        crate::domain::applications::types::Purpose::Comments,
+        tastemaker_values::domain::applications::types::Purpose::Comments,
     ));
     let answers = ignoring_comment(comments, &path);
     let made = report(
@@ -326,12 +326,12 @@ fn succeeds() {
 /// A file whose comment holds an ignore of a finding it has is read, and its report says what it had before the ignore. A report told
 /// that the file has that still, with the findings it came to, does not read it, and says the same; a file that has more is read.
 fn a_file_that_has_what_it_had_is_not_read_again() {
-    use crate::domain::files::types::FileText;
-    use crate::domain::findings::types::{Column, Line, Place, Region, RuleId};
+    use tastemaker_values::domain::files::types::FileText;
+    use tastemaker_values::domain::findings::types::{Column, Line, Place, Region, RuleId};
     let rule = RuleId("p/r".into());
     let path = RepoPath("a.toml".into());
-    let comments = crate::domain::applications::types::LintRuleId(
-        crate::domain::applications::constants::COMMENTS.into(),
+    let comments = tastemaker_values::domain::applications::types::LintRuleId(
+        tastemaker_values::domain::applications::constants::COMMENTS.into(),
     );
     let mut plan = Plan {
         known: BTreeSet::from([rule.clone()]),
@@ -340,11 +340,11 @@ fn a_file_that_has_what_it_had_is_not_read_again() {
     };
     drop(plan.purposes.insert(
         comments.clone(),
-        crate::domain::applications::types::Purpose::Comments,
+        tastemaker_values::domain::applications::types::Purpose::Comments,
     ));
     let finding_at = |line| {
         let mut finding = error(
-            crate::domain::findings::service::of_rule(rule.clone()),
+            tastemaker_values::domain::findings::service::of_rule(rule.clone()),
             path.clone(),
             "wrong",
         );
@@ -357,7 +357,7 @@ fn a_file_that_has_what_it_had_is_not_read_again() {
         finding
     };
     let reads = std::cell::RefCell::new(Vec::new());
-    let report_with = |reuse: &Reuse, findings: Vec<crate::domain::findings::types::Finding>| {
+    let report_with = |reuse: &Reuse, findings: Vec<tastemaker_values::domain::findings::types::Finding>| {
         reads.borrow_mut().clear();
         report(
             Reported {
@@ -418,11 +418,11 @@ fn a_file_that_has_what_it_had_is_not_read_again() {
 /// A name-only import, which has no dependency edge or comment row to request its source for it, is found at its target
 /// and fingerprinted from its line.
 fn name_only_import_is_found_at_its_target() {
-    use crate::domain::applications::types::{LintAnswer, LintRuleId, Purpose};
-    use crate::domain::entries::types::{EntryIdentity, ImportDefault};
-    use crate::domain::files::types::FileText;
-    use crate::domain::findings::types::{Column, Line, Place, Region};
-    use crate::domain::imports::types::{
+    use tastemaker_values::domain::applications::types::{LintAnswer, LintRuleId, Purpose};
+    use tastemaker_values::domain::entries::types::{EntryIdentity, ImportDefault};
+    use tastemaker_values::domain::files::types::FileText;
+    use tastemaker_values::domain::findings::types::{Column, Line, Place, Region};
+    use tastemaker_values::domain::imports::types::{
         EntryImports, InstanceName, Member, Relation, ScopeImports,
     };
     use crate::outbound::repository::interface::Repository as _;
@@ -464,10 +464,10 @@ fn name_only_import_is_found_at_its_target() {
                         cell("target", text_cell("serde::Serialize")),
                         cell(
                             "span",
-                            crate::domain::applications::types::CellValue::Span(
-                                crate::domain::comments::types::ByteSpan {
-                                    start: crate::domain::findings::types::ByteOffset(4),
-                                    end: crate::domain::findings::types::ByteOffset(20),
+                            tastemaker_values::domain::applications::types::CellValue::Span(
+                                tastemaker_values::domain::comments::types::ByteSpan {
+                                    start: tastemaker_values::domain::findings::types::ByteOffset(4),
+                                    end: tastemaker_values::domain::findings::types::ByteOffset(20),
                                 },
                             ),
                         ),
@@ -512,10 +512,10 @@ fn name_only_import_is_found_at_its_target() {
 /// An `imports.allow` module pattern that does not compile is refused as a finding of its entry at the workspace's
 /// `tastemaker.toml`, never read as a pattern that matches nothing.
 fn an_allow_pattern_that_does_not_compile_is_refused() {
-    use crate::domain::applications::types::{LintAnswer, LintRuleId, Purpose};
-    use crate::domain::entries::types::{EntryIdentity, ImportDefault};
-    use crate::domain::files::types::FileText;
-    use crate::domain::imports::types::{
+    use tastemaker_values::domain::applications::types::{LintAnswer, LintRuleId, Purpose};
+    use tastemaker_values::domain::entries::types::{EntryIdentity, ImportDefault};
+    use tastemaker_values::domain::files::types::FileText;
+    use tastemaker_values::domain::imports::types::{
         EntryImports, InstanceName, Member, Relation, ScopeImports,
     };
     use crate::outbound::repository::interface::Repository as _;
@@ -557,10 +557,10 @@ fn an_allow_pattern_that_does_not_compile_is_refused() {
                         cell("target", text_cell("serde::Serialize")),
                         cell(
                             "span",
-                            crate::domain::applications::types::CellValue::Span(
-                                crate::domain::comments::types::ByteSpan {
-                                    start: crate::domain::findings::types::ByteOffset(4),
-                                    end: crate::domain::findings::types::ByteOffset(20),
+                            tastemaker_values::domain::applications::types::CellValue::Span(
+                                tastemaker_values::domain::comments::types::ByteSpan {
+                                    start: tastemaker_values::domain::findings::types::ByteOffset(4),
+                                    end: tastemaker_values::domain::findings::types::ByteOffset(20),
                                 },
                             ),
                         ),
@@ -584,7 +584,7 @@ fn an_allow_pattern_that_does_not_compile_is_refused() {
         },
         // A module pattern is names and `*` and always compiles with the real matching port, so a compiler that refuses
         // every set stands for one that does not.
-        &crate::domain::selectors::fixtures::refusing_sets,
+        &tastemaker_values::domain::selectors::fixtures::refusing_sets,
         &|_| Fingerprint(7),
     );
     let made = made.unwrap_or_else(|error| panic!("report failed: {error}"));
@@ -592,7 +592,7 @@ fn an_allow_pattern_that_does_not_compile_is_refused() {
         made.findings
             .iter()
             .any(
-                |finding| &*crate::domain::findings::service::printed(&finding.rule).0
+                |finding| &*tastemaker_values::domain::findings::service::printed(&finding.rule).0
                     == "p/entry#imports"
                     && &*finding.path.0 == "tastemaker.toml"
                     && finding.message.0.contains("is no module pattern")
@@ -611,7 +611,7 @@ fn injected() -> super::service::ReportingService {
 }
 
 fn injected_sources_change_identity() {
-    use crate::domain::findings::types::{Column, Line, Place, Region};
+    use tastemaker_values::domain::findings::types::{Column, Line, Place, Region};
     let path = RepoPath("source.toml".into());
     let plan = Plan {
         files: vec![path.clone()],
@@ -626,7 +626,7 @@ fn injected_sources_change_identity() {
         );
         let service = injected();
         let mut finding = error(
-            crate::domain::findings::service::of_rule(crate::domain::findings::types::RuleId(
+            tastemaker_values::domain::findings::service::of_rule(tastemaker_values::domain::findings::types::RuleId(
                 "test".into(),
             )),
             path.clone(),
@@ -658,17 +658,17 @@ fn injected_sources_change_identity() {
 /// A cell of a row the lint call answered.
 fn cell(
     name: &str,
-    value: crate::domain::applications::types::CellValue,
-) -> crate::domain::applications::types::AnswerCell {
-    crate::domain::applications::types::AnswerCell {
-        name: crate::domain::definitions::types::ColumnName(name.into()),
+    value: tastemaker_values::domain::applications::types::CellValue,
+) -> tastemaker_values::domain::applications::types::AnswerCell {
+    tastemaker_values::domain::applications::types::AnswerCell {
+        name: tastemaker_values::domain::definitions::types::ColumnName(name.into()),
         value,
     }
 }
 
 /// A cell's value that is text.
-fn text_cell(value: &str) -> crate::domain::applications::types::CellValue {
-    crate::domain::applications::types::CellValue::Text(
-        crate::domain::applications::types::CellText(value.into()),
+fn text_cell(value: &str) -> tastemaker_values::domain::applications::types::CellValue {
+    tastemaker_values::domain::applications::types::CellValue::Text(
+        tastemaker_values::domain::applications::types::CellText(value.into()),
     )
 }

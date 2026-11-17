@@ -4,9 +4,9 @@ use crate::Behavior;
 use cucumber::{given, then, when};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::paths::types::RepoPath;
-use tastemaker_core::domain::writing::types::Writing;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 use tastemaker_core::inbound::use_cases::add::interface::AddUseCase as _;
 use tastemaker_core::inbound::use_cases::add::types::{AddRequest, DefinitionAsked};
 use tastemaker_core::inbound::use_cases::add::use_case::AddUseCaseImpl;
@@ -55,7 +55,7 @@ fn runs(world: &mut Behavior) -> Result<(), Box<dyn std::error::Error>> {
     let add = AddUseCaseImpl::new(
         Arc::new(repository::factory::disk(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         )),
         Arc::new(manifest::factory::toml()),
         Arc::new(packages::factory::path()),

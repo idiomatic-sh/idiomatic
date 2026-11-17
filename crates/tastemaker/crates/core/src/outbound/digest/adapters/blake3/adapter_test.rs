@@ -2,7 +2,7 @@
 
 use super::adapter::DigestBlake3Adapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::findings::types::{Identifying, Ordinal};
+use tastemaker_values::domain::findings::types::{Identifying, Ordinal};
 use crate::outbound::digest::fixtures::contract::check;
 use crate::outbound::digest::interface::DigestPort as _;
 
@@ -27,7 +27,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(ordinal: Input) -> Value {
     let identifying = |count| Identifying {
-        parts: crate::domain::findings::types::IdentityParts([
+        parts: tastemaker_values::domain::findings::types::IdentityParts([
             "rule".into(),
             "path".into(),
             "line".into(),

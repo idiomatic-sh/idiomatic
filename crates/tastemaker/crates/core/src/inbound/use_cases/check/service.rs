@@ -4,11 +4,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::errors::CheckError;
 use super::types::Listing;
-use crate::domain::applications::types::{AnswerCell, CellValue, LintAnswer, LintUnknown, Plan};
-use crate::domain::findings::types::{Fingerprint, Report};
-use crate::domain::governance::types::Answers;
-use crate::domain::linting::service::repository_path;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::applications::types::{AnswerCell, CellValue, LintAnswer, LintUnknown, Plan};
+use tastemaker_values::domain::findings::types::{Fingerprint, Report};
+use tastemaker_values::domain::governance::types::Answers;
+use tastemaker_values::domain::linting::service::repository_path;
+use tastemaker_values::domain::paths::types::RepoPath;
 use crate::domain::reporting::types::Reuse;
 use crate::outbound::analysis::types::AnalysisReport;
 use crate::outbound::check_store::types::{Checked, CheckedFile, CheckedPath, SourcedFile};
@@ -69,12 +69,12 @@ pub(super) fn lint_answers(plan: &Plan, report: AnalysisReport) -> Answers {
 /// The directory of the package the version `release` is in: one of the workspace's, or the one a package only a
 /// scenario's own `tastemaker.toml` names was found in, which its name holds.
 pub(super) fn package_of(
-    release: &crate::domain::packages::types::Release,
+    release: &tastemaker_values::domain::packages::types::Release,
     packages: &BTreeMap<
-        crate::domain::packages::types::PackageName,
-        crate::domain::packages::types::ResolvedPackage,
+        tastemaker_values::domain::packages::types::PackageName,
+        tastemaker_values::domain::packages::types::ResolvedPackage,
     >,
-) -> Option<crate::domain::packages::types::PackageRoot> {
+) -> Option<tastemaker_values::domain::packages::types::PackageRoot> {
     packages
         .get(&release.package)
         .map(|package| package.directory.clone())
@@ -83,7 +83,7 @@ pub(super) fn package_of(
                 .package
                 .0
                 .split_once('@')
-                .map(|(_, directory)| crate::domain::packages::types::PackageRoot(directory.into()))
+                .map(|(_, directory)| tastemaker_values::domain::packages::types::PackageRoot(directory.into()))
         })
 }
 
@@ -110,7 +110,7 @@ pub(super) fn listing(
 pub(super) fn checked_of(
     judged: &Report,
     current: Vec<CheckedFile>,
-    known: crate::domain::digests::types::Digest,
+    known: tastemaker_values::domain::digests::types::Digest,
 ) -> Checked {
     Checked {
         sourced: judged
@@ -133,7 +133,7 @@ pub(super) fn checked_of(
 pub(super) fn reusable(
     kept: &Checked,
     current: &[CheckedFile],
-    known: &crate::domain::digests::types::Digest,
+    known: &tastemaker_values::domain::digests::types::Digest,
 ) -> Reuse {
     if kept.known != *known {
         return Reuse::default();

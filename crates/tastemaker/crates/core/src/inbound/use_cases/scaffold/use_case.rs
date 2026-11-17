@@ -9,26 +9,26 @@ use std::sync::Arc;
 use super::errors::ScaffoldError;
 use super::interface::ScaffoldUseCase;
 use super::types::{ScaffoldReport, ScaffoldRequest, Workspace};
-use crate::domain::applications::types::{Compilers, Purpose};
-use crate::domain::captures::service::unescaped;
-use crate::domain::captures::types::Template;
-use crate::domain::captures::types::{CaptureName, CaptureValue, Captures, Interpolations};
-use crate::domain::definitions::constants::{LOCK_FILE, WORKSPACE_FILE};
-use crate::domain::definitions::service::{content, local, locals, package_paths};
-use crate::domain::definitions::types::{Governed, LoadedWorkspace, RepositoryText, Role};
-use crate::domain::entries::service::{reference, spec_release, template_release};
-use crate::domain::entries::types::{Amount, Composition, Count, SpecEntry, TemplateEntry};
-use crate::domain::files::types::FileText;
-use crate::domain::files::types::MachinePath;
+use tastemaker_values::domain::applications::types::{Compilers, Purpose};
+use tastemaker_values::domain::captures::service::unescaped;
+use tastemaker_values::domain::captures::types::Template;
+use tastemaker_values::domain::captures::types::{CaptureName, CaptureValue, Captures, Interpolations};
+use tastemaker_values::domain::definitions::constants::{LOCK_FILE, WORKSPACE_FILE};
+use tastemaker_values::domain::definitions::service::{content, local, locals, package_paths};
+use tastemaker_values::domain::definitions::types::{Governed, LoadedWorkspace, RepositoryText, Role};
+use tastemaker_values::domain::entries::service::{reference, spec_release, template_release};
+use tastemaker_values::domain::entries::types::{Amount, Composition, Count, SpecEntry, TemplateEntry};
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::files::types::MachinePath;
 use crate::domain::loading::service::{begin, definition_loaded, finish, next};
 use crate::domain::loading::types::{Loading, WorkspaceLoad};
-use crate::domain::packages::constants::PACKAGE_FILE;
-use crate::domain::packages::types::{
+use tastemaker_values::domain::packages::constants::PACKAGE_FILE;
+use tastemaker_values::domain::packages::types::{
     DefinitionKind, PackageName, PackageRoot, Reach, Release, ResolvedPackage, SourcePath,
 };
-use crate::domain::paths::service::join;
-use crate::domain::paths::types::{PathText, RepoPath};
-use crate::domain::placement::types::Placement;
+use tastemaker_values::domain::paths::service::join;
+use tastemaker_values::domain::paths::types::{PathText, RepoPath};
+use tastemaker_values::domain::placement::types::Placement;
 use crate::domain::scaffolding::service::{
     condition_reads, declaring, fewest, first_render, first_writing, given, literal_values,
     local_split, named_by_directory, naming, optionality, placed_name, spec_reads, template_reads,
@@ -38,15 +38,15 @@ use crate::domain::scaffolding::types::{
     Declaring, Draft, FirstWriting, LocalSplit, MissingParam, Naming, Optionality, Placing, Reads,
     Staging, Waiting,
 };
-use crate::domain::scopes::service::composition_of;
-use crate::domain::scopes::types::{ConditionAt, Origin, ScopeIndex};
-use crate::domain::selectors::service::{covers_any, first_match, resolve};
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::scopes::service::composition_of;
+use tastemaker_values::domain::scopes::types::{ConditionAt, Origin, ScopeIndex};
+use tastemaker_values::domain::selectors::service::{covers_any, first_match, resolve};
+use tastemaker_values::domain::selectors::types::{
     Coverage, PathTest, PatternFailure, SelectionContext, Spelling,
 };
-use crate::domain::template_placing::constants::WORKSPACE_TABLE;
-use crate::domain::variables::service::apply as apply_variables;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::template_placing::constants::WORKSPACE_TABLE;
+use tastemaker_values::domain::variables::service::apply as apply_variables;
+use tastemaker_values::domain::writing::types::Writing;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::analysis::types::{AnalysisRequest, Corpus, GivenFile, Hosted};
 use crate::outbound::manifest::interface::ManifestPort;
@@ -89,7 +89,7 @@ impl ScaffoldUseCaseImpl {
     fn pins(
         &self,
         found: &dyn FoundRepository,
-    ) -> Result<Option<crate::domain::packages::types::Lock>, ScaffoldError> {
+    ) -> Result<Option<tastemaker_values::domain::packages::types::Lock>, ScaffoldError> {
         let repository = found;
         let lock_file = join(found.workspace(), PathText(LOCK_FILE)).unwrap_or_default();
         // Only a lock that is not there is none: one that is there and does not read fails, never a lock to rewrite.
@@ -173,7 +173,7 @@ impl ScaffoldUseCaseImpl {
             compile: &compile,
         };
         let selector = |source| {
-            ScaffoldError::Placement(crate::domain::placement::errors::PlacementError::Selector {
+            ScaffoldError::Placement(tastemaker_values::domain::placement::errors::PlacementError::Selector {
                 entry: WORKSPACE_TABLE.to_owned(),
                 source,
             })
@@ -194,7 +194,7 @@ impl ScaffoldUseCaseImpl {
     fn governed(
         &self,
         found: &dyn FoundRepository,
-        section: &crate::domain::definitions::types::WorkspaceSection,
+        section: &tastemaker_values::domain::definitions::types::WorkspaceSection,
         file: &RepoPath,
     ) -> Result<Governed, ScaffoldError> {
         let repository = found;
@@ -210,7 +210,7 @@ impl ScaffoldUseCaseImpl {
             compile: &compile,
         };
         let selector = |source| {
-            ScaffoldError::Placement(crate::domain::placement::errors::PlacementError::Selector {
+            ScaffoldError::Placement(tastemaker_values::domain::placement::errors::PlacementError::Selector {
                 entry: WORKSPACE_TABLE.to_owned(),
                 source,
             })
@@ -219,7 +219,7 @@ impl ScaffoldUseCaseImpl {
         let excluded = resolve(&section.rules_exclude, &context).map_err(selector)?;
         let member =
             |directory: &RepoPath| Coverage::from(first_match(&members, directory).is_some());
-        let files = crate::domain::definitions::service::governed(
+        let files = tastemaker_values::domain::definitions::service::governed(
             repository.list(&root)?.0,
             file,
             member,
@@ -245,7 +245,7 @@ impl ScaffoldUseCaseImpl {
     fn resolved(
         &self,
         found: &dyn FoundRepository,
-        section: &crate::domain::definitions::types::WorkspaceSection,
+        section: &tastemaker_values::domain::definitions::types::WorkspaceSection,
     ) -> Result<BTreeMap<PackageName, ResolvedPackage>, ScaffoldError> {
         let project = PackageRoot(
             std::path::Path::new(&*found.root().0)
@@ -348,19 +348,19 @@ impl ScaffoldUseCaseImpl {
         let version_of = |release: &Release| {
             if let Some(pinned) = pins
                 .as_ref()
-                .and_then(|lock| crate::domain::packages::service::locked_version(lock, release))
+                .and_then(|lock| tastemaker_values::domain::packages::service::locked_version(lock, release))
             {
                 return pinned;
             }
             packages.get(&release.package).map_or_else(
-                || crate::domain::packages::types::VersionText(Box::default()),
+                || tastemaker_values::domain::packages::types::VersionText(Box::default()),
                 |package| {
                     let offered = match self.packages.versions(
                         &package.directory,
                         &PackageFile(
                             format!(
                                 "{}/{}",
-                                crate::domain::packages::service::kind_directory(release.kind),
+                                tastemaker_values::domain::packages::service::kind_directory(release.kind),
                                 release.name.0
                             )
                             .into(),
@@ -371,19 +371,19 @@ impl ScaffoldUseCaseImpl {
                             if failed.borrow().is_none() {
                                 *failed.borrow_mut() = Some(error);
                             }
-                            return crate::domain::packages::types::VersionText(Box::default());
+                            return tastemaker_values::domain::packages::types::VersionText(Box::default());
                         }
                     };
-                    crate::domain::packages::service::latest(
-                        &crate::domain::packages::types::VersionText(Box::default()),
+                    tastemaker_values::domain::packages::service::latest(
+                        &tastemaker_values::domain::packages::types::VersionText(Box::default()),
                         offered.iter(),
                     )
                 },
             )
         };
-        crate::domain::entries::service::pin(&mut workspace.composition, &version_of);
+        tastemaker_values::domain::entries::service::pin(&mut workspace.composition, &version_of);
         for each in &mut local_files {
-            crate::domain::entries::service::pin(&mut each.composition, &version_of);
+            tastemaker_values::domain::entries::service::pin(&mut each.composition, &version_of);
         }
         if let Some(error) = failed.borrow_mut().take() {
             return Err(error.into());
@@ -509,7 +509,7 @@ impl ScaffoldUseCaseImpl {
             loaded.files.sort();
             loaded.files.dedup();
             let compile = self.compile();
-            let placement = crate::domain::placement::service::place_at(
+            let placement = tastemaker_values::domain::placement::service::place_at(
                 &loaded,
                 &compile,
                 &staged.directories,
@@ -544,7 +544,7 @@ impl ScaffoldUseCaseImpl {
         service::condition_parameters(loaded, placement, staged)?;
         let compile = self.compile();
         let sets =
-            |globs: &[crate::domain::selectors::types::SetGlob]| self.matching.compile_set(globs);
+            |globs: &[tastemaker_values::domain::selectors::types::SetGlob]| self.matching.compile_set(globs);
         let plan = crate::domain::planning::service::plan(
             loaded,
             placement,
@@ -582,7 +582,7 @@ impl ScaffoldUseCaseImpl {
                     .iter()
                     .map(|(path, text)| GivenFile {
                         path: path.clone(),
-                        text: crate::domain::contracts::types::RenderedContent(text.0.clone()),
+                        text: tastemaker_values::domain::contracts::types::RenderedContent(text.0.clone()),
                     })
                     .collect(),
                 hosted: Hosted::Nothing,
@@ -673,8 +673,8 @@ impl ScaffoldUseCaseImpl {
                     .placed
                     .get(path)
                     .map_or(&draft.values, |placed| &placed.captures);
-                crate::domain::contexts::service::surroundings(
-                    crate::domain::contexts::types::Surroundings {
+                tastemaker_values::domain::contexts::service::surroundings(
+                    tastemaker_values::domain::contexts::types::Surroundings {
                         workspace: loaded,
                         scopes: &placement.scopes,
                         matched: &placement.matched,
@@ -765,7 +765,7 @@ impl ScaffoldUseCaseImpl {
         &self,
         workspace: &Workspace,
         entry: &SpecEntry,
-        spec: &crate::domain::definitions::types::SpecFile,
+        spec: &tastemaker_values::domain::definitions::types::SpecFile,
         request: &ScaffoldRequest,
     ) -> Result<(), ScaffoldError> {
         let mut reads = spec_reads(entry, spec);
@@ -833,7 +833,7 @@ impl ScaffoldUseCaseImpl {
                 path: request.at.0.to_string(),
             }
         })?;
-        let placement = crate::domain::placement::service::place_at(
+        let placement = tastemaker_values::domain::placement::service::place_at(
             &workspace.loaded,
             &self.compile(),
             &BTreeSet::from([at.clone()]),
@@ -970,7 +970,7 @@ impl ScaffoldUseCaseImpl {
                 continue;
             };
             for selector in &entry.header.include.0 {
-                let crate::domain::selectors::types::Selector::Glob(pattern) = selector else {
+                let tastemaker_values::domain::selectors::types::Selector::Glob(pattern) = selector else {
                     continue;
                 };
                 let placed = placed_name(pattern, placing.values);

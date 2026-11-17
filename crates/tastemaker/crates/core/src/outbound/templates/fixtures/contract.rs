@@ -2,8 +2,8 @@
 //! name it reads, and a template that does not parse is refused.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::contexts::types::{ContextKey, ContextText, RenderContext};
-use crate::domain::definitions::types::TemplateText;
+use tastemaker_values::domain::contexts::types::{ContextKey, ContextText, RenderContext};
+use tastemaker_values::domain::definitions::types::TemplateText;
 use crate::outbound::templates::interface::TemplatesPort;
 
 /// The template text a row renders.

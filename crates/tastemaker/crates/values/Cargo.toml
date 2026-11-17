@@ -1,0 +1,29 @@
+[package]
+name = "idiomatic-sh-tastemaker-values"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Shared value types for Tastemaker"
+keywords = ["architecture", "lint", "scaffold", "static-analysis", "conventions"]
+categories = ["development-tools"]
+autobenches = false
+
+[lib]
+name = "tastemaker_values"
+
+[dependencies]
+foldhash.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+
+[features]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
+fixtures = []
+
+[lints]
+workspace = true

@@ -12,43 +12,43 @@ use super::errors::CheckError;
 use super::interface::CheckUseCase;
 use super::service::{checked_of, lint_answers, listing, manifest_error, package_of, reusable};
 use super::types::{CheckReport, CheckRequest, Fixing, LintInputs, LockOutcome, PreparedPlan};
-use crate::domain::applications::types::Plan;
-use crate::domain::captures::types::Interpolations;
+use tastemaker_values::domain::applications::types::Plan;
+use tastemaker_values::domain::captures::types::Interpolations;
 use crate::domain::contract_rendering::service::{rendered, requests};
 use crate::domain::contract_rendering::types::{Rendered, Requested};
-use crate::domain::definitions::constants::LOCK_FILE;
-use crate::domain::definitions::service::{
+use tastemaker_values::domain::definitions::constants::LOCK_FILE;
+use tastemaker_values::domain::definitions::service::{
     folded, governed, local, locals, package_paths, shared, variable_findings,
 };
-use crate::domain::definitions::types::{Inputs, LoadedWorkspace, LocalText, LockRead, Role};
-use crate::domain::entries::service::pin;
-use crate::domain::files::types::{FileText, MachinePath};
-use crate::domain::findings::types::{Finding, Report};
-use crate::domain::governance::service::governance;
-use crate::domain::linting::service::{
+use tastemaker_values::domain::definitions::types::{Inputs, LoadedWorkspace, LocalText, LockRead, Role};
+use tastemaker_values::domain::entries::service::pin;
+use tastemaker_values::domain::files::types::{FileText, MachinePath};
+use tastemaker_values::domain::findings::types::{Finding, Report};
+use tastemaker_values::domain::governance::service::governance;
+use tastemaker_values::domain::linting::service::{
     lint_root, listed, made_lock, partitioned, refusals, runtime_refusal, within_paths,
 };
-use crate::domain::linting::types::{Partitioned, RefusalReason};
+use tastemaker_values::domain::linting::types::{Partitioned, RefusalReason};
 use crate::domain::loading::service::{begin, definition_read, finish, wanted};
 use crate::domain::loading::types::Parsed;
-use crate::domain::packages::constants::PACKAGE_FILE;
-use crate::domain::packages::service::{kind_directory, latest, lock, lock_status, locked_version};
-use crate::domain::packages::types::{LockStatus, PackageRoot, Reach, ResolvedPackage, SourcePath};
-use crate::domain::packages::types::{Ownership, PackageName, Release, VersionText};
-use crate::domain::paths::service::{join, relative};
-use crate::domain::paths::types::PathText;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::placement::service::place;
+use tastemaker_values::domain::packages::constants::PACKAGE_FILE;
+use tastemaker_values::domain::packages::service::{kind_directory, latest, lock, lock_status, locked_version};
+use tastemaker_values::domain::packages::types::{LockStatus, PackageRoot, Reach, ResolvedPackage, SourcePath};
+use tastemaker_values::domain::packages::types::{Ownership, PackageName, Release, VersionText};
+use tastemaker_values::domain::paths::service::{join, relative};
+use tastemaker_values::domain::paths::types::PathText;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::service::place;
 use crate::domain::planning::service::plan;
-use crate::domain::proofs::constants::UNPROVEN;
+use tastemaker_values::domain::proofs::constants::UNPROVEN;
 use crate::domain::reporting::types::{Reported, Reuse};
 use crate::domain::scenario_proving::service::subject_of;
-use crate::domain::selectors::service::{covers_any, first_match, resolve};
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::selectors::service::{covers_any, first_match, resolve};
+use tastemaker_values::domain::selectors::types::{
     Coverage, PathTest, PatternFailure, SelectionContext, Spelling,
 };
-use crate::domain::variables::service::resolve as resolve_variables;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::variables::service::resolve as resolve_variables;
+use tastemaker_values::domain::writing::types::Writing;
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::analysis::types::{
@@ -141,7 +141,7 @@ impl CheckUseCaseImpl {
     fn parsed_lock(
         &self,
         read: &LockRead,
-    ) -> Result<Option<crate::domain::packages::types::Lock>, CheckError> {
+    ) -> Result<Option<tastemaker_values::domain::packages::types::Lock>, CheckError> {
         match read {
             LockRead::Read(text) => self
                 .manifest
@@ -197,8 +197,8 @@ impl CheckUseCaseImpl {
     fn sets(
         &self,
     ) -> impl Fn(
-        &[crate::domain::selectors::types::SetGlob],
-    ) -> Result<Arc<dyn crate::domain::selectors::types::PathSet>, PatternFailure>
+        &[tastemaker_values::domain::selectors::types::SetGlob],
+    ) -> Result<Arc<dyn tastemaker_values::domain::selectors::types::PathSet>, PatternFailure>
     + Sync
     + '_ {
         |globs| self.matching.compile_set(globs)
@@ -241,7 +241,7 @@ impl CheckUseCaseImpl {
         let repository = found;
         let file = join(
             found.workspace(),
-            PathText(crate::domain::definitions::constants::WORKSPACE_FILE),
+            PathText(tastemaker_values::domain::definitions::constants::WORKSPACE_FILE),
         )
         .unwrap_or_default();
         let root_text = repository.read(&file)?;
@@ -274,8 +274,8 @@ impl CheckUseCaseImpl {
             compile: &compile,
         };
         let selector = |source| {
-            CheckError::Placement(crate::domain::placement::errors::PlacementError::Selector {
-                entry: crate::domain::template_placing::constants::WORKSPACE_TABLE.to_owned(),
+            CheckError::Placement(tastemaker_values::domain::placement::errors::PlacementError::Selector {
+                entry: tastemaker_values::domain::template_placing::constants::WORKSPACE_TABLE.to_owned(),
                 source,
             })
         };
@@ -352,7 +352,7 @@ impl CheckUseCaseImpl {
     /// The packages `section` depends on, direct and transitive, breadth first, its relative paths taken from `directory`.
     fn resolved(
         &self,
-        section: &crate::domain::definitions::types::WorkspaceSection,
+        section: &tastemaker_values::domain::definitions::types::WorkspaceSection,
         workspace_directory: &PackageRoot,
     ) -> Result<BTreeMap<PackageName, ResolvedPackage>, CheckError> {
         let mut queue = section
@@ -408,7 +408,7 @@ impl CheckUseCaseImpl {
         &self,
         inputs: &Inputs,
         findings: &mut Vec<Finding>,
-    ) -> Result<Vec<crate::domain::definitions::types::LocalFile>, CheckError> {
+    ) -> Result<Vec<tastemaker_values::domain::definitions::types::LocalFile>, CheckError> {
         let mut local_files = Vec::new();
         for LocalText { path, text } in &inputs.locals {
             let mut file = self
@@ -479,7 +479,7 @@ impl CheckUseCaseImpl {
     /// offers.
     fn version_of(
         &self,
-        lock: Option<&crate::domain::packages::types::Lock>,
+        lock: Option<&tastemaker_values::domain::packages::types::Lock>,
         packages: &BTreeMap<PackageName, ResolvedPackage>,
         release: &Release,
     ) -> Result<VersionText, PackagesError> {
@@ -521,9 +521,9 @@ impl CheckUseCaseImpl {
     fn contracts(
         &self,
         workspace: &LoadedWorkspace,
-        placement: &crate::domain::placement::types::Placement,
+        placement: &tastemaker_values::domain::placement::types::Placement,
         failures: &mut Vec<Finding>,
-    ) -> Vec<crate::domain::contracts::types::Contract> {
+    ) -> Vec<tastemaker_values::domain::contracts::types::Contract> {
         let made = requests(workspace, placement, &*self.manifest)
             .into_par_iter()
             .map(|requested| match requested {
@@ -557,7 +557,7 @@ impl CheckUseCaseImpl {
             files: corpus,
         }: LintInputs<'_>,
         findings: &mut Vec<Finding>,
-        refused: &mut BTreeSet<crate::domain::applications::types::LintRuleId>,
+        refused: &mut BTreeSet<tastemaker_values::domain::applications::types::LintRuleId>,
     ) -> Result<AnalysisReport, CheckError> {
         loop {
             let rules = plan
@@ -611,10 +611,10 @@ impl CheckUseCaseImpl {
         plan: &Plan,
         root: &MachinePath,
         report: &AnalysisReport,
-        refused: &BTreeSet<crate::domain::applications::types::LintRuleId>,
+        refused: &BTreeSet<tastemaker_values::domain::applications::types::LintRuleId>,
     ) -> Result<Vec<Finding>, CheckError> {
-        let holds = crate::domain::judging::service::holds(plan, refused, &report.findings);
-        let rows = crate::domain::judging::service::host(
+        let holds = tastemaker_values::domain::judging::service::holds(plan, refused, &report.findings);
+        let rows = tastemaker_values::domain::judging::service::host(
             &plan.counts,
             &plan.pairs,
             &holds,
@@ -625,7 +625,7 @@ impl CheckUseCaseImpl {
         }
         let counted = self.counting.lint(AnalysisRequest {
             root: root.clone(),
-            rules: crate::domain::judging::service::rules(),
+            rules: tastemaker_values::domain::judging::service::rules(),
             placed: Vec::new(),
             corpus: Corpus::Given(Vec::new()),
             beside: Vec::new(),
@@ -634,9 +634,9 @@ impl CheckUseCaseImpl {
         let judgments = counted
             .findings
             .iter()
-            .filter_map(crate::domain::judging::service::judgment_of)
+            .filter_map(tastemaker_values::domain::judging::service::judgment_of)
             .collect::<Vec<_>>();
-        Ok(crate::domain::judging::service::findings(
+        Ok(tastemaker_values::domain::judging::service::findings(
             &plan.counts,
             &plan.pairs,
             &plan.closings,
@@ -675,7 +675,7 @@ impl CheckUseCaseImpl {
         }
         let package_dirs = package_paths(
             &packages,
-            crate::domain::definitions::types::RepositoryText(&inputs.repository.0),
+            tastemaker_values::domain::definitions::types::RepositoryText(&inputs.repository.0),
         );
         let Partitioned {
             local_packages,
@@ -727,7 +727,7 @@ impl CheckUseCaseImpl {
             &workspace,
             &placement,
             base,
-            crate::domain::applications::types::Compilers {
+            tastemaker_values::domain::applications::types::Compilers {
                 compile: &compile,
                 sets: &self.sets(),
             },
@@ -776,9 +776,9 @@ impl CheckUseCaseImpl {
                     return Err(CheckError::Lock {
                         file: lock_file.0.to_string(),
                         state: if status == LockStatus::Missing {
-                            crate::domain::packages::constants::LOCK_MISSING
+                            tastemaker_values::domain::packages::constants::LOCK_MISSING
                         } else {
-                            crate::domain::packages::constants::LOCK_STALE
+                            tastemaker_values::domain::packages::constants::LOCK_STALE
                         }
                         .to_owned(),
                     });
@@ -792,10 +792,10 @@ impl CheckUseCaseImpl {
     fn consulted(
         &self,
         packages: &BTreeMap<PackageName, ResolvedPackage>,
-        lock: &[crate::domain::packages::types::LockedPackage],
+        lock: &[tastemaker_values::domain::packages::types::LockedPackage],
     ) -> Result<(), CheckError> {
-        use crate::domain::proofs::service::{node_parts, use_text};
-        use crate::domain::proofs::types::{NodeName, NodePart, UseText};
+        use tastemaker_values::domain::proofs::service::{node_parts, use_text};
+        use tastemaker_values::domain::proofs::types::{NodeName, NodePart, UseText};
         let rows = self
             .proofs
             .definitions()
@@ -846,7 +846,7 @@ impl CheckUseCaseImpl {
                     .map(|each| stamps.get(each).copied())
                     .collect::<Option<Vec<_>>>()
                     .is_some_and(|each| {
-                        crate::domain::proofs::service::summary(&each, &[]) == row.stamp
+                        tastemaker_values::domain::proofs::service::summary(&each, &[]) == row.stamp
                     })
             })
             .map(|row| row.release.clone())
@@ -902,8 +902,8 @@ impl CheckUseCaseImpl {
         release: &Release,
         packages: &BTreeMap<PackageName, ResolvedPackage>,
         listings: &BTreeMap<PackageRoot, Vec<PackageFile>>,
-    ) -> Option<crate::domain::files::types::Stamp> {
-        use crate::domain::proofs::service::{summary, version_paths};
+    ) -> Option<tastemaker_values::domain::files::types::Stamp> {
+        use tastemaker_values::domain::proofs::service::{summary, version_paths};
         let directory = package_of(release, packages)?;
         let scope = crate::domain::scenario_proving::service::release_directory(release).0;
         let paths = version_paths(
@@ -934,9 +934,9 @@ impl CheckUseCaseImpl {
         release: &Release,
         packages: &BTreeMap<PackageName, ResolvedPackage>,
         listings: &BTreeMap<PackageRoot, Vec<PackageFile>>,
-    ) -> Option<crate::domain::digests::types::Digest> {
-        use crate::domain::proofs::service::node_parts;
-        use crate::domain::proofs::types::{NodeName, NodePart};
+    ) -> Option<tastemaker_values::domain::digests::types::Digest> {
+        use tastemaker_values::domain::proofs::service::node_parts;
+        use tastemaker_values::domain::proofs::types::{NodeName, NodePart};
         let directory = package_of(release, packages)?;
         let prefix = format!(
             "{}/",
@@ -977,7 +977,7 @@ impl CheckUseCaseImpl {
         read: &[PackagedFile],
         kept: &[CheckedFile],
     ) -> Vec<CheckedFile> {
-        use crate::domain::files::types::Stamp;
+        use tastemaker_values::domain::files::types::Stamp;
         let lock = join(&inputs.directory, PathText(LOCK_FILE)).unwrap_or_default();
         let mut paths = inputs
             .files
@@ -997,7 +997,7 @@ impl CheckUseCaseImpl {
                 Some(file) if file.stamp == stamp && stamp != Stamp::default() => {
                     file.digest.clone()
                 }
-                _ => text().map_or_else(crate::domain::digests::types::Digest::default, |text| {
+                _ => text().map_or_else(tastemaker_values::domain::digests::types::Digest::default, |text| {
                     self.digest.digest(DigestParts(&[text.0.as_bytes()]))
                 }),
             };
@@ -1015,7 +1015,7 @@ impl CheckUseCaseImpl {
                 if inputs.links.contains(path) {
                     CheckedFile {
                         path: CheckedPath(path.0.clone()),
-                        digest: crate::domain::digests::types::Digest::default(),
+                        digest: tastemaker_values::domain::digests::types::Digest::default(),
                         stamp: Stamp::default(),
                     }
                 } else {
@@ -1033,7 +1033,7 @@ impl CheckUseCaseImpl {
                     CheckedPath(
                         [
                             &*packaged.directory.0,
-                            crate::domain::applications::constants::PATH_SEPARATOR,
+                            tastemaker_values::domain::applications::constants::PATH_SEPARATOR,
                             &*packaged.file.0,
                         ]
                         .concat()
@@ -1135,7 +1135,7 @@ impl CheckUseCaseImpl {
     }
 
     /// The rules the ignores of a file are read against, as one digest: an ignore that names a rule no longer there is at fault.
-    fn known_digest(&self, plan: &Plan) -> crate::domain::digests::types::Digest {
+    fn known_digest(&self, plan: &Plan) -> tastemaker_values::domain::digests::types::Digest {
         let parts = plan
             .known
             .iter()

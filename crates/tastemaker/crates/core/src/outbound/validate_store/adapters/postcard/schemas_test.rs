@@ -23,11 +23,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 fn subject(written: Input) -> Value {
-    use crate::domain::digests::types::Digest;
-    use crate::domain::files::types::Stamp;
-    use crate::domain::packages::types::{DefinitionKind, DefinitionName, Ownership};
-    use crate::domain::packages::types::{PackageName, Release, VersionText};
-    use crate::domain::proofs::types::ProvenVersion;
+    use tastemaker_values::domain::digests::types::Digest;
+    use tastemaker_values::domain::files::types::Stamp;
+    use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName, Ownership};
+    use tastemaker_values::domain::packages::types::{PackageName, Release, VersionText};
+    use tastemaker_values::domain::proofs::types::ProvenVersion;
     let Written::TwoVersions = written;
     let release = |kind, name: &str| Release {
         package: PackageName("p".into()),
@@ -50,7 +50,7 @@ fn subject(written: Input) -> Value {
             uses: vec![release(DefinitionKind::Rule, "a")],
         },
     ];
-    let kept = StoreSchema::with(&crate::domain::settings::types::Build("b".into()), &rows);
+    let kept = StoreSchema::with(&tastemaker_values::domain::settings::types::Build("b".into()), &rows);
     (kept.strings.len(), kept.definitions() == Some(rows))
 }
 

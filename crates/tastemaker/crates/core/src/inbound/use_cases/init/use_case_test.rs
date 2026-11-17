@@ -3,9 +3,9 @@ use super::{
     errors::InitError, interface::InitUseCase as _, types::InitRequest, use_case::InitUseCaseImpl,
 };
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::files::types::MachinePath;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 use crate::outbound::manifest::interface::ManifestPort as _;
 use crate::outbound::repository::{fixtures::fake::RepositoryFake, interface::RepositoryPort as _};
 use std::sync::Arc;
@@ -179,7 +179,7 @@ fn holding() -> Result<Value, Failure> {
             workspace.0,
         ))
         .ok()
-        .is_some_and(|read| matches!(read.role, crate::domain::definitions::types::Role::Root(_)));
+        .is_some_and(|read| matches!(read.role, tastemaker_values::domain::definitions::types::Role::Root(_)));
     Ok(usize::from(reads)
         * HOLDING_WRITES
             .iter()

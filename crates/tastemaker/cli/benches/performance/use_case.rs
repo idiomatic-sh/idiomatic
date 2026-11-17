@@ -103,9 +103,9 @@ mod cost {
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
-    use tastemaker_core::domain::files::types::{DirectoryName, MachinePath};
-    use tastemaker_core::domain::settings::types::{Build, Store};
-    use tastemaker_core::domain::writing::types::Writing;
+    use tastemaker_values::domain::files::types::{DirectoryName, MachinePath};
+    use tastemaker_values::domain::settings::types::{Build, Store};
+    use tastemaker_values::domain::writing::types::Writing;
     use tastemaker_core::outbound::analysis::fixtures::fake::AnalysisFake;
     use tastemaker_core::outbound::analysis::interface::AnalysisPort;
     use tastemaker_core::outbound::analysis::types::{AnalysisRequest, AnalysisSettings, Memory};

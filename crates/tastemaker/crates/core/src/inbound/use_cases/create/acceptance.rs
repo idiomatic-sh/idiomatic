@@ -5,10 +5,10 @@ use cucumber::{given, then, when};
 use crate::Behavior;
 use std::sync::Arc;
 
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::packages::service::kind_of;
-use tastemaker_core::domain::packages::types::{DefinitionKind, DefinitionName};
-use tastemaker_core::domain::writing::types::Writing;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::service::kind_of;
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
+use tastemaker_values::domain::writing::types::Writing;
 use tastemaker_core::inbound::use_cases::check::fixtures::{package, repository};
 use tastemaker_core::inbound::use_cases::create::interface::CreateUseCase as _;
 use tastemaker_core::inbound::use_cases::create::types::{
@@ -45,7 +45,7 @@ fn runs(world: &mut Behavior) {
     );
     world.answer = match create.create(CreateRequest {
         start: MachinePath("/fake".into()),
-        kind: kind_of(tastemaker_core::domain::packages::types::KindWord(kind))
+        kind: kind_of(tastemaker_values::domain::packages::types::KindWord(kind))
             .unwrap_or(DefinitionKind::Rule),
         name: DefinitionName(name.into()),
         into: Destination::Workspace,

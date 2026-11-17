@@ -10,19 +10,19 @@ use rayon::prelude::*;
 use super::types::{
     EntryLists, Item, Mark, ScopeLists, ScopeReach, Selection, SelectorPair, SetWidth,
 };
-use crate::domain::applications::constants::PATH_SEPARATOR;
-use crate::domain::applications::types::{Carried, Compilers, Nameable};
-use crate::domain::definitions::types::LoadedWorkspace;
-use crate::domain::entries::service::identity;
-use crate::domain::entries::types::RuleEntry;
-use crate::domain::packages::types::DefinitionKind;
-use crate::domain::paths::service::beneath;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::placement::errors::PlacementError;
-use crate::domain::placement::types::Placement;
-use crate::domain::scopes::types::{Scope, ScopeIndex};
-use crate::domain::selectors::service::{covers_any, resolve};
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::applications::constants::PATH_SEPARATOR;
+use tastemaker_values::domain::applications::types::{Carried, Compilers, Nameable};
+use tastemaker_values::domain::definitions::types::LoadedWorkspace;
+use tastemaker_values::domain::entries::service::identity;
+use tastemaker_values::domain::entries::types::RuleEntry;
+use tastemaker_values::domain::packages::types::DefinitionKind;
+use tastemaker_values::domain::paths::service::beneath;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::errors::PlacementError;
+use tastemaker_values::domain::placement::types::Placement;
+use tastemaker_values::domain::scopes::types::{Scope, ScopeIndex};
+use tastemaker_values::domain::selectors::service::{covers_any, resolve};
+use tastemaker_values::domain::selectors::types::{
     Coverage, GlobForm, GlobIndex, MatcherShape, PathRest, PathSet, PatternCompiler, Resolved,
     ResolvedSelectors, SelectionContext, SetGlob,
 };
@@ -172,7 +172,7 @@ fn scope_reaches<'w>(
                     pair: entry.pair,
                     files: Err(PlacementError::Selector {
                         entry: identity(&rule.header, DefinitionKind::Rule, &rule.rule).0,
-                        source: crate::domain::selectors::errors::SelectorsError::Pattern {
+                        source: tastemaker_values::domain::selectors::errors::SelectorsError::Pattern {
                             pattern: failing.clone(),
                             reason: failure.0.to_string(),
                         },

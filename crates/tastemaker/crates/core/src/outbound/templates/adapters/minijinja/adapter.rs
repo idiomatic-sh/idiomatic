@@ -7,12 +7,12 @@ use heck::{
 };
 
 use super::constants::{CAMEL, KEBAB, KEBAB_TEXT, PASCAL, REFUSE, SHOUTY, SNAKE};
-use crate::domain::contexts::constants::{
+use tastemaker_values::domain::contexts::constants::{
     CAPTURES, IDENTIFIER_JOIN, INSTANCES, KEBAB_JOIN, PRESENT,
 };
-use crate::domain::contexts::types::{ContextKey, ContextKeys, Present, RenderContext};
-use crate::domain::definitions::types::TemplateText;
-use crate::domain::files::types::FileText;
+use tastemaker_values::domain::contexts::types::{ContextKey, ContextKeys, Present, RenderContext};
+use tastemaker_values::domain::definitions::types::TemplateText;
+use tastemaker_values::domain::files::types::FileText;
 use crate::outbound::templates::errors::TemplatesError;
 use crate::outbound::templates::interface::TemplatesPort;
 

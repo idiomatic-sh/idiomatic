@@ -5,31 +5,31 @@
 use super::errors::UpdateError;
 use super::interface::UpdateUseCase;
 use super::types::{Entries, Move, UpdateReport, UpdateRequest, VersionChoice};
-use crate::domain::captures::types::Interpolations;
-use crate::domain::definitions::constants::{LOCK_FILE, MISSING_ROOT, WORKSPACE_FILE};
-use crate::domain::definitions::service::{governed, local, locals, shared, unloaded};
-use crate::domain::definitions::types::{LoadedWorkspace, LocalFile, Role};
-use crate::domain::entries::service::named_releases;
-use crate::domain::entries::service::pin;
-use crate::domain::entries::types::NamedRelease;
-use crate::domain::files::types::FileText;
+use tastemaker_values::domain::captures::types::Interpolations;
+use tastemaker_values::domain::definitions::constants::{LOCK_FILE, MISSING_ROOT, WORKSPACE_FILE};
+use tastemaker_values::domain::definitions::service::{governed, local, locals, shared, unloaded};
+use tastemaker_values::domain::definitions::types::{LoadedWorkspace, LocalFile, Role};
+use tastemaker_values::domain::entries::service::named_releases;
+use tastemaker_values::domain::entries::service::pin;
+use tastemaker_values::domain::entries::types::NamedRelease;
+use tastemaker_values::domain::files::types::FileText;
 use crate::domain::loading::service::{begin, definition_loaded, finish, next};
-use crate::domain::packages::constants::{CHANGELOG_FILE, PACKAGE_FILE};
-use crate::domain::packages::service::{
+use tastemaker_values::domain::packages::constants::{CHANGELOG_FILE, PACKAGE_FILE};
+use tastemaker_values::domain::packages::service::{
     changes, kind_directory, kind_file, latest, lock, locked_version, offered_version, root_at,
     version_number,
 };
-use crate::domain::packages::types::{
+use tastemaker_values::domain::packages::types::{
     ChangeLog, Lock, PackageRoot, Reach, Release, ResolvedPackage, SourcePath, VersionText,
 };
-use crate::domain::paths::service::join;
-use crate::domain::paths::types::{PathText, RepoPath};
-use crate::domain::selectors::errors::SelectorsError;
-use crate::domain::selectors::service::resolve as resolve_selectors;
-use crate::domain::selectors::service::{covers_any, first_match};
-use crate::domain::selectors::types::{Coverage, SelectionContext, Spelling};
-use crate::domain::variables::service::apply as apply_variables;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::paths::service::join;
+use tastemaker_values::domain::paths::types::{PathText, RepoPath};
+use tastemaker_values::domain::selectors::errors::SelectorsError;
+use tastemaker_values::domain::selectors::service::resolve as resolve_selectors;
+use tastemaker_values::domain::selectors::service::{covers_any, first_match};
+use tastemaker_values::domain::selectors::types::{Coverage, SelectionContext, Spelling};
+use tastemaker_values::domain::variables::service::apply as apply_variables;
+use tastemaker_values::domain::writing::types::Writing;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::DefinitionText;
 use crate::outbound::matching::interface::MatchingPort;
@@ -148,7 +148,7 @@ impl UpdateUseCaseImpl {
         &self,
         found: &dyn FoundRepository,
         file: &RepoPath,
-        root: crate::domain::definitions::types::WorkspaceFile,
+        root: tastemaker_values::domain::definitions::types::WorkspaceFile,
         from: &PackageRoot,
         version_of: &dyn Fn(&Release) -> Option<VersionText>,
     ) -> Result<DefinitionText, UpdateError> {
@@ -336,7 +336,7 @@ impl UpdateUseCaseImpl {
         &self,
         found: &dyn FoundRepository,
         file: &RepoPath,
-        workspace: &crate::domain::definitions::types::WorkspaceFile,
+        workspace: &tastemaker_values::domain::definitions::types::WorkspaceFile,
         from: &PackageRoot,
         pins: Option<&Lock>,
         targets: &[Release],

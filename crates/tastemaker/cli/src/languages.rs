@@ -31,17 +31,17 @@ pub(crate) fn linked() -> ryo::linter::Languages {
 /// The directories the languages this build links never read, each with the languages that declare it: what every walk of the
 /// repository skips beside `.gitignore`.
 #[must_use]
-pub(crate) fn skipped() -> Vec<tastemaker_core::domain::files::types::SkippedDirectory> {
+pub(crate) fn skipped() -> Vec<tastemaker_values::domain::files::types::SkippedDirectory> {
     linked()
         .skipped()
         .into_iter()
         .map(
-            |(name, by)| tastemaker_core::domain::files::types::SkippedDirectory {
-                name: tastemaker_core::domain::files::types::DirectoryName(name.0.into()),
+            |(name, by)| tastemaker_values::domain::files::types::SkippedDirectory {
+                name: tastemaker_values::domain::files::types::DirectoryName(name.0.into()),
                 by: by
                     .into_iter()
                     .map(|language| {
-                        tastemaker_core::domain::files::types::Declarer(language.0.clone())
+                        tastemaker_values::domain::files::types::Declarer(language.0.clone())
                     })
                     .collect(),
             },

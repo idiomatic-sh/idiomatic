@@ -27,10 +27,10 @@ fn subject(line: Input) -> Result<Value, Failure> {
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("validate").chain(line))
         .map_err(|_error| ())?;
     let edge = crate::resources::edge_at(
-        tastemaker_core::domain::files::types::MachinePath("/repo".into()),
-        tastemaker_core::domain::settings::types::Build("test".into()),
+        tastemaker_values::domain::files::types::MachinePath("/repo".into()),
+        tastemaker_values::domain::settings::types::Build("test".into()),
         crate::output::Format::Terminal,
-        tastemaker_core::domain::writing::types::Writing::Write,
+        tastemaker_values::domain::writing::types::Writing::Write,
     );
     Ok(super::request(parsed.arguments.only, &edge).only.len() == 1)
 }

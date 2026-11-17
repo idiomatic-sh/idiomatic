@@ -7,11 +7,11 @@ use super::constants::{
     SEPARATOR_TEXT,
 };
 use super::types::HeldPackages;
-use crate::domain::files::types::{FileText, Stamp};
-use crate::domain::packages::types::{
+use tastemaker_values::domain::files::types::{FileText, Stamp};
+use tastemaker_values::domain::packages::types::{
     Dependency, PackageRoot, PackageSource, SourcePath, VersionText,
 };
-use crate::domain::paths::types::PathText;
+use tastemaker_values::domain::paths::types::PathText;
 use crate::outbound::packages::errors::PackagesError;
 use crate::outbound::packages::interface::PackagesPort;
 use crate::outbound::packages::types::{HeldFiles, Located, PackageFile};
@@ -250,7 +250,7 @@ impl PackagesPort for PackagesPathAdapter {
     fn stamps(
         &self,
         files: &[crate::outbound::packages::types::PackagedFile],
-    ) -> crate::domain::files::types::Stamps {
+    ) -> tastemaker_values::domain::files::types::Stamps {
         let found: Vec<Stamp> = {
             files
                 .iter()
@@ -258,10 +258,10 @@ impl PackagesPort for PackagesPathAdapter {
                     // A held file is as long as its text, and was never written.
                     if let Some(held) = self.with_held(&packaged.directory, |held| {
                         held.0.get(&packaged.file).map(|text| Stamp {
-                            size: crate::domain::files::types::FileSize(
+                            size: tastemaker_values::domain::files::types::FileSize(
                                 u64::try_from(text.0.len()).unwrap_or(u64::MAX),
                             ),
-                            modified: crate::domain::files::types::ModifiedTime(0),
+                            modified: tastemaker_values::domain::files::types::ModifiedTime(0),
                         })
                     }) {
                         return held.unwrap_or_default();
@@ -276,8 +276,8 @@ impl PackagesPort for PackagesPathAdapter {
                             .map_err(std::io::Error::other)?
                             .as_nanos();
                         Ok(Stamp {
-                            size: crate::domain::files::types::FileSize(meta.len()),
-                            modified: crate::domain::files::types::ModifiedTime(
+                            size: tastemaker_values::domain::files::types::FileSize(meta.len()),
+                            modified: tastemaker_values::domain::files::types::ModifiedTime(
                                 u64::try_from(modified).unwrap_or(u64::MAX),
                             ),
                         })
@@ -287,7 +287,7 @@ impl PackagesPort for PackagesPathAdapter {
                 })
                 .collect()
         };
-        crate::domain::files::types::Stamps(found)
+        tastemaker_values::domain::files::types::Stamps(found)
     }
 
     fn hold(&self, files: HeldFiles) -> PackageRoot {

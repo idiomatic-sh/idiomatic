@@ -5,18 +5,18 @@
 // Error locations are contractual; diagnostic wording belongs to each implementation.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::entries::types::{Amount, Count, Description, ParamValues};
-use crate::domain::files::types::FileText;
-use crate::domain::packages::types::PackageRoot;
-use crate::domain::packages::types::PlacedDefinition;
-use crate::domain::packages::types::{
+use tastemaker_values::domain::entries::types::{Amount, Count, Description, ParamValues};
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::packages::types::PackageRoot;
+use tastemaker_values::domain::packages::types::PlacedDefinition;
+use tastemaker_values::domain::packages::types::{
     DefinitionKind, DefinitionName, Lock, LockedPackage, LockedRelease, PackageName, SourcePath,
     VersionText,
 };
-use crate::domain::paths::types::RepoPath;
-use crate::domain::scenario_entries::service::root_entry;
-use crate::domain::scenario_files::types::{ScenarioRoot, Wrapper};
-use crate::domain::selectors::types::{PathPattern, Selector, Selectors};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::scenario_entries::service::root_entry;
+use tastemaker_values::domain::scenario_files::types::{ScenarioRoot, Wrapper};
+use tastemaker_values::domain::selectors::types::{PathPattern, Selector, Selectors};
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
@@ -148,12 +148,12 @@ fn answer(adapter: &impl ManifestPort, question: Question) -> Result<Value, Fail
     let not_toml = DefinitionText("this is = = not toml".into());
     match question {
         Question::TextAsWritten => {
-            let text = crate::domain::entries::types::Value::Text(
-                crate::domain::scalars::types::TextValue("ryo-css".into()),
+            let text = tastemaker_values::domain::entries::types::Value::Text(
+                tastemaker_values::domain::scalars::types::TextValue("ryo-css".into()),
             );
             let alone = adapter.write(&text).0;
             let listed = adapter
-                .write(&crate::domain::entries::types::Value::List(vec![text]))
+                .write(&tastemaker_values::domain::entries::types::Value::List(vec![text]))
                 .0;
             Ok(alone == "ryo-css" && listed.contains("ryo-css") && listed != alone)
         }
@@ -163,7 +163,7 @@ fn answer(adapter: &impl ManifestPort, question: Question) -> Result<Value, Fail
                 dependencies: vec![PackageName("idiomatic.arch".into())],
                 packages: vec![LockedPackage {
                     name: PackageName("idiomatic.arch".into()),
-                    source: crate::domain::packages::types::PackageSource::Path(SourcePath(
+                    source: tastemaker_values::domain::packages::types::PackageSource::Path(SourcePath(
                         "../arch".into(),
                     )),
                     dependencies: Vec::new(),

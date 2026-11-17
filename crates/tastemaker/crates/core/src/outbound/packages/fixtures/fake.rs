@@ -2,8 +2,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::files::types::{FileText, Stamp};
-use crate::domain::packages::types::{Dependency, PackageRoot, SourcePath, VersionText};
+use tastemaker_values::domain::files::types::{FileText, Stamp};
+use tastemaker_values::domain::packages::types::{Dependency, PackageRoot, SourcePath, VersionText};
 use crate::outbound::packages::errors::PackagesError;
 use crate::outbound::packages::interface::PackagesPort;
 use crate::outbound::packages::types::{Located, PackageFile};
@@ -64,26 +64,26 @@ impl PackagesPort for PackagesFake {
         // from there, as a package in the repository is; any other at `/<name>`.
         let every = self.every();
         let beside: Box<str> = match &dependency.source {
-            crate::domain::packages::types::PackageSource::Path(path) => {
+            tastemaker_values::domain::packages::types::PackageSource::Path(path) => {
                 format!("{}/{}", from.0, path.0).into()
             }
-            crate::domain::packages::types::PackageSource::Git(_)
-            | crate::domain::packages::types::PackageSource::Registry => Box::default(),
+            tastemaker_values::domain::packages::types::PackageSource::Git(_)
+            | tastemaker_values::domain::packages::types::PackageSource::Registry => Box::default(),
         };
         let directory: Box<str> = match &dependency.source {
-            crate::domain::packages::types::PackageSource::Path(path)
+            tastemaker_values::domain::packages::types::PackageSource::Path(path)
                 if every.keys().any(|(package, _)| *package == path.0) =>
             {
                 path.0.clone()
             }
-            crate::domain::packages::types::PackageSource::Path(_)
+            tastemaker_values::domain::packages::types::PackageSource::Path(_)
                 if every.keys().any(|(package, _)| *package == beside) =>
             {
                 beside
             }
-            crate::domain::packages::types::PackageSource::Path(_)
-            | crate::domain::packages::types::PackageSource::Git(_)
-            | crate::domain::packages::types::PackageSource::Registry => {
+            tastemaker_values::domain::packages::types::PackageSource::Path(_)
+            | tastemaker_values::domain::packages::types::PackageSource::Git(_)
+            | tastemaker_values::domain::packages::types::PackageSource::Registry => {
                 format!("/{}", dependency.package.0).into()
             }
         };
@@ -95,7 +95,7 @@ impl PackagesPort for PackagesFake {
         }
         Ok(Located {
             directory: PackageRoot(directory),
-            pin: crate::domain::packages::types::PackageSource::Path(SourcePath(
+            pin: tastemaker_values::domain::packages::types::PackageSource::Path(SourcePath(
                 dependency.package.0.clone(),
             )),
             base: SourcePath(dependency.package.0.clone()),
@@ -175,7 +175,7 @@ impl PackagesPort for PackagesFake {
     fn stamps(
         &self,
         files: &[crate::outbound::packages::types::PackagedFile],
-    ) -> crate::domain::files::types::Stamps {
+    ) -> tastemaker_values::domain::files::types::Stamps {
         let found: Vec<Stamp> = {
             files
                 .iter()
@@ -183,16 +183,16 @@ impl PackagesPort for PackagesFake {
                     self.every()
                         .get(&(packaged.directory.0.clone(), packaged.file.0.clone()))
                         .map(|text| Stamp {
-                            size: crate::domain::files::types::FileSize(
+                            size: tastemaker_values::domain::files::types::FileSize(
                                 u64::try_from(text.len()).unwrap_or(u64::MAX),
                             ),
-                            modified: crate::domain::files::types::ModifiedTime(0),
+                            modified: tastemaker_values::domain::files::types::ModifiedTime(0),
                         })
                         .unwrap_or_default()
                 })
                 .collect()
         };
-        crate::domain::files::types::Stamps(found)
+        tastemaker_values::domain::files::types::Stamps(found)
     }
 
     fn hold(&self, files: crate::outbound::packages::types::HeldFiles) -> PackageRoot {

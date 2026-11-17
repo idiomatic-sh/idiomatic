@@ -1,6 +1,6 @@
 //! The `check` use case's failures.
 
-use crate::domain::placement::errors::PlacementError;
+use tastemaker_values::domain::placement::errors::PlacementError;
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::packages::errors::PackagesError;

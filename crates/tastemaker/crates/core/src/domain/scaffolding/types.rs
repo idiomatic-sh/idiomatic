@@ -25,9 +25,9 @@ pub enum Naming {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocalSplit {
     /// The packages whose directory holds a file of the workspace.
-    pub packages: Vec<crate::domain::definitions::types::LocalPackage>,
+    pub packages: Vec<tastemaker_values::domain::definitions::types::LocalPackage>,
     /// The files no local package holds.
-    pub governed: Vec<crate::domain::paths::types::RepoPath>,
+    pub governed: Vec<tastemaker_values::domain::paths::types::RepoPath>,
 }
 
 /// Whether an entry's files are optional: an instance needs none of them.
@@ -50,7 +50,7 @@ pub enum FirstWriting {
 
 /// The captures the optional files of a spec introduce: a file whose path names one of them waits for that file.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Waits(pub std::collections::BTreeSet<crate::domain::captures::types::CaptureName>);
+pub struct Waits(pub std::collections::BTreeSet<tastemaker_values::domain::captures::types::CaptureName>);
 
 /// Whether a placed file waits for an optional file that introduces a capture its name still holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,40 +72,40 @@ pub enum Declaring {
 
 /// The names an entry reads from what `--set` gives: the captures its patterns hold and the params it declares or passes.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Reads(pub std::collections::BTreeSet<crate::domain::captures::types::CaptureName>);
+pub struct Reads(pub std::collections::BTreeSet<tastemaker_values::domain::captures::types::CaptureName>);
 
 /// Where an instance's files are written, and the values its patterns and templates take.
 #[derive(Debug)]
 pub struct Placing<'a> {
     /// The instance's directory.
-    pub directory: &'a crate::domain::paths::types::RepoPath,
+    pub directory: &'a tastemaker_values::domain::paths::types::RepoPath,
     /// The values its patterns and templates take.
-    pub values: &'a crate::domain::captures::types::Captures,
+    pub values: &'a tastemaker_values::domain::captures::types::Captures,
 }
 
 /// A prospective file and the values its entry needs before placement fills its context.
 #[derive(Clone, Debug)]
 pub struct Draft {
     /// The instance's directory.
-    pub directory: crate::domain::paths::types::RepoPath,
+    pub directory: tastemaker_values::domain::paths::types::RepoPath,
     /// The values its patterns and templates take.
-    pub values: crate::domain::captures::types::Captures,
+    pub values: tastemaker_values::domain::captures::types::Captures,
     /// The template entry that places it.
-    pub entry: crate::domain::entries::types::TemplateEntry,
+    pub entry: tastemaker_values::domain::entries::types::TemplateEntry,
 }
 
 /// Files planned by this invocation; nothing is written until their conditions and contents settle.
 #[derive(Debug, Default)]
 pub struct Staging {
     /// The prospective files, by path.
-    pub drafts: std::collections::BTreeMap<crate::domain::paths::types::RepoPath, Draft>,
+    pub drafts: std::collections::BTreeMap<tastemaker_values::domain::paths::types::RepoPath, Draft>,
     /// The order they were planned in.
-    pub order: Vec<crate::domain::paths::types::RepoPath>,
+    pub order: Vec<tastemaker_values::domain::paths::types::RepoPath>,
     /// The directories they need.
-    pub directories: std::collections::BTreeSet<crate::domain::paths::types::RepoPath>,
+    pub directories: std::collections::BTreeSet<tastemaker_values::domain::paths::types::RepoPath>,
     /// Their rendered texts, by path.
     pub texts: std::collections::BTreeMap<
-        crate::domain::paths::types::RepoPath,
-        crate::domain::files::types::FileText,
+        tastemaker_values::domain::paths::types::RepoPath,
+        tastemaker_values::domain::files::types::FileText,
     >,
 }

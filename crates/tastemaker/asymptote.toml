@@ -51,7 +51,7 @@ group = "check"
 # The core crates' tests, every feature on: each test tool builds the workspace once, as the others do, and runs the
 # packages its filter names, so its run is kept while its own inputs did not move. The BDD runners and the doctests,
 # which nextest cannot list, run in `test-bdd` and `test-doc`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-tastemaker-core)"]
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-tastemaker-core) | package(=idiomatic-sh-tastemaker-values)"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../ryo/Cargo.toml", "../ryo/crates", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 

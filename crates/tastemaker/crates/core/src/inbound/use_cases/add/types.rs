@@ -2,11 +2,11 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::entries::types::Setting;
-use crate::domain::files::types::MachinePath;
-use crate::domain::packages::types::{DefinitionKind, DefinitionName};
-use crate::domain::paths::types::RepoPath;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::entries::types::Setting;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 
 /// What `add` is asked.
 #[derive(Clone, Debug, PartialEq, Eq)]

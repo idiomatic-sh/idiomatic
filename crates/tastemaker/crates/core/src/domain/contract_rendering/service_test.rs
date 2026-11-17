@@ -3,11 +3,11 @@
 use super::service::rendered;
 use super::types::{ContractRequest, Rendered};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::contexts::types::RenderContext;
-use crate::domain::contracts::types::TemplateIdentity;
-use crate::domain::definitions::types::{Exactness, TemplateText};
-use crate::domain::files::types::FileText;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::contexts::types::RenderContext;
+use tastemaker_values::domain::contracts::types::TemplateIdentity;
+use tastemaker_values::domain::definitions::types::{Exactness, TemplateText};
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// What the template engine answered for the content.
 #[derive(Clone, Copy)]
@@ -88,7 +88,7 @@ fn said(scenario: Scenario) -> (String, &'static str) {
         Rendered::Failed(finding) => {
             format!(
                 "{} {} {}",
-                crate::domain::findings::service::printed(&finding.rule).0,
+                tastemaker_values::domain::findings::service::printed(&finding.rule).0,
                 finding.path.0,
                 finding.message.0
             )

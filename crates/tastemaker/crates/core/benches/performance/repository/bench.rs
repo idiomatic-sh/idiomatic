@@ -6,10 +6,10 @@
     reason = "a bench that cannot set up its own input has nothing to measure: the panic is the failure"
 )]
 
-use tastemaker_core::domain::files::types::{
+use tastemaker_values::domain::files::types::{
     DirectoryName, FileText, MachinePath, SkippedDirectory,
 };
-use tastemaker_core::domain::paths::types::RepoPath;
+use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_core::outbound::repository::factory::{disk, memory};
 use tastemaker_core::outbound::repository::interface::RepositoryPort;
 

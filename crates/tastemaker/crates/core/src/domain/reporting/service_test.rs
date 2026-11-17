@@ -3,16 +3,16 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::service::{candidates, fingerprinted, mismatch};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::types::Compared;
-use crate::domain::contracts::types::{
+use tastemaker_values::domain::applications::types::Compared;
+use tastemaker_values::domain::contracts::types::{
     Contract, DataRow, RenderedContent, RowKey, RowNode, RowPlace, Syntax, SyntaxKind,
     TemplateIdentity, WrittenValue,
 };
-use crate::domain::definitions::types::Exactness;
-use crate::domain::files::types::BorrowedText;
-use crate::domain::findings::service::{error, identified};
-use crate::domain::findings::types::{Fingerprint, PreparedIdentity, Reason, Suppression};
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::definitions::types::Exactness;
+use tastemaker_values::domain::files::types::BorrowedText;
+use tastemaker_values::domain::findings::service::{error, identified};
+use tastemaker_values::domain::findings::types::{Fingerprint, PreparedIdentity, Reason, Suppression};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// What a row asks.
 #[derive(Clone, Copy, Debug)]
@@ -115,14 +115,14 @@ fn subject(question: Input) -> Value {
 /// What settling one standing finding and one suppressed one keeps.
 fn settled() -> Value {
     let first = error(
-        crate::domain::findings::service::of_rule(crate::domain::findings::types::RuleId(
+        tastemaker_values::domain::findings::service::of_rule(tastemaker_values::domain::findings::types::RuleId(
             "r".into(),
         )),
         RepoPath("a.txt".into()),
         "first",
     );
     let second = error(
-        crate::domain::findings::service::of_rule(crate::domain::findings::types::RuleId(
+        tastemaker_values::domain::findings::service::of_rule(tastemaker_values::domain::findings::types::RuleId(
             "s".into(),
         )),
         RepoPath("b.txt".into()),

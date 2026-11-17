@@ -2,9 +2,9 @@
 //! count, and the files a `{name:dir}` capture takes only beside the directory it names.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::findings::service::printed;
-use crate::domain::placement::errors::PlacementError;
-use crate::domain::placement::service::place;
+use tastemaker_values::domain::findings::service::printed;
+use tastemaker_values::domain::placement::errors::PlacementError;
+use tastemaker_values::domain::placement::service::place;
 use crate::inbound::use_cases::check::fixtures::applications::{matching, workspace_of};
 use crate::inbound::use_cases::check::fixtures::{SPEC, WORKSPACE};
 
@@ -260,7 +260,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Whether `actual` is the refusal of the entry `p/part/errors`'s `pattern`, for `reason`.
 fn refused(actual: &PlacementError, pattern: &str, reason: &str) -> crate::cases::Selection {
-    let source = crate::domain::selectors::errors::SelectorsError::Pattern {
+    let source = tastemaker_values::domain::selectors::errors::SelectorsError::Pattern {
         pattern: pattern.into(),
         reason: reason.into(),
     };
@@ -346,7 +346,7 @@ fn subject((files, spec): Input) -> Result<Value, Failure> {
         placement
             .counts
             .iter()
-            .filter(|check| check.found == crate::domain::entries::types::Amount(0))
+            .filter(|check| check.found == tastemaker_values::domain::entries::types::Amount(0))
             .map(|check| printed(&check.rule).0.to_string()),
     );
     // Which files of a closed directory are strays is the closed query's; placement leaves the files beneath each closed directory

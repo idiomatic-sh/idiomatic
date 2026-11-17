@@ -1,9 +1,9 @@
 //! The `carrying` service's cases, over the `check` fixture's workspace: its one rule handed whole.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::service::known;
+use tastemaker_values::domain::applications::service::known;
 use crate::domain::carrying::service::carried;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::paths::types::RepoPath;
 use crate::inbound::use_cases::check::fixtures::applications::{
     applications, matching, placement, workspace,
 };

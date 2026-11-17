@@ -2,10 +2,10 @@
 
 use super::adapter::ManifestTomlAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::definitions::types::Role;
-use crate::domain::entries::types::ImportPattern;
-use crate::domain::topics::service::{keys, topics};
-use crate::domain::topics::types::{Necessity, TopicBody};
+use tastemaker_values::domain::definitions::types::Role;
+use tastemaker_values::domain::entries::types::ImportPattern;
+use tastemaker_values::domain::topics::service::{keys, topics};
+use tastemaker_values::domain::topics::types::{Necessity, TopicBody};
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::fixtures::contract::check;
 use crate::outbound::manifest::interface::ManifestPort as _;

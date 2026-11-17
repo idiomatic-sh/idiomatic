@@ -4,8 +4,8 @@
 
 use super::adapter::AnalysisRyoAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::definitions::types::QueryText;
-use crate::domain::files::types::MachinePath;
+use tastemaker_values::domain::definitions::types::QueryText;
+use tastemaker_values::domain::files::types::MachinePath;
 use crate::outbound::analysis::fixtures::contract::check;
 use crate::outbound::analysis::interface::AnalysisPort as _;
 use crate::outbound::analysis::types::QueryVerdict;
@@ -379,7 +379,7 @@ fn names(reason: &str, listing: &str) -> crate::cases::Selection {
 
 /// Whether the catalog lists `tastemaker.placed` and describes it by its six columns, none a copy of another or the same on every row.
 fn placed_catalogued() -> bool {
-    use crate::domain::catalog::types::{CatalogName, RelationAnswer};
+    use tastemaker_values::domain::catalog::types::{CatalogName, RelationAnswer};
     let adapter = AnalysisRyoAdapter::new(
         ryo::linter::Languages::default(),
         settings(),
@@ -446,7 +446,7 @@ fn subject(row: Input) -> Result<Value, Failure> {
         Query::Text(text) => text.to_owned(),
         Query::PlacedCatalog => return Ok(placed_catalogued()),
         Query::Worked => {
-            for (_, worked) in crate::domain::catalog::constants::WORKED_QUERIES {
+            for (_, worked) in tastemaker_values::domain::catalog::constants::WORKED_QUERIES {
                 let verdict = AnalysisRyoAdapter::new(
                     ryo::linter::Languages::default(),
                     settings(),
@@ -460,9 +460,9 @@ fn subject(row: Input) -> Result<Value, Failure> {
             }
             return Ok(true);
         }
-        Query::Comments => crate::domain::applications::constants::COMMENTS_QUERY.to_owned(),
+        Query::Comments => tastemaker_values::domain::applications::constants::COMMENTS_QUERY.to_owned(),
         Query::Data => {
-            use crate::domain::contracts::types::Syntax;
+            use tastemaker_values::domain::contracts::types::Syntax;
             for syntax in [
                 Syntax::Defines,
                 Syntax::Scopes,
@@ -481,7 +481,7 @@ fn subject(row: Input) -> Result<Value, Failure> {
                     ryo::linter::Cache::None,
                 )
                 .validate(&QueryText(
-                    crate::domain::contracts::service::data_query(syntax)
+                    tastemaker_values::domain::contracts::service::data_query(syntax)
                         .0
                         .into(),
                 ))
@@ -563,9 +563,9 @@ enum Judged {
 }
 
 /// The finding the row's scenario's check reported, and how often.
-fn reported_of(scenario: Judged) -> Vec<crate::domain::findings::types::Finding> {
-    use crate::domain::findings::service::{check_id, error, of_rule};
-    use crate::domain::findings::types::{Line, Place, RuleId};
+fn reported_of(scenario: Judged) -> Vec<tastemaker_values::domain::findings::types::Finding> {
+    use tastemaker_values::domain::findings::service::{check_id, error, of_rule};
+    use tastemaker_values::domain::findings::types::{Line, Place, RuleId};
     let rule = match scenario {
         Judged::Own | Judged::OwnUnexpected => of_rule(RuleId("p/r".into())),
         Judged::CheckOfWholeFile => check_id("p/errors", "count"),
@@ -578,7 +578,7 @@ fn reported_of(scenario: Judged) -> Vec<crate::domain::findings::types::Finding>
         | Judged::OtherLine
         | Judged::Twice => check_id("p/s", "template"),
     };
-    let finding = crate::domain::findings::types::Finding {
+    let finding = tastemaker_values::domain::findings::types::Finding {
         place: match scenario {
             Judged::CheckOfWholeFile => Place::Whole,
             Judged::OtherLine => Place::Line(Line(4)),
@@ -594,7 +594,7 @@ fn reported_of(scenario: Judged) -> Vec<crate::domain::findings::types::Finding>
         },
         ..error(
             rule,
-            crate::domain::paths::types::RepoPath("a.txt".into()),
+            tastemaker_values::domain::paths::types::RepoPath("a.txt".into()),
             "wrong",
         )
     };
@@ -609,18 +609,18 @@ fn reported_of(scenario: Judged) -> Vec<crate::domain::findings::types::Finding>
 fn expectations_of(
     scenario: Judged,
 ) -> (
-    Vec<crate::domain::scenarios::types::ExpectedFinding>,
-    Vec<crate::domain::scenarios::types::ExpectedRule>,
-    Option<crate::domain::proofs::types::FoundOwn<'static>>,
+    Vec<tastemaker_values::domain::scenarios::types::ExpectedFinding>,
+    Vec<tastemaker_values::domain::scenarios::types::ExpectedRule>,
+    Option<tastemaker_values::domain::proofs::types::FoundOwn<'static>>,
 ) {
-    use crate::domain::findings::types::Line;
-    use crate::domain::proofs::types::FoundOwn;
-    use crate::domain::scenarios::types::{
+    use tastemaker_values::domain::findings::types::Line;
+    use tastemaker_values::domain::proofs::types::FoundOwn;
+    use tastemaker_values::domain::scenarios::types::{
         ExpectedFinding, ExpectedLine, ExpectedRule, ExpectedRuleChoice,
     };
     let at = |rule: ExpectedRuleChoice, line: ExpectedLine| ExpectedFinding {
         rule,
-        path: crate::domain::paths::types::RepoPath("a.txt".into()),
+        path: tastemaker_values::domain::paths::types::RepoPath("a.txt".into()),
         line,
     };
     let named = |rule: &str| ExpectedRuleChoice::Named(ExpectedRule(rule.into()));
@@ -668,11 +668,11 @@ fn expectations_of(
 
 /// The problems ryo's verdict queries give the row's scenario, against the ones the row expects; empty when they agree.
 fn judged(scenario: Judged) -> Result<String, Failure> {
-    use crate::domain::findings::service::{check_id, of_rule};
-    use crate::domain::findings::types::RuleId;
-    use crate::domain::scenario_judging::service::{host, problems, rules, verdict_of};
-    use crate::domain::scenario_judging::types::{ScenarioNumber, VerdictRows};
-    use crate::domain::scenarios::types::ScenarioId;
+    use tastemaker_values::domain::findings::service::{check_id, of_rule};
+    use tastemaker_values::domain::findings::types::RuleId;
+    use tastemaker_values::domain::scenario_judging::service::{host, problems, rules, verdict_of};
+    use tastemaker_values::domain::scenario_judging::types::{ScenarioNumber, VerdictRows};
+    use tastemaker_values::domain::scenarios::types::ScenarioId;
     use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
     let (expected, only, own) = expectations_of(scenario);
     let evaluated = [
@@ -787,17 +787,17 @@ enum Counted {
 fn waiting_of(
     counted: Counted,
 ) -> (
-    Vec<crate::domain::scopes::types::CountCheck>,
-    Vec<crate::domain::scopes::types::PairCheck>,
+    Vec<tastemaker_values::domain::scopes::types::CountCheck>,
+    Vec<tastemaker_values::domain::scopes::types::PairCheck>,
     std::collections::BTreeMap<
-        crate::domain::scopes::types::ConditionAt,
-        crate::domain::scopes::types::Answer,
+        tastemaker_values::domain::scopes::types::ConditionAt,
+        tastemaker_values::domain::scopes::types::Answer,
     >,
 ) {
-    use crate::domain::entries::types::{Amount, Bound, ConditionName, Count};
-    use crate::domain::findings::service::{check_id, error};
-    use crate::domain::paths::types::RepoPath;
-    use crate::domain::scopes::types::{
+    use tastemaker_values::domain::entries::types::{Amount, Bound, ConditionName, Count};
+    use tastemaker_values::domain::findings::service::{check_id, error};
+    use tastemaker_values::domain::paths::types::RepoPath;
+    use tastemaker_values::domain::scopes::types::{
         Answer, ConditionAt, CountCheck, CountMessage, CountUnit, FileSpelling, Identity,
         PairCheck, ScopeIndex,
     };
@@ -901,9 +901,9 @@ fn counted_by(
     port: &dyn crate::outbound::analysis::interface::AnalysisPort,
     counted: Counted,
 ) -> Result<String, Failure> {
-    use crate::domain::judging::service::{findings, host, judgment_of, rules};
+    use tastemaker_values::domain::judging::service::{findings, host, judgment_of, rules};
     use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
-    let closings = crate::domain::closing::types::Closings::default();
+    let closings = tastemaker_values::domain::closing::types::Closings::default();
     let (counts, pairs, holds) = waiting_of(counted);
     let directory = tempfile::tempdir().map_err(|error| error.to_string())?;
     let report = port
@@ -965,13 +965,13 @@ fn counted_by(
 
 /// Closed directories `a` and `b`: three scopes own `a`, one `b`, and `a` holds a placed file, its own `tastemaker.toml`, a nested
 /// instance and files placed by two scopes at two depths.
-fn closed_scene() -> crate::domain::closing::types::Closings {
-    use crate::domain::closing::types::{
+fn closed_scene() -> tastemaker_values::domain::closing::types::Closings {
+    use tastemaker_values::domain::closing::types::{
         ClosedDirectory, ClosedOwner, Closings, DirectoryDepth, EnclosedFile, GroupNumber, Nested,
         Occupancy, Prefix, StrayNumber,
     };
-    use crate::domain::paths::types::RepoPath;
-    use crate::domain::scopes::types::{Identity, ScopeIndex};
+    use tastemaker_values::domain::paths::types::RepoPath;
+    use tastemaker_values::domain::scopes::types::{Identity, ScopeIndex};
     let owner = |scope: usize, name: &str| ClosedOwner {
         scope: ScopeIndex(scope),
         identity: Identity(name.into()),
@@ -1032,7 +1032,7 @@ fn closed_scene() -> crate::domain::closing::types::Closings {
 fn closed_by(
     port: &dyn crate::outbound::analysis::interface::AnalysisPort,
 ) -> Result<String, Failure> {
-    use crate::domain::judging::service::{findings, host, judgment_of, rules};
+    use tastemaker_values::domain::judging::service::{findings, host, judgment_of, rules};
     use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
     let closings = closed_scene();
     let directory = tempfile::tempdir().map_err(|error| error.to_string())?;

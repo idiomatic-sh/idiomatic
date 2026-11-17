@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::applications::types::{AnswerCell, CellText, CellValue, LintAnswer};
+use tastemaker_values::domain::applications::types::{AnswerCell, CellText, CellValue, LintAnswer};
 
 /// Whether `rule`, a whole id, is one `only` names: the same id, or the id after a package's `/` or a rule's `#`.
 fn named(rule: &str, only: &str) -> bool {
@@ -13,7 +13,7 @@ fn named(rule: &str, only: &str) -> bool {
 /// A cell of the verdict's or the count queries' answers, as text.
 fn text_cell(name: &str, text: String) -> AnswerCell {
     AnswerCell {
-        name: crate::domain::definitions::types::ColumnName(name.into()),
+        name: tastemaker_values::domain::definitions::types::ColumnName(name.into()),
         value: CellValue::Text(CellText(text.into())),
     }
 }
@@ -22,9 +22,9 @@ fn text_cell(name: &str, text: String) -> AnswerCell {
 /// more or fewer of than its check found, of the found ones `only` keeps, the rule it proves that never ran, and each
 /// rule `only` names that never ran.
 pub(super) fn verdict_answers(
-    rows: &crate::domain::scenario_judging::types::VerdictRows,
+    rows: &tastemaker_values::domain::scenario_judging::types::VerdictRows,
 ) -> Vec<LintAnswer> {
-    use crate::domain::scenario_judging::constants::{
+    use tastemaker_values::domain::scenario_judging::constants::{
         EXPECTED_COUNT, EXTRA_RULE, FINDING_PATH, FOUND_COUNT, LINE, MISSING_RULE, ONLY_RULE,
         ONLY_UNRAN_RULE, OWN_UNRAN_RULE, PLACE, RULE,
     };
@@ -59,8 +59,8 @@ pub(super) fn verdict_answers(
         }
     }
     let answer = |rule: &str, scenario: u32, cells: Vec<AnswerCell>| LintAnswer {
-        rule: crate::domain::applications::types::LintRuleId(rule.into()),
-        path: crate::domain::paths::types::RepoPath(scenario.to_string().into()),
+        rule: tastemaker_values::domain::applications::types::LintRuleId(rule.into()),
+        path: tastemaker_values::domain::paths::types::RepoPath(scenario.to_string().into()),
         cells,
     };
     let counted = |key: &Key, wanted: u32, got: u32| {
@@ -85,7 +85,7 @@ pub(super) fn verdict_answers(
             answers.push(answer(EXTRA_RULE, key.0, counted(key, wanted, *got)));
         }
     }
-    let ran = |scenario: crate::domain::scenario_judging::types::ScenarioNumber| {
+    let ran = |scenario: tastemaker_values::domain::scenario_judging::types::ScenarioNumber| {
         rows.evaluated
             .iter()
             .filter(move |row| row.scenario == scenario)
@@ -117,12 +117,12 @@ pub(super) fn verdict_answers(
 /// What ryo answers the count queries over `rows`, worked out as they say it: each count whose found number is outside
 /// the bounds it is held to, with which bounds, and each pair whose count requires any file; an entry whose condition
 /// is unanswered, or has no answer, is neither.
-pub(super) fn count_answers(rows: &crate::domain::judging::types::CountRows) -> Vec<LintAnswer> {
-    use crate::domain::judging::constants::{
+pub(super) fn count_answers(rows: &tastemaker_values::domain::judging::types::CountRows) -> Vec<LintAnswer> {
+    use tastemaker_values::domain::judging::constants::{
         BRANCH, BRANCH_ELSE, BRANCH_OWN, BRANCH_THEN, COUNT_RULE, PAIR_RULE,
     };
-    use crate::domain::judging::types::{Bounds, EntryKind};
-    use crate::domain::scopes::types::Answer;
+    use tastemaker_values::domain::judging::types::{Bounds, EntryKind};
+    use tastemaker_values::domain::scopes::types::Answer;
     let outside = |found: u32, bounds: Bounds| found < bounds.min.0 || found > bounds.max.0;
     let mut answers = Vec::new();
     for row in &rows.entries {
@@ -143,15 +143,15 @@ pub(super) fn count_answers(rows: &crate::domain::judging::types::CountRows) -> 
         let Some((branch, bounds)) = held else {
             continue;
         };
-        let path = crate::domain::paths::types::RepoPath(row.entry.0.to_string().into());
+        let path = tastemaker_values::domain::paths::types::RepoPath(row.entry.0.to_string().into());
         match row.kind {
             EntryKind::Count if outside(row.found.0, bounds) => answers.push(LintAnswer {
-                rule: crate::domain::applications::types::LintRuleId(COUNT_RULE.into()),
+                rule: tastemaker_values::domain::applications::types::LintRuleId(COUNT_RULE.into()),
                 path,
                 cells: vec![text_cell(BRANCH, branch.to_string())],
             }),
             EntryKind::Pair if bounds.min.0 > 0 => answers.push(LintAnswer {
-                rule: crate::domain::applications::types::LintRuleId(PAIR_RULE.into()),
+                rule: tastemaker_values::domain::applications::types::LintRuleId(PAIR_RULE.into()),
                 path,
                 cells: Vec::new(),
             }),
@@ -165,8 +165,8 @@ pub(super) fn count_answers(rows: &crate::domain::judging::types::CountRows) -> 
 /// What the closed query answers over `closings`, decided as it decides: a file beneath a closed directory that no template
 /// places, no `tastemaker.toml` is and no nested instance owns is named after the scope that placed files in the nearest directory
 /// above it, the last declared of those on a tie, else the last declared of the directory's.
-fn closed_answers(closings: &crate::domain::closing::types::Closings) -> Vec<LintAnswer> {
-    use crate::domain::closing::constants::{CLOSED_RULE, OWNER};
+fn closed_answers(closings: &tastemaker_values::domain::closing::types::Closings) -> Vec<LintAnswer> {
+    use tastemaker_values::domain::closing::constants::{CLOSED_RULE, OWNER};
     closings
         .candidates
         .iter()
@@ -197,8 +197,8 @@ fn closed_answers(closings: &crate::domain::closing::types::Closings) -> Vec<Lin
                 .map(|owner| owner.scope);
             let owner = nearest.or(last)?;
             Some(LintAnswer {
-                rule: crate::domain::applications::types::LintRuleId(CLOSED_RULE.into()),
-                path: crate::domain::paths::types::RepoPath(candidate.stray.0.to_string().into()),
+                rule: tastemaker_values::domain::applications::types::LintRuleId(CLOSED_RULE.into()),
+                path: tastemaker_values::domain::paths::types::RepoPath(candidate.stray.0.to_string().into()),
                 cells: vec![text_cell(OWNER, owner.0.to_string())],
             })
         })

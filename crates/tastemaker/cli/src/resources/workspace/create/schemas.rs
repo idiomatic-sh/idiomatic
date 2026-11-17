@@ -1,9 +1,9 @@
 //! The shape of the data this command does not control: its arguments become the service's request, and the service's
 //! report becomes the answer printed. Each refusal of a conversion is a `<Name>SchemaError`.
 
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::packages::service::{kind_of, kind_word};
-use tastemaker_core::domain::packages::types::{DefinitionKind, DefinitionName};
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::service::{kind_of, kind_word};
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
 use tastemaker_core::inbound::use_cases::create::types::{
     CreateReport, CreateRequest, Destination, Extension, ScenarioExtension,
 };
@@ -55,7 +55,7 @@ impl TryFrom<CreateArgumentsSchema<'_>> for CreateRequest {
         let edge = schema.edge;
         let refused = || CreateSchemaError::Definition(schema.definition.clone());
         let (kind, name) = schema.definition.split_once('/').ok_or_else(refused)?;
-        let kind = kind_of(tastemaker_core::domain::packages::types::KindWord(kind))
+        let kind = kind_of(tastemaker_values::domain::packages::types::KindWord(kind))
             .ok_or_else(refused)?;
         if name.is_empty() || name.contains('/') {
             return Err(refused());
@@ -164,7 +164,7 @@ pub(super) fn answer(report: &CreateReport, dry_run: bool, start: &MachinePath) 
                 .components()
                 .map(|part| part.as_os_str().to_string_lossy())
                 .collect::<Vec<_>>()
-                .join(tastemaker_core::domain::applications::constants::PATH_SEPARATOR)
+                .join(tastemaker_values::domain::applications::constants::PATH_SEPARATOR)
         },
     );
     let word = kind_word(report.kind).0;

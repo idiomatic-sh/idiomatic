@@ -1,14 +1,14 @@
 //! The fake of the `analysis` port: the answers a test gives, by rule, and every request kept for the test to read.
 
-use crate::domain::applications::types::{AnswerCell, CellText, CellValue, LintAnswer};
+use tastemaker_values::domain::applications::types::{AnswerCell, CellText, CellValue, LintAnswer};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
-use crate::domain::catalog::types::{
+use tastemaker_values::domain::catalog::types::{
     CatalogColumn, CatalogEntries, CatalogEntry, CatalogName, CatalogText, Grammar, OperatorAnswer,
     OperatorPage, Production, RelationAnswer, RelationPage,
 };
-use crate::domain::definitions::types::QueryText;
+use tastemaker_values::domain::definitions::types::QueryText;
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::analysis::types::{
@@ -139,10 +139,10 @@ impl AnalysisPort for AnalysisFake {
             for glob in &rule.include {
                 report.findings.push(LintAnswer {
                     rule: rule.id.clone(),
-                    path: crate::domain::paths::types::RepoPath(glob.0.clone()),
+                    path: tastemaker_values::domain::paths::types::RepoPath(glob.0.clone()),
                     cells: ["child", "parent"]
                         .map(|name| AnswerCell {
-                            name: crate::domain::definitions::types::ColumnName(name.into()),
+                            name: tastemaker_values::domain::definitions::types::ColumnName(name.into()),
                             value: CellValue::Text(CellText("0".into())),
                         })
                         .into(),
@@ -158,17 +158,17 @@ impl AnalysisPort for AnalysisFake {
                     if !listed(&request.corpus, path) {
                         continue;
                     }
-                    let file = crate::domain::paths::types::RepoPath(path.clone());
+                    let file = tastemaker_values::domain::paths::types::RepoPath(path.clone());
                     // The row's span, `start..end` as the fixture writes it, then, for a comment, whether it documents and
                     // its text: `start..end,doc,text`.
                     let mut parts = key.splitn(3, ',');
                     let span = parts.next().unwrap_or_default().split_once("..").and_then(
                         |(start, end)| {
-                            Some(crate::domain::comments::types::ByteSpan {
-                                start: crate::domain::findings::types::ByteOffset(
+                            Some(tastemaker_values::domain::comments::types::ByteSpan {
+                                start: tastemaker_values::domain::findings::types::ByteOffset(
                                     start.parse().ok()?,
                                 ),
-                                end: crate::domain::findings::types::ByteOffset(end.parse().ok()?),
+                                end: tastemaker_values::domain::findings::types::ByteOffset(end.parse().ok()?),
                             })
                         },
                     );
@@ -177,11 +177,11 @@ impl AnalysisPort for AnalysisFake {
                         path: file.clone(),
                         cells: [
                             Some(AnswerCell {
-                                name: crate::domain::definitions::types::ColumnName("file".into()),
+                                name: tastemaker_values::domain::definitions::types::ColumnName("file".into()),
                                 value: CellValue::File(file),
                             }),
                             span.map(|span| AnswerCell {
-                                name: crate::domain::definitions::types::ColumnName("span".into()),
+                                name: tastemaker_values::domain::definitions::types::ColumnName("span".into()),
                                 value: CellValue::Span(span),
                             }),
                         ]
@@ -189,7 +189,7 @@ impl AnalysisPort for AnalysisFake {
                         .flatten()
                         .chain(["doc", "text"].into_iter().zip(parts).map(|(name, said)| {
                             AnswerCell {
-                                name: crate::domain::definitions::types::ColumnName(name.into()),
+                                name: tastemaker_values::domain::definitions::types::ColumnName(name.into()),
                                 value: CellValue::Text(CellText(said.into())),
                             }
                         }))

@@ -105,7 +105,7 @@ pub(crate) fn workspace() -> tempfile::TempDir {
 #[must_use]
 pub(crate) fn dry_run(edge: crate::edge::Edge) -> crate::edge::Edge {
     crate::edge::Edge {
-        writing: tastemaker_core::domain::writing::types::Writing::DryRun,
+        writing: tastemaker_values::domain::writing::types::Writing::DryRun,
         ..edge
     }
 }
@@ -114,12 +114,12 @@ pub(crate) fn dry_run(edge: crate::edge::Edge) -> crate::edge::Edge {
 #[must_use]
 pub(crate) fn edge(directory: &tempfile::TempDir) -> crate::edge::Edge {
     crate::resources::edge_at(
-        tastemaker_core::domain::files::types::MachinePath(
+        tastemaker_values::domain::files::types::MachinePath(
             directory.path().display().to_string().into(),
         ),
-        tastemaker_core::domain::settings::types::Build("test".into()),
+        tastemaker_values::domain::settings::types::Build("test".into()),
         crate::output::Format::Terminal,
-        tastemaker_core::domain::writing::types::Writing::Write,
+        tastemaker_values::domain::writing::types::Writing::Write,
     )
 }
 
@@ -332,7 +332,7 @@ pub(crate) fn proven(directory: &tempfile::TempDir) -> Result<(), crate::outcome
             &edge(directory).store,
             &edge(directory).start,
             &edge(directory).build,
-            tastemaker_core::domain::writing::types::Writing::Write,
+            tastemaker_values::domain::writing::types::Writing::Write,
         ),
     )
     .validate(
@@ -345,7 +345,7 @@ pub(crate) fn proven(directory: &tempfile::TempDir) -> Result<(), crate::outcome
     if validation
         .proved
         .iter()
-        .any(|proved| proved.proof != tastemaker_core::domain::proofs::types::Proof::Proven)
+        .any(|proved| proved.proof != tastemaker_values::domain::proofs::types::Proof::Proven)
     {
         return Err(crate::outcome::Outcome::Error);
     }

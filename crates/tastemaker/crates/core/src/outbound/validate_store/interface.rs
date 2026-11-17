@@ -2,7 +2,7 @@
 //! held, kept between runs.
 
 use super::errors::ValidateStoreError;
-use crate::domain::proofs::types::{ProvenVersion, ProvenVersions};
+use tastemaker_values::domain::proofs::types::{ProvenVersion, ProvenVersions};
 
 /// What every `validate_store` adapter implements.
 pub trait ValidateStorePort: Send + Sync {

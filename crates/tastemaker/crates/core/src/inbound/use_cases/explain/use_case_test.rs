@@ -7,8 +7,8 @@ use super::interface::ExplainUseCase as _;
 use super::types::{Asked, ExplainRequest, NameAsked};
 use super::use_case::ExplainUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::explanations::constants::SKIPPED_NOTE;
-use crate::domain::files::types::{Declarer, DirectoryName, MachinePath, SkippedDirectory};
+use tastemaker_values::domain::explanations::constants::SKIPPED_NOTE;
+use tastemaker_values::domain::files::types::{Declarer, DirectoryName, MachinePath, SkippedDirectory};
 use crate::inbound::use_cases::check::fixtures::{Workspace, package, repository_of, selection};
 use crate::outbound::analysis::fixtures::fake::AnalysisFake;
 

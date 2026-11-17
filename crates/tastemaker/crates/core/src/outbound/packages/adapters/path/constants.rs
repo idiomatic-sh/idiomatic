@@ -16,8 +16,8 @@ pub(super) const SEPARATOR: char = '/';
 /// The same, as text to join segments with.
 pub(super) const SEPARATOR_TEXT: &str = "/";
 /// The segment that names the directory it is in.
-pub(super) const CURRENT: &str = crate::domain::paths::constants::CURRENT;
+pub(super) const CURRENT: &str = tastemaker_values::domain::paths::constants::CURRENT;
 /// The segment that names the directory above.
-pub(super) const PARENT: &str = crate::domain::paths::constants::PARENT;
+pub(super) const PARENT: &str = tastemaker_values::domain::paths::constants::PARENT;
 /// Why a name in a package is refused when it is not UTF-8: a definition's path is text.
-pub(super) const NOT_UTF8: &str = crate::domain::paths::constants::NOT_UTF8;
+pub(super) const NOT_UTF8: &str = tastemaker_values::domain::paths::constants::NOT_UTF8;

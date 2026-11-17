@@ -1,6 +1,6 @@
 //! The sources a report reads.
-use crate::domain::files::types::FileText;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// The sources a report reads, each read once, by its path.
 #[derive(Debug, Default)]

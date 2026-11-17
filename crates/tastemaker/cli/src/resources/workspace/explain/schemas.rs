@@ -1,14 +1,14 @@
 //! The shape of the data this command does not control: its arguments become the service's request, and the service's
 //! report becomes the answer printed. Each refusal of a conversion is a `<Name>SchemaError`.
 
-use tastemaker_core::domain::files::types::MachinePath;
+use tastemaker_values::domain::files::types::MachinePath;
 use tastemaker_core::inbound::use_cases::explain::types::{
     Asked, ExplainReport, ExplainRequest, NameAsked,
 };
 
-use tastemaker_core::domain::packages::constants::{RULE_WORD, SPEC_WORD, TEMPLATE_WORD};
-use tastemaker_core::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD};
-use tastemaker_core::domain::topics::service::{authoring, names};
+use tastemaker_values::domain::packages::constants::{RULE_WORD, SPEC_WORD, TEMPLATE_WORD};
+use tastemaker_values::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD};
+use tastemaker_values::domain::topics::service::{authoring, names};
 
 /// Why the arguments were refused.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -41,7 +41,7 @@ impl TryFrom<ExplainArgumentsSchema<'_>> for ExplainRequest {
         let asked = match (schema.all, schema.subject, schema.output_directory) {
             (true, Some(_), _) => return Err(ExplainSchemaError::AllWithSubject),
             (true, None, _)
-                if edge.writing == tastemaker_core::domain::writing::types::Writing::DryRun =>
+                if edge.writing == tastemaker_values::domain::writing::types::Writing::DryRun =>
             {
                 return Err(ExplainSchemaError::DryRun);
             }

@@ -7,18 +7,18 @@ pub mod workspace;
 /// The directory beneath a project's root where Tastemaker keeps its store: written here once, and handed to every
 /// adapter that must know it, the walks that skip it and the stores that keep their files in it.
 #[must_use]
-fn store() -> tastemaker_core::domain::files::types::DirectoryName {
-    tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into())
+fn store() -> tastemaker_values::domain::files::types::DirectoryName {
+    tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into())
 }
 
 /// The edge of a command run in `start`, which is also where it was started: the one place besides `run_from` that
 /// builds an [`Edge`](crate::edge::Edge), so the store's name stays written once.
 #[must_use]
 pub fn edge_at(
-    start: tastemaker_core::domain::files::types::MachinePath,
-    build: tastemaker_core::domain::settings::types::Build,
+    start: tastemaker_values::domain::files::types::MachinePath,
+    build: tastemaker_values::domain::settings::types::Build,
     format: crate::output::Format,
-    writing: tastemaker_core::domain::writing::types::Writing,
+    writing: tastemaker_values::domain::writing::types::Writing,
 ) -> crate::edge::Edge {
     crate::edge::Edge {
         here: start.clone(),
@@ -107,24 +107,24 @@ fn run_from(
         Err(error) => return usage(&error),
     };
     let _timings = crate::timings::install(cli.timings.timings, started);
-    let here = tastemaker_core::domain::files::types::MachinePath(start.into());
+    let here = tastemaker_values::domain::files::types::MachinePath(start.into());
     let edge = crate::edge::Edge {
         start: cli.root.map_or_else(
             || here.clone(),
             |root| {
-                tastemaker_core::domain::files::types::MachinePath(
+                tastemaker_values::domain::files::types::MachinePath(
                     root.display().to_string().into(),
                 )
             },
         ),
         here,
         store: store(),
-        build: tastemaker_core::domain::settings::types::Build(build.into()),
+        build: tastemaker_values::domain::settings::types::Build(build.into()),
         format: cli.output.format(),
         writing: if cli.dry_run.dry_run() {
-            tastemaker_core::domain::writing::types::Writing::DryRun
+            tastemaker_values::domain::writing::types::Writing::DryRun
         } else {
-            tastemaker_core::domain::writing::types::Writing::Write
+            tastemaker_values::domain::writing::types::Writing::Write
         },
     };
     workspace::run(cli.command, &edge)

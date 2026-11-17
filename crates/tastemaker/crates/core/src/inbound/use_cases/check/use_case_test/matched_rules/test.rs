@@ -1,8 +1,8 @@
 //! The `applying` service's cases, over the `check` fixture's workspace: its rule matched here, its files compressed.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::service::known;
-use crate::domain::applications::types::Plan;
+use tastemaker_values::domain::applications::service::known;
+use tastemaker_values::domain::applications::types::Plan;
 use crate::domain::applying::service::matched_rules;
 use crate::inbound::use_cases::check::fixtures::applications::{
     applications, matching, placement, workspace,
@@ -94,7 +94,7 @@ fn subject(question: Input) -> Value {
                     .map(|finding| {
                         format!(
                             "{} {}",
-                            crate::domain::findings::service::printed(&finding.rule).0,
+                            tastemaker_values::domain::findings::service::printed(&finding.rule).0,
                             finding.message.0
                         )
                     })

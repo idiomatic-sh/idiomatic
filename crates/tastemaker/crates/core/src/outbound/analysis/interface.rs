@@ -3,10 +3,10 @@
 
 use super::errors::AnalysisError;
 use super::types::{AnalysisReport, AnalysisRequest, QueryVerdict};
-use crate::domain::catalog::types::{
+use tastemaker_values::domain::catalog::types::{
     CatalogEntries, CatalogName, Grammar, OperatorAnswer, RelationAnswer,
 };
-use crate::domain::definitions::types::QueryText;
+use tastemaker_values::domain::definitions::types::QueryText;
 
 /// What every `analysis` adapter implements.
 pub trait AnalysisPort: Send + Sync {

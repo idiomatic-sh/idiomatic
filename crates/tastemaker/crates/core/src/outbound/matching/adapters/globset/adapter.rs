@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use crate::domain::captures::types::CaptureValue;
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::captures::types::CaptureValue;
+use tastemaker_values::domain::selectors::types::{
     Binding, Coverage, GlobIndex, PathRest, PathSet, PathTest, PatternFailure, Spelling,
 };
 use crate::outbound::matching::interface::MatchingPort;
@@ -88,7 +88,7 @@ impl PathSet for Together {
 impl MatchingPort for MatchingGlobsetAdapter {
     fn compile_set(
         &self,
-        globs: &[crate::domain::selectors::types::SetGlob],
+        globs: &[tastemaker_values::domain::selectors::types::SetGlob],
     ) -> Result<Arc<dyn PathSet>, PatternFailure> {
         let built = globs
             .iter()

@@ -19,10 +19,14 @@ version_group = "tastemaker"
 git_tag_name = "idiomatic-sh-tastemaker-v{{ version }}"
 changelog_update = true
 changelog_path = "CHANGELOG.md"
-changelog_include = ["idiomatic-sh-tastemaker-core"]
+changelog_include = ["idiomatic-sh-tastemaker-core", "idiomatic-sh-tastemaker-values"]
 
 [[package]]
 name = "idiomatic-sh-tastemaker-core"
+version_group = "tastemaker"
+
+[[package]]
+name = "idiomatic-sh-tastemaker-values"
 version_group = "tastemaker"
 
 # release-plz's own entry with a section per commit type, in this order: the number in each group's comment sorts it and is

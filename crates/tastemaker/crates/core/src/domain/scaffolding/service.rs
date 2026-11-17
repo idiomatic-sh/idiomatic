@@ -11,25 +11,25 @@ use super::types::{
     Declaring, FirstWriting, LocalSplit, MissingParam, Naming, Optionality, PlacedName, Reads,
     Unfilled, Waiting, Waits,
 };
-use crate::domain::captures::service::{
+use tastemaker_values::domain::captures::service::{
     captured_names, escaped, pieces, substitute_pattern, unescaped, wildcards, written_piece,
 };
-use crate::domain::captures::types::{
+use tastemaker_values::domain::captures::types::{
     CaptureBinding, CaptureName, CaptureValue, Captures, PatternPiece, PlainText, Template,
     Wildcards,
 };
-use crate::domain::contexts::constants::{EXTENSION, SCAFFOLD, SCAFFOLDING};
-use crate::domain::contexts::types::{ContextKey, ContextText, RenderContext};
-use crate::domain::definitions::service::content;
-use crate::domain::definitions::types::{LocalPackage, PackagePath, SpecFile, TemplateFile};
-use crate::domain::entries::service::{interpolate, minimum};
-use crate::domain::entries::types::{
+use tastemaker_values::domain::contexts::constants::{EXTENSION, SCAFFOLD, SCAFFOLDING};
+use tastemaker_values::domain::contexts::types::{ContextKey, ContextText, RenderContext};
+use tastemaker_values::domain::definitions::service::content;
+use tastemaker_values::domain::definitions::types::{LocalPackage, PackagePath, SpecFile, TemplateFile};
+use tastemaker_values::domain::entries::service::{interpolate, minimum};
+use tastemaker_values::domain::entries::types::{
     Amount, Composition, Count, ParamDeclarations, ParamSource, ParamValue, ParamValues, Setting,
     SpecEntry, TemplateEntry, Value,
 };
-use crate::domain::paths::service::{containment, join, name};
-use crate::domain::paths::types::{Containment, PathText, RepoPath};
-use crate::domain::selectors::types::{PathPattern, Selector};
+use tastemaker_values::domain::paths::service::{containment, join, name};
+use tastemaker_values::domain::paths::types::{Containment, PathText, RepoPath};
+use tastemaker_values::domain::selectors::types::{PathPattern, Selector};
 
 /// The fewest files of an entry an instance needs whatever its files hold: a condition's fewer answer, so a file only one
 /// answer asks for waits until `check` decides its condition.
@@ -112,7 +112,7 @@ pub fn naming(placed: &PlacedName) -> Naming {
 pub fn literal_values(
     params: &ParamValues,
     captures: &Captures,
-    written: &dyn crate::domain::entries::types::ValueWriter,
+    written: &dyn tastemaker_values::domain::entries::types::ValueWriter,
 ) -> Captures {
     let pairs = bindings(captures).collect::<Vec<_>>();
     Captures(
@@ -140,7 +140,7 @@ pub fn literal_values(
 pub fn named_by_directory(
     declared: &ParamDeclarations,
     directory: &RepoPath,
-    workspace: &crate::domain::findings::types::WorkspaceName,
+    workspace: &tastemaker_values::domain::findings::types::WorkspaceName,
 ) -> Captures {
     Captures(
         declared
@@ -169,7 +169,7 @@ pub fn first_render(
     declared: &ParamDeclarations,
     passed: &ParamValues,
     directory: &RepoPath,
-    written: &dyn crate::domain::entries::types::ValueWriter,
+    written: &dyn tastemaker_values::domain::entries::types::ValueWriter,
 ) -> Result<RenderContext, MissingParam> {
     let mut context = RenderContext::default();
     // A template says what a file must declare for the check, and what a file starts with when it is written: the part that only a

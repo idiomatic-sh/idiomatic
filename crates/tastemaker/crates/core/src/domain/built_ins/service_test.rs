@@ -2,10 +2,10 @@
 
 use super::service::{comments, compared};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::types::Plan;
-use crate::domain::contracts::types::{Contract, RenderedContent, TemplateIdentity};
-use crate::domain::definitions::types::Exactness;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::applications::types::Plan;
+use tastemaker_values::domain::contracts::types::{Contract, RenderedContent, TemplateIdentity};
+use tastemaker_values::domain::definitions::types::Exactness;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

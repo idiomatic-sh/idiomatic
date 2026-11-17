@@ -4,17 +4,17 @@
 use std::collections::BTreeMap;
 
 use super::types::{CarriedSplit, HandedKey, Overlap, RuleGlobs};
-use crate::domain::applications::constants::{CARRIED_GLOBS, EVERYTHING};
-use crate::domain::applications::types::{Carried, GlobText, HandedRule, Nameable, ParamSet};
-use crate::domain::entries::service::identity;
+use tastemaker_values::domain::applications::constants::{CARRIED_GLOBS, EVERYTHING};
+use tastemaker_values::domain::applications::types::{Carried, GlobText, HandedRule, Nameable, ParamSet};
+use tastemaker_values::domain::entries::service::identity;
 use crate::domain::globs::service::literal;
-use crate::domain::packages::types::{DefinitionKind, Release};
-use crate::domain::paths::service::{containment, relative};
-use crate::domain::paths::types::{Containment, RepoPath};
-use crate::domain::placement::errors::PlacementError;
-use crate::domain::placement::types::Placement;
-use crate::domain::selectors::service::resolve;
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::packages::types::{DefinitionKind, Release};
+use tastemaker_values::domain::paths::service::{containment, relative};
+use tastemaker_values::domain::paths::types::{Containment, RepoPath};
+use tastemaker_values::domain::placement::errors::PlacementError;
+use tastemaker_values::domain::placement::types::Placement;
+use tastemaker_values::domain::selectors::service::resolve;
+use tastemaker_values::domain::selectors::types::{
     GlobForm, MatcherShape, PatternCompiler, Resolved, ResolvedSelectors, SelectionContext,
 };
 

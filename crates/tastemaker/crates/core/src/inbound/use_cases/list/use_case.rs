@@ -5,17 +5,17 @@ use std::sync::Arc;
 use super::errors::ListError;
 use super::interface::ListUseCase;
 use super::types::{Kinds, ListReport, ListRequest, Listed, ListedKind, SearchTerm};
-use crate::domain::definitions::constants::WORKSPACE_FILE;
-use crate::domain::definitions::service::description;
-use crate::domain::definitions::types::Role;
-use crate::domain::entries::types::Description;
-use crate::domain::packages::constants::PACKAGE_FILE;
-use crate::domain::packages::service::{kind_directory, kind_file, latest};
-use crate::domain::packages::types::{
+use tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
+use tastemaker_values::domain::definitions::service::description;
+use tastemaker_values::domain::definitions::types::Role;
+use tastemaker_values::domain::entries::types::Description;
+use tastemaker_values::domain::packages::constants::PACKAGE_FILE;
+use tastemaker_values::domain::packages::service::{kind_directory, kind_file, latest};
+use tastemaker_values::domain::packages::types::{
     DefinitionKind, DefinitionName, PackageName, PackageRoot, SourcePath, VersionText,
 };
-use crate::domain::paths::service::join;
-use crate::domain::paths::types::PathText;
+use tastemaker_values::domain::paths::service::join;
+use tastemaker_values::domain::paths::types::PathText;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::DefinitionText;

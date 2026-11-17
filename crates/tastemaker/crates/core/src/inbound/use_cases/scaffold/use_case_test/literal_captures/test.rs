@@ -3,10 +3,10 @@
 use std::collections::BTreeMap;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::entries::types::{ParamName, ParamValue, ParamValues, Value as EntryValue};
+use tastemaker_values::domain::entries::types::{ParamName, ParamValue, ParamValues, Value as EntryValue};
 use crate::domain::scaffolding::fixtures::captures;
 use crate::domain::scaffolding::service::literal_values;
-use crate::domain::scalars::types::TextValue;
+use tastemaker_values::domain::scalars::types::TextValue;
 
 /// The literal an entry passes `trait`, with `lang = go`.
 type Input = &'static str;

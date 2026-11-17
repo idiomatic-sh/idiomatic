@@ -4,11 +4,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
 use super::project::ProjectFake;
-use crate::domain::files::types::{
+use tastemaker_values::domain::files::types::{
     Declarer, DirectoryName, FileText, MachinePath, SkippedDirectories, SkippedDirectory, Stamp,
 };
-use crate::domain::paths::service::containment;
-use crate::domain::paths::types::{Containment, RepoPath};
+use tastemaker_values::domain::paths::service::containment;
+use tastemaker_values::domain::paths::types::{Containment, RepoPath};
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::interface::{FoundRepository, Repository, RepositoryPort};
 use crate::outbound::repository::types::{Presence, RepoPaths, Walk};
@@ -192,7 +192,7 @@ impl RepositoryPort for RepositoryFake {
         skipped.push(SkippedDirectory {
             name: DirectoryName(VERSION_CONTROL.into()),
             by: vec![Declarer(
-                crate::domain::findings::constants::TASTEMAKER.into(),
+                tastemaker_values::domain::findings::constants::TASTEMAKER.into(),
             )],
         });
         skipped.sort();
@@ -350,7 +350,7 @@ impl Repository for RepositoryFake {
         }
     }
 
-    fn stamps(&self, paths: &[RepoPath]) -> crate::domain::files::types::Stamps {
+    fn stamps(&self, paths: &[RepoPath]) -> tastemaker_values::domain::files::types::Stamps {
         let found: Vec<Stamp> = {
             let files = self.files_of(&self.root);
             paths
@@ -366,23 +366,23 @@ impl Repository for RepositoryFake {
                                 })
                                 .count();
                             Stamp {
-                                size: crate::domain::files::types::FileSize(
+                                size: tastemaker_values::domain::files::types::FileSize(
                                     u64::try_from(held).unwrap_or(u64::MAX),
                                 ),
-                                modified: crate::domain::files::types::ModifiedTime(0),
+                                modified: tastemaker_values::domain::files::types::ModifiedTime(0),
                             }
                         },
                         |text| Stamp {
-                            size: crate::domain::files::types::FileSize(
+                            size: tastemaker_values::domain::files::types::FileSize(
                                 u64::try_from(text.0.len()).unwrap_or(u64::MAX),
                             ),
-                            modified: crate::domain::files::types::ModifiedTime(0),
+                            modified: tastemaker_values::domain::files::types::ModifiedTime(0),
                         },
                     )
                 })
                 .collect()
         };
-        crate::domain::files::types::Stamps(found)
+        tastemaker_values::domain::files::types::Stamps(found)
     }
 }
 

@@ -8,8 +8,8 @@ use crate::Behavior;
 type Failure = Box<dyn std::error::Error + Send + Sync>;
 use std::sync::Arc;
 
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::proofs::types::Proof;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::proofs::types::Proof;
 use tastemaker_core::inbound::use_cases::check::fixtures::RULE;
 use tastemaker_core::inbound::use_cases::validate::interface::ValidateUseCase as _;
 use tastemaker_core::inbound::use_cases::validate::types::ValidateRequest;
@@ -63,10 +63,10 @@ fn runs(world: &mut Behavior) -> Result<(), Failure> {
         reporting,
         fixtures: Arc::<RepositoryFake>::clone(&repository),
         repository,
-        settings: tastemaker_core::domain::settings::types::Store {
+        settings: tastemaker_values::domain::settings::types::Store {
             directory: MachinePath("/fake/.tastemaker_cache".into()),
-            build: tastemaker_core::domain::settings::types::Build("bdd".into()),
-            writing: tastemaker_core::domain::writing::types::Writing::Write,
+            build: tastemaker_values::domain::settings::types::Build("bdd".into()),
+            writing: tastemaker_values::domain::writing::types::Writing::Write,
         },
         manifest: Arc::new(tastemaker_core::outbound::manifest::factory::toml()),
         packages: Arc::new(PackagesFake::of(
@@ -148,13 +148,13 @@ fn on_disk(input: &str) -> Result<String, Failure> {
     let repository: Arc<dyn repository::interface::RepositoryPort> =
         Arc::new(repository::factory::disk(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         ));
     // Each scenario's project is written in memory, and the report of its check reads it there.
     let fixtures: Arc<dyn repository::interface::RepositoryPort> =
         Arc::new(repository::factory::memory(
             Vec::new(),
-            tastemaker_core::domain::files::types::DirectoryName(".tastemaker_cache".into()),
+            tastemaker_values::domain::files::types::DirectoryName(".tastemaker_cache".into()),
         ));
     let scheduler = Arc::new(tastemaker_core::outbound::scheduler::fixtures::fake::SchedulerFake);
     let digest: Arc<dyn digest::interface::DigestPort> = Arc::new(digest::factory::blake3());
@@ -169,10 +169,10 @@ fn on_disk(input: &str) -> Result<String, Failure> {
             Arc::clone(&digest),
         ),
     );
-    let store_at = tastemaker_core::domain::settings::types::Store {
+    let store_at = tastemaker_values::domain::settings::types::Store {
         directory: MachinePath(root.join(".tastemaker_cache").display().to_string().into()),
-        build: tastemaker_core::domain::settings::types::Build("bdd".into()),
-        writing: tastemaker_core::domain::writing::types::Writing::Write,
+        build: tastemaker_values::domain::settings::types::Build("bdd".into()),
+        writing: tastemaker_values::domain::writing::types::Writing::Write,
     };
     let validate = ValidateUseCaseImpl::new(ValidatePorts {
         scheduler,

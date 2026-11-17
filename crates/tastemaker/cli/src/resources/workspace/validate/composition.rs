@@ -21,7 +21,7 @@ where
 
 /// Selects the production service over the stores `connections` opened, its store `build`'s.
 pub(crate) fn build(
-    store: &tastemaker_core::domain::files::types::DirectoryName,
+    store: &tastemaker_values::domain::files::types::DirectoryName,
     connections: &super::connections::WorkspaceValidateConnections,
 ) -> impl ValidateUseCase + use<> {
     use tastemaker_core::inbound::use_cases::validate::use_case::{

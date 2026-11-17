@@ -2,9 +2,9 @@
 //! names it reads.
 
 use super::errors::TemplatesError;
-use crate::domain::contexts::types::{ContextKeys, RenderContext};
-use crate::domain::definitions::types::TemplateText;
-use crate::domain::files::types::FileText;
+use tastemaker_values::domain::contexts::types::{ContextKeys, RenderContext};
+use tastemaker_values::domain::definitions::types::TemplateText;
+use tastemaker_values::domain::files::types::FileText;
 
 /// What every `templates` adapter implements.
 pub trait TemplatesPort: Send + Sync {

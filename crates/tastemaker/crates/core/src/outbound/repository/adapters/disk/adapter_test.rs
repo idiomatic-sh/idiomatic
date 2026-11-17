@@ -3,10 +3,10 @@
 
 use super::adapter::RepositoryDiskAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::files::types::{
+use tastemaker_values::domain::files::types::{
     Declarer, DirectoryName, FileText, MachinePath, SkippedDirectory,
 };
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::paths::types::RepoPath;
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::fixtures::contract::check;
 use crate::outbound::repository::interface::RepositoryPort as _;

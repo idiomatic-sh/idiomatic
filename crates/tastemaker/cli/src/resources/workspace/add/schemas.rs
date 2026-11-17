@@ -3,11 +3,11 @@
 
 use std::collections::BTreeMap;
 
-use tastemaker_core::domain::captures::service::{pieces, written_piece};
-use tastemaker_core::domain::captures::types::{PatternPiece, Template};
-use tastemaker_core::domain::entries::types::Setting;
-use tastemaker_core::domain::packages::types::DefinitionKind;
-use tastemaker_core::domain::paths::types::RepoPath;
+use tastemaker_values::domain::captures::service::{pieces, written_piece};
+use tastemaker_values::domain::captures::types::{PatternPiece, Template};
+use tastemaker_values::domain::entries::types::Setting;
+use tastemaker_values::domain::packages::types::DefinitionKind;
+use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_core::inbound::use_cases::add::types::{
     AddReport, AddRequest, DefinitionAsked, Novelty,
 };

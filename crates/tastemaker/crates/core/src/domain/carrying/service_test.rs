@@ -2,12 +2,12 @@
 
 use super::service::carried;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::service::known;
-use crate::domain::definitions::fixtures::bare;
-use crate::domain::entries::fixtures::unwritten;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::placement::service::place;
-use crate::domain::selectors::fixtures::refusing;
+use tastemaker_values::domain::applications::service::known;
+use tastemaker_values::domain::definitions::fixtures::bare;
+use tastemaker_values::domain::entries::fixtures::unwritten;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::service::place;
+use tastemaker_values::domain::selectors::fixtures::refusing;
 
 /// The files of the tree.
 type Input = &'static [&'static str];

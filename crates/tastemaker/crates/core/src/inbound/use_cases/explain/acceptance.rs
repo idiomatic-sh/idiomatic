@@ -5,7 +5,7 @@ use cucumber::{given, then, when};
 use crate::Behavior;
 use std::sync::Arc;
 
-use tastemaker_core::domain::files::types::MachinePath;
+use tastemaker_values::domain::files::types::MachinePath;
 use tastemaker_core::inbound::use_cases::check::fixtures::{package, repository};
 use tastemaker_core::inbound::use_cases::explain::interface::ExplainUseCase as _;
 use tastemaker_core::inbound::use_cases::explain::types::{Asked, ExplainRequest, NameAsked};

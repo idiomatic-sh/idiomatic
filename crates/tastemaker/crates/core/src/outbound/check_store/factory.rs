@@ -4,7 +4,7 @@
 /// The postcard store of `store`, under the build that runs; under `-n/--dry-run` it writes nothing.
 #[must_use]
 pub fn postcard(
-    store: &crate::domain::settings::types::Store,
+    store: &tastemaker_values::domain::settings::types::Store,
 ) -> impl super::interface::CheckStorePort + use<> {
     super::adapters::postcard::adapter::CheckStorePostcardAdapter::at(store)
 }

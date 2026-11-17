@@ -1,6 +1,6 @@
 //! The disk adapter's own plain types: a directory it binds, and a project it makes.
 
-use crate::domain::files::types::{DirectoryName, MachinePath, SkippedDirectory};
+use tastemaker_values::domain::files::types::{DirectoryName, MachinePath, SkippedDirectory};
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::types::Walk;
 
@@ -14,9 +14,9 @@ pub(crate) struct RepositoryDiskRepository {
     /// The store's directory, never walked.
     pub store: DirectoryName,
     /// Where the nearest `tastemaker.toml` is, when the directory was found by it; its root otherwise.
-    pub workspace: crate::domain::paths::types::RepoPath,
+    pub workspace: tastemaker_values::domain::paths::types::RepoPath,
     /// Where the search for it started, when it was found; its root otherwise.
-    pub start: crate::domain::paths::types::RepoPath,
+    pub start: tastemaker_values::domain::paths::types::RepoPath,
 }
 
 /// A project directory of the disk, bound to its root, removed with everything in it when it is dropped.

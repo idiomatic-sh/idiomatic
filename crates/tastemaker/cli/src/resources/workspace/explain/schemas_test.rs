@@ -63,10 +63,10 @@ fn subject(asked: Input) -> Result<Value, Failure> {
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("explain").chain(line))
         .map_err(|_error| Next::Report)?;
     let edge = crate::resources::edge_at(
-        tastemaker_core::domain::files::types::MachinePath("/repo".into()),
-        tastemaker_core::domain::settings::types::Build("test".into()),
+        tastemaker_values::domain::files::types::MachinePath("/repo".into()),
+        tastemaker_values::domain::settings::types::Build("test".into()),
         crate::output::Format::Terminal,
-        tastemaker_core::domain::writing::types::Writing::Write,
+        tastemaker_values::domain::writing::types::Writing::Write,
     );
     super::request(
         parsed.arguments.subject,
@@ -90,7 +90,7 @@ fn refuses() {
 
 /// Every command, flag, topic and kind the text names that the command line or `explain` has not.
 fn unknown(text: &str) -> Vec<String> {
-    use tastemaker_core::domain::topics::service::names;
+    use tastemaker_values::domain::topics::service::names;
     let tree = crate::resources::command();
     let kinds = ["rule", "spec", "template", "relation", "operator"];
     let mut unknown = Vec::new();
@@ -154,7 +154,7 @@ fn help_gaps(check: Help) -> Vec<String> {
     let said = super::help();
     match check {
         Help::NamesOnlyWhatExists => unknown(&said),
-        Help::NamesEveryTopic => tastemaker_core::domain::topics::service::names()
+        Help::NamesEveryTopic => tastemaker_values::domain::topics::service::names()
             .into_iter()
             .filter(|name| !said.contains(name.0))
             .map(|name| name.0.to_owned())

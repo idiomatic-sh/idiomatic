@@ -3,9 +3,9 @@
 use std::collections::BTreeMap;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::entries::types::{ParamName, ParamSource, ParamValue, Value as EntryValue};
-use crate::domain::instance_params::fixtures::found;
-use crate::domain::scalars::types::TextValue;
+use tastemaker_values::domain::entries::types::{ParamName, ParamSource, ParamValue, Value as EntryValue};
+use tastemaker_values::domain::instance_params::fixtures::found;
+use tastemaker_values::domain::scalars::types::TextValue;
 
 /// The literal the entry passes `lang`.
 type Input = &'static str;

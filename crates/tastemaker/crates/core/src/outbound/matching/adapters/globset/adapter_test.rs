@@ -5,18 +5,18 @@ use std::sync::Arc;
 
 use super::adapter::MatchingGlobsetAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::captures::types::{CaptureName, CaptureValue, Captures, Interpolations};
-use crate::domain::definitions::fixtures::bare;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::selectors::service::{
+use tastemaker_values::domain::captures::types::{CaptureName, CaptureValue, Captures, Interpolations};
+use tastemaker_values::domain::definitions::fixtures::bare;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::selectors::service::{
     covers, covers_any, group, leading, matches, place, resolve,
 };
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::selectors::types::{
     Binding, Coverage, Match, PathPattern, PathRest, PathTest, PatternFailure, RegexText,
     SelectionContext, Selector, Selectors, Spelling, VariableName,
 };
-use crate::domain::template_placing::errors::TemplatePlacingError;
-use crate::domain::template_placing::service::exclusion;
+use tastemaker_values::domain::template_placing::errors::TemplatePlacingError;
+use tastemaker_values::domain::template_placing::service::exclusion;
 use crate::outbound::matching::fixtures::contract::check;
 use crate::outbound::matching::interface::MatchingPort as _;
 
@@ -194,7 +194,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             if actual
                 == &Refused::Placing(TemplatePlacingError::Selector {
                     entry: "workspace".into(),
-                    source: crate::domain::selectors::errors::SelectorsError::Pattern {
+                    source: tastemaker_values::domain::selectors::errors::SelectorsError::Pattern {
                         pattern: "(".into(),
                         reason: "regex parse error:\n    (\n    ^\nerror: unclosed group".into(),
                     },
@@ -249,7 +249,7 @@ fn selected(base: &str, pattern: &str, question: Question) -> Result<Value, Fail
     let answer = match question {
         Question::Matches(path) => match matches(&matcher, &RepoPath(path.into())) {
             Match::Matched(captures) => {
-                crate::domain::captures::service::captures_text(&captures).0
+                tastemaker_values::domain::captures::service::captures_text(&captures).0
             }
             Match::Missed => return Err(Refused::Pattern),
         },
@@ -274,10 +274,10 @@ fn selected(base: &str, pattern: &str, question: Question) -> Result<Value, Fail
         Question::Variable => {
             let list = Selectors(vec![Selector::Variable(VariableName("crates".into()))]);
             return match resolve(&list, &context(&base, &values)).err() {
-                Some(crate::domain::selectors::errors::SelectorsError::Unresolved { .. }) => {
+                Some(tastemaker_values::domain::selectors::errors::SelectorsError::Unresolved { .. }) => {
                     Err(Refused::Pattern)
                 }
-                Some(crate::domain::selectors::errors::SelectorsError::Pattern {
+                Some(tastemaker_values::domain::selectors::errors::SelectorsError::Pattern {
                     reason, ..
                 }) => Ok(Answer::Said(reason)),
                 None => Ok(Answer::Said("resolved".to_owned())),
