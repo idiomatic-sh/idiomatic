@@ -23,6 +23,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{Input, LiteralText};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
+use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 
 pub(crate) mod logical;
@@ -30,13 +31,13 @@ pub mod refusals;
 pub mod scopes;
 use logical::service::{
     after_inputs, answered_steps, derived_roots, held, observation_reaches, read_inputs, stated,
-    timed,
+    step_key, timed,
 };
 use refusals::service::{deferred_layouts, inputs_by_node};
 use scopes::service::scope_at;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
-/// are one node; each rule's emitted node and the nodes its frontier and named roots keep are recorded; each node's schema
+/// are one node, whichever step numbers their rules give the steps they read; each rule's emitted node and the nodes its frontier and named roots keep are recorded; each node's schema
 /// is checked from the catalog's columns before any row is read; the root kinds come from each tree select's infallible prefix; and
 /// each rule's step after the files marks it not served until the fourth stage. `inputs` holds the nodes'
 /// input lists for as long as the program borrows them.
@@ -61,6 +62,8 @@ pub fn logical<'p>(
     // A hosted step reads its host relation's columns, which no plan input names.
     let hosted = std::mem::take(&mut inputs.hosted);
     let mut drafts: Vec<Draft<'p>> = Vec::new();
+    // Each draft's operation as `step_key` compares it, by draft.
+    let mut keys: Vec<Cow<'p, Operation>> = Vec::new();
     let mut buckets = hashbrown::HashMap::<u64, Vec<usize>>::new();
     let mut nodes = Vec::with_capacity(rules.len());
     let mut scopes = Vec::with_capacity(rules.len());
@@ -128,9 +131,10 @@ pub fn logical<'p>(
             } else {
                 stated(own, after_inputs(read_timing, &list))
             };
+            let key = step_key(&step.operation);
             let hash = {
                 let mut hasher = rustc_hash::FxHasher::default();
-                step.operation.hash(&mut hasher);
+                key.hash(&mut hasher);
                 list.hash(&mut hasher);
                 step.scope.hash(&mut hasher);
                 hasher.finish()
@@ -138,7 +142,7 @@ pub fn logical<'p>(
             let found = buckets.get(&hash).and_then(|bucket| {
                 bucket.iter().copied().find(|at| {
                     let draft = &drafts[*at];
-                    draft.operation == &step.operation
+                    keys[*at] == key
                         && draft.scope == step.scope
                         && inputs.lists[*at] == list
                         && rules[draft.rule.0].bindings.0 == input.bindings.0
@@ -155,6 +159,7 @@ pub fn logical<'p>(
                     timing,
                 });
                 inputs.lists.push(list);
+                keys.push(key);
                 buckets.entry(hash).or_default().push(at);
                 at
             });
