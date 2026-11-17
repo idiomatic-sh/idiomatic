@@ -7,12 +7,10 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Input as Reads;
-use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
-use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
@@ -40,10 +38,6 @@ enum Scenario {
     AJoinOnAnotherColumnIsLeft,
     /// A filter of a step something else reads too is left to be read by the other.
     FiltersAreFusedAlongsideTheirReaders,
-    /// A filter of what a join with the tree answers, asking only of columns of the tree, is the join's own.
-    AFilterOfAJoinWithTheTreeIsTheJoinsOwn,
-    /// A filter that asks of a column of the left is left as it is.
-    AFilterOfTheLeftOfAJoinIsLeft,
 }
 
 /// A number the answer is.
@@ -261,50 +255,6 @@ fn filters_are_fused_alongside_their_readers() -> usize {
     )
 }
 
-fn a_filter_of_a_join_with_the_tree_is_the_joins_own(scenario: Scenario) -> usize {
-    let on_left = scenario == Scenario::AFilterOfTheLeftOfAJoinIsLeft;
-    let steps = vec![
-        step(Operation::Select {
-            from: Reads::Relation(Relation::Function),
-            comparisons: Vec::new(),
-            kept: Vec::new(),
-        }),
-        step(Operation::Join {
-            left: Reads::Step(StepId(0)),
-            right: Reads::Relation(Relation::SyntaxTree),
-            left_on: vec![column(0)],
-            right_on: vec![column(0)],
-            output: vec![
-                JoinColumn {
-                    side: Side::Left,
-                    column: column(1),
-                },
-                JoinColumn {
-                    side: Side::Right,
-                    column: column(1),
-                },
-            ],
-            filter: Vec::new(),
-            view: Vec::new(),
-
-            reach: None,
-        }),
-        step(Operation::Select {
-            from: Reads::Step(StepId(1)),
-            comparisons: vec![PlanComparison {
-                test: Test::Equal,
-                left: Operand::Column(column(u32::from(!on_left))),
-                right: Operand::Literal(QueryLiteral::Text(LiteralText("ident".into()))),
-                origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-            }],
-            kept: Vec::new(),
-        }),
-    ];
-    let fused = fuse_selects(steps);
-    let merged = matches!(&fused[2].operation, Operation::Join { right: Reads::Relation(Relation::SyntaxTree), filter, .. } if filter.len() == 1 && filter[0].left == Operand::Column(column(1)));
-    usize::from(merged != on_left)
-}
-
 fn subject(scenario: Input) -> Value {
     match scenario {
         Scenario::TwoFiltersAreOne => two_filters_are_one(),
@@ -330,10 +280,6 @@ fn subject(scenario: Input) -> Value {
         }
         Scenario::FiltersAreFusedAlongsideTheirReaders => {
             filters_are_fused_alongside_their_readers()
-        }
-        Scenario::AFilterOfAJoinWithTheTreeIsTheJoinsOwn
-        | Scenario::AFilterOfTheLeftOfAJoinIsLeft => {
-            a_filter_of_a_join_with_the_tree_is_the_joins_own(scenario)
         }
     }
 }
@@ -392,18 +338,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_filter_is_fused_into_the_step_it_reads_and_that_step_stays"),
         word: Word::Succeeds,
         input: || Scenario::FiltersAreFusedAlongsideTheirReaders,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_filter_of_a_join_with_the_tree_asking_of_the_tree_is_the_joins_own"),
-        word: Word::Succeeds,
-        input: || Scenario::AFilterOfAJoinWithTheTreeIsTheJoinsOwn,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_filter_of_a_column_of_the_left_of_a_join_is_left_alone"),
-        word: Word::Succeeds,
-        input: || Scenario::AFilterOfTheLeftOfAJoinIsLeft,
         expect: Expect::Value(1),
     },
 ];

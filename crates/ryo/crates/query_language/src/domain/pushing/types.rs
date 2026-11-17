@@ -31,13 +31,15 @@ pub(crate) struct KeptColumns {
     pub edge: Vec<ColumnIndex>,
 }
 
-/// The two joins a lookup is made of.
+/// The two joins a lookup is made of, and the filter of their answer by what the walk does not decide.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Pushed {
     /// The join of the left with the edges.
     pub below: Operation,
-    /// The join of that with the elements.
+    /// The join of that with the elements, deciding as it walks the comparisons of the elements that cannot fail.
     pub above: Operation,
+    /// A filter of `above`'s answer by the comparisons from the first that may fail on, when there are some.
+    pub residual: Option<Operation>,
 }
 
 /// A filter of a chain of filters: its comparisons, and the columns it keeps.
