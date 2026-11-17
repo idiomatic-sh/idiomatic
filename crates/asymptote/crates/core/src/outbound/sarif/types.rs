@@ -1,7 +1,7 @@
 //! The types of the `sarif` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::judgement::types::Inventory;
-use crate::domain::violations::types::{
+use asymptote_values::domain::judgement::types::Inventory;
+use asymptote_values::domain::violations::types::{
     Fingerprinted, Level, MessageText, Place, RepoPath, RuleId, Suppression,
 };
 

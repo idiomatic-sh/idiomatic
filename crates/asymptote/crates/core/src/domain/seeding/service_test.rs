@@ -3,12 +3,14 @@
 
 use super::service::seeding;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::operations::types::Reason;
-use crate::domain::operations::types::{BenchmarkName, MeasureName, Number, PerfKey, PerfRecord};
-use crate::domain::manifest::types::Percent;
-use crate::domain::perf::types::{Measured, Spread, ToleranceKey};
+use asymptote_values::domain::manifest::types::Percent;
+use asymptote_values::domain::operations::types::Reason;
+use asymptote_values::domain::operations::types::{
+    BenchmarkName, MeasureName, Number, PerfKey, PerfRecord,
+};
+use asymptote_values::domain::perf::types::{Measured, Spread, ToleranceKey};
+use asymptote_values::domain::violations::types::ToolId;
 use std::collections::BTreeMap;
-use crate::domain::violations::types::ToolId;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

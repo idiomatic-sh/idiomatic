@@ -5,9 +5,9 @@ use super::errors::RepositoryError;
 use super::types::{
     Files, IgnoredInputs, Introductions, RenameHistory, Renames, TrackedFiles, Worktree,
 };
-use crate::domain::manifest::types::Pathspec;
-use crate::domain::operations::types::Revision;
-use crate::domain::renames::types::{Head, HistoryStart};
+use asymptote_values::domain::manifest::types::Pathspec;
+use asymptote_values::domain::operations::types::Revision;
+use asymptote_values::domain::renames::types::{Head, HistoryStart};
 
 /// What every `repository` adapter implements. Each question fails with `NotARepository` where there is none, and
 /// with `Failed` where git cannot answer.

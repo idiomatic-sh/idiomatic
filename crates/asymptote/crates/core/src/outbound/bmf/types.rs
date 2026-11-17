@@ -1,6 +1,6 @@
 //! The types of the `bmf` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::perf::types::Measurement;
+use asymptote_values::domain::perf::types::Measurement;
 
 /// A tool's Bencher Metric Format output.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

@@ -9,33 +9,37 @@ use super::interface::CheckUseCase;
 use super::types::{
     Against, CheckPorts, CheckReport, CheckRequest, FailedFix, Fixing, ReadFile, Reuse,
 };
-use crate::domain::inputs::service::named;
-use crate::domain::judgement::service::{compare, tail, verdict, with_perf};
-use crate::domain::judgement::types::{Code, Failure, Inventory, Problem, Run, Status, Tail};
-use crate::domain::manifest::constants::MANIFEST;
-use crate::domain::manifest::service::selects;
-use crate::domain::manifest::types::{Fix, Output, Pathspec, ProductRoot, Running, Tool};
-use crate::domain::operations::constants::LOCK_SEGMENT;
-use crate::domain::operations::types::{Operation, Record, Revision};
-use crate::domain::perf::service::{allowances, judge, rewritten};
-use crate::domain::perf::types::{Measurement, PerfOutcome, Rewriting};
-use crate::domain::renames::types::Head;
-use crate::domain::reports::service::{
-    completed, failed, measured, range_ends, recorded, stamp_parts, unlisted, unread,
-};
-use crate::domain::reports::types::{
-    DiagnosticText, Digest, FailureOutput, HashParts, Keeping, Listed, NamedInput, Report, Scanned,
-    Stamped,
-};
-use crate::domain::violations::service::{anchor, normalize, relative, within};
-use crate::domain::violations::types::{
-    Fingerprinted, Located, RepoPath, ToolId, Violation, Within,
-};
 use crate::outbound::bmf::types::BmfText;
 use crate::outbound::check_store::types::{KeptReport, Stored};
 use crate::outbound::digest::types::DigestParts;
 use crate::outbound::sarif::types::{Reported, SarifText};
 use crate::outbound::tools::types::{Completion, Ending, Invocation};
+use asymptote_values::domain::inputs::service::named;
+use asymptote_values::domain::judgement::service::{compare, tail, verdict, with_perf};
+use asymptote_values::domain::judgement::types::{
+    Code, Failure, Inventory, Problem, Run, Status, Tail,
+};
+use asymptote_values::domain::manifest::constants::MANIFEST;
+use asymptote_values::domain::manifest::service::selects;
+use asymptote_values::domain::manifest::types::{
+    Fix, Output, Pathspec, ProductRoot, Running, Tool,
+};
+use asymptote_values::domain::operations::constants::LOCK_SEGMENT;
+use asymptote_values::domain::operations::types::{Operation, Record, Revision};
+use asymptote_values::domain::perf::service::{allowances, judge, rewritten};
+use asymptote_values::domain::perf::types::{Measurement, PerfOutcome, Rewriting};
+use asymptote_values::domain::renames::types::Head;
+use asymptote_values::domain::reports::service::{
+    completed, failed, measured, range_ends, recorded, stamp_parts, unlisted, unread,
+};
+use asymptote_values::domain::reports::types::{
+    DiagnosticText, Digest, FailureOutput, HashParts, Keeping, Listed, NamedInput, Report, Scanned,
+    Stamped,
+};
+use asymptote_values::domain::violations::service::{anchor, normalize, relative, within};
+use asymptote_values::domain::violations::types::{
+    Fingerprinted, Located, RepoPath, ToolId, Violation, Within,
+};
 
 /// `check`, over the ports the edge injects.
 #[derive(Debug)]
@@ -373,7 +377,7 @@ impl CheckUseCase for CheckUseCaseImpl {
             let stamp = self.stamp(tool, &named);
             let kept = match (&stamp, &stored.report) {
                 (Stamped::Digested(stamp), KeptReport::Kept(report)) => {
-                    crate::domain::reports::service::reusable(report, &tool.id, stamp)
+                    asymptote_values::domain::reports::service::reusable(report, &tool.id, stamp)
                 }
                 (Stamped::Unstamped, _) | (_, KeptReport::Nothing) => None,
             };

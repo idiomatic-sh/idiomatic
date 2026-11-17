@@ -4,18 +4,20 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use super::errors::AcceptedStateError;
-use crate::domain::inputs::constants::ROOT;
-use crate::domain::manifest::types::Pathspec;
-use crate::domain::operations::service::fold;
-use crate::domain::operations::types::{Folded, Operation, OperationId, Record, Revision};
-use crate::domain::renames::service::{
-    history_start, introduced_by, on_branch, operation_of, project,
-};
-use crate::domain::renames::types::{Basis, Head, HistoryStart, Projection, Rename};
-use crate::domain::violations::types::RepoPath;
 use crate::outbound::lock::interface::LockPort;
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::interface::RepositoryPort;
+use asymptote_values::domain::inputs::constants::ROOT;
+use asymptote_values::domain::manifest::types::Pathspec;
+use asymptote_values::domain::operations::service::fold;
+use asymptote_values::domain::operations::types::{
+    Folded, Operation, OperationId, Record, Revision,
+};
+use asymptote_values::domain::renames::service::{
+    history_start, introduced_by, on_branch, operation_of, project,
+};
+use asymptote_values::domain::renames::types::{Basis, Head, HistoryStart, Projection, Rename};
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// Loads accepted state and prepares rename projections without publishing anything.
 #[derive(Debug)]

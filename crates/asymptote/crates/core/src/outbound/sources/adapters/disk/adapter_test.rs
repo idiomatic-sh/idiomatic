@@ -5,13 +5,13 @@ use super::adapter::SourcesDiskAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::time::{Duration, SystemTime};
 
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::reports::service::{recorded, unread};
-use crate::domain::reports::types::Recorded;
-use crate::domain::violations::types::{Located, RepoPath};
 use crate::outbound::sources::errors::SourcesError;
 use crate::outbound::sources::fixtures::contract::check;
 use crate::outbound::sources::interface::SourcesPort as _;
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::reports::service::{recorded, unread};
+use asymptote_values::domain::reports::types::Recorded;
+use asymptote_values::domain::violations::types::{Located, RepoPath};
 
 /// Which question is asked of a temporary product.
 #[derive(Clone, Copy, Debug)]

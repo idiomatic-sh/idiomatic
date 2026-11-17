@@ -3,11 +3,11 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
-use crate::domain::hooks::types::ScriptText;
-use crate::domain::manifest::types::{HookName, ProductRoot};
 use crate::outbound::hooks::errors::HooksError;
 use crate::outbound::hooks::interface::HooksPort;
 use crate::outbound::hooks::types::{HookFile, Installed};
+use asymptote_values::domain::hooks::types::ScriptText;
+use asymptote_values::domain::manifest::types::{HookName, ProductRoot};
 
 /// Where the fake pretends the hooks are kept.
 const FAKE_DIRECTORY: &str = "/fake/.git/hooks/";

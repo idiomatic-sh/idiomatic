@@ -1,7 +1,7 @@
 //! The types of the `check_store` port: plain data, public fields and derives, with no constructor and no inherent
 //! impl.
 
-use crate::domain::reports::types::{Recorded, Report};
+use asymptote_values::domain::reports::types::{Recorded, Report};
 
 /// The build that runs: a store another build wrote reads as empty.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

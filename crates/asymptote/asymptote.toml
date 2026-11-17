@@ -33,7 +33,7 @@ id = "cargo-clippy"
 group = "clippy"
 # Every clippy and compiler warning is a SARIF result the lock ratchets (clippy-sarif,
 # pinned in Cargo.toml); a compile error or a denied lint fails the run, never clean.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json | clippy-sarif"]
+run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
@@ -52,7 +52,7 @@ group = "check"
 # The core crates' tests, every feature on. `--workspace` builds every member whatever the filter names, and the tests read
 # beyond the workspace (ci/workflows_test.py RUN_TIME_READS), so its inputs name all of that. The BDD runners and the doctests,
 # which nextest cannot list, run in `test-bdd` and `test-doc`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-asymptote-core)"]
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-asymptote-core) | package(=idiomatic-sh-asymptote-values)"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../rust-toolchain.toml", "../../.cargo", ".", "../tastemaker", "../.."]
 
@@ -68,14 +68,14 @@ inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "..
 id = "test-bdd"
 group = "check"
 # The cucumber runners (`tests/bdd.rs`, `harness = false`), which nextest's default filter leaves out.
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "bdd"]
+run = ["bash", "-c", "mkdir -p target/checks/bdd; set +e; cargo test --workspace --locked --all-features --test bdd > target/checks/bdd/stdout.log 2> target/checks/bdd/stderr.log; tool_status=$?; cat target/checks/bdd/stdout.log; cat target/checks/bdd/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/bdd/status; exit \"$tool_status\""]
 timeout-seconds = 3600
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
 [[tools]]
 id = "test-doc"
 group = "check"
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--doc"]
+run = ["bash", "-c", "set -e; nightly=$(python3 -c 'import tomllib; print(tomllib.load(open(\"Cargo.toml\", \"rb\"))[\"workspace\"][\"metadata\"][\"api\"][\"nightly\"])'); cargo \"+$nightly\" test --workspace --locked --all-features --doc"]
 timeout-seconds = 3600
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
@@ -91,7 +91,7 @@ inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 id = "cargo-clippy-default"
 group = "release-clippy"
 # The same, with the default features: code a feature turns off is compiled and linted as a user builds it.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json | clippy-sarif"]
+run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
@@ -116,7 +116,7 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 [[tools]]
 id = "cargo-dylint"
 group = "release-dylint"
-run = ["cargo", "dylint", "--path", "../../tools/lints", "--workspace", "--", "--all-targets", "--all-features", "--locked"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo dylint --path ../../tools/lints -- --all-targets --all-features --locked"]
 timeout-seconds = 3600
 inputs = [".", "../../tools/lints", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -157,7 +157,7 @@ id = "fresh-resolution"
 group = "release-resolution"
 # Each published crate packaged without the workspace's Cargo.lock and built from its package: its dependencies resolve
 # fresh, as a user's `cargo install` or `cargo add` resolves them, so a crate that builds only against our lock is caught.
-run = ["cargo", "package", "--workspace", "--exclude-lockfile"]
+run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --format-version 1 | jq -r '.packages[] | select(.publish != []) | \"--package=\" + .name' | xargs cargo package --exclude-lockfile"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 

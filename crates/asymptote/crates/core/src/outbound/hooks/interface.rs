@@ -2,8 +2,8 @@
 
 use super::errors::HooksError;
 use super::types::Installed;
-use crate::domain::hooks::types::ScriptText;
-use crate::domain::manifest::types::{HookName, ProductRoot};
+use asymptote_values::domain::hooks::types::ScriptText;
+use asymptote_values::domain::manifest::types::{HookName, ProductRoot};
 
 /// What every `hooks` adapter implements.
 pub trait HooksPort: std::fmt::Debug + Send + Sync {

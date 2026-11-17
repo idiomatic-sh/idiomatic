@@ -7,13 +7,13 @@ use std::process::{Command, Stdio};
 #[cfg(unix)]
 use super::constants::EXECUTABLE;
 use super::constants::{GIT_PATH, HOOKS};
-use crate::domain::git::constants::{GIT, HOOK_VARIABLES, NOT_A_REPOSITORY, TOP_LEVEL};
-use crate::domain::hooks::types::ScriptText;
-use crate::domain::inputs::constants::SEPARATOR;
-use crate::domain::manifest::types::{HookName, ProductRoot};
 use crate::outbound::hooks::errors::HooksError;
 use crate::outbound::hooks::interface::HooksPort;
 use crate::outbound::hooks::types::{GitAnswer, HookFile, Installed};
+use asymptote_values::domain::git::constants::{GIT, HOOK_VARIABLES, NOT_A_REPOSITORY, TOP_LEVEL};
+use asymptote_values::domain::hooks::types::ScriptText;
+use asymptote_values::domain::inputs::constants::SEPARATOR;
+use asymptote_values::domain::manifest::types::{HookName, ProductRoot};
 
 /// The git hooks adapter.
 #[derive(Debug)]

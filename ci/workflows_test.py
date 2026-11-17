@@ -89,7 +89,10 @@ ALLOWED = {"workflow_dispatch", "pull_request"}
 REQUESTED = {"check.yml"}
 # The events of a pull request that start the check: GitHub's default three, and `edited`, so a pull request whose title changes
 # after a green run is checked again (the title is read from the event, which no stored result holds).
-PULL_REQUEST = {"branches": ["main"], "types": ["opened", "synchronize", "reopened", "edited"]}
+# `ready_for_review` starts the run a draft skipped: a draft runs no CI (every job carries `READY`).
+PULL_REQUEST = {"branches": ["main"], "types": ["opened", "synchronize", "reopened", "edited", "ready_for_review"]}
+# The condition every job of a workflow a pull request starts carries: anything but a pull request that is a draft.
+READY = "github.event_name != 'pull_request' || !github.event.pull_request.draft"
 PUSHED = {"check.yml"}
 RELEASED = {"release.yml"}
 WORKFLOW_RUN = {"workflows": ["check"], "types": ["completed"], "branches": ["main"]}
@@ -160,7 +163,7 @@ def bench_job_problems(job: dict) -> list[str]:
         found.append("bench runs its one group; a matrix would add groups the gate does not review")
     if not isinstance(job.get("timeout-minutes"), int) or job["timeout-minutes"] <= 360:
         found.append("bench needs headroom over its tool's 360-minute timeout")
-    if "if" in job or "continue-on-error" in job:
+    if job.get("if", READY) != READY or "continue-on-error" in job:
         found.append("bench may not be skipped or masked")
     if job.get("env") != BENCH_JOB_ENV:
         found.append("bench changed its pinned environment")
@@ -259,7 +262,7 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
         if given.get("branches") != ["main"]:
             found.append(f"{name} starts on a pull request to more than main")
         elif given != PULL_REQUEST:
-            found.append(f"{name} must start on {PULL_REQUEST['types']} of a pull request, an edited title among them")
+            found.append(f"{name} must start on {PULL_REQUEST['types']} of a pull request, an edited title and a draft turning ready among them")
     jobs = workflow["jobs"]
     if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "workflow_run"}:
         found.append(f"{name} publishes, so it starts only by hand or on a completed check on main")
@@ -502,8 +505,12 @@ def test_a_pull_request_to_main_starts_only_the_check() -> None:
     # Planted: without `edited`, renaming a pull request after a green run starts no run, and its title goes unchecked.
     unedited = {"on": {"pull_request": {"branches": ["main"], "types": ["opened", "synchronize", "reopened"]}}, "jobs": {}}
     assert trigger_problems("check.yml", unedited) == [
-        "check.yml must start on ['opened', 'synchronize', 'reopened', 'edited'] of a pull request, an edited title among them"
+        "check.yml must start on ['opened', 'synchronize', 'reopened', 'edited', 'ready_for_review'] of a pull request, an edited title"
+        " and a draft turning ready among them"
     ]
+    # Planted: without `ready_for_review`, a draft that turns ready starts no run, so the run its draft skipped never happens.
+    unready = {"on": {"pull_request": {"branches": ["main"], "types": ["opened", "synchronize", "reopened", "edited"]}}, "jobs": {}}
+    assert trigger_problems("check.yml", unready) == trigger_problems("check.yml", unedited)
     defaults = {"on": {"pull_request": {"branches": ["main"]}}, "jobs": {}}
     assert trigger_problems("check.yml", defaults) == trigger_problems("check.yml", unedited)
     assert trigger_problems("release-pr.yml", requested) == ["release-pr.yml starts on pull_request"]
@@ -521,6 +528,43 @@ def test_a_pull_request_to_main_starts_only_the_check() -> None:
         "release.yml starts on pull_request",
         "release.yml publishes, so it starts only by hand or on a completed check on main",
     ]
+
+
+def draft_problems(name: str, workflow: dict) -> list[str]:
+    """The jobs of a workflow a pull request starts that run while the pull request is a draft: each job's condition is `READY`,
+    `READY` and a further condition, `NOT_ON_A_PULL_REQUEST` (a job no pull request runs), or, for a job that waits for the
+    others whatever they did, `always()` and `READY`."""
+    if "pull_request" not in triggers(workflow):
+        return []
+    skipping = {READY, NOT_ON_A_PULL_REQUEST, GATE_CONDITION}
+    return [
+        f"{name} runs {job_name} on a draft pull request"
+        for job_name, job in workflow["jobs"].items()
+        if job.get("if") not in skipping and not str(job.get("if", "")).startswith(f"({READY}) && ")
+    ]
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
+def test_every_job_a_pull_request_starts_skips_a_draft(path: Path) -> None:
+    """A draft pull request runs no CI: every job of a workflow a pull request starts, `gate` among them, is skipped."""
+    assert draft_problems(path.name, yaml.safe_load(read(path))) == []
+
+
+def test_a_job_a_pull_request_starts_that_does_not_skip_a_draft_is_refused() -> None:
+    """A draft pull request runs no CI: a job without `READY`, or whose condition `READY` does not bound, runs on a draft."""
+    workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
+    assert draft_problems("check.yml", workflow) == []
+    unguarded = deepcopy(workflow)
+    unguarded["jobs"]["check-linux"].pop("if")
+    widened = deepcopy(workflow)
+    widened["jobs"]["bench"]["if"] = f"{READY} && inputs.product == 'ryo'"
+    always = deepcopy(workflow)
+    always["jobs"]["gate"]["if"] = "always()"
+    assert draft_problems("check.yml", unguarded) == ["check.yml runs check-linux on a draft pull request"]
+    assert draft_problems("check.yml", widened) == ["check.yml runs bench on a draft pull request"]
+    assert draft_problems("check.yml", always) == ["check.yml runs gate on a draft pull request"]
+    # A workflow no pull request starts has no draft to skip.
+    assert draft_problems("release.yml", yaml.safe_load(read(DIRECTORY / "release.yml"))) == []
 
 
 def test_a_pull_request_target_is_refused() -> None:
@@ -744,7 +788,16 @@ GATED = ["root", "pull-request", "check-linux", "check", "python-release", "benc
 # run on main alone (the other machines and groups, the Python release build) are skipped on a pull request, which the gate lets
 # pass.
 NOT_ON_A_PULL_REQUEST = "github.event_name != 'pull_request'"
-CONDITIONS = {"check": NOT_ON_A_PULL_REQUEST, "python-release": NOT_ON_A_PULL_REQUEST}
+# The jobs a pull request runs skip a draft one (`READY`); the main-only ones never run on a pull request, a draft or not.
+CONDITIONS = {
+    "root": READY,
+    "pull-request": READY,
+    "check-linux": READY,
+    "bench": READY,
+    "check": NOT_ON_A_PULL_REQUEST,
+    "python-release": NOT_ON_A_PULL_REQUEST,
+}
+GATE_CONDITION = f"always() && ({READY})"
 ALLOWED_SKIPS = "${{ github.event_name == 'pull_request' && 'check,python-release' || '' }}"
 
 
@@ -765,7 +818,7 @@ def gate_problems(workflow: dict) -> list[str]:
     if workflow.get("concurrency", {}).get("cancel-in-progress") != "${{ github.event_name != 'push' }}":
         found.append("a merge to main must never cancel the run seeding the stores")
     gate = jobs.get("gate", {})
-    if gate.get("if") != "always()" or needs(gate) != GATED:
+    if gate.get("if") != GATE_CONDITION or needs(gate) != GATED:
         found.append(f"gate must wait for {GATED}, whatever their results")
     steps = gate.get("steps", [{}])
     if len(steps) != 1 or steps[0].get("with") != {"jobs": "${{ toJSON(needs) }}", "allowed-skips": ALLOWED_SKIPS}:
@@ -885,7 +938,7 @@ def test_root_runs_only_the_repository_s_own_groups_on_every_event() -> None:
     job runs no product's tools, and each product's lint group runs in its `check-linux` job."""
     jobs = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"]
     root = jobs["root"]
-    assert "if" not in root and "needs" not in root
+    assert root.get("if") == READY and "needs" not in root
     assert [step["run"] for step in root["steps"] if "asymptote check" in step.get("run", "")] == [
         "asymptote check --root . --groups repository,repository-check"
     ]

@@ -3,11 +3,6 @@
 use std::sync::Arc;
 
 use crate::application::accepted_state::service::AcceptedState;
-use crate::domain::judgement::types::{Judgement, Run, Verdict};
-use crate::domain::manifest::types::{Groups, ProductRoot};
-use crate::domain::operations::types::Revision;
-use crate::domain::perf::types::PerfOutcome;
-use crate::domain::violations::types::ToolId;
 use crate::outbound::bmf::interface::BmfPort;
 use crate::outbound::check_store::interface::CheckStorePort;
 use crate::outbound::digest::interface::DigestPort;
@@ -18,6 +13,11 @@ use crate::outbound::repository::interface::RepositoryPort;
 use crate::outbound::sarif::interface::SarifPort;
 use crate::outbound::sources::interface::SourcesPort;
 use crate::outbound::tools::interface::ToolsPort;
+use asymptote_values::domain::judgement::types::{Judgement, Run, Verdict};
+use asymptote_values::domain::manifest::types::{Groups, ProductRoot};
+use asymptote_values::domain::operations::types::Revision;
+use asymptote_values::domain::perf::types::PerfOutcome;
+use asymptote_values::domain::violations::types::ToolId;
 
 /// What the run is judged against.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -64,7 +64,7 @@ pub enum Reuse {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ToolRun {
     /// Complete failure streams, when this run retained them.
-    pub failure_output: crate::domain::reports::types::FailureOutput,
+    pub failure_output: asymptote_values::domain::reports::types::FailureOutput,
     /// The run.
     pub run: Run,
     /// Whether it ran now.
@@ -103,7 +103,7 @@ pub struct FailedFix {
     /// The tool whose fix it was.
     pub tool: ToolId,
     /// How it failed.
-    pub failure: crate::domain::judgement::types::Failure,
+    pub failure: asymptote_values::domain::judgement::types::Failure,
 }
 
 /// The ports `check` reaches the outside through.

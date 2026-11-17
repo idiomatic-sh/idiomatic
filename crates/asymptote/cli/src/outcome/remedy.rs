@@ -5,7 +5,6 @@
 //! given its next step.
 #![deny(clippy::wildcard_enum_match_arm)]
 
-use asymptote_core::domain::operations::errors::OperationsError;
 use asymptote_core::inbound::use_cases::check::errors::CheckError;
 use asymptote_core::inbound::use_cases::down::errors::DownError;
 use asymptote_core::inbound::use_cases::init::errors::InitError;
@@ -15,6 +14,7 @@ use asymptote_core::outbound::hooks::errors::HooksError;
 use asymptote_core::outbound::lock::errors::LockError;
 use asymptote_core::outbound::manifest::errors::ManifestError;
 use asymptote_core::outbound::repository::errors::RepositoryError;
+use asymptote_values::domain::operations::errors::OperationsError;
 
 #[cfg(test)]
 #[path = "remedy_test.rs"]
@@ -192,9 +192,9 @@ impl Remedy for UpError {
                 let places = nearest
                     .iter()
                     .map(|violation| match violation.place {
-                        asymptote_core::domain::violations::types::Place::File => violation.path.0.to_string(),
-                        asymptote_core::domain::violations::types::Place::Line(line)
-                        | asymptote_core::domain::violations::types::Place::At(line, _) => {
+                        asymptote_values::domain::violations::types::Place::File => violation.path.0.to_string(),
+                        asymptote_values::domain::violations::types::Place::Line(line)
+                        | asymptote_values::domain::violations::types::Place::At(line, _) => {
                             format!("{}:{}", violation.path.0, line.0)
                         }
                     })

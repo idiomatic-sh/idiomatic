@@ -4,9 +4,6 @@ use cucumber::{given, then, when};
 
 use crate::Behavior;
 
-use asymptote_core::domain::manifest::types::ProductRoot;
-use asymptote_core::domain::selection::types::{At, Selectors};
-use asymptote_core::domain::violations::types::{LineNumber, RepoPath};
 use asymptote_core::inbound::use_cases::check::fixtures::{
     ignoring, lock_state, measured_product, request, scenario, scene, seed_lock, up, up_request,
     use_case,
@@ -15,6 +12,9 @@ use asymptote_core::inbound::use_cases::check::interface::CheckUseCase as _;
 use asymptote_core::inbound::use_cases::check::types::CheckRequest;
 use asymptote_core::inbound::use_cases::up::interface::UpUseCase as _;
 use asymptote_core::inbound::use_cases::up::types::UpRequest;
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::selection::types::{At, Selectors};
+use asymptote_values::domain::violations::types::{LineNumber, RepoPath};
 
 /// Names the scene the next `up` step runs.
 #[given(expr = "the up input {string}")]
@@ -107,10 +107,9 @@ fn real_up(
         report: CachedReport::new(Arc::new(sources::factory::disk(ProductRoot(
             root.display().to_string().into(),
         )))),
-        store: Arc::new(check_store::factory::postcard(check_store::types::Store {
-            directory: root.join(asymptote_core::domain::operations::constants::CACHE),
-            build: check_store::types::Build("acceptance".into()),
-        })),
+        store: Arc::new(check_store::factory::postcard(
+            check_store::fixtures::fake::kept_beneath(&root),
+        )),
         repository: Arc::new(repository::factory::git(
             ProductRoot(root.display().to_string().into()),
             worktree.clone(),

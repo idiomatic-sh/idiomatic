@@ -61,7 +61,10 @@ pub(crate) fn run(
                 &suite_source,
             )
         }
-        Some(self::constants::AUDIT) => self::commands::audit(&suite_source, output),
+        // No command at all: how `cargo test --all-targets` runs this bench (it passes no argument, not even `--bench`). It
+        // audits the authored queries against the shipped defaults, which reads no reference linter, and measures nothing:
+        // every other bench of the repository proves itself the same way under `cargo test`.
+        Some(self::constants::AUDIT) | None => self::commands::audit(&suite_source, output),
         Some(VERIFY_TOOL) => {
             let executable = PathBuf::from(
                 args.next()

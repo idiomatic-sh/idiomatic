@@ -3,10 +3,10 @@
 use globset::{GlobBuilder, GlobSetBuilder};
 
 use super::constants::JOIN;
-use crate::domain::selection::types::{PathMatch, PathPattern};
-use crate::domain::violations::types::RepoPath;
 use crate::outbound::matching::errors::MatchingError;
 use crate::outbound::matching::interface::MatchingPort;
+use asymptote_values::domain::selection::types::{PathMatch, PathPattern};
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// The globset matching adapter.
 #[derive(Debug)]

@@ -2,10 +2,10 @@
 
 use super::service::{judge, resolved, rewritten};
 use super::types::{Measured, PerfOutcome, Spread, ToleranceKey};
-use crate::domain::manifest::types::Percent;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::judgement::service::with_perf;
 use crate::domain::judgement::types::Verdict;
+use crate::domain::manifest::types::Percent;
 use crate::domain::operations::types::{
     BenchmarkName, MeasureName, Number, PerfKey, PerfRecord, Reason,
 };
@@ -315,8 +315,18 @@ fn subject(question: Input) -> Result<Value, Failure> {
         Question::Over => judged(100.5, record()),
         Question::AtBest => judged(100.0, record()),
         Question::Under => judged(89.9, record()),
-        Question::SpreadAbove => said(&judge(&[between(105.0, 115.0)], &[record()], &ran(), &none())),
-        Question::SpreadAround => said(&judge(&[between(90.0, 110.0)], &[record()], &ran(), &none())),
+        Question::SpreadAbove => said(&judge(
+            &[between(105.0, 115.0)],
+            &[record()],
+            &ran(),
+            &none(),
+        )),
+        Question::SpreadAround => said(&judge(
+            &[between(90.0, 110.0)],
+            &[record()],
+            &ran(),
+            &none(),
+        )),
         Question::SpreadBelow => said(&judge(&[between(80.0, 95.0)], &[record()], &ran(), &none())),
         Question::SpreadBelowValueAbove => said(&judge(
             &[spread(
@@ -328,15 +338,24 @@ fn subject(question: Input) -> Result<Value, Failure> {
             &ran(),
             &none(),
         )),
-        Question::WithinTolerance => {
-            said(&judge(&[measured(104.0)], &[record()], &ran(), &allowing(5)))
-        }
-        Question::AtTolerance => {
-            said(&judge(&[measured(105.0)], &[record()], &ran(), &allowing(5)))
-        }
-        Question::BeyondTolerance => {
-            said(&judge(&[measured(105.5)], &[record()], &ran(), &allowing(5)))
-        }
+        Question::WithinTolerance => said(&judge(
+            &[measured(104.0)],
+            &[record()],
+            &ran(),
+            &allowing(5),
+        )),
+        Question::AtTolerance => said(&judge(
+            &[measured(105.0)],
+            &[record()],
+            &ran(),
+            &allowing(5),
+        )),
+        Question::BeyondTolerance => said(&judge(
+            &[measured(105.5)],
+            &[record()],
+            &ran(),
+            &allowing(5),
+        )),
         Question::UnderWithTolerance => {
             said(&judge(&[measured(89.9)], &[record()], &ran(), &allowing(5)))
         }

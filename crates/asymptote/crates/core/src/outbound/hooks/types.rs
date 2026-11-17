@@ -1,6 +1,6 @@
 //! The types of the `hooks` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::hooks::types::ScriptText;
+use asymptote_values::domain::hooks::types::ScriptText;
 
 /// The path of a hook script, as git answers for it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

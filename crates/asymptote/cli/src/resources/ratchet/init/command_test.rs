@@ -138,7 +138,7 @@ fn scene(directory: Directory) -> (tempfile::TempDir, crate::edge::Edge) {
         let beneath = path.join("packages/a");
         std::fs::create_dir_all(&beneath).expect("the directory beneath the top level is made");
         crate::edge::Edge {
-            start: asymptote_core::domain::manifest::types::ProductRoot(
+            start: asymptote_values::domain::manifest::types::ProductRoot(
                 beneath.display().to_string().into(),
             ),
             ..edge(&product)

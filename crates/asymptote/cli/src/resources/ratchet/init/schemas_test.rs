@@ -1,8 +1,8 @@
 //! What the schemas of `init` make of its switches, and the lines its answer prints.
 
-use asymptote_core::domain::manifest::types::{HookName, ProductRoot};
 use asymptote_core::domain::ratchet::types::Writing;
 use asymptote_core::inbound::use_cases::init::types::{Configuration, InitReport};
+use asymptote_values::domain::manifest::types::{HookName, ProductRoot};
 
 use clap::error::ErrorKind;
 
@@ -107,7 +107,7 @@ fn subject(question: Input) -> Result<Value, Failure> {
                 start: ProductRoot("/repo".into()),
                 here: ProductRoot("/repo".into()),
                 store: std::path::PathBuf::from(
-                    asymptote_core::domain::operations::constants::CACHE,
+                    asymptote_values::domain::operations::constants::CACHE,
                 ),
                 build: asymptote_core::outbound::check_store::types::Build("test".into()),
                 format: crate::output::Format::Terminal,

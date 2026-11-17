@@ -1,7 +1,7 @@
 //! The clock port, implemented with jiff: today in the machine's time zone.
 
-use crate::domain::operations::types::Day;
 use crate::outbound::clock::interface::ClockPort;
+use asymptote_values::domain::operations::types::Day;
 
 /// The system clock adapter.
 #[derive(Debug)]

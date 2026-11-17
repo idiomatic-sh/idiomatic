@@ -2,12 +2,12 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::manifest::types::Percent;
-use crate::domain::operations::types::Reason;
-use crate::domain::operations::types::{PerfKey, PerfRecord};
-use crate::domain::perf::service::standing_of;
-use crate::domain::perf::types::{Measured, ToleranceKey};
-use crate::domain::violations::types::ToolId;
+use asymptote_values::domain::manifest::types::Percent;
+use asymptote_values::domain::operations::types::Reason;
+use asymptote_values::domain::operations::types::{PerfKey, PerfRecord};
+use asymptote_values::domain::perf::service::standing_of;
+use asymptote_values::domain::perf::types::{Measured, ToleranceKey};
+use asymptote_values::domain::violations::types::ToolId;
 
 /// The records `up` writes for a run of `measured`: a median with no record seeds one, and a run over its record's best
 /// raised by its tolerance in `allowed` (the one `check` judges by) raises the best to its median and appends the reason, each of

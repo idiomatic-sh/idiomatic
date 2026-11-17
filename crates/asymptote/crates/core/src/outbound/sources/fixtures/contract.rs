@@ -4,10 +4,10 @@
 // Error locations are contractual; diagnostic wording belongs to each implementation.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::reports::types::{FileStat, FileState};
-use crate::domain::violations::types::{Located, RepoPath};
 use crate::outbound::sources::errors::SourcesError;
 use crate::outbound::sources::interface::SourcesPort;
+use asymptote_values::domain::reports::types::{FileStat, FileState};
+use asymptote_values::domain::violations::types::{Located, RepoPath};
 
 /// The path read.
 type Input = &'static str;

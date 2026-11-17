@@ -4,11 +4,11 @@
 
 use super::constants::NOTHING;
 use super::schemas::{decoded, written};
-use crate::domain::judgement::types::{Judgement, Run as Judged};
-use crate::domain::manifest::types::ProductRoot;
 use crate::outbound::sarif::errors::SarifError;
 use crate::outbound::sarif::interface::SarifPort;
 use crate::outbound::sarif::types::{Read, SarifText};
+use asymptote_values::domain::judgement::types::{Judgement, Run as Judged};
+use asymptote_values::domain::manifest::types::ProductRoot;
 
 /// The serde-sarif adapter.
 #[derive(Debug)]

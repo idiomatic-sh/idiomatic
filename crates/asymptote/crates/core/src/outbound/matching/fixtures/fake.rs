@@ -1,9 +1,9 @@
 //! The fake of the `matching` port: a pattern matches the paths it is a prefix of, once its `**` is dropped.
 
-use crate::domain::selection::types::{PathMatch, PathPattern};
-use crate::domain::violations::types::RepoPath;
 use crate::outbound::matching::errors::MatchingError;
 use crate::outbound::matching::interface::MatchingPort;
+use asymptote_values::domain::selection::types::{PathMatch, PathPattern};
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// What the core's tests stand in for `matching` with.
 #[derive(Clone, Copy, Debug, Default)]

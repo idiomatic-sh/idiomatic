@@ -2,8 +2,8 @@
 //! values, and returns them. Nothing is opened: each store's adapter reads and writes its own file. This is the only
 //! place the edge decides where its stores live; the composition takes what it returns and only constructs.
 
-use asymptote_core::domain::manifest::types::ProductRoot;
 use asymptote_core::outbound::check_store::types::{Build, Store};
+use asymptote_values::domain::manifest::types::ProductRoot;
 
 /// Where the stores `ratchet check` reaches are kept: the build that runs, which keeps them, and the directory beneath
 /// the product's root they are kept in.

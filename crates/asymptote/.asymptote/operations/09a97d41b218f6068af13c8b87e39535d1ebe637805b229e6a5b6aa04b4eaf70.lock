@@ -1,0 +1,17 @@
+version = 1
+parents = ["0bff6b99bff8ef7a371f7553d8e7ae0dcbfb499a2a1d4392099f40fa226629e3"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/values/src/domain/operations/service.rs", level = "error", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/domain/operations/service.rs` has 412 lines, over the file-length limit", since_rev = "d49d085dafc429178de8fd0c61fad21833ea89f6", since = "2026-10-29" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/values/src/domain/reports/service_test.rs", level = "error", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/asymptote/crates/core/src/domain/reports/service_test.rs` has 407 lines, over the file-length limit", since_rev = "d49d085dafc429178de8fd0c61fad21833ea89f6", since = "2026-10-29" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-ok-on-result", path = "crates/values/src/domain/manifest/service.rs", level = "error", fingerprint = "bd133efccc91ee31", count = 1, message = "`ok` drops this error", since_rev = "d49d085dafc429178de8fd0c61fad21833ea89f6", since = "2026-10-29" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/no-ok-on-result", path = "crates/core/src/outbound/check_store/adapters/postcard/schemas.rs", level = "error", fingerprint = "0305c24993fa3c35" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/domain/operations/service.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/core/src/domain/reports/service_test.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-ok-on-result", path = "crates/core/src/outbound/check_store/adapters/postcard/schemas.rs", level = "error", fingerprint = "9129bf3c730b31e2" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-json-in-process", path = "crates/core/Cargo.toml", level = "error", fingerprint = "c4f036d84c7a03b4" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-ok-on-result", path = "crates/core/src/domain/manifest/service.rs", level = "error", fingerprint = "bd133efccc91ee31" },
+]

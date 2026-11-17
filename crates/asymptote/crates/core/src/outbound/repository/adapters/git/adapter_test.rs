@@ -5,12 +5,12 @@ use std::process::Command;
 
 use super::adapter::RepositoryGitAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::manifest::types::{Pathspec, ProductRoot};
-use crate::domain::operations::types::Revision;
-use crate::domain::renames::types::{Head, HistoryStart};
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::fixtures::contract::check;
 use crate::outbound::repository::interface::RepositoryPort as _;
+use asymptote_values::domain::manifest::types::{Pathspec, ProductRoot};
+use asymptote_values::domain::operations::types::Revision;
+use asymptote_values::domain::renames::types::{Head, HistoryStart};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

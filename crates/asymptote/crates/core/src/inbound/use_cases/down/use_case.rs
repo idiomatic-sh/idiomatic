@@ -10,25 +10,25 @@ use super::interface::DownUseCase;
 use super::types::{DownReport, DownRequest};
 use crate::application::accepted_state::service::AcceptedState;
 use crate::application::cached_report::service::CachedReport;
-use crate::domain::judgement::service::compare;
-use crate::domain::judgement::types::Status;
-use crate::domain::operations::constants::COMPACT_AT;
-use crate::domain::operations::service::{fold, settled, shape, snapshot};
-use crate::domain::operations::types::{Operation, Provenance, Shape};
-use crate::domain::perf::service::resolved;
 use crate::domain::ratchet::service::{accepting, lowering};
 use crate::domain::ratchet::types::{Compaction, Writing};
-use crate::domain::renames::service::{relocate, split};
-use crate::domain::renames::types::{Carried, Head, Projection};
-use crate::domain::reports::service::{measured, observed};
-use crate::domain::reports::types::Observed;
-use crate::domain::violations::service::{keys, within};
-use crate::domain::violations::types::{Key, Suppression, Violation, Within};
 use crate::outbound::check_store::interface::CheckStorePort;
 use crate::outbound::clock::interface::ClockPort;
 use crate::outbound::lock::interface::LockPort;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::repository::interface::RepositoryPort;
+use asymptote_values::domain::judgement::service::compare;
+use asymptote_values::domain::judgement::types::Status;
+use asymptote_values::domain::operations::constants::COMPACT_AT;
+use asymptote_values::domain::operations::service::{fold, settled, shape, snapshot};
+use asymptote_values::domain::operations::types::{Operation, Provenance, Shape};
+use asymptote_values::domain::perf::service::resolved;
+use asymptote_values::domain::renames::service::{relocate, split};
+use asymptote_values::domain::renames::types::{Carried, Head, Projection};
+use asymptote_values::domain::reports::service::{measured, observed};
+use asymptote_values::domain::reports::types::Observed;
+use asymptote_values::domain::violations::service::{keys, within};
+use asymptote_values::domain::violations::types::{Key, Suppression, Violation, Within};
 
 /// The ports `down` reaches the outside through.
 #[derive(Debug)]

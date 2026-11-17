@@ -1,9 +1,9 @@
 //! The fake of the `digest` port: readable stand-ins, never a hash.
 
-use crate::domain::reports::types::Digest;
-use crate::domain::violations::types::{Fingerprint, SourceText};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::{DigestParts, LineFingerprints};
+use asymptote_values::domain::reports::types::Digest;
+use asymptote_values::domain::violations::types::{Fingerprint, SourceText};
 
 /// What the core's tests stand in for `digest` with: a line's fingerprint is the sum of its non-whitespace bytes,
 /// and a digest the parts joined.

@@ -2,11 +2,11 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::operations::types::{BenchmarkName, MeasureName, Number};
-use crate::domain::perf::types::{Measurement, Spread};
 use crate::outbound::bmf::errors::BmfError;
 use crate::outbound::bmf::interface::BmfPort;
 use crate::outbound::bmf::types::{BmfText, Measurements};
+use asymptote_values::domain::operations::types::{BenchmarkName, MeasureName, Number};
+use asymptote_values::domain::perf::types::{Measurement, Spread};
 
 /// What the core's tests stand in for `bmf` with.
 #[derive(Debug, Default)]

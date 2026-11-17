@@ -9,9 +9,7 @@ use super::errors::DownError;
 use super::interface::DownUseCase as _;
 use super::types::DownRequest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::judgement::types::Verdict;
 use crate::domain::ratchet::types::Writing;
-use crate::domain::selection::types::Selectors;
 use crate::inbound::use_cases::check::fixtures::{
     LOG, ROOT, Scenario, down, down_request, request, scenario, up, up_request, use_case,
     with_sarif,
@@ -20,6 +18,8 @@ use crate::inbound::use_cases::check::interface::CheckUseCase as _;
 use crate::inbound::use_cases::up::interface::UpUseCase as _;
 use crate::outbound::manifest::fixtures::fake::ManifestFake;
 use crate::outbound::sarif::fixtures::fake::{SarifFake, reading, result};
+use asymptote_values::domain::judgement::types::Verdict;
+use asymptote_values::domain::selection::types::Selectors;
 
 /// What happens between the `up` of both violations and `down`.
 #[derive(Clone, Copy, Debug)]
@@ -221,8 +221,8 @@ fn moved(first: Scenario, in_a: &str, in_b: &str, reported: &[(&str, u32)]) -> S
 
 /// The path of every violation the lock accepts, in order.
 fn held_at(product: &Scenario) -> Result<String, Failure> {
-    let folded =
-        crate::domain::operations::service::fold(&product.lock.held()).map_err(DownError::Fold)?;
+    let folded = asymptote_values::domain::operations::service::fold(&product.lock.held())
+        .map_err(DownError::Fold)?;
     let mut paths: Vec<&str> = folded
         .records
         .iter()
@@ -308,8 +308,8 @@ fn told(scene: Input) -> Result<String, Failure> {
         Scene::HeadMoved => Scenario {
             repository: Arc::new(
                 crate::outbound::repository::fixtures::fake::RepositoryFake {
-                    head: crate::domain::renames::types::Head::Commit(
-                        crate::domain::operations::types::Revision("other".into()),
+                    head: asymptote_values::domain::renames::types::Head::Commit(
+                        asymptote_values::domain::operations::types::Revision("other".into()),
                     ),
                     ..crate::outbound::repository::fixtures::fake::RepositoryFake::default()
                 },
@@ -421,7 +421,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         let before = product.lock.held();
         let saves = product.store.saves.load(Ordering::Relaxed);
         let result = down(&product).down(DownRequest {
-            start: crate::domain::manifest::types::ProductRoot("/missing".into()),
+            start: asymptote_values::domain::manifest::types::ProductRoot("/missing".into()),
             ..down_request()
         });
         assert_eq!(product.lock.held(), before);

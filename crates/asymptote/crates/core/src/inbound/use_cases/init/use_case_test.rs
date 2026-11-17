@@ -7,13 +7,13 @@ use super::interface::InitUseCase as _;
 use super::types::{InitPorts, InitRequest};
 use super::use_case::InitUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::hooks::service::script;
-use crate::domain::manifest::types::{HookName, ProductRoot};
 use crate::domain::ratchet::types::Writing;
 use crate::outbound::hooks::errors::HooksError;
 use crate::outbound::hooks::fixtures::fake::{HooksFake, Reliability, Toplevel};
 use crate::outbound::lock::fixtures::fake::LockFake;
 use crate::outbound::manifest::fixtures::fake::ManifestFake;
+use asymptote_values::domain::hooks::service::script;
+use asymptote_values::domain::manifest::types::{HookName, ProductRoot};
 
 /// What `init` is asked, and what is there before.
 #[derive(Clone, Copy, Debug)]
@@ -141,9 +141,11 @@ fn ports(scene: Scene) -> (Arc<ManifestFake>, Arc<LockFake>, Arc<HooksFake>) {
         Scene::Configured | Scene::Rerun | Scene::Foreign => ManifestFake::of("/repo", &[]),
         Scene::Unlisted => {
             let mut fake = ManifestFake::of("/repo", &[]);
-            fake.manifest.hooks = vec![crate::domain::manifest::types::Hook {
+            fake.manifest.hooks = vec![asymptote_values::domain::manifest::types::Hook {
                 name: HookName("pre-push".into()),
-                groups: vec![crate::domain::manifest::types::Group("lint".into())],
+                groups: vec![asymptote_values::domain::manifest::types::Group(
+                    "lint".into(),
+                )],
             }];
             fake
         }

@@ -12,11 +12,8 @@ use crate::domain::violations::types::ToolId;
 /// How the run stands against `best`: `Greater` when even the low end of its spread is above the best raised by the
 /// `tolerance` (the best itself when it is none), `Less` when even the high end is below the best, `Equal` otherwise; a bound
 /// the tool did not report is the median.
-pub(crate) fn standing_of(
-    measurement: &Measured,
-    best: Number,
-    tolerance: Percent,
-) -> std::cmp::Ordering {
+#[must_use]
+pub fn standing_of(measurement: &Measured, best: Number, tolerance: Percent) -> std::cmp::Ordering {
     let ceiling = best.0 * (1.0_f64 + f64::from(tolerance.0) / 100.0_f64);
     let bound = |spread: Spread| match spread {
         Spread::Given(number) => number.0,

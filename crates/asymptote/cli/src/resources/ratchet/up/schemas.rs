@@ -2,14 +2,14 @@
 //! as `path:line`, and the service's report becomes the answer printed. Each refusal of a conversion is a
 //! `<Name>SchemaError`.
 
-use asymptote_core::domain::manifest::types::Layout;
-use asymptote_core::domain::operations::types::Reason;
 use asymptote_core::domain::ratchet::types::{Compaction, Writing};
-use asymptote_core::domain::selection::types::{At, PathPattern, Selectors};
-use asymptote_core::domain::violations::service::normalize;
-use asymptote_core::domain::violations::types::{LineNumber, RepoPath, RuleId, ToolId};
 use asymptote_core::inbound::use_cases::up::errors::UpError;
 use asymptote_core::inbound::use_cases::up::types::{UpReport, UpRequest};
+use asymptote_values::domain::manifest::types::Layout;
+use asymptote_values::domain::operations::types::Reason;
+use asymptote_values::domain::selection::types::{At, PathPattern, Selectors};
+use asymptote_values::domain::violations::service::normalize;
+use asymptote_values::domain::violations::types::{LineNumber, RepoPath, RuleId, ToolId};
 
 use crate::outcome::Outcome;
 use crate::output::schemas::{
@@ -17,7 +17,7 @@ use crate::output::schemas::{
 };
 
 /// The status of a record `up` writes.
-const ACCEPTED: &str = asymptote_core::domain::judgement::constants::ACCEPTED;
+const ACCEPTED: &str = asymptote_values::domain::judgement::constants::ACCEPTED;
 /// The status of a violation `up` leaves, which still fails `check`.
 const NEW: &str = "new";
 

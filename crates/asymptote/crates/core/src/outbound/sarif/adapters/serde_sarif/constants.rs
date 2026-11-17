@@ -11,7 +11,7 @@ pub(super) const INFORMATION: &str = "https://github.com/idiomatic-sh/idiomatic"
 /// A file URI's scheme.
 pub(super) const FILE_SCHEME: &str = "file://";
 /// Why no output is no log.
-pub(super) const NOTHING: &str = crate::domain::judgement::constants::NOTHING;
+pub(super) const NOTHING: &str = asymptote_values::domain::judgement::constants::NOTHING;
 /// The status of a suppression that suppresses.
 pub(super) const ACCEPTED: &str = "accepted";
 /// The region's fields, as a refusal names them.

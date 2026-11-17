@@ -1,6 +1,6 @@
 //! What the `clock` port asks of the outside, in the core's own vocabulary.
 
-use crate::domain::operations::types::Day;
+use asymptote_values::domain::operations::types::Day;
 
 /// What every `clock` adapter implements.
 pub trait ClockPort: std::fmt::Debug + Send + Sync {
