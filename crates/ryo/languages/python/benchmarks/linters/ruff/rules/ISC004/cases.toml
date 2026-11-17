@@ -163,3 +163,219 @@ expected = []
 name = "first-element-of-a-parenthesized-tuple-is-not-parenthesized"
 files = { "case.py" = "x = (\"a\" \"b\", 1)\n" }
 expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 12 }]
+
+[[cases]]
+name = "generated-bare-str"
+comparison = "full"
+files = { "case.py" = "x = [\"a\" \"b\", 1]\nx = [1, \"a\" \"b\"]\nx = [\"a\" \"b\"]\nx = {\"a\" \"b\", 1}\nx = {1, \"a\" \"b\"}\nx = (\"a\" \"b\", 1)\nx = (1, \"a\" \"b\")\nx = (\"a\" \"b\",)\nx = \"a\" \"b\", 1\nx = 1, \"a\" \"b\"\nx = \"a\" \"b\",\n\"a\" \"b\", 1\nif c:\n    \"a\" \"b\", 1\nif c:\n    pass\n\"a\" \"b\", 1\nx = [(\"a\" \"b\", 1)]\nx = \"a\" \"b\", (\"a\" \"b\")\nf((\"a\" \"b\", 1))\nx = f'{[\"a\" \"b\"]}'\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 12 }, { rule = "ISC004", file = "case.py", start = 25, end = 32 }, { rule = "ISC004", file = "case.py", start = 39, end = 46 }, { rule = "ISC004", file = "case.py", start = 53, end = 60 }, { rule = "ISC004", file = "case.py", start = 73, end = 80 }, { rule = "ISC004", file = "case.py", start = 87, end = 94 }, { rule = "ISC004", file = "case.py", start = 107, end = 114 }, { rule = "ISC004", file = "case.py", start = 121, end = 128 }, { rule = "ISC004", file = "case.py", start = 135, end = 142 }, { rule = "ISC004", file = "case.py", start = 153, end = 160 }, { rule = "ISC004", file = "case.py", start = 165, end = 172 }, { rule = "ISC004", file = "case.py", start = 174, end = 181 }, { rule = "ISC004", file = "case.py", start = 195, end = 202 }, { rule = "ISC004", file = "case.py", start = 221, end = 228 }, { rule = "ISC004", file = "case.py", start = 238, end = 245 }, { rule = "ISC004", file = "case.py", start = 255, end = 262 }, { rule = "ISC004", file = "case.py", start = 277, end = 284 }, { rule = "ISC004", file = "case.py", start = 298, end = 305 }]
+
+[[cases]]
+name = "generated-bare-bytes"
+comparison = "full"
+files = { "case.py" = "x = [b\"a\" b\"b\", 1]\nx = [1, b\"a\" b\"b\"]\nx = [b\"a\" b\"b\"]\nx = {b\"a\" b\"b\", 1}\nx = {1, b\"a\" b\"b\"}\nx = (b\"a\" b\"b\", 1)\nx = (1, b\"a\" b\"b\")\nx = (b\"a\" b\"b\",)\nx = b\"a\" b\"b\", 1\nx = 1, b\"a\" b\"b\"\nx = b\"a\" b\"b\",\nb\"a\" b\"b\", 1\nif c:\n    b\"a\" b\"b\", 1\nif c:\n    pass\nb\"a\" b\"b\", 1\nx = [(b\"a\" b\"b\", 1)]\nx = b\"a\" b\"b\", (b\"a\" b\"b\")\nf((b\"a\" b\"b\", 1))\nx = f'{[b\"a\" b\"b\"]}'\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 14 }, { rule = "ISC004", file = "case.py", start = 27, end = 36 }, { rule = "ISC004", file = "case.py", start = 43, end = 52 }, { rule = "ISC004", file = "case.py", start = 59, end = 68 }, { rule = "ISC004", file = "case.py", start = 81, end = 90 }, { rule = "ISC004", file = "case.py", start = 97, end = 106 }, { rule = "ISC004", file = "case.py", start = 119, end = 128 }, { rule = "ISC004", file = "case.py", start = 135, end = 144 }, { rule = "ISC004", file = "case.py", start = 151, end = 160 }, { rule = "ISC004", file = "case.py", start = 171, end = 180 }, { rule = "ISC004", file = "case.py", start = 185, end = 194 }, { rule = "ISC004", file = "case.py", start = 196, end = 205 }, { rule = "ISC004", file = "case.py", start = 219, end = 228 }, { rule = "ISC004", file = "case.py", start = 247, end = 256 }, { rule = "ISC004", file = "case.py", start = 266, end = 275 }, { rule = "ISC004", file = "case.py", start = 285, end = 294 }, { rule = "ISC004", file = "case.py", start = 311, end = 320 }, { rule = "ISC004", file = "case.py", start = 334, end = 343 }]
+
+[[cases]]
+name = "generated-bare-fstr"
+comparison = "full"
+files = { "case.py" = "x = [f\"{a}\" \"b\", 1]\nx = [1, f\"{a}\" \"b\"]\nx = [f\"{a}\" \"b\"]\nx = {f\"{a}\" \"b\", 1}\nx = {1, f\"{a}\" \"b\"}\nx = (f\"{a}\" \"b\", 1)\nx = (1, f\"{a}\" \"b\")\nx = (f\"{a}\" \"b\",)\nx = f\"{a}\" \"b\", 1\nx = 1, f\"{a}\" \"b\"\nx = f\"{a}\" \"b\",\nf\"{a}\" \"b\", 1\nif c:\n    f\"{a}\" \"b\", 1\nif c:\n    pass\nf\"{a}\" \"b\", 1\nx = [(f\"{a}\" \"b\", 1)]\nx = f\"{a}\" \"b\", (f\"{a}\" \"b\")\nf((f\"{a}\" \"b\", 1))\nx = f'{[f\"{a}\" \"b\"]}'\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 15 }, { rule = "ISC004", file = "case.py", start = 28, end = 38 }, { rule = "ISC004", file = "case.py", start = 45, end = 55 }, { rule = "ISC004", file = "case.py", start = 62, end = 72 }, { rule = "ISC004", file = "case.py", start = 85, end = 95 }, { rule = "ISC004", file = "case.py", start = 102, end = 112 }, { rule = "ISC004", file = "case.py", start = 125, end = 135 }, { rule = "ISC004", file = "case.py", start = 142, end = 152 }, { rule = "ISC004", file = "case.py", start = 159, end = 169 }, { rule = "ISC004", file = "case.py", start = 180, end = 190 }, { rule = "ISC004", file = "case.py", start = 195, end = 205 }, { rule = "ISC004", file = "case.py", start = 207, end = 217 }, { rule = "ISC004", file = "case.py", start = 231, end = 241 }, { rule = "ISC004", file = "case.py", start = 260, end = 270 }, { rule = "ISC004", file = "case.py", start = 280, end = 290 }, { rule = "ISC004", file = "case.py", start = 300, end = 310 }, { rule = "ISC004", file = "case.py", start = 328, end = 338 }, { rule = "ISC004", file = "case.py", start = 352, end = 362 }]
+
+[[cases]]
+name = "generated-bare-newline"
+comparison = "full"
+files = { "case.py" = "x = [\"a\"\n    \"b\", 1]\nx = [1, \"a\"\n    \"b\"]\nx = [\"a\"\n    \"b\"]\nx = {\"a\"\n    \"b\", 1}\nx = {1, \"a\"\n    \"b\"}\nx = (\"a\"\n    \"b\", 1)\nx = (1, \"a\"\n    \"b\")\nx = (\"a\"\n    \"b\",)\nif c:\n    \"a\"\n    \"b\", 1\nx = [(\"a\"\n    \"b\", 1)]\nf((\"a\"\n    \"b\", 1))\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 16 }, { rule = "ISC004", file = "case.py", start = 29, end = 40 }, { rule = "ISC004", file = "case.py", start = 47, end = 58 }, { rule = "ISC004", file = "case.py", start = 65, end = 76 }, { rule = "ISC004", file = "case.py", start = 89, end = 100 }, { rule = "ISC004", file = "case.py", start = 107, end = 118 }, { rule = "ISC004", file = "case.py", start = 131, end = 142 }, { rule = "ISC004", file = "case.py", start = 149, end = 160 }, { rule = "ISC004", file = "case.py", start = 194, end = 205 }, { rule = "ISC004", file = "case.py", start = 214, end = 225 }]
+
+[[cases]]
+name = "generated-bare-comment"
+comparison = "full"
+files = { "case.py" = "x = [\"a\"  # c\n    \"b\", 1]\nx = [1, \"a\"  # c\n    \"b\"]\nx = [\"a\"  # c\n    \"b\"]\nx = {\"a\"  # c\n    \"b\", 1}\nx = {1, \"a\"  # c\n    \"b\"}\nx = (\"a\"  # c\n    \"b\", 1)\nx = (1, \"a\"  # c\n    \"b\")\nx = (\"a\"  # c\n    \"b\",)\nif c:\n    \"a\"  # c\n    \"b\", 1\nx = [(\"a\"  # c\n    \"b\", 1)]\nf((\"a\"  # c\n    \"b\", 1))\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 21 }, { rule = "ISC004", file = "case.py", start = 34, end = 50 }, { rule = "ISC004", file = "case.py", start = 57, end = 73 }, { rule = "ISC004", file = "case.py", start = 80, end = 96 }, { rule = "ISC004", file = "case.py", start = 109, end = 125 }, { rule = "ISC004", file = "case.py", start = 132, end = 148 }, { rule = "ISC004", file = "case.py", start = 161, end = 177 }, { rule = "ISC004", file = "case.py", start = 184, end = 200 }, { rule = "ISC004", file = "case.py", start = 239, end = 255 }, { rule = "ISC004", file = "case.py", start = 264, end = 280 }]
+
+[[cases]]
+name = "generated-bare-backslash"
+comparison = "full"
+files = { "case.py" = "x = [\"a\" \\\n    \"b\", 1]\nx = [1, \"a\" \\\n    \"b\"]\nx = [\"a\" \\\n    \"b\"]\nx = {\"a\" \\\n    \"b\", 1}\nx = {1, \"a\" \\\n    \"b\"}\nx = (\"a\" \\\n    \"b\", 1)\nx = (1, \"a\" \\\n    \"b\")\nx = (\"a\" \\\n    \"b\",)\nx = \"a\" \\\n    \"b\", 1\nx = 1, \"a\" \\\n    \"b\"\nx = \"a\" \\\n    \"b\",\n\"a\" \\\n    \"b\", 1\nif c:\n    \"a\" \\\n    \"b\", 1\nif c:\n    pass\n\"a\" \\\n    \"b\", 1\nx = [(\"a\" \\\n    \"b\", 1)]\nx = \"a\" \\\n    \"b\", (\"a\" \\\n    \"b\")\nf((\"a\" \\\n    \"b\", 1))\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 18 }, { rule = "ISC004", file = "case.py", start = 31, end = 44 }, { rule = "ISC004", file = "case.py", start = 51, end = 64 }, { rule = "ISC004", file = "case.py", start = 71, end = 84 }, { rule = "ISC004", file = "case.py", start = 97, end = 110 }, { rule = "ISC004", file = "case.py", start = 117, end = 130 }, { rule = "ISC004", file = "case.py", start = 143, end = 156 }, { rule = "ISC004", file = "case.py", start = 163, end = 176 }, { rule = "ISC004", file = "case.py", start = 183, end = 196 }, { rule = "ISC004", file = "case.py", start = 207, end = 220 }, { rule = "ISC004", file = "case.py", start = 225, end = 238 }, { rule = "ISC004", file = "case.py", start = 240, end = 253 }, { rule = "ISC004", file = "case.py", start = 267, end = 280 }, { rule = "ISC004", file = "case.py", start = 299, end = 312 }, { rule = "ISC004", file = "case.py", start = 322, end = 335 }, { rule = "ISC004", file = "case.py", start = 345, end = 358 }, { rule = "ISC004", file = "case.py", start = 379, end = 392 }]
+
+[[cases]]
+name = "generated-paren-str"
+comparison = "full"
+files = { "case.py" = "x = [(\"a\" \"b\"), 1]\nx = [1, (\"a\" \"b\")]\nx = [(\"a\" \"b\")]\nx = {(\"a\" \"b\"), 1}\nx = {1, (\"a\" \"b\")}\nx = ((\"a\" \"b\"), 1)\nx = (1, (\"a\" \"b\"))\nx = ((\"a\" \"b\"),)\nx = (\"a\" \"b\"), 1\nx = 1, (\"a\" \"b\")\nx = (\"a\" \"b\"),\n(\"a\" \"b\"), 1\nif c:\n    (\"a\" \"b\"), 1\nif c:\n    pass\n(\"a\" \"b\"), 1\nx = [((\"a\" \"b\"), 1)]\nx = (\"a\" \"b\"), ((\"a\" \"b\"))\nf(((\"a\" \"b\"), 1))\nx = f'{[(\"a\" \"b\")]}'\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-bytes"
+comparison = "full"
+files = { "case.py" = "x = [(b\"a\" b\"b\"), 1]\nx = [1, (b\"a\" b\"b\")]\nx = [(b\"a\" b\"b\")]\nx = {(b\"a\" b\"b\"), 1}\nx = {1, (b\"a\" b\"b\")}\nx = ((b\"a\" b\"b\"), 1)\nx = (1, (b\"a\" b\"b\"))\nx = ((b\"a\" b\"b\"),)\nx = (b\"a\" b\"b\"), 1\nx = 1, (b\"a\" b\"b\")\nx = (b\"a\" b\"b\"),\n(b\"a\" b\"b\"), 1\nif c:\n    (b\"a\" b\"b\"), 1\nif c:\n    pass\n(b\"a\" b\"b\"), 1\nx = [((b\"a\" b\"b\"), 1)]\nx = (b\"a\" b\"b\"), ((b\"a\" b\"b\"))\nf(((b\"a\" b\"b\"), 1))\nx = f'{[(b\"a\" b\"b\")]}'\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-fstr"
+comparison = "full"
+files = { "case.py" = "x = [(f\"{a}\" \"b\"), 1]\nx = [1, (f\"{a}\" \"b\")]\nx = [(f\"{a}\" \"b\")]\nx = {(f\"{a}\" \"b\"), 1}\nx = {1, (f\"{a}\" \"b\")}\nx = ((f\"{a}\" \"b\"), 1)\nx = (1, (f\"{a}\" \"b\"))\nx = ((f\"{a}\" \"b\"),)\nx = (f\"{a}\" \"b\"), 1\nx = 1, (f\"{a}\" \"b\")\nx = (f\"{a}\" \"b\"),\n(f\"{a}\" \"b\"), 1\nif c:\n    (f\"{a}\" \"b\"), 1\nif c:\n    pass\n(f\"{a}\" \"b\"), 1\nx = [((f\"{a}\" \"b\"), 1)]\nx = (f\"{a}\" \"b\"), ((f\"{a}\" \"b\"))\nf(((f\"{a}\" \"b\"), 1))\nx = f'{[(f\"{a}\" \"b\")]}'\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-newline"
+comparison = "full"
+files = { "case.py" = "x = [(\"a\"\n    \"b\"), 1]\nx = [1, (\"a\"\n    \"b\")]\nx = [(\"a\"\n    \"b\")]\nx = {(\"a\"\n    \"b\"), 1}\nx = {1, (\"a\"\n    \"b\")}\nx = ((\"a\"\n    \"b\"), 1)\nx = (1, (\"a\"\n    \"b\"))\nx = ((\"a\"\n    \"b\"),)\nx = (\"a\"\n    \"b\"), 1\nx = 1, (\"a\"\n    \"b\")\nx = (\"a\"\n    \"b\"),\n(\"a\"\n    \"b\"), 1\nif c:\n    (\"a\"\n    \"b\"), 1\nif c:\n    pass\n(\"a\"\n    \"b\"), 1\nx = [((\"a\"\n    \"b\"), 1)]\nx = (\"a\"\n    \"b\"), ((\"a\"\n    \"b\"))\nf(((\"a\"\n    \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-comment"
+comparison = "full"
+files = { "case.py" = "x = [(\"a\"  # c\n    \"b\"), 1]\nx = [1, (\"a\"  # c\n    \"b\")]\nx = [(\"a\"  # c\n    \"b\")]\nx = {(\"a\"  # c\n    \"b\"), 1}\nx = {1, (\"a\"  # c\n    \"b\")}\nx = ((\"a\"  # c\n    \"b\"), 1)\nx = (1, (\"a\"  # c\n    \"b\"))\nx = ((\"a\"  # c\n    \"b\"),)\nx = (\"a\"  # c\n    \"b\"), 1\nx = 1, (\"a\"  # c\n    \"b\")\nx = (\"a\"  # c\n    \"b\"),\n(\"a\"  # c\n    \"b\"), 1\nif c:\n    (\"a\"  # c\n    \"b\"), 1\nif c:\n    pass\n(\"a\"  # c\n    \"b\"), 1\nx = [((\"a\"  # c\n    \"b\"), 1)]\nx = (\"a\"  # c\n    \"b\"), ((\"a\"  # c\n    \"b\"))\nf(((\"a\"  # c\n    \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-backslash"
+comparison = "full"
+files = { "case.py" = "x = [(\"a\" \\\n    \"b\"), 1]\nx = [1, (\"a\" \\\n    \"b\")]\nx = [(\"a\" \\\n    \"b\")]\nx = {(\"a\" \\\n    \"b\"), 1}\nx = {1, (\"a\" \\\n    \"b\")}\nx = ((\"a\" \\\n    \"b\"), 1)\nx = (1, (\"a\" \\\n    \"b\"))\nx = ((\"a\" \\\n    \"b\"),)\nx = (\"a\" \\\n    \"b\"), 1\nx = 1, (\"a\" \\\n    \"b\")\nx = (\"a\" \\\n    \"b\"),\n(\"a\" \\\n    \"b\"), 1\nif c:\n    (\"a\" \\\n    \"b\"), 1\nif c:\n    pass\n(\"a\" \\\n    \"b\"), 1\nx = [((\"a\" \\\n    \"b\"), 1)]\nx = (\"a\" \\\n    \"b\"), ((\"a\" \\\n    \"b\"))\nf(((\"a\" \\\n    \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-double-paren-str"
+comparison = "full"
+files = { "case.py" = "x = [((\"a\" \"b\")), 1]\nx = [1, ((\"a\" \"b\"))]\nx = [((\"a\" \"b\"))]\nx = {((\"a\" \"b\")), 1}\nx = {1, ((\"a\" \"b\"))}\nx = (((\"a\" \"b\")), 1)\nx = (1, ((\"a\" \"b\")))\nx = (((\"a\" \"b\")),)\nx = ((\"a\" \"b\")), 1\nx = 1, ((\"a\" \"b\"))\nx = ((\"a\" \"b\")),\n((\"a\" \"b\")), 1\nif c:\n    ((\"a\" \"b\")), 1\nif c:\n    pass\n((\"a\" \"b\")), 1\nx = [(((\"a\" \"b\")), 1)]\nx = ((\"a\" \"b\")), (((\"a\" \"b\")))\nf((((\"a\" \"b\")), 1))\nx = f'{[((\"a\" \"b\"))]}'\n" }
+expected = []
+
+[[cases]]
+name = "generated-double-paren-bytes"
+comparison = "full"
+files = { "case.py" = "x = [((b\"a\" b\"b\")), 1]\nx = [1, ((b\"a\" b\"b\"))]\nx = [((b\"a\" b\"b\"))]\nx = {((b\"a\" b\"b\")), 1}\nx = {1, ((b\"a\" b\"b\"))}\nx = (((b\"a\" b\"b\")), 1)\nx = (1, ((b\"a\" b\"b\")))\nx = (((b\"a\" b\"b\")),)\nx = ((b\"a\" b\"b\")), 1\nx = 1, ((b\"a\" b\"b\"))\nx = ((b\"a\" b\"b\")),\n((b\"a\" b\"b\")), 1\nif c:\n    ((b\"a\" b\"b\")), 1\nif c:\n    pass\n((b\"a\" b\"b\")), 1\nx = [(((b\"a\" b\"b\")), 1)]\nx = ((b\"a\" b\"b\")), (((b\"a\" b\"b\")))\nf((((b\"a\" b\"b\")), 1))\nx = f'{[((b\"a\" b\"b\"))]}'\n" }
+expected = []
+
+[[cases]]
+name = "generated-double-paren-fstr"
+comparison = "full"
+files = { "case.py" = "x = [((f\"{a}\" \"b\")), 1]\nx = [1, ((f\"{a}\" \"b\"))]\nx = [((f\"{a}\" \"b\"))]\nx = {((f\"{a}\" \"b\")), 1}\nx = {1, ((f\"{a}\" \"b\"))}\nx = (((f\"{a}\" \"b\")), 1)\nx = (1, ((f\"{a}\" \"b\")))\nx = (((f\"{a}\" \"b\")),)\nx = ((f\"{a}\" \"b\")), 1\nx = 1, ((f\"{a}\" \"b\"))\nx = ((f\"{a}\" \"b\")),\n((f\"{a}\" \"b\")), 1\nif c:\n    ((f\"{a}\" \"b\")), 1\nif c:\n    pass\n((f\"{a}\" \"b\")), 1\nx = [(((f\"{a}\" \"b\")), 1)]\nx = ((f\"{a}\" \"b\")), (((f\"{a}\" \"b\")))\nf((((f\"{a}\" \"b\")), 1))\nx = f'{[((f\"{a}\" \"b\"))]}'\n" }
+expected = []
+
+[[cases]]
+name = "generated-double-paren-newline"
+comparison = "full"
+files = { "case.py" = "x = [((\"a\"\n    \"b\")), 1]\nx = [1, ((\"a\"\n    \"b\"))]\nx = [((\"a\"\n    \"b\"))]\nx = {((\"a\"\n    \"b\")), 1}\nx = {1, ((\"a\"\n    \"b\"))}\nx = (((\"a\"\n    \"b\")), 1)\nx = (1, ((\"a\"\n    \"b\")))\nx = (((\"a\"\n    \"b\")),)\nx = ((\"a\"\n    \"b\")), 1\nx = 1, ((\"a\"\n    \"b\"))\nx = ((\"a\"\n    \"b\")),\n((\"a\"\n    \"b\")), 1\nif c:\n    ((\"a\"\n    \"b\")), 1\nif c:\n    pass\n((\"a\"\n    \"b\")), 1\nx = [(((\"a\"\n    \"b\")), 1)]\nx = ((\"a\"\n    \"b\")), (((\"a\"\n    \"b\")))\nf((((\"a\"\n    \"b\")), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-double-paren-comment"
+comparison = "full"
+files = { "case.py" = "x = [((\"a\"  # c\n    \"b\")), 1]\nx = [1, ((\"a\"  # c\n    \"b\"))]\nx = [((\"a\"  # c\n    \"b\"))]\nx = {((\"a\"  # c\n    \"b\")), 1}\nx = {1, ((\"a\"  # c\n    \"b\"))}\nx = (((\"a\"  # c\n    \"b\")), 1)\nx = (1, ((\"a\"  # c\n    \"b\")))\nx = (((\"a\"  # c\n    \"b\")),)\nx = ((\"a\"  # c\n    \"b\")), 1\nx = 1, ((\"a\"  # c\n    \"b\"))\nx = ((\"a\"  # c\n    \"b\")),\n((\"a\"  # c\n    \"b\")), 1\nif c:\n    ((\"a\"  # c\n    \"b\")), 1\nif c:\n    pass\n((\"a\"  # c\n    \"b\")), 1\nx = [(((\"a\"  # c\n    \"b\")), 1)]\nx = ((\"a\"  # c\n    \"b\")), (((\"a\"  # c\n    \"b\")))\nf((((\"a\"  # c\n    \"b\")), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-double-paren-backslash"
+comparison = "full"
+files = { "case.py" = "x = [((\"a\" \\\n    \"b\")), 1]\nx = [1, ((\"a\" \\\n    \"b\"))]\nx = [((\"a\" \\\n    \"b\"))]\nx = {((\"a\" \\\n    \"b\")), 1}\nx = {1, ((\"a\" \\\n    \"b\"))}\nx = (((\"a\" \\\n    \"b\")), 1)\nx = (1, ((\"a\" \\\n    \"b\")))\nx = (((\"a\" \\\n    \"b\")),)\nx = ((\"a\" \\\n    \"b\")), 1\nx = 1, ((\"a\" \\\n    \"b\"))\nx = ((\"a\" \\\n    \"b\")),\n((\"a\" \\\n    \"b\")), 1\nif c:\n    ((\"a\" \\\n    \"b\")), 1\nif c:\n    pass\n((\"a\" \\\n    \"b\")), 1\nx = [(((\"a\" \\\n    \"b\")), 1)]\nx = ((\"a\" \\\n    \"b\")), (((\"a\" \\\n    \"b\")))\nf((((\"a\" \\\n    \"b\")), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-comment-str"
+comparison = "full"
+files = { "case.py" = "x = [(  # c\n    \"a\" \"b\"), 1]\nx = [1, (  # c\n    \"a\" \"b\")]\nx = [(  # c\n    \"a\" \"b\")]\nx = {(  # c\n    \"a\" \"b\"), 1}\nx = {1, (  # c\n    \"a\" \"b\")}\nx = ((  # c\n    \"a\" \"b\"), 1)\nx = (1, (  # c\n    \"a\" \"b\"))\nx = ((  # c\n    \"a\" \"b\"),)\nx = (  # c\n    \"a\" \"b\"), 1\nx = 1, (  # c\n    \"a\" \"b\")\nx = (  # c\n    \"a\" \"b\"),\n(  # c\n    \"a\" \"b\"), 1\nif c:\n    (  # c\n    \"a\" \"b\"), 1\nif c:\n    pass\n(  # c\n    \"a\" \"b\"), 1\nx = [((  # c\n    \"a\" \"b\"), 1)]\nx = (  # c\n    \"a\" \"b\"), ((  # c\n    \"a\" \"b\"))\nf(((  # c\n    \"a\" \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-comment-bytes"
+comparison = "full"
+files = { "case.py" = "x = [(  # c\n    b\"a\" b\"b\"), 1]\nx = [1, (  # c\n    b\"a\" b\"b\")]\nx = [(  # c\n    b\"a\" b\"b\")]\nx = {(  # c\n    b\"a\" b\"b\"), 1}\nx = {1, (  # c\n    b\"a\" b\"b\")}\nx = ((  # c\n    b\"a\" b\"b\"), 1)\nx = (1, (  # c\n    b\"a\" b\"b\"))\nx = ((  # c\n    b\"a\" b\"b\"),)\nx = (  # c\n    b\"a\" b\"b\"), 1\nx = 1, (  # c\n    b\"a\" b\"b\")\nx = (  # c\n    b\"a\" b\"b\"),\n(  # c\n    b\"a\" b\"b\"), 1\nif c:\n    (  # c\n    b\"a\" b\"b\"), 1\nif c:\n    pass\n(  # c\n    b\"a\" b\"b\"), 1\nx = [((  # c\n    b\"a\" b\"b\"), 1)]\nx = (  # c\n    b\"a\" b\"b\"), ((  # c\n    b\"a\" b\"b\"))\nf(((  # c\n    b\"a\" b\"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-comment-fstr"
+comparison = "full"
+files = { "case.py" = "x = [(  # c\n    f\"{a}\" \"b\"), 1]\nx = [1, (  # c\n    f\"{a}\" \"b\")]\nx = [(  # c\n    f\"{a}\" \"b\")]\nx = {(  # c\n    f\"{a}\" \"b\"), 1}\nx = {1, (  # c\n    f\"{a}\" \"b\")}\nx = ((  # c\n    f\"{a}\" \"b\"), 1)\nx = (1, (  # c\n    f\"{a}\" \"b\"))\nx = ((  # c\n    f\"{a}\" \"b\"),)\nx = (  # c\n    f\"{a}\" \"b\"), 1\nx = 1, (  # c\n    f\"{a}\" \"b\")\nx = (  # c\n    f\"{a}\" \"b\"),\n(  # c\n    f\"{a}\" \"b\"), 1\nif c:\n    (  # c\n    f\"{a}\" \"b\"), 1\nif c:\n    pass\n(  # c\n    f\"{a}\" \"b\"), 1\nx = [((  # c\n    f\"{a}\" \"b\"), 1)]\nx = (  # c\n    f\"{a}\" \"b\"), ((  # c\n    f\"{a}\" \"b\"))\nf(((  # c\n    f\"{a}\" \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-comment-newline"
+comparison = "full"
+files = { "case.py" = "x = [(  # c\n    \"a\"\n    \"b\"), 1]\nx = [1, (  # c\n    \"a\"\n    \"b\")]\nx = [(  # c\n    \"a\"\n    \"b\")]\nx = {(  # c\n    \"a\"\n    \"b\"), 1}\nx = {1, (  # c\n    \"a\"\n    \"b\")}\nx = ((  # c\n    \"a\"\n    \"b\"), 1)\nx = (1, (  # c\n    \"a\"\n    \"b\"))\nx = ((  # c\n    \"a\"\n    \"b\"),)\nx = (  # c\n    \"a\"\n    \"b\"), 1\nx = 1, (  # c\n    \"a\"\n    \"b\")\nx = (  # c\n    \"a\"\n    \"b\"),\n(  # c\n    \"a\"\n    \"b\"), 1\nif c:\n    (  # c\n    \"a\"\n    \"b\"), 1\nif c:\n    pass\n(  # c\n    \"a\"\n    \"b\"), 1\nx = [((  # c\n    \"a\"\n    \"b\"), 1)]\nx = (  # c\n    \"a\"\n    \"b\"), ((  # c\n    \"a\"\n    \"b\"))\nf(((  # c\n    \"a\"\n    \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-comment-comment"
+comparison = "full"
+files = { "case.py" = "x = [(  # c\n    \"a\"  # c\n    \"b\"), 1]\nx = [1, (  # c\n    \"a\"  # c\n    \"b\")]\nx = [(  # c\n    \"a\"  # c\n    \"b\")]\nx = {(  # c\n    \"a\"  # c\n    \"b\"), 1}\nx = {1, (  # c\n    \"a\"  # c\n    \"b\")}\nx = ((  # c\n    \"a\"  # c\n    \"b\"), 1)\nx = (1, (  # c\n    \"a\"  # c\n    \"b\"))\nx = ((  # c\n    \"a\"  # c\n    \"b\"),)\nx = (  # c\n    \"a\"  # c\n    \"b\"), 1\nx = 1, (  # c\n    \"a\"  # c\n    \"b\")\nx = (  # c\n    \"a\"  # c\n    \"b\"),\n(  # c\n    \"a\"  # c\n    \"b\"), 1\nif c:\n    (  # c\n    \"a\"  # c\n    \"b\"), 1\nif c:\n    pass\n(  # c\n    \"a\"  # c\n    \"b\"), 1\nx = [((  # c\n    \"a\"  # c\n    \"b\"), 1)]\nx = (  # c\n    \"a\"  # c\n    \"b\"), ((  # c\n    \"a\"  # c\n    \"b\"))\nf(((  # c\n    \"a\"  # c\n    \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-comment-backslash"
+comparison = "full"
+files = { "case.py" = "x = [(  # c\n    \"a\" \\\n    \"b\"), 1]\nx = [1, (  # c\n    \"a\" \\\n    \"b\")]\nx = [(  # c\n    \"a\" \\\n    \"b\")]\nx = {(  # c\n    \"a\" \\\n    \"b\"), 1}\nx = {1, (  # c\n    \"a\" \\\n    \"b\")}\nx = ((  # c\n    \"a\" \\\n    \"b\"), 1)\nx = (1, (  # c\n    \"a\" \\\n    \"b\"))\nx = ((  # c\n    \"a\" \\\n    \"b\"),)\nx = (  # c\n    \"a\" \\\n    \"b\"), 1\nx = 1, (  # c\n    \"a\" \\\n    \"b\")\nx = (  # c\n    \"a\" \\\n    \"b\"),\n(  # c\n    \"a\" \\\n    \"b\"), 1\nif c:\n    (  # c\n    \"a\" \\\n    \"b\"), 1\nif c:\n    pass\n(  # c\n    \"a\" \\\n    \"b\"), 1\nx = [((  # c\n    \"a\" \\\n    \"b\"), 1)]\nx = (  # c\n    \"a\" \\\n    \"b\"), ((  # c\n    \"a\" \\\n    \"b\"))\nf(((  # c\n    \"a\" \\\n    \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-backslash-str"
+comparison = "full"
+files = { "case.py" = "x = [(\\\n    \"a\" \"b\"), 1]\nx = [1, (\\\n    \"a\" \"b\")]\nx = [(\\\n    \"a\" \"b\")]\nx = {(\\\n    \"a\" \"b\"), 1}\nx = {1, (\\\n    \"a\" \"b\")}\nx = ((\\\n    \"a\" \"b\"), 1)\nx = (1, (\\\n    \"a\" \"b\"))\nx = ((\\\n    \"a\" \"b\"),)\nx = (\\\n    \"a\" \"b\"), 1\nx = 1, (\\\n    \"a\" \"b\")\nx = (\\\n    \"a\" \"b\"),\n(\\\n    \"a\" \"b\"), 1\nif c:\n    (\\\n    \"a\" \"b\"), 1\nif c:\n    pass\n(\\\n    \"a\" \"b\"), 1\nx = [((\\\n    \"a\" \"b\"), 1)]\nx = (\\\n    \"a\" \"b\"), ((\\\n    \"a\" \"b\"))\nf(((\\\n    \"a\" \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-backslash-bytes"
+comparison = "full"
+files = { "case.py" = "x = [(\\\n    b\"a\" b\"b\"), 1]\nx = [1, (\\\n    b\"a\" b\"b\")]\nx = [(\\\n    b\"a\" b\"b\")]\nx = {(\\\n    b\"a\" b\"b\"), 1}\nx = {1, (\\\n    b\"a\" b\"b\")}\nx = ((\\\n    b\"a\" b\"b\"), 1)\nx = (1, (\\\n    b\"a\" b\"b\"))\nx = ((\\\n    b\"a\" b\"b\"),)\nx = (\\\n    b\"a\" b\"b\"), 1\nx = 1, (\\\n    b\"a\" b\"b\")\nx = (\\\n    b\"a\" b\"b\"),\n(\\\n    b\"a\" b\"b\"), 1\nif c:\n    (\\\n    b\"a\" b\"b\"), 1\nif c:\n    pass\n(\\\n    b\"a\" b\"b\"), 1\nx = [((\\\n    b\"a\" b\"b\"), 1)]\nx = (\\\n    b\"a\" b\"b\"), ((\\\n    b\"a\" b\"b\"))\nf(((\\\n    b\"a\" b\"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-backslash-fstr"
+comparison = "full"
+files = { "case.py" = "x = [(\\\n    f\"{a}\" \"b\"), 1]\nx = [1, (\\\n    f\"{a}\" \"b\")]\nx = [(\\\n    f\"{a}\" \"b\")]\nx = {(\\\n    f\"{a}\" \"b\"), 1}\nx = {1, (\\\n    f\"{a}\" \"b\")}\nx = ((\\\n    f\"{a}\" \"b\"), 1)\nx = (1, (\\\n    f\"{a}\" \"b\"))\nx = ((\\\n    f\"{a}\" \"b\"),)\nx = (\\\n    f\"{a}\" \"b\"), 1\nx = 1, (\\\n    f\"{a}\" \"b\")\nx = (\\\n    f\"{a}\" \"b\"),\n(\\\n    f\"{a}\" \"b\"), 1\nif c:\n    (\\\n    f\"{a}\" \"b\"), 1\nif c:\n    pass\n(\\\n    f\"{a}\" \"b\"), 1\nx = [((\\\n    f\"{a}\" \"b\"), 1)]\nx = (\\\n    f\"{a}\" \"b\"), ((\\\n    f\"{a}\" \"b\"))\nf(((\\\n    f\"{a}\" \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-backslash-newline"
+comparison = "full"
+files = { "case.py" = "x = [(\\\n    \"a\"\n    \"b\"), 1]\nx = [1, (\\\n    \"a\"\n    \"b\")]\nx = [(\\\n    \"a\"\n    \"b\")]\nx = {(\\\n    \"a\"\n    \"b\"), 1}\nx = {1, (\\\n    \"a\"\n    \"b\")}\nx = ((\\\n    \"a\"\n    \"b\"), 1)\nx = (1, (\\\n    \"a\"\n    \"b\"))\nx = ((\\\n    \"a\"\n    \"b\"),)\nx = (\\\n    \"a\"\n    \"b\"), 1\nx = 1, (\\\n    \"a\"\n    \"b\")\nx = (\\\n    \"a\"\n    \"b\"),\n(\\\n    \"a\"\n    \"b\"), 1\nif c:\n    (\\\n    \"a\"\n    \"b\"), 1\nif c:\n    pass\n(\\\n    \"a\"\n    \"b\"), 1\nx = [((\\\n    \"a\"\n    \"b\"), 1)]\nx = (\\\n    \"a\"\n    \"b\"), ((\\\n    \"a\"\n    \"b\"))\nf(((\\\n    \"a\"\n    \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-backslash-comment"
+comparison = "full"
+files = { "case.py" = "x = [(\\\n    \"a\"  # c\n    \"b\"), 1]\nx = [1, (\\\n    \"a\"  # c\n    \"b\")]\nx = [(\\\n    \"a\"  # c\n    \"b\")]\nx = {(\\\n    \"a\"  # c\n    \"b\"), 1}\nx = {1, (\\\n    \"a\"  # c\n    \"b\")}\nx = ((\\\n    \"a\"  # c\n    \"b\"), 1)\nx = (1, (\\\n    \"a\"  # c\n    \"b\"))\nx = ((\\\n    \"a\"  # c\n    \"b\"),)\nx = (\\\n    \"a\"  # c\n    \"b\"), 1\nx = 1, (\\\n    \"a\"  # c\n    \"b\")\nx = (\\\n    \"a\"  # c\n    \"b\"),\n(\\\n    \"a\"  # c\n    \"b\"), 1\nif c:\n    (\\\n    \"a\"  # c\n    \"b\"), 1\nif c:\n    pass\n(\\\n    \"a\"  # c\n    \"b\"), 1\nx = [((\\\n    \"a\"  # c\n    \"b\"), 1)]\nx = (\\\n    \"a\"  # c\n    \"b\"), ((\\\n    \"a\"  # c\n    \"b\"))\nf(((\\\n    \"a\"  # c\n    \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-backslash-backslash"
+comparison = "full"
+files = { "case.py" = "x = [(\\\n    \"a\" \\\n    \"b\"), 1]\nx = [1, (\\\n    \"a\" \\\n    \"b\")]\nx = [(\\\n    \"a\" \\\n    \"b\")]\nx = {(\\\n    \"a\" \\\n    \"b\"), 1}\nx = {1, (\\\n    \"a\" \\\n    \"b\")}\nx = ((\\\n    \"a\" \\\n    \"b\"), 1)\nx = (1, (\\\n    \"a\" \\\n    \"b\"))\nx = ((\\\n    \"a\" \\\n    \"b\"),)\nx = (\\\n    \"a\" \\\n    \"b\"), 1\nx = 1, (\\\n    \"a\" \\\n    \"b\")\nx = (\\\n    \"a\" \\\n    \"b\"),\n(\\\n    \"a\" \\\n    \"b\"), 1\nif c:\n    (\\\n    \"a\" \\\n    \"b\"), 1\nif c:\n    pass\n(\\\n    \"a\" \\\n    \"b\"), 1\nx = [((\\\n    \"a\" \\\n    \"b\"), 1)]\nx = (\\\n    \"a\" \\\n    \"b\"), ((\\\n    \"a\" \\\n    \"b\"))\nf(((\\\n    \"a\" \\\n    \"b\"), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-newline-str"
+comparison = "full"
+files = { "case.py" = "x = [(\n    \"a\" \"b\"\n), 1]\nx = [1, (\n    \"a\" \"b\"\n)]\nx = [(\n    \"a\" \"b\"\n)]\nx = {(\n    \"a\" \"b\"\n), 1}\nx = {1, (\n    \"a\" \"b\"\n)}\nx = ((\n    \"a\" \"b\"\n), 1)\nx = (1, (\n    \"a\" \"b\"\n))\nx = ((\n    \"a\" \"b\"\n),)\nx = (\n    \"a\" \"b\"\n), 1\nx = 1, (\n    \"a\" \"b\"\n)\nx = (\n    \"a\" \"b\"\n),\n(\n    \"a\" \"b\"\n), 1\nif c:\n    (\n    \"a\" \"b\"\n), 1\nif c:\n    pass\n(\n    \"a\" \"b\"\n), 1\nx = [((\n    \"a\" \"b\"\n), 1)]\nx = (\n    \"a\" \"b\"\n), ((\n    \"a\" \"b\"\n))\nf(((\n    \"a\" \"b\"\n), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-newline-bytes"
+comparison = "full"
+files = { "case.py" = "x = [(\n    b\"a\" b\"b\"\n), 1]\nx = [1, (\n    b\"a\" b\"b\"\n)]\nx = [(\n    b\"a\" b\"b\"\n)]\nx = {(\n    b\"a\" b\"b\"\n), 1}\nx = {1, (\n    b\"a\" b\"b\"\n)}\nx = ((\n    b\"a\" b\"b\"\n), 1)\nx = (1, (\n    b\"a\" b\"b\"\n))\nx = ((\n    b\"a\" b\"b\"\n),)\nx = (\n    b\"a\" b\"b\"\n), 1\nx = 1, (\n    b\"a\" b\"b\"\n)\nx = (\n    b\"a\" b\"b\"\n),\n(\n    b\"a\" b\"b\"\n), 1\nif c:\n    (\n    b\"a\" b\"b\"\n), 1\nif c:\n    pass\n(\n    b\"a\" b\"b\"\n), 1\nx = [((\n    b\"a\" b\"b\"\n), 1)]\nx = (\n    b\"a\" b\"b\"\n), ((\n    b\"a\" b\"b\"\n))\nf(((\n    b\"a\" b\"b\"\n), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-newline-fstr"
+comparison = "full"
+files = { "case.py" = "x = [(\n    f\"{a}\" \"b\"\n), 1]\nx = [1, (\n    f\"{a}\" \"b\"\n)]\nx = [(\n    f\"{a}\" \"b\"\n)]\nx = {(\n    f\"{a}\" \"b\"\n), 1}\nx = {1, (\n    f\"{a}\" \"b\"\n)}\nx = ((\n    f\"{a}\" \"b\"\n), 1)\nx = (1, (\n    f\"{a}\" \"b\"\n))\nx = ((\n    f\"{a}\" \"b\"\n),)\nx = (\n    f\"{a}\" \"b\"\n), 1\nx = 1, (\n    f\"{a}\" \"b\"\n)\nx = (\n    f\"{a}\" \"b\"\n),\n(\n    f\"{a}\" \"b\"\n), 1\nif c:\n    (\n    f\"{a}\" \"b\"\n), 1\nif c:\n    pass\n(\n    f\"{a}\" \"b\"\n), 1\nx = [((\n    f\"{a}\" \"b\"\n), 1)]\nx = (\n    f\"{a}\" \"b\"\n), ((\n    f\"{a}\" \"b\"\n))\nf(((\n    f\"{a}\" \"b\"\n), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-newline-newline"
+comparison = "full"
+files = { "case.py" = "x = [(\n    \"a\"\n    \"b\"\n), 1]\nx = [1, (\n    \"a\"\n    \"b\"\n)]\nx = [(\n    \"a\"\n    \"b\"\n)]\nx = {(\n    \"a\"\n    \"b\"\n), 1}\nx = {1, (\n    \"a\"\n    \"b\"\n)}\nx = ((\n    \"a\"\n    \"b\"\n), 1)\nx = (1, (\n    \"a\"\n    \"b\"\n))\nx = ((\n    \"a\"\n    \"b\"\n),)\nx = (\n    \"a\"\n    \"b\"\n), 1\nx = 1, (\n    \"a\"\n    \"b\"\n)\nx = (\n    \"a\"\n    \"b\"\n),\n(\n    \"a\"\n    \"b\"\n), 1\nif c:\n    (\n    \"a\"\n    \"b\"\n), 1\nif c:\n    pass\n(\n    \"a\"\n    \"b\"\n), 1\nx = [((\n    \"a\"\n    \"b\"\n), 1)]\nx = (\n    \"a\"\n    \"b\"\n), ((\n    \"a\"\n    \"b\"\n))\nf(((\n    \"a\"\n    \"b\"\n), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-newline-comment"
+comparison = "full"
+files = { "case.py" = "x = [(\n    \"a\"  # c\n    \"b\"\n), 1]\nx = [1, (\n    \"a\"  # c\n    \"b\"\n)]\nx = [(\n    \"a\"  # c\n    \"b\"\n)]\nx = {(\n    \"a\"  # c\n    \"b\"\n), 1}\nx = {1, (\n    \"a\"  # c\n    \"b\"\n)}\nx = ((\n    \"a\"  # c\n    \"b\"\n), 1)\nx = (1, (\n    \"a\"  # c\n    \"b\"\n))\nx = ((\n    \"a\"  # c\n    \"b\"\n),)\nx = (\n    \"a\"  # c\n    \"b\"\n), 1\nx = 1, (\n    \"a\"  # c\n    \"b\"\n)\nx = (\n    \"a\"  # c\n    \"b\"\n),\n(\n    \"a\"  # c\n    \"b\"\n), 1\nif c:\n    (\n    \"a\"  # c\n    \"b\"\n), 1\nif c:\n    pass\n(\n    \"a\"  # c\n    \"b\"\n), 1\nx = [((\n    \"a\"  # c\n    \"b\"\n), 1)]\nx = (\n    \"a\"  # c\n    \"b\"\n), ((\n    \"a\"  # c\n    \"b\"\n))\nf(((\n    \"a\"  # c\n    \"b\"\n), 1))\n" }
+expected = []
+
+[[cases]]
+name = "generated-paren-newline-backslash"
+comparison = "full"
+files = { "case.py" = "x = [(\n    \"a\" \\\n    \"b\"\n), 1]\nx = [1, (\n    \"a\" \\\n    \"b\"\n)]\nx = [(\n    \"a\" \\\n    \"b\"\n)]\nx = {(\n    \"a\" \\\n    \"b\"\n), 1}\nx = {1, (\n    \"a\" \\\n    \"b\"\n)}\nx = ((\n    \"a\" \\\n    \"b\"\n), 1)\nx = (1, (\n    \"a\" \\\n    \"b\"\n))\nx = ((\n    \"a\" \\\n    \"b\"\n),)\nx = (\n    \"a\" \\\n    \"b\"\n), 1\nx = 1, (\n    \"a\" \\\n    \"b\"\n)\nx = (\n    \"a\" \\\n    \"b\"\n),\n(\n    \"a\" \\\n    \"b\"\n), 1\nif c:\n    (\n    \"a\" \\\n    \"b\"\n), 1\nif c:\n    pass\n(\n    \"a\" \\\n    \"b\"\n), 1\nx = [((\n    \"a\" \\\n    \"b\"\n), 1)]\nx = (\n    \"a\" \\\n    \"b\"\n), ((\n    \"a\" \\\n    \"b\"\n))\nf(((\n    \"a\" \\\n    \"b\"\n), 1))\n" }
+expected = []

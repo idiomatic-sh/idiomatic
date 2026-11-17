@@ -6,6 +6,8 @@
 # class body, method). Each rule runs every program at each whole size and its half; the shared growth service holds each
 # shape to the one CPU limit and to Ruff's floor and memory bound. A rule that joins every read to every binding, pairs every
 # effect with every other, or tests every handler against every read grows 3.5 to 8 times per doubling and holds gigabytes.
+# ISC004 grows over implicitly concatenated strings in collections (`collection-strings`): a rule that meets each string with
+# every earlier token of its file, not only the token before it, grows the same way.
 #
 # A shape is `<rule>/<frame>/<operation>/<whole size>`. A segment's line `i` is `lines[i % len]` with `{i}` replaced by `i`,
 # written `fixed + per-size * size` times, each line indented by the frame's indent. Profiles are relative to the linter's bench.
@@ -27,6 +29,10 @@ profile = "profiles/F811"
 [[rules]]
 rule = "F821"
 profile = "profiles/F821"
+
+[[rules]]
+rule = "ISC004"
+profile = "profiles/ISC004"
 
 [frames.module]
 head = ""
@@ -295,4 +301,11 @@ frames = ["module"]
 segments = [
   { lines = ["v = 1\n"], fixed = 0, per-size = 1 },
   { lines = ["v\n"], fixed = 16384, per-size = 1 },
+]
+
+[[operations]]
+name = "collection-strings"
+frames = ["module", "function"]
+segments = [
+  { lines = ["v{i} = [\"a\" \"b\", (\"c\" \"d\"), \"e\"]\n", "w{i} = (\"a\" \"b\"), (\n    \"c\" \"d\"), \"e\" \"f\"\n"], fixed = 0, per-size = 1 },
 ]
