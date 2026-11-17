@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from ci.groups.manifest.interface import Manifest
-from ci.groups.use_case import Refused, Request, UseCase
+from ci.groups.use_case import RELEASE_ROWS, Refused, Request, UseCase
 
 
 class FakeManifest(Manifest):
@@ -49,3 +49,19 @@ def test_a_product_without_its_manifest_is_refused() -> None:
 def test_a_name_that_is_no_product_is_refused() -> None:
     with pytest.raises(Refused, match="^nope is not a product: ryo, tastemaker, asymptote$"):
         kept("nope", "lint")
+
+
+def test_a_product_s_release_rows_are_the_root_s_and_the_ones_whose_group_it_declares() -> None:
+    every = {group for product in DECLARED.values() for group in product} | {
+        row["group"] for row in RELEASE_ROWS if "root" not in row
+    }
+    rows = UseCase(FakeManifest({"ryo": every, "tastemaker": every - {"bench"}, "asymptote": every - {"bench", "memory"}})).rows
+    assert rows("ryo") == RELEASE_ROWS
+    assert [row["group"] for row in RELEASE_ROWS if row not in rows("asymptote")] == ["memory", "bench"]
+    assert [row["group"] for row in RELEASE_ROWS if row not in rows("tastemaker")] == ["bench"]
+    assert rows("asymptote")[0] == {"runner": "ubuntu-26.04", "group": "repository", "root": "."}
+
+
+def test_a_release_row_whose_group_no_product_declares_is_refused() -> None:
+    with pytest.raises(Refused, match="^no product declares clippy, api, release-tests, release-clippy, release-coverage, bench, release-msrv, release-dylint, release-hack, release-resolution$"):
+        UseCase(FakeManifest(DECLARED)).rows("ryo")

@@ -64,39 +64,36 @@ jobs:
         run: uv run ci/tag/command.py --push
         env:
           GH_TOKEN: ${{ github.token }}
-  # A hand run's checks: the check run a release starts on has already checked its tree.
+  # A hand run's check rows for its product: `ci/groups` keeps, of the release's rows (`RELEASE_ROWS`, a group on its machine), the
+  # repository root's and each whose group the product's tools declare, so no row asks a product for a group it has none of.
+  groups:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-26.04
+    outputs:
+      rows: ${{ steps.groups.outputs.rows }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+      - id: groups
+        run: uv run ci/groups/command.py --product ${{ inputs.product }} --rows
+  # A hand run's checks: the check run a release starts on has already checked its tree. One job per row the `groups` job kept:
+  # the tools of a group share one build, and no two groups do. bench holds the linter benches: every default verified, ryo
+  # against the pinned reference over every project, and ryo's cost, verification times and growth judged against the lock. The
+  # repository root's row runs the root's `repository` group, which no product has: the root's tools alone.
   check:
     if: github.event_name == 'workflow_dispatch'
+    needs: groups
     strategy:
       fail-fast: false
-      # One job per independent build: the tools of a group share one, and no two groups do. The tests (check, release-tests) run on
-      # every machine; the groups whose verdict is the same on every platform run once, on Linux, but the SDK's API, on macOS, where
-      # cargo-public-api ships a prebuilt. bench holds the linter benches: every default verified, ryo against the pinned
-      # reference over every project, and ryo's cost, verification times and growth judged against the lock. check.yml's gate runs these rows for every product; a
-      # hand run runs them for its product, and the root row the repository root's `repository` group, which no product has: the
-      # root's tools alone.
       matrix:
-        include:
-          - { runner: ubuntu-26.04, group: repository, root: . }
-          - { runner: ubuntu-26.04, group: lint }
-          - { runner: ubuntu-26.04, group: clippy }
-          - { runner: macos-26, group: api }
-          - { runner: ubuntu-26.04, group: check }
-          - { runner: ubuntu-26.04-arm, group: check }
-          - { runner: macos-26, group: check }
-          - { runner: windows-2025, group: check }
-          - { runner: ubuntu-26.04, group: release-tests }
-          - { runner: ubuntu-26.04-arm, group: release-tests }
-          - { runner: macos-26, group: release-tests }
-          - { runner: windows-2025, group: release-tests }
-          - { runner: ubuntu-26.04, group: release-clippy }
-          - { runner: ubuntu-26.04, group: release-coverage }
-          - { runner: ubuntu-26.04, group: memory }
-          - { runner: ubuntu-26.04, group: bench }
-          - { runner: ubuntu-26.04, group: release-msrv }
-          - { runner: ubuntu-26.04, group: release-dylint }
-          - { runner: ubuntu-26.04, group: release-hack }
-          - { runner: ubuntu-26.04, group: release-resolution }
+        include: ${{ fromJSON(needs.groups.outputs.rows) }}
     runs-on: ${{ matrix.runner }}
     defaults:
       run:

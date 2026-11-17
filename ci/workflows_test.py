@@ -16,6 +16,7 @@ import pytest
 import yaml
 
 from ci.groups import composition as groups_composition
+from ci.groups.use_case import RELEASE_ROWS
 from ci.groups.use_case import Request as GroupsRequest
 from ci.tag.use_case import PRODUCTS
 
@@ -682,7 +683,14 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
         for tool in tomllib.loads(read(manifest))["tools"]
         if tool["group"].startswith("release")
     }
-    rows = workflow["jobs"]["check"]["strategy"]["matrix"]["include"]
+    # The rows are `ci/groups`' table, which its `groups` job keeps to the product's own: the check's matrix is that job's answer.
+    assert workflow["jobs"]["check"]["needs"] == "groups"
+    assert workflow["jobs"]["check"]["strategy"]["matrix"]["include"] == HAND_ROWS
+    assert [step["run"] for step in workflow["jobs"]["groups"]["steps"] if "run" in step] == [
+        "uv run ci/groups/command.py --product ${{ inputs.product }} --rows"
+    ]
+    assert workflow["jobs"]["groups"]["outputs"] == {"rows": "${{ steps.groups.outputs.rows }}"}
+    rows = list(RELEASE_ROWS)
     assert {row["group"] for row in rows} == released | {"repository", "lint", "clippy", "api", "check", "memory", "bench"}
     # A hand run's check, the pull request gate's rows for its product: its lint, the tests on every machine, and the root's
     # `repository` group from the root, the one row with a root of its own.
@@ -799,7 +807,7 @@ def test_a_green_check_on_main_releases_the_products_whose_version_its_commit_ch
     (download,) = [step for step in publish["steps"] if step.get("uses", "").startswith("actions/download-artifact@")]
     assert download["with"] == {"pattern": "${{ matrix.product }}-*", "merge-multiple": True, "path": "dist"}
     # A hand run checks its product with the linter benches' one group, `bench`, on Linux x86, and no retired bench group.
-    rows = jobs["check"]["strategy"]["matrix"]["include"]
+    rows = list(RELEASE_ROWS)
     assert {"runner": "ubuntu-26.04", "group": "bench"} in rows
     assert not [row for row in rows if row["group"].startswith("bench-")]
 
@@ -917,7 +925,7 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
             assert asked.run(GroupsRequest(product, tuple(row["groups"].split(",")))) == tuple(row["groups"].split(",")), (product, row)
     # The same machines and groups as the release's check, split in two: the pull request's Linux job, which every event runs, and
     # the rows a push to main and a hand run add, a row's groups sharing one asymptote call and so one build.
-    release = yaml.safe_load(read(DIRECTORY / "release.yml"))["jobs"]["check"]["strategy"]["matrix"]["include"]
+    release = list(RELEASE_ROWS)
     here = {("ubuntu-26.04", group) for group in LINUX_GROUPS} | {
         (row["runner"], group) for row in check["strategy"]["matrix"]["check"] for group in row["groups"].split(",")
     }
@@ -1088,6 +1096,48 @@ def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
     assert release["cache-workspace-crates"] is True
     assert one_workspace(release, "crates/${{ inputs.product }}")
     assert release["shared-key"] == "${{ matrix.runner }}-${{ matrix.group }}-${{ inputs.product }}"
+
+
+# A hand release's check matrix: the rows the `groups` job keeps for the product.
+HAND_ROWS = "${{ fromJSON(needs.groups.outputs.rows) }}"
+
+
+def hand_rows(workflow: dict, product: str) -> list[dict]:
+    """The rows a hand release of `product` checks: the `groups` job's answer, run over the repository's manifests, where the
+    matrix is that answer, or the matrix's own rows."""
+    include = workflow["jobs"]["check"]["strategy"]["matrix"]["include"]
+    return list(groups_composition.build().rows(product)) if include == HAND_ROWS else include
+
+
+def undeclared_rows(workflow: dict) -> list[str]:
+    """Each row a hand release checks that asks a product for a group none of its tools declares, which asymptote refuses."""
+    for manifest in listed(ROOT, "crates/*/asymptote.toml"):
+        read(manifest)
+    declared = {product: groups_composition.build().manifest.groups(product) for product in PRODUCTS}
+    return [
+        f"a hand release of {product} asks for {row['group']} on {row['runner']}"
+        for product in PRODUCTS
+        for row in hand_rows(workflow, product)
+        if "root" not in row and row["group"] not in declared[product]
+    ]
+
+
+def test_a_hand_release_asks_each_product_only_the_groups_it_declares() -> None:
+    """A hand release checks its product's rows alone: asymptote declares neither memory nor bench, Tastemaker no bench. The
+    static matrix release.yml had asked every product for every row, so a hand release of either failed."""
+    workflow = yaml.safe_load(read(DIRECTORY / "release.yml"))
+    assert undeclared_rows(workflow) == []
+    assert [row["group"] for row in hand_rows(workflow, "asymptote") if row["runner"] == "ubuntu-26.04"] == [
+        "repository", "lint", "clippy", "check", "release-tests", "release-clippy", "release-coverage", "release-msrv",
+        "release-dylint", "release-hack", "release-resolution",
+    ]
+    static = deepcopy(workflow)
+    static["jobs"]["check"]["strategy"]["matrix"]["include"] = [dict(row) for row in RELEASE_ROWS]
+    assert undeclared_rows(static) == [
+        "a hand release of tastemaker asks for bench on ubuntu-26.04",
+        "a hand release of asymptote asks for memory on ubuntu-26.04",
+        "a hand release of asymptote asks for bench on ubuntu-26.04",
+    ]
 
 
 def release_check() -> dict:
