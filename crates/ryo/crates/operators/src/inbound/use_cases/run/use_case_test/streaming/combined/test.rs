@@ -13,15 +13,18 @@ use crate::domain::physical_plan::fixtures::ordered::{
 use crate::domain::physical_plan::fixtures::{
     DEFINES, Step, defines_rows, over_defines, over_nodes, text_program,
 };
-use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
+use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, NodeFlow, PlanInput, PlanInputList, PlanNodeId,
 };
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    against, both_nodes, span, three_stages,
+};
 use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, Steps, against, agrees, both_nodes, ran_program, ran_steps, span, three_stages,
+    Program, Steps, agrees, ran_program, ran_steps,
 };
 use crate::inbound::use_cases::run::fixtures::{TextResources, planned};
 use ryo_relations::domain::relations::types::{Integer, Relation, Value as Cell};

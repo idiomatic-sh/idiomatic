@@ -4,18 +4,20 @@
 //! rows as the held twin does, and one left row whose answers pass the bound is handed on whole.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::fixtures::{Step, over_defines};
+use crate::domain::physical_plan::types::PlanNodeId;
 use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
-use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::cases::{compared, defines_of_nodes, self_matching};
-use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, Ran, agrees, both_nodes, join, left_columns, one_row_past_the_bound, ran_after,
-    ran_over_tree, span,
+use crate::inbound::use_cases::run::fixtures::cases::compared;
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    both_nodes, defines, defines_named, every_define, join, left_columns, node,
+    one_row_past_the_bound, paired, probe_of_a_held_node, select_of_defines_matching, span,
+    walked_tree,
 };
-use ryo_relations::domain::relations::types::Relation;
+use crate::inbound::use_cases::run::fixtures::streams::{Program, agrees, ran_after};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as StepInput, LiteralText, Operand, QueryLiteral, StepId, Test,
+    ColumnIndex, LiteralText, Operand, QueryLiteral, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use std::borrow::Cow;
@@ -225,87 +227,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// A select of a Defines row for each node of the wide tree (node 0) and an inner join of it with the tree's edges on their
-/// parent (node 1), which walks the tree, run as planned or as its held twin.
-fn walked_tree(twin: bool) -> Result<Ran, Failure> {
-    let edges = (
-        StepInput::Relation(Relation::SyntaxChild),
-        PlanInput::Relation(Relation::SyntaxChild),
-    );
-    let mut children = join(node(0), edges, both_nodes(), Vec::new());
-    if let Operation::Join {
-        left_on, right_on, ..
-    } = &mut children.operation
-    {
-        *left_on = vec![ColumnIndex(0)];
-        *right_on = vec![ColumnIndex(0)];
-    }
-    ran_over_tree(
-        &[every_define(), children],
-        PlanNodeId(1),
-        twin,
-        &|resources, nodes| {
-            vec![(
-                Relation::Defines,
-                defines_of_nodes(nodes, resources.symbol("word")),
-            )]
-        },
-    )
-}
-
-/// Defines' input, as an operation names it and as a node reads it.
-fn defines() -> (StepInput, PlanInput) {
-    (
-        StepInput::Relation(Relation::Defines),
-        PlanInput::Relation(Relation::Defines),
-    )
-}
-
-/// Node `at`'s input, as an operation names it and as a node reads it.
-fn node(at: u32) -> (StepInput, PlanInput) {
-    (StepInput::Step(StepId(at)), PlanInput::Node(PlanNodeId(at)))
-}
-
-/// Every row of Defines.
-fn every_define() -> Step {
-    over_defines(Operation::Select {
-        from: defines().0,
-        comparisons: Vec::new(),
-        kept: Vec::new(),
-    })
-}
-
-/// The rows of Defines whose name compares by `test` with the written text `text`.
-fn defines_named(test: Test, text: &str) -> Step {
-    over_defines(Operation::Select {
-        from: defines().0,
-        comparisons: vec![compared(
-            test,
-            Operand::Column(ColumnIndex(3)),
-            Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-        )],
-        kept: Vec::new(),
-    })
-}
-
-/// Defines rows, `rows` of them over three chunks of left rows and more, each name `n<k>` shared by the two rows `2k` and
-/// `2k + 1`, so each left row's name has two right rows.
-fn paired(steps: Vec<Step>, rows: usize) -> Program {
-    let names: Vec<String> = (0..rows.div_ceil(2)).map(|at| format!("n{at}")).collect();
-    Program {
-        emit: PlanNodeId(
-            u32::try_from(steps.len())
-                .unwrap_or(u32::MAX)
-                .saturating_sub(1),
-        ),
-        steps,
-        rows: (0..rows)
-            .map(|at| (names.get(at / 2).cloned().unwrap_or_default(), span(0, 1)))
-            .collect(),
-        texts: names,
-    }
-}
-
 /// The program over Defines rows each scenario runs; none for the probe walking the tree, which reads the tree's rows.
 fn program(scenario: Scenario) -> Option<Program> {
     // Rows of 7 cells: a chunk of a stage that writes Defines rows holds this many and a few more.
@@ -421,41 +342,10 @@ fn program(scenario: Scenario) -> Option<Program> {
             ],
             chunk * 2,
         ),
-        Scenario::InnerOfAHeldNode => paired(
-            vec![
-                defines_named(Test::StartsWith, "n"),
-                every_define(),
-                join(node(1), node(0), both_nodes(), Vec::new()),
-            ],
-            chunk * 3,
-        ),
-        Scenario::AntiOfAHeldNode => paired(
-            vec![
-                defines_named(Test::EndsWith, "1"),
-                every_define(),
-                Step {
-                    operation: Operation::Antijoin {
-                        left: node(1).0,
-                        right: node(0).0,
-                        left_on: vec![ColumnIndex(3)],
-                        right_on: vec![ColumnIndex(3)],
-                    },
-                    inputs: vec![node(1).1, node(0).1],
-                },
-            ],
-            chunk * 3,
-        ),
+        Scenario::InnerOfAHeldNode => probe_of_a_held_node(ProbeMode::Inner, chunk * 3),
+        Scenario::AntiOfAHeldNode => probe_of_a_held_node(ProbeMode::Anti, chunk * 3),
         Scenario::OneRowPastTheBound => one_row_past_the_bound(),
         Scenario::InnerOfTheTree => return None,
-    })
-}
-
-/// The rows of Defines whose name matches the pattern it is: a name that is no pattern faults.
-fn select_of_defines_matching() -> Step {
-    over_defines(Operation::Select {
-        from: defines().0,
-        comparisons: vec![self_matching(3)],
-        kept: Vec::new(),
     })
 }
 

@@ -8,11 +8,10 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::streams::{
-    Outcome, Program, agrees, faulting, ran_program, span,
-};
-use ryo_relations::domain::relations::types::{Integer, Relation};
 use crate::inbound::use_cases::run::fixtures::cases::compared;
+use crate::inbound::use_cases::run::fixtures::stream_programs::{faulting, span};
+use crate::inbound::use_cases::run::fixtures::streams::{Outcome, Program, agrees, ran_program};
+use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows,
     Side, StepId, Test,

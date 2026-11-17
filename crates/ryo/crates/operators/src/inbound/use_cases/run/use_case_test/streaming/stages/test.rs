@@ -7,9 +7,11 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    against, select_of, span, split_names, three_stages,
+};
 use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, Ran, against, agrees, ran_over_tree, ran_program, select_of, span, split_names,
-    three_stages,
+    Program, Ran, agrees, ran_over_tree, ran_program,
 };
 use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::{Integer, Relation};
@@ -148,7 +150,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// so each stage is handed at most 2 chunks and fills at most 2 (no stage writes more than 30,000 cells), 4 calls each, and
 /// at most 2 more for the chunks left at the end of the head. A chain that calls a stage once for each row makes 30,000.
 const CHUNKED_CALLS: usize = 14;
-
 
 /// An extension of node `from`'s rows by `values`.
 fn extend_of(from: u32, values: Vec<Operand>) -> Step {

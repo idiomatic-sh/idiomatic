@@ -9,9 +9,10 @@ use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, NodeRows, PlanInputList, PlanNodeId,
 };
-use crate::inbound::use_cases::run::fixtures::streams::{
-    against, select_of, shown, span, split_names,
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    against, select_of, span, split_names,
 };
+use crate::inbound::use_cases::run::fixtures::streams::shown;
 use crate::inbound::use_cases::run::fixtures::{TableInputs, TextResources, planned, ran};
 use ryo_values::domain::plan_parts::types::{StepScope, Test};
 use std::borrow::Cow;

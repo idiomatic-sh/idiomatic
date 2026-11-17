@@ -15,11 +15,9 @@ use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::stream_scratch::value::{
-    ChainScratch, RightPlace, StageScratch,
+    ChainScratch, RightPlace, StagePlace, StageScratch,
 };
-use crate::domain::physical_plan::types::{
-    CellStart, KernelRun, PlanNodeId, ProbeIndex, RowSource,
-};
+use crate::domain::physical_plan::types::{KernelRun, PlanNodeId, ProbeIndex, RowSource};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::rows::types::RowCount;
 
@@ -67,8 +65,8 @@ fn chained(
     let ChainScratch {
         chain: nodes,
         row,
+        head: head_chunk,
         stages,
-        ..
     } = chain;
     let stages = stages
         .get_mut(..length)
@@ -82,7 +80,6 @@ fn chained(
     for stage in stages.iter_mut() {
         stage.out.cells.clear();
         stage.out.count = RowCount(0);
-        stage.last = CellStart(0);
         stage.read = RowCount(0);
         // Not reached until it is prepared: a stage past the chain's first failure reads no row.
         stage.fault = Some(PortableOperatorFault::NotRun);
@@ -170,6 +167,12 @@ fn chained(
         closed_all(buffers, stages);
         return Err(hard.map_or(PortableOperatorFault::WrongOperation, |first| first.fault));
     };
+    let first_probe = nodes
+        .iter()
+        .position(|node| {
+            physical(plan, *node).is_ok_and(|node| matches!(node.lowering, Lowering::Probe { .. }))
+        })
+        .map(StagePlace);
     let mut push = Push {
         plan,
         run,
@@ -178,8 +181,10 @@ fn chained(
         rights: &rights,
         tail: &mut output,
         hard,
+        last: StagePlace(length.saturating_sub(1)),
+        first_probe,
     };
-    let answered = pushed_all(&mut push, nodes, row, stages);
+    let answered = pushed_all(&mut push, nodes, row, head_chunk, stages);
     let hard = push.hard.take();
     closed_all(buffers, stages);
     let pending = pending_of(&head_rows);

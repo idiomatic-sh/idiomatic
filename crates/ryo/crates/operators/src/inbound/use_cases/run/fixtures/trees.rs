@@ -97,7 +97,12 @@ impl TextResources {
             let start = line * 5;
             enter_node(&mut builder, KindBits(3), Offset(start));
             token(&mut builder, KindBits(2), Offset(start), Offset(start + 2));
-            token(&mut builder, KindBits(2), Offset(start + 2), Offset(start + 4));
+            token(
+                &mut builder,
+                KindBits(2),
+                Offset(start + 2),
+                Offset(start + 4),
+            );
             leave_node(&mut builder, Offset(start + 4));
         }
         leave_node(&mut builder, Offset(parents * 5));

@@ -40,15 +40,14 @@ pub(crate) struct StagePrepared {
 }
 
 /// The rows a chain of streamed stages reads besides its stages' own: its head stage's source and each probe's right side.
-/// A tree relation's rows are read from the elements row by row, so a stage that mints between them holds no borrow of them.
+/// A tree relation's rows are read from the elements a chunk at a time, so a stage that mints between chunks holds no borrow
+/// of them.
 #[derive(Debug)]
 pub(crate) enum ChainRows<'r> {
     /// A relation's columns, lent in place.
     Facts(ColumnsView<'r>),
     /// A tree relation's nodes; their elements are lent row by row.
     Tree(crate::domain::physical_plan::types::TreeRoots<'r>),
-    /// A tree relation's rows copied out, for a head stage that mints while it reads.
-    Copied(ryo_values::domain::rows::types::Table),
     /// A held node and its rows and pending fault, taken while the chain reads them.
     Node(PlanNodeId, TakenRows),
     /// Rows the engine holds for the run.
@@ -107,6 +106,20 @@ pub(crate) struct Push<'p, 'k, 'r> {
     pub(crate) tail: &'k mut ryo_values::domain::rows::types::Table,
     /// The chain's first hard fault in the held plan's order.
     pub(crate) hard: Option<ChainFault>,
+    /// The tail stage's place: a push handed every stage from the head's to it is the head stage's.
+    pub(crate) last: crate::domain::physical_plan::types::stream_scratch::value::StagePlace,
+    /// The chain's first probe's place, if it has one.
+    pub(crate) first_probe:
+        Option<crate::domain::physical_plan::types::stream_scratch::value::StagePlace>,
+}
+
+/// Whether a chain's head stage reads on: not once a stage before the tail stopped with no probe at or before it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum HeadReads {
+    /// It reads its next rows.
+    On,
+    /// It reads no more.
+    Ended,
 }
 
 /// What one stage's preparation reads: the plan, the chain's rows besides its stages', the chain's nodes and the stage, and
