@@ -132,10 +132,9 @@ fn real_down(
                 root.display().to_string().into(),
             ),
         ))),
-        store: Arc::new(check_store::factory::postcard(check_store::types::Store {
-            directory: root.join(asymptote_values::domain::operations::constants::CACHE),
-            build: check_store::types::Build("acceptance".into()),
-        })),
+        store: Arc::new(check_store::factory::postcard(
+            check_store::fixtures::fake::kept_beneath(&root),
+        )),
         repository: Arc::new(repository::factory::git(
             asymptote_values::domain::manifest::types::ProductRoot(
                 root.display().to_string().into(),

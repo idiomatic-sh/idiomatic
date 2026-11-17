@@ -391,10 +391,9 @@ pub(crate) fn real_check(
         lock: Arc::new(lock::factory::toml(product.clone())),
         sources: Arc::new(sources::factory::disk(product)),
         digest: Arc::new(digest::factory::blake3()),
-        store: Arc::new(check_store::factory::postcard(check_store::types::Store {
-            directory: root.join(asymptote_values::domain::operations::constants::CACHE),
-            build: check_store::types::Build("acceptance".into()),
-        })),
+        store: Arc::new(check_store::factory::postcard(
+            check_store::fixtures::fake::kept_beneath(&root),
+        )),
         repository,
     })
 }

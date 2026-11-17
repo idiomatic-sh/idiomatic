@@ -2,6 +2,11 @@
 members = ["cli", "crates/core", "crates/values"]
 resolver = "3"
 
+# asymptote has no SDK, so no `package`: `nightly` runs the doctests alone (step `test-doc`), as only a nightly rustdoc checks the
+# error code of a `compile_fail,E0…` doctest. The toolchain ryo's manifest pins, the one the repository installs.
+[workspace.metadata.api]
+nightly = "nightly-2026-08-01"
+
 [workspace.package]
 version = "0.1.3"
 edition = "2024"

@@ -5,9 +5,10 @@ use std::sync::{Arc, Mutex};
 
 use crate::outbound::check_store::errors::CheckStoreError;
 use crate::outbound::check_store::interface::CheckStorePort;
-use crate::outbound::check_store::types::{KeptReport, Stored};
+use crate::outbound::check_store::types::{Build, KeptReport, Store, Stored};
 use asymptote_values::domain::judgement::types::{Inventory, Run, Status};
 use asymptote_values::domain::manifest::types::Pathspec;
+use asymptote_values::domain::operations::constants::CACHE;
 use asymptote_values::domain::operations::types::{BenchmarkName, MeasureName, Number, Revision};
 use asymptote_values::domain::perf::types::{Measurement, Spread};
 use asymptote_values::domain::renames::types::Head;
@@ -139,5 +140,15 @@ pub fn checked() -> Stored {
             ]),
             taken: Moment(2_000),
         },
+    }
+}
+
+/// Where an acceptance scenario keeps the check store of the product at `root`: the product's cache directory, for the
+/// build `acceptance`.
+#[must_use]
+pub fn kept_beneath(root: &std::path::Path) -> Store {
+    Store {
+        directory: root.join(CACHE),
+        build: Build("acceptance".into()),
     }
 }

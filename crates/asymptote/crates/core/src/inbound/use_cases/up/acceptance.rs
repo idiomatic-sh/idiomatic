@@ -107,10 +107,9 @@ fn real_up(
         report: CachedReport::new(Arc::new(sources::factory::disk(ProductRoot(
             root.display().to_string().into(),
         )))),
-        store: Arc::new(check_store::factory::postcard(check_store::types::Store {
-            directory: root.join(asymptote_values::domain::operations::constants::CACHE),
-            build: check_store::types::Build("acceptance".into()),
-        })),
+        store: Arc::new(check_store::factory::postcard(
+            check_store::fixtures::fake::kept_beneath(&root),
+        )),
         repository: Arc::new(repository::factory::git(
             ProductRoot(root.display().to_string().into()),
             worktree.clone(),
