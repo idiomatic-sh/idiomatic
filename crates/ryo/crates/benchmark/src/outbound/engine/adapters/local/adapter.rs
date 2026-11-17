@@ -13,7 +13,6 @@ use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount};
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
-use tracing_subscriber::prelude::*;
 
 use crate::outbound::engine::interface::EnginePort;
 
@@ -129,14 +128,7 @@ impl EngineLocalAdapter {
 impl EnginePort for EngineLocalAdapter {
     fn load<'a>(&'a self, request: &'a WorkerRequest) -> Result<LoadedEngineSession<'a>, Error> {
         let trace = if let Some(path) = &self.trace {
-            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
-            tracing::subscriber::set_global_default(
-                tracing_subscriber::registry()
-                    .with(tracing_subscriber::filter::LevelFilter::INFO)
-                    .with(layer),
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?;
-            Some(guard)
+            Some(super::writer::chrome(path).map_err(|error| Error::Invalid(error.to_string()))?)
         } else if let Some(path) = &self.diagnostic_events {
             tracing::subscriber::set_global_default(super::writer::subscriber(
                 path,

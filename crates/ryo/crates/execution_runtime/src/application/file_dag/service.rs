@@ -59,6 +59,7 @@ pub fn prepare(
                         .collect()
                 })
                 .collect(),
+            ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         },
     )?;
     let inner = crate::application::file_dag::program::preparation::service::prepare(

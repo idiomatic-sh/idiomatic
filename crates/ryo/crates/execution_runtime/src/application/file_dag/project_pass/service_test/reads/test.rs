@@ -101,6 +101,7 @@ fn subject(rules: Input) -> Result<Value, Failure> {
         bindings: vec![Vec::new(), Vec::new()],
         operators: Arc::new(OperatorsFake::default()),
         hosted: Vec::new(),
+        ids: Vec::new(),
     };
     let pass = pass_program(&source).map_err(|_| ())?;
     let given = match rules {

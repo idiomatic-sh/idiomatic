@@ -69,6 +69,9 @@ pub struct FileBuffers {
     pub(crate) stream: crate::domain::physical_plan::types::stream_scratch::value::StreamScratch,
     /// The work of a worklist, its capacity kept across nodes and files.
     pub(crate) worklist: crate::domain::worklist::types::WorklistScratch,
+    /// What each node did over the files, when counting is on; off, nothing is counted or timed.
+    pub(crate) counters:
+        Option<crate::domain::physical_plan::types::node_counters::value::NodeCounters>,
     /// How many times a probe built an index, its own or a shared one: what the sharing cases count.
     #[cfg(test)]
     pub(crate) builds: IndexBuilds,
@@ -146,6 +149,35 @@ pub(crate) struct NodeDecisions {
 }
 
 impl FileBuffers {
+    /// Counts what each node does from now on: how many times it is made, the rows it reads and writes and the time it
+    /// takes, over every file these buffers run, until the counts are taken.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.count_nodes();
+    /// assert!(buffers.take_counters().is_some());
+    /// ```
+    pub fn count_nodes(&mut self) {
+        let _counting = self.counters.get_or_insert_default();
+    }
+
+    /// The counts of the nodes made since counting was switched on, which ends it; none when it was off.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// assert!(FileBuffers::default().take_counters().is_none());
+    /// ```
+    pub fn take_counters(
+        &mut self,
+    ) -> Option<crate::domain::physical_plan::types::node_counters::value::NodeCounters> {
+        self.counters.take()
+    }
+
     /// A node's rows, borrowed (cardinality included).
     ///
     /// # Examples

@@ -51,6 +51,8 @@ pub(crate) struct PassProgram {
     pub(crate) reads: Box<[Box<[NodeReads]>]>,
     /// What files ran in and gave back, for the next files: one per file running at once.
     pub(crate) scratch: std::sync::Mutex<Vec<PassScratch>>,
+    /// Each rule's id, in rule order: what the node counters name a node's rules by.
+    pub(crate) ids: Box<[ryo_values::domain::runs::types::RuleId]>,
 }
 
 /// What one file's run fills and gives back to the request for the next file: the nodes' rows, the tree nodes each node starts
@@ -243,6 +245,8 @@ pub(crate) struct PassSource {
     pub(crate) operators: std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
     /// The columns of each relation the host declares, by its place.
     pub(crate) hosted: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
+    /// Each rule's id, in rule order.
+    pub(crate) ids: Vec<ryo_values::domain::runs::types::RuleId>,
 }
 
 /// What the pass reads of one file once its facts are open: the file, its intents and source, the partiality its rules see, its
