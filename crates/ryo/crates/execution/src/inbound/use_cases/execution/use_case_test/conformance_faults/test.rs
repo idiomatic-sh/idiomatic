@@ -1,11 +1,13 @@
-//! Each operation's failure declaration rests on its kernel: every mutation of a kind's fixture operation whose schema passes
-//! and whose kernel faults over the fixture's populated inputs is one the activation plan reads as able to fault (its own
-//! `failure()` mask names an input, or the node is live), so no reader of it is skipped where it would have raised the fault.
+//! Each operation's failure declaration rests on its kernel, input by input: every mutation of a kind's fixture operation
+//! whose schema passes and whose kernel faults, over populated inputs or with one input alone holding rows, is one the
+//! activation plan reads as able to fault there (that input's bit of its `failure()` mask, or a live node), so no reader of
+//! it is skipped where it would have raised the fault.
 use super::super::super::fixtures as owner_fixtures;
 use super::super::super::fixtures::mutation_fields::Mutation;
 use super::super::super::fixtures::mutations::mutations;
 use super::super::conformance::fixtures::deliver;
 use super::super::conformance::test::{author, schema};
+use super::super::conformance_emptied::test::compare_emptied;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::activation::types::NodeRequirement;
@@ -20,6 +22,7 @@ use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::e
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::fixture;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::KnownSyntax;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::query_operators::types::OperationKind;
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -27,10 +30,20 @@ use std::sync::Arc;
 /// Whether the activation plan reads a node as able to fault on its own.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Declared {
-    /// Its `failure()` mask names an input, or it is live.
-    Fallible,
-    /// Neither: a reader of it may be skipped where it has rows.
-    Never,
+    /// It is live: it runs in every file.
+    Live,
+    /// Its `failure()` mask: the inputs whose rows can make it fail, by bit.
+    Mask(u8),
+}
+
+impl Declared {
+    /// Whether a fault raised while the inputs `with_rows` names hold rows is one this declaration says can be raised.
+    const fn covers(self, with_rows: u8) -> bool {
+        match self {
+            Self::Live => true,
+            Self::Mask(mask) => mask & with_rows != 0,
+        }
+    }
 }
 
 /// The node the authored plan of `mutation` emits, as the activation plan reads it; `None` when the logical program refuses
@@ -65,24 +78,21 @@ fn declared(
             .nodes
             .get(usize::try_from(node.0).unwrap_or(usize::MAX))?
         {
-            NodeRequirement::Live => Declared::Fallible,
-            NodeRequirement::Kinds { fallible, .. } | NodeRequirement::Inputs { fallible, .. }
-                if fallible.0 != 0 =>
-            {
-                Declared::Fallible
+            NodeRequirement::Live => Declared::Live,
+            NodeRequirement::Kinds { fallible, .. } | NodeRequirement::Inputs { fallible, .. } => {
+                Declared::Mask(fallible.0)
             }
-            NodeRequirement::Kinds { .. } | NodeRequirement::Inputs { .. } => Declared::Never,
         },
     )
 }
 
-/// The faults one kind's mutations raise over populated inputs: how many raise one, and each that the activation plan reads as
-/// unable to fault, with its fault.
+/// The faults one kind's mutations raise, over populated inputs and with each input alone holding rows: how many runs raise
+/// one, and each the activation plan reads as unable to raise there, with its fault.
 #[derive(Debug, PartialEq, Eq)]
 struct Coverage {
     /// How many mutations the schema refused before any row.
     refused: usize,
-    /// How many faulted over populated inputs.
+    /// How many runs faulted, over populated inputs or with one input alone holding rows.
     faulting: usize,
     /// Each faulting one the activation plan reads as unable to fault, with its fault.
     uncovered: Cow<'static, [Cow<'static, str>]>,
@@ -125,10 +135,41 @@ fn subject(kind: Input) -> Result<Value, Failure> {
             // The request was refused while it was prepared: no row was read.
             continue;
         };
+        let populated = u8::MAX;
         if let Err(fault) = observed.collected {
             faulting += 1;
-            if declaration == Some(Declared::Never) {
+            if declaration.is_some_and(|declared| !declared.covers(populated)) {
                 uncovered.push(Cow::Owned(format!("{}: {fault:?}", mutation.label)));
+            }
+        }
+        // Each input alone with rows, every other computed empty inside a region that runs: a fault it raises is one its
+        // own bit of the mask declares.
+        let width = named(&inputs_of(&mutation.operation)).len();
+        for alone in 0..width {
+            let emptied: Vec<usize> = (0..width).filter(|other| *other != alone).collect();
+            let mut case = fixture(kind);
+            let Ok(observed) = compare_emptied(
+                &mutation.operation,
+                &case.inputs,
+                &emptied,
+                &mutation.bindings,
+                SOURCE,
+                &mut case.symbols,
+                Some(&semantic),
+            ) else {
+                continue;
+            };
+            if let Err(fault) = observed.collected {
+                faulting += 1;
+                let bit = 1_u8
+                    .checked_shl(u32::try_from(alone).unwrap_or(u32::MAX))
+                    .unwrap_or(0);
+                if declaration.is_some_and(|declared| !declared.covers(bit)) {
+                    uncovered.push(Cow::Owned(format!(
+                        "{} with input {alone} alone: {fault:?}",
+                        mutation.label
+                    )));
+                }
             }
         }
     }
@@ -220,13 +261,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("rank_faults_are_declared"),
         word: Word::Succeeds,
         input: || OperationKind::Rank,
-        expect: Expect::Value(covered(1, 6)),
+        expect: Expect::Value(covered(1, 12)),
     },
     Case {
         name: CaseName("replace_faults_are_declared"),
         word: Word::Succeeds,
         input: || OperationKind::Replace,
-        expect: Expect::Value(covered(1, 2)),
+        expect: Expect::Value(covered(1, 4)),
     },
     Case {
         name: CaseName("ordered_match_faults_are_declared"),
@@ -292,7 +333,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("source_matches_faults_are_declared"),
         word: Word::Succeeds,
         input: || OperationKind::SourceMatches,
-        expect: Expect::Value(covered(2, 5)),
+        expect: Expect::Value(covered(2, 10)),
     },
     Case {
         name: CaseName("render_syntax_faults_are_declared"),
@@ -304,7 +345,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fits_rendered_faults_are_declared"),
         word: Word::Succeeds,
         input: || OperationKind::FitsRendered,
-        expect: Expect::Value(covered(4, 2)),
+        expect: Expect::Value(covered(4, 4)),
     },
     Case {
         name: CaseName("span_bounds_faults_are_declared"),

@@ -1,8 +1,8 @@
 //! The `activation` service: each node's requirement from its operator's contract, and every node's state in one file,
 //! composed in node order from its inputs'. No rows, IO or ports.
 use crate::domain::executable_program::activation::types::{
-    ActivationInput, ActivationPlan, Activities, FactSlot, KindSlot, NodeActivity, NodeRequirement,
-    NodeState, TriggerPresence, Triggers,
+    ActivationInput, ActivationLeaves, ActivationPlan, Activities, FactAnswer, FactSlot, KindSlot,
+    NodeActivity, NodeDecision, NodeInputs, NodeRequirement, NodeState, TriggerPresence, Triggers,
 };
 use crate::domain::executable_program::types::{Draft, SchemaTiming};
 use crate::domain::operating::errors::OperatingError;
@@ -30,89 +30,183 @@ pub fn trigger_kinds(plan: &ActivationPlan) -> &[LiteralText] {
     &plan.kinds
 }
 
-/// The fact relations a file is asked about, by fact slot.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::activation::service::trigger_facts;
-/// use ryo_execution_domain::domain::executable_program::activation::types::ActivationPlan;
-/// assert!(trigger_facts(&ActivationPlan::default()).is_empty());
-/// ```
-#[must_use]
-pub fn trigger_facts(plan: &ActivationPlan) -> &[Relation] {
-    &plan.facts
-}
-
-/// Writes into `into` every node's state in a file holding `triggers`, in node order: a node's inputs come first.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::activation::service::activities;
-/// use ryo_execution_domain::domain::executable_program::activation::types::{ActivationPlan, Activities, Triggers};
-/// let mut into = Activities::default();
-/// activities(&ActivationPlan::default(), &Triggers::default(), &mut into).unwrap();
-/// assert!(into.0.is_empty());
-/// ```
-///
-/// # Errors
-///
-/// `ShapeMismatch` when `triggers` lacks a slot of the plan or a node reads one after it: the triggers were made for another
-/// plan.
-pub fn activities(
-    plan: &ActivationPlan,
-    triggers: &Triggers,
-    into: &mut Activities,
-) -> Result<(), OperatingError> {
-    into.0.clear();
-    for requirement in &*plan.nodes {
-        let state = match requirement {
-            NodeRequirement::Live => NodeState::default(),
-            NodeRequirement::Kinds { slots, fallible } => {
-                let rows = any_kind(triggers, slots)?;
-                // The prefix cannot fail; a comparison after it fails only on a row.
-                let faults = if rows == TriggerPresence::Present && fallible.0 != 0 {
-                    TriggerPresence::Present
-                } else {
-                    TriggerPresence::Absent
-                };
-                NodeState { rows, faults }
-            }
-            NodeRequirement::Inputs {
-                rows,
-                fallible,
-                from,
-            } => composed(*rows, *fallible, from, triggers, &into.0)?,
-        };
-        into.0.push(state);
-    }
-    Ok(())
-}
-
-/// Whether `node` runs in the file `activities` were written for: dormant only when it can have neither a row nor a row
-/// error. A node the activities do not hold runs.
+/// Whether `node` runs in the file `triggers` and `leaves` describe: dormant only when it can have neither a row nor a row
+/// error. Its state is composed when it is first asked for, and kept in `into` for the rest of the file: from its inputs'
+/// states, its node inputs first and then its fact relations, each in operand order, as the runner readies and reads them.
+/// `leaves` answers a relation's read: each relation is read once in the file, so a read here is the read its readers get.
+/// A refused read stops the composition there: the node and every node waiting on it run, and meet the refusal. A node the
+/// plan does not hold runs.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_execution_domain::domain::executable_program::activation::service::activity;
-/// use ryo_execution_domain::domain::executable_program::activation::types::{Activities, NodeActivity};
+/// use ryo_execution_domain::domain::executable_program::activation::types::{
+///     ActivationLeaves, ActivationPlan, Activities, FactAnswer, NodeActivity, Triggers,
+/// };
 /// use ryo_operators::domain::physical_plan::types::PlanNodeId;
-/// assert_eq!(activity(&Activities::default(), PlanNodeId(0)), NodeActivity::Active);
+/// use ryo_relations::domain::relations::types::Relation;
+/// struct Full;
+/// impl ActivationLeaves for Full {
+///     fn rows(&mut self, _relation: Relation) -> FactAnswer {
+///         FactAnswer::Rows
+///     }
+/// }
+/// let mut into = Activities::default();
+/// let answer = activity(&ActivationPlan::default(), &Triggers::default(), &mut Full, &mut into, PlanNodeId(0));
+/// assert_eq!(answer.unwrap(), NodeActivity::Active);
 /// ```
-#[must_use]
-pub fn activity(activities: &Activities, node: PlanNodeId) -> NodeActivity {
-    match activities
-        .0
-        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
-    {
-        Some(NodeState {
+///
+/// # Errors
+///
+/// `ShapeMismatch` when `triggers` lacks a kind slot of the plan, or a node reads a node after it or a fact slot the plan does
+/// not hold: the triggers or the plan were made for another program.
+pub fn activity(
+    plan: &ActivationPlan,
+    triggers: &Triggers,
+    leaves: &mut dyn ActivationLeaves,
+    into: &mut Activities,
+    node: PlanNodeId,
+) -> Result<NodeActivity, OperatingError> {
+    if into.0.len() < plan.nodes.len() {
+        into.0.resize(plan.nodes.len(), None);
+    }
+    Ok(match state(plan, triggers, leaves, into, node)? {
+        NodeDecision::Decided(NodeState {
             rows: TriggerPresence::Absent,
             faults: TriggerPresence::Absent,
         }) => NodeActivity::Dormant,
-        Some(_) | None => NodeActivity::Active,
+        NodeDecision::Decided(_) | NodeDecision::Refused => NodeActivity::Active,
+    })
+}
+
+/// `node`'s state, composed once and kept: a refused read on the way keeps it as able to have rows and faults, so it runs.
+fn state(
+    plan: &ActivationPlan,
+    triggers: &Triggers,
+    leaves: &mut dyn ActivationLeaves,
+    into: &mut Activities,
+    node: PlanNodeId,
+) -> Result<NodeDecision, OperatingError> {
+    let at = usize::try_from(node.0).map_err(|_| OperatingError::ShapeMismatch)?;
+    if let Some(Some(known)) = into.0.get(at) {
+        return Ok(NodeDecision::Decided(*known));
     }
+    let decision = match plan.nodes.get(at) {
+        None | Some(NodeRequirement::Live) => NodeDecision::Decided(NodeState::default()),
+        Some(NodeRequirement::Kinds { slots, fallible }) => {
+            let rows = any_kind(triggers, slots)?;
+            // The prefix cannot fail; a comparison after it fails only on a row.
+            let faults = if rows == TriggerPresence::Present && fallible.0 != 0 {
+                TriggerPresence::Present
+            } else {
+                TriggerPresence::Absent
+            };
+            NodeDecision::Decided(NodeState { rows, faults })
+        }
+        Some(NodeRequirement::Inputs {
+            rows,
+            fallible,
+            from,
+        }) => composed(
+            plan,
+            triggers,
+            leaves,
+            into,
+            NodeInputs {
+                node,
+                rows: *rows,
+                fallible: *fallible,
+                from,
+            },
+        )?,
+    };
+    if let Some(slot) = into.0.get_mut(at) {
+        *slot = Some(match decision {
+            NodeDecision::Decided(known) => known,
+            NodeDecision::Refused => NodeState::default(),
+        });
+    }
+    Ok(decision)
+}
+
+/// An operation's state from its inputs', in the order the runner meets them: its node inputs, then its fact relations. Its
+/// rows are as its presence mask declares, and it can fault when an input carries a fault or a fallible input can have rows.
+/// An input a mask names past the node's inputs cannot be shown empty, so it is read as having rows.
+fn composed(
+    plan: &ActivationPlan,
+    triggers: &Triggers,
+    leaves: &mut dyn ActivationLeaves,
+    into: &mut Activities,
+    inputs: NodeInputs<'_>,
+) -> Result<NodeDecision, OperatingError> {
+    let NodeInputs {
+        node,
+        rows,
+        fallible,
+        from,
+    } = inputs;
+    let mut with_rows = InputMask(
+        u8::MAX
+            .checked_shl(u32::try_from(from.len()).unwrap_or(u32::MAX))
+            .unwrap_or(0),
+    );
+    let mut carried = TriggerPresence::Absent;
+    for (place, input) in from.iter().enumerate() {
+        let ActivationInput::Node(read) = input else {
+            continue;
+        };
+        if *read >= node {
+            return Err(OperatingError::ShapeMismatch);
+        }
+        let NodeDecision::Decided(state) = state(plan, triggers, leaves, into, *read)? else {
+            return Ok(NodeDecision::Refused);
+        };
+        if state.rows == TriggerPresence::Present {
+            with_rows.0 |= 1_u8
+                .checked_shl(u32::try_from(place).unwrap_or(u32::MAX))
+                .unwrap_or(0);
+        }
+        if state.faults == TriggerPresence::Present {
+            carried = TriggerPresence::Present;
+        }
+    }
+    for (place, input) in from.iter().enumerate() {
+        let present = match input {
+            ActivationInput::Node(_) => continue,
+            ActivationInput::Tree => TriggerPresence::Present,
+            ActivationInput::Fact(FactSlot(slot)) => {
+                let relation = *plan.facts.get(*slot).ok_or(OperatingError::ShapeMismatch)?;
+                match leaves.rows(relation) {
+                    FactAnswer::Rows => TriggerPresence::Present,
+                    FactAnswer::NoRow => TriggerPresence::Absent,
+                    FactAnswer::Refused => return Ok(NodeDecision::Refused),
+                }
+            }
+        };
+        if present == TriggerPresence::Present {
+            with_rows.0 |= 1_u8
+                .checked_shl(u32::try_from(place).unwrap_or(u32::MAX))
+                .unwrap_or(0);
+        }
+    }
+    let has_rows = match rows {
+        PresenceMask::AllOf(mask) => mask.0 & !with_rows.0 == 0,
+        PresenceMask::AnyOf(mask) => mask.0 & with_rows.0 != 0,
+        PresenceMask::Always => true,
+    };
+    Ok(NodeDecision::Decided(NodeState {
+        rows: if has_rows {
+            TriggerPresence::Present
+        } else {
+            TriggerPresence::Absent
+        },
+        faults: if fallible.0 & with_rows.0 != 0 {
+            TriggerPresence::Present
+        } else {
+            carried
+        },
+    }))
 }
 
 /// A root select's rows: present where the file holds any of its kinds.
@@ -127,74 +221,6 @@ fn any_kind(triggers: &Triggers, slots: &[KindSlot]) -> Result<TriggerPresence, 
         }
     }
     Ok(TriggerPresence::Absent)
-}
-
-/// One input's state: an earlier node's, a fact relation's rows (reading one cannot fail), or the tree's.
-fn input_state(
-    source: ActivationInput,
-    triggers: &Triggers,
-    earlier: &[NodeState],
-) -> Result<NodeState, OperatingError> {
-    Ok(match source {
-        ActivationInput::Node(node) => *earlier
-            .get(usize::try_from(node.0).map_err(|_| OperatingError::ShapeMismatch)?)
-            .ok_or(OperatingError::ShapeMismatch)?,
-        ActivationInput::Fact(FactSlot(slot)) => NodeState {
-            rows: *triggers
-                .facts
-                .get(slot)
-                .ok_or(OperatingError::ShapeMismatch)?,
-            faults: TriggerPresence::Absent,
-        },
-        ActivationInput::Tree => NodeState {
-            rows: TriggerPresence::Present,
-            faults: TriggerPresence::Absent,
-        },
-    })
-}
-
-/// An operation's state from its inputs', in one pass with no allocation: its rows as its presence mask declares, and a row
-/// error when an input carries one or a fallible input can have rows. An input a mask names past the node's inputs cannot be
-/// shown empty, so it is read as having rows.
-fn composed(
-    rows: PresenceMask,
-    fallible: InputMask,
-    from: &[ActivationInput],
-    triggers: &Triggers,
-    earlier: &[NodeState],
-) -> Result<NodeState, OperatingError> {
-    let mut with_rows = u8::MAX
-        .checked_shl(u32::try_from(from.len()).unwrap_or(u32::MAX))
-        .unwrap_or(0);
-    let mut carried = TriggerPresence::Absent;
-    for (place, source) in from.iter().enumerate() {
-        let state = input_state(*source, triggers, earlier)?;
-        if state.rows == TriggerPresence::Present
-            && let Some(bit) = 1_u8.checked_shl(u32::try_from(place).unwrap_or(u32::MAX))
-        {
-            with_rows |= bit;
-        }
-        if state.faults == TriggerPresence::Present {
-            carried = TriggerPresence::Present;
-        }
-    }
-    let has_rows = match rows {
-        PresenceMask::AllOf(mask) => mask.0 & !with_rows == 0,
-        PresenceMask::AnyOf(mask) => mask.0 & with_rows != 0,
-        PresenceMask::Always => true,
-    };
-    Ok(NodeState {
-        rows: if has_rows {
-            TriggerPresence::Present
-        } else {
-            TriggerPresence::Absent
-        },
-        faults: if fallible.0 & with_rows != 0 {
-            TriggerPresence::Present
-        } else {
-            carried
-        },
-    })
 }
 
 /// The activation plan of the drafted nodes of a logical program, by node id: each node's requirement from its operator's

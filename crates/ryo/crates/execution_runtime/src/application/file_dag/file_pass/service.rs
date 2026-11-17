@@ -3,6 +3,8 @@
 //! so each node reading the tree starts from the tree nodes of its kinds, and a node with no root kind from every tree node.
 
 use crate::application::file_dag::file_pass::constants::NODE_COUNTERS_TARGET;
+use crate::application::file_dag::file_pass::service::reads::service::read;
+use crate::application::file_dag::file_pass::service::triggers::service::node_activity;
 use crate::application::file_dag::file_pass::types::{
     FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
     RootKindNodes, TreeStart,
@@ -10,9 +12,7 @@ use crate::application::file_dag::file_pass::types::{
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::publications::service::bound::service::held_observation;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::activation::service::{
-    activity, trigger_kinds,
-};
+use ryo_execution_domain::domain::executable_program::activation::service::trigger_kinds;
 use ryo_execution_domain::domain::executable_program::activation::types::NodeActivity;
 use ryo_execution_domain::domain::executable_program::service::refusals::service::layout;
 use ryo_execution_domain::domain::executable_program::service::{
@@ -62,6 +62,7 @@ pub(crate) mod captures;
 pub(crate) mod counters;
 pub(crate) mod inputs;
 pub(crate) mod nodes;
+pub(crate) mod reads;
 pub(crate) mod rules;
 pub(crate) mod triggers;
 
@@ -298,18 +299,8 @@ fn absorb(into: &mut Vec<RelationRead>, more: &[RelationRead]) {
 
 impl PlanInputs for PassInputs<'_, '_, '_> {
     fn facts(&self, relation: Relation) -> FactRows<'_> {
-        // The first reader of a relation the file's triggers read answers that read, rows or refusal: it was the file's first
-        // read of the relation. A later reader asks the lookup, as it did with no trigger.
-        let read = match self
-            .read_at_open
-            .0
-            .iter()
-            .find(|read| read.relation == relation)
-            .and_then(|read| read.read.borrow_mut().take())
-        {
-            Some(first) => first,
-            None => self.lookup.columns(relation),
-        };
+        // The file's one read of the relation: every reader answers it.
+        let read = read(&self.reads, self.lookup, relation);
         match read {
             Ok(view) => FactRows::Lent(view),
             Err(error) => {
@@ -342,7 +333,7 @@ impl PlanInputs for PassInputs<'_, '_, '_> {
         }
     }
     fn activity(&self, node: PlanNodeId) -> Activity<'_> {
-        match (activity(self.activities, node), layout(self.program, node)) {
+        match (node_activity(self, node), layout(self.program, node)) {
             (NodeActivity::Dormant, Ok(kinds)) => Activity::Dormant(NodeLayout(kinds)),
             // A node whose layout is a refusal answers it by running.
             (NodeActivity::Dormant, Err(_)) | (NodeActivity::Active, _) => Activity::Active,

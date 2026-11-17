@@ -1,7 +1,9 @@
 //! Test support of the `activation` concept: a case's program, built from real operations, its drafts and one file's
 //! triggers, and each node's activity in that file.
-use super::service::{activities, activity, plan_of, trigger_facts, trigger_kinds};
-use super::types::{Activities, NodeActivity, TriggerPresence, Triggers};
+use super::service::{activity, plan_of, trigger_kinds};
+use super::types::{
+    ActivationLeaves, Activities, FactAnswer, NodeActivity, TriggerPresence, Triggers,
+};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::types::{Draft, SchemaTiming};
 use crate::domain::operating::errors::OperatingError;
@@ -48,6 +50,8 @@ pub(super) struct Program {
     pub(super) held: Vec<&'static str>,
     /// The fact relations the file has no row of.
     pub(super) empty: Vec<Relation>,
+    /// The fact relations whose read the file refuses.
+    pub(super) refused: Vec<Relation>,
 }
 
 /// A comparison of column `column` with `right`.
@@ -182,7 +186,7 @@ pub(super) fn matches(written: bool) -> PlanComparison {
     compared(Test::Matches, 1, right)
 }
 
-/// Each node's activity in the file `program` describes: `A` active, `D` dormant, in node order.
+/// Each node's activity in the file `program` describes, asked in node order (`A` active, `D` dormant), then the reads made.
 pub(super) fn activity_of(program: &Program) -> Result<Cow<'static, str>, OperatingError> {
     let lists: Vec<Vec<PlanInput>> = program.nodes.iter().map(|node| node.1.clone()).collect();
     let roots = program
@@ -196,33 +200,53 @@ pub(super) fn activity_of(program: &Program) -> Result<Cow<'static, str>, Operat
         })
         .collect();
     let plan = plan_of(&drafts(&program.nodes), &lists, &roots);
-    let presence = |held: bool| {
-        if held {
-            TriggerPresence::Present
-        } else {
-            TriggerPresence::Absent
-        }
-    };
     let triggers = Triggers {
         kinds: trigger_kinds(&plan)
             .iter()
-            .map(|kind| presence(program.held.contains(&&*kind.0)))
-            .collect(),
-        facts: trigger_facts(&plan)
-            .iter()
-            .map(|relation| presence(!program.empty.contains(relation)))
+            .map(|kind| {
+                if program.held.contains(&&*kind.0) {
+                    TriggerPresence::Present
+                } else {
+                    TriggerPresence::Absent
+                }
+            })
             .collect(),
     };
+    let mut file = FakeFile {
+        program,
+        reads: Vec::new(),
+    };
     let mut states = Activities::default();
-    activities(&plan, &triggers, &mut states)?;
-    Ok(Cow::Owned(
-        (0..program.nodes.len())
-            .map(
-                |at| match activity(&states, PlanNodeId(u32::try_from(at).unwrap_or(u32::MAX))) {
-                    NodeActivity::Active => 'A',
-                    NodeActivity::Dormant => 'D',
-                },
-            )
-            .collect(),
-    ))
+    let mut answered = String::new();
+    for at in 0..program.nodes.len() {
+        let node = PlanNodeId(u32::try_from(at).unwrap_or(u32::MAX));
+        answered.push(
+            match activity(&plan, &triggers, &mut file, &mut states, node)? {
+                NodeActivity::Active => 'A',
+                NodeActivity::Dormant => 'D',
+            },
+        );
+    }
+    Ok(Cow::Owned(format!("{answered}; reads {:?}", file.reads)))
+}
+
+/// A file a case describes, answering activation's reads from its program's empty and refused relations, and keeping each read.
+struct FakeFile<'p> {
+    /// The program and the file it describes.
+    program: &'p Program,
+    /// Each relation read, in order.
+    reads: Vec<Relation>,
+}
+
+impl ActivationLeaves for FakeFile<'_> {
+    fn rows(&mut self, relation: Relation) -> FactAnswer {
+        self.reads.push(relation);
+        if self.program.refused.contains(&relation) {
+            FactAnswer::Refused
+        } else if self.program.empty.contains(&relation) {
+            FactAnswer::NoRow
+        } else {
+            FactAnswer::Rows
+        }
+    }
 }
