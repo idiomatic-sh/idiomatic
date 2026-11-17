@@ -98,6 +98,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "nodes 2; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [2, 1]; inputs [[Relation(Function)], [Node(PlanNodeId(0))]]; reach [Phase, Phase]; roots word []; roots other [];",
         )),
     },
+    Case {
+        name: CaseName("a_fragment_two_rules_read_at_different_steps_is_one_node_each"),
+        word: Word::Succeeds,
+        input: || Request::SharedFragment,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 8; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4))] emit Ok(PlanNodeId(4)); rule 1: steps [Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(5)), Ok(PlanNodeId(6)), Ok(PlanNodeId(7))] emit Ok(PlanNodeId(7)); consumers [1, 1, 1, 2, 1, 1, 1, 1]; inputs [[Relation(Function)], [Node(PlanNodeId(0))], [Relation(Function)], [Node(PlanNodeId(2))], [Node(PlanNodeId(1)), Node(PlanNodeId(3))], [Relation(Function)], [Node(PlanNodeId(5))], [Node(PlanNodeId(6)), Node(PlanNodeId(3))]]; reach [Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase]; roots word []; roots other [];",
+        )),
+    },
+    Case {
+        name: CaseName("six_rules_reading_one_fragment_after_their_own_steps_share_its_nodes"),
+        word: Word::Succeeds,
+        input: || Request::SharedFragmentAfterOwnSteps,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 37; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(6))] emit Ok(PlanNodeId(6)); rule 1: steps [Ok(PlanNodeId(7)), Ok(PlanNodeId(8)), Ok(PlanNodeId(9)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(10))] emit Ok(PlanNodeId(10)); rule 2: steps [Ok(PlanNodeId(11)), Ok(PlanNodeId(12)), Ok(PlanNodeId(13)), Ok(PlanNodeId(14)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(15))] emit Ok(PlanNodeId(15)); rule 3: steps [Ok(PlanNodeId(16)), Ok(PlanNodeId(17)), Ok(PlanNodeId(18)), Ok(PlanNodeId(19)), Ok(PlanNodeId(20)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(21))] emit Ok(PlanNodeId(21)); rule 4: steps [Ok(PlanNodeId(22)), Ok(PlanNodeId(23)), Ok(PlanNodeId(24)), Ok(PlanNodeId(25)), Ok(PlanNodeId(26)), Ok(PlanNodeId(27)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(28))] emit Ok(PlanNodeId(28)); rule 5: steps [Ok(PlanNodeId(29)), Ok(PlanNodeId(30)), Ok(PlanNodeId(31)), Ok(PlanNodeId(32)), Ok(PlanNodeId(33)), Ok(PlanNodeId(34)), Ok(PlanNodeId(35)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(36))] emit Ok(PlanNodeId(36)); consumers [1, 1, 1, 2, 1, 6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]; inputs [[Relation(Function)], [Node(PlanNodeId(0))], [Relation(Function)], [Node(PlanNodeId(2))], [Node(PlanNodeId(3))], [Node(PlanNodeId(3)), Node(PlanNodeId(4))], [Node(PlanNodeId(1)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(7))], [Node(PlanNodeId(8))], [Node(PlanNodeId(9)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(11))], [Node(PlanNodeId(12))], [Node(PlanNodeId(13))], [Node(PlanNodeId(14)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(16))], [Node(PlanNodeId(17))], [Node(PlanNodeId(18))], [Node(PlanNodeId(19))], [Node(PlanNodeId(20)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(22))], [Node(PlanNodeId(23))], [Node(PlanNodeId(24))], [Node(PlanNodeId(25))], [Node(PlanNodeId(26))], [Node(PlanNodeId(27)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(29))], [Node(PlanNodeId(30))], [Node(PlanNodeId(31))], [Node(PlanNodeId(32))], [Node(PlanNodeId(33))], [Node(PlanNodeId(34))], [Node(PlanNodeId(35)), Node(PlanNodeId(5))]]; reach [Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase]; roots word []; roots other [];",
+        )),
+    },
 ];
 
 /// What the planned program says of each rule and node: the nodes, each rule's step nodes and emit, whether it is served, the

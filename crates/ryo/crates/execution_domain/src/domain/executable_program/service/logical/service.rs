@@ -25,8 +25,27 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::{
     Input, InputNumber, LiteralText, Operand, QueryLiteral, StepScope, Test,
 };
-use ryo_values::domain::plans::service::{inputs_of, kind_of, named};
+use ryo_values::domain::plans::service::{each_input, inputs_of, kind_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
+use std::borrow::Cow;
+
+/// A step's operation as two rules' steps are told apart: each step it reads blanked, since a step number counts its own rule's
+/// steps and the step's input list already names the node each input reads, in the operation's order.
+pub(in crate::domain::executable_program) fn step_key(operation: &Operation) -> Cow<'_, Operation> {
+    if !named(&inputs_of(operation))
+        .iter()
+        .any(|input| matches!(input, Input::Step(_)))
+    {
+        return Cow::Borrowed(operation);
+    }
+    let mut key = operation.clone();
+    each_input(&mut key, &mut |input| {
+        if let Input::Step(_) = input {
+            *input = Input::Step(StepId(0));
+        }
+    });
+    Cow::Owned(key)
+}
 
 /// The inputs `named` reads, given the nodes of the rule's earlier `steps`; none when one reads a step that has no node. A step
 /// after the files reads each entry of its rule's frontier (a relation, a step in each file) at the entry's place, its rows

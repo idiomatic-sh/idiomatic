@@ -36,6 +36,11 @@ pub(super) enum Request {
     TwoRulesObservations,
     /// A select after the files of a bound observation, a projection of it, and a projection of a frontier entry.
     ObservationReach,
+    /// Two rules shaped like B008 and B006, each reading one shared two-step fragment: the first after its own two steps, the
+    /// second before them.
+    SharedFragment,
+    /// Six rules, each reading one shared four-step fragment after a different number of its own steps.
+    SharedFragmentAfterOwnSteps,
 }
 
 /// A comparison of a column with an operand.
@@ -124,6 +129,45 @@ fn first_column(from: StepInput) -> Operation {
         columns: vec![ColumnIndex(0)],
         distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
     }
+}
+
+/// The steps of a fragment several rules read, written from step `at` of a rule: a select of the comments' stand-in, a
+/// projection of it, a select of that projection, and the union of the two.
+fn fragment(at: u32) -> Vec<PlanStep> {
+    vec![
+        per_file(select(
+            StepInput::Relation(Relation::Function),
+            vec![compared(Test::Equal, 1, text("noqa"))],
+        )),
+        per_file(first_column(StepInput::Step(StepId(at)))),
+        per_file(select(StepInput::Step(StepId(at + 1)), Vec::new())),
+        per_file(Operation::Union {
+            left: StepInput::Step(StepId(at + 1)),
+            right: StepInput::Step(StepId(at + 2)),
+        }),
+    ]
+}
+
+/// A rule's own steps from step `at`: a select of the functions named `name`, then `projections` projections, each of the step
+/// before it.
+fn own_steps(at: u32, name: &str, projections: u32) -> Vec<PlanStep> {
+    std::iter::once(per_file(select(
+        StepInput::Relation(Relation::Function),
+        vec![compared(Test::Equal, 1, text(name))],
+    )))
+    .chain(
+        (at..at + projections)
+            .map(|before| per_file(first_column(StepInput::Step(StepId(before))))),
+    )
+    .collect()
+}
+
+/// The union of a rule's steps `left` and `right`.
+fn union_of(left: u32, right: u32) -> PlanStep {
+    per_file(Operation::Union {
+        left: StepInput::Step(StepId(left)),
+        right: StepInput::Step(StepId(right)),
+    })
 }
 
 /// The rules of `request`, each with what its parameter is bound to.
@@ -254,6 +298,35 @@ pub(super) fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding
                 unbound(),
             )]
         }
+        Request::SharedFragment => {
+            // B008-shaped: its own select and projection (steps 0-1), then the fragment's select and projection (steps 2-3).
+            let first: Vec<PlanStep> = own_steps(0, "b008", 1)
+                .into_iter()
+                .chain(fragment(2).into_iter().take(2))
+                .chain(std::iter::once(union_of(1, 3)))
+                .collect();
+            // B006-shaped: the fragment's select and projection (steps 0-1), then its own select and projection (steps 2-3).
+            let second: Vec<PlanStep> = fragment(0)
+                .into_iter()
+                .take(2)
+                .chain(own_steps(2, "b006", 1))
+                .chain(std::iter::once(union_of(3, 1)))
+                .collect();
+            vec![
+                (plan(first, Vec::new()), unbound()),
+                (plan(second, Vec::new()), unbound()),
+            ]
+        }
+        Request::SharedFragmentAfterOwnSteps => (1..=6u32)
+            .map(|own| {
+                let steps: Vec<PlanStep> = own_steps(0, &format!("rule{own}"), own)
+                    .into_iter()
+                    .chain(fragment(own + 1))
+                    .chain(std::iter::once(union_of(own, own + 4)))
+                    .collect();
+                (plan(steps, Vec::new()), unbound())
+            })
+            .collect(),
         Request::SharedReads => vec![(
             plan(
                 vec![
