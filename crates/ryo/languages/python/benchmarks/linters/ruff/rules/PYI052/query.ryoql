@@ -1,7 +1,8 @@
 import observation_matches from "python/ruff/suppress-matches";
 import enum_bases from "python/ruff/enum-bases";
 
-let stub_files = select path as file from "filesystem.file" where ends_with(path, ".pyi");
+let stub_files_rows = select path as file from "filesystem.file" where ends_with(path, ".pyi");
+let stub_files = project(from=stub_files_rows, columns=["file"]);
 let assignment_targets = select parent as assignment, child as target, file from "semantic-child" where field = "targets";
 let multi_target_pairs = select l.assignment as assignment, l.file as file from assignment_targets as l join assignment_targets as r on l.assignment = r.assignment and l.file = r.file where l.target != r.target;
 let single_targets = antijoin(left=assignment_targets, right=multi_target_pairs, left-on=["assignment", "file"], right-on=["assignment", "file"]);

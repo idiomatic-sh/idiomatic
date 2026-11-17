@@ -250,7 +250,7 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
     ),
     (
         "binding-event-positive",
-        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-event\" as r on l.file = r.file; emit rows subject file key(span);",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let present = select file from \"binding-event\"; let present_files = project(from=present, columns=[\"file\"]); let rows = select l.id as id, l.file as file, l.span as span from variables as l join present_files as r on l.file = r.file; emit rows subject file key(span);",
     ),
     (
         "binding-event-negative",
@@ -258,7 +258,7 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
     ),
     (
         "binding-read-positive",
-        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-read\" as r on l.file = r.file; emit rows subject file key(span);",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let present = select file from \"binding-read\"; let present_files = project(from=present, columns=[\"file\"]); let rows = select l.id as id, l.file as file, l.span as span from variables as l join present_files as r on l.file = r.file; emit rows subject file key(span);",
     ),
     (
         "binding-read-negative",
@@ -266,7 +266,7 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
     ),
     (
         "binding-use-positive",
-        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-use\" as r on l.file = r.file; emit rows subject file key(span);",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let present = select file from \"binding-use\"; let present_files = project(from=present, columns=[\"file\"]); let rows = select l.id as id, l.file as file, l.span as span from variables as l join present_files as r on l.file = r.file; emit rows subject file key(span);",
     ),
     (
         "binding-use-negative",
@@ -274,7 +274,7 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
     ),
     (
         "binding-shadow-positive",
-        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"binding-shadow\" as r on l.file = r.file; emit rows subject file key(span);",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let present = select file from \"binding-shadow\"; let present_files = project(from=present, columns=[\"file\"]); let rows = select l.id as id, l.file as file, l.span as span from variables as l join present_files as r on l.file = r.file; emit rows subject file key(span);",
     ),
     (
         "binding-shadow-negative",
@@ -282,7 +282,7 @@ const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
     ),
     (
         "implicit-symbol-positive",
-        "let variables = select * from \"defines\" where kind = \"variable\"; let rows = select l.id as id, l.file as file, l.span as span from variables as l join \"implicit-symbol\" as r on l.file = r.file; emit rows subject file key(span);",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let present = select file from \"implicit-symbol\"; let present_files = project(from=present, columns=[\"file\"]); let rows = select l.id as id, l.file as file, l.span as span from variables as l join present_files as r on l.file = r.file; emit rows subject file key(span);",
     ),
     (
         "implicit-symbol-negative",

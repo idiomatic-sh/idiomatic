@@ -213,3 +213,9 @@ name = "nested-compare"
 comparison = "full"
 files = { "case.py" = "(value is []) is other\n" }
 expected = [{ rule = "F632", file = "case.py", start = 1, end = 12 }]
+
+[[cases]]
+name = "ownline-ignore-next-code-tokens-tied"
+comparison = "full"
+files = { "case.py" = "y = [\n    # ruff: ignore[F632]\n    x is \"a\" and (\n        x is \"b\"),\n]\n" }
+expected = [{ rule = "F632", file = "case.py", start = 58, end = 66 }]

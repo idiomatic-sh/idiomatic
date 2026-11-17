@@ -9,7 +9,7 @@ let indents = select id, file, indentation as span, line from lines;
 let positions = span-bounds(from=indents, span="span", start-output="begin", end-output="finish");
 let strings = source_string_tokens();
 let string_positions = span-bounds(from=strings, span="span", start-output="begin", end-output="finish");
-let quoted = select l.id as id, l.file as file, l.span as span from positions as l join string_positions as r on l.file = r.file where l.begin >= r.begin and l.finish <= r.finish;
+let quoted = select l.id as id, l.file as file, l.span as span from positions as l all-pairs join string_positions as r on l.file = r.file where l.begin >= r.begin and l.finish <= r.finish;
 let candidates = antijoin(left=indents, right=quoted, left-on=[id, file, span], right-on=[id, file, span]);
 let mappings = noqa_line_map();
 let locations = noqa_locations(candidates=candidates, mappings=mappings);

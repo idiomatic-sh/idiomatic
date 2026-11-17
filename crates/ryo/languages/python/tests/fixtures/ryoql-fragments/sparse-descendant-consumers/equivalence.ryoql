@@ -24,8 +24,8 @@ let modules = select id, file, span from "semantic-syntax" where kind = "module"
 let totals = group-count(from=new_names, keys=["file"], count="count");
 let wrong_totals = select file from totals where count != 12;
 let missing_totals = antijoin(left=modules, right=totals, left-on=["file"], right-on=["file"]);
-let mismatched_files = select l.id as id, l.file as file, l.span as span from modules as l join mismatches as r on l.file = r.file;
-let wrong_files = select l.id as id, l.file as file, l.span as span from modules as l join wrong_totals as r on l.file = r.file;
+let mismatched_files = select l.id as id, l.file as file, l.span as span from modules as l all-pairs join mismatches as r on l.file = r.file;
+let wrong_files = select l.id as id, l.file as file, l.span as span from modules as l all-pairs join wrong_totals as r on l.file = r.file;
 let bad_counts = union(left=wrong_files, right=missing_totals);
 let name_violations = union(left=mismatched_files, right=bad_counts);
 
@@ -47,6 +47,6 @@ let await_old_only = antijoin(left=old_await_counts, right=new_await_counts, lef
 let await_new_only = antijoin(left=new_await_counts, right=old_await_counts, left-on=["root", "file", "tag", "node", "count"], right-on=["root", "file", "tag", "node", "count"]);
 let await_mismatches = union(left=await_old_only, right=await_new_only);
 let endpoint_mismatches = union(left=all_mismatches, right=await_mismatches);
-let endpoint_files = select l.id as id, l.file as file, l.span as span from modules as l join endpoint_mismatches as r on l.file = r.file;
+let endpoint_files = select l.id as id, l.file as file, l.span as span from modules as l all-pairs join endpoint_mismatches as r on l.file = r.file;
 let violations = union(left=name_violations, right=endpoint_files);
 emit violations subject file key(id);

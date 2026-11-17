@@ -57,7 +57,7 @@ let left_spans = select l.binop as binop, r."end-byte" as boundary, l.file as fi
 let right_spans = select l.binop as binop, r."start-byte" as boundary, l.file as file from rights as l join "source-location" as r on l.child = r.id and l.file = r.file;
 let operand_bounds = select l.binop as binop, l.boundary as left_end, r.boundary as right_start, l.file as file from left_spans as l join right_spans as r on l.binop = r.binop and l.file = r.file;
 let pipe_tokens = select l.id as token, r."start-byte" as start, r."end-byte" as end, r.file as file from "syntax-tree" as l join "source-location" as r on l.id = r.id where l.text = "|";
-let pipe_binops = select l.binop as id, l.file as file from operand_bounds as l join pipe_tokens as r on l.file = r.file where r.start >= l.left_end and r.end <= l.right_start;
+let pipe_binops = select l.binop as id, l.file as file from operand_bounds as l all-pairs join pipe_tokens as r on l.file = r.file where r.start >= l.left_end and r.end <= l.right_start;
 let pipe_lefts = select l.id as parent, r.child as child, l.file as file from pipe_binops as l join lefts as r on l.id = r.binop and l.file = r.file;
 let pipe_rights = select l.id as parent, r.child as child, l.file as file from pipe_binops as l join rights as r on l.id = r.binop and l.file = r.file;
 let pipes = union(left=pipe_lefts, right=pipe_rights);

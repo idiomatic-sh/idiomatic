@@ -18,7 +18,7 @@ let first_constant_values = select l.module as module, l.id as statement, c.id a
 let first_constant_ranges = select l.module as module, l.statement as statement, l.file as file, r."start-byte" as begin, r."end-byte" as finish from first_constant_values as l join "source-location" as r on l.constant = r.id;
 let ordinary_string_tokens = select id, file from "syntax-tree" where kind = "string" and matches(text, "(?i)^[ru]*(?:\x22\x22\x22|'\x27\x27\x27|\x22|'\x27)");
 let ordinary_string_ranges = select l.id as id, l.file as file, r."start-byte" as begin, r."end-byte" as finish from ordinary_string_tokens as l join "source-location" as r on l.id = r.id;
-let docstring_occurrences = select l.statement as id from first_constant_ranges as l join ordinary_string_ranges as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
+let docstring_occurrences = select l.statement as id from first_constant_ranges as l all-pairs join ordinary_string_ranges as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
 let docstring_rows = select id from docstring_occurrences;
 let future_direct_statements = select l.module as module, l.id as id, l.ordinal as ordinal, l.file as file from module_statements as l join future_statements as r on l.id = r.id and l.file = r.file;
 let nested_future_statements = antijoin(left=future_statements,right=module_statements,left-on=["id","file"],right-on=["id","file"]);

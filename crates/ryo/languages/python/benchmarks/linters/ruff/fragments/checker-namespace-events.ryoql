@@ -39,7 +39,8 @@ let body_evaluation_roots = select id, scope as owner, file from scope_body_root
 let evaluation_roots = union(left=body_evaluation_roots,right=type_scope_roots);
 let nearest_evaluations = axis(from=all_raw_namespace_events,relation="semantic-child",direction=nearest-ancestor,domain=evaluation_roots);
 let stub_type_roots = select id, file from type_scope_roots where matches(file, "\.pyi$");
-let future_files = select file from "static-import" where target = "__future__.annotations";
+let future_files_rows = select file from "static-import" where target = "__future__.annotations";
+let future_files = project(from=future_files_rows, columns=["file"]);
 let future_function_type_roots = select l.id as id, l.file as file from function_type_roots as l join future_files as r on l.file = r.file;
 let deferred_type_roots = union(left=stub_type_roots, right=future_function_type_roots);
 let active_initial_type_roots = antijoin(left=type_scope_roots, right=deferred_type_roots, left-on=["id", "file"], right-on=["id", "file"]);

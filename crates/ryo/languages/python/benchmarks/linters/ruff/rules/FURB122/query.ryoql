@@ -61,7 +61,7 @@ let loop_scopes = axis(from=shaped_loops, relation="semantic-child", direction=n
 let scoped_loops = select l.loop as loop, l.phase as phase, l.ordinal as ordinal, l.start as start, l.end as end, r.related as initial_scope, l.file as file from loop_ranges as l join loop_scopes as r on l.loop = r.id and l.file = r.file;
 let all_events = select occurrence as id, phase, ordinal, file from "binding-event";
 let event_locations = select l.id as id, l.phase as phase, l.ordinal as ordinal, l.file as file, r."start-byte" as start, r."end-byte" as end from all_events as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let prior_events = select l.loop as context, l.initial_scope as initial_scope, l.file as file, r.ordinal as point from scoped_loops as l join event_locations as r on l.file = r.file where r.ordinal < l.ordinal and (r.phase != l.phase or r.end <= l.start);
+let prior_events = select l.loop as context, l.initial_scope as initial_scope, l.file as file, r.ordinal as point from scoped_loops as l all-pairs join event_locations as r on l.file = r.file where r.ordinal < l.ordinal and (r.phase != l.phase or r.end <= l.start);
 let zero_prior_rows = select loop as context, initial_scope, file from scoped_loops;
 let zero_prior = extend(from=zero_prior_rows, values={point: 0});
 let all_prior = union(left=prior_events, right=zero_prior);
@@ -85,7 +85,7 @@ let assignment_symbols = modernization_symbols(expressions=attribute_targets);
 let checking_attribute_writes = select l.id as id, l.file as file from attribute_targets as l join assignment_symbols as r on l.id = r.id and l.file = r.file where r.kind = "type-checking";
 let write_locations = select l.id as id, r."end-byte" as end, l.file as file from checking_attribute_writes as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let guard_locations = select l.guard as guard, l.file as file, r."start-byte" as start from recognized_false_guards as l join "source-location" as r on l.test = r.id and l.file = r.file;
-let tainted_guards = select l.guard as guard, l.file as file from guard_locations as l join write_locations as r on l.file = r.file where r.end <= l.start;
+let tainted_guards = select l.guard as guard, l.file as file from guard_locations as l nearest join write_locations as r on l.file = r.file where r.end <= l.start;
 let false_guards0 = select guard, file from recognized_false_guards;
 let false_guards = antijoin(left=false_guards0, right=tainted_guards, left-on=["guard","file"], right-on=["guard","file"]);
 let false_guard_bodies = select r.child as id, l.file as file from false_guards as l join "semantic-child" as r on l.guard = r.parent and l.file = r.file where r.field = "body";

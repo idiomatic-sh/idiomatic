@@ -108,7 +108,7 @@ let bad_decorator_gaps = select l.id as id, l.file as file from before_declarati
 let decorator_lists = select parent as declaration, child as list, file from "semantic-child" where field = "decorator-list";
 let decorator_items = select l.declaration as declaration, r.child as decorator, l.file as file from decorator_lists as l join "semantic-child" as r on l.list = r.parent and l.file = r.file;
 let decorator_ranges = select l.declaration as declaration, l.decorator as decorator, l.file as file, r."start-byte" as start, r."end-byte" as end, r."start-column" as column from decorator_items as l join "source-location" as r on l.decorator = r.id and l.file = r.file;
-let after_decorators = select l.id as id, r.declaration as declaration, l.start as start, l.file as file from own_switches as l join decorator_ranges as r on l.file = r.file where l.start >= r.end and l.column <= r.column;
+let after_decorators = select l.id as id, r.declaration as declaration, l.start as start, l.file as file from own_switches as l all-pairs join decorator_ranges as r on l.file = r.file where l.start >= r.end and l.column <= r.column;
 let before_names = select l.id as id, l.declaration as declaration, l.file as file, l.start as start from after_decorators as l join name_starts as r on l.declaration = r.declaration and l.file = r.file where l.start < r.start;
 let inside_decorators = select l.id as id, l.declaration as declaration, l.file as file from before_names as l join decorator_ranges as r on l.declaration = r.declaration and l.file = r.file where l.start >= r.start and l.start < r.end;
 let full_decorator_gaps = antijoin(left=before_names, right=inside_decorators, left-on=["id","declaration","file"], right-on=["id","declaration","file"]);

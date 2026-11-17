@@ -28,7 +28,7 @@ let regions = span-between(from=ends, start="stops_span", end="head_span", outpu
 let region_bounds = span-bounds(from=regions, span="region", start-output="begin", end-output="finish");
 let blank_runs = select id, file, span from "syntax-tree" where kind = "whitespace" and matches(text, "\n[ \t\r]*\n");
 let run_bounds = span-bounds(from=blank_runs, span="span", start-output="begin", end-output="finish");
-let item_runs = select l.owner as owner, l.head as head, r.span as span, r.begin as run_begin, l.file as file from region_bounds as l join run_bounds as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
+let item_runs = select l.owner as owner, l.head as head, r.span as span, r.begin as run_begin, l.file as file from region_bounds as l all-pairs join run_bounds as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
 let segments = source-matches(from=item_runs, span="span", pattern="(?P<line>[^\n]*)\n", output="segment", capture="line", capture-output="line_span");
 let line_bounds = span-bounds(from=segments, span="line_span", start-output="line_begin", end-output="line_end");
 let candidate_lines = select owner, head, file, line_span, line_begin, line_end from line_bounds where line_begin > run_begin;

@@ -63,7 +63,8 @@ let annotated_typevar_names = select l.function as function, l.class as class, l
 let new_typevars = select id as binding, name as name, owner as function, file from "defines" where refinement = "type-var";
 let own_type_parameters = select l.function as function, l.typevar as typevar, l.file as file from annotated_typevar_names as l join new_typevars as r on l.name = r.name and l.function = r.function and l.file = r.file;
 let stub_annotations = select function, typevar, file from annotated_typevar_names where matches(file, "\.pyi$");
-let future_annotations = select file from "static-import" where target = "__future__.annotations";
+let future_annotations_rows = select file from "static-import" where target = "__future__.annotations";
+let future_annotations = project(from=future_annotations_rows, columns=["file"]);
 let future_method_annotations = select l.function as function, l.typevar as typevar, l.file as file from annotated_typevar_names as l join future_annotations as r on l.file = r.file;
 let embedded_annotation_axes = axis(from=names, relation="semantic-child", direction=ancestor, domain=names);
 let embedded_roots = select root as id, file from "embedded-expression";
@@ -110,7 +111,10 @@ let typevar_methods = union(left=old_typevar_methods, right=new_typevar_methods)
 let module_event_ordinals = select l.id as initial_scope, l.file as file, r.ordinal as point from modules as l join "binding-event" as r on l.id = r.scope and l.file = r.file;
 let prior_module_ordinals = select l.initial_scope as initial_scope, l.point as point, l.file as file from module_event_ordinals as l join module_event_ordinals as r on l.initial_scope = r.initial_scope and l.file = r.file where l.point < r.point;
 let last_module_ordinals = antijoin(left=module_event_ordinals, right=prior_module_ordinals, left-on=["initial_scope", "point", "file"], right-on=["initial_scope", "point", "file"]);
-let ordered_contexts = select l.function as context, r.initial_scope as initial_scope, r.point as point, l.file as file from typevar_methods as l join last_module_ordinals as r on l.file = r.file;
+let typevar_method_nodes = select function as id, file from typevar_methods;
+let typevar_method_modules = axis(from=typevar_method_nodes, relation="semantic-child", direction=nearest-ancestor, domain=modules);
+let typevar_method_scopes = select l.function as function, r.related as module, l.file as file from typevar_methods as l join typevar_method_modules as r on l.function = r.id and l.file = r.file;
+let ordered_contexts = select l.function as context, r.initial_scope as initial_scope, r.point as point, l.file as file from typevar_method_scopes as l join last_module_ordinals as r on l.module = r.initial_scope and l.file = r.file;
 let contextual_class_bases = class_bases(ordered_contexts=ordered_contexts);
 let metaclass_root_classes = select function as context, class, file from typevar_methods;
 let metaclass_mode_rows = extend(from=ordered_contexts, values={mode: 1});

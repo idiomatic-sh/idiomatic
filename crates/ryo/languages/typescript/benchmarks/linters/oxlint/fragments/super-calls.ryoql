@@ -1,6 +1,7 @@
 input scope: relation<file: file>;
 output relation<call: node, super: node, file: file, span: span>;
-let supers = select l.id as id from "semantic-syntax" as l join scope as r on l.file = r.file where l.kind = "super";
+let scope_files = project(from=scope, columns=["file"]);
+let supers = select l.id as id from "semantic-syntax" as l join scope_files as r on l.file = r.file where l.kind = "super";
 let callees = select l.parent as call, l.child as super from "semantic-child" as l join supers as r on l.child = r.id where l.field = "callee";
 let calls = select l.call as call, l.super as super, r.file as file, r.span as span from callees as l join "semantic-syntax" as r on l.call = r.id where r.kind = "call-expression";
 return calls;

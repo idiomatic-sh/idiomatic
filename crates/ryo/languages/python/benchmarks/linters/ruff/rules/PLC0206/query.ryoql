@@ -46,7 +46,8 @@ let loop_events0 = select l.loop as loop, r.ordinal as point, r.phase as phase, 
 let loop_events = select l.loop as loop, l.point as point, l.file as file from loop_events0 as l join iteration_phases as r on l.loop = r.loop and l.phase = r.phase and l.file = r.file;
 let older_loop_points = select l.loop as loop, l.point as point, l.file as file from loop_events as l join loop_events as r on l.loop = r.loop and l.file = r.file where l.point < r.point;
 let final_loop_points = antijoin(left=loop_events, right=older_loop_points, left-on=["loop", "point", "file"], right-on=["loop", "point", "file"]);
-let file_event_points = select ordinal as point, file from "binding-event";
+let file_event_points_rows = select ordinal as point, file from "binding-event";
+let file_event_points = project(from=file_event_points_rows, columns=["point", "file"]);
 let older_file_points = ordered-match(left=file_event_points, right=file_event_points, left-on=["file"], right-on=["file"], left-order="point", right-order="point", output={point:[left,point],file:[left,file]});
 let final_file_points = antijoin(left=file_event_points, right=older_file_points, left-on=["point", "file"], right-on=["point", "file"]);
 let loop_context_points = select l.loop as context, r.point as point, r.point as header_point, l.initial_scope as initial_scope, l.file as file from loop_scopes as l join final_file_points as r on l.file = r.file;
@@ -80,10 +81,10 @@ let current_origins = qualified_origins(symbol_contexts=loop_contexts, expressio
 let current_dict_origins = select context, expression, file from current_origins where path = "builtins.dict";
 let builtin_imports = select occurrence as binding, file from "static-import" where target = "builtins" or starts_with(target, "builtins.");
 let builtin_import_events = select l.binding as binding, r.ordinal as point, l.file as file from builtin_imports as l join "binding-event" as r on l.binding = r.occurrence and l.file = r.file where r.kind = "bind";
-let seen_builtin_contexts = select l.context as context, l.file as file from loop_contexts as l join builtin_import_events as r on l.file = r.file where r.point <= l.point;
+let seen_builtin_contexts = select l.context as context, l.file as file from loop_contexts as l nearest join builtin_import_events as r on l.file = r.file where r.point <= l.point;
 let fast_dict_origins = antijoin(left=current_dict_origins, right=seen_builtin_contexts, left-on=["context", "file"], right-on=["context", "file"]);
 let cached_dict_names = select id as expression, file from "qualified-name" where path = "builtins.dict";
-let slow_dict_origins = select l.context as context, r.expression as expression, l.file as file from seen_builtin_contexts as l join cached_dict_names as r on l.file = r.file;
+let slow_dict_origins = select l.context as context, r.expression as expression, l.file as file from seen_builtin_contexts as l all-pairs join cached_dict_names as r on l.file = r.file;
 let dict_origins = union(left=fast_dict_origins, right=slow_dict_origins);
 let constructor_bindings = select l.binding as binding, r.context as context, l.file as file from constructor_values as l join dict_origins as r on l.expression = r.expression and l.file = r.file;
 let builtin_annotation_bindings = select l.binding as binding, r.context as context, l.file as file from annotation_expressions as l join dict_origins as r on l.expression = r.expression and l.file = r.file;
@@ -126,7 +127,7 @@ let loop_locations = select l.id as id, l.iter as iter, l.target as target, r."s
 let target_locations = select l.id as id, l.iter as iter, l.target as target, l.loop_start as loop_start, r."start-byte" as target_start, r.span as target_span, r."start-line" as line, l.file as file from loop_locations as l join locations as r on l.target = r.id and l.file = r.file;
 let opening_tokens = select id, file from "syntax-tree" where text = "(";
 let opening_locations = select l.id as token, r."start-byte" as position, r.span as span, r."start-line" as line, l.file as file from opening_tokens as l join locations as r on l.id = r.id and l.file = r.file;
-let target_openings = select l.id as id, l.iter as iter, r.token as token, r.position as position, r.span as target_span, r.line as line, l.file as file from target_locations as l join opening_locations as r on l.file = r.file where r.position >= l.loop_start and r.position < l.target_start;
+let target_openings = select l.id as id, l.iter as iter, r.token as token, r.position as position, r.span as target_span, r.line as line, l.file as file from target_locations as l all-pairs join opening_locations as r on l.file = r.file where r.position >= l.loop_start and r.position < l.target_start;
 let later_openings = select l.id as id, l.token as token, l.file as file from target_openings as l join target_openings as r on l.id = r.id and l.file = r.file where r.position < l.position;
 let first_openings0 = antijoin(left=target_openings, right=later_openings, left-on=["id", "token", "file"], right-on=["id", "token", "file"]);
 let first_openings = select id, iter, target_span, line, file from first_openings0;

@@ -10,7 +10,7 @@ let comments = select id, file, span from "comment";
 let pragma_comments = source-matches(from=comments, span="span", pattern="#[^\S\r\n]*(?:(?i:noqa)(?:$|\s|:)|type:[^\S\r\n]*ignore).*", output="pragma_span");
 let pragma_positions = span-bounds(from=pragma_comments, span="pragma_span", start-output="begin", end-output="finish");
 let pragma_points = source-matches(from=pragma_positions, span="pragma_span", pattern="^", output="point");
-let pragma_lines = select l.id as id, l.file as file, l.span as span, l.line as line, r.point as point from line_positions as l join pragma_points as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
+let pragma_lines = select l.id as id, l.file as file, l.span as span, l.line as line, r.point as point from line_positions as l all-pairs join pragma_points as r on l.file = r.file where r.begin >= l.begin and r.finish <= l.finish;
 let prefixes = span-between(from=pragma_lines, start="span", end="point", output="prefix_span");
 let trimmed = source-matches(from=prefixes, span="prefix_span", pattern="(?s)^(?P<body>.*\S)[ \t]*$", output="prefix_whole", capture="body", capture-output="body_span", capture-text-output="body_text");
 let normal_lines = antijoin(left=raw_lines, right=pragma_lines, left-on=[id, file, span], right-on=[id, file, span]);

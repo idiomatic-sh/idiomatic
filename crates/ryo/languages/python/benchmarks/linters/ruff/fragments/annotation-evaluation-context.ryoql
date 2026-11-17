@@ -34,11 +34,13 @@ let membership_axes = axis(from=expressions, relation="semantic-child", directio
 let nested_members = select id, related as root, file from membership_axes;
 let self_members = select l.id as id, r.id as root, l.file as file from expressions as l join annotation_roots as r on l.id = r.id and l.file = r.file;
 let members = union(left=nested_members, right=self_members);
-let known_files = select file from "compiler-feature" where feature = "python.future-annotations";
+let known_files_rows = select file from "compiler-feature" where feature = "python.future-annotations";
+let known_files = project(from=known_files_rows, columns=["file"]);
 let input_files = select id, file from expressions;
 let future_members = future_context(expressions=input_files);
-let enabled_files = select file from future_members;
-let disabled_files = select file from "compiler-feature" where feature = "python.future-annotations" and enabled = "false";
+let enabled_files = project(from=future_members, columns=["file"]);
+let disabled_files_rows = select file from "compiler-feature" where feature = "python.future-annotations" and enabled = "false";
+let disabled_files = project(from=disabled_files_rows, columns=["file"]);
 let native_files = select file from "language-target" where major = 3 and minor >= 14;
 let immediate_files = select file from "language-target" where major = 3 and minor < 14;
 let postponed_roots = select l.id as root, l.file as file from stored_roots as l join enabled_files as r on l.file = r.file;

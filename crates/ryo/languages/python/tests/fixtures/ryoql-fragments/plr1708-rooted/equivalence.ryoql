@@ -24,6 +24,6 @@ let mismatches = union(left=old_only, right=new_only);
 let modules = select id, file, span from nodes where kind = "module";
 let totals = group-count(from=new_nodes, keys=["file"], count="count");
 let missing = antijoin(left=modules, right=totals, left-on=["file"], right-on=["file"]);
-let wrong = select l.id as id, l.file as file, l.span as span from modules as l join mismatches as r on l.file = r.file;
+let wrong = select l.id as id, l.file as file, l.span as span from modules as l all-pairs join mismatches as r on l.file = r.file;
 let violations = union(left=wrong, right=missing);
 emit violations subject file key(id);

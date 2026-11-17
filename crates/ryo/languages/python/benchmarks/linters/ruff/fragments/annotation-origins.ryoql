@@ -35,7 +35,8 @@ let string_hosts = select id, file from "literal-properties" where kind = "strin
 let embedded_roots = axis(from=root_names, relation="semantic-child", direction=ancestor, domain=string_hosts);
 let embedded_names = select id, file from embedded_roots;
 let deferred_names = union(left=deferred0, right=embedded_names);
-let ordinals = select ordinal as point, file from "binding-event";
+let ordinals_rows = select ordinal as point, file from "binding-event";
+let ordinals = project(from=ordinals_rows, columns=["point", "file"]);
 let earlier_ordinals = select l.point as point, l.file as file from ordinals as l join ordinals as r on l.file = r.file where l.point < r.point;
 let final_ordinals = antijoin(left=ordinals, right=earlier_ordinals, left-on=["point","file"], right-on=["point","file"]);
 let lexical_reads = select reference as id, scope, file from "binding-read";

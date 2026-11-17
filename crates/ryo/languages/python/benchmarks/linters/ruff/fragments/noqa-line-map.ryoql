@@ -3,7 +3,7 @@ let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind =
 let continued = select id from "syntax-tree" where kind = "whitespace" and matches(text, "\\(?:\r\n|\r|\n)");
 let mapped_tokens = union(left=quoted, right=continued);
 let mapping_ranges = select l.id as id, r.file as file, r."start-line" as line, r."end-line" as endline from mapped_tokens as l join "source-location" as r on l.id = r.id where r."start-line" < r."end-line";
-let mapping_edges = select l.id as origin, r.id as destination from mapping_ranges as l join mapping_ranges as r on l.file = r.file where l.line <= r.endline and r.line <= l.endline and l.endline < r.endline;
+let mapping_edges = select l.id as origin, r.id as destination from mapping_ranges as l all-pairs join mapping_ranges as r on l.file = r.file where l.line <= r.endline and r.line <= l.endline and l.endline < r.endline;
 let mapping_paths = closure(edges=mapping_edges, source="origin", destination="destination");
 let reachable_ranges = select l.origin as id, r.endline as endline from mapping_paths as l join mapping_ranges as r on l.destination = r.id;
 let initial_ranges = select id, endline from mapping_ranges;

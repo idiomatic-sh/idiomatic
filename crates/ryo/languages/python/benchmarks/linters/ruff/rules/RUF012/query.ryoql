@@ -54,7 +54,9 @@ let base_names = select l.class as child, r.name as name, l.file as file from in
 let module_nodes = select id, file from "semantic-syntax" where kind = "module";
 let module_events = select l.occurrence as occurrence, l.name as name, l.scope as scope, l.phase as phase, l.ordinal as ordinal, l.file as file from "binding-event" as l join module_nodes as r on l.scope = r.id and l.phase = r.id and l.file = r.file where l.kind = "bind" or l.kind = "delete" or l.kind = "cleanup";
 let module_event_keys = select scope, phase, name, file, ordinal from module_events;
-let base_name_rows = select l.name as name, r.id as scope, r.id as phase, l.file as file from base_names as l join module_nodes as r on l.file = r.file;
+let base_name_children = select child as id, file from base_names;
+let base_name_modules = axis(from=base_name_children, relation="semantic-child", direction=nearest-ancestor, domain=module_nodes);
+let base_name_rows = select l.name as name, r.related as scope, r.related as phase, l.file as file from base_names as l join base_name_modules as r on l.child = r.id and l.file = r.file;
 let base_name_groups = group-count(from=base_name_rows, keys=["scope", "phase", "name", "file"], count="uses");
 let base_name_keys = select scope, phase, name, file from base_name_groups;
 let module_end_probes = extend(from=base_name_keys, values={ordinal: 2147483647});

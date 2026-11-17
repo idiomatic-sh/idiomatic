@@ -8,6 +8,7 @@ let top_named = select l.id as id, l.file as file from top_level as l join named
 let top_filled = select l.file as file from top_named as l join filled as r on l.id = r.id;
 let top_others = select l.file as file from top_level as l join "semantic-syntax" as r on l.id = r.id where r.kind = "export-all-declaration" or r.kind = "export-default-declaration";
 let exporting = union(left=top_filled, right=top_others);
-let found = select l.id as id, l.file as file, l.span as span from empty as l join exporting as r on l.file = r.file;
+let exporting_files = project(from=exporting, columns=["file"]);
+let found = select l.id as id, l.file as file, l.span as span from empty as l join exporting_files as r on l.file = r.file;
 let violations = directives(candidates=found, names="(?:^|,)(?:[^,]*/)?no-useless-empty-export(?:,|$)");
 emit violations subject file key(id);

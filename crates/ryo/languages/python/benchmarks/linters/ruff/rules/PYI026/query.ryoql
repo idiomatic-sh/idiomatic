@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
-let stub_files = select path as file from "filesystem.file" where ends_with(path, ".pyi");
+let stub_files_rows = select path as file from "filesystem.file" where ends_with(path, ".pyi");
+let stub_files = project(from=stub_files_rows, columns=["file"]);
 let assignments = select l.id as id, l.file as file from "semantic-syntax" as l join stub_files as r on l.file = r.file where l.kind = "assign";
 let targets = select l.parent as assignment, l.child as target, l.file as file from "semantic-child" as l join assignments as r on l.parent = r.id and l.file = r.file where l.field = "targets";
 let target_names = select l.target as id, l.file as file from targets as l join "identifier" as r on l.target = r.id and l.file = r.file;
