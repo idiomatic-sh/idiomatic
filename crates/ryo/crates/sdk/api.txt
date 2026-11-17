@@ -74,6 +74,7 @@ pub use ryo::languages::DiagnosticPhase
 pub use ryo::languages::Directive
 pub use ryo::languages::DirectiveColumn
 pub use ryo::languages::DirectiveRow
+pub use ryo::languages::EdgeOrdinal
 pub use ryo::languages::ElementOrigin
 pub use ryo::languages::Elements
 pub use ryo::languages::EmbeddedExpression
@@ -123,7 +124,6 @@ pub use ryo::languages::FlowBlockFact
 pub use ryo::languages::FlowBlockRow
 pub use ryo::languages::FlowEdge
 pub use ryo::languages::FlowEdgeColumn
-pub use ryo::languages::EdgeOrdinal
 pub use ryo::languages::FlowEdgeFact
 pub use ryo::languages::FlowEdgeKind
 pub use ryo::languages::FlowEdgeRow
@@ -1007,6 +1007,8 @@ impl core::marker::StructuralPartialEq for ryo::linter::LintRequest
 pub struct ryo::linter::lint::types::Linter(_)
 impl ryo::linter::Linter
 pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache) -> Self
+impl ryo::linter::Linter
+pub fn ryo::linter::Linter::prepare(&self, &alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>, &[ryo::linter::HostRelation]) -> core::result::Result<(), ryo::linter::LintError>
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct ryo::linter::lint::types::Message(pub alloc::boxed::Box<str>)
@@ -1861,6 +1863,8 @@ impl core::marker::StructuralPartialEq for ryo::linter::LintRequest
 pub struct ryo::linter::Linter(_)
 impl ryo::linter::Linter
 pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache) -> Self
+impl ryo::linter::Linter
+pub fn ryo::linter::Linter::prepare(&self, &alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>, &[ryo::linter::HostRelation]) -> core::result::Result<(), ryo::linter::LintError>
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct ryo::linter::Message(pub alloc::boxed::Box<str>)
