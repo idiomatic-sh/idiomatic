@@ -48,8 +48,8 @@ pub(crate) fn normalize(root: &Path) -> io::Result<()> {
         .parent()
         .and_then(Path::parent)
         .ok_or_else(|| io::Error::other("the fixture is not at <scratch>/crates/ryo"))?;
-    let source = crate::fixes::root();
-    crate::locks::copy_locks(&source, &source, scratch)?;
+    let repository = crate::fixes::root();
+    crate::locks::copy_locks(&repository, &repository, scratch)?;
     writeln!(
         io::stderr(),
         "BENCH_FIXTURE_VERSION {}",
