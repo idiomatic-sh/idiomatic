@@ -1,0 +1,15 @@
+import code_tokens from "python/ruff/code-tokens";
+import next_token from "python/ruff/next-token";
+output relation<decorator: node, file: file, begin: number>;
+let decorators = select id, file from "syntax-tree" where kind = "decorator";
+let decorator_starts = select l.id as decorator, l.file as file, r."start-byte" as begin from decorators as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let tokens = code_tokens();
+let at_tokens = select id, file from tokens where text = "@";
+let at_starts = select l.id as id, l.file as file, r."start-byte" as begin from at_tokens as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let decorator_ats = select l.decorator as decorator, r.id as id, l.file as file from decorator_starts as l join at_starts as r on l.file = r.file and l.begin = r.begin;
+let at_ids = select id, file from decorator_ats;
+let expression_tokens = select id, file from tokens where text != "" and text != "(";
+let heads = next_token(tokens=at_ids, domain=expression_tokens);
+let head_tokens = select l.decorator as decorator, l.file as file, r.target as id from decorator_ats as l join heads as r on l.id = r.source and l.file = r.file;
+let head_starts = select l.decorator as decorator, l.file as file, r."start-byte" as begin from head_tokens as l join "source-location" as r on l.id = r.id and l.file = r.file;
+return head_starts;
