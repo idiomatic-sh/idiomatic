@@ -233,7 +233,8 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
             let build = probe_build(&buffers.shared.indexes, *index);
             #[cfg(test)]
             if *work == ProbeWork::Pending
-                && build == crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild::Builds
+                && build
+                    == crate::domain::physical_plan::types::shared_index::value::IndexBuild::Builds
             {
                 buffers.builds.0 += 1;
             }

@@ -200,3 +200,15 @@ impl SharedIndexes {
         }
     }
 }
+
+/// Whether a probe builds the index it reads, reads one a probe of the same right rows and key built in this file, or reads
+/// none: the tree it walks is its index.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum IndexBuild {
+    /// It builds the index.
+    Builds,
+    /// The index is built.
+    Built,
+    /// No index: each left row's matches are walked from its node.
+    Walked,
+}

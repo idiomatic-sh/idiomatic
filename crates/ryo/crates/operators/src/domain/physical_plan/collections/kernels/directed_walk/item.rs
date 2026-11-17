@@ -7,7 +7,8 @@ use super::super::hash_index::item::{cells, find_value, keyed_walk};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
-use crate::domain::axis::types::AxisParts;
+use crate::domain::axis::service::keyed_columns;
+use crate::domain::axis::types::{AxisParts, KeyedColumns};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
@@ -72,6 +73,12 @@ pub(crate) struct AxisInputs<'a> {
 pub(crate) struct AxisTables<'s> {
     /// The edges, keyed by parent or child.
     pub(crate) edges: &'s mut KeyedRows,
+    /// Whether the open file already built the edge index.
+    pub(crate) build: crate::domain::physical_plan::types::shared_index::value::IndexBuild,
+    /// Counts actual edge builds in the operator work tests.
+    #[cfg(test)]
+    pub(crate) builds:
+        &'s mut crate::domain::physical_plan::types::worker_meters::value::IndexBuilds,
     /// The domain's entities.
     pub(crate) domain: &'s mut KeyedRows,
     /// The domain filter's decisions.
@@ -123,6 +130,9 @@ pub(crate) fn walked(
     let elements = matches!(mode, Mode::Native { .. });
     let AxisTables {
         edges: index,
+        build,
+        #[cfg(test)]
+        builds,
         domain: members,
         decisions,
     } = tables;
@@ -137,14 +147,23 @@ pub(crate) fn walked(
         }
         Mode::Native { among: Some(_), .. } | Mode::Empty => false,
     };
-    if let Mode::Indexed { from, .. } = mode {
-        cells(
+    if let Mode::Indexed { from, .. } = mode
+        && build == crate::domain::physical_plan::types::shared_index::value::IndexBuild::Builds
+    {
+        #[cfg(test)]
+        {
+            builds.0 += 1;
+        }
+        if let Err(fault) = cells(
             KeyedSide {
                 rows: edges,
                 on: std::slice::from_ref(&from),
             },
             index,
-        )?;
+        ) {
+            index.cleared();
+            return Err(fault);
+        }
     }
     let among_kinds = match mode {
         Mode::Native {
@@ -328,28 +347,6 @@ fn walk_kinds(
         });
     }
     Ok(())
-}
-
-/// The column keyed edges are keyed by, and the one they lead to.
-struct KeyedColumns {
-    /// The key.
-    from: ColumnIndex,
-    /// The far end.
-    to: ColumnIndex,
-}
-
-/// The keyed columns of an axis's edges: from the child to the parent upward, else downward.
-fn keyed_columns(axis: &AxisParts) -> KeyedColumns {
-    let up = matches!(
-        axis.direction,
-        Direction::Parent | Direction::Ancestor | Direction::NearestAncestor
-    );
-    let (from, to) = if up {
-        (axis.child, axis.parent)
-    } else {
-        (axis.parent, axis.child)
-    };
-    KeyedColumns { from, to }
 }
 
 /// The kind of `column` among `kinds`.

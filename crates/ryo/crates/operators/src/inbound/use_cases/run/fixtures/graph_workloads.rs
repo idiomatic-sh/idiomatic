@@ -3,6 +3,7 @@
 use super::{TableInputs, TextResources, emitted};
 use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use crate::domain::physical_plan::types::shared_index::value::IndexBuild;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{
@@ -244,9 +245,7 @@ fn graph_kernels_once(
 ) -> (u64, [RowCount; 4]) {
     use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
     use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
-    use crate::domain::physical_plan::collections::kernels::probe_right::item::{
-        IndexBuild, ProbeScratch,
-    };
+    use crate::domain::physical_plan::collections::kernels::probe_right::item::ProbeScratch;
     use crate::domain::physical_plan::collections::kernels::queued_walk::item::{
         WorklistInputs, worklisted,
     };

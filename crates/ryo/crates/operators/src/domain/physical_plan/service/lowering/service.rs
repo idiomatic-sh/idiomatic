@@ -235,6 +235,7 @@ pub(crate) fn lowered(
                     starts,
                     edges,
                     domain,
+                    index: ProbeIndex::Own,
                     axis: crate::domain::axis::service::lower(
                         crate::domain::axis::types::AxisShape {
                             direction: *direction,

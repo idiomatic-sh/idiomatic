@@ -4,9 +4,11 @@ use crate::domain::append::types::ExtendParts;
 use crate::domain::axis::types::AxisParts;
 use crate::domain::closure::types::ReachParts;
 use crate::domain::cycles::types::CycleParts;
-use crate::domain::equality_join::types::{ProbeParts, SeededJoin};
+use crate::domain::equality_join::types::{ProbeKey, ProbeMode, ProbeParts, SeededJoin};
 use crate::domain::ordered_dfs::types::DfsParts;
-use crate::domain::physical_plan::types::{IndexPlace, ProbeIndex, RowMap, RowSource};
+use crate::domain::physical_plan::types::{
+    IndexIdentity, IndexKey, IndexPlace, IndexReader, ProbeIndex, RowMap, RowSource,
+};
 use crate::domain::project::types::ProjectParts;
 use crate::domain::select::types::SelectParts;
 use crate::domain::worklist::types::WorklistParts;
@@ -96,6 +98,8 @@ pub(crate) enum Lowering {
         edges: RowSource,
         /// The domain rows.
         domain: RowSource,
+        /// The file-local index of the edge rows, when other readers share it.
+        index: ProbeIndex,
         /// The walk.
         axis: AxisParts,
     },
@@ -175,6 +179,80 @@ pub(crate) enum BoundScan {
 }
 
 impl Lowering {
+    /// The unmodified row source and key that this operator can share within one file.
+    pub(crate) fn index_reader(&mut self) -> Option<IndexReader<'_>> {
+        match self {
+            Self::Probe {
+                right,
+                probe,
+                index: slot @ ProbeIndex::Own,
+                ..
+            } if probe.filter.comparisons.is_empty()
+                && !matches!(probe.mode, ProbeMode::Ordered(_)) =>
+            {
+                let key = match &probe.key {
+                    ProbeKey::Columns { right: on, .. } => IndexKey::Cells(on.clone()),
+                    ProbeKey::Whole => IndexKey::Rows,
+                };
+                Some(IndexReader {
+                    identity: IndexIdentity {
+                        source: *right,
+                        key,
+                    },
+                    slot,
+                })
+            }
+            Self::Axis {
+                edges: source @ RowSource::Facts(_),
+                axis,
+                index: slot @ ProbeIndex::Own,
+                ..
+            } => {
+                let key = crate::domain::axis::service::keyed_columns(axis).from;
+                Some(IndexReader {
+                    identity: IndexIdentity {
+                        source: *source,
+                        key: IndexKey::Cells(vec![key]),
+                    },
+                    slot,
+                })
+            }
+            Self::Filter { .. }
+            | Self::Lookup { .. }
+            | Self::Project { .. }
+            | Self::Extend { .. }
+            | Self::Probe { .. }
+            | Self::Distinct { .. }
+            | Self::Group { .. }
+            | Self::Reach { .. }
+            | Self::SeededReach { .. }
+            | Self::Axis { .. }
+            | Self::OrderedWalk { .. }
+            | Self::Worklist { .. }
+            | Self::Components { .. }
+            | Self::TextMap { .. }
+            | Self::OrderedMatch { .. }
+            | Self::Render { .. }
+            | Self::ScanBound { .. }
+            | Self::Unlowered => None,
+        }
+    }
+
+    /// The planned file-local resource to open for this node and close after it runs.
+    pub(crate) fn shared_index(&self) -> Option<IndexPlace> {
+        match self {
+            Self::Axis {
+                index: ProbeIndex::Shared(at),
+                ..
+            }
+            | Self::Probe {
+                index: ProbeIndex::Shared(at),
+                ..
+            } => Some(*at),
+            _ => None,
+        }
+    }
+
     /// The kind of its kernels, as the node counters report it.
     pub(crate) fn kind(
         &self,

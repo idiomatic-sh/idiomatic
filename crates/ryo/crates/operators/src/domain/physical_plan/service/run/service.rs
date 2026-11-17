@@ -278,7 +278,15 @@ pub(super) fn made(
                 other: right_rows,
                 third: third_read.map(rows_in),
             };
-            kernels(lowering, shared, node, inputs, buffers, &mut output)
+            let index = lowering.shared_index();
+            if let Some(at) = index {
+                super::super::indexes::service::opened(plan, buffers, at);
+            }
+            let result = kernels(lowering, shared, node, inputs, buffers, &mut output);
+            if let Some(at) = index {
+                super::super::indexes::service::closed(buffers, at);
+            }
+            result
         }
     };
     for (slot, count) in slots.into_iter().zip(reads) {

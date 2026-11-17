@@ -1,59 +1,33 @@
-//! The probe indexes a plan shares: the planning step that shares one `hash_index` between the probes of one right side and
-//! key, decided once as the plan is built; and each shared index's life in a file, from its first probe to its last.
+//! Plan-time assignment and per-file lifetime of the keyed indexes declared by physical operators.
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
-use crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::row_set::value::RowSet;
+use crate::domain::physical_plan::types::shared_index::value::IndexBuild;
 use crate::domain::physical_plan::types::shared_index::value::{IndexKind, IndexRows, SharedIndex};
 use crate::domain::physical_plan::types::{
-    IndexIdentity, IndexKey, IndexPlace, KeyedIndex, KeyedIndexes, NodeReaders, PlanNodeId,
-    ProbeIndex,
+    IndexIdentity, IndexPlace, KeyedIndex, KeyedIndexes, NodeReaders, PlanNodeId, ProbeIndex,
 };
 
-/// Shares one index between the probes of one right source and key: a planning step, not a rewrite, since an unshared plan
-/// answers the same rows. A probe of whole rows (an intersection's or a difference's) shares a row set, keyed
-/// `IndexKey::Rows`; any other a `hash_index` of its key columns. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
-/// ordered probe, which turns each key's first row into its extremum, and a probe alone on its right source and key; a probe
-/// that walks the tree has no index to share. Run after the rewrites, which change a probe's right rows, key, mode and index.
+/// After rewrites, assigns a shared slot to compatible readers of the same source and key. Single readers keep their own index.
 pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
     let mut keyed = KeyedIndexes::default();
-    for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
-        if let Lowering::Probe {
-            right,
-            probe,
-            index: ProbeIndex::Own,
-            ..
-        } = &node.lowering
-            && probe.filter.comparisons.is_empty()
-            && !matches!(probe.mode, ProbeMode::Ordered(_))
-        {
-            let key = match &probe.key {
-                ProbeKey::Columns { right: on, .. } => IndexKey::Cells(on.clone()),
-                ProbeKey::Whole => IndexKey::Rows,
-            };
-            let _: IndexPlace = read_by(
-                &mut keyed,
-                IndexIdentity {
-                    source: *right,
-                    key,
-                },
-                id,
-            );
-        }
+    for (node, id) in nodes.iter_mut().zip((0..).map(PlanNodeId)) {
+        let Some(reader) = node.lowering.index_reader() else {
+            continue;
+        };
+        let _: IndexPlace = read_by(&mut keyed, reader.identity, id);
     }
     let keyed = keyed.indexes;
     for index in keyed.into_iter().filter(|index| index.readers.len() > 1) {
         let at = IndexPlace(indexes.len());
         for reader in &index.readers {
-            if let Some(Lowering::Probe { index: shared, .. }) = nodes
+            if let Some(binding) = nodes
                 .get_mut(usize::try_from(reader.0).unwrap_or(usize::MAX))
-                .map(|node| &mut node.lowering)
+                .and_then(|node| node.lowering.index_reader())
             {
-                *shared = ProbeIndex::Shared(at);
+                *binding.slot = ProbeIndex::Shared(at);
             }
         }
         indexes.push(index);

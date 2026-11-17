@@ -36,3 +36,11 @@ pub(crate) struct AxisShape<'a> {
     /// The columns of an answer row.
     pub(crate) output: &'a [ryo_values::domain::plan_parts::types::JoinColumn],
 }
+
+/// The column keyed edges are keyed by, and the one they lead to.
+pub(crate) struct KeyedColumns {
+    /// The key.
+    pub(crate) from: ryo_values::domain::plan_parts::types::ColumnIndex,
+    /// The far end.
+    pub(crate) to: ryo_values::domain::plan_parts::types::ColumnIndex,
+}

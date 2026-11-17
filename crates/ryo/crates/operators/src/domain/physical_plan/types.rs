@@ -230,6 +230,14 @@ pub(crate) struct IndexIdentity {
     pub(crate) key: IndexKey,
 }
 
+/// A shared-index request during planning. The catalog assigns the slot for exactly the identity declared by the operator.
+pub(crate) struct IndexReader<'a> {
+    /// The source and key the reader consumes.
+    pub(crate) identity: IndexIdentity,
+    /// Where the reader takes its planned index from at execution time.
+    pub(crate) slot: &'a mut ProbeIndex,
+}
+
 /// The indexes a planning step finds, in the order it first meets them, each found again by its identity in one lookup: a plan of
 /// many readers would scan them all for each reader.
 #[derive(Default)]

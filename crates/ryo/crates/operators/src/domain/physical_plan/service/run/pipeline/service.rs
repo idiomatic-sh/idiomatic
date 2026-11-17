@@ -18,7 +18,7 @@ use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::stream_scratch::value::{
     ChainScratch, RightPlace, StagePlace, StageScratch,
 };
-use crate::domain::physical_plan::types::{KernelRun, PlanNodeId, ProbeIndex, RowSource};
+use crate::domain::physical_plan::types::{KernelRun, PlanNodeId, RowSource};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::rows::types::RowCount;
 
@@ -275,13 +275,9 @@ fn prepared(
         .first_mut()
         .ok_or(PortableOperatorFault::WrongOperation)?;
     stage.fault = None;
-    if let Lowering::Probe {
-        index: ProbeIndex::Shared(place),
-        ..
-    } = chain_stage.lowering
-    {
-        opened(plan, buffers, *place);
-        stage.own.shared = Some(*place);
+    if let Some(place) = chain_stage.lowering.shared_index() {
+        opened(plan, buffers, place);
+        stage.own.shared = Some(place);
     }
     let input: &[CellKind] = before
         .last()

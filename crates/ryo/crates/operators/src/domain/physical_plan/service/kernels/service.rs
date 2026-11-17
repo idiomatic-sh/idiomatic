@@ -10,9 +10,7 @@ use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
-use crate::domain::physical_plan::collections::kernels::probe_right::item::{
-    IndexBuild, ProbeScratch,
-};
+use crate::domain::physical_plan::collections::kernels::probe_right::item::ProbeScratch;
 use crate::domain::physical_plan::collections::kernels::queued_walk::item::{
     WorklistInputs, worklisted,
 };
@@ -24,8 +22,9 @@ use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
 };
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::shared_index::value::IndexBuild;
 use crate::domain::physical_plan::types::shared_index::value::{IndexKind, IndexRows};
-use crate::domain::physical_plan::types::{CellStart, KernelRun, PlanNodeId};
+use crate::domain::physical_plan::types::{CellStart, KernelRun, PlanNodeId, ProbeIndex};
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
 /// Makes a node's rows from its inputs' rows into `output`, and answers the fault of the first row that raised one.
@@ -120,7 +119,7 @@ pub(crate) fn kernels(
             };
             return reached(graph, edges, starts, run, scratch, output);
         }
-        Lowering::Axis { axis, .. } => {
+        Lowering::Axis { axis, index, .. } => {
             let inputs = AxisInputs {
                 starts: input,
                 edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
@@ -130,14 +129,39 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
-            buffers.pools.keyed.refilled(&mut buffers.index);
+            let (edges, build) = match index {
+                ProbeIndex::Shared(at) => {
+                    let build =
+                        crate::domain::physical_plan::service::indexes::service::probe_build(
+                            &buffers.shared.indexes,
+                            *index,
+                        );
+                    let shared = buffers
+                        .shared
+                        .indexes
+                        .get_mut(at.0)
+                        .ok_or(PortableOperatorFault::WrongOperation)?;
+                    let IndexRows::Keyed(edges) = &mut shared.rows else {
+                        return Err(PortableOperatorFault::WrongOperation);
+                    };
+                    (edges, build)
+                }
+                ProbeIndex::Tree => return Err(PortableOperatorFault::WrongOperation),
+                ProbeIndex::Own => {
+                    buffers.pools.keyed.refilled(&mut buffers.index);
+                    (&mut buffers.index, IndexBuild::Builds)
+                }
+            };
             // The domain is keyed: the second index is readied as keyed rows.
             buffers.second.readied(IndexKind::Keyed, &mut buffers.pools);
             let IndexRows::Keyed(domain) = &mut buffers.second else {
                 return Err(PortableOperatorFault::WrongOperation);
             };
             let tables = AxisTables {
-                edges: &mut buffers.index,
+                edges,
+                build,
+                #[cfg(test)]
+                builds: &mut buffers.builds,
                 domain,
                 decisions,
             };

@@ -18,7 +18,7 @@ use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::row_set::value::columns;
-use crate::domain::physical_plan::types::shared_index::value::IndexRows;
+use crate::domain::physical_plan::types::shared_index::value::{IndexBuild, IndexRows};
 use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedSide, NodeFed, TreeRead};
 use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -37,18 +37,6 @@ impl KernelsItem for ProbeRightItem {
         );
         if runs { Reach::Runs } else { Reach::Skips }
     }
-}
-
-/// Whether a probe builds the index it reads, reads one a probe of the same right rows and key built in this file, or reads
-/// none: the tree it walks is its index.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum IndexBuild {
-    /// It builds the index.
-    Builds,
-    /// The index is built.
-    Built,
-    /// No index: each left row's matches are walked from its node.
-    Walked,
 }
 
 /// The scratch a probe writes through, its own across its left rows: its index, the right rows its filter kept and the key
