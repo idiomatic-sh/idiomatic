@@ -1,0 +1,21 @@
+version = 1
+parents = ["4d803aef5d0b57a9d9f608ec5a31c9eb9b62a55c2a5edf2efcd3ffc87c5dd306"]
+
+[[perf]]
+reasons = ["Seeded on int-batch 007fa628e3 (Linux, aarch64), release build: each rule's verify total, slowest case and compile time in process over one SDK Linter; target 10 ms a case"]
+records = [
+  { tool = "bench-verify/rust/clippy", benchmark = "verify/clippy-driver/empty_docs", measure = "max-case-ms", best = 113.708398 },
+  { tool = "bench-verify/rust/clippy", benchmark = "verify/clippy-driver/empty_docs", measure = "total-ms", best = 1902.687212 },
+  { tool = "bench-verify/rust/clippy", benchmark = "verify/clippy-driver/empty_line_after_doc_comments", measure = "max-case-ms", best = 113.22202 },
+  { tool = "bench-verify/rust/clippy", benchmark = "verify/clippy-driver/empty_line_after_doc_comments", measure = "total-ms", best = 1919.121953 },
+  { tool = "bench-verify/rust/clippy", benchmark = "verify/clippy-driver/empty_line_after_outer_attr", measure = "total-ms", best = 1906.596695 },
+  { tool = "bench-verify/rust/clippy", benchmark = "verify/clippy-driver/needless_arbitrary_self_type", measure = "max-case-ms", best = 255.14177 },
+  { tool = "bench-verify/rust/clippy", benchmark = "verify/clippy-driver/needless_arbitrary_self_type", measure = "total-ms", best = 1716.604265 },
+  { tool = "bench-verify/rust/clippy", benchmark = "verify/clippy-driver/needless_parens_on_range_literals", measure = "max-case-ms", best = 125.412354 },
+  { tool = "bench-verify/typescript/oxlint", benchmark = "verify/oxlint/eslint.no-async-promise-executor", measure = "compile-ms", best = 0.289628 },
+  { tool = "bench-verify/typescript/oxlint", benchmark = "verify/oxlint/eslint.no-caller", measure = "compile-ms", best = 0.226919 },
+  { tool = "bench-verify/typescript/oxlint", benchmark = "verify/oxlint/eslint.no-import-assign", measure = "compile-ms", best = 0.869425 },
+  { tool = "bench-verify/typescript/oxlint", benchmark = "verify/oxlint/typescript.no-this-alias", measure = "max-case-ms", best = 158.87004 },
+  { tool = "bench-verify/typescript/oxlint", benchmark = "verify/oxlint/typescript.no-this-alias", measure = "total-ms", best = 771.411866 },
+  { tool = "bench-verify/typescript/oxlint", benchmark = "verify/oxlint/typescript.no-unnecessary-parameter-property-assignment", measure = "max-case-ms", best = 189.72635 },
+]
