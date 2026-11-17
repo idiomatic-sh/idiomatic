@@ -1,21 +1,18 @@
 //! Query loading, compilation and SDK startup occur inside the measured child.
 use super::constants;
-use crate::outbound::engine::types::FrontendDiagnosticProjection;
+use crate::outbound::engine::interface::EnginePort;
 use crate::outbound::engine::types::loaded_engine_session::value::EngineExecution;
 use crate::outbound::engine::types::{
     EngineConfiguration, EngineRun, loaded_engine_session::value::LoadedEngineSession,
 };
+use crate::outbound::engine::types::{FrontendDiagnosticProjection, Retention};
 use ryo::linter::{
     self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId, Slot, WorkerPool,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount};
+use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount, RunReport};
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
-use tracing_subscriber::prelude::*;
-
-use crate::outbound::engine::interface::EnginePort;
 
 /// Runs authored queries through the SDK with the injected language registry.
 #[derive(Debug)]
@@ -47,7 +44,7 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: None,
             frontend_diagnostic,
-            retention: crate::outbound::engine::types::Retention::PerVerification,
+            retention: Retention::PerVerification,
             kept_rules: std::sync::OnceLock::new(),
             kept_linter: std::sync::OnceLock::new(),
         }
@@ -59,7 +56,7 @@ impl EngineLocalAdapter {
         own: &'a mut Option<linter::Linter>,
         cache: Cache,
     ) -> Result<&'a linter::Linter, Error> {
-        if self.retention == crate::outbound::engine::types::Retention::PerVerification {
+        if self.retention == Retention::PerVerification {
             if let Some(engine) = self.kept_linter.get() {
                 return Ok(engine);
             }
@@ -78,32 +75,9 @@ impl EngineLocalAdapter {
             cache,
         )))
     }
-    /// Each rule of `request` compiled ahead, with the time it took.
-    fn compiled(&self, request: &WorkerRequest) -> Result<BTreeMap<RuleId, std::time::Duration>, Error> {
-        let mut own = None;
-        let engine = self.engine(&mut own, Cache::None)?;
-        let rules = super::schemas::request_rules(
-            Some(&self.kept_rules),
-            self.frontend_diagnostic.clone(),
-            request,
-        )?;
-        let mut compiled = BTreeMap::new();
-        for (id, rule) in rules {
-            let started = std::time::Instant::now();
-            // A rule that needs what only a run declares is compiled by the run: it has no time to report here.
-            if engine
-                .prepare(&BTreeMap::from([(id.clone(), rule)]), &[])
-                .is_ok()
-            {
-                let _previous = compiled.insert(id, started.elapsed());
-            }
-        }
-        Ok(compiled)
-    }
     /// The slot the rules are kept in, when this engine keeps them across runs.
     fn retained_rules(&self) -> Option<&std::sync::OnceLock<BTreeMap<RuleId, Rule>>> {
-        (self.retention == crate::outbound::engine::types::Retention::PerVerification)
-            .then_some(&self.kept_rules)
+        (self.retention == Retention::PerVerification).then_some(&self.kept_rules)
     }
     /// The pool the files of a run are read on: rayon's own size, `RAYON_NUM_THREADS` when the caller sets it.
     fn pool() -> Result<WorkerPool, Error> {
@@ -126,7 +100,7 @@ impl EngineLocalAdapter {
             trace,
             diagnostic_events: None,
             frontend_diagnostic,
-            retention: crate::outbound::engine::types::Retention::PerRun,
+            retention: Retention::PerRun,
             kept_rules: std::sync::OnceLock::new(),
             kept_linter: std::sync::OnceLock::new(),
         }
@@ -142,7 +116,7 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: Some(path),
             frontend_diagnostic,
-            retention: crate::outbound::engine::types::Retention::PerRun,
+            retention: Retention::PerRun,
             kept_rules: std::sync::OnceLock::new(),
             kept_linter: std::sync::OnceLock::new(),
         }
@@ -151,14 +125,7 @@ impl EngineLocalAdapter {
 impl EnginePort for EngineLocalAdapter {
     fn load<'a>(&'a self, request: &'a WorkerRequest) -> Result<LoadedEngineSession<'a>, Error> {
         let trace = if let Some(path) = &self.trace {
-            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
-            tracing::subscriber::set_global_default(
-                tracing_subscriber::registry()
-                    .with(tracing_subscriber::filter::LevelFilter::INFO)
-                    .with(layer),
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?;
-            Some(guard)
+            Some(super::writer::chrome(path).map_err(|error| Error::Invalid(error.to_string()))?)
         } else if let Some(path) = &self.diagnostic_events {
             tracing::subscriber::set_global_default(super::writer::subscriber(
                 path,
@@ -187,13 +154,6 @@ impl EnginePort for EngineLocalAdapter {
             }),
         ))
     }
-    fn compile(
-        &self,
-        request: &WorkerRequest,
-    ) -> Option<Result<BTreeMap<RuleId, std::time::Duration>, Error>> {
-        let _kept = self.retained_rules()?;
-        Some(self.compiled(request))
-    }
 }
 
 /// One loaded SDK invocation, never stored back into the reusable adapter.
@@ -204,6 +164,47 @@ struct LocalEngineSession<'a> {
     _trace: Option<tracing_chrome::FlushGuard>,
 }
 impl EngineExecution for LocalEngineSession<'_> {
+    fn compile(
+        &self,
+        rules: &BTreeMap<RuleId, Rule>,
+        configuration: &EngineConfiguration,
+    ) -> Option<Result<BTreeMap<RuleId, std::time::Duration>, Error>> {
+        (self.adapter.retention == Retention::PerVerification).then_some(())?;
+        let mut own = None;
+        let engine = match self.adapter.engine(&mut own, Cache::None) {
+            Ok(engine) => engine,
+            Err(error) => return Some(Err(error)),
+        };
+        // The rules and relations the run is given, each alone first and the cache keeping what compiled.
+        let mut compiled = BTreeMap::new();
+        let mut together = Vec::new();
+        for (id, rule) in rules {
+            let started = std::time::Instant::now();
+            if engine
+                .prepare(
+                    &BTreeMap::from([(id.clone(), rule.clone())]),
+                    &configuration.hosted,
+                )
+                .is_ok()
+            {
+                let _previous = compiled.insert(id.clone(), started.elapsed());
+            } else {
+                together.push(id.clone());
+            }
+        }
+        // A rule that reads what other rules produce compiles only beside its producers, as a run compiles it: all the rules
+        // together, the rest already compiled and skipped, the time shared among the rules that needed it.
+        if !together.is_empty() {
+            let started = std::time::Instant::now();
+            if engine.prepare(rules, &configuration.hosted).is_ok() {
+                let share = started.elapsed() / u32::try_from(together.len()).unwrap_or(1);
+                for id in together {
+                    let _previous = compiled.insert(id, share);
+                }
+            }
+        }
+        Some(Ok(compiled))
+    }
     fn configuration_files(&self) -> Result<Vec<linter::RelativePath>, Error> {
         configuration_files(self.request, &self.adapter.languages)
     }

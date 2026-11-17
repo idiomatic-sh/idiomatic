@@ -1,11 +1,14 @@
 //! The `scan_facts` item of the `kernels` collection: a relation's rows read in place, as the facts lend them, never decoded
-//! into a table; and the reading of rows in place, a relation's or a table's, one cell or one row at a time.
+//! into a table; and the reading of rows in place, a relation's or a table's, one cell, one row or one chunk at a time.
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_roots::item::{tree_cell, tree_count, tree_kinds, tree_row};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::fact_rows::value::FactRows;
+use crate::domain::physical_plan::types::stream_scratch::value::{
+    CellBound, ChunkRead, ChunkStop, RowChunk,
+};
 use crate::domain::physical_plan::types::{InputRows, PlanInputs};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
@@ -16,7 +19,7 @@ use ryo_relations::domain::relations::types::{
     Bits, CellKind, ColumnsView, Integer, Relation, Value,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::{RowCount, RowIndex};
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// `scan_facts`, one item of the `kernels` collection.
 #[cfg(test)]
@@ -99,24 +102,82 @@ pub(crate) fn count_of(rows: InputRows<'_>) -> RowCount {
     }
 }
 
+/// The cell of row `row` in `column` of a relation's columns, read in place; none past the row.
+pub(crate) fn facts_cell(
+    view: &ColumnsView<'_>,
+    row: RowIndex,
+    column: ColumnIndex,
+) -> Option<Value> {
+    let at = usize::try_from(column.0).unwrap_or(usize::MAX);
+    let kind = view.kinds.get(at)?;
+    let bits = view.columns.get(at)?.0.get(row.0)?;
+    Some(from_bits(*kind, Bits(*bits)))
+}
+
+/// The cell of row `row` in `column` of a table; none past the row.
+pub(crate) fn table_cell(table: &Table, row: RowIndex, column: ColumnIndex) -> Option<Value> {
+    let at = usize::try_from(column.0).unwrap_or(usize::MAX);
+    let width = table.kinds.len();
+    (at < width && row.0 < table.count.0)
+        .then(|| table.cells.get(row.0 * width + at).copied())
+        .flatten()
+}
+
 /// The cell of row `row` in `column`, read in place; none past the row.
 pub(crate) fn cell_of(rows: InputRows<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    let at = usize::try_from(column.0).unwrap_or(usize::MAX);
     match rows {
-        InputRows::Facts(view) => {
-            let kind = view.kinds.get(at)?;
-            let bits = view.columns.get(at)?.0.get(row.0)?;
-            Some(from_bits(*kind, Bits(*bits)))
-        }
+        InputRows::Facts(view) => facts_cell(view, row, column),
         InputRows::Tree(tree) => tree_cell(tree, row, column),
-        InputRows::Table(table) => {
-            let width = table.kinds.len();
-            (at < width && row.0 < table.count.0)
-                .then(|| table.cells.get(row.0 * width + at).copied())
-                .flatten()
-        }
-        InputRows::Row(cells, _) => (row.0 == 0).then(|| cells.get(at).copied()).flatten(),
+        InputRows::Table(table) => table_cell(table, row, column),
+        InputRows::Row(cells, _) => (row.0 == 0)
+            .then(|| {
+                cells
+                    .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                    .copied()
+            })
+            .flatten(),
     }
+}
+
+/// Reads the rows of `chunk` from its first unread one through `row`, which writes a row's rows to `out` and answers the
+/// row's fault, until every row is read, a row faults (the rows it wrote before its fault stay), or `out` holds `bound`
+/// cells or more after a row: a row's rows are never split across chunks.
+///
+/// # Errors
+///
+/// The hard fault `row` raises: the reader reads no more.
+pub(crate) fn chunk_read(
+    chunk: RowChunk<'_>,
+    out: &mut Table,
+    bound: CellBound,
+    mut row: impl FnMut(
+        RowIndex,
+        &mut Table,
+    ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault>,
+) -> Result<ChunkRead, PortableOperatorFault> {
+    let count = count_of(chunk.rows).0;
+    let mut at = chunk.from.0;
+    while at < count {
+        let fault = row(RowIndex(at), out)?;
+        at += 1;
+        let read = RowCount(at - chunk.from.0);
+        if let Some(fault) = fault {
+            return Ok(ChunkRead {
+                read,
+                stop: ChunkStop::Faulted(fault),
+            });
+        }
+        if out.cells.len() >= bound.0 {
+            return Ok(ChunkRead {
+                read,
+                stop: ChunkStop::Full,
+            });
+        }
+    }
+    Ok(ChunkRead {
+        read: RowCount(at.saturating_sub(chunk.from.0)),
+        stop: ChunkStop::Ended,
+    })
 }
 
 /// Row `row`: a table's cells in place, a relation's decoded into `scratch`.

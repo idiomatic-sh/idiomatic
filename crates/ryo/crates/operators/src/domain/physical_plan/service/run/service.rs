@@ -8,16 +8,21 @@ use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanned;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::count_of;
-use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
-use crate::domain::physical_plan::service::indexes::service::sized_shared;
+use crate::domain::physical_plan::collections::kernels::scan_node::item::{
+    fed_with, give_back, hold, take,
+};
+use crate::domain::physical_plan::service::indexes::service::{closed, opened, sized_shared};
+use crate::domain::physical_plan::service::run::counting::service::{timed, timed_to};
 use crate::domain::physical_plan::service::run::reading::service::{
     pending_of, reading, returned, rows_in,
 };
+use crate::domain::physical_plan::types::activity::value::Activity;
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, NodeDecisions};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    EngineUses, KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, RowSource,
+    EngineUses, KernelRun, NodeFed, NodeFlow, NodeReaders, NodeRows, PlanNodeId, ProbeIndex,
+    RowSource,
 };
 use ryo_values::domain::rows::types::RowCount;
 
@@ -81,14 +86,36 @@ pub(super) fn ready(
 }
 
 /// Runs `node`'s kernels and holds its rows and pending fault: a streaming stage through the chain of streamed stages that
-/// ends at it; a lookup's build answers every lookup of its index.
+/// ends at it; a lookup's build answers every lookup of its index. When counting is on, the time it takes, less the time
+/// of the nodes it makes first, is `node`'s.
 fn materialize(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
     node: PlanNodeId,
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
+    let span = timed(buffers);
+    let made = kernels_of(plan, run, node, buffers);
+    timed_to(buffers, span, node);
+    made
+}
+
+/// What `materialize` runs for `node`.
+fn kernels_of(
+    plan: &PhysicalPlan,
+    run: &mut KernelRun<'_>,
+    node: PlanNodeId,
+    buffers: &mut FileBuffers,
+) -> Result<(), PortableOperatorFault> {
     sized(plan, buffers);
+    // A node that can have neither a row nor a row error in the file holds the empty table of its layout and reads no input.
+    if let Activity::Dormant(layout) = run.inputs.activity(node) {
+        let mut rows = buffers.pool.fresh();
+        layout.emptied(&mut rows);
+        unread_by(plan, buffers, node);
+        hold(plan, buffers, node, rows, None);
+        return Ok(());
+    }
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
     let lowering = &plan
         .nodes
@@ -119,12 +146,11 @@ pub(super) fn made(
         Lowering::ScanBound { scan } => {
             let rows = scanned(scan, run)?;
             // What the scan was fed: the bound rows it reads.
-            if let Some(fed) = buffers
-                .fed
-                .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-            {
-                *fed = NodeFed([rows.count, RowCount(0), RowCount(0)]);
-            }
+            fed_with(
+                buffers,
+                node,
+                NodeFed([rows.count, RowCount(0), RowCount(0)]),
+            );
             hold(plan, buffers, node, rows, None);
             return Ok(());
         }
@@ -207,14 +233,13 @@ pub(super) fn made(
         slots.get(slot_of.get(at).copied()?)?.as_ref()
     });
     // What the node was fed: each input's rows, a node read by two inputs in both.
-    if let Some(fed) = buffers
-        .fed
-        .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-    {
-        *fed = NodeFed(
+    fed_with(
+        buffers,
+        node,
+        NodeFed(
             read_at.map(|read| read.map_or_else(Default::default, |read| count_of(rows_in(read)))),
-        );
-    }
+        ),
+    );
     let [first_read, second_read, third_read] = read_at;
     let left = first_read.ok_or(PortableOperatorFault::WrongOperation)?;
     let left_fault = pending_of(left);
@@ -286,4 +311,43 @@ pub(super) fn made(
         fault.or(left_fault).or(right_fault).or(last_fault),
     );
     Ok(())
+}
+
+/// `node` does not run in the open file, fed nothing: each read it makes of an earlier node is done, as a run gives its reads
+/// back. A node made already gives back the read now, and goes at its last reader; one not made yet counts it when it is made;
+/// a node streamed into `node` does not run either, so its own reads are done the same way. A probe of a shared index is one of
+/// the index's probes done, so the index is emptied after its last probe.
+fn unread_by(plan: &PhysicalPlan, buffers: &mut FileBuffers, node: PlanNodeId) {
+    let Some(physical) = plan
+        .nodes
+        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+    else {
+        return;
+    };
+    if let Lowering::Probe {
+        index: ProbeIndex::Shared(at),
+        ..
+    } = &physical.lowering
+    {
+        opened(plan, buffers, *at);
+        closed(buffers, *at);
+    }
+    for source in physical.lowering.sources() {
+        let RowSource::Node(read) = source else {
+            continue;
+        };
+        if buffers.rows(read) != NodeRows::Absent {
+            if let Ok(taken) = take(buffers, read) {
+                give_back(buffers, read, taken, NodeReaders(1));
+            }
+        } else if plan
+            .nodes
+            .get(usize::try_from(read.0).unwrap_or(usize::MAX))
+            .is_some_and(|source| source.flow == NodeFlow::Streamed)
+        {
+            unread_by(plan, buffers, read);
+        } else {
+            buffers.done.reader_done(plan, read);
+        }
+    }
 }

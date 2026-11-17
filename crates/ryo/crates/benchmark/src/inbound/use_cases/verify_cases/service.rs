@@ -14,10 +14,8 @@ use crate::outbound::evidence::types::RuleTiming;
 use crate::outbound::host::interface::HostPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::{
-    context::interface::ContextPort,
-    execution::types::ExitObservationMode,
-    inventory::interface::InventoryPort,
-    linter::interface::LinterPort,
+    context::interface::ContextPort, execution::types::ExitObservationMode,
+    inventory::interface::InventoryPort, linter::interface::LinterPort,
     suite::interface::SuitePort,
 };
 use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
@@ -80,15 +78,13 @@ pub(super) fn verify_prepared_shard(
         ));
     }
     let mut timings: BTreeMap<ryo::linter::RuleId, RuleTiming> = BTreeMap::new();
-    // The rules compile once, ahead of the cases: an execution that keeps its plans reports what each rule took.
-    for (rule, elapsed) in executions
+    // The rules compile once, ahead of the cases: an execution that keeps its plans reports what each rule took. It reports
+    // every rule its profile loads, supporting rules and the frontend projection among them, which have no cases here; a
+    // refusal to compile stops the verification.
+    let compiled = executions
         .candidate
         .compile(&candidate.prepare(&first.request)?)
-        .transpose()?
-        .unwrap_or_default()
-    {
-        timings.entry(rule).or_default().compile = elapsed;
-    }
+        .transpose()?;
     let started = Instant::now();
     let mut initial = Some(run_candidate(
         suite,
@@ -206,6 +202,13 @@ pub(super) fn verify_prepared_shard(
         let timing = timings.entry(case.rule.clone()).or_default();
         timing.total += elapsed;
         timing.slowest = timing.slowest.max(elapsed);
+    }
+    // Only a rule with cases of its own has times: a rule the profile loads for another's sake reports none.
+    // None: the candidate runs in a child, which compiles inside each run.
+    for (rule, elapsed) in compiled.into_iter().flatten() {
+        if let Some(timing) = timings.get_mut(&rule) {
+            timing.compile = elapsed;
+        }
     }
     if failures.is_empty() {
         debug_assert!(

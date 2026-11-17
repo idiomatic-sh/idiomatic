@@ -123,3 +123,9 @@ expected = []
 name = "elif-shaped-like-the-pattern-is-not-reported"
 files = { "case.py" = "d = {}\nif other:\n    pass\nelif key in d:\n    value = d[key]\nelse:\n    value = 0\n" }
 expected = []
+
+[[cases]]
+name = "if-expression-needs-no-dict-type-or-fit"
+comparison = "full"
+files = { "case.py" = "def plot(self, *args, **kwargs):\n    x, kwargs = self._get_call_args(args, kwargs)\n    label_kw = kwargs[\"label\"] if \"label\" in kwargs else False\n    return label_kw\n\n\ndef unknown(mapping, key):\n    return mapping[key] if key in mapping else None\n\n\ndef long_line(kwargs):\n    value_with_a_very_long_name_here = kwargs[\"a_long_key_name_for_testing\"] if \"a_long_key_name_for_testing\" in kwargs else None\n    return value_with_a_very_long_name_here\n" }
+expected = [{ rule = "SIM401", file = "case.py", start = 98, end = 145 }, { rule = "SIM401", file = "case.py", start = 206, end = 246 }, { rule = "SIM401", file = "case.py", start = 311, end = 401 }]

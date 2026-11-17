@@ -52,6 +52,10 @@ Measures the physical line width of a source prefix and an already rendered cand
 
 Computes comparison function text from typed operand values.
 
+### kept_room
+
+Caps the room a worker's scratch keeps past the end of a file, so a big file's room is not kept for the files after it.
+
 ### numeric_values
 
 Orders canonical decimal and binary numeric values consistently.

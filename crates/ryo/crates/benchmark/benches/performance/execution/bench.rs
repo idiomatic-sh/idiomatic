@@ -110,15 +110,18 @@ impl InProcessWorker for Answering {
     fn run(
         &self,
         _request: &StoredRequest,
-    ) -> Result<WorkerResponse, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+    ) -> Result<WorkerResponse, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
+    {
         Ok(WorkerResponse(b"result".to_vec()))
     }
     fn compile(
         &self,
         _request: &StoredRequest,
-    ) -> Result<RuleCompileTimes, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
-    {
-        Ok(RuleCompileTimes::default())
+    ) -> Result<
+        Option<RuleCompileTimes>,
+        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    > {
+        Ok(Some(RuleCompileTimes::default()))
     }
 }
 #[divan::bench]

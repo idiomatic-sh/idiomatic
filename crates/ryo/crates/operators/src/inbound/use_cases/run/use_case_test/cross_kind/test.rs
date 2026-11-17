@@ -10,6 +10,7 @@ use super::super::super::fixtures::{TableInputs, TextResources, planned, ran};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, text_program};
+use crate::domain::physical_plan::types::activity::value::Activity;
 use crate::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use crate::domain::physical_plan::types::candidates::value::Candidates;
 use crate::domain::physical_plan::types::fact_rows::value::FactRows;
@@ -146,6 +147,9 @@ impl PlanInputs for Watched {
     fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {
         self.read(2);
         self.inner.hosted(relation)
+    }
+    fn activity(&self, node: PlanNodeId) -> Activity<'_> {
+        self.inner.activity(node)
     }
 }
 

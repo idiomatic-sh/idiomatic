@@ -9,6 +9,7 @@ use crate::application::file_dag::file_pass::service::inputs::service::{
 use crate::application::file_dag::file_pass::service::nodes::service::{
     node_outcome, node_rows, released, rule_done, unread_unrun,
 };
+use crate::application::file_dag::file_pass::service::triggers::service::fill;
 use crate::application::file_dag::file_pass::service::{fill_roots, given_back};
 use crate::application::file_dag::file_pass::types::{
     CaptureAt, NodeAnswer, OpenedFile, OutputCommit, OutputState, PassFile, PassInputs,
@@ -25,7 +26,8 @@ use crate::application::file_dag::publications::types::BoundTables;
 use ryo_execution_domain::domain::completion::types::ObservationAdmission;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::rule as fused_rule;
+use ryo_execution_domain::domain::executable_program::activation::service::activities;
+use ryo_execution_domain::domain::executable_program::service::{activation, rule as fused_rule};
 use ryo_execution_domain::domain::finish::types::Arena;
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -95,6 +97,26 @@ pub(crate) fn run_rules(
         },
         file,
     );
+    // What the file holds of the program's triggers, and so which nodes can have a row or a row error in it.
+    let mut triggers = std::mem::take(&mut scratch.triggers);
+    let refused_at_open = fill(
+        &mut triggers,
+        &pass.program,
+        &scratch.roots,
+        &lookup,
+        &scratch.demand,
+    );
+    let mut states = std::mem::take(&mut scratch.activities);
+    if let Err(error) = activities(activation(&pass.program), &triggers, &mut states) {
+        scratch.triggers = triggers;
+        scratch.activities = states;
+        given_back(pass, scratch);
+        return FileRules {
+            rules: Vec::new(),
+            end: FileEnd::Refused(FileStop::Operating(error)),
+            partials,
+        };
+    }
     let mut at = PassFile {
         request,
         pass,
@@ -105,6 +127,9 @@ pub(crate) fn run_rules(
             bound: BoundTables::default(),
             withholdings: Withholdings::default(),
             hosted: Vec::new(),
+            activities: &states,
+            program: &pass.program,
+            refused_at_open,
         },
         buffers: std::mem::take(&mut scratch.buffers),
         file,
@@ -215,6 +240,8 @@ pub(crate) fn run_rules(
     scratch.outputs = outputs;
     scratch.answers = answers;
     scratch.live = live;
+    scratch.triggers = triggers;
+    scratch.activities = states;
     given_back(pass, scratch);
     let (rules, end) = ran;
     FileRules {

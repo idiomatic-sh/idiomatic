@@ -1,21 +1,22 @@
 //! The `probe_right` item of the `kernels` collection: a probe's right side, readied once before its first left row and read
 //! by every left row after: the right rows its filter keeps, its key columns, its index (its own, a shared one, or the tree
-//! it walks) and an ordered probe's extremes, each probe's its own.
+//! it walks) and an ordered probe's extremes, each probe's its own; and that side as a run of left rows reads it.
 
-use super::super::filter::item::{filter, keep, readied};
-use super::super::hash_index::item::{cells, emptied, indexed};
+use super::super::filter::item::{FilterKernel, filter, keep, readied};
+use super::super::hash_index::item::{cells, indexed};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{
-    OrderedProbe, PartitionExtremum, ProbeKey, ProbeMode, ProbeParts,
+    EmptyRight, OrderedProbe, PartitionExtremum, ProbeKey, ProbeMode, ProbeParts,
 };
+use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedSide, TreeRead};
+use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedSide, NodeFed, TreeRead};
 use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
@@ -68,6 +69,99 @@ pub(crate) struct ProbeScratch<'s> {
     pub(crate) decisions: &'s mut NodeDecisions,
     /// The tree nodes one left row found, for a probe that walks the tree.
     pub(crate) found: &'s mut Vec<NodeId>,
+}
+
+/// Whether a probe probes each left row, or keeps every one unread: an anti probe of no right row that keeps them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LeftRows {
+    /// Each left row is probed.
+    Probed,
+    /// Every left row is kept, none probed.
+    Kept,
+}
+
+/// A probe's right side as its left rows read it, after `probe_prepared` readied it: the right rows it reads (the rows its
+/// filter kept, when it filters), the tree it walks, its key columns, its index, a walked probe's filter of the rows it
+/// finds, and the scratch and feed every left row writes through.
+pub(crate) struct ProbeReads<'a> {
+    /// The right rows it reads.
+    pub(crate) right: InputRows<'a>,
+    /// The tree it walks; none for a probe of an index.
+    pub(crate) walked: Option<TreeRead<'a>>,
+    /// Its key columns: its left's, then its right's.
+    pub(crate) keys: [&'a [ColumnIndex]; 2],
+    /// Its index of the right rows.
+    pub(crate) index: &'a KeyedRows,
+    /// The row read, decoded.
+    pub(crate) row: &'a mut Vec<Value>,
+    /// The answers kept, keyed by their cells, when repeats are dropped.
+    pub(crate) repeats: &'a mut KeyedRows,
+    /// The right filter's decisions.
+    pub(crate) decisions: &'a mut NodeDecisions,
+    /// The tree nodes one left row found.
+    pub(crate) found: &'a mut Vec<NodeId>,
+    /// A walked probe's filter of the rows it finds; none when it filters none.
+    pub(crate) kept: Option<FilterKernel<'a>>,
+    /// The matching semantics.
+    pub(crate) matcher: PatternMatcher<'a>,
+    /// What it was fed: a walked probe's found rows are its right rows.
+    pub(crate) fed: &'a mut NodeFed,
+    /// Whether it probes each left row.
+    pub(crate) left: LeftRows,
+}
+
+/// The right side of `probe` over `right`, readied in `scratch`, as its left rows read it: resolved once for a run of left
+/// rows, never per row.
+///
+/// # Errors
+///
+/// `WrongOperation` for a walked probe whose right rows are not the tree's.
+pub(crate) fn probe_reads<'a>(
+    probe: &'a ProbeParts,
+    right: InputRows<'a>,
+    run: &'a KernelRun<'_>,
+    scratch: &'a mut ProbeScratch<'_>,
+    fed: &'a mut NodeFed,
+) -> Result<ProbeReads<'a>, PortableOperatorFault> {
+    let walked = walked_tree(scratch.build, right)?;
+    let build = scratch.build;
+    let ProbeScratch {
+        index,
+        kept,
+        whole: [every_left, every_right],
+        row,
+        repeats,
+        decisions,
+        found,
+        ..
+    } = scratch;
+    let right = read_right(probe, build, right, kept);
+    Ok(ProbeReads {
+        right,
+        walked,
+        keys: match &probe.key {
+            ProbeKey::Columns { left, right } => [left, right],
+            ProbeKey::Whole => [every_left.as_slice(), every_right.as_slice()],
+        },
+        index,
+        row,
+        repeats,
+        decisions,
+        found,
+        // The walked probe's right filter, which cannot fail (`tree_probe`), keeps or drops each row it finds.
+        kept: (walked.is_some() && !probe.filter.comparisons.is_empty())
+            .then(|| filter(&probe.filter, kinds_of(right), run.resources.texts())),
+        matcher: run.matcher,
+        fed,
+        left: if probe.mode == ProbeMode::Anti
+            && probe.empty_right == EmptyRight::EveryLeftRow
+            && count_of(right).0 == 0
+        {
+            LeftRows::Kept
+        } else {
+            LeftRows::Probed
+        },
+    })
 }
 
 /// The tree a walked probe reads its right rows from in place; none for a probe of an index.
@@ -123,7 +217,7 @@ pub(crate) fn probe_prepared(
     if !probe.filter.comparisons.is_empty() && walked.is_none() {
         let kinds = kinds_of(right);
         let kernel = filter(&probe.filter, kinds, run.resources.texts());
-        readied(&probe.filter, scratch.decisions, kernel.names);
+        readied(scratch.decisions);
         scratch.kept.kinds.extend_from_slice(kinds);
         for at in 0..count_of(right).0 {
             let read = row_of(right, RowIndex(at), scratch.row);
@@ -140,8 +234,7 @@ pub(crate) fn probe_prepared(
         }
     }
     if walked.is_some() && !probe.filter.comparisons.is_empty() {
-        let kernel = filter(&probe.filter, kinds_of(right), run.resources.texts());
-        readied(&probe.filter, scratch.decisions, kernel.names);
+        readied(scratch.decisions);
     }
     let right = read_right(probe, scratch.build, right, scratch.kept);
     let [left_on, right_on] = &mut scratch.whole;
@@ -157,7 +250,7 @@ pub(crate) fn probe_prepared(
         && let Err(fault) = cells(KeyedSide { rows: right, on }, scratch.index)
     {
         // A partial index is no index: the next probe of a shared one builds it again.
-        emptied(scratch.index);
+        scratch.index.cleared();
         return Err(fault);
     }
     // An ordered probe keeps its own index (`shared_indexes`), which it builds: its keys' first rows become their extremes.

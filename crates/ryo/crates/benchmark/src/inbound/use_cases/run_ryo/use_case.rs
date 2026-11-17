@@ -53,6 +53,19 @@ impl RunRyoUseCaseImpl {
         }
         Ok(report)
     }
+    /// The compile time of each rule of `request`, prepared, loaded and configured as a run is, through the configured session,
+    /// so a rule that reads the relations a run declares or the rules it projects compiles as it does in the run.
+    fn compiled(
+        &self,
+        request: WorkerRequest,
+    ) -> Result<Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>>, Error>
+    {
+        let prepared = crate::application::worker_request::service::prepare(request)?;
+        let session = self.engine.load(&prepared.request)?;
+        let configured =
+            crate::application::worker_request::service::configure(&prepared.request, session)?;
+        configured.compile().transpose()
+    }
 }
 impl RunRyoUseCase for RunRyoUseCaseImpl {
     fn run_ryo(&self) -> Result<(), Error> {
@@ -66,12 +79,10 @@ impl InProcessWorker for RunRyoUseCaseImpl {
         let report = self.report(self.worker.read(&request.0)?)?;
         Ok(WorkerResponse(self.worker.encoded(&report)?.0))
     }
-    fn compile(&self, request: &StoredRequest) -> Result<RuleCompileTimes, Error> {
-        let read = self.worker.read(&request.0)?;
-        // An engine that compiles inside each run compiles nothing ahead; one that cannot compile says why.
-        Ok(RuleCompileTimes(
-            self.engine.compile(&read).transpose()?.unwrap_or_default(),
-        ))
+    fn compile(&self, request: &StoredRequest) -> Result<Option<RuleCompileTimes>, Error> {
+        Ok(self
+            .compiled(self.worker.read(&request.0)?)?
+            .map(RuleCompileTimes))
     }
 }
 impl std::fmt::Debug for RunRyoUseCaseImpl {
@@ -80,4 +91,3 @@ impl std::fmt::Debug for RunRyoUseCaseImpl {
             .finish_non_exhaustive()
     }
 }
-

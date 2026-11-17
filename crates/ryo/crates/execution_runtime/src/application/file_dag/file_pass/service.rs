@@ -2,6 +2,7 @@
 //! the file's facts and tree in place; and the plan's root kinds, written as texts, mapped to the open file's own kind numbers,
 //! so each node reading the tree starts from the tree nodes of its kinds, and a node with no root kind from every tree node.
 
+use crate::application::file_dag::file_pass::constants::NODE_COUNTERS_TARGET;
 use crate::application::file_dag::file_pass::types::{
     FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
     RootKindNodes, TreeStart,
@@ -9,7 +10,14 @@ use crate::application::file_dag::file_pass::types::{
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::publications::service::bound::service::held_observation;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::{assemble, logical, root_kinds};
+use ryo_execution_domain::domain::executable_program::activation::service::{
+    activity, trigger_kinds,
+};
+use ryo_execution_domain::domain::executable_program::activation::types::NodeActivity;
+use ryo_execution_domain::domain::executable_program::service::refusals::service::layout;
+use ryo_execution_domain::domain::executable_program::service::{
+    activation, assemble, logical, roots,
+};
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use ryo_execution_domain::domain::executable_program::types::{
@@ -29,6 +37,7 @@ use ryo_language::domain::semantics::types::RenderOutcome;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::contract::types::{PortableOperatorFault, RenderRefusal, WithheldInput};
+use ryo_operators::domain::physical_plan::types::activity::value::{Activity, NodeLayout};
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::candidates::value::Candidates;
 use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
@@ -50,9 +59,11 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 pub(crate) mod answering;
 pub(crate) mod captures;
+pub(crate) mod counters;
 pub(crate) mod inputs;
 pub(crate) mod nodes;
 pub(crate) mod rules;
+pub(crate) mod triggers;
 
 /// Writes into `into` the relations the rules that run on a file read, each once, in rule order: the union of `reads` over the
 /// rules whose intent for the file is Run. A rule that does not run on the file evaluates none of its nodes there, so nothing
@@ -81,10 +92,12 @@ pub(crate) fn file_demand(
 
 /// The roots of `program`, before any file.
 pub(crate) fn file_roots(program: &ExecutableProgram) -> FileRoots {
-    let kinds: Vec<RootKindNodes> = root_kinds(program)
-        .map(|root| RootKindNodes {
-            kind: root.kind.clone(),
-            nodes: root.nodes.to_vec(),
+    // In the activation plan's kind order, so a root kind's place is its trigger's slot.
+    let kinds: Vec<RootKindNodes> = trigger_kinds(activation(program))
+        .iter()
+        .map(|kind| RootKindNodes {
+            kind: kind.clone(),
+            nodes: roots(program, kind).to_vec(),
         })
         .collect();
     let count = kinds
@@ -187,6 +200,7 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
         bindings,
         operators,
         hosted,
+        ids,
     } = source;
     let rules: Vec<RuleInput<'_>> = plans
         .iter()
@@ -208,6 +222,7 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
         plans: plans.to_vec().into_boxed_slice(),
         reads,
         scratch: Mutex::new(Vec::new()),
+        ids: ids.clone().into_boxed_slice(),
     })
 }
 
@@ -219,9 +234,16 @@ pub(crate) fn taken(pass: &PassProgram) -> PassScratch {
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .pop();
-    given.unwrap_or_else(|| PassScratch {
-        roots: file_roots(&pass.program),
-        ..PassScratch::default()
+    given.unwrap_or_else(|| {
+        let mut made = PassScratch {
+            roots: file_roots(&pass.program),
+            ..PassScratch::default()
+        };
+        // The node counters are on only for a run whose subscriber listens to them, so a run that does not pays nothing.
+        if tracing::enabled!(target: NODE_COUNTERS_TARGET, tracing::Level::INFO) {
+            made.buffers.count_nodes();
+        }
+        made
     })
 }
 
@@ -276,7 +298,12 @@ fn absorb(into: &mut Vec<RelationRead>, more: &[RelationRead]) {
 
 impl PlanInputs for PassInputs<'_, '_, '_> {
     fn facts(&self, relation: Relation) -> FactRows<'_> {
-        match self.lookup.columns(relation) {
+        // A relation refused when the file's triggers were read answers that refusal: a refused source is read once.
+        let read = match &self.refused_at_open {
+            Some(refused) if refused.relation == relation => Err(refused.error.clone()),
+            Some(_) | None => self.lookup.columns(relation),
+        };
+        match read {
             Ok(view) => FactRows::Lent(view),
             Err(error) => {
                 let mut refused = self.refused.borrow_mut();
@@ -305,6 +332,13 @@ impl PlanInputs for PassInputs<'_, '_, '_> {
         {
             Some(table) => HeldRows::Held(table),
             None => HeldRows::Withheld(WithheldInput(u32::MAX)),
+        }
+    }
+    fn activity(&self, node: PlanNodeId) -> Activity<'_> {
+        match (activity(self.activities, node), layout(self.program, node)) {
+            (NodeActivity::Dormant, Ok(kinds)) => Activity::Dormant(NodeLayout(kinds)),
+            // A node whose layout is a refusal answers it by running.
+            (NodeActivity::Dormant, Err(_)) | (NodeActivity::Active, _) => Activity::Active,
         }
     }
 }

@@ -206,8 +206,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Stage::Uncompiled,
         expect: Expect::Error(Refusal::Compile(Trace {
             received: 0,
-            loaded: 0,
-            closed: 0,
+            loaded: 1,
+            closed: 1,
             evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
@@ -340,3 +340,5 @@ fn succeeds() {
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
+
+mod compile;

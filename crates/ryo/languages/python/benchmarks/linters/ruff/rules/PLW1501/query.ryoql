@@ -39,7 +39,9 @@ let positional_modes = union(left=builtin_positional_modes,right=path_positional
 let keyword_fields = select parent, child from "semantic-child" where field = "keywords";
 let keyword_edges = select l.call as call, r.child as keyword, l.file as file from wrappers as l join keyword_fields as r on l.wrapper = r.parent;
 let keyword_nodes = select id from "semantic-syntax" where kind = "keyword";
-let keywords = select l.call as call, l.keyword as keyword, l.file as file from keyword_edges as l join keyword_nodes as r on l.keyword = r.id;
+let open_calls = union(left=builtin_open_calls,right=path_open_calls);
+let open_keyword_edges = select l.call as call, l.keyword as keyword, l.file as file from keyword_edges as l join open_calls as r on l.call = r.call and l.file = r.file;
+let keywords = select l.call as call, l.keyword as keyword, l.file as file from open_keyword_edges as l join keyword_nodes as r on l.keyword = r.id;
 let arg_fields = select parent, child from "semantic-child" where field = "arg";
 let arg_edges = select l.parent as keyword, r.child as identifier from arg_fields as l join "semantic-child" as r on l.child = r.parent;
 let identifiers_by_id = select l.id as id, l.name as name from identifier_edges as l join name_tokens as r on l.id = r.id;

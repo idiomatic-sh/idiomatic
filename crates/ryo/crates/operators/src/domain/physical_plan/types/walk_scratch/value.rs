@@ -1,6 +1,7 @@
 //! The work of one worker's graph walks: what a walk met and has left to expand, and what each walked start reached.
 
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, IndexedRow};
+use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
 use ryo_relations::domain::relations::types::Value;
 
 /// The work of the graph walks: what one walk met and has left to expand, and, for a seeded closure, what each walked start
@@ -8,7 +9,7 @@ use ryo_relations::domain::relations::types::Value;
 #[derive(Debug, Default)]
 pub(crate) struct WalkScratch {
     /// The entities the walk from one start has met.
-    pub(crate) visited: hashbrown::HashTable<Value>,
+    pub(crate) visited: VisitedSet,
     /// The edge rows whose destinations it has left to expand.
     pub(crate) frontier: Vec<ryo_values::domain::rows::types::RowIndex>,
     /// What each walked start reached, ascending, run after run.
@@ -61,3 +62,35 @@ pub(crate) struct ReachedPlace(pub(crate) u32);
 /// How many entities one walked start reached.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ReachedCount(pub(crate) u32);
+
+impl crate::domain::kept_room::types::KeptRoom for WalkScratch {
+    fn kept(&mut self) {
+        self.visited.kept();
+        self.frontier.kept();
+        self.reached.kept();
+        self.runs.kept();
+        self.starts.kept();
+        self.rows.cells.kept();
+        self.entities.kept();
+        self.next.kept();
+        self.written.kept();
+    }
+
+    #[cfg(test)]
+    fn room(&self) -> crate::domain::kept_room::types::Room {
+        [
+            self.visited.room(),
+            self.frontier.room(),
+            self.reached.room(),
+            self.runs.room(),
+            self.starts.room(),
+            self.rows.cells.room(),
+            self.entities.room(),
+            self.next.room(),
+            self.written.room(),
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or_default()
+    }
+}

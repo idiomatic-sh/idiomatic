@@ -46,7 +46,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(()),
     },
     Case {
-        name: CaseName("a worker that cannot compile a request ahead is answered as refused, never as no compile"),
+        name: CaseName(
+            "a worker that cannot compile a request ahead is answered as refused, never as no compile",
+        ),
         word: Word::Refuses,
         input: || Worked::Uncompiled,
         expect: Expect::Error(()),
@@ -64,10 +66,12 @@ impl InProcessWorker for Worker {
             }
         }
     }
-    fn compile(&self, _request: &StoredRequest) -> Result<RuleCompileTimes, ReportsError> {
+    fn compile(&self, _request: &StoredRequest) -> Result<Option<RuleCompileTimes>, ReportsError> {
         match self.0 {
             Worked::Uncompiled => Err(ReportsError::Invalid("uncompiled".into())),
-            Worked::Completed | Worked::Refused | Worked::Child => Ok(RuleCompileTimes::default()),
+            Worked::Completed | Worked::Refused | Worked::Child => {
+                Ok(Some(RuleCompileTimes::default()))
+            }
         }
     }
 }
@@ -88,9 +92,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
             directory: std::env::temp_dir(),
         };
         // A compile answered, or none, is a run that exits 0 with no response; a refusal is the row's error.
-        return adapter.compile(&invocation).map_or(Ok((0, false)), |compiled| {
-            compiled.map(|_times| (0, false)).map_err(|_refused| ())
-        });
+        return adapter
+            .compile(&invocation)
+            .map_or(Ok((0, false)), |compiled| {
+                compiled.map(|_times| (0, false)).map_err(|_refused| ())
+            });
     }
     adapter
         .run(Invocation {

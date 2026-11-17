@@ -354,11 +354,7 @@ pub(crate) fn rule_done(at: &mut PassFile<'_, '_, '_, '_>, rule: RuleIndex) {
 
 /// Ends the file: every node's rows go back to the buffers, those of a rule the file stopped at among them.
 pub(crate) fn released(at: &mut PassFile<'_, '_, '_, '_>) {
-    let mut node = PlanNodeId(0);
-    while consumers(&at.pass.program, node).is_ok() {
-        at.buffers.release(node);
-        node = PlanNodeId(node.0.saturating_add(1));
-    }
+    at.buffers.ended();
 }
 
 /// One move of [`ran_answering`] in the open file: a node run; a relation's facts admitted, a refused one stopping the file (the

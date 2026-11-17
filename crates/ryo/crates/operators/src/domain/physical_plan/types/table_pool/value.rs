@@ -2,8 +2,8 @@
 //! file; capped in each table's room and in how many it keeps.
 use ryo_values::domain::rows::types::{RowCount, Table};
 
-/// A table of more room for cells than this is dropped, not pooled: 4 Ki cells, 64 KiB of 16-byte cells.
-pub(crate) const POOL_TABLE_CELLS: usize = 1 << 12;
+/// A table of more room for cells than this is dropped, not pooled: the room any scratch keeps past a file's end.
+pub(crate) const POOL_TABLE_CELLS: usize = crate::domain::kept_room::constants::KEPT_ROOM;
 /// A table of more room for kinds than this is dropped, not pooled.
 pub(crate) const POOL_TABLE_KINDS: usize = 64;
 /// The most tables a worker's pool keeps.

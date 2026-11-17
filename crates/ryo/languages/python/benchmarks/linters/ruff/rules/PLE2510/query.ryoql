@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
-let strings = select id, file, span from "syntax-tree" where kind = "string" or kind = "fstring-middle" or kind = "tstring-middle";
+import source_string_tokens from "python/ruff/source-string-tokens";
+let strings = source_string_tokens();
 let token_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as base_line from strings as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let occurrences = source-matches(from=token_locations, span="span", base-line="base_line", pattern="\x08", output="occurrence", line-output="line");
 let candidates = select id, file, occurrence as span, line from occurrences;

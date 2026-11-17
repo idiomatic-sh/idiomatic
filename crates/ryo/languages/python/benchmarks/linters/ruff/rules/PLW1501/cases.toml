@@ -69,3 +69,9 @@ name = "noqa"
 comparison = "full"
 files = { "case.py" = "open(\"x\", \"rwx\")  # noqa: PLW1501\n" }
 expected = []
+
+[[cases]]
+name = "mode-keyword-of-other-calls"
+comparison = "full"
+files = { "case.py" = "import numpy as np\n\nreverse_indexer = np.empty(3)\nreverse_indexer.take([0], mode=\"wrap\")\nnp.take(reverse_indexer, [0], mode=\"wrap\")\n\n\ndef get_default_engine(ext, mode=\"reader\"):\n    return ext\n\n\nget_default_engine(\"xlsx\", mode=\"writer\")\n\n\nclass Adapter:\n    def json_schema(self, mode):\n        return mode\n\n\nAdapter().json_schema(mode=\"validation\")\nAdapter().json_schema(mode=\"serialization\")\n" }
+expected = []

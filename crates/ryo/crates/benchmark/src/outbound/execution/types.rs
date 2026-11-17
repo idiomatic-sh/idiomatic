@@ -22,7 +22,9 @@ pub struct WorkerResponse(pub Vec<u8>);
 
 /// The compile time of each rule a stored request names.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RuleCompileTimes(pub std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>);
+pub struct RuleCompileTimes(
+    pub std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>,
+);
 
 /// The language's worker, run in this process in place of a child: the bench composes it over its engine.
 pub trait InProcessWorker: Send + Sync + std::fmt::Debug {
@@ -35,10 +37,17 @@ pub trait InProcessWorker: Send + Sync + std::fmt::Debug {
         &self,
         request: &StoredRequest,
     ) -> Result<WorkerResponse, ryo_benchmark_contracts::domain::reports::errors::ReportsError>;
-    /// Compile the rules of the request stored at `request` ahead of its first run, answering each rule's time.
+    /// Compile the rules of the request stored at `request` ahead of its first run, answering each rule's time; none when its
+    /// engine compiles inside the run.
     ///
     /// # Errors
     ///
-    /// Returns an error when the request cannot be read.
-    fn compile(&self, request: &StoredRequest) -> Result<RuleCompileTimes, ryo_benchmark_contracts::domain::reports::errors::ReportsError>;
+    /// Returns an error when the request cannot be read, loaded or configured, or its rules cannot be compiled.
+    fn compile(
+        &self,
+        request: &StoredRequest,
+    ) -> Result<
+        Option<RuleCompileTimes>,
+        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    >;
 }

@@ -165,14 +165,6 @@ impl Drop for Session<'_> {
     }
 }
 impl EnginePort for Engine {
-    fn compile(
-        &self,
-        _request: &WorkerRequest,
-    ) -> Option<Result<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>, Error>>
-    {
-        matches!(self.failing, Failing::Compile)
-            .then(|| Err(Error::Invalid("fixture compile failure".into())))
-    }
     fn load<'a>(
         &'a self,
         request: &'a WorkerRequest,
@@ -203,6 +195,21 @@ impl EnginePort for Engine {
     }
 }
 impl EngineExecution for Session<'_> {
+    /// Each configured rule compiles in 48 ms, or the compile is refused when the double fails there.
+    fn compile(
+        &self,
+        rules: &std::collections::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>,
+        _configured: &crate::outbound::engine::types::EngineConfiguration,
+    ) -> Option<Result<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>, Error>>
+    {
+        if matches!(self.engine.failing, Failing::Compile) {
+            return Some(Err(Error::Invalid("fixture compile failure".into())));
+        }
+        Some(Ok(rules
+            .keys()
+            .map(|rule| (rule.clone(), std::time::Duration::from_millis(48)))
+            .collect()))
+    }
     fn configuration_files(&self) -> Result<Vec<ryo::linter::RelativePath>, Error> {
         Ok(vec![])
     }

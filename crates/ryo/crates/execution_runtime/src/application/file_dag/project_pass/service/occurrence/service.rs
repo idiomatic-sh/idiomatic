@@ -65,11 +65,7 @@ pub(crate) fn run_occurrence(
     match last.iter_mut().find(|each| each.rule == rule) {
         Some(each) if each.place != handover => {
             each.place = handover;
-            let mut node = PlanNodeId(0);
-            while observation_reach(program, node).is_ok() {
-                buffers.release(node);
-                node = PlanNodeId(node.0.saturating_add(1));
-            }
+            buffers.ended();
         }
         Some(_) => {}
         None => last.push(LastHandover {

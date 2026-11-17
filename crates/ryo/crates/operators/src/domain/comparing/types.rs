@@ -31,7 +31,7 @@ pub struct DecisionWorkspace<'a> {
     /// needs them, so a comparison decided by its text alone allocates none.
     pub select: &'a mut LazyScratch<SelectScratch>,
     /// What each comparison decided about each name of the file.
-    pub memo: &'a mut Vec<crate::domain::table_scratch::types::Memo>,
+    pub memo: &'a mut crate::domain::table_scratch::types::MemoTable,
 }
 
 /// The families of comparison a `select` tests with.

@@ -8,6 +8,7 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{decode, facts, rows_of};
 use super::super::scan_node::item::hold;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_with;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, NO_ROW};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
@@ -52,25 +53,30 @@ pub(crate) fn lookups(
     texts(&view, *column, &texts_of, &mut buffers.index);
     for lookup in &shared.readers {
         let place = usize::try_from(lookup.0).unwrap_or(usize::MAX);
-        let (
-            Some(PhysicalNode {
-                lowering: Lowering::Lookup { key, select, .. },
-                ..
-            }),
-            Some(decisions),
-        ) = (plan.nodes.get(place), buffers.decisions.get_mut(place))
+        let Some(PhysicalNode {
+            lowering: Lowering::Lookup { key, select, .. },
+            ..
+        }) = plan.nodes.get(place)
         else {
             continue;
         };
-        if let Some(fed) = buffers.fed.get_mut(place) {
-            *fed = NodeFed([rows_of(&view), RowCount(0), RowCount(0)]);
+        if buffers.decisions.get(place).is_none() {
+            continue;
         }
+        fed_with(
+            buffers,
+            *lookup,
+            NodeFed([rows_of(&view), RowCount(0), RowCount(0)]),
+        );
+        let Some(decisions) = buffers.decisions.get_mut(place) else {
+            continue;
+        };
         let mut output = Table {
             kinds: kept_kinds(view.kinds, &select.kept)?,
             ..Table::default()
         };
         let kernel = filter(select, view.kinds, texts_of);
-        readied(select, decisions, kernel.names);
+        readied(decisions);
         let mut fault = None;
         let mut row =
             find_text(&buffers.index, IndexKeyHash(key.0)).map_or(NO_ROW, |run| run.first);

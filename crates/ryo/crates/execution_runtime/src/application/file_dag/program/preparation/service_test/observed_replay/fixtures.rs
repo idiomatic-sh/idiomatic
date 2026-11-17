@@ -153,6 +153,7 @@ pub(super) fn fixture(
                         .collect()
                 })
                 .collect(),
+            ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         },
     )
     .expect("the file pass plans the request");

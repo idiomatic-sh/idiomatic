@@ -51,6 +51,8 @@ pub(crate) struct PassProgram {
     pub(crate) reads: Box<[Box<[NodeReads]>]>,
     /// What files ran in and gave back, for the next files: one per file running at once.
     pub(crate) scratch: std::sync::Mutex<Vec<PassScratch>>,
+    /// Each rule's id, in rule order: what the node counters name a node's rules by.
+    pub(crate) ids: Box<[ryo_values::domain::runs::types::RuleId]>,
 }
 
 /// What one file's run fills and gives back to the request for the next file: the nodes' rows, the tree nodes each node starts
@@ -78,6 +80,22 @@ pub(crate) struct PassScratch {
     pub(crate) demand: Vec<ryo_relations::domain::relations::types::Relation>,
     /// Whether a rule that runs on the open file can run each node, by node.
     pub(crate) live: Vec<NodeInFile>,
+    /// What the open file holds of the program's activation triggers.
+    pub(crate) triggers:
+        ryo_execution_domain::domain::executable_program::activation::types::Triggers,
+    /// Whether each node can have a row or a row error in the open file, by node.
+    pub(crate) activities:
+        ryo_execution_domain::domain::executable_program::activation::types::Activities,
+}
+
+/// A demanded relation the lookup refused when the open file's triggers were read: its readers answer this refusal without
+/// asking the lookup again, so a refused source is read once.
+#[derive(Debug)]
+pub(crate) struct RefusedRead {
+    /// The relation.
+    pub(crate) relation: ryo_relations::domain::relations::types::Relation,
+    /// Why the lookup refused it.
+    pub(crate) error: crate::outbound::facts::errors::FactsError,
 }
 
 /// Whether a rule that runs on the open file can run a node: a step in each file of such a rule can; any other node runs
@@ -116,6 +134,13 @@ pub(crate) struct PassInputs<'p, 'a, 's> {
     pub(crate) withholdings: crate::application::file_dag::frontiers::types::Withholdings,
     /// The host's rows of each relation a rule of this file read, in the file's symbols, by the relation's place.
     pub(crate) hosted: Vec<Option<ryo_values::domain::rows::types::Table>>,
+    /// Whether each node can have a row or a row error in this file, by node.
+    pub(crate) activities:
+        &'p ryo_execution_domain::domain::executable_program::activation::types::Activities,
+    /// The program, whose layouts a dormant node answers in.
+    pub(crate) program: &'p ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
+    /// The demanded relation the lookup refused when the file's triggers were read, if any.
+    pub(crate) refused_at_open: Option<RefusedRead>,
 }
 
 /// What one file's kernels borrow besides rows: its symbols, bytes and tree, and the paths of the run's files.
@@ -243,6 +268,8 @@ pub(crate) struct PassSource {
     pub(crate) operators: std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
     /// The columns of each relation the host declares, by its place.
     pub(crate) hosted: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
+    /// Each rule's id, in rule order.
+    pub(crate) ids: Vec<ryo_values::domain::runs::types::RuleId>,
 }
 
 /// What the pass reads of one file once its facts are open: the file, its intents and source, the partiality its rules see, its

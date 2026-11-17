@@ -38,10 +38,5 @@ pub(crate) fn differences(
 
 /// The most blocks any judged file allocated beyond the parser library: what the allocation measure holds to its best.
 pub(crate) fn most(differences: &Differences) -> AllocatedBlocks {
-    differences
-        .0
-        .iter()
-        .copied()
-        .max()
-        .unwrap_or_default()
+    differences.0.iter().copied().max().unwrap_or_default()
 }

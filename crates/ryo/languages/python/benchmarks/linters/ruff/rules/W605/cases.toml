@@ -123,3 +123,9 @@ name = "string-in-a-continuation-maps-to-its-last-line"
 comparison = "full"
 files = { "case.py" = "x = 1 + \\\n    \"\"\"\\d\na\n\"\"\"  # noqa: W605\n" }
 expected = []
+
+[[cases]]
+name = "strings-parsed-outside-a-type-position"
+comparison = "full"
+files = { "case.py" = "import pytest\nfrom typing import List, cast\n\n\ndef test_isin_level_kwarg(idx):\n    with pytest.raises(KeyError, match=r\"'Level 1\\.0 not found'\"):\n        idx.isin([], level=1.0)\n    with pytest.raises(KeyError, match=\"'Level -1\\.0 not found'\"):\n        idx.isin([], level=-1.0)\n\n\nx: \"list['\\.']\" = cast(r\"list['\\.']\", [])\ny = cast(\"list['\\.']\", [])\n\n\ndef f(a: \"list['\\.']\", b: List[\"list['\\.']\"]) -> \"\\d\":\n    local: \"list['\\.']\" = []\n    return local\n" }
+expected = [{ rule = "W605", file = "case.py", start = 226, end = 228 }, { rule = "W605", file = "case.py", start = 289, end = 291 }, { rule = "W605", file = "case.py", start = 310, end = 312 }, { rule = "W605", file = "case.py", start = 337, end = 339 }, { rule = "W605", file = "case.py", start = 337, end = 339 }, { rule = "W605", file = "case.py", start = 366, end = 368 }, { rule = "W605", file = "case.py", start = 388, end = 390 }, { rule = "W605", file = "case.py", start = 388, end = 390 }, { rule = "W605", file = "case.py", start = 423, end = 425 }]

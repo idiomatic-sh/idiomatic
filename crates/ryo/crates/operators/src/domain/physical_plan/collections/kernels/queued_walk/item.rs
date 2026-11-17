@@ -4,7 +4,6 @@
 //! queue again when its state changes; every edge followed is one row, with the destination's state after the join.
 
 use super::super::distinct::item::counted;
-use super::super::hash_index::item::{emptied, value_hash};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};
@@ -12,6 +11,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::visited_set::value::value_hash;
 use crate::domain::physical_plan::types::{CellStart, InputRows};
 use crate::domain::table_texts::types::Texts;
 use crate::domain::worklist::service::{joined, output_kinds, place, state_of, tabled};
@@ -104,7 +104,7 @@ pub(crate) fn worklisted(
     })?;
     sorted_edges(worklist, inputs.edges, texts, scratch)?;
     sorted_roots(worklist, inputs.roots, texts, scratch)?;
-    emptied(repeats);
+    repeats.cleared();
     let width = worklist.root_keys.len() + 2;
     let mut at = 0;
     while let Some(first) = scratch.roots.get(at).copied() {
