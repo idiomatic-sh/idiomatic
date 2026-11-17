@@ -175,13 +175,18 @@ fn filtered_lookup(
     steps
 }
 
+/// Where the answer numbers the steps from the edge join on: the edge join is `FROM_THE_EDGE_JOIN`, the next one after it, and
+/// so on; a step before the edge join keeps its own number, which is below it.
+const FROM_THE_EDGE_JOIN: u32 = 1000;
+
 /// The steps from the first of the two joins a lookup was pushed into: the join with the edges, the join with the elements,
-/// and what follows, each with the steps it reads blanked, so two plans that differ only in where they are compare equal.
+/// and what follows, each step they read from the edge join on numbered from `FROM_THE_EDGE_JOIN`, so two plans that differ
+/// only in how many steps come before the edge join compare equal, and a step that reads the wrong one of them does not.
 fn from_the_edge_join(steps: &[PlanStep]) -> Vec<Operation> {
-    steps
+    let edge = steps
         .iter()
-        .skip_while(|step| {
-            !matches!(
+        .position(|step| {
+            matches!(
                 step.operation,
                 Operation::Join {
                     right: Reads::Relation(Relation::SyntaxChild),
@@ -189,11 +194,18 @@ fn from_the_edge_join(steps: &[PlanStep]) -> Vec<Operation> {
                 }
             )
         })
+        .unwrap_or(steps.len());
+    let edge = u32::try_from(edge).unwrap_or(u32::MAX);
+    steps
+        .iter()
+        .skip(usize::try_from(edge).unwrap_or(usize::MAX))
         .map(|step| {
             let mut operation = step.operation.clone();
             each_input(&mut operation, &mut |input| {
-                if let Reads::Step(id) = input {
-                    *id = StepId(0);
+                if let Reads::Step(id) = input
+                    && id.0 >= edge
+                {
+                    *id = StepId(id.0 - edge + FROM_THE_EDGE_JOIN);
                 }
             });
             operation
@@ -228,15 +240,18 @@ fn fallible_lookup(answered: &[u32]) -> Vec<Operation> {
     from_the_edge_join(&push_lookups(steps, StepId(3)).steps)
 }
 
-/// Whether the pattern stays a filter above the element join, which keeps only the kind, reading the text the answer holds.
+/// Whether the pattern stays a filter of the element join's answer, reading the text the answer holds, and the element join,
+/// reading the edge join, keeps only the kind.
 fn fallible_kept_above() -> usize {
     usize::from(matches!(
         fallible_lookup(&[3]).as_slice(),
         [
             _,
-            Operation::Join { filter, output, .. },
-            Operation::Select { from: Reads::Step(_), comparisons, kept },
-        ] if *filter == [written(Test::Equal, 1, "ident")]
+            Operation::Join { left: Reads::Step(edges), filter, output, .. },
+            Operation::Select { from: Reads::Step(elements), comparisons, kept },
+        ] if edges.0 == FROM_THE_EDGE_JOIN
+            && elements.0 == FROM_THE_EDGE_JOIN + 1
+            && *filter == [written(Test::Equal, 1, "ident")]
             && output.len() == 2
             && *comparisons == [written(Test::Matches, 1, "^(?:r#)?feature$")]
             && kept.is_empty()

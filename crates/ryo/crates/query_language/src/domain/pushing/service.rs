@@ -6,17 +6,17 @@ use super::types::FilterStep;
 use super::types::FilteredElements;
 use super::types::KeptColumns;
 use super::types::Pushed;
-use crate::domain::fusing::service::rides_the_walk;
-use crate::domain::fusing::types::RightPredicatePlace;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
-use crate::domain::selection_pushing::service::{insert_before, renamed};
+use crate::domain::selection_pushing::service::insert_before;
 use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{Column, Relation};
 use ryo_values::domain::plan_parts::service::view_source;
-use ryo_values::domain::plan_parts::service::{column_place, fixed_prefix};
+use ryo_values::domain::plan_parts::service::{
+    column_place, fixed_prefix, remapped_comparison, rides_the_walk,
+};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -85,7 +85,7 @@ fn over_the_answer(
         }
     };
     rest.iter()
-        .map(|comparison| renamed(comparison, &answered))
+        .map(|comparison| remapped_comparison(comparison, &answered))
         .collect()
 }
 
@@ -125,7 +125,7 @@ fn element_comparisons(
             }
         };
         for comparison in *comparisons {
-            filters.push(renamed(comparison, &element_side)?);
+            filters.push(remapped_comparison(comparison, &element_side)?);
         }
     }
     Some(filters)
@@ -292,8 +292,7 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
     let walked =
         fixed_prefix(&folded, RowWidth(columns(Relation::SyntaxTree).len())).0.len();
     let (filters, rest) = folded.split_at(walked);
-    if rides_the_walk(Relation::SyntaxTree, element_on, element_view, filters)
-        == RightPredicatePlace::BelowAsSelect
+    if rides_the_walk(Relation::SyntaxTree, element_on, element_view, filters).is_none()
     {
         return None;
     }

@@ -7,9 +7,7 @@ use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{KeyedIndex, ProbeIndex, RowSource};
-use ryo_relations::domain::relations::service::kinds;
-use ryo_values::domain::plan_parts::service::{fixed_prefix, tree_lookup_key};
-use ryo_values::domain::plan_parts::types::{RowWidth, TreeLookupKey};
+use ryo_values::domain::plan_parts::service::rides_the_walk;
 
 /// `tree_probe`, one item of the `rewrites` collection.
 pub(crate) struct TreeProbeItem;
@@ -25,15 +23,8 @@ impl RewritesItem for TreeProbeItem {
             } = &mut node.lowering
                 && let ProbeKey::Columns { left, right } = &probe.key
                 && let ([_], [on]) = (left.as_slice(), right.as_slice())
-                && matches!(
-                    tree_lookup_key(*relation, &[*on]),
-                    Some(TreeLookupKey::Node(_))
-                )
                 && !matches!(probe.mode, ProbeMode::Ordered(_))
-                && fixed_prefix(&probe.filter.comparisons, RowWidth(kinds(*relation).len()))
-                    .0
-                    .len()
-                    == probe.filter.comparisons.len()
+                && rides_the_walk(*relation, &[*on], &[], &probe.filter.comparisons).is_some()
             {
                 *index = ProbeIndex::Tree;
             }

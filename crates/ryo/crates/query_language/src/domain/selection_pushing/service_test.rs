@@ -6,7 +6,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Relation;
 use crate::domain::rewriting::types::Planned;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input as Reads, JoinColumn, LiteralText, Operand,
+    ColumnIndex, ComparisonOrigin, HostedNumber, Input as Reads, JoinColumn, LiteralText, Operand,
     ParameterId, PlanComparison, QueryLiteral, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
@@ -24,6 +24,8 @@ enum Scenario {
     UnionOfFilterReadersPushesThePrefix,
     /// A union of a join keyed on the file is read by a filter that tests a pattern a parameter gives first.
     UnionFalliblePrefixStays,
+    /// A union whose rows' width the plan does not say (its left is a hosted relation) is read by a filter of a written name.
+    UnionOfUnknownWidthStays,
 }
 
 /// Whether the plan came back as the row expects it.
@@ -65,6 +67,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_union_whose_filter_may_fail_first_stays_as_it_is"),
         word: Word::Succeeds,
         input: || Scenario::UnionFalliblePrefixStays,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_union_whose_width_is_unknown_is_not_pushed"),
+        word: Word::Succeeds,
+        input: || Scenario::UnionOfUnknownWidthStays,
         expect: Expect::Value(true),
     },
 ];
@@ -266,6 +274,20 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             (steps.clone(), StepId(5), steps, StepId(5))
         }
         Scenario::UnionOfFilterReadersPushesThePrefix => union_of_filtered_readers(),
+        Scenario::UnionOfUnknownWidthStays => {
+            let steps = vec![
+                step(Operation::Hosted {
+                    relation: HostedNumber(0),
+                }),
+                functions(),
+                step(Operation::Union {
+                    left: Reads::Step(StepId(0)),
+                    right: Reads::Step(StepId(1)),
+                }),
+                select(Reads::Step(StepId(2)), named_main(1)),
+            ];
+            (steps.clone(), StepId(3), steps, StepId(3))
+        }
         Scenario::UnionFalliblePrefixStays => {
             let steps = vec![
                 functions(),

@@ -1,20 +1,13 @@
 //! The `fusing` service: free functions named by verb over the filters and lookups of a plan that are read where they are found, instead of being made into tables first.
 
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
-use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::types::RightPredicatePlace;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_values::domain::plan_parts::service::{
-    column_place, fixed_prefix, remapped, tree_lookup_key, view_source,
+    column_place, remapped_comparison, rides_the_walk, view_source,
 };
-use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plan_parts::types::Operand;
-use ryo_values::domain::plan_parts::types::PlanComparison;
-use ryo_values::domain::plan_parts::types::RowWidth;
-use ryo_values::domain::plan_parts::types::TreeLookupKey;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
@@ -45,15 +38,11 @@ fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
     else {
         return None;
     };
-    let remap = |operand: &Operand| remapped(operand, &|column| view_source(cut, column));
     let mut comparisons = first.clone();
     for comparison in second {
-        comparisons.push(PlanComparison {
-            test: comparison.test,
-            left: remap(&comparison.left)?,
-            right: remap(&comparison.right)?,
-            origin: comparison.origin,
-        });
+        comparisons.push(remapped_comparison(comparison, &|column| {
+            view_source(cut, column)
+        })?);
     }
     let kept = if last.is_empty() {
         cut.clone()
@@ -100,7 +89,7 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     if producer.scope != steps.get(place.0)?.scope
         || !no_filter.is_empty()
         || !no_view.is_empty()
-        || rides_the_walk(*relation, right_on, kept, comparisons) == RightPredicatePlace::BelowAsSelect
+        || rides_the_walk(*relation, right_on, kept, comparisons).is_none()
     {
         return None;
     }
@@ -115,42 +104,6 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
 
         reach: None,
     })
-}
-
-/// Where a join of `relation` on its columns `right_on`, read through `view`, decides the right comparisons `comparisons`, of
-/// the relation's columns: in the probe exactly when the probe walks the tree, which is when the keys read one node column
-/// (`tree_lookup_key` answers `TreeLookupKey::Node`) and every comparison is in `fixed_prefix`, so none can fail. That is the
-/// walk condition of the operators' `tree_probe` rewrite for an unordered probe; anywhere else the comparisons are a filter of
-/// the right input made before the join, so no probe builds an index of its own from a filter folded into it.
-/// The one decision of whether a right predicate rides the probe: `fuse_join` asks it of a producer's filter, placement of a
-/// filter of the join, and `push_lookups` of the filter it folds into the element join.
-/// A logical join lowers to an inner probe; `ordered_existence` can make it ordered after lowering, and `tree_probe` then
-/// indexes the relation instead of walking it. Its filter is all of the prefix, so it cannot fail there either: the cost is
-/// work, not meaning.
-pub(crate) fn rides_the_walk(
-    relation: Relation,
-    right_on: &[ColumnIndex],
-    view: &[ColumnIndex],
-    comparisons: &[PlanComparison],
-) -> RightPredicatePlace {
-    // The columns of `relation` that the keys read through the view.
-    let read: Option<Vec<ColumnIndex>> = right_on
-        .iter()
-        .map(|key| view_source(view, *key))
-        .collect();
-    let by_a_node = read.is_some_and(|read| {
-        matches!(
-            tree_lookup_key(relation, &read),
-            Some(TreeLookupKey::Node(_))
-        )
-    });
-    let infallible =
-        fixed_prefix(comparisons, RowWidth(columns(relation).len())).0.len() == comparisons.len();
-    if by_a_node && infallible {
-        RightPredicatePlace::InProbe
-    } else {
-        RightPredicatePlace::BelowAsSelect
-    }
 }
 
 /// The axis at `place` answering among the rows of a filter of the elements of the syntax tree, with that

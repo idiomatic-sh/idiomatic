@@ -187,6 +187,36 @@ where
     }
 }
 
+/// The comparison with each column it tests put where `remap` says; nothing when `remap` has no place for one of them. The one
+/// rename of a comparison: the planner's fusing and placement, the lookups it pushes and the rule compiler's observations.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::service::remapped_comparison;
+/// use ryo_values::domain::plan_parts::types::{ColumnIndex, ComparisonOrigin, Operand, PlanComparison, Test};
+/// let same = PlanComparison {
+///     test: Test::Equal,
+///     left: Operand::Column(ColumnIndex(0)),
+///     right: Operand::Column(ColumnIndex(2)),
+///     origin: ComparisonOrigin::Unrecorded,
+/// };
+/// let moved = remapped_comparison(&same, &|column| Some(ColumnIndex(column.0 + 1)));
+/// assert_eq!(moved.map(|each| each.right), Some(Operand::Column(ColumnIndex(3))));
+/// assert!(remapped_comparison(&same, &|column| (column.0 == 0).then_some(column)).is_none());
+/// ```
+pub fn remapped_comparison<F>(comparison: &PlanComparison, remap: &F) -> Option<PlanComparison>
+where
+    F: Fn(ColumnIndex) -> Option<ColumnIndex>,
+{
+    Some(PlanComparison {
+        test: comparison.test,
+        left: remapped(&comparison.left, remap)?,
+        right: remapped(&comparison.right, remap)?,
+        origin: comparison.origin,
+    })
+}
+
 /// The family of comparison a test belongs to.
 ///
 /// # Examples
@@ -253,4 +283,54 @@ pub fn fixed_prefix(comparisons: &[PlanComparison], width: RowWidth) -> FixedPre
         .position(|comparison| !infallible(comparison))
         .unwrap_or(comparisons.len());
     FixedPrefix(comparisons.get(..length).unwrap_or_default())
+}
+
+/// The right comparisons `comparisons`, of the relation's columns, that a join of `relation` on its columns `right_on`, read
+/// through `view`, decides in the probe: all of them exactly when the probe walks the tree, which is when the keys read one
+/// node column (`tree_lookup_key` answers `TreeLookupKey::Node`) and every comparison is in `fixed_prefix`, so none can fail;
+/// none (`None`) anywhere else, where they are a filter of the right input made before the join. The one walk condition: the
+/// planner's fusing, placement and pushed lookups place a right predicate by it, and the operators' `tree_probe` rewrite
+/// walks an unordered probe by it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::types::Relation;
+/// use ryo_values::domain::plan_parts::service::rides_the_walk;
+/// use ryo_values::domain::plan_parts::types::{
+///     ColumnIndex, ComparisonOrigin, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
+/// };
+/// let kind = |test| PlanComparison {
+///     test,
+///     left: Operand::Column(ColumnIndex(1)),
+///     right: Operand::Literal(QueryLiteral::Text(LiteralText("ident".into()))),
+///     origin: ComparisonOrigin::Unrecorded,
+/// };
+/// let by_id = [ColumnIndex(0)];
+/// let walked = [kind(Test::Equal)];
+/// assert!(rides_the_walk(Relation::SyntaxTree, &by_id, &[], &walked).is_some());
+/// assert!(rides_the_walk(Relation::SyntaxTree, &by_id, &[], &[kind(Test::Matches)]).is_none());
+/// // A span finds the element in an index, never by walking.
+/// assert!(rides_the_walk(Relation::SyntaxTree, &[ColumnIndex(4)], &[], &walked).is_none());
+/// ```
+#[must_use]
+pub fn rides_the_walk<'a>(
+    relation: Relation,
+    right_on: &[ColumnIndex],
+    view: &[ColumnIndex],
+    comparisons: &'a [PlanComparison],
+) -> Option<FixedPrefix<'a>> {
+    // The columns of `relation` that the keys read through the view.
+    let read: Option<Vec<ColumnIndex>> = right_on
+        .iter()
+        .map(|key| view_source(view, *key))
+        .collect();
+    let by_a_node = read.is_some_and(|read| {
+        matches!(
+            tree_lookup_key(relation, &read),
+            Some(TreeLookupKey::Node(_))
+        )
+    });
+    let prefix = fixed_prefix(comparisons, RowWidth(columns(relation).len()));
+    (by_a_node && prefix.0.len() == comparisons.len()).then_some(prefix)
 }

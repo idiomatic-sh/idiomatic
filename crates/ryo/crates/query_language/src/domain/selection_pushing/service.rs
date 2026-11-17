@@ -2,8 +2,6 @@
 
 use super::types::PushedFilter;
 use super::types::SplitComparisons;
-use crate::domain::fusing::service::rides_the_walk;
-use crate::domain::fusing::types::RightPredicatePlace;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::pruning::service::without_unused_roots;
 use crate::domain::rewriting::types::Planned;
@@ -11,7 +9,8 @@ use crate::domain::rewriting::types::StepIndex;
 use crate::domain::widths::service::width_of;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::fixed_prefix;
-use ryo_values::domain::plan_parts::service::remapped;
+use ryo_values::domain::plan_parts::service::remapped_comparison;
+use ryo_values::domain::plan_parts::service::rides_the_walk;
 use ryo_values::domain::plan_parts::service::step_in;
 use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -131,20 +130,6 @@ fn placed(steps: &[PlanStep], id: StepId, readers: &[StepIndex]) -> Vec<PushedFi
     }
 }
 
-/// The comparison with each column it tests named by `map`, when `map` names every one: the one rename of a comparison the
-/// rewrites that move one share.
-pub(crate) fn renamed(
-    comparison: &PlanComparison,
-    map: &dyn Fn(ColumnIndex) -> Option<ColumnIndex>,
-) -> Option<PlanComparison> {
-    Some(PlanComparison {
-        test: comparison.test,
-        left: remapped(&comparison.left, &map)?,
-        right: remapped(&comparison.right, &map)?,
-        origin: comparison.origin,
-    })
-}
-
 /// The comparisons of a filter of the join that answers `output` through `view`, by where they are decided.
 fn split_comparisons(
     comparisons: &[PlanComparison],
@@ -166,9 +151,9 @@ fn split_comparisons(
     let prefix = fixed_prefix(comparisons, RowWidth(output.len())).0;
     let mut split = SplitComparisons::default();
     for comparison in prefix {
-        if let Some(left) = renamed(comparison, &side_column(Side::Left)) {
+        if let Some(left) = remapped_comparison(comparison, &side_column(Side::Left)) {
             split.left.push(left);
-        } else if let Some(right) = renamed(comparison, &side_column(Side::Right)) {
+        } else if let Some(right) = remapped_comparison(comparison, &side_column(Side::Right)) {
             split.right.push(right);
         } else {
             split.rest.push(comparison.clone());
@@ -277,7 +262,7 @@ fn pushed_join(steps: &[PlanStep], id: StepId, reader: StepIndex) -> Option<Push
     let walked: Vec<PlanComparison> = filter.iter().chain(&split.right).cloned().collect();
     let rides = !split.right.is_empty()
         && matches!(right, Input::Relation(relation)
-            if rides_the_walk(*relation, right_on, view, &walked) == RightPredicatePlace::InProbe);
+            if rides_the_walk(*relation, right_on, view, &walked).is_some());
     let (placed_right, placed_filter) = if rides {
         (*right, walked)
     } else {
