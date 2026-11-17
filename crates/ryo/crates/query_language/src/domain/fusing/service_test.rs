@@ -32,8 +32,10 @@ enum Scenario {
     AJoinOnTheOrdinalOfTheEdgesIsLeft,
     /// An axis answering among the filtered elements reads them where it reaches them.
     AnAxisAmongFilteredElementsReadsThemInPlace,
-    /// A join on the stretch the filtered elements cover reads them where the stretch says.
-    AJoinOnTheStretchReadsTheFilteredElementsInPlace,
+    /// A join on the stretch the filtered elements cover is left as it is: the tree is walked only from a node.
+    ASpanKeyedProducerSelectStaysAStep,
+    /// A join on the ids of elements filtered by a pattern of their text is left as it is: the walk decides only what cannot fail.
+    AFallibleProducerSelectStaysAStep,
     /// A join on another column of the filtered elements is left as it is.
     AJoinOnAnotherColumnIsLeft,
     /// A filter of a step something else reads too is left to be read by the other.
@@ -125,17 +127,13 @@ fn a_join_on_ids_reads_the_filtered_elements_in_place(scenario: Scenario) -> usi
     usize::from(read_in_place == (on == 0))
 }
 
-fn a_join_on_the_stretch_reads_the_filtered_elements_in_place() -> usize {
-    let keep = PlanComparison {
-        test: Test::Equal,
-        left: Operand::Column(column(2)),
-        right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
-        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-    };
+/// A join of the functions with elements filtered by `comparisons` and viewed as their id and span, on the view's column `on`:
+/// whether the join still reads the filter as a step of its own.
+fn a_producer_select_stays_a_step(comparisons: Vec<PlanComparison>, on: u32) -> usize {
     let steps = vec![
         step(Operation::Select {
             from: Reads::Relation(Relation::SyntaxTree),
-            comparisons: vec![keep.clone()],
+            comparisons,
             kept: vec![column(0), column(4)],
         }),
         step(Operation::Select {
@@ -147,7 +145,7 @@ fn a_join_on_the_stretch_reads_the_filtered_elements_in_place() -> usize {
             left: Reads::Step(StepId(1)),
             right: Reads::Step(StepId(0)),
             left_on: vec![column(0)],
-            right_on: vec![column(1)],
+            right_on: vec![column(on)],
             output: Vec::new(),
             filter: Vec::new(),
             view: Vec::new(),
@@ -155,10 +153,18 @@ fn a_join_on_the_stretch_reads_the_filtered_elements_in_place() -> usize {
             reach: None,
         }),
     ];
-    let fused = fuse_selects(steps);
-    usize::from(
-        matches!(&fused[2].operation, Operation::Join { right: Reads::Relation(Relation::SyntaxTree), filter, view, .. } if filter == &[keep] && view == &[column(0), column(4)]),
-    )
+    let fused = fuse_selects(steps.clone());
+    usize::from(fused == steps)
+}
+
+/// The element's column `at` compared with the written text `text` by `test`.
+fn written(test: Test, at: u32, text: &str) -> PlanComparison {
+    PlanComparison {
+        test,
+        left: Operand::Column(column(at)),
+        right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
+    }
 }
 
 fn a_join_on_the_edges_reads_them_in_place(scenario: Scenario) -> usize {
@@ -306,9 +312,16 @@ fn subject(scenario: Input) -> Value {
         | Scenario::AJoinOnAnotherColumnIsLeft => {
             a_join_on_ids_reads_the_filtered_elements_in_place(scenario)
         }
-        Scenario::AJoinOnTheStretchReadsTheFilteredElementsInPlace => {
-            a_join_on_the_stretch_reads_the_filtered_elements_in_place()
+        Scenario::ASpanKeyedProducerSelectStaysAStep => {
+            a_producer_select_stays_a_step(vec![written(Test::Equal, 2, "")], 1)
         }
+        Scenario::AFallibleProducerSelectStaysAStep => a_producer_select_stays_a_step(
+            vec![
+                written(Test::Equal, 1, "ident"),
+                written(Test::Matches, 2, "^(?:r#)?feature$"),
+            ],
+            0,
+        ),
         Scenario::AJoinOnTheEdgesReadsThemInPlace | Scenario::AJoinOnTheOrdinalOfTheEdgesIsLeft => {
             a_join_on_the_edges_reads_them_in_place(scenario)
         }
@@ -334,7 +347,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("a_join_on_the_ids_of_filtered_elements_reads_them_where_the_ids_say"),
+        name: CaseName("a_producer_select_of_a_node_key_rides_the_walk"),
         word: Word::Succeeds,
         input: || Scenario::AJoinOnIdsReadsTheFilteredElementsInPlace,
         expect: Expect::Value(1),
@@ -358,11 +371,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName(
-            "a_join_on_the_stretch_of_filtered_elements_reads_them_where_the_stretch_says",
-        ),
+        name: CaseName("a_span_keyed_producer_select_stays_a_step"),
         word: Word::Succeeds,
-        input: || Scenario::AJoinOnTheStretchReadsTheFilteredElementsInPlace,
+        input: || Scenario::ASpanKeyedProducerSelectStaysAStep,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_fallible_producer_select_stays_a_step"),
+        word: Word::Succeeds,
+        input: || Scenario::AFallibleProducerSelectStaysAStep,
         expect: Expect::Value(1),
     },
     Case {

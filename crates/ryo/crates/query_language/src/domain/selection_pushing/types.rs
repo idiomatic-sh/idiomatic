@@ -13,14 +13,17 @@ pub(crate) struct PushedFilter {
     pub filter: PlanStep,
 }
 
-/// The comparisons of a filter of a join, by the input whose columns they test.
+/// The comparisons of a filter of a join, by where they are decided: those of the filter's infallible prefix (`fixed_prefix`) that
+/// test the columns of one input, on that input, and the rest after the join. A comparison that may fail, and every one after it,
+/// is never moved, so each runs on the rows it ran on and raises the fault it raised.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub(crate) struct SplitComparisons {
-    /// Those that test only columns of the left input, as its columns.
+    /// Those of the prefix that test only columns of the left input, as its columns.
     pub left: Vec<PlanComparison>,
-    /// Those that test only columns of the right input, as its columns.
+    /// Those of the prefix that test only columns of the right input, as its columns.
     pub right: Vec<PlanComparison>,
-    /// The rest, as columns of the join's answer.
+    /// The rest, in their order, as columns of the join's answer: those of the prefix that test no single input, then every
+    /// comparison from the first that may fail on.
     pub rest: Vec<PlanComparison>,
 }
 

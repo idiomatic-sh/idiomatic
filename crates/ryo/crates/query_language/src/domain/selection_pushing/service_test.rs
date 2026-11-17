@@ -1,12 +1,13 @@
-//! A filter of a join keyed on the file alone is made on the input whose columns it tests, and a filter of a union of such a join on
-//! both its inputs, when every reader of the union or the join is a filter; a union another step reads whole stays as it is.
+//! A filter of a join is made on the input whose columns it tests, and the infallible prefix of a filter of a union on both its
+//! inputs when every reader of the union is a filter whose prefix is not empty; a union another step reads whole stays as it is.
 
 use super::service::push_selections;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Relation;
+use crate::domain::rewriting::types::Planned;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as Reads, JoinColumn, LiteralText, Operand,
-    PlanComparison, QueryLiteral, Side, StepId, StepScope, Test,
+    ParameterId, PlanComparison, QueryLiteral, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 
@@ -19,6 +20,10 @@ enum Scenario {
     FilteredJoin,
     /// A union is read by a filter and by a join.
     UnionReadWhole,
+    /// A union of two filters is read by two filters, each with an infallible prefix, and the first with a pattern after it.
+    UnionOfFilterReadersPushesThePrefix,
+    /// A union of a join keyed on the file is read by a filter that tests a pattern a parameter gives first.
+    UnionFalliblePrefixStays,
 }
 
 /// Whether the plan came back as the row expects it.
@@ -50,31 +55,117 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::UnionReadWhole,
         expect: Expect::Value(true),
     },
+    Case {
+        name: CaseName("the_infallible_prefix_of_each_filter_of_a_union_is_made_on_both_its_inputs"),
+        word: Word::Succeeds,
+        input: || Scenario::UnionOfFilterReadersPushesThePrefix,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_union_whose_filter_may_fail_first_stays_as_it_is"),
+        word: Word::Succeeds,
+        input: || Scenario::UnionFalliblePrefixStays,
+        expect: Expect::Value(true),
+    },
 ];
 
-fn step(operation: Operation) -> PlanStep {
+/// A step of `operation`, made for each file.
+pub(super) fn step(operation: Operation) -> PlanStep {
     PlanStep {
         operation,
         scope: StepScope::PerFile,
     }
 }
 
-fn select(from: Reads, comparisons: Vec<PlanComparison>) -> PlanStep {
+/// A filter of `from` by `comparisons`, keeping every column.
+pub(super) fn select(from: Reads, comparisons: Vec<PlanComparison>) -> PlanStep {
+    select_kept(from, comparisons, &[])
+}
+
+/// A filter of `from` by `comparisons`, keeping the columns `kept`.
+pub(super) fn select_kept(from: Reads, comparisons: Vec<PlanComparison>, kept: &[u32]) -> PlanStep {
     step(Operation::Select {
         from,
         comparisons,
-        kept: Vec::new(),
+        kept: kept.iter().copied().map(ColumnIndex).collect(),
     })
+}
+
+/// Column `column` compared with the written text `text` by `test`.
+fn written(test: Test, column: u32, text: &str) -> PlanComparison {
+    PlanComparison {
+        test,
+        left: Operand::Column(ColumnIndex(column)),
+        right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+        origin: ComparisonOrigin::Unrecorded,
+    }
+}
+
+/// Column `column` equals the text `text`.
+pub(super) fn named(column: u32, text: &str) -> PlanComparison {
+    written(Test::Equal, column, text)
+}
+
+/// Column `column` matches the written pattern `pattern`.
+pub(super) fn matches(column: u32, pattern: &str) -> PlanComparison {
+    written(Test::Matches, column, pattern)
 }
 
 /// Column `column` equals the text "main".
 fn named_main(column: u32) -> Vec<PlanComparison> {
-    vec![PlanComparison {
-        test: Test::Equal,
-        left: Operand::Column(ColumnIndex(column)),
-        right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
+    vec![named(column, "main")]
+}
+
+/// Whether `rewrite` gives back, for the plan and the step it emits, the plan and the step the row expects.
+pub(super) fn tested(
+    (before, emitted, after, emits): (Vec<PlanStep>, StepId, Vec<PlanStep>, StepId),
+    rewrite: fn(Vec<PlanStep>, StepId) -> Planned,
+) -> bool {
+    let planned = rewrite(before, emitted);
+    planned.steps == after && planned.emitted == emits
+}
+
+/// The union of the functions and the comments, read by a filter of the names `main` that then tests a pattern a parameter
+/// gives, and by a filter of the names `run`; a union of the two filters is emitted.
+fn union_of_filtered_readers() -> (Vec<PlanStep>, StepId, Vec<PlanStep>, StepId) {
+    let pattern = PlanComparison {
+        test: Test::Matches,
+        left: Operand::Column(ColumnIndex(1)),
+        right: Operand::Parameter(ParameterId(0)),
         origin: ComparisonOrigin::Unrecorded,
-    }]
+    };
+    let union = |left: u32, right: u32| {
+        step(Operation::Union {
+            left: Reads::Step(StepId(left)),
+            right: Reads::Step(StepId(right)),
+        })
+    };
+    let main = named(1, "main");
+    let run_name = named(1, "run");
+    (
+        vec![
+            functions(),
+            comments(),
+            union(0, 1),
+            select(Reads::Step(StepId(2)), vec![main.clone(), pattern.clone()]),
+            select(Reads::Step(StepId(2)), vec![run_name.clone()]),
+            union(3, 4),
+        ],
+        StepId(5),
+        vec![
+            functions(),
+            comments(),
+            select(Reads::Step(StepId(0)), vec![main.clone()]),
+            select(Reads::Step(StepId(1)), vec![main]),
+            union(2, 3),
+            select(Reads::Step(StepId(4)), vec![pattern]),
+            select(Reads::Step(StepId(0)), vec![run_name.clone()]),
+            select(Reads::Step(StepId(1)), vec![run_name]),
+            union(6, 7),
+            union(5, 8),
+        ],
+        StepId(9),
+    )
 }
 
 fn join(left: Reads, right: Reads) -> PlanStep {
@@ -174,12 +265,39 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ];
             (steps.clone(), StepId(5), steps, StepId(5))
         }
+        Scenario::UnionOfFilterReadersPushesThePrefix => union_of_filtered_readers(),
+        Scenario::UnionFalliblePrefixStays => {
+            let steps = vec![
+                functions(),
+                comments(),
+                join(Reads::Step(StepId(0)), Reads::Step(StepId(1))),
+                step(Operation::Union {
+                    left: Reads::Step(StepId(2)),
+                    right: Reads::Step(StepId(1)),
+                }),
+                select(
+                    Reads::Step(StepId(3)),
+                    vec![
+                        PlanComparison {
+                            test: Test::Matches,
+                            left: Operand::Column(ColumnIndex(1)),
+                            right: Operand::Parameter(ParameterId(0)),
+                            origin: ComparisonOrigin::Unrecorded,
+                        },
+                        named(1, "main"),
+                    ],
+                ),
+            ];
+            (steps.clone(), StepId(4), steps, StepId(4))
+        }
     };
-    let planned = push_selections(before, emitted);
-    Ok(planned.steps == after && planned.emitted == emits)
+    Ok(tested((before, emitted, after, emits), push_selections))
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[cfg(test)]
+mod placement_test;

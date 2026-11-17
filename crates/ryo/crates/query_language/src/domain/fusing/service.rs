@@ -3,7 +3,7 @@
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::types::TreeLookup;
+use super::types::RightPredicatePlace;
 use crate::domain::rewriting::types::StepIndex;
 use ryo_values::domain::plan_parts::service::{
     column_place, remapped, tree_lookup_key, view_source,
@@ -97,7 +97,7 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     if producer.scope != steps.get(place.0)?.scope
         || !no_filter.is_empty()
         || !no_view.is_empty()
-        || tree_lookup_supported(*relation, right_on, kept) == TreeLookup::Unsupported
+        || rides_the_walk(*relation, right_on, kept, comparisons) == RightPredicatePlace::BelowAsSelect
     {
         return None;
     }
@@ -114,20 +114,25 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     })
 }
 
-/// Whether the resident tree lookup implements these ordered keys through this view.
-/// Other joins must keep their filter as a separate select for the generic executor.
-fn tree_lookup_supported(
+/// Where a join of `relation` on its columns `right_on`, read through `view`, decides the right comparisons `comparisons`, of
+/// the relation's columns: in the probe when the tree answers the keys where it is.
+/// The one decision of whether a right predicate rides the probe: `fuse_join` asks it of a producer's filter, placement of a
+/// filter of the join, and `push_lookups` of the filter it folds into the element join.
+pub(crate) fn rides_the_walk(
     relation: Relation,
-    keys: &[ColumnIndex],
+    right_on: &[ColumnIndex],
     view: &[ColumnIndex],
-) -> TreeLookup {
+    _comparisons: &[PlanComparison],
+) -> RightPredicatePlace {
     // The columns of `relation` that the keys read through the view.
-    let read: Option<Vec<ColumnIndex>> = keys.iter().map(|key| view_source(view, *key)).collect();
-    let supported = read.is_some_and(|read| tree_lookup_key(relation, &read).is_some());
-    if supported {
-        TreeLookup::Supported
+    let read: Option<Vec<ColumnIndex>> = right_on
+        .iter()
+        .map(|key| view_source(view, *key))
+        .collect();
+    if read.is_some_and(|read| tree_lookup_key(relation, &read).is_some()) {
+        RightPredicatePlace::InProbe
     } else {
-        TreeLookup::Unsupported
+        RightPredicatePlace::BelowAsSelect
     }
 }
 
@@ -214,7 +219,7 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         return None;
     };
     if producer.scope != steps.get(place.0)?.scope
-        || tree_lookup_supported(*relation, right_on, view) == TreeLookup::Unsupported
+        || rides_the_walk(*relation, right_on, view, filter) == RightPredicatePlace::BelowAsSelect
     {
         return None;
     }

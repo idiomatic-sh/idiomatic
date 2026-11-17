@@ -3,13 +3,14 @@
 pub(crate) mod demand;
 pub(crate) mod pulled_graph;
 
-/// Whether the resident tree lookup can serve a join.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TreeLookup {
-    /// The keys are ones the lookup implements through the view.
-    Supported,
-    /// The join keeps its filter as a separate select.
-    Unsupported,
+/// Where a join decides the comparisons of its right input: in the probe, which walks the tree from each left row's node, or
+/// in a filter of the right input made before the join.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RightPredicatePlace {
+    /// The probe walks the tree by a node key and decides each comparison where the walk finds the row.
+    InProbe,
+    /// The comparisons are a filter of the right input, made before the join.
+    BelowAsSelect,
 }
 
 /// Which step of the plan a closure sits at.
