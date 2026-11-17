@@ -5,7 +5,7 @@ use crate::domain::growth::types::{WitnessColumns, Witnessed, Witnesses};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
 use crate::domain::physical_plan::types::lowering::value::{FilterNode, LookupNode, Lowering};
 use crate::domain::physical_plan::types::{IndexPlace, RowSource};
-use ryo_relations::domain::relations::types::{Relation, TextHash};
+use ryo_relations::domain::relations::types::Relation;
 
 /// The lowering a node was given.
 type Input = Lowering;
@@ -21,7 +21,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             Lowering::Lookup(LookupNode {
                 index: IndexPlace(0),
-                key: TextHash(0),
+                // The text the generic rows hold, so the lookup answers rows.
+                key: ryo_language::domain::symbols::service::hash_of(
+                    ryo_language::domain::symbols::types::ByteSlice(
+                        crate::domain::growth::types::WITNESS_TEXT.as_bytes(),
+                    ),
+                ),
                 select: crate::domain::select::service::lower(&[], &[], &[]),
             })
         },
@@ -60,7 +65,12 @@ impl Witnesses for LookupNode {
         vec![Witnessed {
             node: Self {
                 index: IndexPlace(0),
-                key: TextHash(0),
+                // The text the generic rows hold, so the lookup answers rows.
+                key: ryo_language::domain::symbols::service::hash_of(
+                    ryo_language::domain::symbols::types::ByteSlice(
+                        crate::domain::growth::types::WITNESS_TEXT.as_bytes(),
+                    ),
+                ),
                 select: crate::domain::select::service::lower(&[], &[], &[]),
             },
             roles: Vec::new(),

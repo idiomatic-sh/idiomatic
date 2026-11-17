@@ -14,7 +14,15 @@ pub(crate) struct SharedIndexes {
     pub(crate) closing: Vec<Option<IndexPlace>>,
     /// The indexes the open file's probes opened, each once: the indexes its end empties.
     pub(crate) opened: Vec<IndexPlace>,
+    /// How many lookups these indexes answered: what the growth harness counts as a lookup's work.
+    #[cfg(test)]
+    pub(crate) answered: LookupsAnswered,
 }
+
+/// How many lookups a worker's shared indexes answered.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct LookupsAnswered(pub(crate) usize);
 
 /// A probe index the plan shares: built by the first of its probes in a file to read its rows, and emptied after the last,
 /// when the engine releases its last probe, or at the file's end, so no file reads another file's index.

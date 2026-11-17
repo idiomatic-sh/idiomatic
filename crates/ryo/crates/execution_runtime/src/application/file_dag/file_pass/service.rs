@@ -202,7 +202,7 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
         .collect();
     let mut inputs = ProgramInputs::hosting(hosted.clone());
     let build = logical(&rules, &mut inputs)?;
-    let plan = operators.plan(build.program()).map_err(portable_fault)?;
+    let plan = operators.plan(build.program()).map_err(|fault| portable_fault(fault, None))?;
     let program = assemble(build, plan);
     let reads = plans.iter().map(|plan| step_reads(plan)).collect();
     Ok(PassProgram {

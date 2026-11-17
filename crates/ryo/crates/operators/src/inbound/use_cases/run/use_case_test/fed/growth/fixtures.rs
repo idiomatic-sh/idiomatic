@@ -18,7 +18,6 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, HostedNumber};
 use ryo_values::domain::rows::types::{RowCount, Table};
-use std::time::Duration;
 
 /// The generic columns every instance is built over, and the rows hold: a key, an order, an entity, an edge's ends, a text, a
 /// span and a state of a catalogue.
@@ -56,7 +55,7 @@ const BOTTOM: usize = STATE + STATES;
 const TOP: usize = BOTTOM + 1;
 
 /// The text every row's text cell names, and the file's bytes.
-const TEXT: &str = "w";
+const TEXT: &str = crate::domain::growth::types::WITNESS_TEXT;
 
 /// How the rows grow with the size `n`: what each family stresses.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,30 +67,63 @@ pub(super) enum Family {
     DeepChain,
     /// One file of `n` rows a side, each key its own, and the edges a star of `n` children.
     WideFanOut,
-    /// `n` files of one row a side, the same key, order and entity in each.
+    /// `n` files of four rows a side, the same keys, orders and entities in each.
     ManyFiles,
     /// `n` files of 16 rows a side, the same keys, orders and entities in each.
     ManySmallFiles,
-    /// `n` copies of the instance in one plan over one file of one row a side, every copy run.
+    /// `n` copies of the instance in one plan over one file of four rows a side, every copy run.
     WidePlan,
+    /// `n` copies of the instance in one plan over `n` files of four rows a side, each file running its own copy: a file's work
+    /// is what it runs, not the program's size.
+    WideProgram,
 }
 
 impl Family {
     /// Every family, in order.
-    pub(super) const ALL: [Self; 6] = [
+    pub(super) const ALL: [Self; 7] = [
         Self::AllEqualKeys,
         Self::DeepChain,
         Self::WideFanOut,
         Self::ManyFiles,
         Self::ManySmallFiles,
         Self::WidePlan,
+        Self::WideProgram,
     ];
 
     /// How many files a run of size `n` reads.
     const fn files(self, n: usize) -> usize {
         match self {
             Self::AllEqualKeys | Self::DeepChain | Self::WideFanOut | Self::WidePlan => 1,
-            Self::ManyFiles | Self::ManySmallFiles => n,
+            Self::ManyFiles | Self::ManySmallFiles | Self::WideProgram => n,
+        }
+    }
+
+    /// How many copies of the instance a run of size `n` plans.
+    pub(super) const fn copies(self, n: usize) -> usize {
+        match self {
+            Self::WidePlan | Self::WideProgram => n,
+            Self::AllEqualKeys | Self::DeepChain | Self::WideFanOut | Self::ManyFiles | Self::ManySmallFiles => 1,
+        }
+    }
+
+    /// The size the family is measured at: `rows` a side for one file of growing rows, `files` for many files or copies.
+    pub(super) const fn size(self, rows: usize, files: usize) -> usize {
+        match self {
+            Self::AllEqualKeys | Self::DeepChain | Self::WideFanOut => rows,
+            Self::ManyFiles | Self::ManySmallFiles | Self::WidePlan | Self::WideProgram => files,
+        }
+    }
+
+    /// The copies file `file` runs, of `copies`: its own for a wide program, every one otherwise.
+    fn runs(self, file: usize, copies: &[PlanNodeId]) -> &[PlanNodeId] {
+        match self {
+            Self::WideProgram => copies.get(file..=file).unwrap_or(&[]),
+            Self::AllEqualKeys
+            | Self::DeepChain
+            | Self::WideFanOut
+            | Self::ManyFiles
+            | Self::ManySmallFiles
+            | Self::WidePlan => copies,
         }
     }
 
@@ -99,7 +131,7 @@ impl Family {
     const fn rows(self, n: usize) -> usize {
         match self {
             Self::AllEqualKeys | Self::DeepChain | Self::WideFanOut => n,
-            Self::ManyFiles | Self::WidePlan => 1,
+            Self::ManyFiles | Self::WidePlan | Self::WideProgram => 4,
             Self::ManySmallFiles => 16,
         }
     }
@@ -112,7 +144,7 @@ impl Family {
             Self::AllEqualKeys => [1, 0, 1],
             Self::DeepChain => [1, 1, 0],
             Self::WideFanOut => [1, 0, 0],
-            Self::ManyFiles | Self::ManySmallFiles | Self::WidePlan => return Degree(1),
+            Self::ManyFiles | Self::ManySmallFiles | Self::WidePlan | Self::WideProgram => return Degree(1),
         };
         Degree(
             bound
@@ -151,8 +183,14 @@ fn number(at: usize) -> Value {
     Value::Number(Integer(i64::try_from(at).unwrap_or(i64::MAX)))
 }
 
-/// The rows of one input of `role` in file `file` of a run of `family` at size `n`.
-fn role_rows(family: Family, role: InputRole, file: usize, n: usize, text: &Value) -> Table {
+/// The first key of the keys only one input holds, past every shared key.
+const UNIQUE: usize = 1 << 20;
+
+/// The rows of input `input`, of `role`, in file `file` of a run of `family` at size `n`. Even rows hold the keys every input
+/// shares, odd rows a key of this input alone, so a probe both meets and misses; rows 0 mod 4 are the same in every input, so
+/// a whole-row intersection meets; at rows 2 mod 4 a later input's order follows the first's, so a band or an ordered match
+/// pairs; the edges end with one edge back to the first entity, a cycle.
+fn role_rows(family: Family, role: InputRole, input: usize, file: usize, n: usize, text: &Value) -> Table {
     let rows = family.rows(n);
     let span = Value::Span(Span {
         start: Offset(0),
@@ -160,9 +198,11 @@ fn role_rows(family: Family, role: InputRole, file: usize, n: usize, text: &Valu
     });
     let mut cells = Vec::new();
     let mut push = |key: Value, order: usize, id: Value, parent: Value, child: Value| {
+        // Rows 2 mod 4 of a later input come just after the first input's: rows 0 mod 4 are the same row in every input.
+        let later = usize::from(input > 0 && order % 4 == 2);
         cells.extend([
             key,
-            number(order),
+            number(order.saturating_mul(2).saturating_add(later)),
             id,
             parent,
             child,
@@ -175,7 +215,8 @@ fn role_rows(family: Family, role: InputRole, file: usize, n: usize, text: &Valu
         InputRole::Rows => {
             for at in 0..rows {
                 let shared = match family {
-                    Family::AllEqualKeys | Family::ManyFiles | Family::WidePlan => key(0),
+                    _ if at % 2 == 1 => key(UNIQUE.saturating_mul(input.saturating_add(1)).saturating_add(at)),
+                    Family::AllEqualKeys | Family::ManyFiles | Family::WidePlan | Family::WideProgram => key(0),
                     Family::DeepChain | Family::WideFanOut | Family::ManySmallFiles => key(at),
                 };
                 // A deep chain's starts: its head, then lone entities past it.
@@ -201,13 +242,9 @@ fn role_rows(family: Family, role: InputRole, file: usize, n: usize, text: &Valu
                     Family::DeepChain => (at, at),
                     _ => (0, 0),
                 };
-                push(
-                    key(state),
-                    at,
-                    entity(file, at),
-                    entity(file, from),
-                    entity(file, at.saturating_add(1)),
-                );
+                // The last edge closes a cycle: from the entity the edge before it reached, back to the first.
+                let (from, to) = if at + 1 == rows && at > 0 { (at, 0) } else { (from, at.saturating_add(1)) };
+                push(key(state), at, entity(file, at), entity(file, from), entity(file, to));
             }
             rows
         }
@@ -290,10 +327,9 @@ pub(super) struct Measured {
     pub(super) wrote: usize,
     /// The most rows the node tables held at once.
     pub(super) peak: usize,
-    /// The work the worker counted: the slots its walks' resets emptied and the nodes its file ends released.
+    /// The work the worker counted: the slots its walks' resets emptied, the nodes its file ends released, the lookups its
+    /// shared indexes answered.
     pub(super) work: usize,
-    /// The least CPU time of one run, of the samples.
-    pub(super) cpu: Duration,
 }
 
 /// One file's inputs: its host rows by role, the facts a lookup reads, and its text.
@@ -311,11 +347,12 @@ pub(super) fn inputs(family: Family, roles: &[InputRole], n: usize) -> Vec<FileI
         .map(|file| {
             // A source-less instance (a bound scan) reads the first host rows.
             let hosted = if roles.is_empty() {
-                vec![role_rows(family, InputRole::Rows, file, n, &text)]
+                vec![role_rows(family, InputRole::Rows, 0, file, n, &text)]
             } else {
                 roles
                     .iter()
-                    .map(|role| role_rows(family, *role, file, n, &text))
+                    .enumerate()
+                    .map(|(input, role)| role_rows(family, *role, input, file, n, &text))
                     .collect()
             };
             let defines: Vec<(Value, Span)> = (0..family.rows(n))
@@ -337,10 +374,10 @@ pub(super) fn inputs(family: Family, roles: &[InputRole], n: usize) -> Vec<FileI
         .collect()
 }
 
-/// One run of every file, each file running every copy, then ended as the engine ends it.
+/// One run of every file, each file running the copies the family runs in it, then ended as the engine ends it.
 pub(super) fn once(
     plan: &PhysicalPlan,
-    ran: &[PlanNodeId],
+    (family, ran): (Family, &[PlanNodeId]),
     files: &[FileInputs],
     buffers: &mut FileBuffers,
 ) -> Result<Measured, PortableOperatorFault> {
@@ -348,15 +385,17 @@ pub(super) fn once(
         crate::outbound::matching::factory::use_case(),
     ));
     let mut measured = Measured::default();
-    for file in files {
+    for (at, file) in files.iter().enumerate() {
         let inputs = TableInputs::new(&[(Relation::Defines, &file.facts)])
             .with_hosted(file.hosted.clone());
-        // A rendering answers each request that the node has none here.
+        // A rendering answers each request with the witness text.
         let mut resources = TextResources::new(&[TEXT]).rendering(vec![
-            ryo_language::domain::semantics::types::RenderOutcome::NotApplicable;
+            ryo_language::domain::semantics::types::RenderOutcome::Known(
+                ryo_language::domain::semantics::types::RenderedNode(TEXT.into()),
+            );
             file.hosted.first().map_or(1, |rows| rows.count.0.max(1))
         ]);
-        for node in ran {
+        for node in family.runs(at, ran) {
             run.run(plan, *node, buffers, &inputs, &mut resources)?;
             measured.read = measured.read.saturating_add(
                 crate::domain::growth::service::fed_rows(&buffers.fed(*node).0).0,
@@ -371,6 +410,7 @@ pub(super) fn once(
     measured.work = buffers
         .ending
         .0
-        .saturating_add(buffers.walk.visited.reset_work().0);
+        .saturating_add(buffers.walk.visited.reset_work().0)
+        .saturating_add(buffers.shared.answered.0);
     Ok(measured)
 }

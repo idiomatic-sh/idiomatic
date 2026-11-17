@@ -14,7 +14,10 @@ use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, NO_ROW};
 use crate::domain::physical_plan::types::lowering::value::{LookupNode, Lowering};
 use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
-use crate::domain::physical_plan::types::{IndexKey, IndexPlace, KernelRun, NodeFed, RowSource};
+use crate::domain::physical_plan::service::indexes::service::opened;
+use crate::domain::physical_plan::types::{
+    IndexKey, IndexPlace, KernelRun, NodeFed, NodeReaders, PlanNodeId, RowSource,
+};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// `lookup`, one item of the `kernels` collection.
@@ -29,15 +32,18 @@ impl KernelsItem for LookupItem {
     }
 }
 
-/// Builds the shared index `index` from one read of its relation and answers every lookup of it: each the rows whose key is
-/// its constant, in source row order, kept by all its comparisons.
+/// Answers lookup `node` of the shared index `index`: the rows whose key is its constant, in source row order, kept by all its
+/// comparisons. The index is built from one read of its relation by the file's first lookup of it and kept for the file's
+/// other lookups of it, so a file answers only the lookups it runs, not every lookup of the program.
 ///
 /// # Errors
 ///
-/// A refused relation; `NoSuchColumn` for a kept column past the relation's rows.
+/// A refused relation; `NoSuchColumn` for a kept column past the relation's rows; `WrongOperation` for a node that is no
+/// lookup of a text index of a relation.
 pub(crate) fn lookups(
     plan: &PhysicalPlan,
     run: &KernelRun<'_>,
+    node: PlanNodeId,
     index: IndexPlace,
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
@@ -48,57 +54,72 @@ pub(crate) fn lookups(
     let (RowSource::Facts(relation), IndexKey::Text(column)) = (shared.source, &shared.key) else {
         return Err(PortableOperatorFault::WrongOperation);
     };
+    let place = usize::try_from(node.0).unwrap_or(usize::MAX);
+    let Some(PhysicalNode {
+        lowering: Lowering::Lookup(LookupNode { key, select, .. }),
+        ..
+    }) = plan.nodes.get(place)
+    else {
+        return Err(PortableOperatorFault::WrongOperation);
+    };
     let view = facts(run.inputs, relation)?;
     let texts_of = run.resources.texts();
-    texts(&view, *column, &texts_of, &mut buffers.index);
-    for lookup in &shared.readers {
-        let place = usize::try_from(lookup.0).unwrap_or(usize::MAX);
-        let Some(PhysicalNode {
-            lowering: Lowering::Lookup(LookupNode { key, select, .. }),
-            ..
-        }) = plan.nodes.get(place)
-        else {
-            continue;
-        };
-        if buffers.decisions.get(place).is_none() {
-            continue;
+    // A file's first lookup of the index builds it; its last reader's release, or the file's end, empties it.
+    let built = buffers
+        .shared
+        .indexes
+        .get(index.0)
+        .is_some_and(|held| held.remaining != NodeReaders(0));
+    if !built {
+        if let Some(held) = buffers.shared.indexes.get_mut(index.0) {
+            texts(&view, *column, &texts_of, &mut held.rows);
         }
-        fed_with(
-            buffers,
-            *lookup,
-            NodeFed([rows_of(&view), RowCount(0), RowCount(0)]),
-        );
-        let Some(decisions) = buffers.decisions.get_mut(place) else {
-            continue;
-        };
-        let mut output = Table {
-            kinds: kept_kinds(view.kinds, &select.kept)?,
-            ..Table::default()
-        };
-        let kernel = filter(select, view.kinds, texts_of);
-        readied(decisions);
-        let mut fault = None;
-        let mut row =
-            find_text(&buffers.index, IndexKeyHash(key.0)).map_or(NO_ROW, |run| run.first);
-        while row != NO_ROW {
-            let at = usize::try_from(row.0).unwrap_or(usize::MAX);
-            decode(&view, RowIndex(at), &mut buffers.row);
-            if let Err(error) = keep(
-                kernel,
-                run.matcher,
-                &buffers.row,
-                decisions,
-                &mut buffers.written,
-                &mut output,
-            ) {
-                fault = Some(error);
-                break;
-            }
-            row = next_of(&buffers.index, row);
+        opened(plan, buffers, index);
+        #[cfg(test)]
+        {
+            buffers.builds.0 += 1;
         }
-        hold(plan, buffers, *lookup, output, fault)?;
     }
-    Ok(())
+    #[cfg(test)]
+    {
+        buffers.shared.answered.0 += 1;
+    }
+    fed_with(
+        buffers,
+        node,
+        NodeFed([rows_of(&view), RowCount(0), RowCount(0)]),
+    );
+    let mut output = Table {
+        kinds: kept_kinds(view.kinds, &select.kept)?,
+        ..Table::default()
+    };
+    let kernel = filter(select, view.kinds, texts_of);
+    let FileBuffers {
+        shared: held,
+        decisions,
+        row: decoded,
+        written,
+        ..
+    } = &mut *buffers;
+    let (Some(rows), Some(decisions)) = (
+        held.indexes.get(index.0).map(|held| &held.rows),
+        decisions.get_mut(place),
+    ) else {
+        return Err(PortableOperatorFault::WrongOperation);
+    };
+    readied(decisions);
+    let mut fault = None;
+    let mut row = find_text(rows, IndexKeyHash(key.0)).map_or(NO_ROW, |run| run.first);
+    while row != NO_ROW {
+        let at = usize::try_from(row.0).unwrap_or(usize::MAX);
+        decode(&view, RowIndex(at), decoded);
+        if let Err(error) = keep(kernel, run.matcher, decoded, decisions, written, &mut output) {
+            fault = Some(error);
+            break;
+        }
+        row = next_of(rows, row);
+    }
+    hold(plan, buffers, node, output, fault)
 }
 
 impl Operator for LookupNode {

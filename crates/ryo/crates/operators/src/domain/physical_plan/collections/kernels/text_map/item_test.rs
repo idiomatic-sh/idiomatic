@@ -63,9 +63,10 @@ impl Witnesses for TextMapNode {
     /// One instance per row map kind.
     fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>> {
         [
+            // One slot: every text is one segment.
             RowMap::Capture(crate::domain::capture::service::lower(
                 columns.text,
-                &CapturePattern::default(),
+                &CapturePattern("{slot}".into()),
             )),
             RowMap::Replace(crate::domain::replace::service::lower(
                 columns.text,
@@ -92,7 +93,7 @@ impl Witnesses for TextMapNode {
                 columns.text,
                 ParameterId(0),
                 &[ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(vec![
-                    vec![LiteralText::default()],
+                    vec![LiteralText(crate::domain::growth::types::WITNESS_TEXT.into())],
                 ])],
             )),
             // The literals interleave the texts: one before and one after the one text.

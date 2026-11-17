@@ -275,7 +275,8 @@ impl Witnesses for BandJoinNode {
         ];
         let band = [BandEdge {
             left: columns.order,
-            test: BandTest::Below,
+            // A right row later than its left row: the generic rows of a later input are.
+            test: BandTest::Above,
             right: columns.order,
         }];
         [

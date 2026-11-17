@@ -125,6 +125,10 @@ pub(crate) trait Witnesses: Sized {
     fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>>;
 }
 
+/// The text every text cell of a growth test's generic rows names: an instance that looks a text up, or ranks it, names it.
+#[cfg(test)]
+pub(crate) const WITNESS_TEXT: &str = "w";
+
 /// The columns a growth test's generic rows hold, by what each means: an operator's instances read their keys, orders, edges,
 /// texts and spans at these places.
 #[cfg(test)]

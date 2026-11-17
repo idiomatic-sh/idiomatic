@@ -90,7 +90,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(OperatingError::DuplicateDfsOrder),
     },
     Case {
-        name: CaseName("a_making_past_the_run_budget_is_refused_naming_its_rows"),
+        name: CaseName("a_making_past_the_run_budget_is_refused_naming_its_node_and_rows"),
         word: Word::Refuses,
         input: || {
             Ask::Portable(
@@ -101,6 +101,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Error(OperatingError::OverBudget {
+            node: 1,
             fed: 1_200,
             wrote: 360_000,
         }),
@@ -143,7 +144,14 @@ fn minted_of(text: &'static str, after: AfterTheFiles) -> Minted {
 fn subject(ask: Input) -> Result<Value, Failure> {
     match ask {
         Ask::Fault(fault) => Err(derived_fault(fault)),
-        Ask::Portable(fault) => Err(portable_fault(fault)),
+        Ask::Portable(fault) => Err(portable_fault(
+            fault,
+            Some(ryo_operators::domain::physical_plan::types::node_counters::value::WorstMaking {
+                node: ryo_operators::domain::physical_plan::types::PlanNodeId(1),
+                fed: ryo_values::domain::rows::types::RowCount(1_200),
+                wrote: ryo_values::domain::rows::types::RowCount(360_000),
+            }),
+        )),
         Ask::Family(test) => Ok(Answer::Family(family_of(test))),
         Ask::Mint(text, after) => Ok(Answer::Minted(minted_of(text, after))),
     }

@@ -44,7 +44,7 @@ enum Scenario {
 }
 #[derive(Debug, PartialEq)]
 enum Observation {
-    /// How many times the facts of the relation were read.
+    /// How many times the relation's rows were scanned into an index: each lookup then reads only its key's rows.
     Reads(usize),
     /// Whether the two runs a case compares answered the same.
     Same(bool),
@@ -203,7 +203,8 @@ fn rewrites_keep_rows(rewrites: &[&dyn RewritesItem]) -> Result<Value, Failure> 
     Ok(Observation::Same(tree_probes_keep_rows(rewrites)?))
 }
 
-/// The emitted rows of `steps`, every step a rule's emit when `all` is set, else only the last, over `pairs`.
+/// The emitted rows of `steps`, every step a rule's emit when `all` is set, else only the last, over `pairs`, and how many times
+/// the relation's rows were scanned into an index.
 fn answered(
     steps: &[Step],
     all: bool,
@@ -219,14 +220,9 @@ fn answered(
     } else {
         vec![PlanNodeId(count.saturating_sub(1))]
     };
-    let answer = emitted(
-        steps,
-        &emits,
-        &inputs,
-        &mut resources,
-        &mut FileBuffers::default(),
-    );
-    (answer, inputs.reads(DEFINES))
+    let mut buffers = FileBuffers::default();
+    let answer = emitted(steps, &emits, &inputs, &mut resources, &mut buffers);
+    (answer, buffers.builds.0)
 }
 
 /// The texts every case's rows are made of.

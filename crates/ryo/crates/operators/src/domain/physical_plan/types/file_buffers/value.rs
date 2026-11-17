@@ -137,7 +137,7 @@ impl FileBuffers {
     }
 
     /// The making of the files these buffers ran that wrote the most rows per row fed, of those that wrote at least the run
-    /// budget's floor; none when no making wrote that many. Kept whether counting is on or off.
+    /// budget's floor, or, once a making went past the run budget, that making: what the engine names an `OverBudget` by.
     ///
     /// # Examples
     ///

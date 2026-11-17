@@ -131,7 +131,7 @@ impl StepRun<'_, '_, '_> {
             if let PortableOperatorFault::Withheld(token) = fault {
                 reason(self.withholdings, token)
             } else {
-                portable_fault(fault)
+                portable_fault(fault, self.buffers.worst_making())
             }
         })
     }

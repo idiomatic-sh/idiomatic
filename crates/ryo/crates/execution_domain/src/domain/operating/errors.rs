@@ -42,8 +42,10 @@ pub enum OperatingError {
     NotALattice,
     /// A node's makings in a file wrote past the run budget: far more rows than they were fed, or more than its operator
     /// declares it writes.
-    #[error("a node wrote {wrote} rows from {fed} rows fed, past the run budget: the query grows faster than its rows")]
+    #[error("node {node} wrote {wrote} rows from {fed} rows fed, past the run budget: the query grows faster than its rows")]
     OverBudget {
+        /// The node of the plan, by its id.
+        node: u32,
         /// The rows it was fed, every input summed.
         fed: usize,
         /// The rows it wrote.

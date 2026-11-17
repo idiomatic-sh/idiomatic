@@ -131,7 +131,7 @@ pub(super) fn made(
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
     match lowering {
-        Lowering::Lookup(LookupNode { index, .. }) => return lookups(plan, run, *index, buffers),
+        Lowering::Lookup(LookupNode { index, .. }) => return lookups(plan, run, node, *index, buffers),
         Lowering::ScanBound(ScanBoundNode { scan }) => {
             let rows = scanned(scan, run)?;
             // What the scan was fed: the bound rows it reads.

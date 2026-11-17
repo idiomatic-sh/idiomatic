@@ -266,12 +266,12 @@ pub(crate) fn ran_node(
             at.refusals
                 .get(usize::try_from(refusal.0).unwrap_or(usize::MAX))
                 .cloned()
-                .unwrap_or_else(|| portable_fault(fault))
+                .unwrap_or_else(|| portable_fault(fault, None))
         } else if let PortableOperatorFault::Withheld(token) = fault {
             // A bound observation the file withheld answers the reason it was withheld, as after the files.
             reason(&at.inputs.withholdings, token)
         } else {
-            portable_fault(fault)
+            portable_fault(fault, at.buffers.worst_making())
         }
     })
 }

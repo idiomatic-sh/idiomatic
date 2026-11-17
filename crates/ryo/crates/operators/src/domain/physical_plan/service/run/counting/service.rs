@@ -30,7 +30,7 @@ pub(crate) fn timed_to(buffers: &mut FileBuffers, span: Option<OpenSpan>, node: 
 /// # Errors
 ///
 /// `OverBudget` when its rows went past the run budget, or past its operator's declaration to write at most its input; the
-/// buffers' worst making then names the node.
+/// buffers' worst making is then that making, which the engine reads to name the node.
 pub(crate) fn counted(
     plan: &PhysicalPlan,
     buffers: &mut FileBuffers,
@@ -67,10 +67,18 @@ pub(crate) fn counted(
         .nodes
         .get(place)
         .ok_or(PortableOperatorFault::WrongOperation)?;
-    within_budget(physical.lowering.growth(), making.fed, wrote).map_err(|error| match error {
+    within_budget(physical.lowering.growth(), making.fed, wrote).map_err(|error| {
+        // The making that went over is the worst the engine reads to name the node.
+        buffers.worst = Some(WorstMaking {
+            node,
+            fed: making.fed,
+            wrote,
+        });
+        match error {
         GrowthError::OverBudget { fed, wrote } => PortableOperatorFault::OverBudget { fed, wrote },
         // The budget answers no plan refusal: that is the plan check's, which no making reaches.
         #[cfg(test)]
         GrowthError::Superlinear { .. } => PortableOperatorFault::WrongOperation,
+        }
     })
 }

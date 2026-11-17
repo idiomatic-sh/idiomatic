@@ -19,9 +19,11 @@ pub fn minted(
     ryo_relations::domain::relations::types::Value::Symbol(symbol)
 }
 
-/// The operating error a portable operator fault stands for.
+/// The operating error a portable operator fault stands for; an `OverBudget` names the node of `worst`, the making the
+/// worker's buffers recorded as going over (none recorded is a wrong operation: the fault comes only with its making).
 pub fn portable_fault(
     error: ryo_operators::domain::contract::types::PortableOperatorFault,
+    worst: Option<ryo_operators::domain::physical_plan::types::node_counters::value::WorstMaking>,
 ) -> OperatingError {
     use ryo_operators::domain::contract::types::PortableOperatorFault;
     match error {
@@ -56,10 +58,13 @@ pub fn portable_fault(
             reason: format!("missing named capture `{}`", capture.0),
         },
         PortableOperatorFault::Derived(fault) => derived_fault(fault),
-        PortableOperatorFault::OverBudget { fed, wrote } => OperatingError::OverBudget {
-            fed: fed.0,
-            wrote: wrote.0,
-        },
+        PortableOperatorFault::OverBudget { fed, wrote } => {
+            worst.map_or(OperatingError::WrongOperation, |making| OperatingError::OverBudget {
+                node: making.node.0,
+                fed: fed.0,
+                wrote: wrote.0,
+            })
+        }
         // A refused rendering is answered from the engine's record of it; one no record holds is a wrong operation.
         PortableOperatorFault::WrongOperation
         | PortableOperatorFault::UnsupportedRender

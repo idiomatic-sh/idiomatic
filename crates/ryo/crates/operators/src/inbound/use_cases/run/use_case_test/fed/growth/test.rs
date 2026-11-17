@@ -6,7 +6,6 @@
 use super::fixtures::{COLUMNS, Family, Measured, inputs, once, plan};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use std::time::Duration;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::growth::service::composed;
 use crate::domain::growth::types::{Bound, Degree, Fan, Growth, Witnessed};
@@ -70,65 +69,53 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// The rows each instance wrote on each family at the size it was measured at: a product at 128 rows a side, rows that grow
-/// linearly at 4,096, many files at 1,024. Recorded from a run.
+/// The rows each instance wrote on each family at its fixed size: one file of 128 rows a side, or 256 files or copies.
+/// Recorded from a run.
 const ROWS: &str = "\
-     Filter#0 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Lookup#0 AllEqualKeys=0 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     Project#0 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Extend#0 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Probe#0 AllEqualKeys=16384 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Probe#1 AllEqualKeys=16384 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Probe#2 AllEqualKeys=16384 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Probe#3 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Probe#4 AllEqualKeys=0 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     Probe#5 AllEqualKeys=1 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Distinct#0 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Group#0 AllEqualKeys=1 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Reach#0 AllEqualKeys=4096 DeepChain=8256 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     SeededReach#0 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Axis#0 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     OrderedWalk#0 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     Worklist#0 AllEqualKeys=1024 DeepChain=1 WideFanOut=1024 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024\n\
-     Components#0 AllEqualKeys=0 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     TextMap#0 AllEqualKeys=0 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     TextMap#1 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     TextMap#2 AllEqualKeys=8192 DeepChain=8192 WideFanOut=8192 ManyFiles=2048 ManySmallFiles=32768 WidePlan=2048\n\
-     TextMap#3 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     TextMap#4 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     TextMap#5 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     TextMap#6 AllEqualKeys=0 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     TextMap#7 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024\n\
-     BandJoin#0 AllEqualKeys=4095 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     BandJoin#1 AllEqualKeys=8128 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     BandJoin#2 AllEqualKeys=8128 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     BandJoin#3 AllEqualKeys=8128 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     OrderedMatch#0 AllEqualKeys=4095 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     Render#0 AllEqualKeys=0 DeepChain=0 WideFanOut=0 ManyFiles=0 ManySmallFiles=0 WidePlan=0\n\
-     ScanBound#0 AllEqualKeys=4096 DeepChain=4096 WideFanOut=4096 ManyFiles=1024 ManySmallFiles=16384 WidePlan=1024";
+     Filter#0 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     Lookup#0 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     Project#0 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     Extend#0 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     Probe#0 AllEqualKeys=4096 DeepChain=64 WideFanOut=64 ManyFiles=1024 ManySmallFiles=2048 WidePlan=1024 WideProgram=1024\n\
+     Probe#1 AllEqualKeys=4096 DeepChain=64 WideFanOut=64 ManyFiles=1024 ManySmallFiles=2048 WidePlan=1024 WideProgram=1024\n\
+     Probe#2 AllEqualKeys=4096 DeepChain=64 WideFanOut=64 ManyFiles=1024 ManySmallFiles=2048 WidePlan=1024 WideProgram=1024\n\
+     Probe#3 AllEqualKeys=32 DeepChain=32 WideFanOut=32 ManyFiles=256 ManySmallFiles=1024 WidePlan=256 WideProgram=256\n\
+     Probe#4 AllEqualKeys=64 DeepChain=64 WideFanOut=64 ManyFiles=512 ManySmallFiles=2048 WidePlan=512 WideProgram=512\n\
+     Probe#5 AllEqualKeys=64 DeepChain=96 WideFanOut=96 ManyFiles=512 ManySmallFiles=3072 WidePlan=512 WideProgram=512\n\
+     Distinct#0 AllEqualKeys=224 DeepChain=224 WideFanOut=224 ManyFiles=1792 ManySmallFiles=7168 WidePlan=1792 WideProgram=1792\n\
+     Group#0 AllEqualKeys=65 DeepChain=128 WideFanOut=128 ManyFiles=768 ManySmallFiles=4096 WidePlan=768 WideProgram=768\n\
+     Reach#0 AllEqualKeys=256 DeepChain=16384 WideFanOut=256 ManyFiles=2048 ManySmallFiles=8192 WidePlan=2048 WideProgram=2048\n\
+     SeededReach#0 AllEqualKeys=256 DeepChain=128 WideFanOut=256 ManyFiles=2048 ManySmallFiles=8192 WidePlan=2048 WideProgram=2048\n\
+     Axis#0 AllEqualKeys=256 DeepChain=128 WideFanOut=256 ManyFiles=2048 ManySmallFiles=8192 WidePlan=2048 WideProgram=2048\n\
+     OrderedWalk#0 AllEqualKeys=256 DeepChain=128 WideFanOut=256 ManyFiles=2048 ManySmallFiles=8192 WidePlan=2048 WideProgram=2048\n\
+     Worklist#0 AllEqualKeys=64 DeepChain=1 WideFanOut=64 ManyFiles=512 ManySmallFiles=2048 WidePlan=512 WideProgram=512\n\
+     Components#0 AllEqualKeys=2 DeepChain=128 WideFanOut=2 ManyFiles=512 ManySmallFiles=512 WidePlan=512 WideProgram=512\n\
+     TextMap#0 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     TextMap#1 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     TextMap#2 AllEqualKeys=256 DeepChain=256 WideFanOut=256 ManyFiles=2048 ManySmallFiles=8192 WidePlan=2048 WideProgram=2048\n\
+     TextMap#3 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     TextMap#4 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     TextMap#5 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     TextMap#6 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     TextMap#7 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     BandJoin#0 AllEqualKeys=64 DeepChain=32 WideFanOut=32 ManyFiles=512 ManySmallFiles=1024 WidePlan=512 WideProgram=512\n\
+     BandJoin#1 AllEqualKeys=2048 DeepChain=32 WideFanOut=32 ManyFiles=512 ManySmallFiles=1024 WidePlan=512 WideProgram=512\n\
+     BandJoin#2 AllEqualKeys=2048 DeepChain=32 WideFanOut=32 ManyFiles=512 ManySmallFiles=1024 WidePlan=512 WideProgram=512\n\
+     BandJoin#3 AllEqualKeys=2048 DeepChain=32 WideFanOut=32 ManyFiles=512 ManySmallFiles=1024 WidePlan=512 WideProgram=512\n\
+     OrderedMatch#0 AllEqualKeys=63 DeepChain=32 WideFanOut=32 ManyFiles=256 ManySmallFiles=1024 WidePlan=256 WideProgram=256\n\
+     Render#0 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024\n\
+     ScanBound#0 AllEqualKeys=128 DeepChain=128 WideFanOut=128 ManyFiles=1024 ManySmallFiles=4096 WidePlan=1024 WideProgram=1024";
 
 /// The slack a doubling of rows may take past its bound: the log of a sort.
 const SLACK: f64 = 1.15;
-/// The slack a doubling of CPU time may take past the doubling of the rows read and written: the log of a sort, the timer, and
-/// a double size that no longer fits the cache. Every quadratic left the work it was measured at four times over.
-const WORK_SLACK: f64 = 1.5;
-/// The CPU time past which a run is not measured at a larger size: what it measured at the trial size is judged.
-const LONGEST: Duration = Duration::from_millis(100);
 
-/// The size a single file's family is measured at when its rows grow linearly.
-const LINEAR: usize = 4_096;
-/// The size a single file's product is measured at, so its double stays within the run budget.
-const PRODUCT: usize = 128;
-/// How many files a family of many files reads.
-const FILES: usize = 1_024;
+/// The size every single-file family is measured at, and its double: small enough that a declared product stays within the
+/// run budget; the worker's counted work, not a timer, shows a quadratic at any size.
+const ROWS_SIZE: usize = 128;
+/// How many files, or copies, a family of many files or copies reads.
+const FILES: usize = 256;
 
-/// The CPU time a sample takes at least, so a fast run's ratio is not timer noise: a faster run is repeated within a sample.
-const SAMPLE: Duration = Duration::from_millis(4);
-
-/// How many samples the least is taken of.
-const SAMPLES: usize = 5;
-
-/// `witness` run over `family` at size `n`: the rows it read and wrote, the peak, and the least CPU time of the samples.
+/// `witness` run over `family` at size `n`: the rows it read and wrote, the peak, and the work the worker counted.
 ///
 /// # Errors
 ///
@@ -138,31 +125,10 @@ fn measured(
     family: Family,
     n: usize,
 ) -> Result<Measured, PortableOperatorFault> {
-    let copies = match family {
-        Family::WidePlan => n,
-        _ => 1,
-    };
+    let copies = family.copies(n);
     let (plan, ran) = plan(witness, copies);
     let files = inputs(family, &witness.roles, n);
-    // The first run sizes the samples: one fast run is repeated until a sample takes `SAMPLE`.
-    let started = cpu_time::ThreadTime::now();
-    let first = once(&plan, &ran, &files, &mut FileBuffers::default())?;
-    let took = started.elapsed();
-    let repeats = usize::try_from(SAMPLE.as_nanos() / took.as_nanos().max(1))
-        .unwrap_or(usize::MAX)
-        .clamp(1, 1_000);
-    let mut least = Duration::MAX;
-    for _ in 0..SAMPLES {
-        let started = cpu_time::ThreadTime::now();
-        for _ in 0..repeats {
-            let _again = once(&plan, &ran, &files, &mut FileBuffers::default())?;
-        }
-        least = least.min(started.elapsed());
-    }
-    Ok(Measured {
-        cpu: least / u32::try_from(repeats).unwrap_or(u32::MAX),
-        ..first
-    })
+    once(&plan, (family, &ran), &files, &mut FileBuffers::default())
 }
 
 /// The kinds every listed operator's instances have.
@@ -192,21 +158,11 @@ fn ratio(earlier: u128, later: u128) -> f64 {
     later as f64 / earlier.max(1) as f64
 }
 
-/// What `witness` measured on `family`, at its size and the double, or the fault it raised.
+/// What `witness` measured on `family`, at its fixed size and the double, or the fault it raised.
 fn doubled(witness: &Witnessed<Lowering>, family: Family) -> Result<(usize, Measured, Measured), String> {
+    let n = family.size(ROWS_SIZE, FILES);
     let at = |n| measured(witness, family, n).map_err(|fault| format!("faulted {fault:?} at {n}"));
-    match family {
-        Family::ManyFiles | Family::ManySmallFiles | Family::WidePlan => Ok((FILES, at(FILES)?, at(FILES * 2)?)),
-        Family::AllEqualKeys | Family::DeepChain | Family::WideFanOut => {
-            // A product's rows are measured small; rows that grow linearly at the size the work shows at.
-            let (small, double) = (at(PRODUCT)?, at(PRODUCT * 2)?);
-            let scaled = double.cpu.saturating_mul(u32::try_from(LINEAR / PRODUCT).unwrap_or(u32::MAX));
-            if ratio(small.wrote as u128, double.wrote as u128) > 2.0 * SLACK || scaled > LONGEST {
-                return Ok((PRODUCT, small, double));
-            }
-            Ok((LINEAR, at(LINEAR)?, at(LINEAR * 2)?))
-        }
-    }
+    Ok((n, at(n)?, at(n * 2)?))
 }
 
 /// The breaches of one instance on one family, as lines, and its rows written.
@@ -257,20 +213,9 @@ fn judged(kind: NodeKind, place: usize, witness: &Witnessed<Lowering>, family: F
             n * 2
         ));
     }
-    let mut work = ratio(small.cpu.as_nanos(), double.cpu.as_nanos());
-    // A doubling of time past the rows is measured once more before it is a breach: the timer, not the work, can be slow once.
-    if work > io.max(1.0) * WORK_SLACK
-        && let Ok((_, again, again_double)) = doubled(witness, family)
-    {
-        work = work.min(ratio(again.cpu.as_nanos(), again_double.cpu.as_nanos()));
-    }
-    if work > io.max(1.0) * WORK_SLACK {
-        breaches.push(format!(
-            "{name}: cpu {:?} at {n} -> {:?} at {}, x{work:.2} over rows in and out x{io:.2}",
-            small.cpu,
-            double.cpu,
-            n * 2
-        ));
+    // An instance that writes no row at either size has no growth to judge: its rows prove nothing.
+    if small.wrote == 0 && double.wrote == 0 {
+        breaches.push(format!("{name}: wrote no row at {n} or {}", n * 2));
     }
     (small.wrote, breaches)
 }
