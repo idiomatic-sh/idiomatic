@@ -40,7 +40,7 @@ pub use ryo_execution_domain::domain::placement::types::ScopePlacement;
 pub use ryo_execution_domain::domain::trust::types::Bearing;
 pub use ryo_execution_domain::domain::trust::types::Blocking;
 pub use ryo_execution_domain::domain::trust::types::Needs;
-pub use ryo_execution_domain::domain::trust::types::RelationRead;
+pub use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
 
 /// Decisions that inspect request metadata without owning its execution.
 pub trait MetadataUseCase {

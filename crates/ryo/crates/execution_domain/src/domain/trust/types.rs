@@ -1,18 +1,10 @@
 //! The types of the `trust` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_relations::domain::relations::types::Relation;
+pub mod read_set;
+pub mod read_sets;
+pub mod relation_read;
 
-use ryo_values::domain::plan_parts::types::PlanComparison;
-
-/// A place where a plan reads a relation: the relation, and the comparisons on its `kind` column that the rows must satisfy
-/// to get any further, when the step that reads it is a `select`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct RelationRead {
-    /// The relation read.
-    pub relation: Relation,
-    /// The comparisons on the kind of the rows that this read applies before anything else does.
-    pub kinds: Vec<PlanComparison>,
-}
+use relation_read::value::RelationRead;
 
 /// What the steps of a rule read of the relations, by where the steps run.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -69,3 +61,36 @@ pub(crate) struct StepReads {
 /// The inputs, by position, whose absence of rows a step's operator trusts: bit `n` is the `n`th named input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AbsenceInputs(pub u8);
+
+/// Whether two read sets are one stored set or two equal copies.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::trust::types::SetSharing;
+/// assert_ne!(SetSharing::Shared, SetSharing::Copied);
+/// ```
+#[cfg(any(test, feature = "fixtures"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SetSharing {
+    /// One stored set.
+    Shared,
+    /// Two stored sets.
+    Copied,
+}
+
+/// How many distinct read sets a program stores.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::trust::types::StoredSets;
+/// assert_eq!(StoredSets(2).0, 2);
+/// ```
+#[cfg(any(test, feature = "fixtures"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StoredSets(pub usize);
+
+/// The hash of a read set, by which a program's stored sets are found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ReadSetHash(pub u64);

@@ -4,8 +4,8 @@
 
 use crate::application::file_dag::file_pass::constants::NODE_COUNTERS_TARGET;
 use crate::application::file_dag::file_pass::types::{
-    FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
-    RootKindNodes, TreeStart,
+    FileRoots, PassInputs, PassProgram, PassResources, PassScratch, PassSource, RootKindNodes,
+    TreeStart,
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::publications::service::bound::service::held_observation;
@@ -21,8 +21,8 @@ use ryo_execution_domain::domain::operating::service::{
     portable_fault, rendered_batch, unsupported_render,
 };
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
-use ryo_execution_domain::domain::trust::service::{needs_of, physical_reads};
-use ryo_execution_domain::domain::trust::types::RelationRead;
+use ryo_execution_domain::domain::trust::service::step_read_sets;
+use ryo_execution_domain::domain::trust::types::read_sets::value::{ReadSets, StepReadSets};
 use ryo_language::domain::elements::service::{kind_at, kind_names, positions};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::of_kind;
@@ -43,9 +43,7 @@ use ryo_operators::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
-use ryo_values::domain::plan_parts::types::{HostedNumber, Input};
-use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::plan_parts::types::{HostedNumber, StepId};
 use ryo_values::domain::row_texts::types::CellText;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -178,12 +176,15 @@ pub(crate) fn roots_of(roots: &FileRoots, node: PlanNodeId) -> Candidates<'_> {
 }
 
 /// The program the file pass runs for a request: its rules merged into one logical program, planned by its operators and
-/// assembled, with what each step of each rule reads.
+/// assembled, with what each step of each rule reads, each read set stored once in `sets`, the program's one store.
 ///
 /// # Errors
 ///
 /// The logical program's refusal, or the shape fault the operators plan with.
-pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, OperatingError> {
+pub(crate) fn pass_program(
+    source: &PassSource,
+    sets: &mut ReadSets,
+) -> Result<PassProgram, OperatingError> {
     let PassSource {
         plans,
         bindings,
@@ -204,7 +205,10 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
     let build = logical(&rules, &mut inputs)?;
     let plan = operators.plan(build.program()).map_err(portable_fault)?;
     let program = assemble(build, plan);
-    let reads = plans.iter().map(|plan| step_reads(plan)).collect();
+    let reads = plans
+        .iter()
+        .map(|plan| step_read_sets(plan, sets))
+        .collect();
     Ok(PassProgram {
         program,
         operators: Arc::clone(operators),
@@ -244,45 +248,15 @@ pub(crate) fn given_back(pass: &PassProgram, scratch: PassScratch) {
         .push(scratch);
 }
 
-/// What each step of `plan` reads: every relation read on the way to its rows, and the trusted reads of it and the steps it
-/// reads.
-fn step_reads(plan: &Plan) -> Box<[NodeReads]> {
-    let uses = physical_reads(plan);
-    let trusted = needs_of(plan);
-    let mut reads: Vec<NodeReads> = Vec::with_capacity(plan.steps.len());
-    for (at, step) in plan.steps.iter().enumerate() {
-        let mut each = NodeReads {
-            // A step refused for an authoring error reads nothing here: it never runs, and its rule answers its fault.
-            uses: match uses.get(at) {
-                Some(Ok(read)) => read.clone(),
-                Some(Err(_)) | None => Vec::new(),
-            },
-            needs: Vec::new(),
-        };
-        absorb(
-            &mut each.needs,
-            trusted.get(at).map_or(&[][..], Vec::as_slice),
-        );
-        for input in named(&inputs_of(&step.operation)) {
-            if let Input::Step(id) = input
-                && let Some(earlier) = reads.get(usize::try_from(id.0).unwrap_or(usize::MAX))
-            {
-                let needs = earlier.needs.clone();
-                absorb(&mut each.needs, &needs);
-            }
-        }
-        reads.push(each);
-    }
-    reads.into_boxed_slice()
-}
-
-/// Adds each read of `more` that `into` does not hold yet.
-fn absorb(into: &mut Vec<RelationRead>, more: &[RelationRead]) {
-    for read in more {
-        if !into.contains(read) {
-            into.push(read.clone());
-        }
-    }
+/// What step `step` of rule `rule` of `pass` reads, when the program holds that step.
+pub(crate) fn step_sets(
+    pass: &PassProgram,
+    rule: RuleIndex,
+    step: StepId,
+) -> Option<&StepReadSets> {
+    pass.reads
+        .get(rule.0)
+        .and_then(|reads| reads.0.get(usize::try_from(step.0).unwrap_or(usize::MAX)))
 }
 
 impl PlanInputs for PassInputs<'_, '_, '_> {

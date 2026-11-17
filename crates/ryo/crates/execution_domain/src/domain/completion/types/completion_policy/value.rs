@@ -4,7 +4,7 @@ use crate::domain::{
     coverage::types::{Partial, Partials, RuleIndex},
     trust::{
         service::{blocked, files_for, partial_files_for, skipped_files},
-        types::{Blocking, RelationRead},
+        types::{Blocking, relation_read::value::RelationRead},
     },
 };
 use ryo_relations::domain::relations::types::FileId;
@@ -94,10 +94,7 @@ impl CompletionPolicy {
     ) -> CoverageState {
         use crate::domain::completion::service::{missing_of_partials, partial_of_lacks};
         use crate::domain::completion::types::FileLacks;
-        let read = [RelationRead {
-            relation,
-            kinds: vec![],
-        }];
+        let read = [RelationRead::whole(relation)];
         let coverage = self.coverage(&read);
         let CoverageState::Partial { files, .. } = coverage else {
             return coverage;

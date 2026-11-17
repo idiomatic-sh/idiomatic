@@ -138,6 +138,8 @@ pub(super) fn fixture(
                 std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
             ),
         ));
+    let mut sets =
+        ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets::default();
     let pass = crate::application::file_dag::file_pass::service::pass_program(
         &crate::application::file_dag::file_pass::types::PassSource {
             plans: compiled.plans.clone(),
@@ -155,6 +157,7 @@ pub(super) fn fixture(
                 .collect(),
             ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         },
+        &mut sets,
     )
     .expect("the file pass plans the request");
     crate::application::file_dag::program::preparation::service::prepare(
@@ -164,6 +167,7 @@ pub(super) fn fixture(
         &hosted,
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([9; 16]))),
         &pass,
+        &mut sets,
     )
     .unwrap()
 }

@@ -60,7 +60,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         &mut operand,
         &bindings,
         SPAN,
-        &QuerySourceId(Box::from("module")),
+        &QuerySourceId("module".into()),
         &[],
     )
 }

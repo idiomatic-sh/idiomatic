@@ -310,7 +310,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let unknowns = metadata.project_unknowns(&partials, &named, &[needs.clone()], &rules);
             let message = metadata.unknown_message(&partial, CoverageScope::File(&named[0]));
             Ok(Expected::Trust {
-                reads: Cow::Owned(needs.reads.iter().map(|read| read.relation).collect()),
+                reads: Cow::Owned(needs.reads.iter().map(|read| read.relation()).collect()),
                 observed: metadata.observed_reads(&plan).len(),
                 bearing: metadata.matters(&needs.reads[0], &partial),
                 blocking: metadata.blocked(&needs.reads, &partials),

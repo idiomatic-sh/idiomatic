@@ -19,7 +19,7 @@ pub(crate) fn source_id(
         located(
             source,
             import.span,
-            Vec::new(),
+            &[],
             format!("invalid module id: {error}"),
         )
     })
@@ -42,14 +42,14 @@ pub(crate) fn trace_site(
 pub(crate) fn located(
     source_id: &QuerySourceId,
     span: QuerySpan,
-    trace: Vec<QueryTraceSite>,
+    trace: &[QueryTraceSite],
     message: impl std::fmt::Display,
 ) -> LinkingError {
     LinkingError::Located {
         origin: QueryOrigin {
             source_id: source_id.clone(),
             span,
-            trace,
+            trace: trace.into(),
         },
         message: message.to_string(),
     }

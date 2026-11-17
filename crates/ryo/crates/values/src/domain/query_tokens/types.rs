@@ -23,7 +23,7 @@ pub struct QueryView<'a>(pub &'a str);
 
 /// Stable logical identity of one source in a query bundle.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct QuerySourceId(pub Box<str>);
+pub struct QuerySourceId(pub Arc<str>);
 
 /// One exact source in a query bundle, with its logical identity retained for diagnostics.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -225,8 +225,8 @@ pub struct QueryOrigin {
     pub source_id: QuerySourceId,
     /// The original byte span in that document.
     pub span: QuerySpan,
-    /// Import and call sites from the root to this source.
-    pub trace: Vec<QueryTraceSite>,
+    /// Import and call sites from the root to this source, shared by every origin reached through them.
+    pub trace: Arc<[QueryTraceSite]>,
 }
 
 /// One source boundary crossed while linking a fragment.
