@@ -91,7 +91,7 @@ impl SyntaxPort for SyntaxFake {
                         start: ByteOffset(0),
                         end: ByteOffset(0),
                     },
-                    trace: Vec::new(),
+                    trace: [].into(),
                 },
                 message: "the fake syntax port does not parse query modules".to_owned(),
             });
@@ -102,7 +102,7 @@ impl SyntaxPort for SyntaxFake {
                     origin: QueryOrigin {
                         source_id: bundle.root.id.clone(),
                         span,
-                        trace: Vec::new(),
+                        trace: [].into(),
                     },
                     message,
                 },
@@ -121,7 +121,7 @@ impl SyntaxPort for SyntaxFake {
                     origin: QueryOrigin {
                         source_id: bundle.root.id.clone(),
                         span,
-                        trace: Vec::new(),
+                        trace: [].into(),
                     },
                     message,
                 },

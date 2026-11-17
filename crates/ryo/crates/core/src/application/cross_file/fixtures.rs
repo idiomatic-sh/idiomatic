@@ -184,7 +184,7 @@ pub(super) fn world_with_applicability(
                         id: id.clone(),
                         query: QueryBundle {
                             root: QueryDocumentSource {
-                                id: QuerySourceId(id.0.clone()),
+                                id: QuerySourceId(id.0.clone().into()),
                                 text: "".into(),
                             },
                             modules: Default::default(),

@@ -27,7 +27,7 @@ pub(crate) fn validate_step_names(
             return Err(located(
                 source,
                 step.span,
-                Vec::new(),
+                &[],
                 format!(
                     "step `{}` is declared more than once in this source",
                     step.name.0
@@ -49,7 +49,7 @@ pub(crate) fn validate_fragment_signature(
             return Err(located(
                 source,
                 input.span,
-                Vec::new(),
+                &[],
                 format!(
                     "fragment input `{}` is declared more than once",
                     input.name.0
@@ -63,7 +63,7 @@ pub(crate) fn validate_fragment_signature(
             return Err(located(
                 source,
                 parameter.span,
-                Vec::new(),
+                &[],
                 format!(
                     "fragment parameter `{}` is declared more than once",
                     parameter.parameter.0
@@ -74,7 +74,7 @@ pub(crate) fn validate_fragment_signature(
             return Err(located(
                 source,
                 parameter.span,
-                Vec::new(),
+                &[],
                 format!("unsupported fragment parameter type `{}`", parameter.kind.0),
             ));
         }
@@ -93,7 +93,7 @@ pub(crate) fn validate_relation_signature(
             return Err(located(
                 source,
                 column.span,
-                Vec::new(),
+                &[],
                 format!("unknown relation cell type `{}`", column.kind.0),
             ));
         }
@@ -101,7 +101,7 @@ pub(crate) fn validate_relation_signature(
             return Err(located(
                 source,
                 column.span,
-                Vec::new(),
+                &[],
                 format!(
                     "relation column `{}` is declared more than once",
                     column.name.0
@@ -127,7 +127,7 @@ pub(crate) fn imports_for(
             return Err(located(
                 source,
                 import.span,
-                Vec::new(),
+                &[],
                 super::constants::DUPLICATE_IMPORT_ALIAS,
             ));
         }
@@ -147,7 +147,7 @@ pub(crate) fn validate_import_targets(
                 return Err(located(
                     source,
                     import.span,
-                    vec![trace_site(source, &target, import.span)],
+                    &[trace_site(source, &target, import.span)],
                     format!("query module `{}` was not supplied in the bundle", target.0),
                 ));
             }
@@ -182,7 +182,7 @@ pub(crate) fn reject_cycles(
                 return Err(located(
                     source,
                     import.span,
-                    trace,
+                    &trace,
                     format!("query module import cycle reaches `{}`", target.0),
                 ));
             }

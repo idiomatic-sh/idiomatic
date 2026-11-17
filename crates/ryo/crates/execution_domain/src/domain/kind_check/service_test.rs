@@ -131,7 +131,7 @@ fn refused_with_origin(word: &str, source: &str) -> Value {
             start: ByteOffset(12),
             end: ByteOffset(31),
         },
-        trace: Vec::new(),
+        trace: [].into(),
     };
     let mut plan = plan_comparing_kind(
         Test::Equal,

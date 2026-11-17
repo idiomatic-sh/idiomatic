@@ -15,6 +15,7 @@ use ryo_values::domain::query_tokens::types::QuerySourceId;
 use ryo_values::domain::query_tokens::types::StepIdentity;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 /// Completes source-local identities for syntax ports that return named, unlinked programs.
 pub(crate) fn assign_root_identities(program: &mut WrittenProgram) {
@@ -95,7 +96,7 @@ pub(crate) fn attribute_root(program: &mut WrittenProgram, root: &QuerySourceId)
         program.origins.push(QueryOrigin {
             source_id: root.clone(),
             span: import.span,
-            trace: Vec::new(),
+            trace: Arc::default(),
         });
     }
     for step in &program.steps {
@@ -107,32 +108,32 @@ pub(crate) fn attribute_root(program: &mut WrittenProgram, root: &QuerySourceId)
                     .or_insert_with(|| QueryOrigin {
                         source_id: root.clone(),
                         span: step.span,
-                        trace: Vec::new(),
+                        trace: Arc::default(),
                     });
         }
         program.origins.push(QueryOrigin {
             source_id: root.clone(),
             span: step.span,
-            trace: Vec::new(),
+            trace: Arc::default(),
         });
         if let Expression::Call(call) = &step.expression {
             program.origins.push(QueryOrigin {
                 source_id: root.clone(),
                 span: call.span,
-                trace: Vec::new(),
+                trace: Arc::default(),
             });
         }
     }
     program.origins.push(QueryOrigin {
         source_id: root.clone(),
         span: program.emit.span,
-        trace: Vec::new(),
+        trace: Arc::default(),
     });
     for output in &mut program.observations {
         let origin = QueryOrigin {
             source_id: root.clone(),
             span: output.span,
-            trace: Vec::new(),
+            trace: Arc::default(),
         };
         output.origin =
             ryo_values::domain::query_tokens::types::Attribution::Located(origin.clone());
@@ -142,7 +143,7 @@ pub(crate) fn attribute_root(program: &mut WrittenProgram, root: &QuerySourceId)
         ryo_values::domain::query_tokens::types::Attribution::Located(QueryOrigin {
             source_id: root.clone(),
             span: program.emit.span,
-            trace: Vec::new(),
+            trace: Arc::default(),
         });
 }
 
@@ -166,7 +167,7 @@ pub(crate) fn bind_declared_sources(
             return Err(located(
                 source,
                 step.span,
-                Vec::new(),
+                &[],
                 format!(
                     "step `{}` conflicts with a declared observation input",
                     step.name.0

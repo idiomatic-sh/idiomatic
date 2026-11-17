@@ -85,7 +85,7 @@ fn import(module: &str) -> ImportDeclaration {
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let root = QuerySourceId(Box::from("root"));
+    let root = QuerySourceId("root".into());
     match scenario {
         Scenario::DistinctSteps => validate_step_names(&root, &[step("one"), step("two")]),
         Scenario::RepeatedStep => validate_step_names(&root, &[step("one"), step("one")]),
