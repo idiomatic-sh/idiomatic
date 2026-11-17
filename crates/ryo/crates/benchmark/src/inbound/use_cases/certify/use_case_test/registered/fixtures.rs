@@ -349,8 +349,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn modules(
             let _second = modules.remove("test/second").unwrap();
         }
         "unexpected" => {
-            let _previous =
-                modules.insert("test/unexpected".into(), modules["test/helper"].clone());
+            let _old = modules.insert("test/unexpected".into(), modules["test/helper"].clone());
         }
         _ => unreachable!(),
     }

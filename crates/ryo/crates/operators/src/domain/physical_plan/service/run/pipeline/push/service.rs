@@ -212,7 +212,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_chunk(
             push.buffers.chains.calls.0 += 1;
             if out.cells.len() >= bound.0 {
                 push.buffers.chunks =
-                    crate::domain::physical_plan::types::file_buffers::value::ChunkMeter::Over;
+                    crate::domain::physical_plan::types::worker_meters::value::ChunkMeter::Over;
             }
         }
         let read = stage_chunk(
@@ -238,7 +238,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_chunk(
                 #[cfg(test)]
                 if !tail && stage.out.cells.len() >= bound.0 {
                     push.buffers.chunks =
-                        crate::domain::physical_plan::types::file_buffers::value::ChunkMeter::Over;
+                        crate::domain::physical_plan::types::worker_meters::value::ChunkMeter::Over;
                 }
                 return Ok(());
             }

@@ -7,8 +7,8 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::fixtures::{Step, over_defines};
 use crate::domain::physical_plan::types::PlanNodeId;
-use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
+use crate::domain::physical_plan::types::worker_meters::value::ChunkMeter;
 use crate::inbound::use_cases::run::fixtures::cases::compared;
 use crate::inbound::use_cases::run::fixtures::stream_programs::{
     both_nodes, defines, defines_named, every_define, join, left_columns, node,

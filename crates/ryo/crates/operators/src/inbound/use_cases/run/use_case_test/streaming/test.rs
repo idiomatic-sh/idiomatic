@@ -4,8 +4,8 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
-use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
+use crate::domain::physical_plan::types::worker_meters::value::ChunkMeter;
 use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use crate::inbound::use_cases::run::fixtures::stream_programs::{
     against, faulting, one_row_past_the_bound, select_of, span, split_names,
