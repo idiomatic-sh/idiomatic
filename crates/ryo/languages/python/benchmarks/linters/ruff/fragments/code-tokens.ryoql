@@ -1,0 +1,8 @@
+output relation<id: node, kind: symbol, text: symbol, file: file, span: span>;
+let lexical = select source, target, file from "token-link" as t where t."link-kind" = "next-token";
+let starts = select source as id from lexical;
+let ends = select target as id from lexical;
+let ids = union(left=starts, right=ends);
+let native = select l.id as id, r.kind as kind, r.text as text, r.file as file, r.span as span from ids as l join "syntax-tree" as r on l.id = r.id;
+let significant = select id, kind, text, file, span from native where kind != "comment" and kind != "nl";
+return significant;
