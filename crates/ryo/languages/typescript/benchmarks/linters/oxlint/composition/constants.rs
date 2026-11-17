@@ -99,5 +99,3 @@ pub(crate) const EXPECTED_DOCUMENT: &str = "expected --document=<file>";
 pub(crate) const EXPECTED_VERIFICATION: &str = "expected --verification=<inventory directory>";
 /// The language's growth table, from this linter's bench: `languages/<lang>/benchmarks/growth.toml`.
 pub(crate) const GROWTH_TABLE: &str = "../../growth.toml";
-/// What a worker request reports when its response cannot be read, the lock holding it poisoned.
-pub(crate) const RESPONSE_POISONED: &str = "response lock poisoned";

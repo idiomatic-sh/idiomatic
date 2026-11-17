@@ -164,21 +164,21 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         files: vec![ryo::linter::RelativePath("source.txt".into())],
         state: temporary.path().join("cache"),
     };
-    let payload = match operation {
+    let payload: String = match operation {
         Operation::Malformed => "{".into(),
         Operation::RoundTrip => {
             let invocation = parent.prepare(&request).map_err(classify)?;
             let request_path = invocation.arguments.get(2).ok_or(Refusal::Unexpected)?;
             std::fs::read_to_string(std::path::PathBuf::from(request_path))
                 .map_err(|_invalid_parser| Refusal::Unexpected)?
-                .into()
         }
         Operation::Contract | Operation::WriteFailure | Operation::FlushFailure => {
             r#"{"root":"workspace","rules":"rules","files":["source.txt"],"cache":"cache"}"#.into()
         }
     };
+    let payload_text: String = payload.clone();
     let child = crate::outbound::worker::factory::json(
-        crate::outbound::worker::types::WorkerSource::Argument(payload),
+        crate::outbound::worker::types::WorkerSource::Argument(payload.into()),
         Box::new(output),
     );
     let mut expected_report = report();
@@ -206,9 +206,17 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             .map_err(classify),
         Operation::Contract | Operation::RoundTrip => {
             if matches!(operation, Operation::Contract) {
-                check(&child);
+                let stored = temporary.path().join("request.json");
+                std::fs::write(&stored, payload_text.as_bytes())
+                    .map_err(|_unwritten| Refusal::Unexpected)?;
+                check(&child, &stored);
             } else {
                 let received = child.receive().map_err(classify)?;
+                // The same request stored in a file reads back as the one this process was given.
+                let stored = temporary.path().join("request.json");
+                std::fs::write(&stored, payload_text.as_bytes()).map_err(|_unwritten| Refusal::Unexpected)?;
+                let read = child.read(&stored).map_err(classify)?;
+                assert_eq!((&read.root, &read.files, &read.state), (&received.root, &received.files, &received.state));
                 assert_eq!(received.root, request.root);
                 assert_eq!(received.rules, std::path::PathBuf::from("rules"));
                 assert_eq!(received.files, request.files);
@@ -232,6 +240,10 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 child.respond(&expected_report).map_err(classify)?;
             }
             let capture = capture.lock().expect("capture");
+            if matches!(operation, Operation::RoundTrip) {
+                // What a worker in the bench's own process answers is what the child publishes.
+                assert_eq!(child.encoded(&expected_report).map_err(classify)?.0, capture.bytes);
+            }
             assert!(capture.bytes.ends_with(b"\n"));
             assert_eq!(capture.flushes, 1);
             let decoded = parent

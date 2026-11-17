@@ -71,6 +71,19 @@ impl WorkerPort for WorkerFake {
         }
         Ok(self.request.clone())
     }
+    /// The fixture request, whatever the path.
+    fn read(&self, _path: &std::path::Path) -> Result<WorkerRequest, Error> {
+        Ok(self.request.clone())
+    }
+    /// The report's debug text.
+    fn encoded(
+        &self,
+        report: &RunReport,
+    ) -> Result<crate::outbound::worker::types::EncodedResponse, Error> {
+        Ok(crate::outbound::worker::types::EncodedResponse(
+            format!("{report:?}").into_bytes(),
+        ))
+    }
     #[expect(
         clippy::expect_used,
         reason = "a poisoned fixture lock is a test failure"

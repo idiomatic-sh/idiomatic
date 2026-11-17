@@ -2,7 +2,7 @@
 
 ## 0.2.7
 
-Places `growth.toml`, the language's growth table the shared harness reads (PM ruling on ryo-b1gq.66: growth shapes are data), and `benchmark-linter` 0.2.6. Nothing else changes.
+Places `growth.toml`, the language's growth table the shared harness reads (PM ruling on ryo-b1gq.66: growth shapes are data). Nothing else changes.
 
 ## 0.2.6
 

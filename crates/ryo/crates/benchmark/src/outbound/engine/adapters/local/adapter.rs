@@ -78,6 +78,28 @@ impl EngineLocalAdapter {
             cache,
         )))
     }
+    /// Each rule of `request` compiled ahead, with the time it took.
+    fn compiled(&self, request: &WorkerRequest) -> Result<BTreeMap<RuleId, std::time::Duration>, Error> {
+        let mut own = None;
+        let engine = self.engine(&mut own, Cache::None)?;
+        let rules = super::schemas::request_rules(
+            Some(&self.kept_rules),
+            self.frontend_diagnostic.clone(),
+            request,
+        )?;
+        let mut compiled = BTreeMap::new();
+        for (id, rule) in rules {
+            let started = std::time::Instant::now();
+            // A rule that needs what only a run declares is compiled by the run: it has no time to report here.
+            if engine
+                .prepare(&BTreeMap::from([(id.clone(), rule)]), &[])
+                .is_ok()
+            {
+                let _previous = compiled.insert(id, started.elapsed());
+            }
+        }
+        Ok(compiled)
+    }
     /// The slot the rules are kept in, when this engine keeps them across runs.
     fn retained_rules(&self) -> Option<&std::sync::OnceLock<BTreeMap<RuleId, Rule>>> {
         (self.retention == crate::outbound::engine::types::Retention::PerVerification)
@@ -165,31 +187,12 @@ impl EnginePort for EngineLocalAdapter {
             }),
         ))
     }
-    fn compile(&self, request: &WorkerRequest) -> Option<BTreeMap<RuleId, std::time::Duration>> {
+    fn compile(
+        &self,
+        request: &WorkerRequest,
+    ) -> Option<Result<BTreeMap<RuleId, std::time::Duration>, Error>> {
         let _kept = self.retained_rules()?;
-        let mut own = None;
-        let Ok(engine) = self.engine(&mut own, Cache::None) else {
-            return None;
-        };
-        let Ok(rules) = super::schemas::request_rules(
-            Some(&self.kept_rules),
-            self.frontend_diagnostic.clone(),
-            request,
-        ) else {
-            return None;
-        };
-        let mut compiled = BTreeMap::new();
-        for (id, rule) in rules {
-            let started = std::time::Instant::now();
-            // A rule that needs what only a run declares is compiled by the run: it has no time to report here.
-            if engine
-                .prepare(&BTreeMap::from([(id.clone(), rule)]), &[])
-                .is_ok()
-            {
-                let _previous = compiled.insert(id, started.elapsed());
-            }
-        }
-        Some(compiled)
+        Some(self.compiled(request))
     }
 }
 

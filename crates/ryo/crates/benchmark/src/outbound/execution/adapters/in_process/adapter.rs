@@ -36,13 +36,10 @@ impl ExecutionPort for ExecutionInProcessAdapter<'_> {
     fn compile(
         &self,
         invocation: &Invocation,
-    ) -> Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
+    ) -> Option<Result<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>, Error>> {
+        // An invocation that is no worker request runs as a child, which compiles inside it.
         let request = Self::request_file(invocation)?;
-        // A request the worker cannot read compiles nothing ahead: its run reports the same refusal as the run's failure.
-        match self.worker.compile(&request) {
-            Ok(times) => Some(times.0),
-            Err(_unread) => None,
-        }
+        Some(self.worker.compile(&request).map(|times| times.0))
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let request = Self::request_file(&invocation)

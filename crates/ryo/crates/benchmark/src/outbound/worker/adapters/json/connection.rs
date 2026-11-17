@@ -1,6 +1,7 @@
 //! The externally supplied output stream and its synchronization lifetime.
 use super::constants::{OUTPUT_LOCK_POISONED, RESPONSE_TERMINATOR};
 use super::types::WorkerResponseBytes;
+use crate::outbound::worker::types::EncodedResponse;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{io::Write, sync::Mutex};
 
@@ -22,11 +23,15 @@ impl WorkerJsonConnection {
             .output
             .lock()
             .map_err(|_poisoned| Error::Invalid(OUTPUT_LOCK_POISONED.into()))?;
-        output.write_all(&bytes.0)?;
-        output.write_all(RESPONSE_TERMINATOR)?;
+        output.write_all(&framed(bytes).0)?;
         output.flush()?;
         Ok(())
     }
+}
+
+/// One complete JSON response as the stream carries it: its bytes, then the terminator.
+pub(crate) fn framed(bytes: &WorkerResponseBytes) -> EncodedResponse {
+    EncodedResponse([bytes.0.as_slice(), RESPONSE_TERMINATOR].concat())
 }
 impl std::fmt::Debug for WorkerJsonConnection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

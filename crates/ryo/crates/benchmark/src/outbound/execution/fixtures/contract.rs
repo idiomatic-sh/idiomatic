@@ -200,7 +200,7 @@ pub fn check_with(adapter: &impl ExecutionPort, child: &Invocation) {
     assert!(
         adapter
             .compile(child)
-            .is_none_or(|compiled| compiled.is_empty()),
+            .is_none_or(|compiled| compiled.is_ok_and(|times| times.is_empty())),
         "an invocation that is no worker request compiles no rule"
     );
 }

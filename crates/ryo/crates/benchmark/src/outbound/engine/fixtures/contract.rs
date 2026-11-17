@@ -108,6 +108,8 @@ pub fn check(adapter: &impl EnginePort) {
             assert!(
                 adapter
                     .compile(&request)
+                    .transpose()
+                    .map_err(|_| Failure::Unexpected)?
                     .is_none_or(|compiled| compiled.len() <= session.rules_mut().len()),
                 "an engine compiles at most the rules it loaded, or none ahead"
             );

@@ -308,7 +308,7 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         closed: AtomicUsize::new(0),
         stage,
     });
-    let port: Arc<dyn EnginePort> = if matches!(stage, Stage::Forward | Stage::Retarget) {
+    let port: Arc<dyn EnginePort + Send + Sync> = if matches!(stage, Stage::Forward | Stage::Retarget) {
         let mut other = request();
         other.files = vec![ryo::linter::RelativePath("other.txt".into())];
         Arc::new(ForwardingPort {

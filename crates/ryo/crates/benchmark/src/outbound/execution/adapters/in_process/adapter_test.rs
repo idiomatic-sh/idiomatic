@@ -17,6 +17,8 @@ enum Worked {
     Refused,
     /// A child invocation that is no worker request.
     Child,
+    /// A worker request whose rules the worker cannot compile ahead.
+    Uncompiled,
 }
 type Input = Worked;
 /// The exit status, and whether stdout holds exactly the worker's response.
@@ -43,6 +45,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Worked::Child,
         expect: Expect::Error(()),
     },
+    Case {
+        name: CaseName("a worker that cannot compile a request ahead is answered as refused, never as no compile"),
+        word: Word::Refuses,
+        input: || Worked::Uncompiled,
+        expect: Expect::Error(()),
+    },
 ];
 /// A worker that answers or refuses each request as its input says.
 #[derive(Debug)]
@@ -51,11 +59,16 @@ impl InProcessWorker for Worker {
     fn run(&self, _request: &StoredRequest) -> Result<WorkerResponse, ReportsError> {
         match self.0 {
             Worked::Refused => Err(ReportsError::Invalid("refused".into())),
-            Worked::Completed | Worked::Child => Ok(WorkerResponse(RESPONSE.to_vec())),
+            Worked::Completed | Worked::Child | Worked::Uncompiled => {
+                Ok(WorkerResponse(RESPONSE.to_vec()))
+            }
         }
     }
     fn compile(&self, _request: &StoredRequest) -> Result<RuleCompileTimes, ReportsError> {
-        Ok(RuleCompileTimes::default())
+        match self.0 {
+            Worked::Uncompiled => Err(ReportsError::Invalid("uncompiled".into())),
+            Worked::Completed | Worked::Refused | Worked::Child => Ok(RuleCompileTimes::default()),
+        }
     }
 }
 fn subject(input: Input) -> Result<Value, Failure> {
@@ -63,10 +76,22 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let adapter = crate::outbound::execution::factory::in_process(&worker);
     let arguments = match input {
         Worked::Child => vec!["-c".into(), "true".into()],
-        Worked::Completed | Worked::Refused => {
+        Worked::Completed | Worked::Refused | Worked::Uncompiled => {
             vec![RUN_RYO.into(), REQUEST_FILE.into(), "request.json".into()]
         }
     };
+    if let Worked::Uncompiled = input {
+        let invocation = Invocation {
+            executable: "/bin/sh".into(),
+            arguments,
+            environment: std::collections::BTreeMap::new(),
+            directory: std::env::temp_dir(),
+        };
+        // A compile answered, or none, is a run that exits 0 with no response; a refusal is the row's error.
+        return adapter.compile(&invocation).map_or(Ok((0, false)), |compiled| {
+            compiled.map(|_times| (0, false)).map_err(|_refused| ())
+        });
+    }
     adapter
         .run(Invocation {
             executable: "/bin/sh".into(),

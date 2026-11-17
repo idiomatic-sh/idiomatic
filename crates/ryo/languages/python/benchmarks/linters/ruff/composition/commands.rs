@@ -77,18 +77,18 @@ pub(super) fn worker(
         WorkerInput::File(path) => WorkerSource::Stored(path),
         WorkerInput::Inline(payload) => WorkerSource::Argument(payload.0.into()),
     };
-    let transport: Arc<dyn WorkerPort> = Arc::new(ryo_benchmark::outbound::worker::factory::json(
+    let transport: Arc<dyn WorkerPort + Send + Sync> = Arc::new(ryo_benchmark::outbound::worker::factory::json(
         source,
         Box::new(std::io::stdout()),
     ));
-    CheckWorkerRequestUseCaseImpl::new(Arc::clone(&transport))
+    CheckWorkerRequestUseCaseImpl::new(Arc::<dyn WorkerPort + Send + Sync>::clone(&transport))
         .check_worker_request(&expectation)?;
     let target_version = parser_target(parser_configuration.as_deref().map(TargetConfiguration))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
     )]);
     let frontend_diagnostic = frontend_diagnostic()?;
-    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
+    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
         match (tracing, trace_path) {
             (WorkerTracing::Chrome, Some(path)) => Arc::new(
                 ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
@@ -211,7 +211,13 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
         );
     let context: Arc<dyn ryo_benchmark::outbound::context::interface::ContextPort + Send + Sync> =
         Arc::new(ryo_benchmark::outbound::context::factory::local());
-    let worker = super::worker::InProcessRyo { engine, context };
+    // The worker in this process reads each stored request it is handed and answers its bytes through the JSON transport, which
+    // receives and publishes nothing of its own.
+    let transport = Arc::new(ryo_benchmark::outbound::worker::factory::json(
+        ryo_benchmark::outbound::worker::types::WorkerSource::Argument(std::ffi::OsString::new()),
+        Box::new(std::io::sink()),
+    ));
+    let worker = RunRyoUseCaseImpl::new(engine, transport, context);
     let execution = ryo_benchmark::outbound::execution::factory::in_process(&worker);
     // The times of a verification go to its times file when the run names one, and nowhere when it does not.
     let evidence: Box<dyn ryo_benchmark::outbound::evidence::interface::EvidencePort> =

@@ -84,6 +84,7 @@ pub(super) fn verify_prepared_shard(
     for (rule, elapsed) in executions
         .candidate
         .compile(&candidate.prepare(&first.request)?)
+        .transpose()?
         .unwrap_or_default()
     {
         timings.entry(rule).or_default().compile = elapsed;
