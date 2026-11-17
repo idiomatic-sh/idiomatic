@@ -75,7 +75,15 @@ pub struct FileBuffers {
     /// The node tables held: how many were formed, and the rows they held at once.
     #[cfg(test)]
     pub(crate) meter: TableMeter,
+    /// The work the ends of files did: what the release-cost case reads.
+    #[cfg(test)]
+    pub(crate) ending: EndWork,
 }
+
+/// The work the ends of a worker's files did: each node released and each shared index emptied.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EndWork(pub(crate) usize);
 
 /// How many probe indexes a worker built.
 #[cfg(test)]
@@ -319,6 +327,10 @@ impl FileBuffers {
     /// assert!(matches!(buffers.rows(PlanNodeId(0)), NodeRows::Absent));
     /// ```
     pub fn release(&mut self, node: PlanNodeId) {
+        #[cfg(test)]
+        {
+            self.ending.0 += 1 + self.shared.len();
+        }
         for shared in &mut self.shared {
             if shared.last == node {
                 shared.emptied();
@@ -344,6 +356,27 @@ impl FileBuffers {
         }
         // Made or not, the node keeps nothing it was done with into the next file.
         self.done.forgotten(node);
+    }
+}
+
+impl FileBuffers {
+    /// Ends the open file: every node's rows go back to the pool, those of a rule the file stopped at among them, and every
+    /// shared index is emptied, so the next file starts from no node and no index.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.ended();
+    /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
+    /// ```
+    pub fn ended(&mut self) {
+        let count = self.nodes.len().max(self.done.room());
+        for node in (0..count).map(|at| PlanNodeId(u32::try_from(at).unwrap_or(u32::MAX))) {
+            self.release(node);
+        }
     }
 }
 

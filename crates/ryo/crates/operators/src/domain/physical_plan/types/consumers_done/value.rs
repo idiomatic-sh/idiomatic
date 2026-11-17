@@ -75,6 +75,11 @@ impl ConsumersDone {
         EngineUses(engine.0.saturating_sub(done.0))
     }
 
+    /// How many nodes it has room for: every node a done consumer was counted for is below it.
+    pub(crate) fn room(&self) -> usize {
+        self.readers.len().max(self.engine.len())
+    }
+
     /// Forgets what was done with `node`: it was released.
     pub(crate) fn forgotten(&mut self, node: PlanNodeId) {
         let at = usize::try_from(node.0).unwrap_or(usize::MAX);
