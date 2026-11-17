@@ -8,6 +8,7 @@ pub(crate) mod run;
 
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
+use crate::domain::physical_plan::growth;
 use crate::domain::physical_plan::service::lowering::service::lowered;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode, ProjectNode};
@@ -151,6 +152,8 @@ pub(crate) fn plan_with(
     for rewrite in rewrites {
         rewrite.rewrite(&mut nodes, &mut indexes);
     }
+    // After the rewrites: a node a rewrite left unread is not judged, and a probe it made is judged as it now runs.
+    let _bounds = growth::service::checked(&nodes).map_err(PortableOperatorFault::Superlinear)?;
     // After the rewrites: a rewrite changes a probe's right rows, key and mode, and replaces probes.
     indexes::service::shared_indexes(&mut nodes, &mut indexes);
     // Last: whether a node streams reads every node's final sources and the indexes.

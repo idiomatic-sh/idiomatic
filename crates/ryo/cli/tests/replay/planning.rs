@@ -149,7 +149,7 @@ fn every_rule_plans_through_the_production_plan() {
         for (each, hosted) in &rules {
             match production.load(each, hosted) {
                 Loaded::Planned => *planned.entry(linter).or_default() += 1,
-                Loaded::Unloaded(reason) => {
+                Loaded::Refused(reason) | Loaded::Unloaded(reason) => {
                     refused.push(format!("{linter} {}: {reason}", each.id.0));
                 }
             }
@@ -160,7 +160,7 @@ fn every_rule_plans_through_the_production_plan() {
     for (name, each, hosted) in &rules {
         match production.load(each, hosted) {
             Loaded::Planned => *planned.entry("tastemaker").or_default() += 1,
-            Loaded::Unloaded(reason) => {
+            Loaded::Refused(reason) | Loaded::Unloaded(reason) => {
                 refused.push(format!("tastemaker {name}: {reason}"));
             }
         }
@@ -171,6 +171,7 @@ fn every_rule_plans_through_the_production_plan() {
     for (name, query) in &queries {
         match production.load(&loading::query_rule(name, query), &[]) {
             Loaded::Planned => *planned.entry("tests").or_default() += 1,
+            Loaded::Refused(reason) => refused.push(format!("tests {name}: {reason}")),
             Loaded::Unloaded(_) => alone.push(name),
         }
     }

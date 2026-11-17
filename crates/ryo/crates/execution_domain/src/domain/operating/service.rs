@@ -19,6 +19,45 @@ pub fn minted(
     ryo_relations::domain::relations::types::Value::Symbol(symbol)
 }
 
+/// The operating error a plan's fault stands for: a node the growth check refused is named by `building`, the id of the rule
+/// that built it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operating::service::planned_fault;
+/// use ryo_operators::domain::contract::types::PortableOperatorFault;
+/// use ryo_operators::domain::growth::errors::GrowthError;
+/// use ryo_operators::domain::growth::types::{Degree, GrowthKind, GrowthNode};
+/// use ryo_values::domain::runs::types::RuleId;
+/// let refused = GrowthError::Superlinear {
+///     node: GrowthNode(2),
+///     kind: GrowthKind("Probe"),
+///     degree: Degree(2),
+/// };
+/// let error = planned_fault(PortableOperatorFault::Superlinear(refused), &|_| {
+///     Some(RuleId("PLR2044".into()))
+/// });
+/// assert!(error.to_string().starts_with("PLR2044: node 2 (Probe) pairs every row of a file"));
+/// ```
+#[must_use]
+pub fn planned_fault(
+    error: ryo_operators::domain::contract::types::PortableOperatorFault,
+    building: &dyn Fn(
+        &ryo_operators::domain::growth::errors::GrowthError,
+    ) -> Option<ryo_values::domain::runs::types::RuleId>,
+) -> OperatingError {
+    match error {
+        ryo_operators::domain::contract::types::PortableOperatorFault::Superlinear(refused) => {
+            OperatingError::Superlinear {
+                rule: building(&refused).unwrap_or_default(),
+                refused,
+            }
+        }
+        other => portable_fault(other),
+    }
+}
+
 /// The operating error a portable operator fault stands for.
 pub fn portable_fault(
     error: ryo_operators::domain::contract::types::PortableOperatorFault,
@@ -43,6 +82,10 @@ pub fn portable_fault(
             OperatingError::NotRun
         }
         PortableOperatorFault::WrongTest => OperatingError::WrongTest,
+        PortableOperatorFault::Superlinear(refused) => OperatingError::Superlinear {
+            rule: ryo_values::domain::runs::types::RuleId::default(),
+            refused,
+        },
         PortableOperatorFault::Pattern(
             ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex {
                 reason,

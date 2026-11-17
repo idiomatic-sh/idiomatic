@@ -1,9 +1,9 @@
 //! The plan's growth check refuses a live node whose rows grow past its inputs' unless the query declared every pair, and
 //! judges no node a rewrite left unread.
-use super::errors::GrowthError;
 use super::service::checked;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::growth::types::{Degree, Fan, Growth};
+use crate::domain::growth::errors::GrowthError;
+use crate::domain::growth::types::{Degree, GrowthKind, GrowthNode};
 use crate::domain::physical_plan::types::lowering::value::{
     BandJoinNode, BoundScan, FilterNode, Lowering, ScanBoundNode,
 };
@@ -72,8 +72,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Given(BandAnswer::Every, KeyFan::FileOnly, Readers::Read),
         expect: Expect::Error(GrowthError::Superlinear {
-            node: PlanNodeId(2),
-            growth: Growth::Banded(Fan::FileProduct),
+            node: GrowthNode(2),
+            kind: GrowthKind("BandJoin"),
             degree: Degree(2),
         }),
     },

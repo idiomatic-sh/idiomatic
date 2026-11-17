@@ -88,13 +88,40 @@ pub enum Fan {
 }
 
 /// A degree of a size variable in a bound: `rows^2` has the rows degree 2.
-#[cfg(test)]
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::growth::types::Degree;
+/// assert!(Degree(2) > Degree(1));
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct Degree(pub(crate) u8);
+pub struct Degree(pub u8);
+
+/// A node of a plan, by its number in the plan, as the growth check's refusal names it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::growth::types::GrowthNode;
+/// assert_eq!(GrowthNode(2).0, 2);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GrowthNode(pub u32);
+
+/// The name of a node's kind, as the operator list names it, in the growth check's refusal.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::growth::types::GrowthKind;
+/// assert_eq!(GrowthKind("Probe").0, "Probe");
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GrowthKind(pub &'static str);
 
 /// A bound as a monomial `rows^a · depth^b · repeats^c`: the rows of the partition, the depth of a walk, and how often a shared
 /// key repeats.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub(crate) struct Bound {
     /// The degree in rows.
@@ -106,7 +133,6 @@ pub(crate) struct Bound {
 }
 
 /// What a node writes, and the work it does to write it, each as a bound.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub(crate) struct NodeBound {
     /// The rows it writes.

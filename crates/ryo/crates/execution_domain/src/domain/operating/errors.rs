@@ -64,6 +64,14 @@ pub enum OperatingError {
     /// An operator was given an operation that is not its own.
     #[error("the operation is not this operator's")]
     WrongOperation,
+    /// The plan's growth check refused a node of a rule: the operators' one text of the refusal, after the rule's id.
+    #[error("{}: {refused}", rule.0)]
+    Superlinear {
+        /// The rule that built the node; empty only where no program names it (an operator fault outside a plan).
+        rule: ryo_values::domain::runs::types::RuleId,
+        /// The node, its kind and the degree it grows by.
+        refused: ryo_operators::domain::growth::errors::GrowthError,
+    },
     /// A step reads a step that has not run.
     #[error("a step reads a step that has not run")]
     NotRun,

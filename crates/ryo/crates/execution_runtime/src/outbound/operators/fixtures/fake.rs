@@ -9,6 +9,8 @@ pub struct OperatorsFake {
     pub calls: AtomicUsize,
     /// Refuse each run before the portable implementation runs.
     pub refuses: bool,
+    /// Refuse the plan as the growth check refuses the node with this number.
+    pub refuses_node: Option<u32>,
 }
 impl OperatorsPort for OperatorsFake {
     fn plan(
@@ -18,6 +20,15 @@ impl OperatorsPort for OperatorsFake {
         ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
         ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
+        if let Some(node) = self.refuses_node {
+            return Err(PortableOperatorFault::Superlinear(
+                ryo_operators::domain::growth::errors::GrowthError::Superlinear {
+                    node: ryo_operators::domain::growth::types::GrowthNode(node),
+                    kind: ryo_operators::domain::growth::types::GrowthKind("Probe"),
+                    degree: ryo_operators::domain::growth::types::Degree(2),
+                },
+            ));
+        }
         ryo_operators::inbound::use_cases::run::fixtures::planned(program)
     }
     fn run(

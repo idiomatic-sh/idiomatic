@@ -26,6 +26,9 @@ pub struct RenderRefusal(pub u32);
 pub enum PortableOperatorFault {
     /// An input the engine withheld: it answers the fault with its own reason, found by the token.
     Withheld(WithheldInput),
+    /// The plan's growth check refused a node whose rows grow faster than the rows of every input it reads, as a product of
+    /// the rows of one file with themselves, which the query did not declare with `all-pairs join`.
+    Superlinear(crate::domain::growth::errors::GrowthError),
     /// The engine stopped candidate acquisition or downstream delivery.
     Interrupted,
     /// The declared input column is absent.

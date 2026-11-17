@@ -18,7 +18,7 @@ use ryo_execution_domain::domain::executable_program::types::{
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::{
-    portable_fault, rendered_batch, unsupported_render,
+    planned_fault, rendered_batch, unsupported_render,
 };
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::trust::service::{needs_of, physical_reads};
@@ -202,7 +202,16 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
         .collect();
     let mut inputs = ProgramInputs::hosting(hosted.clone());
     let build = logical(&rules, &mut inputs)?;
-    let plan = operators.plan(build.program()).map_err(portable_fault)?;
+    let plan = operators.plan(build.program()).map_err(|fault| {
+        planned_fault(fault, &|refused| {
+            let ryo_operators::domain::growth::errors::GrowthError::Superlinear { node, .. } =
+                refused;
+            build
+                .building_rule(PlanNodeId(node.0))
+                .and_then(|rule| ids.get(rule.0))
+                .cloned()
+        })
+    })?;
     let program = assemble(build, plan);
     let reads = plans.iter().map(|plan| step_reads(plan)).collect();
     Ok(PassProgram {
