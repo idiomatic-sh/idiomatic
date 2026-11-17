@@ -1,11 +1,16 @@
 //! The sampled process-tree RSS: 5ms observations, never an exact peak or cgroup metric.
-//! Shared pages can be counted twice; short-lived children/spikes can be missed.
+//! Shared pages can be counted twice; short-lived children/spikes can be missed. On Linux an
+//! observation reads the tree alone, from its root and members through each one's children, so
+//! its cost follows the tree, not how many processes the machine runs; elsewhere it reads every
+//! process.
 
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::{Child, Output};
 use std::time::{Duration, Instant};
-use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+use sysinfo::Pid;
+#[cfg(not(target_os = "linux"))]
+use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
 
 /// How long the sampler sleeps between two observations of the process tree.
 pub(super) const INTERVAL: Duration = Duration::from_millis(5);
@@ -74,11 +79,147 @@ impl Tree {
             .map(|(.., bytes)| bytes)
             .sum()
     }
+
+    /// The PIDs the tree holds, its root among them once seen.
+    #[cfg(target_os = "linux")]
+    fn pids(&self) -> impl Iterator<Item = Pid> + '_ {
+        self.members.keys().copied()
+    }
+}
+
+/// One observation of the processes the tree of `root` can hold: the root, the members and every
+/// process reached through their children, each by its PID, start time, parent and resident bytes.
+#[cfg(target_os = "linux")]
+struct Observer {
+    /// The processes still to read in the observation under way, kept between observations so
+    /// each one reuses its allocation.
+    queue: Vec<Pid>,
+}
+
+#[cfg(target_os = "linux")]
+impl Observer {
+    /// The observer, with nothing to read yet.
+    const fn new() -> Self {
+        Self { queue: Vec::new() }
+    }
+
+    /// Reads `/proc` for the root, the members and their children, transitively; a process that
+    /// ends while it is read is left out, as a dead one is.
+    fn observe(&mut self, root: Pid, tree: &Tree) -> Vec<(Pid, u64, Option<Pid>, u64)> {
+        self.queue.clear();
+        self.queue.extend(std::iter::once(root).chain(tree.pids()));
+        let mut seen: Vec<(Pid, u64, Option<Pid>, u64)> = Vec::new();
+        while let Some(pid) = self.queue.pop() {
+            if seen.iter().any(|(read, ..)| *read == pid) {
+                continue;
+            }
+            let (Some((start, parent, bytes)), Ok(children)) =
+                (Self::process(pid), Self::children(pid))
+            else {
+                continue;
+            };
+            seen.push((pid, start, parent, bytes));
+            self.queue.extend(children);
+        }
+        seen
+    }
+
+    /// The start time (in clock ticks since boot), parent and resident bytes of `pid`, from
+    /// `/proc/<pid>/stat` and the `VmRSS` of `/proc/<pid>/status`.
+    fn process(pid: Pid) -> Option<(u64, Option<Pid>, u64)> {
+        let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        // The fields after the command's closing parenthesis: the state is the third field, the
+        // parent the fourth and the start time the twenty-second.
+        let mut fields = stat
+            .get(stat.rfind(')')?.checked_add(1)?..)?
+            .split_whitespace();
+        let parent = fields.nth(1)?.parse::<u32>().ok()?;
+        let start = fields.nth(17)?.parse::<u64>().ok()?;
+        let status = std::fs::read_to_string(format!("/proc/{pid}/status")).ok()?;
+        let kib = status
+            .lines()
+            .find_map(|line| line.strip_prefix("VmRSS:"))
+            .and_then(|rest| rest.split_whitespace().next())
+            .and_then(|number| number.parse::<u64>().ok())
+            .unwrap_or_default();
+        Some((
+            start,
+            (parent != 0).then_some(Pid::from_u32(parent)),
+            kib.saturating_mul(1024),
+        ))
+    }
+
+    /// The children of every thread of `pid`, from `/proc/<pid>/task/<thread>/children`; an error
+    /// when the process can no longer be read or a list does not parse. A thread that ended since
+    /// the directory was listed has no children left, and is passed over.
+    fn children(pid: Pid) -> std::io::Result<Vec<Pid>> {
+        /// The errno a read of an ended thread's `/proc` file answers.
+        const ENDED: i32 = 3;
+        let mut found = Vec::new();
+        for thread in std::fs::read_dir(format!("/proc/{pid}/task"))? {
+            let text = match std::fs::read_to_string(thread?.path().join("children")) {
+                Ok(text) => text,
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::NotFound
+                        || error.raw_os_error() == Some(ENDED) =>
+                {
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
+            for child in text.split_whitespace() {
+                let number = child.parse::<u32>().map_err(std::io::Error::other)?;
+                found.push(Pid::from_u32(number));
+            }
+        }
+        Ok(found)
+    }
+}
+
+/// One observation of every process of the machine, each by its PID, start time, parent and
+/// resident bytes.
+#[cfg(not(target_os = "linux"))]
+struct Observer {
+    /// The processes sysinfo keeps between observations.
+    system: System,
+}
+
+#[cfg(not(target_os = "linux"))]
+impl Observer {
+    /// The observer, holding no process yet.
+    fn new() -> Self {
+        Self {
+            system: System::new(),
+        }
+    }
+
+    /// Refreshes every process and answers them all: the tree is read from the processes
+    /// themselves.
+    fn observe(&mut self, _root: Pid, _tree: &Tree) -> Vec<(Pid, u64, Option<Pid>, u64)> {
+        // sysinfo answers how many processes it refreshed; the tree is read from the processes themselves.
+        let _refreshed = self.system.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing().with_memory().without_tasks(),
+        );
+        self.system
+            .processes()
+            .iter()
+            .map(|(pid, process)| {
+                (
+                    *pid,
+                    process.start_time(),
+                    process.parent(),
+                    process.memory(),
+                )
+            })
+            .collect()
+    }
 }
 
 /// The sampler lives in the bench process, outside hyperfine's measured command tree.
 pub(super) fn observe(mut child: Child, pidfile: &Path) -> std::io::Result<(Output, Sampled)> {
-    let mut system = System::new();
+    let mut observer = Observer::new();
     let mut tree = Tree::default();
     let mut measured = Sampled::default();
     let mut previous = None;
@@ -97,24 +238,7 @@ pub(super) fn observe(mut child: Child, pidfile: &Path) -> std::io::Result<(Outp
                 measured.longest_gap = measured.longest_gap.max(now.duration_since(previous));
             }
             previous = Some(now);
-            // sysinfo answers how many processes it refreshed; the tree is read from the processes themselves.
-            let _refreshed = system.refresh_processes_specifics(
-                ProcessesToUpdate::All,
-                true,
-                ProcessRefreshKind::nothing().with_memory().without_tasks(),
-            );
-            let processes = system
-                .processes()
-                .iter()
-                .map(|(pid, process)| {
-                    (
-                        *pid,
-                        process.start_time(),
-                        process.parent(),
-                        process.memory(),
-                    )
-                })
-                .collect::<Vec<_>>();
+            let processes = observer.observe(root, &tree);
             let bytes = tree.sample(root, &processes);
             measured.peak = measured.peak.max(bytes);
             measured.samples += usize::from(bytes > 0);

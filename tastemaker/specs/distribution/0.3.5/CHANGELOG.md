@@ -1,3 +1,14 @@
+# distribution 0.3.5
+
+The bench's sampler reads the measured tree alone on Linux. 0.3.4's `bench-resources` refreshed every process of the machine
+through sysinfo at each 5 ms observation, so the sampler's CPU followed how many processes the machine ran. It took 12 to 22% of
+the children's wall on a development machine and 44% on a GitHub-hosted runner, where `bench-instrument`'s 30% bound refused it
+(the `memory-distribution` tool of #49's check run 44168859733). On Linux an observation now reads `/proc` for the tree's root,
+its members and each one's children, transitively (`/proc/<pid>/task/<thread>/children`), with each process's parent and start
+time from `/proc/<pid>/stat` and its resident bytes from the `VmRSS` of `/proc/<pid>/status`. Its cost follows the tree. Elsewhere
+the observation reads every process through sysinfo, as before. `Tree` is unchanged and the instrument's checks and bounds are
+as in 0.3.4. Everything else is as in 0.3.4.
+
 # distribution 0.3.4
 
 The bench's validation is the product's own: a new param, `validate`, names the arguments that make the command validate a target's definitions (`validate` for Tastemaker's `tm`), or is empty where the command validates nothing. `bench-main` and `bench-measure` take it: with it, `--memory` takes `cold-peak-kib` and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` as in 0.3.3; without it, `--memory` takes `cold-peak-kib` alone and `bench-measure` places no `validate`, so a product whose command has no `validate` (ryo, asymptote) places the same bench. `memory_round` keeps each round's measures in the target's `Memory` itself. Everything else is as in 0.3.3.
