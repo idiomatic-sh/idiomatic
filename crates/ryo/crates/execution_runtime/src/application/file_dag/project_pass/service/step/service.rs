@@ -6,7 +6,8 @@ use crate::application::file_dag::file_pass::service::answering::service::{
 use crate::application::file_dag::file_pass::service::nodes::service::{
     StepCoverage, handed_step, run_node, step_coverage_seen,
 };
-use crate::application::file_dag::file_pass::types::{NodeAnswer, NodeMove, NodeReads};
+use crate::application::file_dag::file_pass::service::step_sets;
+use crate::application::file_dag::file_pass::types::{NodeAnswer, NodeMove};
 use crate::application::file_dag::frontiers::service::{handed_coverage, reason};
 use crate::application::file_dag::frontiers::types::{FrontierRows, HandedOver, Withholdings};
 use crate::application::file_dag::project_pass::types::PhaseBatch;
@@ -58,15 +59,10 @@ impl StepRun<'_, '_, '_> {
         node: PlanNodeId,
         step: StepId,
     ) -> Result<NodeAnswer, OperatingError> {
-        let empty = NodeReads::default();
-        let reads = self
-            .batch
-            .pass
-            .reads
-            .get(self.rule.0)
-            .and_then(|reads| reads.get(usize::try_from(step.0).unwrap_or(usize::MAX)))
-            .unwrap_or(&empty);
-        if self.completion.region_admission(&reads.needs) == RegionAdmission::Blocked {
+        // A step the program does not hold reads nothing.
+        let needs =
+            step_sets(self.batch.pass, self.rule, step).map_or(&[][..], |reads| &*reads.needs);
+        if self.completion.region_admission(needs) == RegionAdmission::Blocked {
             let mut table = Table::default();
             reset(&mut table, layout(&self.batch.pass.program, node)?);
             return Ok(NodeAnswer {

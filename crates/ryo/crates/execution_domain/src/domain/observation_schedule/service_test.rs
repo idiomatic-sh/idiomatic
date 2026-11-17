@@ -241,8 +241,14 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             )
         }
         Ask::Pruned(plans, bindings) => {
-            let linked = link(plans.into_iter().map(std::sync::Arc::new).collect(), bindings)?;
-            let first = linked.plans.first().ok_or(RuleIntentError::InvalidReference)?;
+            let linked = link(
+                plans.into_iter().map(std::sync::Arc::new).collect(),
+                bindings,
+            )?;
+            let first = linked
+                .plans
+                .first()
+                .ok_or(RuleIntentError::InvalidReference)?;
             Answer::Steps {
                 kept: first.steps.len(),
                 room: first.steps.capacity(),
@@ -273,7 +279,10 @@ fn demanded() -> (Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>) {
             output: ObservationIndex(0),
         }],
     };
-    (vec![exporting(vec![column()]), consumer], vec![vec![], vec![bound]])
+    (
+        vec![exporting(vec![column()]), consumer],
+        vec![vec![], vec![bound]],
+    )
 }
 
 /// A plan with a named output no rule reads, whose step nothing else reads: linking keeps only the emitted steps.

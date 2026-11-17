@@ -251,18 +251,22 @@ pub(super) fn mark_escapes(
     Ok(())
 }
 
-/// Reindex all step references together, preserving original rule identities and parameter positions.
+/// Reindex all step references together, preserving original rule identities and parameter positions. A plan whose every step
+/// and output is kept, with no output escaping and the frontier it already has, is `Unchanged`: the caller keeps sharing it.
+/// Any other is `Changed`: a new plan holding clones of only the kept steps and outputs, each list exactly as long as it keeps.
 pub(super) fn prune(
     plan: &Plan,
     wanted: &WantedSteps,
     exports: &ExportedOutputs,
     escapes: &EscapingOutputs,
 ) -> Result<Pruned, RuleIntentError> {
-    if plan.steps.is_empty() && plan.observations.is_empty() {
+    if wanted.0.iter().all(|keep| *keep)
+        && exports.0.iter().all(|keep| *keep)
+        && !escapes.0.iter().any(|escapes| *escapes)
+        && frontier(plan)? == plan.frontier
+    {
         return Ok(Pruned::Unchanged);
     }
-    let mut owned = plan.clone();
-    let plan = &mut owned;
     let mut step_map = vec![None; plan.steps.len()];
     let mut next = StepId(0);
     for (at, keep) in wanted.0.iter().copied().enumerate() {
@@ -278,11 +282,12 @@ pub(super) fn prune(
             .flatten()
             .ok_or(RuleIntentError::InvalidReference)
     };
-    let mut steps = Vec::new();
-    for (at, mut step) in std::mem::take(&mut plan.steps).into_iter().enumerate() {
+    let mut steps = Vec::with_capacity(wanted.0.iter().filter(|keep| **keep).count());
+    for (at, step) in plan.steps.iter().enumerate() {
         if !wanted.0[at] {
             continue;
         }
+        let mut step = step.clone();
         let mut failure = None;
         each_input(&mut step.operation, &mut |input| {
             if let Input::Step(id) = input {
@@ -297,20 +302,19 @@ pub(super) fn prune(
         }
         steps.push(step);
     }
-    plan.emit.step = remap(plan.emit.step)?;
+    let mut emit = plan.emit.clone();
+    emit.step = remap(plan.emit.step)?;
     let mut output_map = vec![None; plan.observations.len()];
-    let mut observations = Vec::new();
+    let mut observations = Vec::with_capacity(exports.0.iter().filter(|keep| **keep).count());
     let mut extra_frontier = Vec::new();
-    for (at, mut observation) in std::mem::take(&mut plan.observations)
-        .into_iter()
-        .enumerate()
-    {
+    for (at, observation) in plan.observations.iter().enumerate() {
         if !exports.0[at] {
             continue;
         }
         let Input::Step(id) = observation.source else {
             return Err(RuleIntentError::InvalidReference);
         };
+        let mut observation = observation.clone();
         observation.source = Input::Step(remap(id)?);
         if escapes.0[at] {
             extra_frontier.push(observation.source);
@@ -320,15 +324,22 @@ pub(super) fn prune(
         ));
         observations.push(observation);
     }
-    plan.steps = steps;
-    plan.observations = observations;
-    plan.frontier = frontier(plan)?;
+    let mut pruned = Plan {
+        observation_inputs: plan.observation_inputs.clone(),
+        parameters: plan.parameters.clone(),
+        steps,
+        comparison_origins: plan.comparison_origins.clone(),
+        observations,
+        emit,
+        frontier: Vec::new(),
+    };
+    pruned.frontier = frontier(&pruned)?;
     for input in extra_frontier {
-        if !plan.frontier.contains(&input) {
-            plan.frontier.push(input);
+        if !pruned.frontier.contains(&input) {
+            pruned.frontier.push(input);
         }
     }
-    Ok(Pruned::Changed(owned, OutputPlaces(output_map)))
+    Ok(Pruned::Changed(pruned, OutputPlaces(output_map)))
 }
 
 /// The step number after `id`; a plan cannot have more steps than numbers.

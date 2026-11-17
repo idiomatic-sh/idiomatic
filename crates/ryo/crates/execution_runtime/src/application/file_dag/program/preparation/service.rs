@@ -241,7 +241,7 @@ pub(crate) fn prepare(
             .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
             .collect()
     };
-    let rule_plans = metadata::service::plans(&owned, &pass.reads, &purposes)?;
+    let rule_plans = metadata::service::plans(&owned, pass, &purposes)?;
     let file_frontier_outputs = demands::service::frontier_outputs(&rule_plans, observed.as_ref());
     let semantic_needed = if rule_plans
         .iter()

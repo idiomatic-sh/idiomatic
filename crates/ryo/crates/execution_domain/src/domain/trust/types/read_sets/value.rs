@@ -1,8 +1,8 @@
 //! The `ReadSets` value: the read sets of one program, each stored once, so a step that rests on the reads another step
 //! rests on holds the same set, not a copy; and what each step of a plan reads, as sets of it.
-use super::super::read_set::value::ReadSet;
 #[cfg(any(test, feature = "fixtures"))]
 use super::super::StoredSets;
+use super::super::read_set::value::ReadSet;
 use super::super::{ReadSetHash, RelationRead};
 use std::hash::{Hash, Hasher};
 
@@ -74,6 +74,10 @@ impl ReadSets {
         hash: ReadSetHash,
     ) -> ReadSet {
         let bucket = self.stored.entry(hash).or_default();
+        // Equal hashes are not equal sets: a set is shared only with one equal to it.
+        if let Some(found) = bucket.iter().find(|each| ***each == *reads) {
+            return found.clone();
+        }
         let made = ReadSet(reads.into());
         bucket.push(made.clone());
         made

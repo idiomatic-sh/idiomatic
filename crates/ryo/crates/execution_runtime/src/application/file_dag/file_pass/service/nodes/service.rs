@@ -4,8 +4,9 @@
 use crate::application::file_dag::file_pass::service::answering::service::{
     held, ran_answering, ran_rows,
 };
+use crate::application::file_dag::file_pass::service::step_sets;
 use crate::application::file_dag::file_pass::types::{
-    NodeAnswer, NodeInFile, NodeMove, NodeReads, PassFile, PassProgram, PassResources,
+    NodeAnswer, NodeInFile, NodeMove, PassFile, PassProgram, PassResources,
 };
 use crate::application::file_dag::frontiers::service::reason;
 use crate::application::file_dag::program::rule_outcome::service::classify;
@@ -66,18 +67,16 @@ pub(crate) fn node_rows(
     node: Result<PlanNodeId, OperatingError>,
     step: StepId,
 ) -> Result<NodeAnswer, OperatingError> {
-    let empty = NodeReads::default();
     let pass = at.pass;
-    let reads = pass
-        .reads
-        .get(rule.0)
-        .and_then(|reads| reads.get(usize::try_from(step.0).unwrap_or(usize::MAX)))
-        .unwrap_or(&empty);
+    // A step the program does not hold reads nothing.
+    let reads = step_sets(pass, rule, step);
+    let uses = reads.map_or(&[][..], |reads| &*reads.uses);
+    let needs = reads.map_or(&[][..], |reads| &*reads.needs);
     let node = match node {
         Ok(node) => node,
         Err(error) => {
             // A step's schema fault is answered once its sources are admitted: a relation the facts refuse stops the file first.
-            for read in &reads.uses {
+            for read in uses {
                 if native_form(read.relation).is_none()
                     && matches!(at.inputs.facts(read.relation), FactRows::Refused)
                 {
@@ -88,7 +87,7 @@ pub(crate) fn node_rows(
         }
     };
     let completion = CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
-    if completion.region_admission(&reads.needs) == RegionAdmission::Blocked {
+    if completion.region_admission(needs) == RegionAdmission::Blocked {
         let mut table = Table::default();
         reset(&mut table, layout(&at.pass.program, node)?);
         return Ok(NodeAnswer {
@@ -102,7 +101,7 @@ pub(crate) fn node_rows(
     })?;
     let table = ran_rows(&pass_program.program, &at.buffers, node)?;
     // What no read of the step lacks, no operator on the way can lack.
-    let coverage = match completion.coverage(&reads.uses) {
+    let coverage = match completion.coverage(uses) {
         CoverageState::Complete => CoverageState::Complete,
         CoverageState::Partial { .. } | CoverageState::Inapplicable { .. } => {
             step_coverage(pass, &completion, rule, step)?

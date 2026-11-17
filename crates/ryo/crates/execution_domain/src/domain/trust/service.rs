@@ -6,6 +6,7 @@ use super::reads::{
 };
 use ryo_relations::domain::relations::types::Relation;
 
+use super::types::read_set::value::ReadSet;
 use super::types::read_sets::value::{PlanReadSets, ReadSets, StepReadSets};
 use super::types::{AbsenceInputs, Bearing, Blocking, Needs, Passage, RelationRead, StepReads};
 use crate::domain::coverage::constants::REPOSITORY;
@@ -147,22 +148,14 @@ pub fn scoped_needs(plan: &Plan) -> Needs {
         let Ok(StepReads { uses: each, .. }) = reads else {
             continue;
         };
-        for read in each {
-            if !scoped.reads.contains(read) {
-                scoped.reads.push(read.clone());
-            }
-        }
+        absorb(&mut scoped.reads, each.iter().cloned());
     }
     for (step, needs) in plan.steps.iter().zip(needs_from(plan, &steps)) {
         let into = match step.scope {
             StepScope::PerFile => &mut scoped.per_file,
             StepScope::CrossFile => &mut scoped.cross,
         };
-        for read in needs {
-            if !into.contains(&read) {
-                into.push(read);
-            }
-        }
+        absorb(into, needs);
     }
     scoped
 }
@@ -335,13 +328,45 @@ pub fn observed_reads(plan: &Plan) -> Vec<RelationRead> {
 /// ```
 #[must_use]
 pub fn step_read_sets(plan: &Plan, sets: &mut ReadSets) -> PlanReadSets {
-    PlanReadSets(
-        plan.steps
+    let reads = uses_of(plan);
+    let trusted = needs_from(plan, &reads);
+    let mut steps: Vec<StepReadSets> = Vec::with_capacity(plan.steps.len());
+    for ((step, read), trusts) in plan.steps.iter().zip(reads).zip(trusted) {
+        // The steps this one reads, made already: a later or missing step is not among them.
+        let earlier: Vec<&StepReadSets> = named(&inputs_of(&step.operation))
             .iter()
-            .map(|_| StepReadSets {
-                uses: sets.shared(Vec::new()),
-                needs: sets.shared(Vec::new()),
+            .filter_map(|input| match input {
+                Input::Step(id) => usize::try_from(id.0).map_or(None, |at| steps.get(at)),
+                Input::Relation(_) | Input::BoundObservation(_) => None,
             })
-            .collect(),
-    )
+            .collect();
+        // A step refused for an authoring error reads nothing here: it never runs, and its rule answers its fault.
+        let uses = match read {
+            Ok(StepReads { uses, .. }) => uses,
+            Err(_) => Vec::new(),
+        };
+        let mut needs = Vec::new();
+        absorb(&mut needs, trusts);
+        for each in &earlier {
+            absorb(&mut needs, each.needs.iter().cloned());
+        }
+        let made = StepReadSets {
+            uses: kept(uses, earlier.iter().map(|each| &each.uses), sets),
+            needs: kept(needs, earlier.iter().map(|each| &each.needs), sets),
+        };
+        steps.push(made);
+    }
+    PlanReadSets(steps.into_boxed_slice())
+}
+
+/// The set of `reads`: a set of a step it reads when equal to it, found without hashing, else the program's stored one.
+fn kept<'s>(
+    reads: Vec<RelationRead>,
+    mut earlier: impl Iterator<Item = &'s ReadSet>,
+    sets: &mut ReadSets,
+) -> ReadSet {
+    match earlier.find(|each| ***each == *reads) {
+        Some(each) => each.clone(),
+        None => sets.shared(reads),
+    }
 }

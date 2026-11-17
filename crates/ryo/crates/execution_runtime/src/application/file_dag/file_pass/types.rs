@@ -48,7 +48,7 @@ pub(crate) struct PassProgram {
     /// Each rule's compiled plan, shared with the compilation, in rule order.
     pub(crate) plans: Box<[std::sync::Arc<ryo_values::domain::plans::types::Plan>]>,
     /// What each step of each rule reads, in rule order.
-    pub(crate) reads: Box<[Box<[NodeReads]>]>,
+    pub(crate) reads: Box<[ryo_execution_domain::domain::trust::types::read_sets::value::PlanReadSets]>,
     /// What files ran in and gave back, for the next files: one per file running at once.
     pub(crate) scratch: std::sync::Mutex<Vec<PassScratch>>,
     /// Each rule's id, in rule order: what the node counters name a node's rules by.
@@ -91,16 +91,6 @@ pub(crate) enum NodeInFile {
     Unrunnable,
     /// A rule that runs on the file can run it.
     Runnable,
-}
-
-/// What one step's rows rest on: every relation read on the way to them, and the reads whose absence of rows a step on the way
-/// trusts.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct NodeReads {
-    /// Every relation read on the way to the step's rows, narrowed as the steps narrow it.
-    pub(crate) uses: Vec<ryo_execution_domain::domain::trust::types::RelationRead>,
-    /// The reads whose absence of rows the step or a step it reads trusts.
-    pub(crate) needs: Vec<ryo_execution_domain::domain::trust::types::RelationRead>,
 }
 
 /// The rows one file's run reads besides its nodes': the fact lookup's relations, the tree nodes each root starts from, and the

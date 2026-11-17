@@ -184,7 +184,9 @@ pub(crate) struct EscapingOutputs(pub Vec<bool>);
 
 /// Where each named output of a plan went when linking pruned it: its new place, or none when it was not kept.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct OutputPlaces(pub Vec<Option<ryo_values::domain::records::types::ObservationIndex>>);
+pub(crate) struct OutputPlaces(
+    pub Vec<Option<ryo_values::domain::records::types::ObservationIndex>>,
+);
 
 /// What pruning made of one plan: the plan as it was, shared as it is, or a new plan of only the kept steps and outputs.
 #[derive(Clone, Debug, PartialEq)]

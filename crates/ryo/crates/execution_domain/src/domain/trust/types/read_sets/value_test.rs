@@ -30,6 +30,10 @@ fn reads_equal_but_hashed_together_stay_distinct() {
     let second = sets.stored_by(vec![read(Relation::Function)], ReadSetHash(7));
     assert_eq!(
         (first.sharing(&second), sets.distinct(), &*second),
-        (SetSharing::Copied, StoredSets(2), &[read(Relation::Function)][..])
+        (
+            SetSharing::Copied,
+            StoredSets(2),
+            &[read(Relation::Function)][..]
+        )
     );
 }

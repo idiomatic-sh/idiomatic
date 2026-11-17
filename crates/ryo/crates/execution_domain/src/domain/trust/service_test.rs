@@ -43,9 +43,15 @@ enum Answer {
         distinct: StoredSets,
     },
     /// Of the steps compared, how many disagree.
-    Agreeing { steps: usize, disagreeing: usize },
+    Agreeing {
+        steps: usize,
+        disagreeing: usize,
+    },
     /// How many reads a step's uses and needs hold.
-    Reads { uses: usize, needs: usize },
+    Reads {
+        uses: usize,
+        needs: usize,
+    },
 }
 
 type Input = Ask;
@@ -138,15 +144,17 @@ fn expected_reads(plan: &Plan) -> Vec<(Vec<RelationRead>, Vec<RelationRead>)> {
     let trusted = needs_of(plan);
     let mut reads: Vec<(Vec<RelationRead>, Vec<RelationRead>)> = Vec::new();
     for (at, step) in plan.steps.iter().enumerate() {
-        let own = match uses.get(at) {
-            Some(Ok(read)) => read.clone(),
-            Some(Err(_)) | None => Vec::new(),
+        // A refused step reads nothing.
+        let own = if let Some(Ok(read)) = uses.get(at) {
+            read.clone()
+        } else {
+            Vec::new()
         };
         let mut needs: Vec<RelationRead> = Vec::new();
         let mut more: Vec<RelationRead> = trusted.get(at).cloned().unwrap_or_default();
         for input in named(&inputs_of(&step.operation)) {
             if let PlanInput::Step(id) = input
-                && let Some((_, earlier)) = usize::try_from(id.0).ok().and_then(|at| reads.get(at))
+                && let Some((_, earlier)) = usize::try_from(id.0).map_or(None, |at| reads.get(at))
             {
                 more.extend(earlier.iter().cloned());
             }
@@ -333,7 +341,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("read_sets_answer_what_physical_reads_and_needs_of_answer_over_a_trusted_absence"),
+        name: CaseName(
+            "read_sets_answer_what_physical_reads_and_needs_of_answer_over_a_trusted_absence",
+        ),
         word: Word::Succeeds,
         input: || Ask::Agreement(trusting),
         expect: Expect::Value(Answer::Agreeing {
