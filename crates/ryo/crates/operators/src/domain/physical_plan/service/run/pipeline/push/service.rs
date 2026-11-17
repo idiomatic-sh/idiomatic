@@ -3,10 +3,9 @@
 use super::super::super::types::{ChainFault, ChainRows, ChainStage, Push};
 use super::super::sources::service::{physical, resolved_rows, right_of, rows_count, rows_kinds};
 use super::super::stages::service::stage_row;
-use crate::domain::comparing::types::NameCount;
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::collections::kernels::filter::item::grown;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::decode;
+use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_with;
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{tree_read, tree_row};
 use crate::domain::physical_plan::collections::kernels::text_map::item::reserved;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
@@ -14,7 +13,6 @@ use crate::domain::physical_plan::types::stream_scratch::value::{
     STREAM_CHUNK_CELLS, StageScratch,
 };
 use crate::domain::physical_plan::types::{CellStart, NodeFed, PlanNodeId, TakenRows};
-use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
@@ -105,13 +103,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
         } else {
             RowCount(0)
         };
-        if let Some(fed) = push
-            .buffers
-            .fed
-            .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-        {
-            *fed = NodeFed([left, right, RowCount(0)]);
-        }
+        fed_with(push.buffers, *node, NodeFed([left, right, RowCount(0)]));
     }
     Ok(stages.iter_mut().rev().find_map(|stage| stage.fault.take()))
 }
@@ -199,8 +191,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
     Ok(())
 }
 
-/// Hands `stage`'s chunk to its reader, the first of `after` (the stages of `nodes`), row by row, and empties it. The reader's
-/// memo first grows to the names the stages before it minted.
+/// Hands `stage`'s chunk to its reader, the first of `after` (the stages of `nodes`), row by row, and empties it.
 ///
 /// # Errors
 ///
@@ -211,22 +202,13 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn flushed(
     stage: &mut StageScratch,
     after: &mut [StageScratch],
 ) -> Result<(), PortableOperatorFault> {
-    let Some(reader) = nodes.first() else {
+    if nodes.is_empty() {
         return Ok(());
-    };
+    }
     #[cfg(test)]
     if stage.last.0 >= STREAM_CHUNK_CELLS {
         push.buffers.chunks =
             crate::domain::physical_plan::types::file_buffers::value::ChunkMeter::Over;
-    }
-    if let Lowering::Filter { select, .. } = &physical(push.plan, *reader)?.lowering
-        && let Some(decisions) = push
-            .buffers
-            .decisions
-            .get_mut(usize::try_from(reader.0).unwrap_or(usize::MAX))
-    {
-        let names = NameCount(name_count(push.run.resources.texts().symbols).0);
-        grown(select, decisions, names);
     }
     for at in 0..stage.out.count.0 {
         pushed(

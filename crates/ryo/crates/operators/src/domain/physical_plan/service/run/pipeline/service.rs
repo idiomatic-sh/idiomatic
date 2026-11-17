@@ -8,7 +8,6 @@ use super::sources::service::{
     given_back, pending_of, physical, reading, resolved_rows, right_of, rows_kinds, walked,
 };
 use super::stages::service::stage_prepared;
-use crate::domain::comparing::types::NameCount;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, take};
 use crate::domain::physical_plan::service::indexes::service::{closed, opened};
@@ -21,7 +20,6 @@ use crate::domain::physical_plan::types::stream_scratch::value::{
 use crate::domain::physical_plan::types::{
     CellStart, KernelRun, PlanNodeId, ProbeIndex, RowSource,
 };
-use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::rows::types::RowCount;
 
@@ -262,7 +260,6 @@ fn prepared(
         .iter()
         .position(|node| *node == chain_stage.node)
         .ok_or(PortableOperatorFault::WrongOperation)?;
-    let names = NameCount(name_count(run.resources.texts().symbols).0);
     let last = stages.len().saturating_sub(1);
     let (before, from) = stages.split_at_mut(at);
     let stage = from
@@ -285,15 +282,7 @@ fn prepared(
             .get(stage.own.right.0)
             .map(|rows| resolved_rows(rows, head, rights))
     });
-    match stage_prepared(
-        run,
-        buffers,
-        chain_stage,
-        input,
-        names,
-        &mut stage.own,
-        right,
-    ) {
+    match stage_prepared(run, buffers, chain_stage, input, &mut stage.own, right) {
         Ok(prepared) => {
             stage.fault = prepared.fault;
             if at == last {

@@ -6,6 +6,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::render::item::rendered;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{count_of, facts};
+use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_with;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, take};
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copied, roots};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
@@ -35,12 +36,11 @@ pub(crate) fn minted(
         RowSource::Frontier(place) => Reading::Held(held(inputs.frontier(place))?),
         RowSource::Observation(place) => Reading::Held(held(inputs.observation(place))?),
     };
-    if let Some(fed) = buffers
-        .fed
-        .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-    {
-        *fed = NodeFed([count_of(rows_in(&input)), RowCount(0), RowCount(0)]);
-    }
+    fed_with(
+        buffers,
+        node,
+        NodeFed([count_of(rows_in(&input)), RowCount(0), RowCount(0)]),
+    );
     let pending = pending_of(&input);
     // The node's table: one the worker's pool kept, its room reused.
     let mut output = buffers.pool.fresh();

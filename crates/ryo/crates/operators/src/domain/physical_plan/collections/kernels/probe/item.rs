@@ -5,7 +5,7 @@
 
 use super::super::distinct::item::counted;
 use super::super::filter::item::{filter, kept_nodes};
-use super::super::hash_index::item::{emptied, find_cells, indexed, next_of};
+use super::super::hash_index::item::{find_cells, indexed, next_of};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::probe_right::item::{
@@ -277,7 +277,7 @@ pub(crate) fn probed(
     if let Some(fault) = probe_prepared(probe, kinds_of(left), right, run, &mut scratch)? {
         return Ok(Some(fault));
     }
-    emptied(scratch.repeats);
+    scratch.repeats.cleared();
     for at in 0..count_of(left).0 {
         if let Some(fault) = probe_row(
             probe,

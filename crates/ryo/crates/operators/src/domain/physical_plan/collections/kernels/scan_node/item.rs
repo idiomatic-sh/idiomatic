@@ -6,7 +6,7 @@ use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{NodeReaders, PlanNodeId, TakenRows};
+use crate::domain::physical_plan::types::{NodeFed, NodeReaders, PlanNodeId, TakenRows};
 #[cfg(test)]
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use ryo_values::domain::rows::types::Table;
@@ -85,6 +85,7 @@ pub(crate) fn hold(
         #[cfg(test)]
         buffers.meter.formed(rows.count);
         *held = Some(rows);
+        buffers.touched.touched(node);
     }
     if let Some(slot) = buffers.pending.get_mut(place) {
         *slot = pending;
@@ -99,5 +100,16 @@ pub(crate) fn hold(
         if let Some(left) = buffers.engine_left.get_mut(place) {
             *left = engine;
         }
+    }
+}
+
+/// `node` was fed `fed` in the open file: what its kernels read from each input, kept until its release.
+pub(crate) fn fed_with(buffers: &mut FileBuffers, node: PlanNodeId, fed: NodeFed) {
+    if let Some(slot) = buffers
+        .fed
+        .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+    {
+        *slot = fed;
+        buffers.touched.touched(node);
     }
 }

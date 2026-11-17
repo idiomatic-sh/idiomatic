@@ -8,6 +8,7 @@ use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanned;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::count_of;
+use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_with;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
 use crate::domain::physical_plan::service::indexes::service::sized_shared;
 use crate::domain::physical_plan::service::run::reading::service::{
@@ -119,12 +120,11 @@ pub(super) fn made(
         Lowering::ScanBound { scan } => {
             let rows = scanned(scan, run)?;
             // What the scan was fed: the bound rows it reads.
-            if let Some(fed) = buffers
-                .fed
-                .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-            {
-                *fed = NodeFed([rows.count, RowCount(0), RowCount(0)]);
-            }
+            fed_with(
+                buffers,
+                node,
+                NodeFed([rows.count, RowCount(0), RowCount(0)]),
+            );
             hold(plan, buffers, node, rows, None);
             return Ok(());
         }
@@ -207,14 +207,13 @@ pub(super) fn made(
         slots.get(slot_of.get(at).copied()?)?.as_ref()
     });
     // What the node was fed: each input's rows, a node read by two inputs in both.
-    if let Some(fed) = buffers
-        .fed
-        .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-    {
-        *fed = NodeFed(
+    fed_with(
+        buffers,
+        node,
+        NodeFed(
             read_at.map(|read| read.map_or_else(Default::default, |read| count_of(rows_in(read)))),
-        );
-    }
+        ),
+    );
     let [first_read, second_read, third_read] = read_at;
     let left = first_read.ok_or(PortableOperatorFault::WrongOperation)?;
     let left_fault = pending_of(left);

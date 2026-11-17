@@ -3,11 +3,12 @@
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
 use crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild;
-use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, SharedIndex};
+use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::shared_index::value::SharedIndex;
 use crate::domain::physical_plan::types::{
     IndexIdentity, IndexKey, IndexPlace, KeyedIndex, KeyedIndexes, NodeReaders, PlanNodeId,
     ProbeIndex,
@@ -76,29 +77,43 @@ pub(crate) fn read_by(
     at
 }
 
-/// One shared index for each index of `plan`, each emptied by the release of its last probe.
+/// One shared index for each index of `plan`, each emptied by the release of its last probe: which node that is, is found
+/// here, once, for every release after.
 pub(crate) fn sized_shared(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
-    if buffers.shared.len() < plan.indexes.len() {
-        buffers.shared = plan
+    let shared = &mut buffers.shared;
+    if shared.indexes.len() < plan.indexes.len() {
+        shared.indexes = plan
             .indexes
             .iter()
-            .map(|index| SharedIndex::new(index.readers.last().copied().unwrap_or(PlanNodeId(0))))
+            .map(|_| SharedIndex::default())
             .collect();
+        shared.closing = vec![None; plan.nodes.len()];
+        shared.opened.clear();
+        for (at, index) in plan.indexes.iter().enumerate() {
+            if let Some(last) = index.readers.last()
+                && let Some(closing) = shared
+                    .closing
+                    .get_mut(usize::try_from(last.0).unwrap_or(usize::MAX))
+            {
+                *closing = Some(IndexPlace(at));
+            }
+        }
     }
 }
 
 /// A probe of shared index `at` runs: the first of the file counts every probe of it as still to come.
 pub(crate) fn opened(plan: &PhysicalPlan, buffers: &mut FileBuffers, at: IndexPlace) {
-    if let (Some(shared), Some(index)) = (buffers.shared.get_mut(at.0), plan.indexes.get(at.0))
-        && shared.remaining == NodeReaders(0)
-    {
-        shared.remaining = NodeReaders(u32::try_from(index.readers.len()).unwrap_or(u32::MAX));
+    if let Some(index) = plan.indexes.get(at.0) {
+        buffers.shared.opened(
+            at,
+            NodeReaders(u32::try_from(index.readers.len()).unwrap_or(u32::MAX)),
+        );
     }
 }
 
 /// A probe of shared index `at` is done, whatever it answered: after the last of the file the index is emptied.
 pub(crate) fn closed(buffers: &mut FileBuffers, at: IndexPlace) {
-    if let Some(shared) = buffers.shared.get_mut(at.0) {
+    if let Some(shared) = buffers.shared.indexes.get_mut(at.0) {
         shared.remaining = NodeReaders(shared.remaining.0.saturating_sub(1));
         if shared.remaining == NodeReaders(0) {
             shared.emptied();

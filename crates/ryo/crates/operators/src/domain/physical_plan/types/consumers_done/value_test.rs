@@ -1,6 +1,6 @@
 //! A node made after some of its consumers were done waits only for the rest; what was done is forgotten with the node's
-//! release, and a node never told of a consumer done waits for all of them. A reader that does not run is done with each of
-//! its reads, unless nothing consumes it in the plan, when its sources never counted them.
+//! release and at the file's end, and a node never told of a consumer done waits for all of them. A reader that does not run
+//! is done with each of its reads, unless nothing consumes it in the plan, when its sources never counted them.
 use super::value::ConsumersDone;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::types::lowering::value::Lowering;
@@ -18,6 +18,8 @@ enum Given {
     OneOfEach,
     /// One reader and one engine use of node 1 done, then node 1 released.
     Forgotten,
+    /// One reader and one engine use of node 1 done, then the file ended.
+    FileEnded,
     /// Five readers and three engine uses of node 1 done: more than it has.
     MoreThanItHas,
     /// One reader and one engine use of node 0 done.
@@ -49,6 +51,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_released_node_forgets_what_was_done"),
         word: Word::Succeeds,
         input: || Given::Forgotten,
+        expect: Expect::Value((NodeReaders(3), EngineUses(2))),
+    },
+    Case {
+        name: CaseName("a_files_end_forgets_what_was_done"),
+        word: Word::Succeeds,
+        input: || Given::FileEnded,
         expect: Expect::Value((NodeReaders(3), EngineUses(2))),
     },
     Case {
@@ -116,18 +124,23 @@ fn subject(given: Input) -> Result<Value, Failure> {
     };
     match given {
         Given::Nothing => {}
-        Given::OneOfEach | Given::Forgotten => {
+        Given::OneOfEach | Given::Forgotten | Given::FileEnded => {
             times(1, &mut done, one, false);
             times(1, &mut done, one, true);
             if matches!(given, Given::Forgotten) {
                 done.forgotten(one);
+            }
+            if matches!(given, Given::FileEnded) {
+                done.file_ended();
             }
         }
         Given::MoreThanItHas => {
             times(5, &mut done, one, false);
             times(3, &mut done, one, true);
         }
-        Given::ReaderUnread | Given::UnconsumedReaderUnread => done.unread(&plan, PlanNodeId(2)),
+        Given::ReaderUnread | Given::UnconsumedReaderUnread => {
+            done.unread(&plan, PlanNodeId(2));
+        }
         Given::AnotherNode => {
             times(1, &mut done, zero, false);
             times(1, &mut done, zero, true);

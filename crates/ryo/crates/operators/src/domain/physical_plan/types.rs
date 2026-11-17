@@ -13,8 +13,10 @@ pub mod logical_program;
 pub(crate) mod lowering;
 pub mod physical_plan;
 pub mod rule_ordinal;
+pub(crate) mod shared_index;
 pub(crate) mod stream_scratch;
 pub(crate) mod table_pool;
+pub(crate) mod touched_nodes;
 pub(crate) mod walk_scratch;
 
 use crate::domain::contract::types::PortableOperatorFault;

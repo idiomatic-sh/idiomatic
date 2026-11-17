@@ -152,3 +152,31 @@ pub(crate) struct WorklistScratch {
     /// The texts no symbol of the file holds, numbered after them.
     pub(crate) fresh: Vec<Value>,
 }
+
+impl crate::domain::kept_room::types::KeptRoom for WorklistScratch {
+    fn kept(&mut self) {
+        self.held.kept();
+        self.queue.kept();
+        self.edges.kept();
+        self.roots.kept();
+        self.cells.kept();
+        self.root_cells.kept();
+        self.fresh.kept();
+    }
+
+    #[cfg(test)]
+    fn room(&self) -> crate::domain::kept_room::types::Room {
+        [
+            self.held.room(),
+            self.queue.room(),
+            self.edges.room(),
+            self.roots.room(),
+            self.cells.room(),
+            self.root_cells.room(),
+            self.fresh.room(),
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or_default()
+    }
+}

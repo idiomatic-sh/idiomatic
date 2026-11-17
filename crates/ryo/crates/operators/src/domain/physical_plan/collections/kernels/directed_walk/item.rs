@@ -153,7 +153,7 @@ pub(crate) fn walked(
         Mode::Empty | Mode::Native { among: None, .. } | Mode::Indexed { .. } => &[],
     };
     let verdicts = filter(&axis.domain, among_kinds, run.resources.texts());
-    readied(&axis.domain, decisions, verdicts.names);
+    readied(decisions);
     for at in 0..starts_count {
         let row = RowIndex(at);
         let start = cell_of(starts, row, axis.id)
