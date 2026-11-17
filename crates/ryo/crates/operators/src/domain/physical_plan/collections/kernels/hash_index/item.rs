@@ -7,7 +7,7 @@ use super::super::scan_facts::item::{cell_of, count_of, rows_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::physical_plan::types::keyed_rows::value::{
-    IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW,
+    IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW, hash_of_cells, same_cells,
 };
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
@@ -20,7 +20,6 @@ use ryo_relations::domain::relations::service::from_bits;
 use ryo_relations::domain::relations::types::{Bits, CellKind, ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
-use std::hash::{Hash as _, Hasher as _};
 
 /// `hash_index`, one item of the `kernels` collection.
 #[cfg(test)]
@@ -131,27 +130,33 @@ pub(crate) fn texts(
 ///
 /// `NoSuchColumn` for a key column past the row.
 pub(crate) fn hash_of(at: KeyedRowAt<'_>) -> Result<IndexKeyHash, PortableOperatorFault> {
-    let mut hasher = rustc_hash::FxHasher::default();
-    for column in at.side.on {
-        cell_of(at.side.rows, at.row, *column)
-            .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })?
-            .hash(&mut hasher);
+    let mut missing = None;
+    let hash = hash_of_cells(at.side.on.iter().map_while(|column| {
+        let cell = cell_of(at.side.rows, at.row, *column);
+        if cell.is_none() {
+            missing = Some(*column);
+        }
+        cell
+    }));
+    match missing {
+        Some(index) => Err(PortableOperatorFault::NoSuchColumn { index }),
+        None => Ok(hash),
     }
-    Ok(IndexKeyHash(hasher.finish()))
 }
 
 /// Whether two rows hold the same cells in their key columns, read in place.
 fn same_key(left: KeyedRowAt<'_>, right: KeyedRowAt<'_>) -> PredicateOutcome {
-    let same = left.side.on.len() == right.side.on.len()
-        && left.side.on.iter().zip(right.side.on).all(|(one, other)| {
-            cell_of(left.side.rows, left.row, *one)
-                .is_some_and(|cell| cell_of(right.side.rows, right.row, *other) == Some(cell))
-        });
-    if same {
-        PredicateOutcome::Holds
-    } else {
-        PredicateOutcome::Fails
-    }
+    same_cells(
+        left.side
+            .on
+            .iter()
+            .map(|column| cell_of(left.side.rows, left.row, *column)),
+        right
+            .side
+            .on
+            .iter()
+            .map(|column| cell_of(right.side.rows, right.row, *column)),
+    )
 }
 
 /// The row an index row is.
@@ -241,9 +246,7 @@ pub(crate) fn find_value(
     let [column] = indexed_side.on else {
         return Err(PortableOperatorFault::ShapeMismatch);
     };
-    let mut hasher = rustc_hash::FxHasher::default();
-    key.hash(&mut hasher);
-    let hash = IndexKeyHash(hasher.finish());
+    let hash = hash_of_cells([key]);
     Ok(rows
         .keys
         .find(hash.0, |run| {

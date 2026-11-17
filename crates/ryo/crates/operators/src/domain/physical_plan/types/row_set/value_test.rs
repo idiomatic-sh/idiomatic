@@ -1,12 +1,15 @@
 //! A row set keeps each first row once, in first-seen order, tells two rows of one hash apart by their cells, and holds each
 //! row of the side it was built from and no other.
-use super::value::{FirstSeen, RowSet, SetEntry, hash_of};
+use super::value::{FirstSeen, RowSet, SetEntry};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
 use crate::domain::physical_plan::types::CellStart;
 use crate::domain::physical_plan::types::keyed_rows::value::IndexedRow;
+use crate::domain::physical_plan::types::keyed_rows::value::hash_of_cells;
 use crate::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::rows::service::{push_row, row_in};
 use ryo_values::domain::rows::types::{RowCount, Table};
 use std::borrow::Cow;
@@ -106,17 +109,16 @@ fn numbers_table() -> Table {
     }
 }
 
-/// Appends a row of `number` to `table` and keeps it when the set sees it first, as the distinct kernel does.
+/// Appends a row of `number` to `table` through the distinct kernel, which keeps it when the set sees it first.
 fn seen(table: &mut Table, set: &mut RowSet, number: i64) -> FirstSeen {
-    let start = CellStart(table.cells.len());
+    let (start, rows) = (CellStart(table.cells.len()), table.count);
     table.cells.push(Cell::Number(Integer(number)));
-    let first = set.first_seen(table, start);
-    if first == FirstSeen::First {
-        table.count = RowCount(table.count.0 + 1);
+    counted(table, start, RepeatedRows::Dropped, set);
+    if table.count == rows {
+        FirstSeen::Repeat
     } else {
-        table.cells.truncate(start.0);
+        FirstSeen::First
     }
-    first
 }
 
 /// The numbers of a table's rows, in order.
@@ -157,7 +159,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Collided => {
             let _: FirstSeen = seen(&mut table, &mut set, 1);
             let two = [Cell::Number(Integer(2))];
-            let hash = hash_of(&two);
+            let hash = hash_of_cells(two);
             set.kept.clear();
             let _: hashbrown::hash_table::OccupiedEntry<'_, SetEntry> = set.kept.insert_unique(
                 hash.0,

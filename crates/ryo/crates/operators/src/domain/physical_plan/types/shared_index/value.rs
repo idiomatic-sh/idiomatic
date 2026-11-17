@@ -2,7 +2,6 @@
 //! it, and those the open file opened, which its end empties.
 use crate::domain::equality_join::types::ProbeKey;
 use crate::domain::kept_room::constants::POOL_INDEXES;
-use crate::domain::kept_room::types::KeptRoom;
 use crate::domain::kept_room::types::PoolSize;
 use crate::domain::kept_room::types::kept_pool::value::KeptPool;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
@@ -142,16 +141,11 @@ impl IndexRows {
     }
 }
 
-impl KeptRoom for IndexRows {
-    fn kept(&mut self) {
-        match self {
-            Self::Keyed(rows) => rows.kept(),
-            Self::Rows(set) => set.kept(),
-        }
-    }
-
+impl IndexRows {
+    /// The room it keeps, of its kind.
     #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
+    pub(crate) fn room(&self) -> crate::domain::kept_room::types::Room {
+        use crate::domain::kept_room::types::KeptRoom as _;
         match self {
             Self::Keyed(rows) => rows.room(),
             Self::Rows(set) => set.room(),
