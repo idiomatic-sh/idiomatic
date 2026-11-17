@@ -298,3 +298,9 @@ name = "ordinal-suppressed-marker"
 comparison = "full"
 files = { "case.py" = "# ruff: noqa: PLC0206\nd={}\nfor key in d:\n    print(d[key])\ndef declarations():\n    global a,b,c\n" }
 expected = []
+
+[[cases]]
+name = "dict-seen-after-two-builtin-imports"
+comparison = "full"
+files = { "case.py" = "import builtins\nfrom builtins import dict as d0\nd=dict()\nfor k in d:\n dict=unknown\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 61, "end" = 67 }]
