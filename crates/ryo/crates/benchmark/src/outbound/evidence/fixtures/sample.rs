@@ -49,6 +49,10 @@ pub fn costs() -> ryo_benchmark_contracts::domain::costs::types::ProjectCosts {
 }
 
 /// One rule's verification times: 40 ms in all, 9 ms at most, 3 ms to compile.
+///
+/// # Panics
+///
+/// Never: `F401` is a rule id.
 #[must_use]
 pub fn timings() -> crate::outbound::evidence::types::RuleTimings {
     crate::outbound::evidence::types::RuleTimings(std::collections::BTreeMap::from([(

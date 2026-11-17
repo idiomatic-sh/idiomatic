@@ -3,11 +3,6 @@
 //! tree; a damaged store answers as if there were none; and after an edit, or files added and removed, the run answers what a run
 //! that keeps nothing does, the store left as it was when nothing changed.
 
-#![expect(
-    clippy::expect_used,
-    reason = "a guard whose lint cannot run has nothing to hold: the panic is the failure of the row"
-)]
-
 use crate::inbound::use_cases::lint::fixtures::given::Given;
 use crate::inbound::use_cases::lint::fixtures::given::request;
 use crate::inbound::use_cases::lint::fixtures::given::violations;

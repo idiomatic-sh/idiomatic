@@ -64,8 +64,9 @@ fn emitted(pass: &PassProgram, counters: &NodeCounters) {
         nodes = nodes.saturating_add(1);
     }
     #[expect(
+        clippy::as_conversions,
         clippy::cast_precision_loss,
-        reason = "a share for a reader: the counts are far below the 2^53 makings past which it would round"
+        reason = "a share for a reader: no lossless u64 to f64 conversion exists, and the counts are far below the 2^53 makings past which it would round"
     )]
     let empty_share = if run.runs.0 == 0 {
         0.0
