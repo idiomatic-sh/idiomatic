@@ -41,7 +41,7 @@ pub mod counting;
 pub mod demands;
 #[cfg(test)]
 pub(crate) mod edges;
-mod graph_workloads;
+pub(crate) mod graph_workloads;
 pub mod held;
 mod kernel_programs;
 #[cfg(test)]

@@ -6,7 +6,7 @@ use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{
-    CellKind, FileId, Integer, Position, Relation, Value,
+    CellKind, FileId, Integer, Offset, Position, Relation, Span, Value,
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, ReachLookup, Side};
 use ryo_values::domain::plans::types::Operation;
@@ -50,6 +50,30 @@ fn edge_rows(pairs: impl Iterator<Item = (u32, u32)>, resources: &TextResources)
         table.count = RowCount(table.count.0 + 1);
     }
     table
+}
+
+/// Edge rows as left rows of Defines' shape, each its parent as its node (columns 0 and 4) and its field as its name
+/// (columns 1 to 3), lent whole: a relation's rows are never lent short of its kinds.
+pub(crate) fn defines_of_edges(edges: &Table) -> Table {
+    let width = kinds(EDGES).len();
+    let span = Value::Span(Span {
+        start: Offset(0),
+        end: Offset(0),
+    });
+    Table {
+        kinds: kinds(Relation::Defines).to_vec(),
+        cells: edges
+            .cells
+            .chunks(width)
+            .flat_map(|row| match row {
+                [parent, _, _, field, file] => {
+                    vec![*parent, *field, *field, *field, *parent, *file, span]
+                }
+                _ => Vec::new(),
+            })
+            .collect(),
+        count: edges.count,
+    }
 }
 
 /// `chains` chains of ten edges, chain `c` from node `11c` to `11c + 10`.
@@ -127,7 +151,7 @@ fn closure_blocks(closure: &SeededClosure, count: u32) -> u64 {
     let mut resources = TextResources::new(&["f"]);
     let edges = chains(count, &resources);
     // The left rows bind the first node of chains 3 and 70.
-    let left = edge_rows([(33, 0), (770, 0)].into_iter(), &resources);
+    let left = defines_of_edges(&edge_rows([(33, 0), (770, 0)].into_iter(), &resources));
     let inputs = TableInputs::new(&[(EDGES, &edges), (Relation::Defines, &left)]);
     let steps = closure_steps(closure.fused);
     let emit = [PlanNodeId(

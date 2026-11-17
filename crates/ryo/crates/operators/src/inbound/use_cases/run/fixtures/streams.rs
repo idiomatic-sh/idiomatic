@@ -14,7 +14,7 @@ use crate::domain::physical_plan::types::{
 };
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::fixtures::node_id;
+use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{
     FileId, Integer, NodeId, Offset, Position, Relation, Span, Value as Cell,
 };
@@ -22,7 +22,7 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, JoinColumn, Side, StepId, StepScope,
 };
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// A program over Defines rows: its steps, the one it emits, and the rows and texts of the file.
 pub(crate) struct Program {
@@ -271,40 +271,32 @@ pub(crate) fn ran_over_tree(
     )
 }
 
-/// Runs `steps`, emitting `emit`, over `rows` Defines rows of six cells, the relation's columns lent with its seven kinds but
-/// only six columns: each row read on its own, a short row never read into the next row's cells.
-pub(crate) fn ran_over_short_rows(
+/// Runs `steps`, emitting `emit`, over one Defines row and, in place of `short`'s rows, a view of `short` that lends one
+/// column fewer than its kinds: malformed facts, which the executor refuses where it reads them.
+pub(crate) fn ran_over_short_view(
     steps: &[Step],
     emit: PlanNodeId,
-    rows: usize,
+    short: Relation,
 ) -> Result<Ran, PortableOperatorFault> {
-    let short = |_: &TextResources| {
-        let named: Vec<(Cell, Span)> = (0..rows)
-            .map(|at| {
-                let number = i64::try_from(at).unwrap_or(i64::MAX);
-                (
-                    Cell::Number(Integer(number)),
-                    Span {
-                        start: Offset(0),
-                        end: Offset(1),
-                    },
-                )
-            })
-            .collect();
-        let full = defines_rows(&named);
-        let width = full.kinds.len();
-        Vec::from([(
-            Relation::Defines,
-            Table {
-                kinds: full.kinds.iter().copied().take(width - 1).collect(),
-                cells: full
-                    .cells
-                    .chunks(width)
-                    .flat_map(|row| row.iter().copied().take(width - 1))
-                    .collect(),
-                count: full.count,
+    let tables = |resources: &TextResources| {
+        let full = defines_rows(&[(
+            resources.symbol("a"),
+            Span {
+                start: Offset(0),
+                end: Offset(1),
             },
-        )])
+        )]);
+        let width = kinds(short).len().saturating_sub(1);
+        let short_view = Table {
+            kinds: kinds(short).iter().copied().take(width).collect(),
+            cells: (0..width).map(|_| Cell::Number(Integer(0))).collect(),
+            count: RowCount(1),
+        };
+        if short == Relation::Defines {
+            Vec::from([(short, short_view)])
+        } else {
+            Vec::from([(Relation::Defines, full), (short, short_view)])
+        }
     };
     ran_steps(
         &Steps {
@@ -313,24 +305,20 @@ pub(crate) fn ran_over_short_rows(
             first: &[],
         },
         false,
-        &[],
-        &short,
+        &["a"],
+        &tables,
     )
 }
 
-/// An inner join of node 0's rows with Defines on their node (column 0), answering the left's node: the probe a short row
-/// kept into a chunk is read by.
-pub(crate) fn node_probe() -> Step {
-    let defines = (
-        StepInput::Relation(Relation::Defines),
-        PlanInput::Relation(Relation::Defines),
-    );
+/// An inner join of node 0's rows with `right` on their node (column 0), answering the left's node.
+pub(crate) fn node_probe(right: Relation) -> Step {
+    let right = (StepInput::Relation(right), PlanInput::Relation(right));
     let left = (StepInput::Step(StepId(0)), PlanInput::Node(PlanNodeId(0)));
     let output = vec![JoinColumn {
         side: Side::Left,
         column: ColumnIndex(0),
     }];
-    let mut probe = join(left, defines, output, Vec::new());
+    let mut probe = join(left, right, output, Vec::new());
     if let Operation::Join {
         left_on, right_on, ..
     } = &mut probe.operation
