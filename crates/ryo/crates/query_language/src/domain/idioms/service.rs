@@ -7,7 +7,7 @@ use ryo_relations::domain::terms::types::Vocabulary;
 use super::constants::DIGEST_OWNER;
 use crate::domain::lowering::constants::{Added, added};
 use crate::domain::lowering::types::{
-    Builder, PairFiltering, PlannedColumn, SameSetsJoin, SameSetsPush, Uniqueness, Widened,
+    Builder, PairFiltering, PlannedColumn, SameSetsJoin, SameSetsPush, Widened,
 };
 use crate::domain::planning::service::{push, pushed};
 use crate::domain::resolving::service::{column_of, step_of};
@@ -218,7 +218,6 @@ fn number(label: QuerySpelling<'_>) -> PlannedColumn {
     PlannedColumn {
         name: ryo_values::domain::descriptions::types::ColumnName(Box::from(label.0)),
         kind: CellKind::Number,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     }
 }

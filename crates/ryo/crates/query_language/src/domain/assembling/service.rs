@@ -13,7 +13,7 @@ use crate::domain::cutting::service::{cut_handover, cut_handover_roots};
 use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
 use crate::domain::inlining::service::inline_views;
 use crate::domain::lowering::errors::LoweringError;
-use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
+use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel};
 use crate::domain::planning::service::{frontier_of, pushed};
 use crate::domain::pruning::service::{without_unused, without_unused_roots};
 use crate::domain::pushing::service::{push_lookups, push_lookups_roots};
@@ -83,7 +83,6 @@ pub(crate) fn lower_with_observations(
             .map(|column| PlannedColumn {
                 name: ryo_values::domain::descriptions::types::ColumnName(column.name.0.clone()),
                 kind: column.kind,
-                unique: Uniqueness::Shared,
                 words: Vocabulary::Open,
             })
             .collect();

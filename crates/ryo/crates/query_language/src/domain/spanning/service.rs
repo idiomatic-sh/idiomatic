@@ -4,7 +4,6 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::Builder;
 use crate::domain::lowering::types::PlannedColumn;
 use crate::domain::lowering::types::Sourced;
-use crate::domain::lowering::types::Uniqueness;
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::column_of;
 use crate::domain::resolving::service::input_argument;
@@ -80,7 +79,6 @@ pub(crate) fn call_span_between(
     fields.push(PlannedColumn {
         name: output,
         kind: CellKind::Span,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     push(
@@ -151,7 +149,6 @@ pub(crate) fn call_span_bounds(
         fields.push(PlannedColumn {
             name: output,
             kind: CellKind::Number,
-            unique: Uniqueness::Shared,
             words: Vocabulary::Open,
         });
     }

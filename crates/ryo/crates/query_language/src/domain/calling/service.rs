@@ -1,6 +1,7 @@
 //! The `calling` service: the calls that shape rows (`project`, `extend`, `join` and `antijoin`) and the dispatch of every call to its lowering.
 
 use crate::domain::combining::service::call_set;
+use crate::domain::distinctness::service::repeated_rows;
 use crate::domain::idioms::service::push_same_sets;
 use crate::domain::iterating::service::call_worklist;
 use crate::domain::joining::service::join_output;
@@ -10,7 +11,6 @@ use crate::domain::lowering::types::Builder;
 use crate::domain::lowering::types::PlannedColumn;
 use crate::domain::lowering::types::SearchMatch;
 use crate::domain::lowering::types::Sourced;
-use crate::domain::lowering::types::Uniqueness;
 use crate::domain::lowering::types::Widened;
 use crate::domain::planning::service::push;
 use crate::domain::reshaping::service::call_capture;
@@ -27,7 +27,6 @@ use crate::domain::resolving::service::input_argument;
 use crate::domain::resolving::service::parameter_of;
 use crate::domain::resolving::service::position;
 use crate::domain::resolving::service::positions_of;
-use crate::domain::resolving::service::repeated_rows;
 use crate::domain::resolving::service::words_of;
 use crate::domain::rewriting::service::same_sets;
 use crate::domain::syntax::constants::operator_named;
@@ -112,7 +111,7 @@ pub(crate) fn call_project(
         .iter()
         .map(|index| column_of(&fields, *index).clone())
         .collect();
-    let distinct = repeated_rows(&kept);
+    let distinct = repeated_rows(&builder.steps, from, &indexes);
     push(
         builder,
         Some(name),
@@ -207,7 +206,6 @@ pub(crate) fn call_extend(
         fields.push(PlannedColumn {
             name: ryo_values::domain::descriptions::types::ColumnName(value.name.0.clone()),
             kind,
-            unique: Uniqueness::Shared,
             words: Vocabulary::Open,
         });
     }

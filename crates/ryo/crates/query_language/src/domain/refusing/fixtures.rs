@@ -1,6 +1,6 @@
 //! The steps the `refusing` cases build: each kind of step that compares rows on a span, with and without a file key.
 
-use crate::domain::lowering::types::{PlannedColumn, Uniqueness};
+use crate::domain::lowering::types::PlannedColumn;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
@@ -55,7 +55,6 @@ pub(crate) fn column(kind: CellKind) -> PlannedColumn {
     PlannedColumn {
         name: ryo_values::domain::descriptions::types::ColumnName("c".into()),
         kind,
-        unique: Uniqueness::Shared,
         words: ryo_relations::domain::terms::types::Vocabulary::Open,
     }
 }

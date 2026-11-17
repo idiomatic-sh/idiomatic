@@ -3,13 +3,14 @@
 
 use crate::domain::banding::service::band_split;
 use crate::domain::comparing::service::comparison_of;
+use crate::domain::distinctness::service::repeated_rows;
 use crate::domain::joining::service::{select_join, shown_of};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
     Addressable, Builder, Joined, LastStep, PlannedColumn, ShownColumns, Sourced,
 };
 use crate::domain::planning::service::{push, pushed};
-use crate::domain::resolving::service::{column_of, position, read_source, repeated_rows};
+use crate::domain::resolving::service::{column_of, position, read_source};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
@@ -67,7 +68,6 @@ fn projected(
                 }
             },
             kind: column_of(fields, index).kind,
-            unique: column_of(fields, index).unique,
             words: column_of(fields, index).words,
         });
     }
@@ -150,7 +150,7 @@ pub(crate) fn lower_select(
     {
         projected(&fields, columns, builder.span, &mut kept, &mut indexes)?;
     }
-    let distinct = repeated_rows(&kept);
+    let distinct = repeated_rows(&builder.steps, input, &indexes);
     if projects && distinct == parts::RepeatedRows::Kept && alternatives.len() == 1 {
         // The columns kept say which row each is, so no row repeats: the one step filters and keeps them.
         push(
@@ -289,10 +289,10 @@ fn unshown(
     input: parts::Input,
     shown: Vec<PlannedColumn>,
 ) {
-    let columns = (0..shown.len())
+    let columns: Vec<parts::ColumnIndex> = (0..shown.len())
         .map(|place| parts::ColumnIndex(u32::try_from(place).unwrap_or(u32::MAX)))
         .collect();
-    let distinct = repeated_rows(&shown);
+    let distinct = repeated_rows(&builder.steps, input, &columns);
     push(
         builder,
         Some(name),

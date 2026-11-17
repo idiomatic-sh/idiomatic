@@ -2,14 +2,14 @@
 //! arguments of a call are read, for the lowering of a program.
 
 use ryo_relations::domain::labels::types::NameRef;
+use ryo_relations::domain::relations::service::vocabulary_of;
 use ryo_relations::domain::relations::service::{column_name, columns, kind, relation_named};
-use ryo_relations::domain::relations::service::{is_key, vocabulary_of};
-use ryo_relations::domain::relations::types::{ColumnKeyness, Relation};
+use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
-    ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced, StepLabel, Uniqueness,
+    ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced, StepLabel,
 };
 use crate::domain::syntax::constants::slot_name;
 use crate::domain::syntax::types::ArgumentSlot;
@@ -44,23 +44,9 @@ pub(crate) fn relation_fields(relation: Relation) -> Vec<PlannedColumn> {
                 column_name(column).0,
             )),
             kind: kind(column),
-            unique: if is_key(column) == ColumnKeyness::Key {
-                Uniqueness::Unique
-            } else {
-                Uniqueness::Shared
-            },
             words: vocabulary_of(column),
         })
         .collect()
-}
-
-/// Whether a projection of these fields drops repeated rows: not when a column kept says which row it is.
-pub(crate) fn repeated_rows(kept: &[PlannedColumn]) -> parts::RepeatedRows {
-    if kept.iter().any(|field| field.unique == Uniqueness::Unique) {
-        parts::RepeatedRows::Kept
-    } else {
-        parts::RepeatedRows::Dropped
-    }
 }
 
 /// The field of `items` that the column `index` names.
@@ -182,7 +168,6 @@ pub(crate) fn read_source(
                         column.name.0.clone(),
                     ),
                     kind: column.kind,
-                    unique: Uniqueness::Shared,
                     words: Vocabulary::Open,
                 })
                 .collect(),

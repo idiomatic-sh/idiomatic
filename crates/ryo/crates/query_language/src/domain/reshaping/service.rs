@@ -4,9 +4,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::errors::LoweringError;
-use crate::domain::lowering::types::{
-    ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced, Uniqueness,
-};
+use crate::domain::lowering::types::{ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced};
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::{
     argument_named, bad_argument, column_of, find_parameter, input_argument, parameter_of,
@@ -49,7 +47,6 @@ pub(crate) fn call_group_count(
     kept.push(PlannedColumn {
         name: word_of(call, ArgumentSlot::Count)?,
         kind: CellKind::Number,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     push(
@@ -88,13 +85,11 @@ pub(crate) fn call_group_digest(
     kept.push(PlannedColumn {
         name: word_of(call, ArgumentSlot::Digest)?,
         kind: CellKind::Number,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     kept.push(PlannedColumn {
         name: word_of(call, ArgumentSlot::Count)?,
         kind: CellKind::Number,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     push(
@@ -126,7 +121,6 @@ pub(crate) fn call_capture(
         fields.push(PlannedColumn {
             name: slot,
             kind: CellKind::Symbol,
-            unique: Uniqueness::Shared,
             words: Vocabulary::Open,
         });
     }
@@ -197,7 +191,6 @@ pub(crate) fn call_rank(
     fields.push(PlannedColumn {
         name: word_of(call, ArgumentSlot::Output)?,
         kind: CellKind::Number,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     push(
@@ -251,7 +244,6 @@ pub(crate) fn call_rows(
         .map(|each| PlannedColumn {
             name: each,
             kind: CellKind::Symbol,
-            unique: Uniqueness::Shared,
             words: Vocabulary::Open,
         })
         .collect();
@@ -282,7 +274,6 @@ pub(crate) fn call_words(
     fields.push(PlannedColumn {
         name: word_of(call, ArgumentSlot::Word)?,
         kind: CellKind::Symbol,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     push(

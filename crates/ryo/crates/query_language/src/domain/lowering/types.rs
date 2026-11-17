@@ -25,8 +25,6 @@ pub(crate) struct PlannedColumn {
     pub name: ColumnName,
     /// What it holds.
     pub kind: CellKind,
-    /// Whether it says which row a row is: no two rows hold the same value.
-    pub unique: Uniqueness,
     /// The words it holds: one of a closed set, or any.
     pub words: Vocabulary,
 }

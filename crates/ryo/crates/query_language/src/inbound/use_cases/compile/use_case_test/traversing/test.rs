@@ -317,10 +317,27 @@ fn subject(text: Input) -> Result<Value, Failure> {
             }
         }
     }
-    for (step, lowered) in builder.steps.iter().zip(&builder.lowered) {
+    // No column of a closure or a walk tells its rows apart: each is shared by the one definition, `distinct_on`.
+    let shared_on_each = |at: usize, width: usize| {
+        (0..width).all(|column| {
+            crate::domain::distinctness::service::distinct_on(
+                &builder.steps,
+                &mut crate::domain::distinctness::types::DistinctMemo::default(),
+                ryo_values::domain::plan_parts::types::Input::Step(
+                    ryo_values::domain::plan_parts::types::StepId(
+                        u32::try_from(at).unwrap_or(u32::MAX),
+                    ),
+                ),
+                &[ryo_values::domain::plan_parts::types::ColumnIndex(
+                    u32::try_from(column).unwrap_or(u32::MAX),
+                )],
+            ) == crate::domain::lowering::types::Uniqueness::Shared
+        })
+    };
+    for (at, (step, lowered)) in builder.steps.iter().zip(&builder.lowered).enumerate() {
         if let Operation::Closure { keys, .. } = &step.operation {
             assert_eq!(lowered.fields.len(), keys.len() + 2);
-            assert!(lowered.fields.iter().all(|field| field.unique == crate::domain::lowering::types::Uniqueness::Shared));
+            assert!(shared_on_each(at, lowered.fields.len()));
             if !keys.is_empty() {
                 assert_eq!(&*lowered.fields[0].name.0, "file");
             }
@@ -336,11 +353,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         let fields = &builder.lowered.last().expect("DFS step is lowered").fields;
         assert_eq!(root_keys.len(), edge_keys.len());
         assert_eq!(fields.len(), root_keys.len() + 5);
-        assert!(
-            fields
-                .iter()
-                .all(|field| field.unique == crate::domain::lowering::types::Uniqueness::Shared)
-        );
+        assert!(shared_on_each(builder.steps.len() - 1, fields.len()));
         assert_eq!(
             fields.last().expect("ordinal exists").kind,
             ryo_relations::domain::relations::types::CellKind::Number

@@ -5,7 +5,6 @@ use crate::domain::lowering::types::Builder;
 use crate::domain::lowering::types::PlannedColumn;
 use crate::domain::lowering::types::SearchMatch;
 use crate::domain::lowering::types::Sourced;
-use crate::domain::lowering::types::Uniqueness;
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::column_of;
 use crate::domain::resolving::service::input_argument;
@@ -171,14 +170,12 @@ pub(crate) fn call_source_matches(
     fields.push(PlannedColumn {
         name: output,
         kind: CellKind::Span,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     if let Some(line_output) = line_output {
         fields.push(PlannedColumn {
             name: line_output,
             kind: CellKind::Number,
-            unique: Uniqueness::Shared,
             words: Vocabulary::Open,
         });
     }
@@ -191,7 +188,6 @@ pub(crate) fn call_source_matches(
             fields.push(PlannedColumn {
                 name,
                 kind,
-                unique: Uniqueness::Shared,
                 words: Vocabulary::Open,
             });
         }
@@ -260,7 +256,6 @@ pub(crate) fn call_replace(
     fields.push(PlannedColumn {
         name: output,
         kind: CellKind::Symbol,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     push(

@@ -256,7 +256,6 @@ pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput 
                             column.name.0.clone(),
                         ),
                         kind: column.kind,
-                        unique: crate::domain::lowering::types::Uniqueness::Shared,
                         words: ryo_relations::domain::terms::types::Vocabulary::Open,
                     })
                     .collect(),

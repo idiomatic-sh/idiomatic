@@ -4,7 +4,6 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::Builder;
 use crate::domain::lowering::types::PlannedColumn;
 use crate::domain::lowering::types::Sourced;
-use crate::domain::lowering::types::Uniqueness;
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::argument_named;
 use crate::domain::resolving::service::column_of;
@@ -99,7 +98,6 @@ pub(crate) fn call_render_syntax(
     fields.push(PlannedColumn {
         name: output,
         kind: CellKind::Symbol,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     push(

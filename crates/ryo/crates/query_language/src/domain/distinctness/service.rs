@@ -8,9 +8,10 @@ use super::types::{Antijoined, SelfOrdered};
 use crate::domain::lineage::service::column_kind;
 use crate::domain::lineage::types::LineageMemo;
 use crate::domain::lowering::types::Uniqueness;
-use crate::domain::resolving::service::relation_fields;
 use crate::domain::widths::service::width_of;
+use ryo_relations::domain::relations::service::is_key;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::ColumnKeyness;
 use ryo_values::domain::band_joins::types::{BandJoin, BandTest};
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::step_in;
@@ -38,9 +39,12 @@ pub(crate) fn distinct_on(
 ) -> Uniqueness {
     let id = match input {
         Input::Relation(relation) => {
-            let fields = relation_fields(relation);
+            let columns = ryo_relations::domain::relations::service::columns(relation);
             return if keys.iter().any(|key| {
-                column_in(&fields, *key).is_some_and(|field| field.unique == Uniqueness::Unique)
+                usize::try_from(key.0)
+                    .ok()
+                    .and_then(|at| columns.get(at))
+                    .is_some_and(|column| is_key(*column) == ColumnKeyness::Key)
             }) {
                 Uniqueness::Unique
             } else {
@@ -60,6 +64,24 @@ pub(crate) fn distinct_on(
     let found = step_distinct(steps, memo, id, &at.columns).unwrap_or(Uniqueness::Shared);
     let _first = memo.0.insert(at, found);
     found
+}
+
+/// Whether a projection of the columns `columns` of `input` keeps its repeated rows: only where `distinct_on` proves `input`
+/// distinct on them, so that no row of the projection repeats; any other projection drops them. The one definition the
+/// lowering's projections read, so that a projection kept as it is is distinct by the same proof a join's fan reads.
+#[must_use]
+pub(crate) fn repeated_rows(
+    steps: &[PlanStep],
+    input: Input,
+    columns: &[ColumnIndex],
+) -> RepeatedRows {
+    if !columns.is_empty()
+        && distinct_on(steps, &mut DistinctMemo::default(), input, columns) == Uniqueness::Unique
+    {
+        RepeatedRows::Kept
+    } else {
+        RepeatedRows::Dropped
+    }
 }
 
 /// Whether the rows of the step `id` are distinct on `keys`, followed into what the step reads: none when the plan cannot follow them.

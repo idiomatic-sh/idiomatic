@@ -5,7 +5,7 @@ use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::constants::{HierarchyColumn, heading};
 use crate::domain::lowering::errors::LoweringError;
-use crate::domain::lowering::types::{ArgumentFault, Builder, PlannedColumn, Sourced, Uniqueness};
+use crate::domain::lowering::types::{ArgumentFault, Builder, PlannedColumn, Sourced};
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::{
     bad_argument, column_of, input_argument, position, positions_of, word_of, words_of,
@@ -89,7 +89,6 @@ pub(crate) fn call_axis(
             HierarchyColumn::Related,
         ))),
         kind: CellKind::Node,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     push(builder, Some(name), operation, fields);
@@ -141,11 +140,7 @@ pub(crate) fn call_closure(
         let kept: Vec<_> = keys
             .iter()
             .chain([&source, &destination])
-            .map(|column| {
-                let mut field = column_of(&fields, *column).clone();
-                field.unique = Uniqueness::Shared;
-                field
-            })
+            .map(|column| column_of(&fields, *column).clone())
             .collect();
         push(
             builder,
@@ -202,7 +197,6 @@ pub(crate) fn graph_output_columns(
     kept.push(PlannedColumn {
         name: word_of(call, ArgumentSlot::Output)?,
         kind: output,
-        unique: Uniqueness::Shared,
         words: Vocabulary::Open,
     });
     for (at, field) in kept.iter().enumerate() {
@@ -212,9 +206,6 @@ pub(crate) fn graph_output_columns(
                 span: call.span,
             });
         }
-    }
-    for field in &mut kept {
-        field.unique = Uniqueness::Shared;
     }
     Ok(kept)
 }

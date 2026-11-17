@@ -5,7 +5,7 @@ use super::constants::SIDE_SEPARATOR;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
     ArgumentFault, Builder, Joined, LastStep, PlannedColumn, SearchMatch, ShownColumns, SideColumn,
-    Sourced, Uniqueness, Widened,
+    Sourced, Widened,
 };
 use crate::domain::planning::service::pushed;
 use crate::domain::resolving::service::argument_named;
@@ -99,7 +99,6 @@ pub(crate) fn select_join(
                 }
             },
             kind: column_of(side_fields, index).kind,
-            unique: Uniqueness::Shared,
             words: column_of(side_fields, index).words,
         });
     }
@@ -248,7 +247,6 @@ fn side_columns(
             kept.push(PlannedColumn {
                 name: reference.column.clone(),
                 kind: column_of(side_fields, column).kind,
-                unique: Uniqueness::Shared,
                 words: column_of(side_fields, column).words,
             });
             parts::ColumnIndex(u32::try_from(output.len() - 1).unwrap_or(u32::MAX))
@@ -388,7 +386,6 @@ pub(crate) fn join_output(
         kept.push(PlannedColumn {
             name: ryo_values::domain::descriptions::types::ColumnName(entry.name.0.clone()),
             kind: column_of(side_fields, index).kind,
-            unique: Uniqueness::Shared,
             words: column_of(side_fields, index).words,
         });
     }
