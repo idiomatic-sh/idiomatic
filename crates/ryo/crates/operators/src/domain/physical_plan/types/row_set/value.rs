@@ -1,16 +1,18 @@
 //! Rows kept once, each by the hash of all its cells and its place among the rows it was kept from: a distinct's rows being
 //! made, or a set operation's right side. A row set never follows a chain of rows, so it holds no link per row.
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::kept_room::constants::KEPT_ROOM;
-use crate::domain::kept_room::types::{KeptRoom, Poolable, RoomFit, RoomHeld};
+use crate::domain::kept_room::types::{Poolable, RoomFit, RoomHeld};
 use crate::domain::physical_plan::types::CellStart;
-use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, IndexedRow};
+use crate::domain::physical_plan::types::keyed_rows::value::{
+    IndexKeyHash, IndexedRow, hash_of_cells, same_cells,
+};
 use crate::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::row_in;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
-use std::hash::{Hash as _, Hasher as _};
 
 /// Whether a row is the first of its kind among the rows kept before it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,26 +39,21 @@ pub(super) struct SetEntry {
     pub(super) row: IndexedRow,
 }
 
-/// Whether row `row` of a side of `kinds`, its cells read through `cell`, holds the cells of `cells`, column by column.
-fn holds_at(
+/// Whether row `row` of a side of `kinds`, its cells read through `cell`, holds the cells of `cells`.
+fn same_row(
     kinds: &[CellKind],
     cell: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
     row: RowIndex,
     cells: &[Value],
-) -> SetMembership {
-    if cells.len() == kinds.len()
-        && columns(kinds)
-            .zip(cells)
-            .all(|(column, value)| cell(row, column) == Some(*value))
-    {
-        SetMembership::In
-    } else {
-        SetMembership::Out
-    }
+) -> PredicateOutcome {
+    same_cells(
+        cells.iter().map(|value| Some(*value)),
+        columns(kinds).map(|column| cell(row, column)),
+    )
 }
 
 /// Every column of rows of `kinds`, in order.
-pub(crate) fn columns(kinds: &[CellKind]) -> impl Iterator<Item = ColumnIndex> {
+pub(crate) fn columns(kinds: &[CellKind]) -> impl ExactSizeIterator<Item = ColumnIndex> {
     (0..kinds.len()).map(|at| ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX)))
 }
 
@@ -65,21 +62,12 @@ fn indexed(row: IndexedRow) -> RowIndex {
     RowIndex(usize::try_from(row.0).unwrap_or(usize::MAX))
 }
 
-/// The hash of a row's cells, in order.
-pub(super) fn hash_of<'c>(cells: impl IntoIterator<Item = &'c Value>) -> IndexKeyHash {
-    let mut hasher = rustc_hash::FxHasher::default();
-    for cell in cells {
-        cell.hash(&mut hasher);
-    }
-    IndexKeyHash(hasher.finish())
-}
-
 impl RowSet {
     /// Keeps the row `table` holds from cell `start` when no row kept before it holds the same cells: `First`, and it is kept;
     /// `Repeat` otherwise. The set keeps the rows of `table` in order, so the row kept is the table's next row.
     pub(crate) fn first_seen(&mut self, table: &Table, start: CellStart) -> FirstSeen {
         let new = table.cells.get(start.0..).unwrap_or_default();
-        let hash = hash_of(new);
+        let hash = hash_of_cells(new.iter().copied());
         if self
             .kept
             .find(hash.0, |kept| {
@@ -118,12 +106,13 @@ impl RowSet {
                         .ok_or(PortableOperatorFault::NoSuchColumn { index: column })?,
                 );
             }
-            let hash = hash_of(&cells);
+            let hash = hash_of_cells(cells.iter().copied());
             if self
                 .kept
                 .find(hash.0, |kept| {
                     kept.hash == hash
-                        && holds_at(kinds, &cell, indexed(kept.row), &cells) == SetMembership::In
+                        && same_row(kinds, &cell, indexed(kept.row), &cells)
+                            == PredicateOutcome::Holds
                 })
                 .is_none()
             {
@@ -143,12 +132,12 @@ impl RowSet {
         cell: impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
         row: &[Value],
     ) -> SetMembership {
-        let hash = hash_of(row);
+        let hash = hash_of_cells(row.iter().copied());
         if self
             .kept
             .find(hash.0, |kept| {
                 kept.hash == hash
-                    && holds_at(kinds, &cell, indexed(kept.row), row) == SetMembership::In
+                    && same_row(kinds, &cell, indexed(kept.row), row) == PredicateOutcome::Holds
             })
             .is_some()
         {
@@ -171,20 +160,15 @@ impl RowSet {
         }
     }
 
+    /// The room it keeps.
+    #[cfg(test)]
+    pub(crate) fn room(&self) -> crate::domain::kept_room::types::Room {
+        crate::domain::kept_room::types::Room(self.kept.capacity())
+    }
+
     /// Empties the set for its next rows, keeping its room.
     pub(crate) fn cleared(&mut self) {
         self.kept.clear();
-    }
-}
-
-impl KeptRoom for RowSet {
-    fn kept(&mut self) {
-        self.kept.kept();
-    }
-
-    #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
-        self.kept.room()
     }
 }
 

@@ -3,7 +3,7 @@
 //! index rows goes back to the pool of its kind, and is readied from it, its room of the other kind given back first.
 use super::value::{IndexKind, IndexRows, SharedIndex, SharedIndexes};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::kept_room::types::{KeptRoom as _, PoolSize, Room};
+use crate::domain::kept_room::types::{PoolSize, Room};
 use crate::domain::physical_plan::types::keyed_rows::value::{
     IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW,
 };

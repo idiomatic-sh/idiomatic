@@ -155,8 +155,6 @@ impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
                     table.cells.kept();
                     table.kinds.kept();
                 }
-                stage.own.repeats.kept();
-                stage.own.index.kept();
             }
         }
     }
