@@ -4,7 +4,7 @@ use crate::domain::completion::types::{
 };
 use crate::domain::coverage::types::{FilePartial, Lacking};
 use crate::domain::coverage::types::{LackingKind, Partial, Partials, RuleIndex};
-use crate::domain::trust::types::RelationRead;
+use crate::domain::trust::types::relation_read::value::RelationRead;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -19,10 +19,7 @@ fn partial() -> Partial {
     }
 }
 fn needs() -> Vec<RelationRead> {
-    vec![RelationRead {
-        relation: Relation::SourceLocation,
-        kinds: vec![],
-    }]
+    vec![RelationRead::whole(Relation::SourceLocation)]
 }
 /// What a file lacks, as a row writes it: none for any row, or the kind column and its kinds.
 type Lack = Option<(ColumnIndex, Cow<'static, [Cow<'static, str>]>)>;

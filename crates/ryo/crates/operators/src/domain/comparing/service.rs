@@ -12,7 +12,7 @@ use crate::domain::comparing::collections::comparisons::interface::ComparisonsIt
 use crate::domain::comparing::collections::comparisons::membership::item::MembershipItem;
 use crate::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
 use crate::domain::comparing::errors::ComparingError;
-use crate::domain::comparing::types::{ComparisonCount, ComparisonNumber, Family, NameCount};
+use crate::domain::comparing::types::{ComparisonCount, ComparisonNumber, NameCount};
 use crate::domain::comparing::types::{DecisionWorkspace, NumberedComparison, RowShape};
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::functions::types::MadeText;
@@ -27,6 +27,8 @@ use crate::domain::table_scratch::types::{
 };
 use crate::domain::table_texts::types::Texts;
 use ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs;
+use ryo_values::domain::plan_parts::service::family_of;
+use ryo_values::domain::plan_parts::types::Family;
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use ryo_values::domain::rows::service::{cell, column_in};
 
@@ -336,25 +338,6 @@ pub fn holds_bound(
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
-/// The family of comparison a test belongs to.
-#[must_use]
-pub fn family_of(test: Test) -> Family {
-    match test {
-        Test::Equal | Test::NotEqual => Family::Equality,
-        Test::NaturalLessThan
-        | Test::LessThan
-        | Test::LessThanOrEqual
-        | Test::GreaterThan
-        | Test::GreaterThanOrEqual => Family::Ordering,
-        Test::FloatTextGreaterThanOrEqual => Family::FloatText,
-        Test::NumericGreaterThanOrEqual | Test::IntegerSuccessor => Family::Numeric,
-        Test::In | Test::NotIn => Family::Membership,
-        Test::GlobAny | Test::NotGlobAny => Family::Glob,
-        Test::StartsWith | Test::EndsWith => Family::Affix,
-        Test::Matches => Family::Regex,
-    }
-}
-
 /// An operand's fault as the comparison's, variant for variant.
 pub(crate) fn operand_fault(
     error: crate::domain::operands::errors::OperandsError,
@@ -365,30 +348,4 @@ pub(crate) fn operand_fault(
         OperandsError::WrongBinding => ComparingError::WrongBinding,
         OperandsError::Rows(rows) => ComparingError::Rows(rows),
     }
-}
-
-/// The leading comparisons of `comparisons` that cannot fail over a row whose columns are `kinds`: a column of the row
-/// compared with a written text by `=`, `!=`, `starts-with` or `ends-with`. The first comparison that may fail (a column past
-/// the row, a parameter, a function, a pattern compiled from the row) ends it, so a fault is never moved behind a test that
-/// decides without it. The one definition the keyed-select rewrite and the engine's root kinds stop at.
-#[must_use]
-pub fn fixed_prefix<'a>(
-    comparisons: &'a [PlanComparison],
-    kinds: &[CellKind],
-) -> crate::domain::comparing::types::FixedPrefix<'a> {
-    let infallible = |comparison: &PlanComparison| {
-        matches!(family_of(comparison.test), Family::Equality | Family::Affix)
-            && match (&comparison.left, &comparison.right) {
-                (Operand::Column(column), Operand::Literal(QueryLiteral::Text(_)))
-                | (Operand::Literal(QueryLiteral::Text(_)), Operand::Column(column)) => {
-                    usize::try_from(column.0).is_ok_and(|at| at < kinds.len())
-                }
-                _ => false,
-            }
-    };
-    let length = comparisons
-        .iter()
-        .position(|comparison| !infallible(comparison))
-        .unwrap_or(comparisons.len());
-    crate::domain::comparing::types::FixedPrefix(comparisons.get(..length).unwrap_or_default())
 }

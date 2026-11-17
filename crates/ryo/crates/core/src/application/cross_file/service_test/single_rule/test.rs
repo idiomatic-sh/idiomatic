@@ -55,10 +55,9 @@ fn rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagn
     let mut world = world(counting_plan(0, Vec::new()));
     let path = ryo_language::domain::files::types::FilePath("rejected.py".into());
     world.paths = vec![path.clone()];
-    world.needs[0].cross.push(RelationRead {
-        relation: Relation::Function,
-        kinds: vec![],
-    });
+    world.needs[0]
+        .cross
+        .push(RelationRead::whole(Relation::Function));
     let skipped = [Skipped {
         rule: world.ids[0].clone(),
         path,

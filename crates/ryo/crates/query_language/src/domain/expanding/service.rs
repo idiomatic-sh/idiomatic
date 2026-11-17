@@ -33,6 +33,7 @@ use ryo_values::domain::query_tokens::types::QueryTraceSite;
 use ryo_values::domain::query_tokens::types::StepIdentity;
 use ryo_values::domain::query_tokens::types::StepName;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 /// Expands every imported-fragment call into fresh, identity-linked AST definitions.
 #[cfg(test)]
@@ -95,8 +96,11 @@ pub(crate) fn link_with_observations(
             && let Some(import) = root_imports.0.get(&*call.name.0)
         {
             let target = source_id(&root_id, import)?;
-            let mut trace = vec![trace_site(&root_id, &target, import.span)];
-            trace.push(trace_site(&root_id, &target, call.span));
+            // The import and call sites, built once and shared by every origin of the fragment expanded under them.
+            let trace: Arc<[QueryTraceSite]> = Arc::new([
+                trace_site(&root_id, &target, import.span),
+                trace_site(&root_id, &target, call.span),
+            ]);
             let expanded = expand(
                 fragments,
                 &imports,
@@ -158,7 +162,7 @@ pub(crate) fn expand(
     inherited_parameters: &Bindings,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
     next: &mut StepIdentity,
-    trace: &[QueryTraceSite],
+    trace: &Arc<[QueryTraceSite]>,
     origins: &mut Vec<QueryOrigin>,
     step_origins: &mut BTreeMap<StepIdentity, QueryOrigin>,
     contracts: &mut Vec<FragmentContract>,
@@ -167,7 +171,7 @@ pub(crate) fn expand(
         located(
             source,
             call.span,
-            trace.to_vec(),
+            trace,
             format!("query module `{}` was not parsed", source.0),
         )
     })?;
@@ -186,7 +190,7 @@ pub(crate) fn expand(
             located(
                 source,
                 fragment.result.span,
-                trace.to_vec(),
+                trace,
                 super::constants::UNDECLARED_RETURNED_STEP,
             )
         })?;
@@ -197,7 +201,7 @@ pub(crate) fn expand(
                 located(
                     source,
                     step.span,
-                    trace.to_vec(),
+                    trace,
                     super::constants::MISSING_STEP_IDENTITY,
                 )
             })?;
@@ -206,7 +210,7 @@ pub(crate) fn expand(
                 located(
                     source,
                     call.span,
-                    trace.to_vec(),
+                    trace,
                     super::constants::MISSING_CALL_IDENTITY,
                 )
             })?
@@ -238,11 +242,10 @@ pub(crate) fn expand(
         {
             step.name.0 = result_name.0.clone();
         }
-        let mut step_trace = trace.to_vec();
         let step_origin = QueryOrigin {
             source_id: source.clone(),
             span: step.span,
-            trace: step_trace.clone(),
+            trace: Arc::clone(trace),
         };
         origins.push(step_origin.clone());
         if let Some(identity) = ryo_values::domain::program::service::identity_of(step.name.1) {
@@ -254,8 +257,15 @@ pub(crate) fn expand(
                 .and_then(|found| found.0.get(&*inner.name.0))
         {
             let target = source_id(source, import)?;
-            step_trace.push(trace_site(source, &target, import.span));
-            step_trace.push(trace_site(source, &target, inner.span));
+            // This call's sites under the fragment's, built once for every origin expanded under them.
+            let step_trace: Arc<[QueryTraceSite]> = trace
+                .iter()
+                .cloned()
+                .chain([
+                    trace_site(source, &target, import.span),
+                    trace_site(source, &target, inner.span),
+                ])
+                .collect();
             expanded.extend(expand(
                 fragments,
                 imports,
@@ -288,7 +298,7 @@ pub(crate) fn expand(
             located(
                 source,
                 fragment.output_span,
-                trace.to_vec(),
+                trace,
                 super::constants::EMPTY_FRAGMENT,
             )
         })?;
@@ -297,7 +307,7 @@ pub(crate) fn expand(
             located(
                 source,
                 fragment.result.span,
-                trace.to_vec(),
+                trace,
                 super::constants::MISSING_RESULT_IDENTITY,
             )
         })?;
@@ -309,7 +319,7 @@ pub(crate) fn expand(
                 located(
                     source,
                     input.span,
-                    trace.to_vec(),
+                    trace,
                     format!("relation input `{}` was not bound", input.name.0),
                 )
             })?;
@@ -330,7 +340,7 @@ pub(crate) fn expand(
         origin: QueryOrigin {
             source_id: source.clone(),
             span: fragment.output_span,
-            trace: trace.to_vec(),
+            trace: Arc::clone(trace),
         },
     });
     Ok(expanded)

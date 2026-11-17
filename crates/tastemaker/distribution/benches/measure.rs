@@ -190,7 +190,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,

@@ -152,7 +152,11 @@ fn subject(listening: Input) -> Result<Value, Failure> {
     let rows = defines_rows(&[(Cell::Number(Integer(0)), span); 3]);
     let inputs = TableInputs::new(&[(Relation::Defines, &rows)]);
     tracing::subscriber::with_default(events, || -> Result<(), Failure> {
-        let pass = pass_program(&source).map_err(|_| ())?;
+        let pass = pass_program(
+            &source,
+            &mut ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets::default(),
+        )
+        .map_err(|_| ())?;
         let node = rule(&pass.program, RuleIndex(0))
             .map_err(|_| ())?
             .emit

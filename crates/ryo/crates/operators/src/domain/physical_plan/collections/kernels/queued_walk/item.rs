@@ -8,9 +8,9 @@ use super::super::distinct::item::counted;
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::visited_set::value::value_hash;
 use crate::domain::physical_plan::types::{CellStart, InputRows};
 use crate::domain::table_texts::types::Texts;
@@ -67,7 +67,7 @@ pub(crate) struct WorklistInputs<'a> {
 
 /// Writes into `output` each distinct row of the runs' traces, in the order first written: the root's keys and root, the
 /// followed edge's source, destination, order and before-state, and the destination's state after the edge's join.
-/// `repeats` keys the rows written so far.
+/// `repeats` keeps the rows written so far.
 ///
 /// # Errors
 ///
@@ -80,7 +80,7 @@ pub(crate) fn worklisted(
     inputs: WorklistInputs<'_>,
     texts: &Texts<'_>,
     scratch: &mut WorklistScratch,
-    repeats: &mut KeyedRows,
+    repeats: &mut RowSet,
     output: &mut Table,
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
     let kinds = [inputs.roots, inputs.edges, inputs.lattice].map(kinds_of);
@@ -188,7 +188,7 @@ fn ran(
     run: Run<'_>,
     start: StatePlace,
     scratch: &mut WorklistScratch,
-    repeats: &mut KeyedRows,
+    repeats: &mut RowSet,
     output: &mut Table,
 ) -> Result<(), PortableOperatorFault> {
     let keys = run.worklist.root_keys.len();

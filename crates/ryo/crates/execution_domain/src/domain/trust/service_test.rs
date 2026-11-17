@@ -4,7 +4,8 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
 use super::service::{blocked, matters};
-use super::types::{Bearing, Blocking, RelationRead};
+use super::types::relation_read::value::RelationRead;
+use super::types::{Bearing, Blocking};
 use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
@@ -62,10 +63,7 @@ fn subject(ask: Input) -> Result<Value, Failure> {
         Ask::Blocked(relations) => {
             let reads: Vec<RelationRead> = relations
                 .iter()
-                .map(|relation| RelationRead {
-                    relation: *relation,
-                    kinds: Vec::new(),
-                })
+                .map(|relation| RelationRead::whole(*relation))
                 .collect();
             Answer::Blocking(blocked(&reads, &[partial(None)]))
         }
@@ -109,3 +107,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[cfg(test)]
+mod read_sets_test;

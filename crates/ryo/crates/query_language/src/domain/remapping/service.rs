@@ -158,7 +158,7 @@ pub(crate) fn remap_operand(
                 located(
                     source,
                     span,
-                    trace.to_vec(),
+                    trace,
                     format!("fragment parameter `${}` was not bound", parameter.0),
                 )
             })?;
@@ -173,7 +173,7 @@ pub(crate) fn remap_operand(
                     return Err(located(
                         source,
                         span,
-                        trace.to_vec(),
+                        trace,
                         super::constants::INVALID_FILTER_PARAMETER,
                     ));
                 }
@@ -208,7 +208,7 @@ pub(crate) fn remap_call(
         return Err(located(
             source,
             call.span,
-            trace.to_vec(),
+            trace,
             format!("fragment parameter `${}` is not declared", parameter.0),
         ));
     }
@@ -241,7 +241,7 @@ pub(crate) fn remap_call(
             return Err(located(
                 source,
                 call.span,
-                trace.to_vec(),
+                trace,
                 format!(
                     "relation input `{}` must name a relation or step",
                     argument.name.0

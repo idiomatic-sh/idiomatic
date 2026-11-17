@@ -12,7 +12,6 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::preflight::service::output_layout;
 use crate::domain::operator::contract::service::semantics;
 use crate::domain::operator::contract::types::PreflightOrder;
-use ryo_operators::domain::comparing::service::fixed_prefix;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;
 use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
@@ -21,10 +20,11 @@ use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::service::fixed_prefix;
 use ryo_values::domain::plan_parts::types::{
     Input, InputNumber, LiteralText, Operand, QueryLiteral, StepScope, Test,
 };
+use ryo_values::domain::plan_parts::types::{RowWidth, StepId};
 use ryo_values::domain::plans::service::{each_input, inputs_of, kind_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use std::borrow::Cow;
@@ -157,7 +157,7 @@ pub(in crate::domain::executable_program) fn derived_roots(
             continue;
         }
         let kinds: &[CellKind] = kinds(*relation);
-        for comparison in fixed_prefix(comparisons, kinds).0 {
+        for comparison in fixed_prefix(comparisons, RowWidth(kinds.len())).0 {
             if comparison.test == Test::Equal
                 && names_a_kind(comparison) == KindNaming::Names
                 && let Operand::Literal(QueryLiteral::Text(text)) = &comparison.right

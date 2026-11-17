@@ -103,7 +103,11 @@ fn subject(rules: Input) -> Result<Value, Failure> {
         hosted: Vec::new(),
         ids: Vec::new(),
     };
-    let pass = pass_program(&source).map_err(|_| ())?;
+    let pass = pass_program(
+        &source,
+        &mut ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets::default(),
+    )
+    .map_err(|_| ())?;
     let given = match rules {
         Rules::First => vec![RuleIndex(0)],
         Rules::Both => vec![RuleIndex(1), RuleIndex(0)],

@@ -10,14 +10,14 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{FlagState, Test, WholeNumber};
 
 /// The family a row asks.
-enum Family {
+enum NumericFamily {
     /// The exact numeric family under test.
     Numeric,
     /// The finite-only float-text family, which stays separate.
     FloatText,
 }
 /// A comparison: the family, the test, the left side and the right side.
-type Input = (Family, Test, Datum<'static>, Datum<'static>);
+type Input = (NumericFamily, Test, Datum<'static>, Datum<'static>);
 type Value = PredicateOutcome;
 type Failure = ComparingError;
 
@@ -28,7 +28,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::NumericGreaterThanOrEqual,
                 Datum::Text(TextView("9007199254740993")),
                 Datum::Number(WholeNumber(9_007_199_254_740_993)),
@@ -41,7 +41,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::NumericGreaterThanOrEqual,
                 Datum::Number(WholeNumber(9_007_199_254_740_992)),
                 Datum::Text(TextView("9007199254740993")),
@@ -54,7 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::NumericGreaterThanOrEqual,
                 Datum::Text(TextView("inf")),
                 Datum::Text(TextView("1.0")),
@@ -67,7 +67,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::NumericGreaterThanOrEqual,
                 Datum::Text(TextView("NaN")),
                 Datum::Text(TextView("NaN")),
@@ -80,7 +80,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::NumericGreaterThanOrEqual,
                 Datum::Text(TextView("0xff")),
                 Datum::Number(WholeNumber(0)),
@@ -93,7 +93,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::NumericGreaterThanOrEqual,
                 Datum::Flag(FlagState::Raised),
                 Datum::Number(WholeNumber(1)),
@@ -106,7 +106,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::NumericGreaterThanOrEqual,
                 Datum::Unlocated,
                 Datum::Number(WholeNumber(0)),
@@ -119,7 +119,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::NumericGreaterThanOrEqual,
                 Datum::Numbers(&[]),
                 Datum::Number(WholeNumber(0)),
@@ -134,7 +134,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::FloatText,
+                NumericFamily::FloatText,
                 Test::FloatTextGreaterThanOrEqual,
                 Datum::Text(TextView("inf")),
                 Datum::Text(TextView("1.0")),
@@ -147,7 +147,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::NumericGreaterThanOrEqual,
                 Datum::Text(TextView("inf")),
                 Datum::Text(TextView("1.0")),
@@ -160,7 +160,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::IntegerSuccessor,
                 Datum::Number(WholeNumber(-1)),
                 Datum::Text(TextView("0")),
@@ -173,7 +173,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::IntegerSuccessor,
                 Datum::Text(TextView("9007199254740992")),
                 Datum::Text(TextView("9007199254740993")),
@@ -186,7 +186,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::IntegerSuccessor,
                 Datum::Text(TextView("1.0")),
                 Datum::Number(WholeNumber(2)),
@@ -199,7 +199,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::IntegerSuccessor,
                 Datum::Text(TextView("1")),
                 Datum::Text(TextView("2.0")),
@@ -212,7 +212,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::IntegerSuccessor,
                 Datum::Text(TextView("0xff")),
                 Datum::Number(WholeNumber(256)),
@@ -225,7 +225,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::IntegerSuccessor,
                 Datum::Flag(FlagState::Raised),
                 Datum::Number(WholeNumber(2)),
@@ -238,7 +238,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::IntegerSuccessor,
                 Datum::Text(TextView("1")),
                 Datum::Text(TextView("NaN")),
@@ -251,7 +251,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             (
-                Family::Numeric,
+                NumericFamily::Numeric,
                 Test::Equal,
                 Datum::Number(WholeNumber(1)),
                 Datum::Number(WholeNumber(1)),
@@ -263,8 +263,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((family, test, left, right): Input) -> Result<Value, Failure> {
     match family {
-        Family::Numeric => NumericItem.holds(test, &left, &right),
-        Family::FloatText => FloatTextItem.holds(test, &left, &right),
+        NumericFamily::Numeric => NumericItem.holds(test, &left, &right),
+        NumericFamily::FloatText => FloatTextItem.holds(test, &left, &right),
     }
 }
 

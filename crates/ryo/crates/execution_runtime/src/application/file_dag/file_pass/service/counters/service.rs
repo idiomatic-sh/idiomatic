@@ -2,9 +2,9 @@
 //! summed, one event per node made, with its kind and the rules whose steps it is, then one event for the run: how many node
 //! makings there were, how many wrote no row, and the time of each.
 use crate::application::file_dag::file_pass::constants::{
-    NODE_COUNTERS_NODE, NODE_COUNTERS_RUN, NODE_COUNTERS_TARGET,
+    NODE_COUNTERS_LISTENED, NODE_COUNTERS_NODE, NODE_COUNTERS_RUN, NODE_COUNTERS_TARGET,
 };
-use crate::application::file_dag::file_pass::types::PassProgram;
+use crate::application::file_dag::file_pass::types::{CountersListened, PassProgram};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::{physical, rule};
 use ryo_operators::domain::physical_plan::types::node_counters::value::{
@@ -18,7 +18,7 @@ use std::sync::PoisonError;
 /// all come from its retained state, still emits its `run` event, of no makings, so its trace says so.
 pub(crate) fn emitted_at_end(pass: &PassProgram) {
     // A run no subscriber listens to counted nothing and is told nothing.
-    if !tracing::enabled!(target: NODE_COUNTERS_TARGET, tracing::Level::INFO) {
+    if listened() == CountersListened::Unheard {
         return;
     }
     let mut summed = NodeCounters::default();
@@ -31,6 +31,25 @@ pub(crate) fn emitted_at_end(pass: &PassProgram) {
         }
     }
     emitted(pass, &summed);
+}
+
+/// Whether the current subscriber listens to the node counters, asked of it on each call. `tracing::enabled!` answers from
+/// its callsite's cached interest, which a callsite registered on another thread while no listening subscriber was alive
+/// keeps at never; a run under a subscriber that listens then counts nothing.
+pub(crate) fn listened() -> CountersListened {
+    let callsite = tracing::callsite! {
+        name: NODE_COUNTERS_LISTENED,
+        kind: tracing::metadata::Kind::HINT,
+        target: NODE_COUNTERS_TARGET,
+        level: tracing::Level::INFO,
+        fields:
+    };
+    let metadata = tracing::callsite::Callsite::metadata(callsite);
+    if tracing::dispatcher::get_default(|dispatch| dispatch.enabled(metadata)) {
+        CountersListened::Listening
+    } else {
+        CountersListened::Unheard
+    }
 }
 
 /// Emits `counters`, the counts of `pass`'s nodes over the run: one `node` event per node made, then one `run` event.

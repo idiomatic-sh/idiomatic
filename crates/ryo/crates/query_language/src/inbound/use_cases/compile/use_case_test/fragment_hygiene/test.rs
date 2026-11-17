@@ -31,6 +31,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || fragment_scope_does_not_capture_caller_steps_or_import_aliases,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("origins_under_one_call_share_their_source_and_trace"),
+        word: Word::Succeeds,
+        input: || origins_under_one_call_share_their_source_and_trace,
+        expect: Expect::Value(()),
+    },
 ];
 
 fn subject(check: Input) -> Result<Value, Failure> {
@@ -308,5 +314,47 @@ fn fragment_scope_does_not_capture_caller_steps_or_import_aliases() {
     assert_eq!(
         program.step_origins[&result].source_id.0.as_ref(),
         "outer/nested"
+    );
+}
+
+/// The origins of the steps one call expands hold one source id and one trace, shared, not a copy each: a module called from
+/// many places is otherwise stored once per step per call.
+fn origins_under_one_call_share_their_source_and_trace() {
+    use std::sync::Arc;
+    let root_id = ryo_values::domain::program::service::source_id(
+        ryo_values::domain::query_tokens::types::QuerySpelling("root"),
+    )
+    .unwrap();
+    let module_id = ryo_values::domain::program::service::source_id(
+        ryo_values::domain::query_tokens::types::QuerySpelling("library/summarize"),
+    )
+    .unwrap();
+    let root = "import summarize from \"library/summarize\";\nlet id = select id from \"syntax-tree\";\nlet first = summarize(id=id, label=\"first\");\nemit first subject id key(id);";
+    let module = "input id: relation<id: node>;\nparam label: string;\noutput relation<id: node>;\nlet grouped = group-count(from=id, keys=[\"id\"], count=\"n\");\nlet linked = closure(edges=grouped, source=id, destination=grouped, keys=[id]);\nlet matched = capture(from=linked, path=\"path\", pattern=$label, captures=[\"group\"]);\nreturn matched;";
+    let bundle = ryo_values::domain::program::service::query_bundle(
+        ryo_values::domain::program::service::document_source(root_id, root),
+        [ryo_values::domain::program::service::document_source(
+            module_id.clone(),
+            module,
+        )],
+    )
+    .unwrap();
+    let program = parse_and_link(&bundle).unwrap();
+    let called: Vec<_> = program
+        .origins
+        .iter()
+        .filter(|origin| origin.source_id == module_id)
+        .collect();
+    let first = called.first().unwrap();
+    assert_eq!(
+        (
+            called.len(),
+            first.trace.len(),
+            called.iter().all(|origin| {
+                Arc::ptr_eq(&origin.source_id.0, &first.source_id.0)
+                    && Arc::ptr_eq(&origin.trace, &first.trace)
+            }),
+        ),
+        (3, 2, true)
     );
 }

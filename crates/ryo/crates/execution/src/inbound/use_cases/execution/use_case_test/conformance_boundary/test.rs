@@ -328,7 +328,7 @@ fn needs(operation: &Operation) -> Observed {
             let free = needs
                 .first()
                 .is_some_and(|need| blocked(need, &[partial]) == Blocking::Free);
-            let read = scoped.reads.iter().any(|read| read.relation == relation);
+            let read = scoped.reads.iter().any(|read| read.relation() == relation);
             (relation, free, read)
         })
         .collect();

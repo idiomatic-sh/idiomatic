@@ -123,10 +123,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
             let needs = [
                 Needs::default(),
                 Needs {
-                    reads: vec![RelationRead {
-                        relation: Relation::FilesystemReadFailure,
-                        kinds: vec![],
-                    }],
+                    reads: vec![RelationRead::whole(Relation::FilesystemReadFailure)],
                     ..Needs::default()
                 },
             ];
@@ -196,10 +193,7 @@ fn read_failure_demand_is_limited_to_governing_rules() -> Result<String, FileAna
     let needs = [
         Needs::default(),
         Needs {
-            reads: vec![RelationRead {
-                relation: Relation::FilesystemReadFailure,
-                kinds: vec![],
-            }],
+            reads: vec![RelationRead::whole(Relation::FilesystemReadFailure)],
             ..Needs::default()
         },
     ];

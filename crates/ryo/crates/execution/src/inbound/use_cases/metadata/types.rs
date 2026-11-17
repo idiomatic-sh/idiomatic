@@ -75,7 +75,7 @@ named!(
 );
 named!(
     /// The relations a plan's observations read.
-    ObservedReads(Vec<ryo_execution_domain::domain::trust::types::RelationRead>)
+    ObservedReads(Vec<ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead>)
 );
 named!(
     /// The unknowns of a project.

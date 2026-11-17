@@ -87,17 +87,11 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason()
             roled: crate::domain::visit::types::RoleRead::Skips,
             needs: &[
                 Needs {
-                    reads: vec![RelationRead {
-                        relation: Relation::Function,
-                        kinds: Vec::new(),
-                    }],
+                    reads: vec![RelationRead::whole(Relation::Function)],
                     ..Needs::default()
                 },
                 Needs {
-                    reads: vec![RelationRead {
-                        relation: Relation::Identifier,
-                        kinds: Vec::new(),
-                    }],
+                    reads: vec![RelationRead::whole(Relation::Identifier)],
                     ..Needs::default()
                 },
             ],

@@ -55,16 +55,3 @@ pub(super) fn image_errors() -> &'static [i32] {
         &[8]
     }
 }
-
-#[cfg(unix)]
-/// Configure executable permissions for an independently created launch fixture.
-pub(super) fn make_executable(path: &std::path::Path) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
-}
-#[cfg(not(unix))]
-/// Validate the image fixture exists; there is no Unix execute bit on Windows.
-/// This is never used as proof that a Windows permission test passed.
-pub(super) fn make_executable(path: &std::path::Path) -> std::io::Result<()> {
-    std::fs::metadata(path).map(|_| ())
-}

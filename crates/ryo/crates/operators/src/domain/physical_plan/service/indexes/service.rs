@@ -4,18 +4,19 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
 use crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::shared_index::value::SharedIndex;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
+use crate::domain::physical_plan::types::shared_index::value::{IndexKind, IndexRows, SharedIndex};
 use crate::domain::physical_plan::types::{
     IndexIdentity, IndexKey, IndexPlace, KeyedIndex, KeyedIndexes, NodeReaders, PlanNodeId,
     ProbeIndex,
 };
 
-/// Shares one `hash_index` between the probes of one right source and key: a planning step, not a rewrite, since an unshared
-/// plan answers the same rows. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
+/// Shares one index between the probes of one right source and key: a planning step, not a rewrite, since an unshared plan
+/// answers the same rows. A probe of whole rows (an intersection's or a difference's) shares a row set, keyed
+/// `IndexKey::Rows`; any other a `hash_index` of its key columns. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
 /// ordered probe, which turns each key's first row into its extremum, and a probe alone on its right source and key; a probe
 /// that walks the tree has no index to share. Run after the rewrites, which change a probe's right rows, key, mode and index.
 pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
@@ -27,15 +28,18 @@ pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<Keyed
             index: ProbeIndex::Own,
             ..
         } = &node.lowering
-            && let ProbeKey::Columns { right: on, .. } = &probe.key
             && probe.filter.comparisons.is_empty()
             && !matches!(probe.mode, ProbeMode::Ordered(_))
         {
+            let key = match &probe.key {
+                ProbeKey::Columns { right: on, .. } => IndexKey::Cells(on.clone()),
+                ProbeKey::Whole => IndexKey::Rows,
+            };
             let _: IndexPlace = read_by(
                 &mut keyed,
                 IndexIdentity {
                     source: *right,
-                    key: IndexKey::Cells(on.clone()),
+                    key,
                 },
                 id,
             );
@@ -82,10 +86,17 @@ pub(crate) fn read_by(
 pub(crate) fn sized_shared(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
     let shared = &mut buffers.shared;
     if shared.indexes.len() < plan.indexes.len() {
+        // Each index keeps the kind of rows its key needs, decided here for every file.
         shared.indexes = plan
             .indexes
             .iter()
-            .map(|_| SharedIndex::default())
+            .map(|index| SharedIndex {
+                rows: match IndexKind::of_index(&index.key) {
+                    IndexKind::Keyed => IndexRows::default(),
+                    IndexKind::Rows => IndexRows::Rows(RowSet::default()),
+                },
+                ..SharedIndex::default()
+            })
             .collect();
         shared.closing = vec![None; plan.nodes.len()];
         shared.opened.clear();
@@ -107,16 +118,18 @@ pub(crate) fn opened(plan: &PhysicalPlan, buffers: &mut FileBuffers, at: IndexPl
         buffers.shared.opened(
             at,
             NodeReaders(u32::try_from(index.readers.len()).unwrap_or(u32::MAX)),
+            &mut buffers.pools,
         );
     }
 }
 
-/// A probe of shared index `at` is done, whatever it answered: after the last of the file the index is emptied.
+/// A probe of shared index `at` is done, whatever it answered: after the last of the file the index gives its rows to the
+/// worker's index pool.
 pub(crate) fn closed(buffers: &mut FileBuffers, at: IndexPlace) {
     if let Some(shared) = buffers.shared.indexes.get_mut(at.0) {
         shared.remaining = NodeReaders(shared.remaining.0.saturating_sub(1));
         if shared.remaining == NodeReaders(0) {
-            shared.emptied();
+            shared.given_back(&mut buffers.pools);
         }
     }
 }
@@ -129,7 +142,7 @@ pub(crate) fn probe_build(shared: &[SharedIndex], index: ProbeIndex) -> IndexBui
         ProbeIndex::Tree => IndexBuild::Walked,
         // An index of no row is built again at no cost: an empty chain is an index not built in this file.
         ProbeIndex::Shared(at) => match shared.get(at.0) {
-            Some(shared) if !shared.rows.next.is_empty() => IndexBuild::Built,
+            Some(shared) if shared.rows.built_rows().0 > 0 => IndexBuild::Built,
             Some(_) | None => IndexBuild::Builds,
         },
     }
@@ -143,9 +156,9 @@ pub(crate) fn probe_build(shared: &[SharedIndex], index: ProbeIndex) -> IndexBui
 /// `WrongOperation` for a shared index the buffers do not hold.
 pub(crate) fn probe_index<'b>(
     shared: &'b mut [SharedIndex],
-    own: &'b mut KeyedRows,
+    own: &'b mut IndexRows,
     index: ProbeIndex,
-) -> Result<&'b mut KeyedRows, PortableOperatorFault> {
+) -> Result<&'b mut IndexRows, PortableOperatorFault> {
     match index {
         ProbeIndex::Own | ProbeIndex::Tree => Ok(own),
         ProbeIndex::Shared(at) => shared

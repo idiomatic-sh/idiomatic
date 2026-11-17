@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::source_partitions::types::ProducerPartitions as _;
 use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
-use ryo_execution_domain::domain::trust::types::RelationRead;
+use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
 
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
@@ -168,6 +168,7 @@ pub(crate) fn prepare(
     hosted: &[HostRelation],
     identity: ObservationIdentity,
     pass: &crate::application::file_dag::file_pass::types::PassProgram,
+    sets: &mut ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
     use ryo_execution_domain::domain::observation_schedule::service::frontiers::service::{
         frontier_purposes, observed_frontiers, output_consumers, retirements,
@@ -241,7 +242,7 @@ pub(crate) fn prepare(
             .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
             .collect()
     };
-    let rule_plans = metadata::service::plans(&owned, &pass.reads, &purposes)?;
+    let rule_plans = metadata::service::plans(&owned, pass, sets, &purposes)?;
     let file_frontier_outputs = demands::service::frontier_outputs(&rule_plans, observed.as_ref());
     let semantic_needed = if rule_plans
         .iter()

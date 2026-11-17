@@ -1,10 +1,14 @@
 //! Per-rule root, read and frontier metadata taken from the compiled plans.
-use crate::application::file_dag::file_pass::types::NodeReads;
+use crate::application::file_dag::file_pass::service::step_sets;
+use crate::application::file_dag::file_pass::types::PassProgram;
 use crate::application::file_dag::program::preparation::types::{RootPlan, RulePlan};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
-use ryo_execution_domain::domain::trust::types::RelationRead;
+use ryo_execution_domain::domain::trust::types::read_set::value::ReadSet;
+use ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets;
+use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::{Operation, Plan};
 
@@ -16,14 +20,17 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 /// `NotRun` when the purposes or the step reads hold no entry for a rule or a named output's step.
 pub(crate) fn plans(
     plans: &[Plan],
-    reads: &[Box<[NodeReads]>],
+    pass: &PassProgram,
+    sets: &mut ReadSets,
     purposes: &[Vec<FrontierPurpose>],
 ) -> Result<Vec<RulePlan>, OperatingError> {
     plans
         .iter()
         .enumerate()
         .map(|(rule, plan)| {
-            let steps = reads.get(rule).ok_or(OperatingError::NotRun)?;
+            if pass.reads.get(rule).is_none() {
+                return Err(OperatingError::NotRun);
+            }
             let roots = plan
                 .observations
                 .iter()
@@ -31,18 +38,13 @@ pub(crate) fn plans(
                     Ok(RootPlan {
                         phase: output.scope,
                         reads: match output.source {
-                            Input::Step(step) => steps
-                                .get(usize::try_from(step.0).unwrap_or(usize::MAX))
+                            Input::Step(step) => step_sets(pass, RuleIndex(rule), step)
                                 .ok_or(OperatingError::NotRun)?
                                 .uses
                                 .clone(),
-                            Input::Relation(relation) => vec![RelationRead {
-                                relation,
-                                kinds: vec![],
-                            }],
-                            Input::BoundObservation(_) => vec![],
-                        }
-                        .into_boxed_slice(),
+                            Input::Relation(relation) => sets.shared(vec![RelationRead::whole(relation)]),
+                            Input::BoundObservation(_) => ReadSet::default(),
+                        },
                     })
                 })
                 .collect::<Result<Vec<_>, OperatingError>>()?;

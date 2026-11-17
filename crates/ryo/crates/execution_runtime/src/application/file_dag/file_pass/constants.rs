@@ -12,3 +12,5 @@ pub(crate) const NODE_COUNTERS_TARGET: &str = "ryo::node_counters";
 pub(crate) const NODE_COUNTERS_NODE: &str = "node";
 /// The name of the event of the run's counts, every node's summed.
 pub(crate) const NODE_COUNTERS_RUN: &str = "run";
+/// The name of the hint whose metadata asks the current subscriber whether it listens to the node counters.
+pub(crate) const NODE_COUNTERS_LISTENED: &str = "node counters listened";

@@ -2,9 +2,13 @@
 //! their capacity kept across files.
 
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
+use crate::domain::kept_room::constants::{POOL_INDEXES, POOL_TABLES};
 use crate::domain::kept_room::types::KeptRoom as _;
+use crate::domain::kept_room::types::PoolSize;
+use crate::domain::kept_room::types::kept_pool::value::KeptPool;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::shared_index::value::IndexRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::worker_meters::value::{
     ChunkMeter, EndWork, IndexBuilds, TableMeter,
@@ -38,10 +42,14 @@ pub struct FileBuffers {
     /// The readers and engine uses of each node the open file is done with before it made the node.
     pub(crate) done: crate::domain::physical_plan::types::consumers_done::value::ConsumersDone,
     /// The emptied node tables kept for the next nodes, capped.
-    pub(crate) pool: crate::domain::physical_plan::types::table_pool::value::TablePool,
+    pub(crate) pool: KeptPool<ryo_values::domain::rows::types::Table>,
+    /// The emptied keyed-row tables and row sets kept for the next indexes and repeats, shared and streamed alike, each kind
+    /// in its own pool, capped.
+    pub(crate) pools: crate::domain::physical_plan::types::shared_index::value::IndexPools,
     /// Each filtering node's comparison scratch, by node id, kept across files.
     pub(crate) decisions: Vec<NodeDecisions>,
-    /// The keyed-row table a node builds for itself: a probe's own index, a group's, or the lookups' while it answers them.
+    /// The keyed-row table a node builds for itself: a group's, a closure's or a cycle search's edges, or the lookups' while
+    /// it answers them; readied from the keyed pool and given back to it at the file's end.
     pub(crate) index: KeyedRows,
     /// The row a kernel is reading, decoded from the facts one row at a time.
     pub(crate) row: Vec<Value>,
@@ -55,14 +63,16 @@ pub struct FileBuffers {
     pub(crate) places: crate::domain::contract::types::RangeScratch,
     /// The hashes of a group's values, which a group digest folds.
     pub(crate) hashes: crate::domain::reduction::types::GroupHashes,
-    /// The second keyed-row table a kernel reads beside `index`: an axis's domain. The same table, a second instance.
-    pub(crate) second: KeyedRows,
+    /// The second index a kernel reads beside `index`, of the kind it needs: a seeded closure's held probe's own index, or
+    /// an axis's domain, keyed; given back to the pool of its kind at the file's end.
+    pub(crate) second: IndexRows,
     /// The work of the graph walks, its capacity kept across nodes and files.
     pub(crate) walk: crate::domain::physical_plan::types::walk_scratch::value::WalkScratch,
     /// The work arrays of a cycle search, kept across files.
     pub(crate) cycles: crate::domain::cycles::types::CycleScratch,
-    /// The rows `distinct` kept so far, keyed by all their cells in `hash_index`'s table, its capacity kept across nodes.
-    pub(crate) repeats: KeyedRows,
+    /// The rows `distinct`, a seeded closure's probe or a worklist kept so far, once each; readied from the row-set pool and
+    /// given back to it at the file's end.
+    pub(crate) repeats: crate::domain::physical_plan::types::row_set::value::RowSet,
     /// The tree nodes one left row of a tree probe found, its capacity kept across files.
     pub(crate) found: Vec<NodeId>,
     /// The probe indexes the plan shares, those the open file opened, and the node whose release empties each.
@@ -291,8 +301,8 @@ impl FileBuffers {
         }
     }
 
-    /// The node's last consumer is done: its buffer returns to the worker's pool, and a shared index whose last probe it is is
-    /// emptied with it.
+    /// The node's last consumer is done: its buffer returns to the worker's pool, and a shared index whose last probe it is
+    /// gives its rows to the worker's index pool with it.
     ///
     /// # Examples
     ///
@@ -308,14 +318,14 @@ impl FileBuffers {
         {
             self.ending.0 += 1;
         }
-        self.shared.released(node);
+        self.shared.released(node, &mut self.pools);
         if let Ok(at) = usize::try_from(node.0)
             && let Some(held) = self.nodes.get_mut(at)
         {
             if let Some(table) = held.take() {
                 #[cfg(test)]
                 self.meter.dropped(table.count);
-                self.pool.pooled(table);
+                self.pool.pooled(table, PoolSize(POOL_TABLES));
             }
             if let Some(pending) = self.pending.get_mut(at) {
                 *pending = None;
@@ -333,8 +343,10 @@ impl FileBuffers {
 }
 
 impl FileBuffers {
-    /// Ends the open file: each node it touched is released and each shared index it opened emptied, no other, so the work is
-    /// the file's, not the program's; its scratch keeps its room for the next file only within the cap.
+    /// Ends the open file: each node it touched is released, and each shared index it opened, each streamed stage's own
+    /// index and repeats, and the worker's own index, second index and repeats give their rows to the worker's index pools,
+    /// each to the pool of its kind, no other, so the work is the file's, not the program's; its other scratch keeps its room
+    /// for the next file only within the cap.
     ///
     /// # Examples
     ///
@@ -362,10 +374,15 @@ impl FileBuffers {
         {
             self.ending.0 += self.shared.opened.len();
         }
-        self.shared.ended();
-        self.index.kept();
-        self.second.kept();
-        self.repeats.kept();
+        self.shared.ended(&mut self.pools);
+        self.pools
+            .keyed
+            .pooled(std::mem::take(&mut self.index), PoolSize(POOL_INDEXES));
+        self.second.given_back(&mut self.pools);
+        self.pools
+            .rows
+            .pooled(std::mem::take(&mut self.repeats), PoolSize(POOL_INDEXES));
+        self.stream.given_back(&mut self.pools);
         self.stream.kept();
         self.values.kept();
         self.hashes.0.kept();

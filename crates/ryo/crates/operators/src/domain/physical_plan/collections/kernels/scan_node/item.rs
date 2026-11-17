@@ -4,6 +4,8 @@
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::kept_room::constants::POOL_TABLES;
+use crate::domain::kept_room::types::PoolSize;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{NodeFed, NodeReaders, PlanNodeId, TakenRows};
@@ -68,7 +70,7 @@ pub(crate) fn give_back(
     } else {
         #[cfg(test)]
         buffers.meter.dropped(taken.rows.count);
-        buffers.pool.pooled(taken.rows);
+        buffers.pool.pooled(taken.rows, PoolSize(POOL_TABLES));
     }
 }
 

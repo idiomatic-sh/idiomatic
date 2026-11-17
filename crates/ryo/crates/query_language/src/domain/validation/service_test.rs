@@ -260,7 +260,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 QueryOrigin {
                     source_id: QuerySourceId("module".into()),
                     span: SPAN,
-                    trace: Vec::new(),
+                    trace: [].into(),
                 },
             );
         }

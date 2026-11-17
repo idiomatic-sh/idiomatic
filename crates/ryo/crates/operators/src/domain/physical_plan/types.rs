@@ -13,10 +13,10 @@ pub mod logical_program;
 pub(crate) mod lowering;
 pub mod node_counters;
 pub mod physical_plan;
+pub(crate) mod row_set;
 pub mod rule_ordinal;
 pub(crate) mod shared_index;
 pub(crate) mod stream_scratch;
-pub(crate) mod table_pool;
 pub(crate) mod touched_nodes;
 pub(crate) mod visited_set;
 pub(crate) mod walk_scratch;
@@ -265,6 +265,8 @@ pub(crate) enum IndexKey {
     Text(ColumnIndex),
     /// The cells of the key columns.
     Cells(Vec<ColumnIndex>),
+    /// The whole row, every cell, asked only whether a row is there: a set operation's right side.
+    Rows,
 }
 
 /// The index a probe reads: built by each of its runs, or shared with every probe of its right rows and key.

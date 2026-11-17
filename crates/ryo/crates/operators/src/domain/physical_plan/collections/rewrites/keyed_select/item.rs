@@ -3,7 +3,6 @@
 //! than an index.
 
 use super::super::interface::RewritesItem;
-use crate::domain::comparing::service::fixed_prefix;
 use crate::domain::physical_plan::service::indexes::service::read_by;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
@@ -14,7 +13,10 @@ use ryo_language::domain::symbols::service::hash_of;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
+use ryo_values::domain::plan_parts::service::fixed_prefix;
+use ryo_values::domain::plan_parts::types::{
+    Operand, PlanComparison, QueryLiteral, RowWidth, Test,
+};
 
 /// `keyed_select`, one item of the `rewrites` collection.
 pub(crate) struct KeyedSelectItem;
@@ -43,7 +45,7 @@ fn key_of(source: RowSource, comparisons: &[PlanComparison]) -> Option<SelectKey
         return None;
     };
     let columns = kinds(relation);
-    fixed_prefix(comparisons, columns)
+    fixed_prefix(comparisons, RowWidth(columns.len()))
         .0
         .iter()
         .find_map(|comparison| {

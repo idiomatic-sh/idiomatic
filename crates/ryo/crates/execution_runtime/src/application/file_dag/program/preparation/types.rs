@@ -6,7 +6,7 @@ use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
-use ryo_execution_domain::domain::trust::types::RelationRead;
+use ryo_execution_domain::domain::trust::types::read_set::value::ReadSet;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -20,7 +20,7 @@ pub struct RuleTotal(pub usize);
 /// One named output of a rule as its plan states it: where it runs and what it reads on the way.
 pub(crate) struct RootPlan {
     pub phase: StepScope,
-    pub reads: Box<[RelationRead]>,
+    pub reads: ReadSet,
 }
 /// What a rule's plan states, read once from the plans and the file pass's program, never from the interpreter's compile.
 pub(crate) struct RulePlan {
