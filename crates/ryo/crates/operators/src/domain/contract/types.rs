@@ -74,6 +74,15 @@ pub enum PortableOperatorFault {
     },
     /// A pattern a comparison compiled is no regular expression.
     Pattern(ryo_matching::inbound::use_cases::matching::errors::MatchingError),
+    /// A node's makings in the open file wrote past the run budget: more rows than the budget allows for the rows they were fed,
+    /// or, for an operator declared to write at most its input, more rows than they were fed. The node is the worker's worst
+    /// making, which its buffers keep; the engine attaches the rule and the file.
+    OverBudget {
+        /// The rows it was fed, every input summed.
+        fed: ryo_values::domain::rows::types::RowCount,
+        /// The rows it wrote.
+        wrote: ryo_values::domain::rows::types::RowCount,
+    },
 }
 
 /// What the already evaluated predicate decided about the row.

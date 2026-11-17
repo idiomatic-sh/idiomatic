@@ -98,7 +98,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
         fed_with(push.buffers, *node, NodeFed([left, right, RowCount(0)]));
         // A stage before the tail wrote the rows its reader read; the tail's rows are counted when they are held.
         if let Some(reader) = stages.get(at + 1) {
-            counted(push.buffers, *node, MadeIn::Chain, reader.read);
+            counted(push.plan, push.buffers, *node, MadeIn::Chain, reader.read)?;
         }
     }
     Ok(stages.iter_mut().rev().find_map(|stage| stage.fault.take()))

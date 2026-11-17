@@ -4,6 +4,7 @@ use cucumber::{given, then, when};
 use ryo_operators::domain::physical_plan::fixtures::Step;
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
+use ryo_operators::inbound::use_cases::run::fixtures::budget::one_name_product;
 use ryo_operators::inbound::use_cases::run::fixtures::{TableInputs, TextResources, emitted};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{FileId, Offset, Position, Relation, Span, Value};
@@ -19,6 +20,13 @@ fn given_input(world: &mut Behavior, input: String) {
 
 #[when(expr = "run runs")]
 fn runs(world: &mut Behavior) {
+    if world.input == "one name 600 times" {
+        world.answer = match one_name_product(600, &mut FileBuffers::default()) {
+            Ok(rows) => format!("{} row", rows.first().map_or(0, |rows| rows.count.0)),
+            Err(fault) => format!("refused {fault:?}"),
+        };
+        return;
+    }
     let table = Table {
         kinds: kinds(Relation::Function).to_vec(),
         cells: vec![

@@ -60,6 +60,29 @@ pub struct CountedNode {
     pub work: NodeWork,
 }
 
+/// One making of a node: the node, the rows it was fed, every input summed, and the rows it wrote. The run keeps its worst, the
+/// one that wrote the most rows per row fed of those that wrote at least the run budget's floor, whether counting is on or
+/// off.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+/// use ryo_operators::domain::physical_plan::types::node_counters::value::WorstMaking;
+/// use ryo_values::domain::rows::types::RowCount;
+/// let making = WorstMaking { node: PlanNodeId(3), fed: RowCount(2), wrote: RowCount(4) };
+/// assert_eq!(making.wrote, RowCount(4));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WorstMaking {
+    /// The node made.
+    pub node: PlanNodeId,
+    /// The rows it was fed, every input summed.
+    pub fed: RowCount,
+    /// The rows it wrote.
+    pub wrote: RowCount,
+}
+
 /// The kind of a node's kernels, as the counters report it.
 ///
 /// # Examples
@@ -221,10 +244,7 @@ impl NodeCounters {
         let Some(work) = self.work_of(node) else {
             return;
         };
-        let fed = fed
-            .0
-            .iter()
-            .fold(0_usize, |sum, rows| sum.saturating_add(rows.0));
+        let fed = crate::domain::growth::service::fed_rows(&fed.0).0;
         work.runs.0 = work.runs.0.saturating_add(1);
         work.rows_in.0 = work.rows_in.0.saturating_add(fed);
         work.rows_out.0 = work.rows_out.0.saturating_add(out.0);

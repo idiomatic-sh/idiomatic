@@ -73,21 +73,26 @@ pub(crate) fn give_back(
 }
 
 /// Holds a node's rows and pending fault, with all its readers and engine uses still to come.
+///
+/// # Errors
+///
+/// `OverBudget` when the making wrote past the run budget: its rows are not held.
 pub(crate) fn hold(
     plan: &PhysicalPlan,
     buffers: &mut FileBuffers,
     node: PlanNodeId,
     rows: Table,
     pending: Option<PortableOperatorFault>,
-) {
+) -> Result<(), PortableOperatorFault> {
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
     // What the node was fed is set before its rows are held, in the span of the request that made it.
     crate::domain::physical_plan::service::run::counting::service::counted(
+        plan,
         buffers,
         node,
         crate::domain::physical_plan::types::node_counters::value::MadeIn::OpenSpan,
         rows.count,
-    );
+    )?;
     if let Some(held) = buffers.nodes.get_mut(place) {
         #[cfg(test)]
         buffers.meter.formed(rows.count);
@@ -108,6 +113,7 @@ pub(crate) fn hold(
             *left = engine;
         }
     }
+    Ok(())
 }
 
 /// `node` was fed `fed` in the open file: what its kernels read from each input, kept until its release.

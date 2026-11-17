@@ -69,6 +69,5 @@ pub(crate) fn minted(
     };
     returned(buffers, input, NodeReaders(1));
     let fault = made?;
-    hold(plan, buffers, node, output, fault.or(pending));
-    Ok(())
+    hold(plan, buffers, node, output, fault.or(pending))
 }

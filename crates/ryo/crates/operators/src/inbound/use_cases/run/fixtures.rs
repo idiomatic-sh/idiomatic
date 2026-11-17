@@ -22,8 +22,7 @@ use crate::inbound::use_cases::run::interface::RunUseCase as _;
 use crate::inbound::use_cases::run::use_case::RunUseCaseImpl;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::{intern, intern_derived, text_of};
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::Offset;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, NodeId, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
@@ -35,6 +34,7 @@ use ryo_values::domain::rows::types::Table;
 use std::cell::Cell;
 
 pub mod allocating;
+pub mod budget;
 #[cfg(test)]
 pub(crate) mod cases;
 pub mod counting;

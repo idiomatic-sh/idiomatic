@@ -56,6 +56,10 @@ pub fn portable_fault(
             reason: format!("missing named capture `{}`", capture.0),
         },
         PortableOperatorFault::Derived(fault) => derived_fault(fault),
+        PortableOperatorFault::OverBudget { fed, wrote } => OperatingError::OverBudget {
+            fed: fed.0,
+            wrote: wrote.0,
+        },
         // A refused rendering is answered from the engine's record of it; one no record holds is a wrong operation.
         PortableOperatorFault::WrongOperation
         | PortableOperatorFault::UnsupportedRender

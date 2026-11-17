@@ -137,3 +137,25 @@ pub(crate) struct Witnessed<N> {
     /// The role of each input it reads, in the order it reads them.
     pub(crate) roles: Vec<InputRole>,
 }
+
+/// How many rows a making may write for each row it was fed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RowsPerRow(pub(crate) usize);
+
+/// What one making may write: `per_fed_row` rows for each row it was fed, and `floor` rows whatever it was fed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RunBudget {
+    /// The rows it may write for each row it was fed.
+    pub(crate) per_fed_row: RowsPerRow,
+    /// The rows it may write whatever it was fed.
+    pub(crate) floor: ryo_values::domain::rows::types::RowCount,
+}
+
+/// What a unit's makings of a node read and wrote: the rows they were fed, every input summed, and the rows they wrote.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Making {
+    /// The rows they were fed.
+    pub(crate) fed: ryo_values::domain::rows::types::RowCount,
+    /// The rows they wrote.
+    pub(crate) wrote: ryo_values::domain::rows::types::RowCount,
+}

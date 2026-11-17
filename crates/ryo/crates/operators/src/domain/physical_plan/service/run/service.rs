@@ -55,6 +55,7 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
         buffers.nodes.resize_with(count, || None);
         buffers.pending.resize_with(count, || None);
         buffers.fed.resize(count, NodeFed::default());
+        buffers.wrote.resize(count, RowCount(0));
         buffers.remaining.resize(count, NodeReaders(0));
         buffers.engine_left.resize(count, EngineUses(0));
         buffers.decisions.resize_with(count, NodeDecisions::default);
@@ -139,7 +140,7 @@ pub(super) fn made(
                 node,
                 NodeFed([rows.count, RowCount(0), RowCount(0)]),
             );
-            hold(plan, buffers, node, rows, None);
+            hold(plan, buffers, node, rows, None)?;
             return Ok(());
         }
         Lowering::Filter(_)
@@ -293,6 +294,5 @@ pub(super) fn made(
         node,
         output,
         fault.or(left_fault).or(right_fault).or(last_fault),
-    );
-    Ok(())
+    )
 }

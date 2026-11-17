@@ -198,8 +198,7 @@ fn chained(
         return Err(first.fault);
     }
     let fault = answered?;
-    hold(plan, buffers, tail, output, fault.or(pending));
-    Ok(())
+    hold(plan, buffers, tail, output, fault.or(pending))
 }
 
 /// Closes every shared index a probe of the chain opened.

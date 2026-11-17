@@ -96,7 +96,7 @@ pub(crate) fn lookups(
             }
             row = next_of(&buffers.index, row);
         }
-        hold(plan, buffers, *lookup, output, fault);
+        hold(plan, buffers, *lookup, output, fault)?;
     }
     Ok(())
 }

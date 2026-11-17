@@ -40,6 +40,15 @@ pub enum OperatingError {
         "worklist requires lattice rows with no cycle, one least state and one least upper bound for every two states, holding every root and edge state"
     )]
     NotALattice,
+    /// A node's makings in a file wrote past the run budget: far more rows than they were fed, or more than its operator
+    /// declares it writes.
+    #[error("a node wrote {wrote} rows from {fed} rows fed, past the run budget: the query grows faster than its rows")]
+    OverBudget {
+        /// The rows it was fed, every input summed.
+        fed: usize,
+        /// The rows it wrote.
+        wrote: usize,
+    },
     /// A visit ordinal cannot be represented as an engine integer.
     #[error("ordered-dfs visit ordinal overflow")]
     DfsOrdinalOverflow,

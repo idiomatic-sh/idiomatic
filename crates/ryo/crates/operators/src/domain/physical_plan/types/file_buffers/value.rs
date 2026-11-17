@@ -31,6 +31,8 @@ pub struct FileBuffers {
     pub(crate) pending: Vec<Option<PortableOperatorFault>>,
     /// The rows each node's kernels read from each input when it was made in the open file, by node id.
     pub(crate) fed: Vec<NodeFed>,
+    /// The rows each node wrote in the open unit of files, by node id: held to the run budget, reset with `fed` at its release.
+    pub(crate) wrote: Vec<ryo_values::domain::rows::types::RowCount>,
     /// How many of each node's readers have not read it yet in this file, by node id.
     pub(crate) remaining: Vec<NodeReaders>,
     /// How many of each node's engine uses are not done yet in this file, by node id.
@@ -73,6 +75,8 @@ pub struct FileBuffers {
     pub(crate) stream: crate::domain::physical_plan::types::stream_scratch::value::StreamScratch,
     /// The work of a worklist, its capacity kept across nodes and files.
     pub(crate) worklist: crate::domain::worklist::types::WorklistScratch,
+    /// The run's worst making, kept counting on or off: see `worst_making`.
+    pub(crate) worst: Option<crate::domain::physical_plan::types::node_counters::value::WorstMaking>,
     /// What each node did over the files, when counting is on; off, nothing is counted or timed.
     pub(crate) counters:
         Option<crate::domain::physical_plan::types::node_counters::value::NodeCounters>,
@@ -130,6 +134,22 @@ impl FileBuffers {
         &mut self,
     ) -> Option<crate::domain::physical_plan::types::node_counters::value::NodeCounters> {
         self.counters.take()
+    }
+
+    /// The making of the files these buffers ran that wrote the most rows per row fed, of those that wrote at least the run
+    /// budget's floor; none when no making wrote that many. Kept whether counting is on or off.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// assert_eq!(FileBuffers::default().worst_making(), None);
+    /// ```
+    #[must_use]
+    pub fn worst_making(
+        &self,
+    ) -> Option<crate::domain::physical_plan::types::node_counters::value::WorstMaking> {
+        self.worst
     }
 
     /// A node's rows, borrowed (cardinality included).
@@ -322,6 +342,9 @@ impl FileBuffers {
             }
             if let Some(fed) = self.fed.get_mut(at) {
                 *fed = NodeFed::default();
+            }
+            if let Some(wrote) = self.wrote.get_mut(at) {
+                *wrote = ryo_values::domain::rows::types::RowCount(0);
             }
             if let Some(left) = self.engine_left.get_mut(at) {
                 *left = EngineUses(0);
