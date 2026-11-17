@@ -99,6 +99,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
+        name: CaseName("the_band_join_the_antijoin_reads_with_no_projection_probes_its_source"),
+        word: Word::Succeeds,
+        input: || OrderedShape {
+            pairing: Pairing::BandRead,
+            ..LATEST
+        },
+        expect: Expect::Value(Rewritten::Ordered {
+            right: RowSource::Facts(EDGES),
+            on_parent: true,
+            order: OrderedProbe {
+                left_order: ColumnIndex(2),
+                right_order: ColumnIndex(2),
+                extremum: PartitionExtremum::Maximum,
+            },
+            unread: 1,
+        }),
+    },
+    Case {
         name: CaseName("a_band_whose_right_column_is_below_keeps_the_least"),
         word: Word::Succeeds,
         input: || OrderedShape {

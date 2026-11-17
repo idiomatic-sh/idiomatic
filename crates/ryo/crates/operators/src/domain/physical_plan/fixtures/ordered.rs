@@ -36,6 +36,9 @@ pub(crate) enum Pairing {
     JoinThenSelect,
     /// The band join the band lowering writes for the same `where`: the comparison its one edge, no select.
     Band,
+    /// The same band join read by the antijoin itself, with no projection between: the band join answers the select's
+    /// columns, so the lowering writes no projection after it.
+    BandRead,
 }
 
 /// The ordered existence shape over `EDGES`, starting at node `first`: a self join on the parent answering the left parent,
@@ -47,7 +50,7 @@ pub(crate) fn ordered_existence(first: u32, shape: OrderedShape) -> Vec<Step> {
         side: Side::Left,
         column: ColumnIndex(column),
     };
-    if shape.pairing == Pairing::Band {
+    if matches!(shape.pairing, Pairing::Band | Pairing::BandRead) {
         return banded_existence(first, shape);
     }
     let mut steps = vec![
@@ -119,7 +122,7 @@ pub(crate) fn ordered_existence(first: u32, shape: OrderedShape) -> Vec<Step> {
 
 /// The ordered existence shape as the band lowering writes it, starting at node `first`: a band join of `EDGES` with itself on
 /// the parent whose one edge is the order comparison, answering the left parent, child and ordinal, the distinct projection of
-/// them, and the antijoin of `EDGES` with it on `shape.key`.
+/// them (none for `Pairing::BandRead`), and the antijoin of `EDGES` with it on `shape.key`.
 fn banded_existence(first: u32, shape: OrderedShape) -> Vec<Step> {
     use ryo_values::domain::band_joins::types::{BandAnswer, BandEdge, BandJoin, BandTest};
     let edges = (StepInput::Relation(EDGES), PlanInput::Relation(EDGES));
@@ -130,7 +133,7 @@ fn banded_existence(first: u32, shape: OrderedShape) -> Vec<Step> {
         Test::GreaterThan => BandTest::Below,
         _ => BandTest::AtOrBelow,
     };
-    vec![
+    let mut steps = vec![
         step(
             Operation::BandJoin(BandJoin {
                 left: edges.0,
@@ -156,24 +159,34 @@ fn banded_existence(first: u32, shape: OrderedShape) -> Vec<Step> {
             }),
             &[edges.1, edges.1],
         ),
-        step(
-            Operation::Project {
-                from: node(first).0,
-                columns: vec![ColumnIndex(0), ColumnIndex(1), ColumnIndex(2)],
-                distinct: RepeatedRows::Dropped,
-            },
-            &[node(first).1],
-        ),
-        step(
-            Operation::Antijoin {
-                left: edges.0,
-                right: node(first + 1).0,
-                left_on: shape.key.iter().copied().map(ColumnIndex).collect(),
-                right_on: shape.key.iter().copied().map(ColumnIndex).collect(),
-            },
-            &[edges.1, node(first + 1).1],
-        ),
-    ]
+    ];
+    if shape.pairing == Pairing::BandRead {
+        steps.push(antijoin_of(first, &shape));
+        return steps;
+    }
+    steps.push(step(
+        Operation::Project {
+            from: node(first).0,
+            columns: vec![ColumnIndex(0), ColumnIndex(1), ColumnIndex(2)],
+            distinct: RepeatedRows::Dropped,
+        },
+        &[node(first).1],
+    ));
+    steps.push(antijoin_of(first + 1, &shape));
+    steps
+}
+
+/// The antijoin of `EDGES` with the pairs at node `pairs` on `shape.key`.
+fn antijoin_of(pairs: u32, shape: &OrderedShape) -> Step {
+    step(
+        Operation::Antijoin {
+            left: StepInput::Relation(EDGES),
+            right: node(pairs).0,
+            left_on: shape.key.iter().copied().map(ColumnIndex).collect(),
+            right_on: shape.key.iter().copied().map(ColumnIndex).collect(),
+        },
+        &[PlanInput::Relation(EDGES), node(pairs).1],
+    )
 }
 
 /// Both ordered existence shapes, the antijoins nodes 3 and 7: per parent the rows of the greatest ordinal, then of the least.

@@ -1,5 +1,6 @@
 //! The `ordered_existence` item of the `rewrites` collection: an antijoin whose right rows are the distinct projection of a
-//! strict-order select over a plain self join of one source, partitioned by the join's keys, keeps a left row exactly when
+//! strict-order select over a plain self join of one source (or the pairs of the band join that writes that select, read
+//! with no projection), partitioned by the join's keys, keeps a left row exactly when
 //! no row of its partition orders past it. So the antijoin probes the source itself in `ProbeMode::Ordered`, deciding by
 //! each partition's extremum, and the self join, the select and the projection lose it as a reader. It applies only where
 //! the order column is proven a number from the relations it is read from, and where no other node reads the three.
@@ -145,32 +146,39 @@ fn recognised(
     if !filter.comparisons.is_empty() {
         return None;
     }
-    let OnlyRead {
-        id: project,
-        lowering:
-            Lowering::Project(ProjectNode {
-                source,
-                project: parts,
-            }),
-    } = only_read(nodes, *right)?
-    else {
-        return None;
+    // The pairs the antijoin reads: through their distinct projection, or the pairs themselves when the band join answers
+    // the select's columns and the lowering writes no projection after it.
+    let (projection, pairs, columns) = match only_read(nodes, *right) {
+        Some(OnlyRead {
+            id,
+            lowering:
+                Lowering::Project(ProjectNode {
+                    source,
+                    project: parts,
+                }),
+        }) => {
+            if parts.distinct != RepeatedRows::Dropped {
+                return None;
+            }
+            (Some(id), *source, Some(parts.columns.as_slice()))
+        }
+        Some(_) | None => (None, *right, None),
     };
-    if parts.distinct != RepeatedRows::Dropped {
-        return None;
-    }
     let Paired {
         replaced,
         partition,
         order,
         extremum,
         output,
-    } = self_ordered(nodes, *source, *left)?;
+    } = self_ordered(nodes, pairs, *left)?;
     // The antijoin's key maps each left column to the projected left column it came from.
-    let projected: Vec<ColumnIndex> = parts
-        .columns
+    let picked: Vec<usize> = columns.map_or_else(
+        || (0..output.len()).collect(),
+        |columns| columns.iter().map(|column| usize::from(*column)).collect(),
+    );
+    let projected: Vec<ColumnIndex> = picked
         .iter()
-        .map(|column| match output.get(usize::from(*column))? {
+        .map(|at| match output.get(*at)? {
             JoinColumn {
                 side: Side::Left,
                 column,
@@ -197,7 +205,7 @@ fn recognised(
     }
     (numbered(nodes, indexes, *left, order, antijoin) == NumberProof::Proven).then(|| {
         let mut replaced = replaced;
-        replaced.push(project);
+        replaced.extend(projection);
         Recognised {
             antijoin,
             source: *left,
