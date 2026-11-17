@@ -84,6 +84,7 @@ pub(crate) fn graph_source(
             | Operation::Axis { .. }
             | Operation::Closure { .. }
             | Operation::OrderedDfs { .. }
+            | Operation::Worklist { .. }
             | Operation::Cycles { .. }
             | Operation::Rows { .. }
             | Operation::Hosted { .. }
@@ -173,6 +174,7 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> GraphInputKind {
                     | Operation::Axis { .. }
                     | Operation::Closure { .. }
                     | Operation::OrderedDfs { .. }
+                    | Operation::Worklist { .. }
                     | Operation::Cycles { .. }
                     | Operation::Rows { .. }
                     | Operation::Hosted { .. }

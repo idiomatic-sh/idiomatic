@@ -1,24 +1,17 @@
 //! The public corpus measurement over the fakes of its boundaries.
 use cucumber::then;
 use ryo_benchmark::inbound::use_cases::measure_corpus::{
-    fixtures::{bench_of, discovering, project_of, use_case, with_corpus, with_suffixes},
+    fixtures::{
+        bench_of, discovering, measuring, project_of, use_case, with_corpus, with_suffixes,
+    },
     interface::MeasureCorpusUseCase as _,
     types::SourceSuffix,
 };
-use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 
-#[then("measure_corpus says a diagnostic corpus publishes no metric")]
-fn diagnostic(world: &mut crate::Behavior) {
-    let _: &mut crate::Behavior = world;
-    let (succeeded, observations) = measure(BenchmarkCoverage::Interim);
-    assert!(succeeded);
-    assert!(observations.contains("not benchmark metrics"));
-}
-
-#[then("measure_corpus refuses to publish an accounted corpus without samples")]
+#[then("measure_corpus refuses a corpus of no project, publishing no cost")]
 fn refuses(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
-    assert!(!measure(BenchmarkCoverage::Accounted).0);
+    assert!(!measure().0);
 }
 
 #[then("measure_corpus counts a.ts and b.mjs in the corpus shape and not c.vue")]
@@ -31,7 +24,7 @@ fn suffixed(world: &mut crate::Behavior) {
     let bench = bench_of(&["A"]);
     let mut observations = Vec::new();
     let measured = with_suffixes((bench.path(), cache.path()), &suffixes, |corpus| {
-        discovering(root.path(), &files).measure_corpus(corpus, &mut observations)
+        measuring(root.path(), &files).measure_corpus(corpus, &mut observations)
     });
     let observations = String::from_utf8_lossy(&observations);
     // Past the corpus shape, both matched files are measured: the tracked check passed and their bytes were read. The fixture's
@@ -53,13 +46,35 @@ fn suffixed(world: &mut crate::Behavior) {
 }
 
 /// Whether an empty corpus run succeeded, and what it wrote.
-fn measure(scope: BenchmarkCoverage) -> (bool, String) {
+fn measure() -> (bool, String) {
     let mut observations = Vec::new();
-    let result = with_corpus(scope, 0, |corpus| {
+    let result = with_corpus(0, |corpus| {
         use_case().measure_corpus(corpus, &mut observations)
     });
     (
         result.is_ok(),
         String::from_utf8_lossy(&observations).into_owned(),
     )
+}
+
+#[then("measure_corpus refuses a project whose every file the suffix filter excludes, naming it")]
+fn nothing_to_lint(world: &mut crate::Behavior) {
+    let _: &mut crate::Behavior = world;
+    let suffixes = [".ts"].map(SourceSuffix);
+    let files = ["c.vue"];
+    let root = project_of(&files);
+    let cache = project_of(&[]);
+    let bench = bench_of(&["A"]);
+    let mut observations = Vec::new();
+    let measured = with_suffixes((bench.path(), cache.path()), &suffixes, |corpus| {
+        discovering(root.path(), &files).measure_corpus(corpus, &mut observations)
+    });
+    let observations = String::from_utf8_lossy(&observations);
+    assert!(
+        observations.contains(
+            "project-0: corpus comparison failed: no source left to lint after discovery and the valid profile\n"
+        ),
+        "{measured:?}\n{observations}"
+    );
+    assert!(measured.is_err(), "{observations}");
 }

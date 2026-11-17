@@ -12,6 +12,7 @@
 use ryo_operators::domain::physical_plan::fixtures::Step;
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
+use ryo_operators::inbound::use_cases::run::fixtures::graph_workloads::defines_of_edges;
 use ryo_operators::inbound::use_cases::run::fixtures::{TableInputs, TextResources, emitted};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{FileId, Integer, Position, Relation, Value};
@@ -113,7 +114,10 @@ fn seeded_closure() -> Step {
 fn seeded_closure_over_deep_chains(bencher: divan::Bencher<'_, '_>, seeds: u32) {
     let mut texts = TextResources::new(&["kind"]);
     let edges = chains(100, 1_000, &texts);
-    let left = edge_rows((0..seeds).map(|chain| (chain * 1_001, 0, 0)), &texts);
+    let left = defines_of_edges(&edge_rows(
+        (0..seeds).map(|chain| (chain * 1_001, 0, 0)),
+        &texts,
+    ));
     run_graph(
         bencher,
         &[seeded_closure()],

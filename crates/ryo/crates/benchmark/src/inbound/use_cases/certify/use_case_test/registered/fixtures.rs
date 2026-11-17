@@ -1,14 +1,15 @@
 //! Test support of the registered certification proofs: the native execution fake and the registration fixture.
 use crate::inbound::use_cases::certify::interface::CertifyUseCase as _;
+use crate::inbound::use_cases::prepare_cases::fixtures::Contestant;
 use crate::inbound::use_cases::stage_suite::interface::StageSuiteUseCase as _;
 use crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl;
 use crate::outbound::execution::interface::ExecutionPort;
 use ryo::linter::RuleId;
 use ryo_benchmark_contracts::domain::measurements::types::*;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
-use ryo_benchmark_contracts::domain::requests::types::CertificationCases;
-use ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage;
+use ryo_benchmark_contracts::domain::requests::types::{
+    BenchmarkCoverage, CertificationCases, RegisteredCoverage,
+};
 use ryo_benchmark_contracts::domain::workloads::types::StagePurpose;
 use serde_json::{Value as Document, json};
 use sha2::{Digest as _, Sha256};
@@ -62,7 +63,7 @@ impl ExecutionPort for Native {
         let failed = *self.failing.lock().unwrap() == Some(rule);
         Ok(ProcessOutput {
             status: ProcessExitCode(i32::from(failed)),
-            signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+            signal: TerminationSignal::Exited,
             stdout: CapturedBytes(vec![]),
             stderr: CapturedBytes(vec![]),
             wall: Duration::ZERO,
@@ -196,8 +197,8 @@ impl Fixture {
             Arc::new(crate::outbound::host::fixtures::fake::HostFake::default()),
             Arc::new(crate::outbound::receipts::fixtures::fake::ReceiptsFake::default()),
             Arc::new(crate::outbound::context::factory::local()),
-            Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
-            Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
+            Arc::new(Contestant::of(self.reference_executable.clone())),
+            Arc::new(Contestant::of(self.worker_executable.clone())),
             self.execution.clone(),
             Arc::new(crate::outbound::inventory::factory::local()),
             Arc::new(crate::outbound::scheduler::factory::threads()),
@@ -264,7 +265,6 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn failed(
 ) -> Cow<'static, str> {
     Cow::Owned(error.to_string())
 }
-
 pub(in crate::inbound::use_cases::certify::use_case_test) fn swapped(
     reason: &'static str,
 ) -> Result<usize, Cow<'static, str>> {
@@ -325,7 +325,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn drift(
 pub(in crate::inbound::use_cases::certify::use_case_test) fn missing_rule()
 -> Result<usize, Cow<'static, str>> {
     let mut f = Fixture::new();
-    f.document["rules"].as_array_mut().unwrap().pop();
+    let _dropped = f.document["rules"].as_array_mut().unwrap().pop();
     f.save();
     f.certify().map(|_| 0).map_err(|error| {
         refusal(
@@ -346,10 +346,10 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn modules(
     match change {
         "omit-all" => modules.clear(),
         "omit-one" => {
-            modules.remove("test/second").unwrap();
+            let _second = modules.remove("test/second").unwrap();
         }
         "unexpected" => {
-            modules.insert("test/unexpected".into(), modules["test/helper"].clone());
+            let _old = modules.insert("test/unexpected".into(), modules["test/helper"].clone());
         }
         _ => unreachable!(),
     }
@@ -392,7 +392,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn selected(
         RegisteredCoverage::Selected {
             rules: rules
                 .iter()
-                .map(|rule| ryo::linter::RuleId::try_from(*rule).unwrap())
+                .map(|rule| RuleId::try_from(*rule).unwrap())
                 .collect(),
             source: source.to_owned(),
         },

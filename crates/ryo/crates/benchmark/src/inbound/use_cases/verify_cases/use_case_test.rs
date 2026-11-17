@@ -48,8 +48,12 @@ fn verify(
         &context,
         reference,
         candidate,
-        execution,
+        crate::inbound::use_cases::verify_cases::types::Executions {
+            reference: execution,
+            candidate: execution,
+        },
         &inventory,
+        &crate::outbound::evidence::fixtures::fake::EvidenceFake,
     )
     .verify_cases(
         rules,
@@ -78,3 +82,4 @@ mod process_capture;
 mod process_identity;
 mod process_orchestration;
 mod shard;
+mod timing;

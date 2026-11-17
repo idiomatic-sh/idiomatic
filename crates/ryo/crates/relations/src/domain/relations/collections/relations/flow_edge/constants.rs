@@ -1,6 +1,6 @@
 //! The names of the `flow-edge` relation: the text its name and its columns carry when they leave the engine.
 use super::item::FlowEdgeColumn;
-use crate::domain::relations::constants::{SOURCE, TARGET};
+use crate::domain::relations::constants::{ORDINAL, SOURCE, TARGET};
 
 /// The relation's name in RyoQL and in listings: text that leaves the engine.
 ///
@@ -49,6 +49,7 @@ pub fn column_name(column: FlowEdgeColumn) -> &'static str {
         FlowEdgeColumn::Source => SOURCE,
         FlowEdgeColumn::Target => TARGET,
         FlowEdgeColumn::EdgeKind => "edge-kind",
+        FlowEdgeColumn::Ordinal => ORDINAL,
         FlowEdgeColumn::File => "file",
     }
 }

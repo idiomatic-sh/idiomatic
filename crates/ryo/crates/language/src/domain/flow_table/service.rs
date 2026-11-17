@@ -54,7 +54,7 @@ pub fn add_flow_block(builder: &mut TableBuilder<'_>, block: FlowBlockFact) -> B
 /// use ryo_language::domain::builders::service::table_builder;
 /// use ryo_language::domain::elements::types::Elements;
 /// use ryo_language::domain::flow_table::service::{add_flow_block, add_flow_edge, flow_of};
-/// use ryo_language::domain::flow::types::{FlowBlockFact, FlowEdgeFact, FlowEdgeKind};
+/// use ryo_language::domain::flow::types::{EdgeOrdinal, FlowBlockFact, FlowEdgeFact, FlowEdgeKind};
 /// use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 /// use ryo_relations::domain::relations::types::{Flag};
 ///
@@ -62,7 +62,7 @@ pub fn add_flow_block(builder: &mut TableBuilder<'_>, block: FlowBlockFact) -> B
 /// let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"f()"));
 /// let block = FlowBlockFact { reachable: Flag::Raised, live: Flag::Raised, implicit_return: Flag::Raised };
 /// let (source, target) = (add_flow_block(&mut builder, block), add_flow_block(&mut builder, block));
-/// add_flow_edge(&mut builder, FlowEdgeFact { source, target, kind: FlowEdgeKind::Normal });
+/// add_flow_edge(&mut builder, FlowEdgeFact { source, target, kind: FlowEdgeKind::Normal, ordinal: EdgeOrdinal(0) });
 /// assert_eq!(flow_of(&elements).edges.len(), 1);
 /// ```
 pub fn add_flow_edge(builder: &mut TableBuilder<'_>, edge: FlowEdgeFact) {

@@ -16,4 +16,17 @@ pub trait WorkerPort {
     /// # Errors
     /// Returns a failure when encoding, writing or flushing the report fails.
     fn respond(&self, report: &RunReport) -> Result<(), Error>;
+
+    /// Decode the request stored at `path`, as `receive` decodes the one supplied to this process: a worker run in the bench's
+    /// own process reads each request it is handed this way.
+    ///
+    /// # Errors
+    /// Returns a failure when the file cannot be read or does not represent a worker request.
+    fn read(&self, path: &std::path::Path) -> Result<WorkerRequest, Error>;
+
+    /// The bytes `respond` publishes for `report`, framing included, without publishing them.
+    ///
+    /// # Errors
+    /// Returns a failure when the report cannot be encoded.
+    fn encoded(&self, report: &RunReport) -> Result<super::types::EncodedResponse, Error>;
 }

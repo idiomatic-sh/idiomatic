@@ -262,6 +262,8 @@ pub(crate) enum ArgumentFault {
     MatchingGraphKeys,
     /// Outgoing edge order must be numeric.
     NumericGraphOrder,
+    /// A root's state, an edge's before-state and after-state, and a lattice's lower and upper states must have one kind.
+    MatchingStates,
     /// The call leaves it out.
     Missing,
     /// It should name one thing.

@@ -44,6 +44,7 @@ fn verify(
         reference,
         execution,
         &inventory,
+        &crate::outbound::evidence::fixtures::fake::EvidenceFake,
     )
     .verify_reference_cases(rules, scratch)
     .map(|count| count.0)

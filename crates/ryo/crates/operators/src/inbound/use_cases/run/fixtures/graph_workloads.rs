@@ -5,7 +5,9 @@ use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
-use ryo_relations::domain::relations::types::{FileId, Integer, Position, Relation, Value};
+use ryo_relations::domain::relations::types::{
+    CellKind, FileId, Integer, Offset, Position, Relation, Span, Value,
+};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, ReachLookup, Side};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -48,6 +50,30 @@ fn edge_rows(pairs: impl Iterator<Item = (u32, u32)>, resources: &TextResources)
         table.count = RowCount(table.count.0 + 1);
     }
     table
+}
+
+/// Edge rows as left rows of Defines' shape, each its parent as its node (columns 0 and 4) and its field as its name
+/// (columns 1 to 3), lent whole: a relation's rows are never lent short of its kinds.
+pub fn defines_of_edges(edges: &Table) -> Table {
+    let width = kinds(EDGES).len();
+    let span = Value::Span(Span {
+        start: Offset(0),
+        end: Offset(0),
+    });
+    Table {
+        kinds: kinds(Relation::Defines).to_vec(),
+        cells: edges
+            .cells
+            .chunks(width)
+            .flat_map(|row| match row {
+                [parent, _, _, field, file] => {
+                    vec![*parent, *field, *field, *field, *parent, *file, span]
+                }
+                _ => Vec::new(),
+            })
+            .collect(),
+        count: edges.count,
+    }
 }
 
 /// `chains` chains of ten edges, chain `c` from node `11c` to `11c + 10`.
@@ -125,7 +151,7 @@ fn closure_blocks(closure: &SeededClosure, count: u32) -> u64 {
     let mut resources = TextResources::new(&["f"]);
     let edges = chains(count, &resources);
     // The left rows bind the first node of chains 3 and 70.
-    let left = edge_rows([(33, 0), (770, 0)].into_iter(), &resources);
+    let left = defines_of_edges(&edge_rows([(33, 0), (770, 0)].into_iter(), &resources));
     let inputs = TableInputs::new(&[(EDGES, &edges), (Relation::Defines, &left)]);
     let steps = closure_steps(closure.fused);
     let emit = [PlanNodeId(
@@ -151,8 +177,9 @@ fn closure_blocks(closure: &SeededClosure, count: u32) -> u64 {
 }
 
 /// The blocks the graph kernels allocate over a file's edges, cold and then warm from a file of the same edges: `reach`
-/// from every source, `ordered_walk` from every parent and `components`, each writing into a table whose capacity is kept,
-/// as a worker's buffers keep theirs. The caller's global allocator is `dhat`'s.
+/// from every source, `ordered_walk` from every parent, `components`, and `queued_walk` from every parent over the one state
+/// of the edges' field, each writing into a table whose capacity is kept, as a worker's buffers keep theirs. The caller's
+/// global allocator is `dhat`'s.
 pub(super) fn graph_kernel_blocks() -> [u64; 2] {
     let _profiler = dhat::Profiler::builder().testing().build();
     let mut resources = TextResources::new(&["f"]);
@@ -175,25 +202,53 @@ pub(super) fn graph_kernel_blocks() -> [u64; 2] {
         }
     }
     let inputs = TableInputs::new(&[(EDGES, &edges)]);
+    // The worklist's lattice: the field's one state, below itself.
+    let field = resources.symbol("f");
+    let lattice = Table {
+        kinds: vec![CellKind::Symbol, CellKind::Symbol],
+        cells: vec![field, field],
+        count: RowCount(1),
+    };
+    let tables = [&edges, &lattice];
     let mut buffers = FileBuffers::default();
     let mut output = Table::default();
-    let cold = graph_kernels_once(&edges, &inputs, &mut resources, &mut buffers, &mut output);
-    let warm = graph_kernels_once(&edges, &inputs, &mut resources, &mut buffers, &mut output);
+    let (cold, cold_rows) =
+        graph_kernels_once(tables, &inputs, &mut resources, &mut buffers, &mut output);
+    let (warm, warm_rows) =
+        graph_kernels_once(tables, &inputs, &mut resources, &mut buffers, &mut output);
+    // A kernel that answers no rows allocates nothing and proves nothing: each answers rows over the rings, the same warm
+    // as cold.
+    assert!(
+        cold_rows.iter().all(|rows| rows.0 > 0),
+        "every graph kernel (reach, ordered walk, components, worklist) answers rows over the rings: {cold_rows:?}"
+    );
+    assert_eq!(
+        cold_rows, warm_rows,
+        "the warm run answers the cold run's rows"
+    );
     [cold, warm]
 }
 
-/// The blocks one run of the three graph kernels over `edges` allocates.
+/// The blocks one run of the four graph kernels over the edges allocates, the worklist over the lattice, and the rows each
+/// answered.
+///
+/// # Panics
+///
+/// When a kernel faults, or answers a fault of a row.
 fn graph_kernels_once(
-    edges: &Table,
+    [edges, lattice]: [&Table; 2],
     inputs: &TableInputs,
     resources: &mut TextResources,
     buffers: &mut FileBuffers,
     output: &mut Table,
-) -> u64 {
+) -> (u64, [RowCount; 4]) {
     use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
     use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
     use crate::domain::physical_plan::collections::kernels::probe_right::item::{
         IndexBuild, ProbeScratch,
+    };
+    use crate::domain::physical_plan::collections::kernels::queued_walk::item::{
+        WorklistInputs, worklisted,
     };
     use crate::domain::physical_plan::collections::kernels::reach::item::{
         ReachScratch, Starts, reached,
@@ -214,6 +269,21 @@ fn graph_kernels_once(
             edge_keys: &[],
         });
     let cycles = crate::domain::cycles::service::lower(ColumnIndex(0), ColumnIndex(1));
+    let worklist =
+        crate::domain::worklist::service::lower(crate::domain::worklist::types::WorklistShape {
+            root: ColumnIndex(0),
+            state: ColumnIndex(3),
+            edge_columns: [
+                ColumnIndex(0),
+                ColumnIndex(1),
+                ColumnIndex(2),
+                ColumnIndex(3),
+                ColumnIndex(3),
+            ],
+            lattice_columns: [ColumnIndex(0), ColumnIndex(1)],
+            root_keys: &[],
+            edge_keys: &[],
+        });
     let matching = ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
     let mut decisions =
         crate::domain::physical_plan::types::file_buffers::value::NodeDecisions::default();
@@ -232,10 +302,12 @@ fn graph_kernels_once(
         written,
         repeats,
         found,
+        worklist: worklist_scratch,
         ..
     } = buffers;
     let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
-    for kernel in 0..3 {
+    let mut answered = [RowCount(0); 4];
+    for kernel in 0..4 {
         output.cells.clear();
         output.count = RowCount(0);
         let fault = match kernel {
@@ -262,14 +334,29 @@ fn graph_kernels_once(
                 output,
             ),
             1 => visited(&dfs, rows, rows, &run.resources.texts(), &mut *walk, output),
-            _ => cyclic(&cycles, rows, &mut *index, &mut *cycle_scratch, output),
+            2 => cyclic(&cycles, rows, &mut *index, &mut *cycle_scratch, output),
+            _ => worklisted(
+                &worklist,
+                WorklistInputs {
+                    roots: rows,
+                    edges: rows,
+                    lattice: InputRows::Table(lattice),
+                },
+                &run.resources.texts(),
+                &mut *worklist_scratch,
+                &mut *repeats,
+                output,
+            ),
         };
-        #[expect(
-            clippy::expect_used,
-            reason = "a program that faults proves no allocation row: the panic is the failure"
-        )]
-        let _ran = fault.expect("the graph kernel runs");
+        // A kernel that faults, or answers a row's fault, proves no allocation row: the panic is the failure.
+        assert!(
+            matches!(fault, Ok(None)),
+            "graph kernel {kernel} answered {fault:?}"
+        );
+        if let Some(rows) = answered.get_mut(kernel) {
+            *rows = output.count;
+        }
     }
     let after = dhat::HeapStats::get().total_blocks;
-    after - before
+    (after - before, answered)
 }

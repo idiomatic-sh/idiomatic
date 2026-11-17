@@ -5,6 +5,8 @@ use super::super::service::FileAnalysis;
 use super::super::types::{EngineFile, FileCompleteness, FileRead, FileVisit, Worker};
 use crate::application::file_analysis::constants::EXECUTION_DIAGNOSTIC;
 use crate::application::file_analysis::constants::PROVIDER_PARSE;
+use crate::domain::crossing::service::frame_handing;
+use crate::domain::crossing::types::FrameHanding;
 use crate::domain::reading::service::begin;
 use crate::domain::reading::service::engine_asked;
 use crate::domain::reading::service::failure_partials;
@@ -98,6 +100,7 @@ impl FileAnalysis {
                         failure: (kind == PrimaryFailureKind::Disk).then_some(detail),
                     },
                 },
+                FrameHanding::Handed,
             )?;
         } else {
             // No rule runs on the file: its partiality is core's to note.
@@ -220,7 +223,7 @@ impl FileAnalysis {
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
-                Self::read_file(worker, visit, number, &semantic, read)?;
+                Self::read_file(worker, visit, number, &semantic, read, FrameHanding::Handed)?;
                 if semantic.completeness() == FileCompleteness::Incomplete {
                     None
                 } else {
@@ -243,7 +246,8 @@ impl FileAnalysis {
                 if asked.any == EngineRows::Asked {
                     clear_symbols(&mut worker.tables.symbols);
                     index_kinds(&mut worker.tables.elements);
-                    Self::read_file(worker, visit, number, &semantic, read)?;
+                    let handing = frame_handing(Some(&reason));
+                    Self::read_file(worker, visit, number, &semantic, read, handing)?;
                 } else {
                     // No rule runs on the file: its partiality is core's to note.
                     start_partials(

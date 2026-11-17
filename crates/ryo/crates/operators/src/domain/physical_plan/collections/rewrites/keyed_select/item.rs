@@ -4,10 +4,11 @@
 
 use super::super::interface::RewritesItem;
 use crate::domain::comparing::service::fixed_prefix;
+use crate::domain::physical_plan::service::indexes::service::read_by;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{
-    IndexKey, IndexPlace, KeyedIndex, PlanNodeId, RowSource,
+    IndexIdentity, IndexKey, IndexPlace, KeyedIndex, KeyedIndexes, PlanNodeId, RowSource,
 };
 use ryo_language::domain::symbols::service::hash_of;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -66,7 +67,7 @@ fn key_of(source: RowSource, comparisons: &[PlanComparison]) -> Option<SelectKey
 /// The `keyed_select` rewrite: the filters of one relation keyed on one of its columns become lookups of one shared index of
 /// it when two or more of them key on it; a single one keeps its scan, which costs less than an index.
 fn keyed_selects(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
-    let mut keyed: Vec<KeyedIndex> = Vec::new();
+    let mut keyed = KeyedIndexes::default();
     let mut keys: Vec<Vec<SelectKey>> = Vec::new();
     for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
         let Lowering::Filter { source, select } = &node.lowering else {
@@ -75,27 +76,22 @@ fn keyed_selects(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
         let Some(key) = key_of(*source, &select.comparisons) else {
             continue;
         };
-        let indexed = (RowSource::Facts(key.relation), IndexKey::Text(key.column));
-        match keyed
-            .iter()
-            .position(|index| (index.source, &index.key) == (indexed.0, &indexed.1))
-        {
-            Some(at) => {
-                if let (Some(index), Some(held)) = (keyed.get_mut(at), keys.get_mut(at)) {
-                    index.readers.push(id);
-                    held.push(key);
-                }
-            }
-            None => {
-                keyed.push(KeyedIndex {
-                    source: indexed.0,
-                    key: indexed.1,
-                    readers: vec![id],
-                });
-                keys.push(vec![key]);
-            }
+        let at = read_by(
+            &mut keyed,
+            IndexIdentity {
+                source: RowSource::Facts(key.relation),
+                key: IndexKey::Text(key.column),
+            },
+            id,
+        );
+        if keys.len() <= at.0 {
+            keys.resize_with(at.0 + 1, Vec::new);
+        }
+        if let Some(held) = keys.get_mut(at.0) {
+            held.push(key);
         }
     }
+    let keyed = keyed.indexes;
     for (index, held) in keyed.into_iter().zip(keys) {
         if index.readers.len() < 2 {
             continue;

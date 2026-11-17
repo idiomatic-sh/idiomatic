@@ -1,23 +1,26 @@
 //! One occurrence's node step after the files: a node run through the file pass's one node step, its rows' coverage, and the
 //! rows each of its rule's steps was fed.
+use crate::application::file_dag::file_pass::service::answering::service::{
+    held, ran_answering, ran_rows, step_fed,
+};
 use crate::application::file_dag::file_pass::service::nodes::service::{
     StepCoverage, handed_step, run_node, step_coverage_seen,
 };
-use crate::application::file_dag::file_pass::types::{NodeAnswer, NodeReads};
-use crate::application::file_dag::frontiers::service::{handed_coverage, held_frontier, reason};
+use crate::application::file_dag::file_pass::types::{NodeAnswer, NodeMove, NodeReads};
+use crate::application::file_dag::frontiers::service::{handed_coverage, reason};
 use crate::application::file_dag::frontiers::types::{FrontierRows, HandedOver, Withholdings};
 use crate::application::file_dag::project_pass::types::PhaseBatch;
 use crate::application::file_dag::project_pass::types::{
     HandoverReads, PhaseInputs, PhaseResources,
 };
 use crate::application::file_dag::publications::service::bound::service::{
-    bound_coverage, bound_lineage, held_observation,
+    bound_coverage, bound_lineage,
 };
 use ryo_execution_domain::domain::completion::service::{lacks_of, partial_of_lacks};
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::completion::types::{CoverageState, RegionAdmission};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::schema;
+use ryo_execution_domain::domain::executable_program::service::refusals::service::layout;
 use ryo_execution_domain::domain::executable_program::types::RuleNodes;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
@@ -25,16 +28,12 @@ use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;
-use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+use ryo_operators::domain::physical_plan::types::{PlanInput, PlanInputs, PlanNodeId};
 use ryo_relations::domain::relations::service::kinds as relation_kinds;
 use ryo_values::domain::lineage::service::one_file;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepId, StepScope};
-use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::rows::service::reset;
 use ryo_values::domain::rows::types::Table;
@@ -69,20 +68,41 @@ impl StepRun<'_, '_, '_> {
             .unwrap_or(&empty);
         if self.completion.region_admission(&reads.needs) == RegionAdmission::Blocked {
             let mut table = Table::default();
-            reset(&mut table, schema(&self.batch.pass.program, node)?);
+            reset(&mut table, layout(&self.batch.pass.program, node)?);
             return Ok(NodeAnswer {
                 table,
                 coverage: self.completion.blocked_coverage(),
             });
         }
         self.settled(symbols, step)?;
-        self.ran(symbols, node)?;
-        let table = match self.buffers.rows(node) {
-            NodeRows::Materialized(table) => table.clone(),
-            NodeRows::Absent => return Err(OperatingError::NotRun),
-        };
+        let batch = self.batch;
+        ran_answering(&batch.pass.program, node, &mut |each| match each {
+            NodeMove::Run(read) => self.ran(symbols, read),
+            NodeMove::Read(input) => self.read(input),
+            NodeMove::Empty(read) => {
+                self.buffers.empty_as(read, &[]);
+                Ok(())
+            }
+        })?;
+        let table = ran_rows(&batch.pass.program, self.buffers, node)?;
         let coverage = self.coverage(step)?;
         Ok(NodeAnswer { table, coverage })
+    }
+
+    /// One read of an input that is no node, before a refusal answered after its inputs: a relation no handover answers is not
+    /// read after the files; a frontier entry or a bound observation answers why it was withheld, when it was.
+    pub(crate) fn read(&self, input: PlanInput) -> Result<(), OperatingError> {
+        match input {
+            PlanInput::Relation(_) => Err(OperatingError::NotRead),
+            PlanInput::Frontier(place) => {
+                held(self.withholdings, PlanInputs::frontier(self.inputs, place))
+            }
+            PlanInput::Observation(place) => held(
+                self.withholdings,
+                PlanInputs::observation(self.inputs, place),
+            ),
+            PlanInput::Node(_) => Ok(()),
+        }
     }
 
     /// Runs `node` through the file pass's node step, a withheld input answered with the reason it was withheld.
@@ -202,87 +222,22 @@ impl StepRun<'_, '_, '_> {
         Ok(walked.1)
     }
 
-    /// The rows each step of the rule was fed after the files: a step that runs in each file was fed in the files.
-    pub(crate) fn fed(
-        &mut self,
-        symbols: &mut Symbols,
-        plan: &Plan,
-        nodes: &RuleNodes,
-    ) -> Result<LogicalCounts, OperatingError> {
-        let rule = ordinal(self.rule)?;
-        let mut fed = Vec::with_capacity(plan.steps.len());
-        for each in &plan.steps {
-            let mut counts = RowsFed::default();
-            if each.scope == StepScope::CrossFile {
-                for (slot, input) in counts.0.iter_mut().zip(named(&inputs_of(&each.operation))) {
-                    let place = plan.frontier.iter().position(|entry| entry == input);
-                    *slot = match *input {
-                        Input::Step(id)
-                            if plan
-                                .steps
-                                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                                .is_some_and(|read| read.scope == StepScope::CrossFile) =>
-                        {
-                            let read = nodes
-                                .steps
-                                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
-                                .ok_or(OperatingError::NotRun)?
-                                .clone()?;
-                            self.ran(symbols, read)?;
-                            match self.buffers.rows(read) {
-                                NodeRows::Materialized(table) => {
-                                    u64::try_from(table.count.0).unwrap_or(u64::MAX)
-                                }
-                                NodeRows::Absent => 0,
-                            }
-                        }
-                        Input::Relation(_) | Input::Step(_) => place.map_or(0, |at| {
-                            match held_frontier(
-                                self.inputs.handed,
-                                FrontierPlace::of(rule, InputNumber(at)),
-                            ) {
-                                HeldRows::Held(table) => {
-                                    u64::try_from(table.count.0).unwrap_or(u64::MAX)
-                                }
-                                HeldRows::Withheld(_) => 0,
-                            }
-                        }),
-                        Input::BoundObservation(_)
-                            if place.is_some_and(|at| {
-                                handed_coverage(self.inputs.handed, InputNumber(at)).is_some()
-                            }) =>
-                        {
-                            place.map_or(0, |at| {
-                                match held_frontier(
-                                    self.inputs.handed,
-                                    FrontierPlace::of(rule, InputNumber(at)),
-                                ) {
-                                    HeldRows::Held(table) => {
-                                        u64::try_from(table.count.0).unwrap_or(u64::MAX)
-                                    }
-                                    HeldRows::Withheld(_) => 0,
-                                }
-                            })
-                        }
-                        Input::BoundObservation(id) => {
-                            match held_observation(
-                                self.inputs.bound,
-                                BoundObservationPlace::of(rule, id),
-                            ) {
-                                HeldRows::Held(table) => {
-                                    u64::try_from(table.count.0).unwrap_or(u64::MAX)
-                                }
-                                HeldRows::Withheld(_) => 0,
-                            }
-                        }
-                    };
-                }
-            }
-            fed.push(counts);
-        }
-        Ok(LogicalCounts {
+    /// The rows each step of the rule was fed after the files: what its node's kernels read, when it ran in this occurrence; a
+    /// step that runs in each file was fed in the files, and a step whose node never ran (no root reached it, or it answered
+    /// a refusal without running its kernel) was fed none.
+    pub(crate) fn fed(&self, plan: &Plan, nodes: &RuleNodes) -> LogicalCounts {
+        let fed = plan
+            .steps
+            .iter()
+            .zip(&nodes.steps)
+            .map(|(each, node)| match each.scope {
+                StepScope::CrossFile => step_fed(self.buffers, each, node),
+                StepScope::PerFile => RowsFed::default(),
+            })
+            .collect::<Vec<_>>();
+        LogicalCounts {
             fed: fed.into_boxed_slice(),
-        })
+        }
     }
 }
 

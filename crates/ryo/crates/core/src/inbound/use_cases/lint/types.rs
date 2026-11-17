@@ -154,6 +154,9 @@ pub struct LintReport {
     /// The work of each rule, in the order of the rules: the rows each of its steps was fed. A count, the same on any machine at any
     /// load, so a test can hold a rule to it. Empty unless the run counts.
     pub work: Vec<RuleWork>,
+    /// The widest handover of each file that handed the steps after the files anything, in the order of the files: the rule whose
+    /// per-file steps handed the most rows for each row of the file's syntax tree. Empty unless the run counts.
+    pub handovers: Vec<ryo_values::domain::runs::types::Handover>,
 }
 
 /// One required project lookup, whether the file was present or absent.

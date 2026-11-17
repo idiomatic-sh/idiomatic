@@ -1,9 +1,9 @@
-
 # What asymptote checks this target with: a run places this file in the project's directory, under asymptote's own name for it.
+# The target is Python, and its linter is Ruff, at the version `tools/install.py` declares.
 [[tools]]
-id = "tastemaker"
+id = "ruff"
 group = "lint"
-run = [".tastemaker/bin/tm", "check", "--format", "sarif"]
+run = ["ruff", "check", "--no-cache", "--output-format", "sarif"]
 output = "sarif"
-timeout-seconds = 120
-inputs = [".", "tastemaker.toml", "tastemaker.lock", ".policy"]
+timeout-seconds = 600
+inputs = ["."]

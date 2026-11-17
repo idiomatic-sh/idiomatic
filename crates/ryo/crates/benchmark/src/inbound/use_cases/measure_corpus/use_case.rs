@@ -31,6 +31,10 @@ pub struct MeasureCorpusUseCaseImpl {
     workspace: Arc<dyn WorkspacePort>,
     /// The host's file-permission facts.
     host: Arc<dyn crate::outbound::host::interface::HostPort>,
+    /// The engine the growth programs are linted with.
+    engine: Arc<dyn crate::outbound::engine::interface::EnginePort>,
+    /// This process's CPU time and peak.
+    meter: Arc<dyn crate::outbound::process_meter::interface::ProcessMeterPort>,
 }
 impl MeasureCorpusUseCaseImpl {
     /// Bind the boundaries chosen by the composition.
@@ -49,6 +53,8 @@ impl MeasureCorpusUseCaseImpl {
         evidence: Arc<dyn EvidencePort>,
         workspace: Arc<dyn WorkspacePort>,
         host: Arc<dyn crate::outbound::host::interface::HostPort>,
+        engine: Arc<dyn crate::outbound::engine::interface::EnginePort>,
+        meter: Arc<dyn crate::outbound::process_meter::interface::ProcessMeterPort>,
     ) -> Self {
         Self {
             reference,
@@ -60,6 +66,8 @@ impl MeasureCorpusUseCaseImpl {
             evidence,
             workspace,
             host,
+            engine,
+            meter,
         }
     }
 }
@@ -71,15 +79,19 @@ impl MeasureCorpusUseCase for MeasureCorpusUseCaseImpl {
     ) -> Result<(), Error> {
         super::service::measure_corpus(
             &CorpusBoundaries {
-                reference: self.reference.as_ref(),
-                candidate: self.candidate.as_ref(),
+                contestants: crate::application::certified_measurement::types::Contestants {
+                    reference: self.reference.as_ref(),
+                    candidate: self.candidate.as_ref(),
+                    execution: self.execution.as_ref(),
+                    context: self.context.as_ref(),
+                    suite: self.suite.as_ref(),
+                },
                 discovery: self.discovery.as_ref(),
-                execution: self.execution.as_ref(),
-                suite: self.suite.as_ref(),
-                context: self.context.as_ref(),
                 evidence: self.evidence.as_ref(),
                 workspace: self.workspace.as_ref(),
                 host: self.host.as_ref(),
+                engine: self.engine.as_ref(),
+                meter: self.meter.as_ref(),
             },
             corpus,
             observations,

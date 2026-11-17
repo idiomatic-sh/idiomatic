@@ -192,6 +192,7 @@ impl<'a> DemandClosure<'a> {
             | Operation::Words { .. }
             | Operation::Axis { .. }
             | Operation::OrderedDfs { .. }
+            | Operation::Worklist { .. }
             | Operation::Cycles { .. }
             | Operation::Rows { .. }
             | Operation::Hosted { .. }

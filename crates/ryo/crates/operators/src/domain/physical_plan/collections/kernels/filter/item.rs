@@ -13,7 +13,7 @@ use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::select::types::SelectParts;
-use crate::domain::table_scratch::types::Memo;
+use crate::domain::table_scratch::service::forgotten;
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -41,6 +41,7 @@ impl KernelsItem for FilterItem {
                 | Lowering::Render { .. }
                 | Lowering::Reach { .. }
                 | Lowering::OrderedWalk { .. }
+                | Lowering::Worklist { .. }
                 | Lowering::Components { .. }
                 | Lowering::ScanBound { .. }
                 | Lowering::Unlowered => false,
@@ -64,7 +65,7 @@ pub(crate) struct FilterKernel<'f> {
 }
 
 /// The filter of `select` over rows of `kinds`, against the open file's names as they are now. Its memo is readied once per
-/// node run (`readied`) and grown as the file's names grow (`grown`), never here.
+/// node run (`readied`), never here, and grows to the places it decides.
 pub(crate) fn filter<'f>(
     select: &'f SelectParts,
     kinds: &'f [CellKind],
@@ -78,22 +79,9 @@ pub(crate) fn filter<'f>(
     }
 }
 
-/// Readies `decisions`' memo for one run of a filter of `select` over a file of `names` names: every decision forgotten,
-/// with room for each name's run of the select's comparisons.
-pub(crate) fn readied(select: &SelectParts, decisions: &mut NodeDecisions, names: NameCount) {
-    decisions.memo.clear();
-    decisions.memo.resize(
-        select.comparisons.len().saturating_mul(names.0),
-        Memo::Unknown,
-    );
-}
-
-/// Grows `decisions`' memo to room for `names` names, keeping every decision made: the file's names grew since it was readied.
-pub(crate) fn grown(select: &SelectParts, decisions: &mut NodeDecisions, names: NameCount) {
-    let room = select.comparisons.len().saturating_mul(names.0);
-    if decisions.memo.len() < room {
-        decisions.memo.resize(room, Memo::Unknown);
-    }
+/// Readies `decisions`' memo for one run of a filter: every decision of its last run forgotten, and only those.
+pub(crate) fn readied(decisions: &mut NodeDecisions) {
+    forgotten(&mut decisions.memo);
 }
 
 /// Whether every comparison holds for `row`.

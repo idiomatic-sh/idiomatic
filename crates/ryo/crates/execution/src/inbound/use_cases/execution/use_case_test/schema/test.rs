@@ -40,9 +40,9 @@ type Input = Evaluation;
 type Value = Shapes;
 type Failure = OperatingError;
 
-/// The shapes of every operator: 26 variants, each compared once, every schema matched.
+/// The shapes of every operator: 27 variants, each compared once, every schema matched.
 const EVERY_SHAPE_MATCHES: Shapes = Shapes {
-    operators: 26,
+    operators: 27,
     repeated: 0,
     mismatched: Cow::Borrowed(&[]),
     hosted_rows_kept: true,

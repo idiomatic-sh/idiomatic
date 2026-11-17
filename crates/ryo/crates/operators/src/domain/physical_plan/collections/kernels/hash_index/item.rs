@@ -3,15 +3,15 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use super::super::scan_facts::item::{cell_of, count_of, rows_of};
+use super::super::scan_facts::item::{cell_of, count_of, rows_of, table_row};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::PredicateOutcome;
-use crate::domain::physical_plan::types::file_buffers::value::WalkScratch;
 use crate::domain::physical_plan::types::keyed_rows::value::{
     IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW,
 };
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::walk_scratch::value::WalkScratch;
 use crate::domain::physical_plan::types::{CellStart, KeyedRowAt, KeyedSide};
 use crate::domain::table_scratch::types::SetMembership;
 use crate::domain::table_texts::types::Texts;
@@ -39,6 +39,7 @@ impl KernelsItem for HashIndexItem {
                     | Lowering::SeededReach { .. }
                     | Lowering::Axis { .. }
                     | Lowering::OrderedWalk { .. }
+                    | Lowering::Worklist { .. }
                     | Lowering::Components { .. }
             )
         };
@@ -48,14 +49,8 @@ impl KernelsItem for HashIndexItem {
 
 /// Empties `rows` for the rows of `count`, keeping its capacity.
 fn cleared(rows: &mut KeyedRows, count: RowCount) {
-    rows.keys.clear();
-    rows.next.clear();
+    rows.cleared();
     rows.next.resize(count.0, NO_ROW);
-}
-
-/// Empties `rows` of every key and row, keeping its capacity.
-pub(crate) fn emptied(rows: &mut KeyedRows) {
-    cleared(rows, RowCount(0));
 }
 
 /// Adds `row` to the key `same` finds under `hash`, or as a key of its own.
@@ -241,18 +236,13 @@ pub(crate) fn first_of_row(
     table: &Table,
     start: CellStart,
 ) -> PredicateOutcome {
-    let width = table.kinds.len();
-    let held = &table.cells;
-    let new = held.get(start.0..).unwrap_or_default();
+    let new = table.cells.get(start.0..).unwrap_or_default();
     let mut hasher = rustc_hash::FxHasher::default();
     for cell in new {
         cell.hash(&mut hasher);
     }
     let hash = IndexKeyHash(hasher.finish());
-    let row_at = |row: IndexedRow| {
-        let at = indexed(row).0.saturating_mul(width);
-        held.get(at..at.saturating_add(width)).unwrap_or_default()
-    };
+    let row_at = |row: IndexedRow| table_row(table, indexed(row));
     if rows
         .keys
         .find(hash.0, |run| run.hash == hash && row_at(run.first) == new)
@@ -315,20 +305,16 @@ pub(crate) fn keyed_walk(
         return follow(edges, index, to, start, &mut walk.reached);
     }
     let all = direction != Direction::NearestAncestor;
-    walk.visited.clear();
+    walk.visited.reset();
     walk.entities.clear();
     follow(edges, index, to, start, &mut walk.entities)?;
     while !walk.entities.is_empty() {
         walk.next.clear();
         for place in 0..walk.entities.len() {
             let entity = walk.entities[place];
-            let hash = value_hash(entity).0;
-            if walk.visited.find(hash, |held| *held == entity).is_some() {
+            if walk.visited.meet(entity) == SetMembership::In {
                 continue;
             }
-            let _met = walk
-                .visited
-                .insert_unique(hash, entity, |held| value_hash(*held).0);
             if !all && admitted(entity)? == SetMembership::In {
                 walk.reached.push(entity);
                 return Ok(());
@@ -360,11 +346,4 @@ fn follow(
         row = next_of(index, row);
     }
     Ok(())
-}
-
-/// The hash a walk keeps an entity it met under.
-pub(crate) fn value_hash(value: Value) -> IndexKeyHash {
-    let mut hasher = rustc_hash::FxHasher::default();
-    value.hash(&mut hasher);
-    IndexKeyHash(hasher.finish())
 }

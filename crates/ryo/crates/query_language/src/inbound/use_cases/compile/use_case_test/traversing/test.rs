@@ -219,6 +219,7 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::Replace { .. } => "replace",
         Operation::OrderedMatch { .. } => "ordered-match",
         Operation::OrderedDfs { .. } => "ordered-dfs",
+        Operation::Worklist { .. } => "worklist",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",
@@ -294,6 +295,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
                     | QueryOperator::RenderSyntax
                     | QueryOperator::FitsRendered
                     | QueryOperator::OrderedMatch
+                    | QueryOperator::Worklist
                     | QueryOperator::Select
                     | QueryOperator::Project
                     | QueryOperator::Extend

@@ -2,10 +2,12 @@
 use super::authority::service::require_authority;
 use super::constants;
 use super::rule::service::verify_rule;
+use super::types::RuleFiles;
 use crate::domain::suite::service::covered;
 use crate::domain::suite::types::inventory::value::{
     FailureReason, Inventory, InventoryVerdict, RuleEvidence,
 };
+use crate::outbound::evidence::types::{VerificationTimesFile, VerificationTimesFiles};
 use crate::outbound::{
     execution::interface::ExecutionPort,
     inventory::{
@@ -29,6 +31,36 @@ use ryo_benchmark_contracts::domain::requests::types::{
 };
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{collections::BTreeSet, path::Path};
+
+/// The directory a rule's verification keeps its observations in: `<inventory>/profiles/<rule>`.
+fn rule_directory(inventory: &Path, rule: &RuleLabel) -> std::path::PathBuf {
+    inventory.join(constants::PROFILES).join(&rule.0)
+}
+
+/// The file each rule's verification writes its times to: `<inventory>/profiles/<rule>/verify-times.bmf`. The inventory
+/// names it to each rule's verifier, and the bench reads the times of every rule it verified from it.
+fn times_file(inventory: &Path, rule: &RuleLabel) -> VerificationTimesFile {
+    VerificationTimesFile(rule_directory(inventory, rule).join(constants::VERIFY_TIMES_FILE))
+}
+
+/// The times file of each of `rules`, the rules the inventory at `inventory` verified.
+#[must_use]
+pub(crate) fn times_files(
+    inventory: &Path,
+    rules: &[ryo::linter::RuleId],
+) -> VerificationTimesFiles {
+    VerificationTimesFiles(
+        rules
+            .iter()
+            .map(|rule| {
+                (
+                    rule.clone(),
+                    times_file(inventory, &RuleLabel(rule.to_string())),
+                )
+            })
+            .collect(),
+    )
+}
 
 /// The row a rule's current result publishes.
 fn row(registration: &Registration, rule: &RuleName, outcome: &RuleEvidence) -> Row {
@@ -164,14 +196,17 @@ pub fn verify(
         let rules = &rules;
         tasks.push(Box::new(move || {
             for (index, rule) in shard.select(rules.iter().enumerate()) {
-                let directory = output.join(constants::PROFILES).join(&rule.0);
+                let directory = rule_directory(output, rule);
                 let outcome = verify_rule(
                     registration,
                     registration
                         .rules
                         .iter()
                         .find(|entry| entry.rule_id.0 == rule.0),
-                    &directory,
+                    RuleFiles {
+                        directory: &directory,
+                        times: &times_file(output, rule),
+                    },
                     suite,
                     receipts,
                     execution,

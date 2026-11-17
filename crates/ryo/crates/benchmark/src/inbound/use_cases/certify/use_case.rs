@@ -107,17 +107,13 @@ impl CertifyUseCase for CertifyUseCaseImpl {
                 crate::domain::suite::constants::EMPTY_SUBSET.into(),
             ));
         }
-        let contestants = [
-            reference_executable.to_owned(),
-            candidate_executable.to_owned(),
-        ];
         let execution_profile = execution.profile();
         let mut paths = vec![
             directory.to_owned(),
             workload.to_owned(),
             selected_rules.to_owned(),
-            contestants[0].clone(),
-            contestants[1].clone(),
+            reference_executable.to_owned(),
+            candidate_executable.to_owned(),
         ];
         if let ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Isolated(
             collector,
@@ -156,11 +152,24 @@ impl CertifyUseCase for CertifyUseCaseImpl {
                 }
             }
         };
-        let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
+        let sealed = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
         let crate::application::certification_probe::types::ProbedProfiles { probe, profiles } =
             crate::application::certification_probe::service::probe(
                 reference, candidate, directory, scratch,
             )?;
+        if suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))? != sealed {
+            return Err(Error::Invalid(
+                super::constants::PROBE_CHANGED_INPUTS.into(),
+            ));
+        }
+        // The program each probe's command launches is sealed with the rest: a launcher beside the certified binary
+        // (clippy's cargo-clippy) must not change either.
+        for profile in &profiles {
+            if !paths.contains(&profile.executable) {
+                paths.push(profile.executable.clone());
+            }
+        }
+        let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
         let cases = match &prepared_cases {
             PreparedCases::Profile => {
                 let rules = directory.join(super::constants::RULE_DIRECTORY);
@@ -215,7 +224,6 @@ impl CertifyUseCase for CertifyUseCaseImpl {
             },
             paths,
             fingerprint: sealed,
-            contestants,
             probe,
             profiles,
             execution: execution_profile,

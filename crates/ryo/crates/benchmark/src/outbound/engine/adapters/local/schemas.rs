@@ -75,15 +75,11 @@ pub(super) fn load_rules(
             RyoQlQuery::with_modules(&format!("rules/{id}"), &query, &modules)
                 .map_err(|error| Error::Invalid(error.to_string()))?
         };
-        let observations = declarations
-            .and_then(|values| values.get(&id))
-            .cloned()
-            .unwrap_or_default();
         if rules
             .insert(
                 id,
                 Rule {
-                    observations,
+                    observations: Vec::new(),
                     query,
                     applicability,
                     parameters: BTreeMap::new(),
@@ -123,6 +119,22 @@ pub(super) fn load_rules(
     {
         return Err(Error::Invalid(constants::DUPLICATE_RULE.into()));
     }
+    with_observations(rules, declarations)
+}
+
+/// `rules` with each consumer's observation bindings as `declarations` states them for one request, and none for a rule they
+/// do not name. The profile's rules are the same for every case of a verification; the bindings are each case's own, so a case
+/// never runs with another case's producers.
+///
+/// # Errors
+///
+/// Refuses declarations that name a consumer `rules` does not hold.
+pub(super) fn with_observations(
+    mut rules: BTreeMap<RuleId, Rule>,
+    declarations: Option<
+        &ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+    >,
+) -> Result<BTreeMap<RuleId, Rule>, Error> {
     if let Some(declarations) = declarations {
         for consumer in declarations.keys() {
             if !rules.contains_key(consumer) {
@@ -131,6 +143,12 @@ pub(super) fn load_rules(
                 )));
             }
         }
+    }
+    for (id, rule) in &mut rules {
+        rule.observations = declarations
+            .and_then(|values| values.get(id))
+            .cloned()
+            .unwrap_or_default();
     }
     Ok(rules)
 }
@@ -290,3 +308,38 @@ fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// The rules of `request`, loaded from its query files, once when the verification retains them.
+pub(super) fn request_rules(
+    kept: Option<&std::sync::OnceLock<BTreeMap<RuleId, Rule>>>,
+    frontend_diagnostic: Option<FrontendDiagnosticProjection>,
+    request: &ryo_benchmark_contracts::domain::requests::types::WorkerRequest,
+) -> Result<BTreeMap<RuleId, Rule>, Error> {
+    let declarations = match &request.rule_observations {
+        ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declared) => {
+            Some(declared)
+        }
+        ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => None,
+    };
+    // The profile's rules are loaded once and kept with no bindings; each request binds its own.
+    let load = || {
+        load_rules(
+            &request.rules,
+            &request.query_modules,
+            &request.rule_applicability,
+            frontend_diagnostic.clone(),
+            None,
+        )
+    };
+    let profile = match kept {
+        None => load()?,
+        Some(kept) => match kept.get() {
+            Some(rules) => rules.clone(),
+            None => {
+                let rules = load()?;
+                kept.get_or_init(|| rules).clone()
+            }
+        },
+    };
+    with_observations(profile, declarations)
+}

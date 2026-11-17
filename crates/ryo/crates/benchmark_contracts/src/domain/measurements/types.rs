@@ -152,22 +152,25 @@ pub enum MeasurementMode {
     Diagnostic,
 }
 
-/// Whether a sample covers the complete rule inventory.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum InventoryStatus {
-    /// Every declared rule was measured.
-    Complete,
-    /// Only a scoped subset was measured.
-    Diagnostic,
+/// One generated shape, `<rule>/<scope>/<operation>`.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct GrowthShape(pub String);
+
+/// Whole-size over floored half-size, of CPU time or of peak memory.
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct DoublingRatio(pub f64);
+
+/// How one shape grew.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ShapeGrowth {
+    /// Whole-size CPU over floored half-size CPU.
+    pub ratio: DoublingRatio,
+    /// Whole-size CPU.
+    pub larger: std::time::Duration,
+    /// Whole-size peak resident memory.
+    pub peak: ResidentBytes,
 }
 
-/// Borrowed output data projected from an application's checked measurement sample.
-#[derive(Clone, Copy, Debug)]
-pub struct PublicationSample<'a> {
-    /// Explicit complete-inventory status; a diagnostic cannot become a metric.
-    pub inventory: InventoryStatus,
-    /// Stable project, contestant and cache-condition identity.
-    pub name: &'a SampleName,
-    /// Original observation; output adapters must not clone or replace its report.
-    pub measurement: &'a Measurement,
-}
+/// Every shape's growth.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ShapeGrowths(pub std::collections::BTreeMap<GrowthShape, ShapeGrowth>);

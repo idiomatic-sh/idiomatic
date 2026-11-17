@@ -17,7 +17,8 @@ use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::types::KeptBucket;
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::coverage::types::{FileObservationReadiness, RuleIndex};
-use ryo_execution_domain::domain::executable_program::service::{rule as rule_nodes, schema};
+use ryo_execution_domain::domain::executable_program::service::refusals::service::layout;
+use ryo_execution_domain::domain::executable_program::service::rule as rule_nodes;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::service::places_mut;
@@ -331,7 +332,7 @@ pub(crate) fn frontier_kinds(
                 .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                 .ok_or(OperatingError::NotRun)?
                 .clone()?;
-            Ok(schema(executable, node)?.into())
+            Ok(layout(executable, node)?.into())
         }
         Input::Relation(relation) => Ok(relation_kinds(*relation).into()),
         Input::BoundObservation(_) => Err(OperatingError::WrongOperation),

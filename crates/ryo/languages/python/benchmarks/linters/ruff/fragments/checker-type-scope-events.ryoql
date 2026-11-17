@@ -13,7 +13,9 @@ let stub_annotation_events = select occurrence as id, name, scope, ordinal, kind
 let parameter_declarations = select id, file from "defines" where refinement = "type-var" or refinement = "type-var-tuple" or refinement = "param-spec";
 let annotation_prior_values = antijoin(left=value_namespace_events, right=parameter_declarations, left-on=["id", "file"], right-on=["id", "file"]);
 let annotation_previous_events = union(left=annotation_prior_values, right=stub_annotation_events);
-let delayed_annotations = select l.id as id, l.file as file from stub_annotation_events as l join annotation_previous_events as r on l.scope = r.scope and l.name = r.name and l.file = r.file where r.ordinal < l.ordinal;
+let annotation_prior_stream = select scope, name, file, ordinal, id from annotation_previous_events;
+let annotation_prior_pairs = ordered-match(left=annotation_prior_stream, right=annotation_prior_stream, left-on=[scope,name,file], right-on=[scope,name,file], left-order="ordinal", right-order="ordinal", output={later:[right,id], later_order:[right,ordinal], file:[right,file]});
+let delayed_annotations = select l.id as id, l.file as file from stub_annotation_events as l join annotation_prior_pairs as r on l.id = r.later and l.ordinal = r.later_order and l.file = r.file;
 let fresh_annotations = antijoin(left=stub_annotation_events, right=delayed_annotations, left-on=["id", "file"], right-on=["id", "file"]);
 let builtin_module_nodes = select id, file from nodes where kind = "module";
 let builtin_annotation_names = select name, file from "implicit-symbol" as catalog where catalog.kind = "builtin" and (catalog."since-major" < 3 or catalog."since-major" = 3 and catalog."since-minor" <= 10);
@@ -56,7 +58,10 @@ let non_comprehension_scopes = select id, file from nodes where kind = "module" 
 let walrus_lexical_owners = axis(from=walrus_events,relation="semantic-child",direction=nearest-ancestor,domain=non_comprehension_scopes);
 let walrus_body_events = select l.id as id, l.name as name, l.scope as scope, l.ordinal as ordinal, l.kind as kind, l.file as file, l.related as related from walrus_lexical_owners as l join event_body_owners as r on l.id = r.id and l.related = r.scope and l.file = r.file;
 let owned_namespace_events = union(left=lexical_body_events,right=walrus_body_events);
-let redirected_namespace_events = select l.id as occurrence, l.name as name, l.related as scope, l.ordinal as ordinal, l.kind as kind, l.file as file from owned_namespace_events as l join redirect_namespaces as r on l.related = r.scope and l.name = r.name and l.file = r.file;
+let redirect_key_rows = select scope, name, file from redirect_namespaces;
+let redirect_key_names_counts = group-count(from=redirect_key_rows, keys=["scope","name","file"], count="count");
+let redirect_key_names = select scope, name, file from redirect_key_names_counts;
+let redirected_namespace_events = select l.id as occurrence, l.name as name, l.related as scope, l.ordinal as ordinal, l.kind as kind, l.file as file from owned_namespace_events as l join redirect_key_names as r on l.related = r.scope and l.name = r.name and l.file = r.file;
 let normal_namespace_rows = antijoin(left=raw_namespace_events,right=redirected_namespace_events,left-on=["id","file"],right-on=["occurrence","file"]);
 let normal_namespace_events = select id as occurrence, name, scope, ordinal, kind, file from normal_namespace_rows;
 let corrected_namespace_events = union(left=normal_namespace_events,right=redirected_namespace_events);

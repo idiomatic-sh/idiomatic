@@ -33,8 +33,13 @@ pub struct LogicalBuild<'p> {
     pub(crate) engine: Vec<Vec<PlanNodeId>>,
     /// The nodes that start from the tree nodes of a kind, by the text the plans write for the kind.
     pub(crate) roots: hashbrown::HashMap<LiteralText, Vec<PlanNodeId>>,
-    /// Each node's output columns, or the schema fault of it or of a node it reads, by node.
-    pub(crate) schemas: Vec<Result<Vec<CellKind>, OperatingError>>,
+    /// The columns each node's rows answer with as a root, by node: its schema, or the empty layout of a refusal deferred to
+    /// its rows.
+    pub(crate) layouts: Vec<Result<Vec<CellKind>, OperatingError>>,
+    /// The inputs each node reads, by node, in the order it reads them.
+    pub(crate) reads: Vec<Vec<ryo_operators::domain::physical_plan::types::PlanInput>>,
+    /// The layout of each node whose refusal is deferred to its rows, by node; none for any other.
+    pub(crate) deferred: Vec<Option<Vec<CellKind>>>,
     /// Where each rule's emitted step and named outputs run, in rule order.
     pub(crate) scopes: Vec<RuleScopes>,
     /// Whether each node's rows answer the phase or one occurrence, by node.

@@ -2,6 +2,7 @@
 //! the file's facts and tree in place; and the plan's root kinds, written as texts, mapped to the open file's own kind numbers,
 //! so each node reading the tree starts from the tree nodes of its kinds, and a node with no root kind from every tree node.
 
+use crate::application::file_dag::file_pass::constants::NODE_COUNTERS_TARGET;
 use crate::application::file_dag::file_pass::types::{
     FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
     RootKindNodes, TreeStart,
@@ -48,7 +49,9 @@ use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::row_texts::types::CellText;
 use std::sync::{Arc, Mutex, PoisonError};
 
+pub(crate) mod answering;
 pub(crate) mod captures;
+pub(crate) mod counters;
 pub(crate) mod inputs;
 pub(crate) mod nodes;
 pub(crate) mod rules;
@@ -186,6 +189,7 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
         bindings,
         operators,
         hosted,
+        ids,
     } = source;
     let rules: Vec<RuleInput<'_>> = plans
         .iter()
@@ -207,6 +211,7 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
         plans: plans.to_vec().into_boxed_slice(),
         reads,
         scratch: Mutex::new(Vec::new()),
+        ids: ids.clone().into_boxed_slice(),
     })
 }
 
@@ -218,9 +223,16 @@ pub(crate) fn taken(pass: &PassProgram) -> PassScratch {
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .pop();
-    given.unwrap_or_else(|| PassScratch {
-        roots: file_roots(&pass.program),
-        ..PassScratch::default()
+    given.unwrap_or_else(|| {
+        let mut made = PassScratch {
+            roots: file_roots(&pass.program),
+            ..PassScratch::default()
+        };
+        // The node counters are on only for a run whose subscriber listens to them, so a run that does not pays nothing.
+        if tracing::enabled!(target: NODE_COUNTERS_TARGET, tracing::Level::INFO) {
+            made.buffers.count_nodes();
+        }
+        made
     })
 }
 

@@ -7,6 +7,9 @@ pub(super) const CONFIG: &str = "-c";
 pub(super) const DISABLE_HOOKS: &str = "core.hooksPath=/dev/null";
 /// Permit explicitly configured local repositories used by contract fixtures.
 pub(super) const LOCAL_TRANSPORT: &str = "protocol.file.allow=always";
+/// Keep every file's bytes as the pinned revision holds them: a corpus is pinned by content, so no clone may convert line
+/// endings to the platform's (Windows git defaults to `core.autocrlf=true`, which makes a checked-out `after\n` read `after\r\n`).
+pub(super) const NO_LINE_ENDING_CONVERSION: &str = "core.autocrlf=false";
 /// Environment variable controlling interactive credential prompts.
 pub(super) const PROMPT: &str = "GIT_TERMINAL_PROMPT";
 /// Disable terminal prompting for unattended repository operations.

@@ -38,6 +38,7 @@ use ryo_execution::inbound::use_cases::compile_rules::interface::{
 };
 use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
@@ -364,7 +365,7 @@ impl LintUseCase for LintUseCaseImpl {
             language: self.language.as_ref(),
             memory: self.memory.as_ref(),
         };
-        answer(
+        let answered = answer(
             &self.visits,
             &self.cross_file,
             ports,
@@ -374,6 +375,10 @@ impl LintUseCase for LintUseCaseImpl {
             &run,
             &visit,
             &mut project,
-        )
+        );
+        // Every file and the project phase ran: ending the run's execution emits its node counters before its trace is
+        // flushed.
+        services.finish();
+        answered
     }
 }

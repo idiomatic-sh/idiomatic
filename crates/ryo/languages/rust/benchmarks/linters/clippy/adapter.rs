@@ -36,7 +36,19 @@ impl LinterPort for LinterClippyAdapter {
         if matches!(request.rule_context, RuleContextPreparation::Prepared(_)) {
             return Err(Error::Invalid(constants::UNSUPPORTED_RULE_CONTEXT.into()));
         }
-        case_manifest(&request.root)?;
+        // A request with a file to check is a crate the check builds; one naming none that is there (the certification
+        // probe, over a sealed profile) builds nothing, and nothing is written for it.
+        let mut holds_a_file = false;
+        for file in &request.files {
+            match std::fs::metadata(request.root.join(file.0.as_ref())) {
+                Ok(_metadata) => holds_a_file = true,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+        if holds_a_file {
+            case_manifest(&request.root)?;
+        }
         touch_sources(request)?;
         let mut arguments: Vec<OsString> = constants::MEASURED_RUN.map(Into::into).into();
         for rule in &self.selected(request) {
@@ -166,17 +178,17 @@ impl LinterClippyAdapter {
         .into_iter()
         .collect()
     }
-    /// The toolchain's environment with one job and one worker: the runs `prepare` builds, measured or compared. Discovery,
-    /// which checks every dependency once, runs at the default job count.
+    /// The toolchain's environment with the bench's four jobs: the runs `prepare` builds, measured or compared, take the jobs
+    /// every timed measure is taken on (`MEASURED_WORKERS`). Discovery, which checks every dependency once, runs at the default
+    /// job count.
     fn environment(&self) -> BTreeMap<OsString, OsString> {
         let mut environment = self.toolchain();
-        environment.extend([
-            (constants::JOBS_VARIABLE.into(), constants::ONE_JOB.into()),
-            (
-                ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
-                constants::ONE_JOB.into(),
-            ),
-        ]);
+        environment.extend([(
+            constants::JOBS_VARIABLE.into(),
+            ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
+                .to_string()
+                .into(),
+        )]);
         environment
     }
 }

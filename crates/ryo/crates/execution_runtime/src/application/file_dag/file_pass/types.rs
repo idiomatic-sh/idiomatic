@@ -1,6 +1,6 @@
 //! The types of the `file_pass` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_operators::domain::physical_plan::types::PlanNodeId;
+use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::types::NodeId;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
@@ -51,6 +51,8 @@ pub(crate) struct PassProgram {
     pub(crate) reads: Box<[Box<[NodeReads]>]>,
     /// What files ran in and gave back, for the next files: one per file running at once.
     pub(crate) scratch: std::sync::Mutex<Vec<PassScratch>>,
+    /// Each rule's id, in rule order: what the node counters name a node's rules by.
+    pub(crate) ids: Box<[ryo_values::domain::runs::types::RuleId]>,
 }
 
 /// What one file's run fills and gives back to the request for the next file: the nodes' rows, the tree nodes each node starts
@@ -65,8 +67,15 @@ pub(crate) struct PassScratch {
     pub(crate) roots: FileRoots,
     /// Each rule's named outputs, in rule order.
     pub(crate) outputs: Vec<Vec<OutputState>>,
-    /// Each rule's named outputs' rows in the open file, by rule and output, for the bound observations of the rules after it.
-    pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
+    /// Each rule's named outputs' rows in the open file, or what refused them, by rule and output, for the bound observations of
+    /// the rules after it.
+    pub(crate) answers: Vec<
+        Vec<
+            Option<
+                Result<NodeAnswer, ryo_execution_domain::domain::operating::errors::OperatingError>,
+            >,
+        >,
+    >,
     /// The relations the open file's sources are asked for: those of the rules that run on it.
     pub(crate) demand: Vec<ryo_relations::domain::relations::types::Relation>,
     /// Whether a rule that runs on the open file can run each node, by node.
@@ -178,8 +187,15 @@ pub(crate) struct PassFile<'f, 'p, 'a, 's> {
     pub(crate) refusals: Vec<ryo_execution_domain::domain::operating::errors::OperatingError>,
     /// Each rule's named outputs in this file, in rule order.
     pub(crate) outputs: Vec<Vec<OutputState>>,
-    /// Each rule's named outputs' rows in this file, by rule and output, for the bound observations of the rules after it.
-    pub(crate) answers: Vec<Vec<Option<NodeAnswer>>>,
+    /// Each rule's named outputs' rows in this file, or what refused them, by rule and output, for the bound observations of the
+    /// rules after it.
+    pub(crate) answers: Vec<
+        Vec<
+            Option<
+                Result<NodeAnswer, ryo_execution_domain::domain::operating::errors::OperatingError>,
+            >,
+        >,
+    >,
 }
 
 /// What a rule's capture is bound to: the rule, the first bucket of each rule and the rule's capture intent.
@@ -229,6 +245,8 @@ pub(crate) struct PassSource {
     pub(crate) operators: std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
     /// The columns of each relation the host declares, by its place.
     pub(crate) hosted: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
+    /// Each rule's id, in rule order.
+    pub(crate) ids: Vec<ryo_values::domain::runs::types::RuleId>,
 }
 
 /// What the pass reads of one file once its facts are open: the file, its intents and source, the partiality its rules see, its
@@ -247,4 +265,17 @@ pub(crate) struct OpenedFile<'a> {
         crate::application::file_dag::program::file_session::types::SemanticSupport<'a>,
     /// The first frontier bucket of each rule, in rule order.
     pub(crate) first: &'a [ryo_values::domain::stored_facts::types::Bucket],
+}
+
+/// One move of answering a node: run a node, read an input of another kind before a refusal (admit a relation's facts, or
+/// hold a frontier entry or a bound observation, a withheld one answering why), or answer a deferred refusal's empty rows with
+/// no column.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum NodeMove {
+    /// Run the node.
+    Run(PlanNodeId),
+    /// Read the input, which is no node.
+    Read(PlanInput),
+    /// Answer no column of the node to its readers: it holds no row and its refusal is deferred to its rows.
+    Empty(PlanNodeId),
 }

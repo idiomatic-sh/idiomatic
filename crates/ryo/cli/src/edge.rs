@@ -11,6 +11,8 @@ pub struct Edge {
     pub here: ryo_language::inbound::use_cases::project::types::RootPath,
     /// The directory beneath a project's root where the store is kept.
     pub store: ryo_core::outbound::lint_store::types::CacheDirectory,
+    /// The directories every walk of the project skips: those the linked languages never read, and the store's.
+    pub skipped: ryo_core::outbound::corpus::types::SkippedDirectories,
     /// The build that runs.
     pub build: ryo_core::outbound::lint_store::types::BuildIdentity,
     /// The format the answer is printed in: `--format`, `--json` or `-q`, taken anywhere on the line.

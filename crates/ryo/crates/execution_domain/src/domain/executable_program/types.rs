@@ -67,7 +67,7 @@ pub struct RuleInput<'a> {
 /// ```
 /// use ryo_execution_domain::domain::executable_program::types::RuleNodes;
 /// use ryo_operators::domain::physical_plan::types::PlanNodeId;
-/// let nodes = RuleNodes { steps: vec![Ok(PlanNodeId(0))], emit: Ok(PlanNodeId(0)) };
+/// let nodes = RuleNodes { steps: vec![Ok(PlanNodeId(0))], emit: Ok(PlanNodeId(0)), refused: None };
 /// assert_eq!(nodes.emit, Ok(PlanNodeId(0)));
 /// ```
 #[derive(Clone, Debug, PartialEq)]
@@ -76,6 +76,9 @@ pub struct RuleNodes {
     pub steps: Vec<Result<PlanNodeId, OperatingError>>,
     /// The node the rule emits, or the schema fault of it or of a step it reads.
     pub emit: Result<PlanNodeId, OperatingError>,
+    /// The schema fault of the first step no root reads, in step order: it has no root to answer it, so it stops the rule's
+    /// run, in each file and after the files, before any row.
+    pub refused: Option<OperatingError>,
 }
 
 /// How many consumers a node has: node readers, the rules that emit it and the holds that keep it.
@@ -116,8 +119,26 @@ pub(crate) struct Draft<'p> {
     pub(crate) rule: RuleIndex,
     /// Where it runs.
     pub(crate) scope: StepScope,
-    /// Its output's columns, or the fault of it or of a node it reads.
+    /// Its output's columns as checked, or the fault of it or of a node it reads.
     pub(crate) schema: Result<Vec<CellKind>, OperatingError>,
+    /// The columns its rows answer with as a root: its schema, or, for a refusal deferred to its rows, the layout its empty
+    /// rows keep (the operator contract's `output_layout`).
+    pub(crate) layout: Result<Vec<CellKind>, OperatingError>,
+    /// When its schema's refusal, if any, is answered.
+    pub(crate) timing: SchemaTiming,
+}
+
+/// When a drafted node's schema refusal is answered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SchemaTiming {
+    /// Its schema is as drafted: its columns, or a refusal answered before any row.
+    Stated,
+    /// Its own refusal is its kernel's, at the first row that reaches it: as a root it answers its layout, and a node reading
+    /// it reads no column of it.
+    DeferredToRows,
+    /// Its refusal is answered once the nodes it reads have run, after any refusal of theirs: a step reading a node refuses
+    /// after its inputs, as the interpreter did, and one reading a refusal deferred to its rows reads no column of it.
+    AfterInputs,
 }
 
 /// What a step's inputs read: the node inputs, their columns, the first schema fault among the nodes they read, and the stage
@@ -129,6 +150,8 @@ pub(crate) struct DraftInputs<'s> {
     pub(crate) shapes: Vec<InputShape<'s>>,
     /// The first schema fault of a node they read.
     pub(crate) fault: Option<OperatingError>,
+    /// `AfterInputs` when a node they read defers its refusal or answers it after its own inputs; `Stated` otherwise.
+    pub(crate) timing: SchemaTiming,
 }
 
 /// Where a step being drafted runs, the rule it is a step of and that rule's plan: what its inputs are read as.
@@ -176,4 +199,32 @@ pub enum ObservationReach {
     Phase,
     /// Its rows answer one occurrence: its bound observations or its coverage.
     Occurrence,
+}
+
+/// Whether one of a plan's roots (its emitted step, a frontier entry or a named output) reads a step, through the steps that
+/// read it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::StepUse;
+/// assert_ne!(StepUse::Read, StepUse::Unread);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StepUse {
+    /// A root reads the step.
+    Read,
+    /// No root reads the step: its fault has no root to answer it.
+    Unread,
+}
+
+/// What drafting a step answers of its columns: its schema as checked, the columns its rows answer with as a root, and when
+/// its refusal, if any, is answered.
+pub(crate) struct DraftedColumns {
+    /// Its output's columns as checked, or its refusal.
+    pub(crate) schema: Result<Vec<CellKind>, OperatingError>,
+    /// The columns its rows answer with as a root.
+    pub(crate) layout: Result<Vec<CellKind>, OperatingError>,
+    /// When its refusal is answered.
+    pub(crate) timing: SchemaTiming,
 }

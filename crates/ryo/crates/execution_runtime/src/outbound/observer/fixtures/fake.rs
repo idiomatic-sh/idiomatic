@@ -5,6 +5,7 @@ use crate::outbound::observer::types::FedTotals;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
+use ryo_values::domain::runs::types::FileHandover;
 use std::sync::Mutex;
 
 /// What the core's tests stand in for `observer` with: every report in the order it came, and their sum.
@@ -12,6 +13,8 @@ use std::sync::Mutex;
 pub struct ObserverFake {
     /// Each report: the rule and the rows each of its steps was fed.
     pub reports: Mutex<Vec<(RuleIndex, Vec<RowsFed>)>>,
+    /// Each handover, in the order it came.
+    pub handed: Mutex<Vec<FileHandover>>,
 }
 
 impl ObserverPort for ObserverFake {
@@ -40,6 +43,22 @@ impl ObserverPort for ObserverFake {
             }
         }
         Ok(totals)
+    }
+    fn handed(&self, handover: FileHandover) -> Result<(), OperatingError> {
+        self.handed
+            .lock()
+            .map_err(|_| OperatingError::NotRun)?
+            .push(handover);
+        Ok(())
+    }
+    fn handovers(&self) -> Result<Vec<FileHandover>, OperatingError> {
+        let mut told = self
+            .handed
+            .lock()
+            .map_err(|_| OperatingError::NotRun)?
+            .clone();
+        told.sort_unstable();
+        Ok(told)
     }
 }
 

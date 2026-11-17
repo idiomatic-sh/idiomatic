@@ -2,10 +2,15 @@
 //! their capacity kept across files.
 
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
-use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, IndexedRow, KeyedRows};
+use crate::domain::kept_room::types::KeptRoom as _;
+use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+#[cfg(test)]
+use crate::domain::physical_plan::types::worker_meters::value::{
+    ChunkMeter, EndWork, IndexBuilds, TableMeter,
+};
 use crate::domain::physical_plan::types::{EngineUses, NodeFed, NodeReaders, NodeRows, PlanNodeId};
-use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
+use crate::domain::table_scratch::types::{LazyScratch, MemoTable, SelectScratch};
 use ryo_relations::domain::relations::types::{NodeId, Value};
 
 /// The buffers of one worker, reused across files.
@@ -53,17 +58,24 @@ pub struct FileBuffers {
     /// The second keyed-row table a kernel reads beside `index`: an axis's domain. The same table, a second instance.
     pub(crate) second: KeyedRows,
     /// The work of the graph walks, its capacity kept across nodes and files.
-    pub(crate) walk: WalkScratch,
+    pub(crate) walk: crate::domain::physical_plan::types::walk_scratch::value::WalkScratch,
     /// The work arrays of a cycle search, kept across files.
     pub(crate) cycles: crate::domain::cycles::types::CycleScratch,
     /// The rows `distinct` kept so far, keyed by all their cells in `hash_index`'s table, its capacity kept across nodes.
     pub(crate) repeats: KeyedRows,
     /// The tree nodes one left row of a tree probe found, its capacity kept across files.
     pub(crate) found: Vec<NodeId>,
-    /// Each probe index the plan shares, by its place, its capacity kept across files.
-    pub(crate) shared: Vec<SharedIndex>,
+    /// The probe indexes the plan shares, those the open file opened, and the node whose release empties each.
+    pub(crate) shared: crate::domain::physical_plan::types::shared_index::value::SharedIndexes,
+    /// The nodes the open file gave rows or a feed: the nodes its end releases.
+    pub(crate) touched: crate::domain::physical_plan::types::touched_nodes::value::TouchedNodes,
     /// The work of the chains of streamed stages, its capacity kept across nodes and files.
     pub(crate) stream: crate::domain::physical_plan::types::stream_scratch::value::StreamScratch,
+    /// The work of a worklist, its capacity kept across nodes and files.
+    pub(crate) worklist: crate::domain::worklist::types::WorklistScratch,
+    /// What each node did over the files, when counting is on; off, nothing is counted or timed.
+    pub(crate) counters:
+        Option<crate::domain::physical_plan::types::node_counters::value::NodeCounters>,
     /// How many times a probe built an index, its own or a shared one: what the sharing cases count.
     #[cfg(test)]
     pub(crate) builds: IndexBuilds,
@@ -73,66 +85,12 @@ pub struct FileBuffers {
     /// The node tables held: how many were formed, and the rows they held at once.
     #[cfg(test)]
     pub(crate) meter: TableMeter,
-}
-
-/// How many probe indexes a worker built.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct IndexBuilds(pub(crate) usize);
-
-/// The node tables a worker held: how many it formed, the rows they hold now, and the most rows they held at once.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct TableMeter {
-    /// How many node tables were held.
-    pub(crate) formed: TablesFormed,
-    /// The rows the held node tables hold now.
-    pub(crate) live_rows: ryo_values::domain::rows::types::RowCount,
-    /// The most rows the held node tables held at once.
-    pub(crate) peak_rows: ryo_values::domain::rows::types::RowCount,
-}
-
-/// How many node tables a worker held.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct TablesFormed(pub(crate) u32);
-
-#[cfg(test)]
-impl TableMeter {
-    /// A node table of `rows` rows is held.
-    pub(crate) fn formed(&mut self, rows: ryo_values::domain::rows::types::RowCount) {
-        self.formed.0 += 1;
-        self.live_rows.0 += rows.0;
-        self.peak_rows.0 = self.peak_rows.0.max(self.live_rows.0);
-    }
-
-    /// A held node table of `rows` rows is dropped.
-    pub(crate) fn dropped(&mut self, rows: ryo_values::domain::rows::types::RowCount) {
-        self.live_rows.0 = self.live_rows.0.saturating_sub(rows.0);
-    }
-}
-
-/// Whether every chunk a worker's chains handed on held less than the bound before the input row that wrote its last rows.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum ChunkMeter {
-    /// Every chunk did.
-    #[default]
-    Within,
-    /// A chunk held the bound's cells or more before it.
-    Over,
-}
-
-/// A probe index the plan shares: built by the first of its probes in a file to read its rows, and emptied after the last,
-/// or when the engine releases its last probe at the file's end, so no file reads another file's index.
-#[derive(Debug)]
-pub(crate) struct SharedIndex {
-    /// The keyed rows; empty until a probe of the open file builds them.
-    pub(crate) rows: KeyedRows,
-    /// How many of its probes have not run in the open file; none before its first.
-    pub(crate) remaining: NodeReaders,
-    /// Its last probe in node order.
-    pub(crate) last: PlanNodeId,
+    /// The work the chains did: what the chunk-linearity and whole-row cases read.
+    #[cfg(test)]
+    pub(crate) chains: crate::domain::physical_plan::types::stream_scratch::value::ChainWork,
+    /// The work the ends of files did: what the release-cost case reads.
+    #[cfg(test)]
+    pub(crate) ending: EndWork,
 }
 
 /// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.
@@ -141,10 +99,39 @@ pub(crate) struct NodeDecisions {
     /// The verdicts and compiled patterns of the node's comparisons.
     pub(crate) select: LazyScratch<SelectScratch>,
     /// What each comparison decided about each name of the open file.
-    pub(crate) memo: Vec<Memo>,
+    pub(crate) memo: MemoTable,
 }
 
 impl FileBuffers {
+    /// Counts what each node does from now on: how many times it is made, the rows it reads and writes and the time it
+    /// takes, over every file these buffers run, until the counts are taken.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.count_nodes();
+    /// assert!(buffers.take_counters().is_some());
+    /// ```
+    pub fn count_nodes(&mut self) {
+        let _counting = self.counters.get_or_insert_default();
+    }
+
+    /// The counts of the nodes made since counting was switched on, which ends it; none when it was off.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// assert!(FileBuffers::default().take_counters().is_none());
+    /// ```
+    pub fn take_counters(
+        &mut self,
+    ) -> Option<crate::domain::physical_plan::types::node_counters::value::NodeCounters> {
+        self.counters.take()
+    }
+
     /// A node's rows, borrowed (cardinality included).
     ///
     /// # Examples
@@ -274,8 +261,38 @@ impl FileBuffers {
         self.done.unread(plan, node);
     }
 
-    /// The node's last consumer is done: its buffer returns to the worker's pool. At the file's end, when the engine releases
-    /// every node, a shared index whose last probe it is is emptied with it.
+    /// A node that holds no row takes `kinds` as its columns; a node with rows, or with none made, is left as it is. This is the
+    /// engine's other change to rows the operators lent it: a step whose schema refusal is deferred to its rows answers no
+    /// column to a step reading it, as the interpreter's reader of a refused step read none, so a reader of two such steps
+    /// meets the same columns on both sides.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.empty_as(PlanNodeId(0), &[]);
+    /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
+    /// ```
+    pub fn empty_as(
+        &mut self,
+        node: PlanNodeId,
+        kinds: &[ryo_relations::domain::relations::types::CellKind],
+    ) {
+        if let Some(Some(table)) = self
+            .nodes
+            .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+            && table.count.0 == 0
+        {
+            table.kinds.clear();
+            table.kinds.extend_from_slice(kinds);
+            table.cells.clear();
+        }
+    }
+
+    /// The node's last consumer is done: its buffer returns to the worker's pool, and a shared index whose last probe it is is
+    /// emptied with it.
     ///
     /// # Examples
     ///
@@ -287,11 +304,11 @@ impl FileBuffers {
     /// assert!(matches!(buffers.rows(PlanNodeId(0)), NodeRows::Absent));
     /// ```
     pub fn release(&mut self, node: PlanNodeId) {
-        for shared in &mut self.shared {
-            if shared.last == node {
-                shared.emptied();
-            }
+        #[cfg(test)]
+        {
+            self.ending.0 += 1;
         }
+        self.shared.released(node);
         if let Ok(at) = usize::try_from(node.0)
             && let Some(held) = self.nodes.get_mut(at)
         {
@@ -315,78 +332,46 @@ impl FileBuffers {
     }
 }
 
-impl SharedIndex {
-    /// The index of no file yet: its last probe is `last`.
-    pub(crate) fn new(last: PlanNodeId) -> Self {
-        Self {
-            rows: KeyedRows::default(),
-            remaining: NodeReaders(0),
-            last,
+impl FileBuffers {
+    /// Ends the open file: each node it touched is released and each shared index it opened emptied, no other, so the work is
+    /// the file's, not the program's; its scratch keeps its room for the next file only within the cap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.ended();
+    /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
+    /// ```
+    pub fn ended(&mut self) {
+        let touched = self.touched.taken();
+        for node in &touched {
+            self.release(*node);
+            if let Some(decisions) = self
+                .decisions
+                .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+            {
+                decisions.memo.kept();
+            }
         }
+        self.touched.given_back(touched);
+        self.done.file_ended();
+        #[cfg(test)]
+        {
+            self.ending.0 += self.shared.opened.len();
+        }
+        self.shared.ended();
+        self.index.kept();
+        self.second.kept();
+        self.repeats.kept();
+        self.stream.kept();
+        self.values.kept();
+        self.hashes.0.kept();
+        self.found.kept();
+        self.walk.kept();
+        self.cycles.kept();
+        self.worklist.kept();
     }
-
-    /// Empties the index for the next file, keeping its capacity.
-    pub(crate) fn emptied(&mut self) {
-        self.rows.cleared();
-        self.remaining = NodeReaders(0);
-    }
 }
-
-/// The work of the graph walks: what one walk met and has left to expand, and, for a seeded closure, what each walked start
-/// reached, so a start is walked once per file however many rows bind it.
-#[derive(Debug, Default)]
-pub(crate) struct WalkScratch {
-    /// The entities the walk from one start has met.
-    pub(crate) visited: hashbrown::HashTable<Value>,
-    /// The edge rows whose destinations it has left to expand.
-    pub(crate) frontier: Vec<ryo_values::domain::rows::types::RowIndex>,
-    /// What each walked start reached, ascending, run after run.
-    pub(crate) reached: Vec<Value>,
-    /// Each walked start's run of `reached`, by the hash of its partition and source.
-    pub(crate) runs: hashbrown::HashTable<ReachedRun>,
-    /// One edge row of each start, in the order the walks start from them.
-    pub(crate) starts: Vec<IndexedRow>,
-    /// The key columns a walk reads: of the rows it starts from, of the edges it keys, and of an edge's far end.
-    pub(crate) columns: WalkColumns,
-    /// The rows a seeded closure reached, each as the join's logical right row, for the join's probe; an axis's verdict
-    /// on one domain element.
-    pub(crate) rows: ryo_values::domain::rows::types::Table,
-    /// The entities of a breadth-first walk's level, or the cells of an axis's domain element.
-    pub(crate) entities: Vec<Value>,
-    /// The entities of the next level of a breadth-first walk.
-    pub(crate) next: Vec<Value>,
-    /// The row an axis's domain filter writes.
-    pub(crate) written: Vec<Value>,
-}
-
-/// The key columns a walk reads, kept with their capacity between nodes.
-#[derive(Debug, Default)]
-pub(crate) struct WalkColumns {
-    /// The columns of a start row that bind a start: a left row's for a seeded closure.
-    pub(crate) seed: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
-    /// The columns an edge is keyed by: its partition, then its near end.
-    pub(crate) near: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
-    /// The columns of an edge's partition and its far end, which key the edges walked next.
-    pub(crate) far: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
-}
-
-/// One walked start's place in `WalkScratch::reached`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ReachedRun {
-    /// The hash of the start's partition and source.
-    pub(crate) hash: IndexKeyHash,
-    /// The left row that bound it first, whose cells hold its partition and source.
-    pub(crate) first: IndexedRow,
-    /// Where its run starts in `reached`.
-    pub(crate) start: ReachedPlace,
-    /// How many entities it reached.
-    pub(crate) count: ReachedCount,
-}
-
-/// A place in `WalkScratch::reached`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ReachedPlace(pub(crate) u32);
-
-/// How many entities one walked start reached.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ReachedCount(pub(crate) u32);

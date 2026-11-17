@@ -1,10 +1,11 @@
-//! The programs the streaming cases run at seam C, each as planned and as its held twin (the same plan with every node held,
-//! so none streams), and their answers with every name as its text, their feeds and a warm worker's second file.
-use super::cases::compared;
+//! The runs of the streaming cases' programs at seam C, each as planned and as its held twin (the same plan with every node
+//! held, so none streams), and their answers with every name as its text, their feeds and a warm worker's second file.
+#![cfg(test)]
 use super::demands::Demand;
+use super::stream_programs::join;
 use super::{TableInputs, TextResources, planned, ran};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::fixtures::{Step, defines_rows, over_defines, over_nodes};
+use crate::domain::physical_plan::fixtures::{Step, defines_rows};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
@@ -13,13 +14,15 @@ use crate::domain::physical_plan::types::{
 };
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::types::{Offset, Relation, Span, Value as Cell};
+use ryo_relations::domain::relations::fixtures::{kinds, node_id};
+use ryo_relations::domain::relations::types::{
+    FileId, Integer, NodeId, Offset, Position, Relation, Span, Value as Cell,
+};
 use ryo_values::domain::plan_parts::types::{
-    CapturePattern, ColumnIndex, Input as StepInput, JoinColumn, LiteralText, Operand,
-    PlanComparison, QueryLiteral, Side, StepId, StepScope, Test,
+    ColumnIndex, Input as StepInput, JoinColumn, Side, StepId, StepScope,
 };
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// A program over Defines rows: its steps, the one it emits, and the rows and texts of the file.
 pub(crate) struct Program {
@@ -48,6 +51,10 @@ pub(crate) struct Ran {
     pub(crate) outcome: Result<Vec<Vec<String>>, Outcome>,
     /// How many node tables the run formed.
     pub(crate) formed: u32,
+    /// How many times the first file's chains called a stage.
+    pub(crate) stage_calls: usize,
+    /// The rows the emit holds after the first file: its rows before its fault, when it faulted.
+    pub(crate) held: usize,
     /// The worker's buffers after the run.
     pub(crate) buffers: FileBuffers,
 }
@@ -117,13 +124,24 @@ pub(crate) fn ran_steps(
     texts: &[&str],
     tables: &dyn Fn(&TextResources) -> Vec<(Relation, Table)>,
 ) -> Result<Ran, PortableOperatorFault> {
-    let mut resources = TextResources::new(texts);
+    ran_in(run, twin, TextResources::new(texts), tables, Vec::new())
+}
+
+/// Runs `run.steps` as `ran_steps` does, over the file of `resources` (its texts and its tree) and the relations `tables`
+/// makes from it, the engine naming `roots` as every node's tree nodes.
+pub(crate) fn ran_in(
+    run: &Steps<'_>,
+    twin: bool,
+    mut resources: TextResources,
+    tables: &dyn Fn(&TextResources) -> Vec<(Relation, Table)>,
+    roots: Vec<NodeId>,
+) -> Result<Ran, PortableOperatorFault> {
     let held = tables(&resources);
     let lent: Vec<(Relation, &Table)> = held
         .iter()
         .map(|(relation, table)| (*relation, table))
         .collect();
-    let inputs = TableInputs::new(&lent);
+    let inputs = TableInputs::new(&lent).with_roots(roots);
     let mut logical = LogicalProgram::new();
     for step in run.steps {
         let _id = logical.node(LogicalNode {
@@ -179,6 +197,11 @@ pub(crate) fn ran_steps(
         None => answer.clone().map_err(Outcome::Fault),
     };
     let formed = buffers.meter.formed.0;
+    let stage_calls = buffers.chains.calls.0;
+    let held = match buffers.rows(run.emit) {
+        NodeRows::Materialized(table) => table.count.0,
+        NodeRows::Absent => 0,
+    };
     // The file ends: the engine releases every node, and the warm worker runs the next file of the same rows.
     for node in (0..u32::try_from(run.steps.len()).unwrap_or(u32::MAX)).map(PlanNodeId) {
         buffers.release(node);
@@ -191,6 +214,8 @@ pub(crate) fn ran_steps(
         answer,
         fed,
         formed,
+        stage_calls,
+        held,
         buffers,
     })
 }
@@ -219,115 +244,86 @@ pub(crate) fn agrees(planned: &Ran, twin: &Ran) -> bool {
         })
 }
 
-/// A capture of each name into the two slots of `{a}{b}`.
-pub(crate) fn split_names() -> Step {
-    over_defines(Operation::Capture {
-        from: StepInput::Relation(Relation::Defines),
-        path: ColumnIndex(3),
-        pattern: CapturePattern("{a}{b}".into()),
-    })
-}
+/// The lines of the wide tree the tree cases read: 1,700 lines of a node and two tokens, 5,101 nodes with the root.
+pub(crate) const TREE_LINES: u32 = 1_700;
 
-/// A select of every column of node `from`, kept where `comparisons` hold.
-pub(crate) fn select_of(from: u32, comparisons: Vec<PlanComparison>) -> Step {
-    over_nodes(
-        Operation::Select {
-            from: StepInput::Step(StepId(from)),
-            comparisons,
-            kept: Vec::new(),
+/// Runs `steps`, emitting `emit`, over the wide tree of `TREE_LINES` lines and the relations `tables` makes from it (given the
+/// tree's nodes), the engine naming every node of the tree as each node's tree nodes; with `twin`, as its held twin.
+pub(crate) fn ran_over_tree(
+    steps: &[Step],
+    emit: PlanNodeId,
+    twin: bool,
+    tables: &dyn Fn(&TextResources, &[NodeId]) -> Vec<(Relation, Table)>,
+) -> Result<Ran, PortableOperatorFault> {
+    let nodes: Vec<NodeId> = (0..1 + TREE_LINES * 3)
+        .map(|at| node_id(FileId(0), Position(at)))
+        .collect();
+    ran_in(
+        &Steps {
+            steps,
+            emit,
+            first: &[],
         },
-        &[from],
+        twin,
+        TextResources::wide_tree(TREE_LINES),
+        &|resources| tables(resources, &nodes),
+        nodes.clone(),
     )
 }
 
-/// Whether column `column` compares by `test` with the written text `text`.
-pub(crate) fn against(test: Test, column: u32, text: &str) -> PlanComparison {
-    compared(
-        test,
-        Operand::Column(ColumnIndex(column)),
-        Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+/// Runs `steps`, emitting `emit`, over one Defines row and, in place of `short`'s rows, a view of `short` that lends one
+/// column fewer than its kinds: malformed facts, which the executor refuses where it reads them.
+pub(crate) fn ran_over_short_view(
+    steps: &[Step],
+    emit: PlanNodeId,
+    short: Relation,
+) -> Result<Ran, PortableOperatorFault> {
+    let tables = |resources: &TextResources| {
+        let full = defines_rows(&[(
+            resources.symbol("a"),
+            Span {
+                start: Offset(0),
+                end: Offset(1),
+            },
+        )]);
+        let width = kinds(short).len().saturating_sub(1);
+        let short_view = Table {
+            kinds: kinds(short).iter().copied().take(width).collect(),
+            cells: (0..width).map(|_| Cell::Number(Integer(0))).collect(),
+            count: RowCount(1),
+        };
+        if short == Relation::Defines {
+            Vec::from([(short, short_view)])
+        } else {
+            Vec::from([(Relation::Defines, full), (short, short_view)])
+        }
+    };
+    ran_steps(
+        &Steps {
+            steps,
+            emit,
+            first: &[],
+        },
+        false,
+        &["a"],
+        &tables,
     )
 }
 
-/// The span `start..end`.
-pub(crate) fn span(start: u32, end: u32) -> Span {
-    Span {
-        start: Offset(start),
-        end: Offset(end),
+/// An inner join of node 0's rows with `right` on their node (column 0), answering the left's node.
+pub(crate) fn node_probe(right: Relation) -> Step {
+    let right = (StepInput::Relation(right), PlanInput::Relation(right));
+    let left = (StepInput::Step(StepId(0)), PlanInput::Node(PlanNodeId(0)));
+    let output = vec![JoinColumn {
+        side: Side::Left,
+        column: ColumnIndex(0),
+    }];
+    let mut probe = join(left, right, output, Vec::new());
+    if let Operation::Join {
+        left_on, right_on, ..
+    } = &mut probe.operation
+    {
+        (*left_on, *right_on) = (vec![ColumnIndex(0)], vec![ColumnIndex(0)]);
     }
-}
-
-/// Rows of the span-between stage over a filter, `rows` of them, the stage failing on row `map_fault` (its span runs
-/// backwards) and the filter on row `filter_fault` (its name is no pattern).
-pub(crate) fn faulting(rows: usize, map_fault: usize, filter_fault: usize) -> Program {
-    Program {
-        steps: vec![
-            over_defines(Operation::SpanBetween {
-                from: StepInput::Relation(Relation::Defines),
-                start: ColumnIndex(6),
-                end: ColumnIndex(6),
-            }),
-            select_of(0, vec![super::cases::self_matching(3)]),
-        ],
-        emit: PlanNodeId(1),
-        rows: (0..rows)
-            .map(|at| {
-                (
-                    if at == filter_fault { "[" } else { "a" }.to_owned(),
-                    if at == map_fault {
-                        span(2, 1)
-                    } else {
-                        span(0, 1)
-                    },
-                )
-            })
-            .collect(),
-        texts: vec!["a".into(), "[".into()],
-    }
-}
-
-/// An inner join of `left` with `right` on their names, answering `output`, its right rows kept where `filter` holds.
-pub(crate) fn join(
-    left: (StepInput, PlanInput),
-    right: (StepInput, PlanInput),
-    output: Vec<JoinColumn>,
-    filter: Vec<PlanComparison>,
-) -> Step {
-    Step {
-        operation: Operation::Join {
-            left: left.0,
-            right: right.0,
-            left_on: vec![ColumnIndex(3)],
-            right_on: vec![ColumnIndex(3)],
-            output,
-            filter,
-            view: Vec::new(),
-            reach: None,
-        },
-        inputs: vec![left.1, right.1],
-    }
-}
-
-/// Every column of a join's left side, a row of Defines.
-pub(crate) fn left_columns() -> Vec<JoinColumn> {
-    (0..7)
-        .map(|column| JoinColumn {
-            side: Side::Left,
-            column: ColumnIndex(column),
-        })
-        .collect()
-}
-
-/// The left's node and the right's node.
-pub(crate) fn both_nodes() -> Vec<JoinColumn> {
-    vec![
-        JoinColumn {
-            side: Side::Left,
-            column: ColumnIndex(0),
-        },
-        JoinColumn {
-            side: Side::Right,
-            column: ColumnIndex(0),
-        },
-    ]
+    probe
 }

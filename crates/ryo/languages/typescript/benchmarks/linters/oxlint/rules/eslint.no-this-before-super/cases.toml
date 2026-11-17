@@ -1,0 +1,910 @@
+[[cases]]
+name = "oxlint-pass-01"
+files = { "case.ts" = "class A { }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-02"
+files = { "case.ts" = "class A { constructor() { } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-03"
+files = { "case.ts" = "class A { constructor() { this.b = 0; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-04"
+files = { "case.ts" = "class A { constructor() { this.b(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-05"
+files = { "case.ts" = "class A extends null { }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-06"
+files = { "case.ts" = "class A extends null { constructor() { } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-07"
+files = { "case.ts" = "class A extends B { }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-08"
+files = { "case.ts" = "class A extends B { constructor() { super(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-09"
+files = { "case.ts" = "\n        function f() {\n            try {\n                return a();\n            }\n            catch (err) {\n                throw new class CustomError extends Error {\n                    constructor() {\n                        super(err);\n                    }\n                };\n            }\n            finally {\n                this.b();\n            }\n        }\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-10"
+files = { "case.ts" = "class A extends B { constructor() { super(); this.c = this.d; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-11"
+files = { "case.ts" = "class A extends B { constructor() { super(); this.c(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-12"
+files = { "case.ts" = "class A extends B { constructor() { super(); super.c(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-13"
+files = { "case.ts" = "class A extends B { constructor() { if (true) { super(); } else { super(); } this.c(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-14"
+files = { "case.ts" = "class A extends B { constructor() { foo = super(); this.c(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-15"
+files = { "case.ts" = "class A extends B { constructor() { foo += super().a; this.c(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-16"
+files = { "case.ts" = "class A extends B { constructor() { foo |= super().a; this.c(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-17"
+files = { "case.ts" = "class A extends B { constructor() { foo &= super().a; this.c(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-18"
+files = { "case.ts" = "class A extends B { constructor() { class B extends C { constructor() { super(); this.d = 0; } } super(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-19"
+files = { "case.ts" = "class A extends B { constructor() { var B = class extends C { constructor() { super(); this.d = 0; } }; super(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-20"
+files = { "case.ts" = "class A extends B { constructor() { function c() { this.d(); } super(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-21"
+files = { "case.ts" = "class A extends B { constructor() { var c = function c() { this.d(); }; super(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-22"
+files = { "case.ts" = "class A extends B { constructor() { var c = () => this.d(); super(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-23"
+files = { "case.ts" = "class A { b() { this.c = 0; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-24"
+files = { "case.ts" = "class A extends B { c() { this.d = 0; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-25"
+files = { "case.ts" = "function a() { this.b = 0; }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-26"
+files = { "case.ts" = "class A extends B { constructor() { if (a) { super(); this.a(); } else { super(); this.b(); } } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-27"
+files = { "case.ts" = "class A extends B { constructor() { if (a) super(); else super(); this.a(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-28"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); } finally {} this.a(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-29"
+files = { "case.ts" = "class A extends B { constructor(a) { super(); for (const b of a) { this.a(); } } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-30"
+files = { "case.ts" = "class A extends B { constructor(a) { for (const b of a) { foo(b); } super(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-31"
+files = { "case.ts" = "class A extends B { constructor(a) { super(); this.a = a && function(){} && this.foo; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-32"
+files = { "case.ts" = "class A extends Object {\n                constructor() {\n                    super();\n                    for (let i = 0; i < 0; i++);\n                    this;\n                }\n            }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-33"
+files = { "case.ts" = "class A { constructor() { return; this; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-34"
+files = { "case.ts" = "class A extends B { constructor() { return; this; } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-35"
+files = { "case.ts" = "\n            class A extends B {\n                constructor(props) {\n                    super(props);\n\n                    try {\n                        let arr = [];\n                        for (let a of arr) {\n                        }\n                    } catch (err) {\n                    }\n                }\n            }\n        " }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-36"
+files = { "case.ts" = "class C { field = this.toString(); }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-37"
+files = { "case.ts" = "class C extends B { field = this.foo(); }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-38"
+files = { "case.ts" = "class C extends B { field = this.foo(); constructor() { super(); } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-pass-39"
+files = { "case.ts" = "class C extends B { field = this.foo(); constructor() { } }" }
+expected = []
+
+[[cases]]
+name = "oxlint-fail-01"
+files = { "case.ts" = "class A extends B { constructor() { this.c = 0; } }" }
+expected = [{ file = "case.ts", start = 20, end = 49 }]
+
+[[cases]]
+name = "oxlint-fail-02"
+files = { "case.ts" = "class A extends B { constructor() { this.c(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 47 }]
+
+[[cases]]
+name = "oxlint-fail-03"
+files = { "case.ts" = "class A extends B { constructor() { super.c(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 48 }]
+
+[[cases]]
+name = "oxlint-fail-04"
+files = { "case.ts" = "class A extends B { constructor() { this.c = 0; super(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 58 }]
+
+[[cases]]
+name = "oxlint-fail-05"
+files = { "case.ts" = "class A extends B { constructor() { this.c(); super(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 56 }]
+
+[[cases]]
+name = "oxlint-fail-06"
+files = { "case.ts" = "class A extends B { constructor() { super.c(); super(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 57 }]
+
+[[cases]]
+name = "oxlint-fail-07"
+files = { "case.ts" = "class A extends B { constructor() { super(this); } }" }
+expected = [{ file = "case.ts", start = 20, end = 50 }]
+
+[[cases]]
+name = "oxlint-fail-08"
+files = { "case.ts" = "class A extends B { constructor() { super(this.c); } }" }
+expected = [{ file = "case.ts", start = 20, end = 52 }]
+
+[[cases]]
+name = "oxlint-fail-09"
+files = { "case.ts" = "class A extends B { constructor() { super(a(b(this.c))); } }" }
+expected = [{ file = "case.ts", start = 20, end = 58 }]
+
+[[cases]]
+name = "oxlint-fail-10"
+files = { "case.ts" = "class A extends B { constructor() { super(this.c()); } }" }
+expected = [{ file = "case.ts", start = 20, end = 54 }]
+
+[[cases]]
+name = "oxlint-fail-11"
+files = { "case.ts" = "class A extends B { constructor() { super(super.c); } }" }
+expected = [{ file = "case.ts", start = 20, end = 53 }]
+
+[[cases]]
+name = "oxlint-fail-12"
+files = { "case.ts" = "class A extends B { constructor() { super(super.c()); } }" }
+expected = [{ file = "case.ts", start = 20, end = 55 }]
+
+[[cases]]
+name = "oxlint-fail-13"
+files = { "case.ts" = "class A extends B { constructor() { class C extends D { constructor() { super(); this.e(); } } this.f(); super(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 115 }]
+
+[[cases]]
+name = "oxlint-fail-14"
+files = { "case.ts" = "class A extends B { constructor() { class C extends D { constructor() { this.e(); super(); } } super(); this.f(); } }" }
+expected = [{ file = "case.ts", start = 56, end = 92 }]
+
+[[cases]]
+name = "oxlint-fail-15"
+files = { "case.ts" = "class A extends B { constructor() { if (a) super(); this.a(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 63 }]
+
+[[cases]]
+name = "oxlint-fail-16"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); } finally { this.a; } } }" }
+expected = [{ file = "case.ts", start = 20, end = 74 }]
+
+[[cases]]
+name = "oxlint-fail-17"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); } catch (err) { } this.a; } }" }
+expected = [{ file = "case.ts", start = 20, end = 78 }]
+
+[[cases]]
+name = "oxlint-fail-18"
+files = { "case.ts" = "class A extends B { constructor() { foo &&= super().a; this.c(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 66 }]
+
+[[cases]]
+name = "oxlint-fail-19"
+files = { "case.ts" = "class A extends B { constructor() { foo ||= super().a; this.c(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 66 }]
+
+[[cases]]
+name = "oxlint-fail-20"
+files = { "case.ts" = "class A extends B { constructor() { foo ??= super().a; this.c(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 66 }]
+
+[[cases]]
+name = "oxlint-fail-21"
+files = { "case.ts" = "class A extends B { constructor() { if (foo) { if (bar) { } super(); } this.a(); }}" }
+expected = [{ file = "case.ts", start = 20, end = 82 }]
+
+[[cases]]
+name = "oxlint-fail-22"
+files = { "case.ts" = "class A extends B {\n            constructor() {\n                if (foo) {\n                } else {\n                    super();\n                }\n                this.a();\n            }\n        }" }
+expected = [{ file = "case.ts", start = 32, end = 186 }]
+
+[[cases]]
+name = "oxlint-fail-23"
+files = { "case.ts" = "class A extends B {\n            constructor() {\n                try {\n                    call();\n                } finally {\n                    this.a();\n                }\n            }\n        }" }
+expected = [{ file = "case.ts", start = 32, end = 187 }]
+
+[[cases]]
+name = "oxlint-fail-24"
+files = { "case.ts" = "class A extends B {\n            constructor() {\n                while (foo) {\n                    super();\n                }\n                this.a();\n            }\n        }" }
+expected = [{ file = "case.ts", start = 32, end = 164 }]
+
+[[cases]]
+name = "oxlint-fail-25"
+files = { "case.ts" = "class A extends B {\n            constructor() {\n                while (foo) {\n                    this.a();\n                    super();\n                }\n            }\n        }" }
+expected = [{ file = "case.ts", start = 32, end = 168 }]
+
+[[cases]]
+name = "oxlint-fail-26"
+files = { "case.ts" = "class A extends B {\n            constructor() {\n                while (foo) {\n                    if (init) {\n                        this.a();\n                        super();\n                    }\n                }\n            }\n        }" }
+expected = [{ file = "case.ts", start = 32, end = 230 }]
+
+[[cases]]
+name = "same-block-this-first"
+files = { "case.ts" = "class A extends B { constructor() { this.a; super(); } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 54 }]
+
+[[cases]]
+name = "same-block-super-first"
+files = { "case.ts" = "class A extends B { constructor() { super(); this.a; } }\n" }
+expected = []
+
+[[cases]]
+name = "super-property-after-super"
+files = { "case.ts" = "class A extends B { constructor() { super(); super.a(); } }\n" }
+expected = []
+
+[[cases]]
+name = "catch-in-finally"
+files = { "case.ts" = "class A extends B { constructor() { try { a(); } finally { try { super(); } catch {} } this.a; } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 96 }]
+
+[[cases]]
+name = "computed-member-argument"
+files = { "case.ts" = "class A extends B { constructor() { super(this[x]); } }\n" }
+expected = []
+
+[[cases]]
+name = "class-expression"
+files = { "case.ts" = "const C = class extends B { constructor() { this.a; super(); } };\n" }
+expected = [{ file = "case.ts", start = 28, end = 62 }]
+
+[[cases]]
+name = "private-field-argument"
+files = { "case.ts" = "class A extends B { #x; constructor() { super(this.#x); } }\n" }
+expected = []
+
+[[cases]]
+name = "private-method-argument"
+files = { "case.ts" = "class A extends B { #x() {} constructor() { super(this.#x()); } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-private-field-argument"
+files = { "case.ts" = "class A extends B { #x; constructor() { super(f(this.#x)); } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-private-method-argument"
+files = { "case.ts" = "class A extends B { #x() {} constructor() { super(f(this.#x())); } }\n" }
+expected = []
+
+[[cases]]
+name = "nested-static-method-argument"
+files = { "case.ts" = "class A extends B { constructor() { super(f(this.x())); } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 57 }]
+
+[[cases]]
+name = "invalid-superclass"
+files = { "case.ts" = "class A extends 5 { constructor() { this.a = 1; } }\n" }
+expected = [{ file = "case.ts", start = 20, end = 49 }]
+
+[[cases]]
+name = "directive"
+files = { "case.ts" = "class A extends B {\n  // eslint-disable-next-line no-this-before-super\n  constructor() { this.a; super(); }\n}\n" }
+expected = []
+
+[[cases]]
+name = "lr-cs-loop-while"
+files = { "case.ts" = "class A extends B { constructor() { while (x) { super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-loop-for-break"
+files = { "case.ts" = "class A extends B { constructor() { for (;;) { super(); break; } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-loop-dowhile"
+files = { "case.ts" = "class A extends B { constructor() { do { super(); } while (x); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-loop-dowhile-break"
+files = { "case.ts" = "class A extends B { constructor() { do { super(); break; } while (x); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-tryfinally"
+files = { "case.ts" = "class A extends B { constructor() { try { a(); } finally { super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-tryfinally2"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); } finally { super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-trycatch-finally"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); } catch (e) { } finally { } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-trycatch-rethrow"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); } catch (e) { throw e; } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-try-return-finally"
+files = { "case.ts" = "class A extends B { constructor() { try { return; } finally { super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-label-break"
+files = { "case.ts" = "class A extends B { constructor() { a: { if (x) break a; super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-label-break2"
+files = { "case.ts" = "class A extends B { constructor() { a: { super(); if (x) break a; } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-label-loop"
+files = { "case.ts" = "class A extends B { constructor() { outer: for (;;) { for (;;) { super(); break outer; } } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-label-continue"
+files = { "case.ts" = "class A extends B { constructor() { outer: while (x) { while (y) { continue outer; } } super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-switch-fall"
+files = { "case.ts" = "class A extends B { constructor() { switch (x) { case 1: super(); case 2: super(); break; default: super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-switch-nodefault"
+files = { "case.ts" = "class A extends B { constructor() { switch (x) { case 1: super(); break; case 2: super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-switch-all"
+files = { "case.ts" = "class A extends B { constructor() { switch (x) { case 1: super(); break; default: super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-switch-fall2"
+files = { "case.ts" = "class A extends B { constructor() { switch (x) { case 1: case 2: super(); break; default: super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-nested-class"
+files = { "case.ts" = "class A extends B { constructor() { class C extends D { constructor() { } } super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-nested-class2"
+files = { "case.ts" = "class A extends B { constructor() { class C extends D { constructor() { super(); super(); } } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-arrow"
+files = { "case.ts" = "class A extends B { constructor() { const f = () => super(); f(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-arrow2"
+files = { "case.ts" = "class A extends B { constructor() { super(); const f = () => super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-return-early"
+files = { "case.ts" = "class A extends B { constructor() { if (x) return; super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-throw-early"
+files = { "case.ts" = "class A extends B { constructor() { if (x) throw 1; super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-while-true"
+files = { "case.ts" = "class A extends B { constructor() { while (true) { if (x) { super(); break; } } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-loop-cond-super"
+files = { "case.ts" = "class A extends B { constructor() { for (let i = 0; i < 2; i++) { if (i) super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-nested-loops"
+files = { "case.ts" = "class A extends B { constructor() { while (a) { while (b) { super(); } } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-try-catch-super"
+files = { "case.ts" = "class A extends B { constructor() { try { f(); } catch (e) { super(); } super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-two-ctors"
+files = { "case.ts" = "class A extends B { constructor() { super(); } } class C extends D { constructor() { if (x) super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-logical"
+files = { "case.ts" = "class A extends B { constructor() { x && super(); super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-ternary"
+files = { "case.ts" = "class A extends B { constructor() { x ? super() : super(); super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-switch-return"
+files = { "case.ts" = "class A extends B { constructor() { switch (x) { case 1: return; default: super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-labeled-block-loop"
+files = { "case.ts" = "class A extends B { constructor() { l: while (x) { if (y) { super(); break l; } } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-for-of"
+files = { "case.ts" = "class A extends B { constructor() { for (const a of b) { super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-for-in-return"
+files = { "case.ts" = "class A extends B { constructor() { for (const a in b) { super(); return; } super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-finally-return"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); } finally { return; } } }" }
+expected = []
+
+[[cases]]
+name = "lr-cs-nested-try"
+files = { "case.ts" = "class A extends B { constructor() { try { try { super(); } finally { f(); } } catch (e) { super(); } } }" }
+expected = []
+
+[[cases]]
+name = "lr-tb-arrow-this"
+files = { "case.ts" = "class A extends B { constructor() { const f = () => this.x; super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-tb-arrow-super"
+files = { "case.ts" = "class A extends B { constructor() { const f = () => super.x; super(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-tb-loop"
+files = { "case.ts" = "class A extends B { constructor() { while (x) { this.a = 1; super(); } } }" }
+expected = [{ file = "case.ts", start = 20, end = 72 }]
+
+[[cases]]
+name = "lr-tb-loop2"
+files = { "case.ts" = "class A extends B { constructor() { for (;;) { super(); this.a = 1; break; } } }" }
+expected = []
+
+[[cases]]
+name = "lr-tb-if"
+files = { "case.ts" = "class A extends B { constructor() { if (x) super(); this.a = 1; } }" }
+expected = [{ file = "case.ts", start = 20, end = 65 }]
+
+[[cases]]
+name = "lr-tb-try"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); } catch (e) { this.a = 1; } } }" }
+expected = [{ file = "case.ts", start = 20, end = 80 }]
+
+[[cases]]
+name = "lr-tb-finally"
+files = { "case.ts" = "class A extends B { constructor() { try { super(); } finally { this.a = 1; } } }" }
+expected = [{ file = "case.ts", start = 20, end = 78 }]
+
+[[cases]]
+name = "lr-tb-switch"
+files = { "case.ts" = "class A extends B { constructor() { switch (x) { case 1: super(); case 2: this.a = 1; } } }" }
+expected = [{ file = "case.ts", start = 20, end = 89 }]
+
+[[cases]]
+name = "lr-tb-label"
+files = { "case.ts" = "class A extends B { constructor() { a: { if (x) break a; super(); } this.y = 1; } }" }
+expected = [{ file = "case.ts", start = 20, end = 81 }]
+
+[[cases]]
+name = "lr-tb-nested-class"
+files = { "case.ts" = "class A extends B { constructor() { class C extends D { constructor() { this.a = 1; super(); } } super(); } }" }
+expected = [{ file = "case.ts", start = 56, end = 94 }]
+
+[[cases]]
+name = "lr-tb-super-arg"
+files = { "case.ts" = "class A extends B { constructor() { super(this.x); } }" }
+expected = [{ file = "case.ts", start = 20, end = 52 }]
+
+[[cases]]
+name = "lr-tb-super-member-call"
+files = { "case.ts" = "class A extends B { constructor() { super.foo(); super(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 59 }]
+
+[[cases]]
+name = "lr-tb-return-then"
+files = { "case.ts" = "class A extends B { constructor() { if (x) { return; } this.a = 1; super(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 77 }]
+
+[[cases]]
+name = "lr-tb-throw-then"
+files = { "case.ts" = "class A extends B { constructor() { if (!x) throw 1; this.a; super(); } }" }
+expected = [{ file = "case.ts", start = 20, end = 71 }]
+
+[[cases]]
+name = "lr-tb-ternary"
+files = { "case.ts" = "class A extends B { constructor() { x ? super() : super(); this.a = 1; } }" }
+expected = []
+
+[[cases]]
+name = "lr-tb-logical"
+files = { "case.ts" = "class A extends B { constructor() { x || super(); this.a = 1; } }" }
+expected = [{ file = "case.ts", start = 20, end = 63 }]
+
+[[cases]]
+name = "lr-tb-dowhile"
+files = { "case.ts" = "class A extends B { constructor() { do { super(); } while (this.x); } }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-if-both-return"
+files = { "case.ts" = "function f() { if (x) { return 1; } else { return 2; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-if-throw-return"
+files = { "case.ts" = "function f() { if (x) { throw 1; } else { return 2; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-switch-all-return"
+files = { "case.ts" = "function f() { switch (x) { case 1: return 1; default: return 2; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-switch-no-default"
+files = { "case.ts" = "function f() { switch (x) { case 1: return 1; case 2: return 2; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-try-return-finally"
+files = { "case.ts" = "function f() { try { return 1; } finally { g(); } h(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-try-catch-return"
+files = { "case.ts" = "function f() { try { return 1; } catch (e) { return 2; } h(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-try-catch-finally-return"
+files = { "case.ts" = "function f() { try { a(); } catch (e) { } finally { return; } h(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-loop-true"
+files = { "case.ts" = "function f() { while (true) { } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-loop-true-break"
+files = { "case.ts" = "function f() { while (true) { if (x) break; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-for-empty"
+files = { "case.ts" = "function f() { for (;;) { } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-dowhile-true"
+files = { "case.ts" = "function f() { do { } while (true); g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-label-break"
+files = { "case.ts" = "function f() { a: { break a; g(); } h(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-label-loop-break"
+files = { "case.ts" = "function f() { a: while (true) { while (true) { break a; } g(); } h(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-label-continue"
+files = { "case.ts" = "function f() { a: for (;;) { for (;;) { continue a; } g(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-after-throw-block"
+files = { "case.ts" = "function f() { { throw 1; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-nested-fn-after-return"
+files = { "case.ts" = "function f() { return; function g() {} }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-var-after-return"
+files = { "case.ts" = "function f() { return; var x; }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-let-after-return"
+files = { "case.ts" = "function f() { return; let x; }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-class-after-return"
+files = { "case.ts" = "function f() { return; class C {} }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-arrow-return"
+files = { "case.ts" = "const f = () => { return 1; g(); };" }
+expected = []
+
+[[cases]]
+name = "lr-nu-ternary-throw"
+files = { "case.ts" = "function f() { x ? (() => { throw 1 })() : 0; g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-switch-fallthrough"
+files = { "case.ts" = "function f() { switch (x) { case 1: return; case 2: g(); } h(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-switch-break-then"
+files = { "case.ts" = "function f() { switch (x) { case 1: break; g(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-if-else-throw-in-loop"
+files = { "case.ts" = "function f() { for (;;) { if (x) { continue; } else { break; } g(); } h(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-finally-throw"
+files = { "case.ts" = "function f() { try { a(); } finally { throw 1; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-catch-in-loop"
+files = { "case.ts" = "function f() { while (x) { try { return; } catch (e) { continue; } g(); } h(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-static-block2"
+files = { "case.ts" = "class C { static { throw 1; g(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-dead-loop-body"
+files = { "case.ts" = "function f() { return; while (x) { g(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-nested-dead"
+files = { "case.ts" = "function f() { return; if (x) { g(); } else { h(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-labelled-continue-dowhile"
+files = { "case.ts" = "function f() { a: do { continue a; g(); } while (x); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-while-false"
+files = { "case.ts" = "function f() { while (false) { g(); } }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-if-true"
+files = { "case.ts" = "function f() { if (true) { return; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-process-exit"
+files = { "case.ts" = "function f() { process.exit(1); g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-try-return-catch"
+files = { "case.ts" = "function f() { try { return; } catch (e) { } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-try-throw-catch"
+files = { "case.ts" = "function f() { try { throw 1; } catch (e) { } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-try-throw-finally-only"
+files = { "case.ts" = "function f() { try { throw 1; } finally { } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-for-in-return"
+files = { "case.ts" = "function f() { for (const a in b) { return; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-for-of-break"
+files = { "case.ts" = "function f() { for (const a of b) { break; g(); } h(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-switch-default-mid"
+files = { "case.ts" = "function f() { switch (x) { default: return; case 1: return; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-gen-yield"
+files = { "case.ts" = "function* f() { while (true) { yield 1; } g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-async"
+files = { "case.ts" = "async function f() { await x; return; g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-top-level"
+files = { "case.ts" = "throw 1; g();" }
+expected = []
+
+[[cases]]
+name = "lr-nu-top-level-label"
+files = { "case.ts" = "a: { break a; g(); }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-empty-after"
+files = { "case.ts" = "function f() { return; ; }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-debugger"
+files = { "case.ts" = "function f() { return; debugger; }" }
+expected = []
+
+[[cases]]
+name = "lr-nu-export-default"
+files = { "case.ts" = "export default function f() { return; g(); }" }
+expected = []
+
+[[cases]]
+name = "constructor-key-double-quoted"
+files = { "case.ts" = "class A extends B { \"constructor\"() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 47 }]
+
+[[cases]]
+name = "constructor-key-single-quoted"
+files = { "case.ts" = "class A extends B { 'constructor'() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 47 }]
+
+[[cases]]
+name = "constructor-key-unicode-escape"
+files = { "case.ts" = "class A extends B { \"constr\\u0075ctor\"() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 52 }]
+
+[[cases]]
+name = "constructor-key-hex-escape"
+files = { "case.ts" = "class A extends B { \"constr\\x75ctor\"() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 50 }]
+
+[[cases]]
+name = "constructor-key-code-point-escape"
+files = { "case.ts" = "class A extends B { \"constr\\u{75}ctor\"() { this.x; } }" }
+expected = [{ file = "case.ts", start = 20, end = 52 }]
+

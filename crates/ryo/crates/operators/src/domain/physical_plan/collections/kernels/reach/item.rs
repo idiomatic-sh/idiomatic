@@ -3,7 +3,7 @@
 //! partition (`traverse::All`), or from only the partition and source each left row binds (`traverse::Seeds`), each start
 //! walked once per file and its run kept for the rows that bind it again.
 
-use super::super::hash_index::item::{cells, find_cells, hash_of, indexed, next_of, value_hash};
+use super::super::hash_index::item::{cells, find_cells, hash_of, indexed, next_of};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::probe::item::probed;
@@ -12,13 +12,15 @@ use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::closure::types::ReachParts;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::SeededJoin;
-use crate::domain::physical_plan::types::file_buffers::value::{
-    ReachedCount, ReachedPlace, ReachedRun, WalkScratch,
-};
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
+use crate::domain::physical_plan::types::walk_scratch::value::{
+    ReachedCount, ReachedPlace, ReachedRun, WalkScratch,
+};
 use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedRowAt, KeyedSide, NodeFed};
+use crate::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
@@ -41,6 +43,7 @@ impl KernelsItem for ReachItem {
             | Lowering::Group { .. }
             | Lowering::Axis { .. }
             | Lowering::OrderedWalk { .. }
+            | Lowering::Worklist { .. }
             | Lowering::Components { .. }
             | Lowering::TextMap { .. }
             | Lowering::OrderedMatch { .. }
@@ -205,7 +208,7 @@ fn every(
 /// The work of one walk, borrowed from the scratch.
 struct WalkState<'w> {
     /// The entities met.
-    visited: &'w mut hashbrown::HashTable<Value>,
+    visited: &'w mut VisitedSet,
     /// The edge rows whose far ends are left to expand.
     frontier: &'w mut Vec<RowIndex>,
     /// Where the entities met are appended.
@@ -222,7 +225,7 @@ fn walked(
     state: WalkState<'_>,
     destination: ColumnIndex,
 ) -> Result<(), PortableOperatorFault> {
-    state.visited.clear();
+    state.visited.reset();
     state.frontier.clear();
     let indexed_side = KeyedSide {
         rows: edges,
@@ -234,11 +237,7 @@ fn walked(
             let at = indexed(row);
             let entity = cell_of(edges, at, destination)
                 .ok_or(PortableOperatorFault::NoSuchColumn { index: destination })?;
-            let hash = value_hash(entity).0;
-            if state.visited.find(hash, |held| *held == entity).is_none() {
-                let _met = state
-                    .visited
-                    .insert_unique(hash, entity, |held| value_hash(*held).0);
+            if state.visited.meet(entity) == SetMembership::Out {
                 state.reached.push(entity);
                 state.frontier.push(at);
             }

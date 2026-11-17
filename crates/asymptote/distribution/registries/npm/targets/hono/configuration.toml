@@ -1,9 +1,9 @@
-
 # What asymptote checks this target with: a run places this file in the project's directory, under asymptote's own name for it.
+# The target is TypeScript, and its linter is oxlint, at the version `tools/install.py` declares.
 [[tools]]
-id = "tastemaker"
+id = "oxlint"
 group = "lint"
-run = [".tastemaker/bin/tm", "check", "--format", "sarif"]
+run = ["oxlint", "--format", "sarif"]
 output = "sarif"
-timeout-seconds = 120
-inputs = [".", "tastemaker.toml", "tastemaker.lock", ".policy"]
+timeout-seconds = 600
+inputs = ["."]

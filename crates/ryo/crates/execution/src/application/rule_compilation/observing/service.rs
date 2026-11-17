@@ -62,6 +62,7 @@ pub(super) fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }

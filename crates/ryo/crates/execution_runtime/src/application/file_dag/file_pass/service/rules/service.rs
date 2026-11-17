@@ -237,6 +237,10 @@ pub(crate) fn delivered_rule(
         return Err(OperatingError::NotRun);
     }
     let nodes = fused_rule(&at.pass.program, rule)?;
+    // A step no root reads, whose schema refuses, stops the rule's run in the file before any row.
+    if let Some(refusal) = &nodes.refused {
+        return Err(refusal.clone());
+    }
     let plan = at.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
     at.inputs.bound = in_file_bound(at, rule)?;
     hosted_in_file(at, symbols, plan);
@@ -262,16 +266,16 @@ pub(crate) fn delivered_rule(
             let outcome =
                 if completion.observation_admission(&root.reads) == ObservationAdmission::Ready {
                     let source = plan.observations.get(index).map(|output| output.source);
-                    match output_rows(at, symbols, rule, source) {
-                        Ok(answer) => {
-                            let outcome = answered(&answer);
-                            if let Some(kept) = answers.get_mut(index) {
-                                *kept = Some(answer);
-                            }
-                            outcome
-                        }
-                        Err(error) => classify(error),
+                    // A refused output is kept as its refusal: a rule bound to it reads that refusal, not a missing producer.
+                    let answer = output_rows(at, symbols, rule, source);
+                    let outcome = match &answer {
+                        Ok(answer) => answered(answer),
+                        Err(error) => classify(error.clone()),
+                    };
+                    if let Some(kept) = answers.get_mut(index) {
+                        *kept = Some(answer);
                     }
+                    outcome
                 } else {
                     classify(OperatingError::ObservationIncomplete {
                         reason: SOURCE_FACTS_INCOMPLETE.into(),

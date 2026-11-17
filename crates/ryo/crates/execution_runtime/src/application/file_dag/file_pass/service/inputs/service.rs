@@ -50,13 +50,14 @@ pub(crate) fn in_file_bound(
                             answers.get(usize::try_from(output.0).unwrap_or(usize::MAX))
                         })
                         .and_then(Option::as_ref)
+                        .ok_or_else(|| OperatingError::ObservationIncomplete {
+                            reason: BOUND_PRODUCER_UNAVAILABLE.into(),
+                        })
+                        .and_then(|answer| answer.as_ref().map_err(Clone::clone))
                         .map(|answer| MemberRows {
                             rows: Arc::new(answer.table.clone()),
                             coverage: answer.coverage.clone(),
                             lineage: output_lineage(at.pass, &metadata.bindings, *rule, *output),
-                        })
-                        .ok_or_else(|| OperatingError::ObservationIncomplete {
-                            reason: BOUND_PRODUCER_UNAVAILABLE.into(),
                         }),
                     ResolvedObservationProducer::NoQuery { .. } => {
                         Err(OperatingError::ObservationIncomplete {

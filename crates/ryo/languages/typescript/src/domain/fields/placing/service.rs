@@ -1,9 +1,9 @@
-//! The placing of the adapter: spelled, setting, place, markers_before and more.
+//! The placing of the adapter: spelled, setting, place, after and more.
 
 use super::super::constants::PARENTHESES;
 use super::super::types::{
-    Field, KindRole, Lastness, Marker, MarkerRole, Operands, Ordinal, Precedence, Returning,
-    Setting, Sharing, Standing,
+    Field, FirstMarkers, KindRole, Lastness, Marker, MarkerRole, Operands, Ordinal, Precedence,
+    Returning, Setting, Sharing, Standing,
 };
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{is_token, kind, parent};
@@ -43,22 +43,31 @@ pub(in super::super) const fn setting(child: Kind) -> Setting {
     }
 }
 
-/// Where `at` stands among the nodes under its parent, `aside` ones left out, and whether it is the last of them.
+/// The nodes under `holder` a place counts, in order: every node child but the ones `setting` holds aside.
+fn placed_children<'a>(
+    tree: &'a Tree<'_>,
+    holder: Position,
+) -> impl Iterator<Item = Position> + 'a {
+    languages::children(tree.elements, holder).filter(move |each| {
+        let each = *each;
+        matches!(kind(tree, each), Kind::Node(_)) && setting(kind(tree, each)) == Setting::Placed
+    })
+}
+
+/// Where `at` stands among the nodes under its parent, `aside` ones left out, and whether it is the last of them. It reads every
+/// sibling: only holders with a bounded number of children ask it.
 pub(in super::super) fn place(tree: &Tree<'_>, at: Position) -> Standing {
-    let placed: Vec<Position> = languages::children(tree.elements, parent(tree, at))
-        .filter(|each| {
-            let each = *each;
-            matches!(kind(tree, each), Kind::Node(_))
-                && setting(kind(tree, each)) == Setting::Placed
-        })
-        .collect();
-    let ordinal = placed
-        .iter()
-        .position(|each| *each == at)
-        .unwrap_or_default();
+    let mut ordinal = 0;
+    let mut last = None;
+    for (at_place, each) in placed_children(tree, parent(tree, at)).enumerate() {
+        if each == at {
+            ordinal = at_place;
+        }
+        last = Some(each);
+    }
     Standing {
         ordinal: Ordinal(ordinal),
-        lastness: if placed.last() == Some(&at) {
+        lastness: if last == Some(at) {
             Lastness::Last
         } else {
             Lastness::NotLast
@@ -66,32 +75,59 @@ pub(in super::super) fn place(tree: &Tree<'_>, at: Position) -> Standing {
     }
 }
 
-/// The tokens among the children of the parent of `at` that come before it and are spelled `marker`.
-pub(in super::super) fn markers_before<'a>(
-    tree: &'a Tree<'_>,
-    at: Position,
-    marker: Marker,
-) -> impl Iterator<Item = Position> + 'a {
-    languages::children(tree.elements, parent(tree, at))
-        .take_while(move |each| *each != at)
-        .filter(move |each| {
-            let each = *each;
-            is_token(tree, each) == Leaf::Token && spelled(tree, each).0 == marker.0
-        })
+/// The role of `at` by its place: the `ordinal`-th of `roles`, the last of them for every place from the last on. Only the siblings
+/// before the last role are read, so a holder of many children (the statements of a block, the arguments of a call) costs each
+/// child a constant, not a scan of the others.
+pub(in super::super) fn placed_nth(tree: &Tree<'_>, at: Position, roles: &[Field]) -> Field {
+    let bound = roles.len().saturating_sub(1);
+    let ordinal = placed_children(tree, parent(tree, at))
+        .take(bound)
+        .position(|each| each == at)
+        .unwrap_or(bound);
+    nth(roles, Ordinal(ordinal))
 }
 
-/// Whether a token spelled `marker` comes before `at` among the children of its parent.
-pub(in super::super) fn after(tree: &Tree<'_>, at: Position, marker: Marker) -> Precedence {
-    if markers_before(tree, at, marker).next().is_some() {
+/// The tokens among the children of `holder` spelled `marker`, in order.
+fn marker_tokens<'a>(
+    tree: &'a Tree<'_>,
+    holder: Position,
+    marker: Marker,
+) -> impl Iterator<Item = Position> + 'a {
+    languages::children(tree.elements, holder).filter(move |each| {
+        let each = *each;
+        is_token(tree, each) == Leaf::Token && spelled(tree, each).0 == marker.0
+    })
+}
+
+/// Whether a token spelled `marker` comes before `at` among the children of its parent: whether the first such token, which
+/// `markers` finds once for the parent, stands before it.
+pub(in super::super) fn after(
+    tree: &Tree<'_>,
+    at: Position,
+    marker: Marker,
+    markers: &FirstMarkers,
+) -> Precedence {
+    let holder = parent(tree, at);
+    let first = *markers
+        .0
+        .borrow_mut()
+        .entry((holder, marker))
+        .or_insert_with(|| marker_tokens(tree, holder, marker).next());
+    if first.is_some_and(|token| token < at) {
         Precedence::Preceded
     } else {
         Precedence::Unpreceded
     }
 }
 
-/// How many tokens spelled `marker` come before `at` among the children of its parent: the place of the clause they open.
+/// How many tokens spelled `marker` come before `at` among the children of its parent: the place of the clause they open. It reads
+/// the siblings before `at`: only a `for`, of at most three clauses and a body, asks it.
 pub(in super::super) fn count_before(tree: &Tree<'_>, at: Position, marker: Marker) -> Ordinal {
-    Ordinal(markers_before(tree, at, marker).count())
+    Ordinal(
+        marker_tokens(tree, parent(tree, at), marker)
+            .take_while(|token| *token < at)
+            .count(),
+    )
 }
 
 /// Whether the nodes under the parent of `at` all start where it does: a shorthand that holds one name in two properties
@@ -191,9 +227,10 @@ pub(in super::super) fn by_marker(
     at: Position,
     markers: &[MarkerRole],
     otherwise: Field,
+    first: &FirstMarkers,
 ) -> Field {
     markers
         .iter()
-        .find(|each| after(tree, at, each.marker) == Precedence::Preceded)
+        .find(|each| after(tree, at, each.marker, first) == Precedence::Preceded)
         .map_or(otherwise, |each| each.field)
 }

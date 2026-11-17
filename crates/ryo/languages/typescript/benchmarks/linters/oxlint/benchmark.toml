@@ -128,11 +128,14 @@ defaults = [
 "typescript/oxlint/regexp-without-global" = "fragments/regexp-without-global.ryoql"
 "typescript/oxlint/javascript-files" = "fragments/javascript-files.ryoql"
 "typescript/oxlint/quoted-strings" = "fragments/quoted-strings.ryoql"
+"typescript/oxlint/constructors" = "fragments/constructors.ryoql"
+"typescript/oxlint/super-calls" = "fragments/super-calls.ryoql"
+"typescript/oxlint/control-flow" = "fragments/control-flow.ryoql"
 
 # oxlint runs no rule on a file that does not parse or that its semantic syntax check rejects: it reports only the parse error
-# there, as the `invalid-syntax` diagnostic. Each default with a query therefore runs on the files the parser accepts; the deferred
-# ones have no query, so no policy applies to them.
+# there, as the `invalid-syntax` diagnostic. Each default therefore runs on the files the parser accepts.
 [rule-applicability]
+"eslint.constructor-super" = "accepted-syntax"
 "eslint.for-direction" = "accepted-syntax"
 "eslint.getter-return" = "accepted-syntax"
 "eslint.no-async-promise-executor" = "accepted-syntax"
@@ -171,7 +174,9 @@ defaults = [
 "eslint.no-setter-return" = "accepted-syntax"
 "eslint.no-shadow-restricted-names" = "accepted-syntax"
 "eslint.no-sparse-arrays" = "accepted-syntax"
+"eslint.no-this-before-super" = "accepted-syntax"
 "eslint.no-unassigned-vars" = "accepted-syntax"
+"eslint.no-unreachable" = "accepted-syntax"
 "eslint.no-unsafe-finally" = "accepted-syntax"
 "eslint.no-unsafe-negation" = "accepted-syntax"
 "eslint.no-unsafe-optional-chaining" = "accepted-syntax"
@@ -226,11 +231,3 @@ defaults = [
 "unicorn.no-useless-spread" = "accepted-syntax"
 "unicorn.prefer-set-size" = "accepted-syntax"
 "unicorn.prefer-string-starts-ends-with" = "accepted-syntax"
-
-# Defaults deferred, each under the limitation that blocks it: there is no control flow relation.
-[deferred]
-control_flow = [
-  "eslint.constructor-super",
-  "eslint.no-this-before-super",
-  "eslint.no-unreachable",
-]

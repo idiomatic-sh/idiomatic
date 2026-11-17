@@ -2,8 +2,8 @@
 use super::errors::ProcessReceiptsError as Failure;
 use crate::domain::canonical_text::{service::text_digest, types::Document};
 use crate::domain::invocation_identity::{
-    service::normalize_text,
-    types::{Boundaries, InvocationText},
+    service::{normalize_arguments, normalize_text, normalize_variable},
+    types::{Boundaries, InvocationText, Variable},
 };
 use crate::domain::process_failure::service::{group_digest, output_digest};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -189,18 +189,31 @@ fn require_settings(case: &CaseDocument, invocation: &CompleteInvocation) -> Res
         root: InvocationText(invocation.actual_request_root.0.clone()),
     };
     let spell = |value: &InvocationText| normalize_text(value, &boundaries).0;
-    let arguments = invocation
-        .arguments
-        .iter()
-        .map(|argument| ArgumentText(spell(&InvocationText(argument.0.clone()))))
-        .collect::<Vec<_>>();
+    let arguments = normalize_arguments(
+        &invocation
+            .arguments
+            .iter()
+            .map(|argument| InvocationText(argument.0.clone()))
+            .collect::<Vec<_>>(),
+        &boundaries,
+    )
+    .into_iter()
+    .map(|argument| ArgumentText(argument.0))
+    .collect::<Vec<_>>();
     let environment = invocation
         .environment
         .iter()
         .map(|(name, value)| {
+            let spelled = normalize_variable(
+                &Variable {
+                    name: InvocationText(name.0.clone()),
+                    value: InvocationText(value.0.clone()),
+                },
+                &boundaries,
+            );
             (
-                EnvironmentName(spell(&InvocationText(name.0.clone()))),
-                EnvironmentValue(spell(&InvocationText(value.0.clone()))),
+                EnvironmentName(spelled.name.0),
+                EnvironmentValue(spelled.value.0),
             )
         })
         .collect::<BTreeMap<_, _>>();

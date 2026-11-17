@@ -1,0 +1,60 @@
+{
+  "description": "The pandas differences between ryo and the pinned Ruff 0.16.5 that Ruff parity accepts, each pinned by finding. The Ruff benchmark's parity command (asymptote tool bench-parity/python/ruff) reads this file and refuses it before either contestant runs for a request whose corpus digest (its file list and sealed context entries, as the benchmark's canonical text spells them) differs, or when a rule is named twice. Any unmatched finding not named here, any named finding that no longer occurs and any end-position difference fails the run.",
+  "corpus": "558300f8dec2b3eae0e85928cd2da854f666f30c7fde5094e49885ec3b9edc54",
+  "differences": [
+    {
+      "rule": "FURB122",
+      "reason": "pandas/io/stata.py writes in loops through bio = BytesIO() (from io import BytesIO). The pinned Ruff 0.16.5 treats only open(), io.open(), io.open_code(), os.open() and pathlib.Path(...).open() initializers as IO objects, so it omits these loops, although its documentation says the rule checks for IOBase.write in a for loop; ryo reports them under the same certified reference discrepancy as Django's io.StringIO loops, io-binding-4 in rules/FURB122/cases.toml, whose CPython 3.10 evidence (profiles/FURB122/evidence/independent-io-cpython310.json) shows io.StringIO is an IOBase stream with write and writelines; io.BytesIO is the BufferedIOBase stream of the same io module, which rules/FURB122 lists among its IO factories.",
+      "findings": [
+        {
+          "kind": "extra",
+          "file": "pandas/io/stata.py",
+          "line": 659,
+          "column": 9
+        },
+        {
+          "kind": "extra",
+          "file": "pandas/io/stata.py",
+          "line": 670,
+          "column": 9
+        },
+        {
+          "kind": "extra",
+          "file": "pandas/io/stata.py",
+          "line": 674,
+          "column": 9
+        },
+        {
+          "kind": "extra",
+          "file": "pandas/io/stata.py",
+          "line": 678,
+          "column": 9
+        },
+        {
+          "kind": "extra",
+          "file": "pandas/io/stata.py",
+          "line": 3588,
+          "column": 9
+        },
+        {
+          "kind": "extra",
+          "file": "pandas/io/stata.py",
+          "line": 3595,
+          "column": 9
+        },
+        {
+          "kind": "extra",
+          "file": "pandas/io/stata.py",
+          "line": 3619,
+          "column": 9
+        },
+        {
+          "kind": "extra",
+          "file": "pandas/io/stata.py",
+          "line": 3647,
+          "column": 13
+        }
+      ]
+    }
+  ]
+}

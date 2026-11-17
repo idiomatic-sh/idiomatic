@@ -1,2 +1,0 @@
-include = ["**"]
-exclude = ["**/Cargo.lock", "**/tastemaker.lock"]

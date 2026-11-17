@@ -48,6 +48,10 @@ The values domain's `query_bindings` concept: The immutable bindings a host hand
 
 The values domain's `query_operators` concept: the operators of the engine, the kinds of operation a plan holds and the output choices of their steps.
 
+### `query_requests`
+
+The values domain's `query_requests` concept: the RyoQL text a host asks to compile or check, with the relations, observations and modules it declares beside it.
+
 ### `query_syntax`
 
 The values domain's `query_syntax` concept: the expressions, conditions and sources a RyoQL step is written with.

@@ -11,9 +11,6 @@ mod audit;
 #[path = "../src/inbound/use_cases/compare/acceptance.rs"]
 mod compare;
 
-#[path = "../src/inbound/use_cases/compare_corpus/acceptance.rs"]
-mod compare_corpus;
-
 #[path = "../src/inbound/use_cases/measure/acceptance.rs"]
 mod measure;
 
@@ -41,9 +38,6 @@ mod collect;
 #[path = "../src/inbound/use_cases/verify_inventory/acceptance.rs"]
 mod verify_inventory;
 
-#[path = "../src/inbound/use_cases/publish/acceptance.rs"]
-mod publish;
-
 #[path = "../src/inbound/use_cases/prepare_cases/acceptance.rs"]
 mod prepare_cases;
 
@@ -58,6 +52,9 @@ mod verify_cases;
 
 #[path = "../src/inbound/use_cases/verify_reference_cases/acceptance.rs"]
 mod verify_reference_cases;
+
+#[path = "../src/inbound/use_cases/verify_rule_profiles/acceptance.rs"]
+mod verify_rule_profiles;
 
 #[path = "../src/inbound/use_cases/validate_case_receipts/acceptance.rs"]
 mod validate_case_receipts;

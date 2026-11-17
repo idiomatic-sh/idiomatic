@@ -1,18 +1,23 @@
 //! A probe's left rows stream into it, each against its held twin: an inner, a semi and an anti probe behind a select, the
 //! right side's fault raised before any left row, a right filter kept across every chunk of left rows, and two probes of
-//! one chain each reading its own index while both are active.
+//! one chain each reading its own index while both are active. Each kind of right rows answers over three chunks of left
+//! rows as the held twin does, and one left row whose answers pass the bound is handed on whole.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::fixtures::{Step, over_defines};
+use crate::domain::physical_plan::types::PlanNodeId;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
-use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::cases::{compared, self_matching};
-use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, agrees, both_nodes, join, left_columns, ran_after, span,
+use crate::domain::physical_plan::types::worker_meters::value::ChunkMeter;
+use crate::inbound::use_cases::run::fixtures::cases::compared;
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    both_nodes, defines, defines_named, every_define, join, left_columns, node,
+    one_row_past_the_bound, paired, probe_of_a_held_node, select_of_defines_matching, span,
+    walked_tree,
 };
-use ryo_relations::domain::relations::types::Relation;
+use crate::inbound::use_cases::run::fixtures::streams::{Program, agrees, ran_after};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as StepInput, LiteralText, Operand, QueryLiteral, StepId, Test,
+    ColumnIndex, LiteralText, Operand, QueryLiteral, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use std::borrow::Cow;
@@ -28,6 +33,10 @@ enum Scenario {
     TwoIndexes,
     RightPendingFed,
     RightPendingFedAfterAnotherProbe,
+    InnerOfAHeldNode,
+    AntiOfAHeldNode,
+    InnerOfTheTree,
+    OneRowPastTheBound,
 }
 
 /// Whether the program run as planned answered as its held twin did, how many rows it answered, how many node tables it
@@ -45,6 +54,9 @@ struct Observation {
     fault: Cow<'static, str>,
     /// The rows the planned run's emit was fed from each input.
     fed: [usize; 3],
+    /// Whether every chunk a stage of the planned run handed on held less than the bound before the left row that wrote its
+    /// last rows.
+    within: bool,
 }
 type Input = Scenario;
 type Value = Observation;
@@ -61,6 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 1,
             fault: Cow::Borrowed(""),
             fed: [7_020, 7_020, 0],
+            within: true,
         }),
     },
     Case {
@@ -73,6 +86,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 1,
             fault: Cow::Borrowed(""),
             fed: [7_020, 7_020, 0],
+            within: true,
         }),
     },
     Case {
@@ -85,6 +99,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 2,
             fault: Cow::Borrowed(""),
             fed: [7_020, 0, 0],
+            within: true,
         }),
     },
     Case {
@@ -99,6 +114,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
             ),
             fed: [3, 0, 0],
+            within: true,
         }),
     },
     Case {
@@ -111,6 +127,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 1,
             fault: Cow::Borrowed(""),
             fed: [7_020, 7_020, 0],
+            within: true,
         }),
     },
     Case {
@@ -123,6 +140,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             formed: 1,
             fault: Cow::Borrowed(""),
             fed: [9_360, 4_680, 0],
+            within: true,
         }),
     },
     Case {
@@ -137,6 +155,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
             ),
             fed: [8, 4, 0],
+            within: true,
         }),
     },
     Case {
@@ -151,68 +170,68 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
             ),
             fed: [8, 4, 0],
+            within: true,
+        }),
+    },
+    Case {
+        name: CaseName("an_inner_probe_of_a_held_nodes_table_answers_as_the_held_twin"),
+        word: Word::Succeeds,
+        input: || Scenario::InnerOfAHeldNode,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 14_040,
+            formed: 2,
+            fault: Cow::Borrowed(""),
+            fed: [7_020, 7_020, 0],
+            within: true,
+        }),
+    },
+    Case {
+        name: CaseName("an_anti_probe_of_a_held_nodes_table_answers_as_the_held_twin"),
+        word: Word::Succeeds,
+        input: || Scenario::AntiOfAHeldNode,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 6_318,
+            formed: 2,
+            fault: Cow::Borrowed(""),
+            fed: [7_020, 702, 0],
+            within: true,
+        }),
+    },
+    Case {
+        name: CaseName("an_inner_probe_walking_the_tree_answers_as_the_held_twin"),
+        word: Word::Succeeds,
+        input: || Scenario::InnerOfTheTree,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 5_100,
+            formed: 1,
+            fault: Cow::Borrowed(""),
+            fed: [5_101, 5_100, 0],
+            within: true,
+        }),
+    },
+    Case {
+        name: CaseName("one_left_row_past_the_bound_is_handed_on_whole"),
+        word: Word::Succeeds,
+        input: || Scenario::OneRowPastTheBound,
+        expect: Expect::Value(Observation {
+            same: true,
+            rows: 20_001,
+            formed: 1,
+            fault: Cow::Borrowed(""),
+            fed: [20_001, 0, 0],
+            within: true,
         }),
     },
 ];
 
-/// Defines' input, as an operation names it and as a node reads it.
-fn defines() -> (StepInput, PlanInput) {
-    (
-        StepInput::Relation(Relation::Defines),
-        PlanInput::Relation(Relation::Defines),
-    )
-}
-
-/// Node `at`'s input, as an operation names it and as a node reads it.
-fn node(at: u32) -> (StepInput, PlanInput) {
-    (StepInput::Step(StepId(at)), PlanInput::Node(PlanNodeId(at)))
-}
-
-/// Every row of Defines.
-fn every_define() -> Step {
-    over_defines(Operation::Select {
-        from: defines().0,
-        comparisons: Vec::new(),
-        kept: Vec::new(),
-    })
-}
-
-/// The rows of Defines whose name compares by `test` with the written text `text`.
-fn defines_named(test: Test, text: &str) -> Step {
-    over_defines(Operation::Select {
-        from: defines().0,
-        comparisons: vec![compared(
-            test,
-            Operand::Column(ColumnIndex(3)),
-            Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-        )],
-        kept: Vec::new(),
-    })
-}
-
-/// Defines rows, `rows` of them over three chunks of left rows and more, each name `n<k>` shared by the two rows `2k` and
-/// `2k + 1`, so each left row's name has two right rows.
-fn paired(steps: Vec<Step>, rows: usize) -> Program {
-    let names: Vec<String> = (0..rows.div_ceil(2)).map(|at| format!("n{at}")).collect();
-    Program {
-        emit: PlanNodeId(
-            u32::try_from(steps.len())
-                .unwrap_or(u32::MAX)
-                .saturating_sub(1),
-        ),
-        steps,
-        rows: (0..rows)
-            .map(|at| (names.get(at / 2).cloned().unwrap_or_default(), span(0, 1)))
-            .collect(),
-        texts: names,
-    }
-}
-
-/// The program each scenario runs.
-fn program(scenario: Scenario) -> Program {
+/// The program over Defines rows each scenario runs; none for the probe walking the tree, which reads the tree's rows.
+fn program(scenario: Scenario) -> Option<Program> {
     // Rows of 7 cells: a chunk of a stage that writes Defines rows holds this many and a few more.
     let chunk = STREAM_CHUNK_CELLS / 7;
-    match scenario {
+    Some(match scenario {
         Scenario::Inner => paired(
             vec![
                 every_define(),
@@ -323,34 +342,35 @@ fn program(scenario: Scenario) -> Program {
             ],
             chunk * 2,
         ),
-    }
-}
-
-/// The rows of Defines whose name matches the pattern it is: a name that is no pattern faults.
-fn select_of_defines_matching() -> Step {
-    over_defines(Operation::Select {
-        from: defines().0,
-        comparisons: vec![self_matching(3)],
-        kept: Vec::new(),
+        Scenario::InnerOfAHeldNode => probe_of_a_held_node(ProbeMode::Inner, chunk * 3),
+        Scenario::AntiOfAHeldNode => probe_of_a_held_node(ProbeMode::Anti, chunk * 3),
+        Scenario::OneRowPastTheBound => one_row_past_the_bound(),
+        Scenario::InnerOfTheTree => return None,
     })
 }
 
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
-    let program = program(scenario);
     let first: &[PlanNodeId] = if let Scenario::RightPendingFedAfterAnotherProbe = scenario {
         &[PlanNodeId(3)]
     } else {
         &[]
     };
-    let streamed = ran_after(&program, false, first)?;
-    let twin = ran_after(&program, true, first)?;
+    let (streamed, twin, emit) = match program(scenario) {
+        Some(program) => (
+            ran_after(&program, false, first)?,
+            ran_after(&program, true, first)?,
+            program.emit,
+        ),
+        None => (walked_tree(false)?, walked_tree(true)?, PlanNodeId(1)),
+    };
     Ok(Observation {
         same: agrees(&streamed, &twin),
         rows: streamed.answer.as_ref().map_or(0, Vec::len),
         formed: streamed.formed,
+        within: streamed.buffers.chunks == ChunkMeter::Within,
         fed: streamed
             .fed
-            .get(usize::try_from(program.emit.0).unwrap_or(usize::MAX))
+            .get(usize::try_from(emit.0).unwrap_or(usize::MAX))
             .copied()
             .flatten()
             .unwrap_or_default(),

@@ -3,6 +3,7 @@
 use crate::domain::operations::types::{
     BenchmarkName, Count, MeasureName, Number, PerfKey, PerfRecord,
 };
+use crate::domain::violations::types::ToolId;
 
 /// What a perf outcome means for the run.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -11,6 +12,15 @@ pub enum Holding {
     Holds,
     /// A median regressed or has no record, or a record is to be dropped.
     Breaks,
+}
+
+/// A measure of a tool, whichever benchmark reports it: what a tolerance is stated for.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ToleranceKey {
+    /// The tool.
+    pub tool: ToolId,
+    /// The measure.
+    pub measure: MeasureName,
 }
 
 /// A bound of a measure's spread, when the tool gave one.

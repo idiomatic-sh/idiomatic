@@ -1,10 +1,12 @@
 //! The reference of every admitted case answers its own derived expectations.
+use super::types::VerifiedReferenceCases;
 use crate::application::case_execution::{service::run as run_case, types::AttemptOutcome};
 use crate::application::case_observation::service::write as record;
 use crate::domain::discrepancy::service::judge;
 use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::suite::constants;
+use crate::outbound::evidence::types::RuleTiming;
 use crate::outbound::host::interface::HostPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::{
@@ -19,7 +21,9 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::{
     PreparedCase, reference_case_count::value::ReferenceCaseCount,
 };
+use std::collections::BTreeMap;
 use std::path::Path;
+use std::time::Instant;
 
 /// Execute admitted cases through the actual reference-only verification workflow.
 pub(super) fn verify_prepared_reference_cases(
@@ -32,7 +36,7 @@ pub(super) fn verify_prepared_reference_cases(
     inventory: &dyn InventoryPort,
     rules: &Path,
     mut cases: Vec<PreparedCase>,
-) -> Result<ReferenceCaseCount, Error> {
+) -> Result<VerifiedReferenceCases, Error> {
     if cases.is_empty() {
         return Err(Error::Invalid(constants::NO_CASES.into()));
     }
@@ -53,9 +57,15 @@ pub(super) fn verify_prepared_reference_cases(
         ));
     }
     let contestant = Contestant::Reference;
+    let mut timings: BTreeMap<ryo::linter::RuleId, RuleTiming> = BTreeMap::new();
     for (case, proof) in cases.into_iter().zip(proofs) {
+        let case_started = Instant::now();
         let AttemptOutcome { result, capture } =
             run_case(suite, context, reference, execution, &case, rules);
+        let elapsed = case_started.elapsed();
+        let timing = timings.entry(case.rule.clone()).or_default();
+        timing.total += elapsed;
+        timing.slowest = timing.slowest.max(elapsed);
         match result {
             Ok(result) => {
                 let full_report = result.report.clone();
@@ -135,7 +145,10 @@ pub(super) fn verify_prepared_reference_cases(
         }
     }
     if failures.is_empty() {
-        Ok(ReferenceCaseCount(count))
+        Ok(VerifiedReferenceCases {
+            count: ReferenceCaseCount(count),
+            timings,
+        })
     } else {
         Err(Error::Invalid(format!(
             "{count} reference-only cases checked; failures:\n{}",

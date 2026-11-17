@@ -1,7 +1,8 @@
 //! What a rule does after its emitted node: its frontiers captured, kept and committed, and its steps reported to the
 //! observer.
 
-use crate::application::file_dag::file_pass::service::nodes::service::{node_rows, ran_node};
+use crate::application::file_dag::file_pass::service::answering::service::step_fed;
+use crate::application::file_dag::file_pass::service::nodes::service::node_rows;
 use crate::application::file_dag::file_pass::types::{
     CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile,
 };
@@ -14,6 +15,7 @@ use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::service::refusals::service::deferred_layout;
 use ryo_execution_domain::domain::executable_program::service::rule as fused_rule;
 use ryo_execution_domain::domain::executable_program::types::RuleNodes;
 use ryo_execution_domain::domain::finish::service::escape_frame;
@@ -26,19 +28,20 @@ use ryo_execution_domain::domain::rule_intent::types::{CaptureIntent, FrontierPu
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_operators::domain::physical_plan::types::NodeFed;
 use ryo_operators::domain::physical_plan::types::PlanInputs as _;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
 use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use ryo_operators::domain::tree_cells::service::native_form;
+use ryo_operators::domain::tree_cells::service::{native_form, tree_table, with_rows};
 use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
+use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepScope};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{FrontierOrdinal, FrontierProof, ProducerRule};
 use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::runs::types::{FileHandover, ParsedRows, RowsHanded, RuleNumber};
 use ryo_values::domain::stored_facts::service::frontier_bucket;
 use ryo_values::domain::table_words::service::{encode_table, pack};
 use ryo_values::domain::table_words::types::WordSlice;
@@ -68,6 +71,8 @@ pub(crate) fn captured_rule(
         ..
     } = context;
     let mut captures = Vec::with_capacity(frontiers.len());
+    // The rows this file hands the rule's steps after the files, every input together, for an observer that asked.
+    let mut handed = 0_u64;
     for (index, source) in frontiers.iter().enumerate() {
         let input = InputNumber(index);
         if capture.intent == CaptureIntent::Observations
@@ -91,6 +96,15 @@ pub(crate) fn captured_rule(
         if after_the_files {
             continue;
         }
+        // A relation the file never read stops the rule here: nothing is handed over, as the interpreter stopped a rule whose
+        // frontier named facts the file did not read.
+        let relation = match *source {
+            Input::Relation(relation) => match relation_rows(at, rule, relation) {
+                Ok(answer) => Some(answer),
+                Err(error) => return Ok(RuleAfter::Stopped(FileStop::Operating(error))),
+            },
+            Input::Step(_) | Input::BoundObservation(_) => None,
+        };
         let outcome = (|| {
             let NodeAnswer {
                 mut table,
@@ -102,9 +116,18 @@ pub(crate) fn captured_rule(
                         .get(usize::try_from(step.0).unwrap_or(usize::MAX))
                         .ok_or(OperatingError::NotRun)
                         .and_then(Clone::clone);
-                    node_rows(at, symbols, rule, node, step)?
+                    let deferred = node
+                        .as_ref()
+                        .is_ok_and(|node| deferred_layout(&at.pass.program, *node).is_some());
+                    let mut answer = node_rows(at, symbols, rule, node, step)?;
+                    // A deferred refusal holding no row is handed over with no column: the step after the files that reads it
+                    // reads none, as a reader in the file does (`NodeMove::Empty`).
+                    if deferred && answer.table.count.0 == 0 {
+                        answer.table.kinds.clear();
+                    }
+                    answer
                 }
-                Input::Relation(relation) => relation_rows(at, rule, relation)?,
+                Input::Relation(_) => relation.ok_or(OperatingError::NotRead)?,
                 Input::BoundObservation(id) => {
                     match at.inputs.observation(BoundObservationPlace::of(
                         RuleOrdinal(
@@ -125,6 +148,8 @@ pub(crate) fn captured_rule(
                 }
             };
             let coverage = file_frontier_coverage(coverage, at.file)?;
+            let rows = table.count;
+            handed = handed.saturating_add(u64::try_from(rows.0).unwrap_or(u64::MAX));
             let frame_places = escape_frame(
                 &mut table,
                 Leaving {
@@ -156,9 +181,22 @@ pub(crate) fn captured_rule(
                     coverage,
                 },
                 words: packed,
+                rows,
             })
         })();
         captures.push(FrontierCapture { input, outcome });
+    }
+    if let Some(observer) = at.request.observer
+        && handed != 0
+    {
+        observer.handed(FileHandover {
+            file: at.file,
+            rule: RuleNumber(u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?),
+            handed: RowsHanded(handed),
+            parsed: ParsedRows(
+                u64::try_from(at.inputs.lookup.tree().kind.len()).unwrap_or(u64::MAX),
+            ),
+        })?;
     }
     if let Some(error) = at.inputs.refused.take() {
         return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
@@ -178,27 +216,35 @@ pub(crate) fn captured_rule(
             committed(at, rule, kept.input)?;
         }
     }
-    observed(at, symbols, rule, &plan, &nodes)?;
+    observed(at, rule, &plan, &nodes)?;
     Ok(RuleAfter::Ran { captures })
 }
 
-/// A relation's rows in the open file, as the file's sources wrote them, and their coverage as the file's partiality says.
+/// A relation's rows in the open file, as the file's sources wrote them or, for a tree relation, as the open file's tree has
+/// them at every one of its tree nodes; and their coverage as the file's partiality says.
 fn relation_rows(
     at: &PassFile<'_, '_, '_, '_>,
     rule: RuleIndex,
     relation: Relation,
 ) -> Result<NodeAnswer, OperatingError> {
-    // A tree relation's rows are the open file's tree, not a source's columns: no step of a file hands them over.
-    if native_form(relation).is_some() {
-        return Err(OperatingError::NotRun);
-    }
-    let view = at
-        .inputs
-        .lookup
-        .columns(relation)
-        .map_err(|_| OperatingError::NotRead)?;
-    let mut table = Table::default();
-    materialize(&Rows::Stored(view), &mut table, &mut Vec::new());
+    let table = match native_form(relation) {
+        Some(form) => tree_table(
+            form,
+            kinds(relation),
+            at.inputs.lookup.tree(),
+            with_rows(form, &at.inputs.roots.all),
+        ),
+        None => {
+            let view = at
+                .inputs
+                .lookup
+                .columns(relation)
+                .map_err(|_| OperatingError::NotRead)?;
+            let mut table = Table::default();
+            materialize(&Rows::Stored(view), &mut table, &mut Vec::new());
+            table
+        }
+    };
     let completion = CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
     Ok(NodeAnswer {
         table,
@@ -230,8 +276,7 @@ pub(crate) fn committed(
 /// Reports the rows each step of `rule` was fed to the request's observer, as its node's kernels read them in the open file;
 /// without an observer nothing is counted.
 pub(crate) fn observed(
-    at: &mut PassFile<'_, '_, '_, '_>,
-    symbols: &mut Symbols,
+    at: &PassFile<'_, '_, '_, '_>,
     rule: RuleIndex,
     plan: &Plan,
     nodes: &RuleNodes,
@@ -239,20 +284,17 @@ pub(crate) fn observed(
     let Some(observer) = at.request.observer else {
         return Ok(());
     };
-    let mut fed = Vec::with_capacity(plan.steps.len());
-    for (step, node) in plan.steps.iter().zip(&nodes.steps) {
-        // A step after the files is fed after the files: its rows are counted there.
-        if step.scope == StepScope::CrossFile {
-            fed.push(RowsFed([0_u64; 3]));
-            continue;
-        }
-        let node = node.clone()?;
-        ran_node(at, symbols, node)?;
-        let NodeFed(rows) = at.buffers.fed(node);
-        fed.push(RowsFed(
-            rows.map(|count| u64::try_from(count.0).unwrap_or(u64::MAX)),
-        ));
-    }
+    // What each step's node's kernels read in the open file, when it ran: a step after the files is fed after the files, and a
+    // step whose node never ran (no root reached it, or it answered a refusal without running its kernel) was fed none.
+    let fed: Vec<RowsFed> = plan
+        .steps
+        .iter()
+        .zip(&nodes.steps)
+        .map(|(step, node)| match step.scope {
+            StepScope::PerFile => step_fed(&at.buffers, step, node),
+            StepScope::CrossFile => RowsFed::default(),
+        })
+        .collect();
     observer.fed(
         rule,
         LogicalCounts {

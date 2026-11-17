@@ -57,6 +57,25 @@ pub(super) fn open(path: &Path) -> io::Result<File> {
         .open(path)
 }
 
+/// Installs the span trace of an explicit profiling worker as the global subscriber, writing to `path` every span and event at
+/// info and above with its fields: the engine's node counters are events whose fields are the counts. Answers the guard that
+/// flushes the trace when dropped.
+pub(super) fn chrome(
+    path: &Path,
+) -> Result<tracing_chrome::FlushGuard, tracing::subscriber::SetGlobalDefaultError> {
+    use tracing_subscriber::layer::SubscriberExt as _;
+    let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
+        .file(path)
+        .include_args(true)
+        .build();
+    tracing::subscriber::set_global_default(
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::filter::LevelFilter::INFO)
+            .with(layer),
+    )?;
+    Ok(guard)
+}
+
 /// Build the filtered JSONL subscriber used by an explicit diagnostic worker.
 pub(super) fn subscriber(
     path: &Path,

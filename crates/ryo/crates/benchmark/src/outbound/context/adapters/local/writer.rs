@@ -170,3 +170,28 @@ pub(super) fn no_symlinks(boundary: &Path, relative: &Path) -> Result<(), Error>
     }
     Ok(())
 }
+
+/// Refuse a path beneath a file: a component of `relative` that exists and is not a directory, where the platform does not
+/// itself answer a path under a file with an error other than not-found.
+pub(super) fn no_file_ancestors(boundary: &Path, relative: &Path) -> Result<(), Error> {
+    let mut path = boundary.to_owned();
+    let mut parts = relative.components().peekable();
+    while let Some(part) = parts.next() {
+        path.push(part.as_os_str());
+        if parts.peek().is_none() {
+            break;
+        }
+        match std::fs::symlink_metadata(&path) {
+            Ok(metadata) if !metadata.is_dir() => {
+                return Err(Error::Invalid(format!(
+                    "context path beneath a file: {}",
+                    path.display()
+                )));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Ok(())
+}

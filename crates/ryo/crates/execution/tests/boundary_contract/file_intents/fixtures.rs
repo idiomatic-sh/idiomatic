@@ -278,3 +278,31 @@ pub(crate) fn consumer_before_its_producer_request() -> PrepareRequest {
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([92; 16])));
     authored
 }
+
+/// The request of [`consumer_before_its_producer_request`] with a sound capture: the producer's select keeps each function's
+/// node and name, its capture keeps the names `ma{rest}` matches, and its named output is the captured rows' nodes.
+pub(crate) fn consumer_of_a_capture_request() -> PrepareRequest {
+    let mut authored = consumer_before_its_producer_request();
+    let producer = &mut boundary_fixture::fixtures::plans(&mut authored)[1];
+    producer.steps[0].operation = Operation::Select {
+        from: Input::Relation(Relation::Function),
+        comparisons: vec![],
+        kept: vec![ColumnIndex(0), ColumnIndex(1)],
+    };
+    producer.steps[1].operation = Operation::Capture {
+        from: Input::Step(StepId(0)),
+        path: ColumnIndex(1),
+        pattern: ryo_values::domain::plan_parts::types::CapturePattern("ma{rest}".into()),
+    };
+    producer.steps.push(PlanStep {
+        scope: StepScope::PerFile,
+        operation: Operation::Project {
+            from: Input::Step(StepId(1)),
+            columns: vec![ColumnIndex(0)],
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
+        },
+    });
+    producer.frontier = vec![Input::Step(StepId(2))];
+    producer.observations[0].source = Input::Step(StepId(2));
+    authored
+}

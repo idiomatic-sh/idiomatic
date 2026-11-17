@@ -46,17 +46,13 @@ impl LinterPort for LinterOxlintAdapter {
             arguments.push(constants::DENY.into());
             arguments.push(schemas::selector_of_rule(rule)?.into());
         }
-        arguments.extend(
-            [
-                constants::FORMAT,
-                constants::JSON,
-                constants::THREADS,
-                constants::ONE_WORKER,
-                constants::NO_NESTED_CONFIG,
-                constants::END_OPTIONS,
-            ]
-            .map(Into::into),
+        arguments.extend([constants::FORMAT, constants::JSON, constants::THREADS].map(Into::into));
+        arguments.push(
+            ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
+                .to_string()
+                .into(),
         );
+        arguments.extend([constants::NO_NESTED_CONFIG, constants::END_OPTIONS].map(Into::into));
         let mut seen = BTreeSet::new();
         for file in &request.files {
             let _relative = RelativeArtifactPath::try_from(Path::new(file.0.as_ref()))?;
@@ -68,12 +64,7 @@ impl LinterPort for LinterOxlintAdapter {
         Ok(Invocation {
             executable: self.settings.executable.clone(),
             arguments,
-            environment: [(
-                ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
-                constants::ONE_WORKER.into(),
-            )]
-            .into_iter()
-            .collect(),
+            environment: std::collections::BTreeMap::new(),
             directory: request.root.clone(),
         })
     }

@@ -1,5 +1,5 @@
 //! Physical artifact observations shared by suite adapters; audit policy stays in application.
-use super::samples::{escaping_case, given_file, request, tool};
+use super::samples::{Refusal, classify, escaping_case, given_file, request, store, tool};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::{
     interface::SuitePort,
@@ -9,7 +9,7 @@ use crate::outbound::suite::{
     },
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+
 #[derive(Clone, Copy, Debug)]
 pub enum Operation {
     Profile,
@@ -42,12 +42,6 @@ pub enum Operation {
 }
 type Input = Operation;
 type Value = usize;
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Refusal {
-    Unexpected,
-    MissingArtifact,
-    Refused,
-}
 type Failure = Refusal;
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -183,16 +177,16 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(3),
     },
     Case {
-        name: CaseName("missing accepted differences are refused"),
+        name: CaseName("missing accepted differences, and a missing growth table, are refused"),
         word: Word::Refuses,
         input: || Operation::AcceptedMissing,
         expect: Expect::Error(Failure::MissingArtifact),
     },
     Case {
-        name: CaseName("the size of files is their bytes"),
+        name: CaseName("a size is the bytes of the files, or the files and bytes below"),
         word: Word::Succeeds,
         input: || Operation::TotalSize,
-        expect: Expect::Value(3),
+        expect: Expect::Value(3_002_010),
     },
     Case {
         name: CaseName("a profile without query modules verifies"),
@@ -226,14 +220,6 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
         let missing = temporary.path().join("missing");
         let destination = temporary.path().join("destination");
         let rules = temporary.path().join("rules");
-        let classify = |error: Error| match error {
-            Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                Failure::MissingArtifact
-            }
-            Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
-                Failure::Unexpected
-            }
-        };
         let refused = |_error: &dyn std::fmt::Debug| Failure::Refused;
         match operation {
             Operation::Profile => adapter
@@ -367,14 +353,15 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
             Operation::AcceptedMissing => adapter
                 .accepted_differences(ArtifactPath(&missing))
                 .map(|accepted| accepted.rules.len())
+                .or_else(|_refused| adapter.growth_table(ArtifactPath(&missing)).map(|_| 0))
                 .map_err(classify),
             Operation::TotalSize => {
-                let file = temporary.path().join("size.bin");
-                std::fs::write(&file, b"abc").map_err(|_| Failure::Unexpected)?;
-                adapter
-                    .total_size(ArtifactSet(&[file]))
-                    .map(|size| usize::try_from(size.0).unwrap_or_default())
-                    .map_err(classify)
+                let store = store(temporary.path()).map_err(|_| Failure::Unexpected)?;
+                let one = adapter.total_size(ArtifactSet(&[store.join("one.bin")]));
+                let below = adapter.directory_size(ArtifactPath(&store));
+                let (one, below) = (one.map_err(classify)?, below.map_err(classify)?);
+                usize::try_from(one.0 * 1_000_000 + below.files.0 * 1_000 + below.bytes.0)
+                    .map_err(|_| Failure::Unexpected)
             }
             Operation::QueryModules => adapter
                 .verify_query_modules(ArtifactPath(temporary.path()), &tool)

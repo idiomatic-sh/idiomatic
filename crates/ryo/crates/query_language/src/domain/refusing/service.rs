@@ -50,6 +50,7 @@ pub(crate) fn refuse_spans_alone(
             | plans::Operation::GroupDigest { .. }
             | plans::Operation::Closure { .. }
             | plans::Operation::OrderedDfs { .. }
+            | plans::Operation::Worklist { .. }
             | plans::Operation::Cycles { .. }
             | plans::Operation::Union { .. }
             | plans::Operation::Intersection { .. }

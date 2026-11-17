@@ -13,9 +13,10 @@ use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
-    EngineUses, KeyedIndex, NodeFlow, NodeReaders, PlanInput, PlanNodeId, RowSource,
+    EngineUses, FirstRead, KeyedIndex, NodeFlow, NodeReaders, PlanInput, PlanNodeId, ReadersFound,
+    RowSource,
 };
-use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::{InputNumber, RepeatedRows};
 
 /// Every rewrite, in the order the planner applies them: each an equivalence, so a plan answers the same rows with or without
 /// it.
@@ -92,6 +93,8 @@ kernels! {
     OrderedWalk => crate::domain::physical_plan::collections::kernels::ordered_walk::item::OrderedWalkItem,
     /// The `components` kernel.
     Components => crate::domain::physical_plan::collections::kernels::components::item::ComponentsItem,
+    /// The `queued_walk` kernel.
+    QueuedWalk => crate::domain::physical_plan::collections::kernels::queued_walk::item::QueuedWalkItem,
 }
 
 /// The physical plan of `program`: each node lowered once, and every registered rewrite applied.
@@ -148,32 +151,69 @@ pub(crate) fn plan_with(
     Ok(PhysicalPlan { nodes, indexes })
 }
 
-/// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them (`flow_of`).
+/// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them (`flow_of`). Who reads
+/// each node, and which rows a shared index keys, are found once for the plan, so deciding every node's flow is linear in it.
 fn flows(nodes: &mut [PhysicalNode], indexes: &[KeyedIndex]) {
-    for at in 0..nodes.len() {
-        let flow = flow_of(
-            nodes,
-            indexes,
-            PlanNodeId(u32::try_from(at).unwrap_or(u32::MAX)),
-        );
-        if let Some(node) = nodes.get_mut(at) {
-            node.flow = flow;
+    let mut reads = vec![ReadersFound::default(); nodes.len()];
+    for (reader, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
+        for (place, source) in reader.lowering.sources().enumerate() {
+            if let RowSource::Node(read) = source
+                && let Some(slot) = reads.get_mut(usize::try_from(read.0).unwrap_or(usize::MAX))
+            {
+                slot.count = NodeReaders(slot.count.0.saturating_add(1));
+                if slot.first.is_none() {
+                    slot.first = Some(FirstRead {
+                        reader: id,
+                        place: InputNumber(place),
+                    });
+                }
+            }
         }
+    }
+    let indexed: hashbrown::HashSet<RowSource> = indexes.iter().map(|index| index.source).collect();
+    let decided: Vec<NodeFlow> = reads
+        .iter()
+        .zip((0..).map(PlanNodeId))
+        .map(|(read, id)| flow_of(nodes, id, read, &indexed))
+        .collect();
+    for (node, flow) in nodes.iter_mut().zip(decided) {
+        node.flow = flow;
     }
 }
 
-/// The flow of node `id`. It streams iff all hold:
+/// The flow of node `id`, which `read` says who reads. It streams iff all hold:
 ///  (1) it is an intermediate streaming stage: a filter, an extension, a `text_map` stage, or a projection or a probe that
 ///      keeps repeated rows (one that drops them keys the rows it keeps, so it streams only as a chain's tail);
 ///  (2) one node reads it, once, and no engine use keeps it (it is neither emitted nor held);
 ///  (3) its one reader is a streaming stage (a projection or a probe of either kind) whose first source, a probe's left,
 ///      is this node: a probe's right side is never streamed, its index blocks;
-///  (4) no shared index keys its rows.
+///  (4) no shared index keys its rows (`indexed`).
 /// Every other node is held.
-fn flow_of(nodes: &[PhysicalNode], indexes: &[KeyedIndex], id: PlanNodeId) -> NodeFlow {
+fn flow_of(
+    nodes: &[PhysicalNode],
+    id: PlanNodeId,
+    read: &ReadersFound,
+    indexed: &hashbrown::HashSet<RowSource>,
+) -> NodeFlow {
     let Some(node) = nodes.get(usize::try_from(id.0).unwrap_or(usize::MAX)) else {
         return NodeFlow::Held;
     };
+    let read_first_by_a_stage = read.count == NodeReaders(1)
+        && read.first.is_some_and(|first| {
+            first.place == InputNumber(0)
+                && nodes
+                    .get(usize::try_from(first.reader.0).unwrap_or(usize::MAX))
+                    .is_some_and(|reader| {
+                        matches!(
+                            reader.lowering,
+                            Lowering::Filter { .. }
+                                | Lowering::Project { .. }
+                                | Lowering::Extend { .. }
+                                | Lowering::TextMap { .. }
+                                | Lowering::Probe { .. }
+                        )
+                    })
+        });
     let stage = match &node.lowering {
         Lowering::Filter { .. } | Lowering::Extend { .. } | Lowering::TextMap { .. } => true,
         Lowering::Project { project, .. } => project.distinct == RepeatedRows::Kept,
@@ -185,37 +225,18 @@ fn flow_of(nodes: &[PhysicalNode], indexes: &[KeyedIndex], id: PlanNodeId) -> No
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }
         | Lowering::ScanBound { .. }
         | Lowering::Unlowered => false,
     };
-    let read = RowSource::Node(id);
-    let mut reads = nodes.iter().flat_map(|reader| {
-        reader
-            .lowering
-            .sources()
-            .enumerate()
-            .filter(move |(_, source)| *source == read)
-            .map(move |(place, _)| (reader, place))
-    });
-    let read_first_by_a_stage = matches!(
-        (reads.next(), reads.next()),
-        (Some((reader, 0)), None) if matches!(
-            reader.lowering,
-            Lowering::Filter { .. }
-                | Lowering::Project { .. }
-                | Lowering::Extend { .. }
-                | Lowering::TextMap { .. }
-                | Lowering::Probe { .. }
-        )
-    );
     if stage
         && node.readers == NodeReaders(1)
         && node.engine == EngineUses(0)
         && read_first_by_a_stage
-        && !indexes.iter().any(|index| index.source == read)
+        && !indexed.contains(&RowSource::Node(id))
     {
         NodeFlow::Streamed
     } else {

@@ -11,4 +11,3 @@
 repository = "https://github.com/astral-sh/ruff"
 revision = "0be08a206f9c3180afd3e93bcc792ed5cb1f4db1"
 directory = "."
-dependencies = [{ source = "crates/tastemaker/cli/tests/fixtures/distribution/cargo", destination = ".policy" }, { source = "tastemaker/benchmarks", destination = ".benchmarks" }, { source = "crates/tastemaker/distribution/registries/cargo/targets/ruff/configuration.toml", destination = "tastemaker.toml" }]

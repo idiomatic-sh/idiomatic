@@ -163,6 +163,7 @@ fn language_tool(run: &[&str]) -> Tool {
         output: Output::ExitStatus,
         group: Group("check".into()),
         timeout: Seconds(60),
+        tolerance: std::collections::BTreeMap::new(),
         inputs: vec![
             Pathspec("languages/{lang}".into()),
             Pathspec("crates".into()),

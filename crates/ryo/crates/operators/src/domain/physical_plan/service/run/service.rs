@@ -8,8 +8,10 @@ use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanned;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::count_of;
+use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_with;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
 use crate::domain::physical_plan::service::indexes::service::sized_shared;
+use crate::domain::physical_plan::service::run::counting::service::{timed, timed_to};
 use crate::domain::physical_plan::service::run::reading::service::{
     pending_of, reading, returned, rows_in,
 };
@@ -81,8 +83,22 @@ pub(super) fn ready(
 }
 
 /// Runs `node`'s kernels and holds its rows and pending fault: a streaming stage through the chain of streamed stages that
-/// ends at it; a lookup's build answers every lookup of its index.
+/// ends at it; a lookup's build answers every lookup of its index. When counting is on, the time it takes, less the time
+/// of the nodes it makes first, is `node`'s.
 fn materialize(
+    plan: &PhysicalPlan,
+    run: &mut KernelRun<'_>,
+    node: PlanNodeId,
+    buffers: &mut FileBuffers,
+) -> Result<(), PortableOperatorFault> {
+    let span = timed(buffers);
+    let made = kernels_of(plan, run, node, buffers);
+    timed_to(buffers, span, node);
+    made
+}
+
+/// What `materialize` runs for `node`.
+fn kernels_of(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
     node: PlanNodeId,
@@ -119,12 +135,11 @@ pub(super) fn made(
         Lowering::ScanBound { scan } => {
             let rows = scanned(scan, run)?;
             // What the scan was fed: the bound rows it reads.
-            if let Some(fed) = buffers
-                .fed
-                .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-            {
-                *fed = NodeFed([rows.count, RowCount(0), RowCount(0)]);
-            }
+            fed_with(
+                buffers,
+                node,
+                NodeFed([rows.count, RowCount(0), RowCount(0)]),
+            );
             hold(plan, buffers, node, rows, None);
             return Ok(());
         }
@@ -142,6 +157,7 @@ pub(super) fn made(
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. } => {}
     }
     let mut sources = lowering.sources();
@@ -206,14 +222,13 @@ pub(super) fn made(
         slots.get(slot_of.get(at).copied()?)?.as_ref()
     });
     // What the node was fed: each input's rows, a node read by two inputs in both.
-    if let Some(fed) = buffers
-        .fed
-        .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
-    {
-        *fed = NodeFed(
+    fed_with(
+        buffers,
+        node,
+        NodeFed(
             read_at.map(|read| read.map_or_else(Default::default, |read| count_of(rows_in(read)))),
-        );
-    }
+        ),
+    );
     let [first_read, second_read, third_read] = read_at;
     let left = first_read.ok_or(PortableOperatorFault::WrongOperation)?;
     let left_fault = pending_of(left);
@@ -232,6 +247,10 @@ pub(super) fn made(
         Lowering::OrderedMatch { .. } => left_fault.clone().or_else(|| right_fault.clone()),
         Lowering::Axis { .. } => right_fault.clone().or_else(|| last_fault.clone()),
         Lowering::OrderedWalk { .. } => right_fault.clone().or_else(|| left_fault.clone()),
+        Lowering::Worklist { .. } => right_fault
+            .clone()
+            .or_else(|| last_fault.clone())
+            .or_else(|| left_fault.clone()),
         Lowering::Filter { .. }
         | Lowering::Project { .. }
         | Lowering::Extend { .. }

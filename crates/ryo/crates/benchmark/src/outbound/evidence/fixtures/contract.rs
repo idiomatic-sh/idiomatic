@@ -1,164 +1,108 @@
-//! Every evidence destination accepts complete samples and refuses incomplete publication.
-use super::sample::SampleInput;
+//! Every evidence destination gathers costs, verification times and growth into one document, written once by `finish`.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::evidence::interface::EvidencePort;
-use ryo_benchmark_contracts::domain::measurements::types::Measurement;
-use ryo_benchmark_contracts::domain::measurements::types::Resources;
-use ryo_benchmark_contracts::domain::measurements::types::SampleName;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use std::time::Duration;
 
-type Input = Vec<SampleInput>;
-type Value = ();
+/// One call of the port, in the order a bench makes it.
+#[derive(Clone, Copy, Debug)]
+pub enum Step {
+    /// An exact comparison of two complete reports.
+    Comparison,
+    /// An empty set of costs.
+    EmptyCosts,
+    /// A project's costs.
+    Costs,
+    /// A rule's verification times.
+    Verification,
+    /// A shape's growth.
+    Growth,
+    /// The times of no verification file.
+    ReadNoVerification,
+    /// The document written.
+    Finish,
+}
+type Input = &'static [Step];
+/// The rules whose times were read.
+type Value = usize;
 type Failure = ();
 
-/// Independent port observations shared by concrete and fake implementations.
+/// The rows every destination answers, run in order over one destination: the refusals first, then a bench's calls up
+/// to its one `finish`.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("diagnostic pair cannot publish benchmark metrics"),
+        name: CaseName("an empty set of costs is refused"),
         word: Word::Refuses,
-        input: || {
-            let samples = (CASES[1].input)();
-            let original = samples[0].measurement.clone();
-            vec![SampleInput {
-                inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Diagnostic,
-                name: SampleName("diagnostic/reference".into()),
-                measurement: original,
-            }]
-        },
+        input: || &[Step::EmptyCosts],
         expect: Expect::Error(()),
     },
     Case {
-        name: CaseName("complete observation publishes"),
+        name: CaseName("an exact comparison of two complete reports is written"),
         word: Word::Succeeds,
-        input: || {
-            vec![SampleInput {
-                inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete,
-                name: ryo_benchmark_contracts::domain::measurements::types::SampleName(
-                    "project/contestant/cold".into(),
-                ),
-                measurement: Measurement {
-                    wall: Duration::from_millis(5),
-                    resources: ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(
-                        Resources {
-                            cpu: Duration::from_millis(4),
-                            peak_rss_bytes: ryo_benchmark_contracts::domain::measurements::types::ResidentBytes(4096),
-                        },
-                    ),
-                    report: RunReport {
-                        execution_metadata:
-                            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                        project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
-                        skipped: Vec::new(),
-                        coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                            unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                        }),
-                        diagnostics: vec![],
-                        files: vec![ryo::linter::RelativePath("input".into())],
-                    },
-                },
-            }]
-        },
-        expect: Expect::Value(()),
+        input: || &[Step::Comparison],
+        expect: Expect::Value(0),
     },
     Case {
-        name: CaseName("empty publication is refused"),
-        word: Word::Refuses,
-        input: Vec::new,
-        expect: Expect::Error(()),
+        name: CaseName("a project's costs, a rule's times and a shape's growth are added"),
+        word: Word::Succeeds,
+        input: || &[Step::Costs, Step::Verification, Step::Growth],
+        expect: Expect::Value(0),
     },
     Case {
-        name: CaseName("missing resources are refused"),
-        word: Word::Refuses,
-        input: || {
-            vec![SampleInput {
-                inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete,
-                name: ryo_benchmark_contracts::domain::measurements::types::SampleName(
-                    "project/contestant/cold".into(),
-                ),
-                measurement: Measurement {
-                    wall: Duration::from_millis(5),
-                    resources: ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
-                    report: RunReport {
-                        execution_metadata:
-                            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                        project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
-                        skipped: Vec::new(),
-                        coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                            unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                        }),
-                        diagnostics: vec![],
-                        files: vec![ryo::linter::RelativePath("input".into())],
-                    },
-                },
-            }]
-        },
-        expect: Expect::Error(()),
+        name: CaseName("no verification file gives no times"),
+        word: Word::Succeeds,
+        input: || &[Step::ReadNoVerification],
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("the document of what was added is written"),
+        word: Word::Succeeds,
+        input: || &[Step::Finish],
+        expect: Expect::Value(0),
     },
 ];
 
-/// Run publication observations against one supplied destination.
+/// Make each call of `steps` on `adapter`, answering the rules whose times were read.
+fn subject(adapter: &impl EvidencePort, steps: Input) -> Result<Value, Failure> {
+    let language: ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage =
+        "python".into();
+    let mut read = 0;
+    for step in steps {
+        let outcome = match step {
+            Step::Comparison => {
+                let report = super::sample::report();
+                adapter.comparison(
+                    &report,
+                    &report,
+                    ryo_benchmark_contracts::domain::reports::types::ReportComparison {
+                        diagnostics: ryo_benchmark_contracts::domain::reports::types::Comparison::Exact,
+                        execution_metadata:
+                            ryo_benchmark_contracts::domain::reports::types::Comparison::Exact,
+                    },
+                    ryo_benchmark_contracts::domain::reports::types::ComparisonContract::Diagnostics,
+                )
+            }
+            Step::EmptyCosts => adapter.costs(
+                &language,
+                &ryo_benchmark_contracts::domain::costs::types::ProjectCosts(Vec::new()),
+            ),
+            Step::Costs => adapter.costs(&language, &super::sample::costs()),
+            Step::Verification => adapter.verification(&language, &super::sample::timings()),
+            Step::Growth => adapter.growth(&language, &super::sample::growth()),
+            Step::ReadNoVerification => adapter
+                .read_verification(
+                    &crate::outbound::evidence::types::VerificationTimesFiles::default(),
+                )
+                .map(|timings| read += timings.0.len()),
+            Step::Finish => adapter.finish(),
+        };
+        outcome.map_err(|_refused| ())?;
+    }
+    Ok(read)
+}
+
+/// Run the contract's rows against one supplied destination, the refusals first.
 /// # Panics
-/// Panics if the destination violates the publication contract.
+/// Panics if the destination violates the evidence contract.
 pub fn check(adapter: &impl EvidencePort) {
-    let subject = |samples: Vec<SampleInput>| {
-        let observations = samples
-            .iter()
-            .map(SampleInput::publication)
-            .collect::<Vec<_>>();
-        let publication =
-            crate::outbound::evidence::types::measured_publication::value::MeasuredPublication::checked(
-                &observations,
-            );
-        adapter
-            .publish(&publication)
-            .map_err(|_invalid_boundary_value| ())
-    };
-    run(CASES, Word::Succeeds, subject);
-    run(CASES, Word::Refuses, subject);
-    let report = (CASES[1].input)()
-        .into_iter()
-        .map(|sample| sample.measurement.report)
-        .next()
-        .expect("the complete observation row holds one sample");
-    assert_eq!(
-        adapter
-            .comparison(
-                &report,
-                &report,
-                ryo_benchmark_contracts::domain::reports::types::ReportComparison {
-                    diagnostics: ryo_benchmark_contracts::domain::reports::types::Comparison::Exact,
-                    execution_metadata:
-                        ryo_benchmark_contracts::domain::reports::types::Comparison::Exact,
-                },
-                ryo_benchmark_contracts::domain::reports::types::ComparisonContract::Diagnostics,
-            )
-            .map_err(|_invalid_boundary_value| ()),
-        Ok(()),
-        "an exact comparison of two complete reports is written"
-    );
-    assert_eq!(
-        adapter
-            .parity(
-                &ryo_benchmark_contracts::domain::reports::types::ParityReport {
-                    reference: ryo_benchmark_contracts::domain::reports::types::ContestantName(
-                        "reference"
-                    ),
-                    candidate: ryo_benchmark_contracts::domain::reports::types::ContestantName(
-                        "candidate"
-                    ),
-                    rules: Vec::new(),
-                    problems: Vec::new(),
-                }
-            )
-            .map_err(|_invalid_boundary_value| ()),
-        Ok(()),
-        "a parity report is written"
-    );
+    run(CASES, Word::Refuses, |steps| subject(adapter, steps));
+    run(CASES, Word::Succeeds, |steps| subject(adapter, steps));
 }

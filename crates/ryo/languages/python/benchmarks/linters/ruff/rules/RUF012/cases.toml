@@ -37,3 +37,9 @@ expected = [{ rule = "RUF012", file = "case.py", start = 123, end = 125 }]
 name = "constructor-shadowed"
 files = { "case.py" = "list = lambda: None\nclass C:\n    a = list()\n    b = []\n" }
 expected = [{ rule = "RUF012", file = "case.py", start = 52, end = 54 }]
+
+[[cases]]
+name = "base-classes-resolve-to-the-latest-module-binding"
+comparison = "full"
+files = { "case.py" = "import ctypes\nfrom pydantic import BaseModel\n\n\nclass Base(BaseModel):\n    name: str\n\n\nclass Child(Base):\n    tags = []\n\n\nclass Model(BaseModel):\n    name: str\n\n\ndef test_read_with_orm_mode() -> None:\n    class PersonBase(BaseModel):\n        name: str\n\n    class PersonRead(PersonBase):\n        model_config = {\"from_attributes\": True}\n\n    class Local(Base):\n        tags = []\n\n    class LocalModel(Model):\n        tags = []\n\n\nclass Outer:\n    class Inner(BaseModel):\n        pass\n\n    class Sibling(Inner):\n        tags = []\n\n\nclass Inner:\n    pass\n\n\nclass Base(ctypes.Structure):\n    pass\n\n\nclass Point(Base):\n    _fields_ = [(\"x\", ctypes.c_int)]\n\n\ndef build():\n    class LocalBase(ctypes.Structure):\n        pass\n\n    class LocalPoint(LocalBase):\n        _fields_ = [(\"x\", ctypes.c_int)]\n" }
+expected = [{ rule = "RUF012", file = "case.py", start = 116, end = 118 }, { rule = "RUF012", file = "case.py", start = 309, end = 334 }, { rule = "RUF012", file = "case.py", start = 374, end = 376 }, { rule = "RUF012", file = "case.py", start = 523, end = 525 }, { rule = "RUF012", file = "case.py", start = 769, end = 790 }]

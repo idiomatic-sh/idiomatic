@@ -23,6 +23,36 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(std::borrow::Cow::Borrowed("bench:Bmf:perf:1")),
     },
     Case {
+        name: CaseName("a_perf_tool_with_a_tolerance_is_read"),
+        word: Word::Succeeds,
+        input: || "[[tools]]\nid = \"bench\"\nrun = [\"bench\"]\ngroup = \"perf\"\noutput = \"bmf\"\ntolerance-percent = { peak-megabytes = 5, store-bytes = 1 }\n",
+        expect: Expect::Value(std::borrow::Cow::Borrowed("bench:Bmf:perf:1:tolerance peak-megabytes=5,store-bytes=1")),
+    },
+    Case {
+        name: CaseName("a_tolerance_on_a_tool_that_is_not_a_perf_tool_is_refused"),
+        word: Word::Refuses,
+        input: || "[[tools]]\nid = \"t\"\nrun = [\"t\"]\ngroup = \"test\"\ntolerance-percent = { peak-megabytes = 5, store-bytes = 1 }\n",
+        expect: Expect::Refusal(|actual| {
+            if actual == "tool `t`: `tolerance-percent` applies to a tool whose `output` is `bmf`" {
+                crate::cases::Selection::Matches
+            } else {
+                crate::cases::Selection::Differs
+            }
+        }),
+    },
+    Case {
+        name: CaseName("a_tolerance_that_names_no_measure_is_refused"),
+        word: Word::Refuses,
+        input: || "[[tools]]\nid = \"b\"\nrun = [\"b\"]\ngroup = \"perf\"\noutput = \"bmf\"\ntolerance-percent = {}\n",
+        expect: Expect::Refusal(|actual| {
+            if actual.starts_with("tool `b`: `tolerance-percent` names each measure and its percent") {
+                crate::cases::Selection::Matches
+            } else {
+                crate::cases::Selection::Differs
+            }
+        }),
+    },
+    Case {
         name: CaseName("a_test_tool_reading_its_exit_status_is_read"),
         word: Word::Succeeds,
         input: || "[[tools]]\nid = \"t\"\nrun = [\"t\"]\ngroup = \"test\"\n",
@@ -167,7 +197,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || "[[tools]]\nid = \"a\"\nrun = [\"a\"]\ngroup = \"lint\"\nparser = \"sarif\"\n",
         expect: Expect::Refusal(|actual| {
             if actual
-                == "unknown field `parser`, expected one of `id`, `run`, `fix`, `group`, `output`, `timeout-seconds`, `inputs`"
+                == "unknown field `parser`, expected one of `id`, `run`, `fix`, `group`, `output`, `timeout-seconds`, `inputs`, `tolerance-percent`"
             {
                 crate::cases::Selection::Matches
             } else {
@@ -250,8 +280,20 @@ fn told(text: Input) -> Result<String, Failure> {
             } else {
                 format!(":{}", tool.group.0)
             };
+            let tolerance = if tool.tolerance.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    ":tolerance {}",
+                    tool.tolerance
+                        .iter()
+                        .map(|(measure, percent)| format!("{}={}", measure.0, percent.0))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+            };
             format!(
-                "{}:{:?}{group}:{}",
+                "{}:{:?}{group}:{}{tolerance}",
                 tool.id.0,
                 tool.output,
                 tool.inputs.len()

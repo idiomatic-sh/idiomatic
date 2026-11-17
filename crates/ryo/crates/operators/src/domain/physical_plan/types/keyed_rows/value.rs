@@ -42,3 +42,15 @@ impl KeyedRows {
         self.next.clear();
     }
 }
+
+impl crate::domain::kept_room::types::KeptRoom for KeyedRows {
+    fn kept(&mut self) {
+        self.keys.kept();
+        self.next.kept();
+    }
+
+    #[cfg(test)]
+    fn room(&self) -> crate::domain::kept_room::types::Room {
+        self.keys.room().max(self.next.room())
+    }
+}

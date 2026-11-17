@@ -179,14 +179,33 @@ fn configured(
         }
     }
 }
-/// Which of the three spans the flushed trace holds: after load, after configure, and the compile.
+/// Which of the three spans the flushed trace holds (after load, after configure, and the compile), and the engine's node
+/// counters' `run` event with its fields, when the run counted any node made.
 fn verify_trace(path: &Path) -> String {
-    let text = std::fs::read(path)
+    let trace = std::fs::read(path)
         .ok()
-        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-        .map_or_else(|| "no complete trace".to_owned(), |value| value.to_string());
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+    let text = trace.as_ref().map_or_else(
+        || "no complete trace".to_owned(),
+        serde_json::Value::to_string,
+    );
+    let counted = trace
+        .as_ref()
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .find(|entry| entry["cat"] == "ryo::node_counters" && entry["name"] == "run")
+        .map_or_else(
+            || "none".to_owned(),
+            |run| {
+                format!(
+                    "runs={} nodes={}",
+                    run["args"]["runs"], run["args"]["nodes"]
+                )
+            },
+        );
     format!(
-        "load {} configure {} compile {}",
+        "load {} configure {} compile {} counters {counted}",
         text.contains("engine_session_after_load"),
         text.contains("engine_session_after_configure"),
         text.contains("\"compile\"")

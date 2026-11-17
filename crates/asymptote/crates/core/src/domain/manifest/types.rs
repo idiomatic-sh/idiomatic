@@ -1,6 +1,9 @@
 //! The types of the `manifest` concept: plain data, public fields and derives, with no constructor and no inherent
 //! impl.
 
+use std::collections::BTreeMap;
+
+use crate::domain::operations::types::MeasureName;
 use crate::domain::violations::types::ToolId;
 
 /// The product's root: the directory holding its `asymptote.toml`, absolute. Every path asymptote keys is relative
@@ -62,6 +65,10 @@ pub enum Groups {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Seconds(pub u64);
 
+/// How many whole percent over its best a measure may be before a run fails.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Percent(pub u32);
+
 /// A git pathspec, relative to the product's root, naming files a tool reads.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Pathspec(pub Box<str>);
@@ -83,6 +90,9 @@ pub struct Tool {
     pub timeout: Seconds,
     /// The files it reads, which say whether its last run still holds: the product's own when the file names none.
     pub inputs: Vec<Pathspec>,
+    /// How far over its best each measure of its Bencher Metric Format, named by its slug, may rise before the run fails: a
+    /// measure the file does not name is held to its best.
+    pub tolerance: BTreeMap<MeasureName, Percent>,
 }
 
 /// The name of a git hook as the command line gives it, before it is known to be one.

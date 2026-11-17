@@ -9,6 +9,7 @@ use crate::domain::ordered_dfs::types::DfsParts;
 use crate::domain::physical_plan::types::{IndexPlace, ProbeIndex, RowMap, RowSource};
 use crate::domain::project::types::ProjectParts;
 use crate::domain::select::types::SelectParts;
+use crate::domain::worklist::types::WorklistParts;
 use ryo_relations::domain::relations::types::TextHash;
 
 /// The kernels one node is lowered to.
@@ -107,6 +108,17 @@ pub(crate) enum Lowering {
         /// The visit.
         dfs: DfsParts,
     },
+    /// `worklist`: from each distinct partition and root, in sorted order, the edges a first-in-first-out dataflow follows.
+    Worklist {
+        /// The root rows.
+        roots: RowSource,
+        /// The edge rows.
+        edges: RowSource,
+        /// The lattice rows.
+        lattice: RowSource,
+        /// The worklist.
+        worklist: WorklistParts,
+    },
     /// `components`: each entity of a strongly connected component of more than one, or with an edge to itself, once.
     Components {
         /// The edge rows.
@@ -163,6 +175,33 @@ pub(crate) enum BoundScan {
 }
 
 impl Lowering {
+    /// The kind of its kernels, as the node counters report it.
+    pub(crate) fn kind(
+        &self,
+    ) -> crate::domain::physical_plan::types::node_counters::value::NodeKind {
+        use crate::domain::physical_plan::types::node_counters::value::NodeKind;
+        match self {
+            Self::Filter { .. } => NodeKind::Filter,
+            Self::Lookup { .. } => NodeKind::Lookup,
+            Self::Project { .. } => NodeKind::Project,
+            Self::Extend { .. } => NodeKind::Extend,
+            Self::Probe { .. } => NodeKind::Probe,
+            Self::Distinct { .. } => NodeKind::Distinct,
+            Self::Group { .. } => NodeKind::Group,
+            Self::Reach { .. } => NodeKind::Reach,
+            Self::SeededReach { .. } => NodeKind::SeededReach,
+            Self::Axis { .. } => NodeKind::Axis,
+            Self::OrderedWalk { .. } => NodeKind::OrderedWalk,
+            Self::Worklist { .. } => NodeKind::Worklist,
+            Self::Components { .. } => NodeKind::Components,
+            Self::TextMap { .. } => NodeKind::TextMap,
+            Self::OrderedMatch { .. } => NodeKind::OrderedMatch,
+            Self::Render { .. } => NodeKind::Render,
+            Self::ScanBound { .. } => NodeKind::ScanBound,
+            Self::Unlowered => NodeKind::Unlowered,
+        }
+    }
+
     /// The rows the node reads, in the order its kernels read them; a lookup reads its index's relation, which is not here.
     pub(crate) fn sources(&self) -> impl Iterator<Item = RowSource> {
         let (first, second, third) = match self {
@@ -189,6 +228,12 @@ impl Lowering {
                 domain,
                 ..
             } => (Some(*starts), Some(*edges), Some(*domain)),
+            Self::Worklist {
+                roots,
+                edges,
+                lattice,
+                ..
+            } => (Some(*roots), Some(*edges), Some(*lattice)),
             Self::Lookup { .. } | Self::ScanBound { .. } | Self::Unlowered => (None, None, None),
         };
         first.into_iter().chain(second).chain(third)

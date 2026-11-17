@@ -28,6 +28,10 @@ Canonical finding multisets retain duplicate occurrences, exact paths and byte l
 
 A pinned reference may differ from the intended contract only with complete, known and evidenced identities.
 
+### growth
+
+How a rule's cost grows when its generated program doubles: each shape's programs, the one CPU floor and memory bound, and what each shape grew.
+
 ### host_applicability
 
 A host whose file permissions cannot be trusted refuses the profiles that require file observations.
@@ -58,7 +62,7 @@ Executable observation dependencies are resolved from the authored declarations 
 
 ### operations
 
-The gated operations of a linter bench, each run as `ryo-benchmark-collector <verb> languages/<lang>/benchmarks/linters/<linter>`: `verify-inventory` (correctness), `measure-valid` and `parity`. The collector's `<verb> <bench-dir>` builds and seals the bench's worker under `<target>/benchmark/<lang>/<linter>/<verb>/`, and runs the worker's `<verb>` with the sealed paths; `verify-inventory` verifies the registration in process instead. A new bench gets all three with no lines of its own.
+The one gated operation of a linter bench, run as `ryo-benchmark-collector bench languages/<lang>/benchmarks/linters/<linter>` (asymptote's `bench/<lang>/<linter>`): the collector builds and seals the bench's worker under `<target>/benchmark/<lang>/<linter>/bench/`, verifies every default against its cases in its inventory, and, when every default passes, runs the worker's `measure-valid`, which runs ryo and the pinned reference over each project of the language and writes ryo's costs, verification times and growth as the one BMF document the collector prints. A new bench gets it with no lines of its own.
 
 ### process_failure
 
@@ -86,7 +90,7 @@ Declared linter configuration is resolved, checked against the request and count
 
 ### source_validity
 
-A corpus run covers the sources the pinned reference parses: measure-valid and parity drop each source the reference reports under its invalid-syntax rule, and say which.
+A corpus run covers the sources the pinned reference parses: a corpus measurement drops each source the reference reports under its invalid-syntax rule, and says which.
 
 ### suite
 

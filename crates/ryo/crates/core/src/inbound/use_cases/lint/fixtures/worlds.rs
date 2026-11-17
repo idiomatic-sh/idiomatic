@@ -264,6 +264,13 @@ pub(crate) fn compiled_lint(
     given: Given,
     asked: crate::inbound::use_cases::lint::types::LintRequest,
 ) -> Result<(World, crate::inbound::use_cases::lint::types::LintReport), LintError> {
+    let world = compiled_world(given);
+    let report = world.use_case.lint(asked)?;
+    Ok((world, report))
+}
+
+/// The world of `given` with the real query compiler, on one worker.
+pub(crate) fn compiled_world(given: Given) -> World {
     use ryo_execution::outbound::query_language::factory;
     let syntax = || Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
     let catalog = || Arc::new(ryo_query_language::outbound::catalog::factory::language());
@@ -280,12 +287,10 @@ pub(crate) fn compiled_lint(
         ),
     );
     let scheduler: Arc<dyn SchedulerPort> = Arc::new(SchedulerFake::default());
-    let world = scheduled_world_with_query(
+    scheduled_world_with_query(
         given,
         scheduler,
         WorkerCount(1),
         Arc::new(factory::use_case(compile, typecheck)),
-    );
-    let report = world.use_case.lint(asked)?;
-    Ok((world, report))
+    )
 }

@@ -119,6 +119,7 @@ fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<K
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Select { .. }
         | Operation::Project { .. }
         | Operation::Extend { .. }

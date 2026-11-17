@@ -162,6 +162,14 @@ pub trait SuitePort: Send + Sync {
         &self,
         file: ArtifactPath<'_>,
     ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error>;
+    /// A language's growth table, as its `growth.toml` writes it.
+    ///
+    /// # Errors
+    /// Refuses a missing file, a malformed table, an invalid rule name, or a table that grows nothing.
+    fn growth_table(
+        &self,
+        file: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::growth::types::GrowthTable, Error>;
     /// The UTF-8 text of one source file.
     ///
     /// # Errors
@@ -177,6 +185,14 @@ pub trait SuitePort: Send + Sync {
     /// # Errors
     /// Refuses a file that cannot be inspected.
     fn total_size(&self, files: ArtifactSet<'_>) -> Result<ArtifactSize, Error>;
+    /// The bytes and the count of every file below a directory, links not followed: the store a run left there.
+    ///
+    /// # Errors
+    /// Refuses a directory or an entry that cannot be inspected.
+    fn directory_size(
+        &self,
+        directory: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::costs::types::StoreSize, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     ///
     /// # Errors

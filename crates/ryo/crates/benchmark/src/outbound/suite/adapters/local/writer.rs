@@ -6,6 +6,7 @@ use crate::outbound::suite::types::{
 };
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use ryo_benchmark_contracts::domain::costs::types::StoreSize;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, RuleName};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
@@ -22,7 +23,6 @@ pub(super) fn rule_directory(
     let relative = RelativeArtifactPath::try_from(Path::new(&name))?;
     Ok(rules.join(relative.as_ref()))
 }
-
 /// Refuse module paths that escape the profile or traverse symlinks.
 pub(super) fn validate_query_modules(directory: &Path, tool: &Tool) -> Result<(), Error> {
     let root = directory.canonicalize()?;
@@ -52,7 +52,6 @@ pub(super) fn validate_query_modules(directory: &Path, tool: &Tool) -> Result<()
     }
     Ok(())
 }
-
 /// Freeze the shared project manifest and every declared patch in an owned directory.
 #[expect(
     clippy::create_dir,
@@ -177,6 +176,10 @@ pub(super) fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), E
         let bytes = std::fs::read(path)?;
         hasher.update(bytes.len().to_le_bytes());
         hasher.update(bytes);
+    } else if metadata.is_symlink() {
+        let target = std::fs::read_link(path)?;
+        let bytes = target.as_os_str().as_encoded_bytes();
+        hasher.update([constants::LINK_MARKER, &bytes.len().to_le_bytes(), bytes].concat());
     } else if metadata.is_dir() {
         let mut children = std::fs::read_dir(path)?
             .map(|entry| entry.map(|entry| entry.path()))
@@ -301,7 +304,7 @@ pub(super) fn materialize(
         let path = root.join(relative.as_ref());
         std::fs::create_dir_all(
             path.parent()
-                .ok_or_else(|| Error::Invalid(super::constants::MISSING_CASE_PARENT.into()))?,
+                .ok_or_else(|| Error::Invalid(constants::MISSING_CASE_PARENT.into()))?,
         )?;
         std::fs::write(&path, source.0.as_bytes())?;
         if let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
@@ -375,4 +378,23 @@ pub(super) fn relative(path: &Path) -> Result<(), SuiteError> {
         ));
     }
     Ok(())
+}
+
+/// The bytes and count of every file below `directory`.
+pub(super) fn directory_size(directory: &Path) -> Result<StoreSize, Error> {
+    let mut size = StoreSize::default();
+    let mut pending = vec![directory.to_path_buf()];
+    while let Some(next) = pending.pop() {
+        for entry in std::fs::read_dir(&next)? {
+            let entry = entry?;
+            let kind = entry.file_type()?;
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else if kind.is_file() {
+                size.bytes.0 = size.bytes.0.saturating_add(entry.metadata()?.len());
+                size.files.0 = size.files.0.saturating_add(1);
+            }
+        }
+    }
+    Ok(size)
 }

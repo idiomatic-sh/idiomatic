@@ -82,6 +82,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Change::Command,
         expect: Expect::Error(()),
     },
+    Case {
+        name: CaseName("a probe whose preparation changes a sealed input is refused"),
+        word: Word::Refuses,
+        input: || Change::ProbeWrites,
+        expect: Expect::Error(()),
+    },
+    Case {
+        name: CaseName("a launcher swapped after certification refuses measurement"),
+        word: Word::Refuses,
+        input: || Change::Launcher,
+        expect: Expect::Error(()),
+    },
 ];
 #[test]
 fn succeeds() {

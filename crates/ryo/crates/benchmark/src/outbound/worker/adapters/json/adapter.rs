@@ -26,14 +26,30 @@ impl WorkerJsonAdapter {
         }
     }
 }
-impl WorkerPort for WorkerJsonAdapter {
-    fn receive(&self) -> Result<WorkerRequest, Error> {
-        let payload = match &self.source {
-            WorkerSource::Argument(payload) => payload.clone(),
-            WorkerSource::Stored(path) => OsString::from(std::fs::read_to_string(path)?),
-        };
+impl WorkerJsonAdapter {
+    /// The request `payload` holds.
+    fn decoded(payload: &OsString) -> Result<WorkerRequest, Error> {
         WorkerRequest::try_from(WorkerPayload(payload.as_os_str()))
             .map_err(|error| Error::Invalid(error.to_string()))
+    }
+}
+impl WorkerPort for WorkerJsonAdapter {
+    fn receive(&self) -> Result<WorkerRequest, Error> {
+        match &self.source {
+            WorkerSource::Argument(payload) => Self::decoded(payload),
+            WorkerSource::Stored(path) => self.read(path),
+        }
+    }
+    fn read(&self, path: &std::path::Path) -> Result<WorkerRequest, Error> {
+        Self::decoded(&OsString::from(std::fs::read_to_string(path)?))
+    }
+    fn encoded(
+        &self,
+        report: &RunReport,
+    ) -> Result<crate::outbound::worker::types::EncodedResponse, Error> {
+        let bytes = WorkerResponseBytes::try_from(report)
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+        Ok(super::connection::framed(&bytes))
     }
     fn respond(&self, report: &RunReport) -> Result<(), Error> {
         let bytes = WorkerResponseBytes::try_from(report)

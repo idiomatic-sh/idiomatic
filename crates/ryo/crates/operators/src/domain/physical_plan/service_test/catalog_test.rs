@@ -9,8 +9,10 @@ use crate::domain::physical_plan::service::{Kernel, REWRITES, plan_with};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
-use crate::domain::physical_plan::types::{LogicalNode, NodeBindings, PlanInput, PlanInputList};
-use ryo_values::domain::plan_parts::types::StepScope;
+use crate::domain::physical_plan::types::{
+    LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId,
+};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId, StepScope};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -43,7 +45,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kind_lowers_once"),
         word: Word::Succeeds,
         input: || Scenario::KindsLower,
-        expect: Expect::Value(26),
+        expect: Expect::Value(27),
     },
     Case {
         name: CaseName("a_kind_left_unlowered_fails_every_kind_lowers_once"),
@@ -55,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kernel_is_reached"),
         word: Word::Succeeds,
         input: || Scenario::KernelsReached,
-        expect: Expect::Value(20),
+        expect: Expect::Value(21),
     },
     Case {
         name: CaseName("a_kernel_no_lowering_runs_fails_every_kernel_is_reached"),
@@ -99,9 +101,37 @@ fn with_bound_scans(mut steps: Vec<Step>) -> Vec<Step> {
     steps
 }
 
+/// The program the catalogs are checked over: the case program with its bound scans, and a worklist over node 12's one row,
+/// a count, for its roots, edges and lattice.
+fn catalog_program() -> Vec<Step> {
+    let mut steps = with_bound_scans(text_program());
+    let count = || ryo_values::domain::plan_parts::types::Input::Step(StepId(12));
+    let first = ColumnIndex(0);
+    steps.push(Step {
+        operation: Operation::Worklist {
+            from: count(),
+            edges: count(),
+            lattice: count(),
+            root: first,
+            state: first,
+            source: first,
+            destination: first,
+            order: first,
+            before: first,
+            after: first,
+            lower: first,
+            upper: first,
+            root_keys: Vec::new(),
+            edge_keys: Vec::new(),
+        },
+        inputs: vec![PlanInput::Node(PlanNodeId(12)); 3],
+    });
+    steps
+}
+
 /// Every kind has a node of the case program `lower` lowers.
 fn kinds_lower(lower: Lower) -> Result<Value, Failure> {
-    let steps = with_bound_scans(text_program());
+    let steps = catalog_program();
     let mut held = 0;
     for kind in OperationKind::ALL {
         if !steps.iter().any(|step| {
@@ -144,9 +174,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::KindsLower => kinds_lower(lowered),
         Scenario::KindLeftUnlowered => kinds_lower(extension_unlowered),
-        Scenario::KernelsReached => kernels_reached(&with_bound_scans(text_program())),
+        Scenario::KernelsReached => kernels_reached(&catalog_program()),
         Scenario::KernelNoLoweringRuns => {
-            let steps: Vec<Step> = with_bound_scans(text_program())
+            let steps: Vec<Step> = catalog_program()
                 .into_iter()
                 .filter(|step| {
                     !matches!(

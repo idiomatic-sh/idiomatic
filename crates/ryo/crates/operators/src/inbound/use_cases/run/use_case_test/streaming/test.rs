@@ -3,13 +3,17 @@
 //! growing with the names the capture mints, and every chunk within its cell bound.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::fixtures::over_nodes;
-use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
+use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
+use crate::domain::physical_plan::types::worker_meters::value::ChunkMeter;
 use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, against, agrees, faulting, ran_after, ran_program, select_of, span, split_names,
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    against, faulting, one_row_past_the_bound, select_of, span, split_names,
 };
+use crate::inbound::use_cases::run::fixtures::streams::{
+    Program, agrees, node_probe, ran_after, ran_over_short_view, ran_program,
+};
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, RepeatedRows, StepId, Test,
 };
@@ -25,6 +29,9 @@ enum Scenario {
     NamesMintedAcrossChunks,
     ExpandingCapture,
     EngineRanTheMiddle,
+    ShortViewLeft,
+    ShortViewRight,
+    OneRowPastTheBound,
 }
 
 /// What a case observed of the program run as planned, against its held twin.
@@ -45,6 +52,13 @@ enum Observation {
         formed: u32,
         within: bool,
     },
+    /// How many rows the planned run answered, and its fault; none when it answered rows.
+    Rows {
+        rows: usize,
+        fault: Cow<'static, str>,
+    },
+    /// Whether the two runs answered the same, and the most rows the planned run handed from a stage to its reader at once.
+    Handed { same: bool, handed: usize },
     /// Whether the two runs answered the same, how many node tables the planned run formed, and whether the middle node
     /// the engine ran first holds rows after its reader ran.
     Started {
@@ -118,11 +132,57 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             middle: Cow::Borrowed("absent"),
         }),
     },
+    Case {
+        name: CaseName("a_short_view_read_as_a_chains_head_is_refused"),
+        word: Word::Succeeds,
+        input: || Scenario::ShortViewLeft,
+        expect: Expect::Value(Observation::Rows {
+            rows: 0,
+            fault: Cow::Borrowed("ShapeMismatch"),
+        }),
+    },
+    Case {
+        name: CaseName("a_short_view_read_as_a_probes_right_is_refused"),
+        word: Word::Succeeds,
+        input: || Scenario::ShortViewRight,
+        expect: Expect::Value(Observation::Rows {
+            rows: 0,
+            fault: Cow::Borrowed("ShapeMismatch"),
+        }),
+    },
+    Case {
+        name: CaseName("one_left_rows_answers_are_handed_on_in_one_chunk"),
+        word: Word::Succeeds,
+        input: || Scenario::OneRowPastTheBound,
+        expect: Expect::Value(Observation::Handed {
+            same: true,
+            handed: 20_001,
+        }),
+    },
 ];
 
-/// The program each scenario runs.
-fn program(scenario: Scenario) -> Program {
-    match scenario {
+/// Runs `steps` with `short` lent short of its kinds, emitting the last: the rows it answered and its fault.
+fn over_short_view(steps: &[Step], short: Relation) -> Result<Value, Failure> {
+    let emit = PlanNodeId(
+        u32::try_from(steps.len())
+            .unwrap_or(u32::MAX)
+            .saturating_sub(1),
+    );
+    let ran = ran_over_short_view(steps, emit, short)?;
+    Ok(Observation::Rows {
+        rows: ran.answer.as_ref().map_or(0, Vec::len),
+        fault: Cow::Owned(
+            ran.answer
+                .err()
+                .map(|fault| format!("{fault:?}"))
+                .unwrap_or_default(),
+        ),
+    })
+}
+
+/// The program each scenario runs; none for those that read short rows or hand a probe's answers on.
+fn program(scenario: Scenario) -> Option<Program> {
+    Some(match scenario {
         Scenario::CaptureIntoFilter => Program {
             steps: vec![
                 split_names(),
@@ -210,11 +270,58 @@ fn program(scenario: Scenario) -> Program {
                 texts: vec![name, "x".into()],
             }
         }
+        Scenario::ShortViewLeft | Scenario::ShortViewRight | Scenario::OneRowPastTheBound => {
+            return None;
+        }
+    })
+}
+
+/// What a scenario with no program observes: the short rows read, or a probe's answers handed on.
+fn unprogrammed(scenario: Scenario) -> Result<Value, Failure> {
+    match scenario {
+        // A projection's head is the short view: refused where the chain reads it.
+        Scenario::ShortViewLeft => over_short_view(
+            &[over_defines(Operation::Project {
+                from: StepInput::Relation(Relation::Defines),
+                columns: vec![ColumnIndex(0)],
+                distinct: RepeatedRows::Kept,
+            })],
+            Relation::Defines,
+        ),
+        // A select of whole Defines rows probes the short view as its right side: refused where the probe reads it.
+        Scenario::ShortViewRight => over_short_view(
+            &[
+                over_defines(Operation::Select {
+                    from: StepInput::Relation(Relation::Defines),
+                    comparisons: Vec::new(),
+                    kept: Vec::new(),
+                }),
+                node_probe(Relation::Comment),
+            ],
+            Relation::Comment,
+        ),
+        Scenario::OneRowPastTheBound => {
+            let program = one_row_past_the_bound();
+            let streamed = ran_program(&program, false)?;
+            let twin = ran_program(&program, true)?;
+            Ok(Observation::Handed {
+                same: agrees(&streamed, &twin),
+                handed: streamed.buffers.chains.handed.0,
+            })
+        }
+        Scenario::CaptureIntoFilter
+        | Scenario::FilterFaultFirst
+        | Scenario::MapFaultFirst
+        | Scenario::NamesMintedAcrossChunks
+        | Scenario::ExpandingCapture
+        | Scenario::EngineRanTheMiddle => Err(PortableOperatorFault::WrongOperation),
     }
 }
 
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
-    let program = program(scenario);
+    let Some(program) = program(scenario) else {
+        return unprogrammed(scenario);
+    };
     if let Scenario::EngineRanTheMiddle = scenario {
         let streamed = ran_after(&program, false, &[PlanNodeId(1)])?;
         let twin = ran_after(&program, true, &[PlanNodeId(1)])?;
@@ -246,7 +353,10 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
                     .unwrap_or_default(),
             ),
         },
-        Scenario::EngineRanTheMiddle => return Err(PortableOperatorFault::WrongOperation),
+        Scenario::EngineRanTheMiddle
+        | Scenario::ShortViewLeft
+        | Scenario::ShortViewRight
+        | Scenario::OneRowPastTheBound => return Err(PortableOperatorFault::WrongOperation),
         Scenario::ExpandingCapture => Observation::Bounded {
             same,
             formed: streamed.formed,

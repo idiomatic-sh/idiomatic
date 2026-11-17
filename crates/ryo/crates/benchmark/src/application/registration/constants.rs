@@ -40,3 +40,5 @@ pub(super) const END_OF_IMPORT: char = ';';
 pub(super) const UNDERSCORE: char = '_';
 /// The directory of each rule's stage below the output (a bench's own per-rule settings profiles are found by the suite).
 pub(super) const SETTINGS_PROFILES: &str = "profiles";
+/// The refusal of a staged rule that carries no case verification.
+pub(super) const NOT_STAGED: &str = "the staged rule carries no case verification";

@@ -205,6 +205,7 @@ fn running(words: &[&str], output: Output) -> Tool {
         output,
         group: Group("perf".into()),
         timeout: Seconds(1),
+        tolerance: BTreeMap::new(),
         inputs: vec![Pathspec(".".into())],
     }
 }

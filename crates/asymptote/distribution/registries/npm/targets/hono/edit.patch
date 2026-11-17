@@ -1,13 +1,13 @@
-diff --git a/src/helper/accepts/index.ts b/src/helper/accepts/index.ts
-index e67259a..6cd9c0b 100644
---- a/src/helper/accepts/index.ts
-+++ b/src/helper/accepts/index.ts
-@@ -4,3 +4,8 @@
-  */
- 
- export { accepts } from './accepts'
+diff --git a/src/compose.ts b/src/compose.ts
+index a4e1481..5f8a051 100644
+--- a/src/compose.ts
++++ b/src/compose.ts
+@@ -94,3 +94,8 @@ export const compose = <C extends ComposeContext, E extends Env = Env>(
+     }
+   }
+ }
 +
 +// distribution-proof
-+export function distributionProof(a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number): number {
-+  return a + b + c + d + e + f + g + h
++export function distributionProof(): void {
++  debugger
 +}

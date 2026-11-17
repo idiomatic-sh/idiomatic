@@ -1,4 +1,5 @@
 //! The reference and candidate of every selected case answer the same expectations.
+use super::types::{Executions, VerifiedCases};
 use crate::application::case_execution::{
     service::{candidate as run_candidate, run as run_case},
     types::AttemptOutcome,
@@ -9,13 +10,12 @@ use crate::domain::discrepancy::service::{describe_difference, judge};
 use crate::domain::discrepancy::types::Contestant;
 use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::suite::constants;
+use crate::outbound::evidence::types::RuleTiming;
 use crate::outbound::host::interface::HostPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::{
-    context::interface::ContextPort,
-    execution::{interface::ExecutionPort, types::ExitObservationMode},
-    inventory::interface::InventoryPort,
-    linter::interface::LinterPort,
+    context::interface::ContextPort, execution::types::ExitObservationMode,
+    inventory::interface::InventoryPort, linter::interface::LinterPort,
     suite::interface::SuitePort,
 };
 use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
@@ -24,7 +24,9 @@ use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use ryo_benchmark_contracts::domain::workloads::types::{
     PreparedCase, case_count::value::CaseCount,
 };
+use std::collections::BTreeMap;
 use std::path::Path;
+use std::time::Instant;
 
 /// Execute admitted materialized cases through the same verification workflow.
 #[expect(
@@ -38,12 +40,12 @@ pub(super) fn verify_prepared_shard(
     context: &dyn ContextPort,
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
-    execution: &dyn ExecutionPort,
+    executions: Executions<'_>,
     inventory: &dyn InventoryPort,
     rules: &Path,
     mut cases: Vec<PreparedCase>,
     selection: CaseSelection,
-) -> Result<CaseCount, Error> {
+) -> Result<VerifiedCases, Error> {
     if cases.is_empty() {
         return Err(Error::Invalid(constants::NO_CASES.into()));
     }
@@ -69,21 +71,33 @@ pub(super) fn verify_prepared_shard(
     if selected_cases
         .iter()
         .any(|case| crate::domain::process_failure::service::expected(case).is_some())
-        && execution.exit_observation() != ExitObservationMode::Direct
+        && executions.reference.exit_observation() != ExitObservationMode::Direct
     {
         return Err(Error::Invalid(
             constants::PROCESS_FAILURE_VERIFICATION_REQUIRES_A_DIRE.into(),
         ));
     }
+    let mut timings: BTreeMap<ryo::linter::RuleId, RuleTiming> = BTreeMap::new();
+    // The rules compile once, ahead of the cases: an execution that keeps its plans reports what each rule took. It reports
+    // every rule its profile loads, supporting rules and the frontend projection among them, which have no cases here; a
+    // refusal to compile stops the verification.
+    let compiled = executions
+        .candidate
+        .compile(&candidate.prepare(&first.request)?)
+        .transpose()?;
+    let started = Instant::now();
     let mut initial = Some(run_candidate(
         suite,
         context,
         candidate,
-        execution,
+        executions.candidate,
         &first.request,
     )?);
+    // The first candidate run is the first case's own.
+    let mut startup = Some(started.elapsed());
     let mut failures = Vec::new();
     for (case, proof) in selected_cases.into_iter().zip(proofs) {
+        let case_started = Instant::now();
         for (contestant, tool) in [
             (Contestant::Reference, reference),
             (Contestant::Candidate, candidate),
@@ -91,13 +105,13 @@ pub(super) fn verify_prepared_shard(
             let AttemptOutcome { result, capture } = if contestant == Contestant::Candidate {
                 AttemptOutcome {
                     result: initial.take().map_or_else(
-                        || run_candidate(suite, context, tool, execution, &case.request),
+                        || run_candidate(suite, context, tool, executions.candidate, &case.request),
                         Ok,
                     ),
                     capture: CaptureRecord::Absent,
                 }
             } else {
-                run_case(suite, context, tool, execution, &case, rules)
+                run_case(suite, context, tool, executions.reference, &case, rules)
             };
             let full_report = match &result {
                 Ok(measurement) => Some(measurement.report.clone()),
@@ -184,13 +198,27 @@ pub(super) fn verify_prepared_shard(
                 }
             }
         }
+        let elapsed = case_started.elapsed() + startup.take().unwrap_or_default();
+        let timing = timings.entry(case.rule.clone()).or_default();
+        timing.total += elapsed;
+        timing.slowest = timing.slowest.max(elapsed);
+    }
+    // Only a rule with cases of its own has times: a rule the profile loads for another's sake reports none.
+    // None: the candidate runs in a child, which compiles inside each run.
+    for (rule, elapsed) in compiled.into_iter().flatten() {
+        if let Some(timing) = timings.get_mut(&rule) {
+            timing.compile = elapsed;
+        }
     }
     if failures.is_empty() {
         debug_assert!(
             count <= global_count.0,
             "selected cases must belong to the audited inventory"
         );
-        Ok(CaseCount(count))
+        Ok(VerifiedCases {
+            count: CaseCount(count),
+            timings,
+        })
     } else {
         Err(Error::Invalid(format!(
             "{count} cases checked; failures:\n{}",

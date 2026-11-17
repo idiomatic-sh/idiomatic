@@ -1,0 +1,11 @@
+version = 1
+parents = ["cd4ebbc11bce4fdc33e95ba196b6c10eac720dd390f2e0af016b1f6ca1a8cdf8"]
+
+[[perf]]
+reasons = ["Seeded on int-batch ada84e275f (Linux, aarch64), the first run of the memory-commands measures: tm check over crates/ryo cold, and tm validate of the repository's definitions cold and warm"]
+records = [
+  { tool = "memory-commands", benchmark = "workspace/check-ryo-cold", measure = "peak-kib", best = 3677340.0 },
+  { tool = "memory-commands", benchmark = "workspace/validate-repository", measure = "cold-ms", best = 3702.049 },
+  { tool = "memory-commands", benchmark = "workspace/validate-repository", measure = "peak-kib", best = 198272.0 },
+  { tool = "memory-commands", benchmark = "workspace/validate-repository", measure = "warm-ms", best = 11.73 },
+]

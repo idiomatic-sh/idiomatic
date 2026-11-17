@@ -1,21 +1,18 @@
 //! Query loading, compilation and SDK startup occur inside the measured child.
 use super::constants;
-use crate::outbound::engine::types::FrontendDiagnosticProjection;
+use crate::outbound::engine::interface::EnginePort;
 use crate::outbound::engine::types::loaded_engine_session::value::EngineExecution;
 use crate::outbound::engine::types::{
     EngineConfiguration, EngineRun, loaded_engine_session::value::LoadedEngineSession,
 };
+use crate::outbound::engine::types::{FrontendDiagnosticProjection, Retention};
 use ryo::linter::{
     self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId, Slot, WorkerPool,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount};
+use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount, RunReport};
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
-use tracing_subscriber::prelude::*;
-
-use crate::outbound::engine::interface::EnginePort;
 
 /// Runs authored queries through the SDK with the injected language registry.
 #[derive(Debug)]
@@ -28,6 +25,68 @@ pub(crate) struct EngineLocalAdapter {
     diagnostic_events: Option<std::path::PathBuf>,
     /// Optional explicit query mapping provider diagnostics to benchmark findings.
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
+    /// What a verification keeps across its cases: the rules loaded once and one SDK engine, whose compiled plans every case
+    /// shares. Absent for a run that is one child's only case.
+    retention: crate::outbound::engine::types::Retention,
+    /// The rules loaded from the profile's query files, kept across a verification's cases.
+    kept_rules: std::sync::OnceLock<BTreeMap<RuleId, Rule>>,
+    /// The SDK engine every case of a verification runs over.
+    kept_linter: std::sync::OnceLock<linter::Linter>,
+}
+impl EngineLocalAdapter {
+    /// Bind language support for a verification whose cases all run over one engine and one set of loaded rules.
+    pub(crate) fn retaining(
+        languages: Languages,
+        frontend_diagnostic: Option<FrontendDiagnosticProjection>,
+    ) -> Self {
+        Self {
+            languages,
+            trace: None,
+            diagnostic_events: None,
+            frontend_diagnostic,
+            retention: Retention::PerVerification,
+            kept_rules: std::sync::OnceLock::new(),
+            kept_linter: std::sync::OnceLock::new(),
+        }
+    }
+    /// The SDK engine a run goes over: the one a verification keeps for all its cases, built once, else one of the run's own over
+    /// `cache`.
+    fn engine<'a>(
+        &'a self,
+        own: &'a mut Option<linter::Linter>,
+        cache: Cache,
+    ) -> Result<&'a linter::Linter, Error> {
+        if self.retention == Retention::PerVerification {
+            if let Some(engine) = self.kept_linter.get() {
+                return Ok(engine);
+            }
+            let built = linter::Linter::new(
+                self.languages.clone(),
+                Self::pool()?,
+                MemoryBudget::Machine,
+                Cache::None,
+            );
+            return Ok(self.kept_linter.get_or_init(|| built));
+        }
+        Ok(own.insert(linter::Linter::new(
+            self.languages.clone(),
+            Self::pool()?,
+            MemoryBudget::Machine,
+            cache,
+        )))
+    }
+    /// The slot the rules are kept in, when this engine keeps them across runs.
+    fn retained_rules(&self) -> Option<&std::sync::OnceLock<BTreeMap<RuleId, Rule>>> {
+        (self.retention == Retention::PerVerification).then_some(&self.kept_rules)
+    }
+    /// The pool the files of a run are read on: rayon's own size, `RAYON_NUM_THREADS` when the caller sets it.
+    fn pool() -> Result<WorkerPool, Error> {
+        Ok(WorkerPool::from(std::sync::Arc::new(
+            rayon::ThreadPoolBuilder::new()
+                .build()
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+        )))
+    }
 }
 impl EngineLocalAdapter {
     /// Bind language support and optional profiling output once at composition.
@@ -41,6 +100,9 @@ impl EngineLocalAdapter {
             trace,
             diagnostic_events: None,
             frontend_diagnostic,
+            retention: Retention::PerRun,
+            kept_rules: std::sync::OnceLock::new(),
+            kept_linter: std::sync::OnceLock::new(),
         }
     }
     /// Bind an explicit live JSONL diagnostic sink without changing the timing worker.
@@ -54,20 +116,16 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: Some(path),
             frontend_diagnostic,
+            retention: Retention::PerRun,
+            kept_rules: std::sync::OnceLock::new(),
+            kept_linter: std::sync::OnceLock::new(),
         }
     }
 }
 impl EnginePort for EngineLocalAdapter {
     fn load<'a>(&'a self, request: &'a WorkerRequest) -> Result<LoadedEngineSession<'a>, Error> {
         let trace = if let Some(path) = &self.trace {
-            let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
-            tracing::subscriber::set_global_default(
-                tracing_subscriber::registry()
-                    .with(tracing_subscriber::filter::LevelFilter::INFO)
-                    .with(layer),
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?;
-            Some(guard)
+            Some(super::writer::chrome(path).map_err(|error| Error::Invalid(error.to_string()))?)
         } else if let Some(path) = &self.diagnostic_events {
             tracing::subscriber::set_global_default(super::writer::subscriber(
                 path,
@@ -78,19 +136,10 @@ impl EnginePort for EngineLocalAdapter {
         } else {
             None
         };
-        let rules = super::schemas::load_rules(
-            &request.rules,
-            &request.query_modules,
-            &request.rule_applicability,
+        let rules = super::schemas::request_rules(
+            self.retained_rules(),
             self.frontend_diagnostic.clone(),
-            match &request.rule_observations {
-                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
-                    declared,
-                ) => Some(declared),
-                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => {
-                    None
-                }
-            },
+            request,
         )?;
         Ok(LoadedEngineSession::new(
             request,
@@ -115,6 +164,47 @@ struct LocalEngineSession<'a> {
     _trace: Option<tracing_chrome::FlushGuard>,
 }
 impl EngineExecution for LocalEngineSession<'_> {
+    fn compile(
+        &self,
+        rules: &BTreeMap<RuleId, Rule>,
+        configuration: &EngineConfiguration,
+    ) -> Option<Result<BTreeMap<RuleId, std::time::Duration>, Error>> {
+        (self.adapter.retention == Retention::PerVerification).then_some(())?;
+        let mut own = None;
+        let engine = match self.adapter.engine(&mut own, Cache::None) {
+            Ok(engine) => engine,
+            Err(error) => return Some(Err(error)),
+        };
+        // The rules and relations the run is given, each alone first and the cache keeping what compiled.
+        let mut compiled = BTreeMap::new();
+        let mut together = Vec::new();
+        for (id, rule) in rules {
+            let started = std::time::Instant::now();
+            if engine
+                .prepare(
+                    &BTreeMap::from([(id.clone(), rule.clone())]),
+                    &configuration.hosted,
+                )
+                .is_ok()
+            {
+                let _previous = compiled.insert(id.clone(), started.elapsed());
+            } else {
+                together.push(id.clone());
+            }
+        }
+        // A rule that reads what other rules produce compiles only beside its producers, as a run compiles it: all the rules
+        // together, the rest already compiled and skipped, the time shared among the rules that needed it.
+        if !together.is_empty() {
+            let started = std::time::Instant::now();
+            if engine.prepare(rules, &configuration.hosted).is_ok() {
+                let share = started.elapsed() / u32::try_from(together.len()).unwrap_or(1);
+                for id in together {
+                    let _previous = compiled.insert(id, share);
+                }
+            }
+        }
+        Some(Ok(compiled))
+    }
     fn configuration_files(&self) -> Result<Vec<linter::RelativePath>, Error> {
         configuration_files(self.request, &self.adapter.languages)
     }
@@ -139,11 +229,6 @@ impl EngineExecution for LocalEngineSession<'_> {
         let (sources, accepted) = super::schemas::source_inputs(&request, &selected_missing)?;
         // The files run on rayon's own pool size: `RAYON_NUM_THREADS` when the caller sets it (the harness sets one), else one
         // thread per core.
-        let pool = WorkerPool::from(std::sync::Arc::new(
-            rayon::ThreadPoolBuilder::new()
-                .build()
-                .map_err(|error| Error::Invalid(error.to_string()))?,
-        ));
         let cache = match &request.state {
             ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh => Cache::None,
             ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(path) => {
@@ -159,14 +244,10 @@ impl EngineExecution for LocalEngineSession<'_> {
             }
         };
         let retained_rules: std::collections::BTreeSet<RuleId> = rules.keys().cloned().collect();
-        let engine = linter::Linter::new(
-            adapter.languages.clone(),
-            pool,
-            MemoryBudget::Machine,
-            cache,
-        );
+        let mut own = None;
+        let engine = adapter.engine(&mut own, cache)?;
         let report = linter::lint_with(
-            &engine,
+            engine,
             LintRequest {
                 source_language: match &request.source_language {
                     ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => ryo::linter::SourceLanguage::Recognized,

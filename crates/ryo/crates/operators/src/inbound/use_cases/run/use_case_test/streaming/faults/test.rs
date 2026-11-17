@@ -1,17 +1,22 @@
 //! A chain's faults at seam C, each against its held twin: the earliest row's fault wins whatever the chunk it falls in
 //! (the scenarios of the scope's Gherkin, 2,500 rows over the 2,048-row chunks of the span-between stage); a probe's hard
 //! fault on its first left row comes before a later stage's preparation fault, the held plan's first, though the later
-//! stage is prepared first; and a faulting tail is fed every row its input makes, as its held twin and the base are.
+//! stage is prepared first; and a faulting tail is fed every row its input makes, as its held twin and the base are. A
+//! filter's fault in the middle of a chunk keeps the rows before it, and a probe's hard fault on a left row in the middle of
+//! a chunk, after a later stage stopped, still wins in node order.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::streams::{
-    Outcome, Program, agrees, faulting, ran_program, span,
+use crate::inbound::use_cases::run::fixtures::cases::compared;
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    faulting, probe_before_a_stopped_filter, span,
 };
-use ryo_relations::domain::relations::types::Relation;
+use crate::inbound::use_cases::run::fixtures::streams::{Outcome, Program, agrees, ran_program};
+use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as StepInput, JoinColumn, RepeatedRows, Side, StepId,
+    ColumnIndex, Input as StepInput, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows,
+    Side, StepId, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use std::borrow::Cow;
@@ -24,11 +29,21 @@ enum Scenario {
     ProbeBeforeALaterPreparation,
     FaultingTailFeed,
     LaterRightAfterAPreparationFault,
+    FilterMidChunk,
+    ProbeHardFaultMidChunk,
+    StoppedStageFeed,
+    ProbeReadsOnAfterAStoppedFilter,
 }
 
 /// What a case observed.
 #[derive(Debug, PartialEq, Eq)]
 enum Observation {
+    /// Whether the two runs answered the same, and the rows the emit held before its fault, as planned and in the twin.
+    Held {
+        same: bool,
+        planned: usize,
+        twin: usize,
+    },
     /// Whether the two runs answered the same, and the planned run's fault.
     Faulted {
         same: bool,
@@ -100,7 +115,92 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             fault: Cow::Borrowed("NoSuchColumn { index: ColumnIndex(0) }"),
         }),
     },
+    Case {
+        name: CaseName("a_fault_mid_chunk_keeps_the_rows_before_it"),
+        word: Word::Succeeds,
+        input: || Scenario::FilterMidChunk,
+        expect: Expect::Value(Observation::Held {
+            same: true,
+            planned: 700,
+            twin: 700,
+        }),
+    },
+    Case {
+        name: CaseName("a_running_probe_reads_on_after_a_later_filter_faults_mid_chunk"),
+        word: Word::Succeeds,
+        input: || Scenario::ProbeReadsOnAfterAStoppedFilter,
+        expect: Expect::Value(Observation::Fed {
+            planned: 14_040,
+            twin: 14_040,
+        }),
+    },
+    Case {
+        name: CaseName("a_probe_hard_fault_after_a_later_stage_stopped_wins"),
+        word: Word::Succeeds,
+        input: || Scenario::ProbeHardFaultMidChunk,
+        expect: Expect::Value(Observation::Faulted {
+            same: true,
+            fault: Cow::Borrowed("NoSuchColumn { index: ColumnIndex(99) }"),
+        }),
+    },
+    Case {
+        name: CaseName("a_stopped_stage_before_the_tail_ends_the_heads_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::StoppedStageFeed,
+        expect: Expect::Value(Observation::Fed {
+            planned: 2_048,
+            twin: 2_500,
+        }),
+    },
 ];
+
+/// 2,500 rows of the span-between stage (node 0) over the filter (node 1), which faults on row 100, and an extension of the
+/// filter (node 2): the filter stops in the stage's first chunk of 2,048 rows, before the tail, so the head reads no row
+/// past that chunk and the filter is fed that chunk's rows; the held twin's filter is fed every row.
+fn stopped_before_the_tail() -> Program {
+    let mut program = faulting(2_500, usize::MAX, 100);
+    program.steps.push(over_nodes(
+        Operation::Extend {
+            from: StepInput::Step(StepId(1)),
+            values: vec![Operand::Literal(QueryLiteral::Number(Integer(1)))],
+        },
+        &[1],
+    ));
+    program.emit = PlanNodeId(2);
+    program
+}
+
+/// 1,024 Defines rows, those from row 900 named `late`. A select of the rows named `late` (node 0); an inner join of it with
+/// Defines keyed on a right column past Defines' rows (node 1), whose index build hard-faults at its first left row, the
+/// head's row 900, in the middle of the head's chunk; a projection of a column past the join's (node 2), whose preparation
+/// stops it before any row though it is not the tail; and an extension of the projection (node 3).
+fn probe_after_a_stopped_stage() -> Program {
+    let mut program = probe_then_projection();
+    program.steps.push(over_nodes(
+        Operation::Extend {
+            from: StepInput::Step(StepId(2)),
+            values: vec![Operand::Literal(QueryLiteral::Number(Integer(1)))],
+        },
+        &[2],
+    ));
+    program.emit = PlanNodeId(3);
+    if let Some(Step {
+        operation: Operation::Select { comparisons, .. },
+        ..
+    }) = program.steps.first_mut()
+    {
+        comparisons.push(compared(
+            Test::Equal,
+            Operand::Column(ColumnIndex(3)),
+            Operand::Literal(QueryLiteral::Text(LiteralText("late".into()))),
+        ));
+    }
+    program.rows = (0..1_024)
+        .map(|at| (if at < 900 { "a" } else { "late" }.to_owned(), span(0, 0)))
+        .collect();
+    program.texts = vec!["a".into(), "late".into()];
+    program
+}
 
 /// A select of every Defines row (node 0); an inner join of it with Defines keyed on a right column past Defines' rows
 /// (node 1), whose index build faults at its first left row; and a projection of a column past the join's (node 2), whose
@@ -215,17 +315,36 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         Scenario::ProbeBeforeALaterPreparation => probe_then_projection(),
         Scenario::FaultingTailFeed => faulting(10, usize::MAX, 5),
         Scenario::LaterRightAfterAPreparationFault => later_right_after_a_preparation_fault(),
+        Scenario::FilterMidChunk => faulting(1_024, usize::MAX, 700),
+        Scenario::ProbeHardFaultMidChunk => probe_after_a_stopped_stage(),
+        Scenario::StoppedStageFeed => stopped_before_the_tail(),
+        Scenario::ProbeReadsOnAfterAStoppedFilter => probe_before_a_stopped_filter(),
     };
     let planned = ran_program(&program, false)?;
     let twin = ran_program(&program, true)?;
-    if let Scenario::FaultingTailFeed = scenario {
+    if let Scenario::FilterMidChunk = scenario {
+        return Ok(Observation::Held {
+            same: agrees(&planned, &twin),
+            planned: planned.held,
+            twin: twin.held,
+        });
+    }
+    // The node whose feed a feed case reads: the stopped filter after the running probe, or the tail.
+    let fed_node = match scenario {
+        Scenario::ProbeReadsOnAfterAStoppedFilter => Some(PlanNodeId(2)),
+        Scenario::FaultingTailFeed | Scenario::StoppedStageFeed => Some(PlanNodeId(1)),
+        Scenario::FilterBeforeTheMapAcrossChunks
+        | Scenario::MapBeforeTheFilterAcrossChunks
+        | Scenario::FilterPastTheBoundaryBeforeTheMap
+        | Scenario::ProbeBeforeALaterPreparation
+        | Scenario::LaterRightAfterAPreparationFault
+        | Scenario::FilterMidChunk
+        | Scenario::ProbeHardFaultMidChunk => None,
+    };
+    if let Some(node) = fed_node {
         let fed =
             |buffers: &crate::domain::physical_plan::types::file_buffers::value::FileBuffers| {
-                buffers
-                    .fed(PlanNodeId(1))
-                    .0
-                    .first()
-                    .map_or(0, |rows| rows.0)
+                buffers.fed(node).0.first().map_or(0, |rows| rows.0)
             };
         return Ok(Observation::Fed {
             planned: fed(&planned.buffers),

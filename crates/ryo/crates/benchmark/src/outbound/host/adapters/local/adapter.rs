@@ -10,6 +10,12 @@ use ryo_benchmark_contracts::domain::hosts::types::{
 pub(crate) struct HostLocalAdapter;
 
 impl HostPort for HostLocalAdapter {
+    fn processors(&self) -> crate::outbound::host::types::ProcessorCount {
+        // The processors this process may run on: `taskset` bounds the affinity mask the standard library reads.
+        crate::outbound::host::types::ProcessorCount(
+            std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN),
+        )
+    }
     fn facts(&self) -> HostFacts {
         let family = if cfg!(unix) {
             HostFamily::Unix

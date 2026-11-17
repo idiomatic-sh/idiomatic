@@ -31,6 +31,7 @@ fn verify(
         reference,
         execution,
         &inventory,
+        &ryo_benchmark::outbound::evidence::fixtures::fake::EvidenceFake,
     )
     .verify_reference_cases(rules, scratch)
     .map(|count| count.0)

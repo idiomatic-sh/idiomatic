@@ -2,6 +2,7 @@
 //! receipts it leaves are validated against the registered cases.
 use super::super::authority::service::{refused, verify_context};
 use super::super::constants;
+use super::super::types::RuleFiles;
 use crate::domain::suite::types::inventory::value::{FailureReason, PassedRule, RuleEvidence};
 use crate::outbound::{
     execution::interface::ExecutionPort,
@@ -18,17 +19,17 @@ use crate::outbound::{
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::receipts::constants::{
-    CASE_RECEIPTS_ARGUMENT, CASES_JSONL, VERIFY_CASES,
+    CASE_RECEIPTS_ARGUMENT, CASES_JSONL, VERIFY_CASES, VERIFY_TIMES_ARGUMENT,
 };
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
-/// Verify one rule of the registration, keeping its observations in `directory`; a refusal is the rule's failure, never
+/// Verify one rule of the registration, keeping its observations in `directory` and its verification times in `times`; a refusal is the rule's failure, never
 /// the inventory's, and a deferred default answers its capability without running.
 pub(in crate::application::inventory_verification) fn verify_rule(
     registration: &Registration,
     entry: Option<&RegisteredRule>,
-    directory: &Path,
+    RuleFiles { directory, times }: RuleFiles<'_>,
     suite: &dyn SuitePort,
     receipts: &dyn ReceiptsPort,
     execution: &dyn ExecutionPort,
@@ -82,6 +83,8 @@ pub(in crate::application::inventory_verification) fn verify_rule(
     };
     let mut destination = std::ffi::OsString::from(CASE_RECEIPTS_ARGUMENT);
     destination.push(directory.join(CASES_JSONL).as_os_str());
+    let mut timings = std::ffi::OsString::from(VERIFY_TIMES_ARGUMENT);
+    timings.push(times.0.as_os_str());
     store.prepare(&directory).map_err(refused)?;
     let invocation = Invocation {
         executable: worker.path.clone(),
@@ -90,6 +93,7 @@ pub(in crate::application::inventory_verification) fn verify_rule(
             reference.path.as_os_str().to_owned(),
             context.as_os_str().to_owned(),
             destination,
+            timings,
         ],
         environment: BTreeMap::new(),
         directory: context.clone(),

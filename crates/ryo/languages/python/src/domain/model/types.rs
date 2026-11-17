@@ -352,6 +352,8 @@ pub(crate) struct BindingAnalysisIndex {
     pub uses: Vec<crate::domain::binding_results::types::Usage>,
     /// Replacement and lexical shadow edges.
     pub shadows: Vec<crate::domain::binding_results::types::Shadow>,
+    /// Scratch for the events of each name, indexed by symbol and reused across files.
+    pub name_counts: Vec<NameEventCount>,
 }
 
 /// One real mutation in a static execution phase, indexed without cloning namespaces.
@@ -366,3 +368,7 @@ pub(crate) struct BindingMutation {
     /// Store, deletion, or exception cleanup.
     pub action: BindingAction,
 }
+
+/// How many events one name holds so far in the file being indexed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct NameEventCount(pub usize);

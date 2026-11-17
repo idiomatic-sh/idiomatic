@@ -145,10 +145,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         | Scenario::AnsweredCommand
         | Scenario::NoDump => {}
     }
-    let mut tools = ProfileToolsFake {
-        threads: NonZeroUsize::new(8).unwrap_or(NonZeroUsize::MIN),
-        ..ProfileToolsFake::default()
-    };
+    let mut tools = ProfileToolsFake::default();
+    tools.threads = NonZeroUsize::new(8).unwrap_or(NonZeroUsize::MIN);
     if !matches!(scenario, Scenario::NoDump) {
         tools.totals = vec![
             total("jeprof.7.10.i10.heap", 7),

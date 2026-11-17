@@ -35,7 +35,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("isolated_defaults_and_one_worker_invocation"),
+        name: CaseName("isolated_defaults_and_measured_workers_invocation"),
         word: Word::Succeeds,
         input: || AdapterScenario::Invocation,
         expect: Expect::Value(true),

@@ -11,8 +11,9 @@ pub struct VerifyCasesUseCaseImpl<'a> {
     context: &'a dyn crate::outbound::context::interface::ContextPort,
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
     candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
-    execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+    executions: super::types::Executions<'a>,
     inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
+    evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
 }
 impl<'a> VerifyCasesUseCaseImpl<'a> {
     /// Borrow the boundaries already composed by the caller.
@@ -24,8 +25,9 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
         context: &'a dyn crate::outbound::context::interface::ContextPort,
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
         candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
-        execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+        executions: super::types::Executions<'a>,
         inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
+        evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
     ) -> Self {
         Self {
             suite,
@@ -34,8 +36,9 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
             context,
             reference,
             candidate,
-            execution,
+            executions,
             inventory,
+            evidence,
         }
     }
 }
@@ -69,18 +72,35 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
             rules,
             scratch,
         )?;
-        super::service::verify_prepared_shard(
+        let verified = super::service::verify_prepared_shard(
             self.suite,
             self.host,
             self.receipts,
             self.context,
             self.reference,
             self.candidate,
-            self.execution,
+            self.executions,
             self.inventory,
             rules,
             cases,
             selection,
-        )
+        )?;
+        let tool = self
+            .suite
+            .profile(crate::outbound::suite::types::ArtifactPath(
+                rules.parent().ok_or_else(|| {
+                    ReportsError::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into())
+                })?,
+            ))?;
+        // The times file of a verification names the tool it verified against: the bench reads it back by rule, and its own
+        // document names the language.
+        if !verified.timings.is_empty() {
+            self.evidence.verification(
+                &tool.tool.0.as_str().into(),
+                &crate::outbound::evidence::types::RuleTimings(verified.timings),
+            )?;
+            self.evidence.finish()?;
+        }
+        Ok(verified.count)
     }
 }

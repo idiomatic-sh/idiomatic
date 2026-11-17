@@ -8,11 +8,13 @@ use crate::domain::physical_plan::collections::kernels::directed_walk::item::{
 };
 use crate::domain::physical_plan::collections::kernels::distinct::item::counted;
 use crate::domain::physical_plan::collections::kernels::group::item::{GroupScratch, grouped};
-use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::ordered_match::item::matched;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::visited;
 use crate::domain::physical_plan::collections::kernels::probe_right::item::{
     IndexBuild, ProbeScratch,
+};
+use crate::domain::physical_plan::collections::kernels::queued_walk::item::{
+    WorklistInputs, worklisted,
 };
 use crate::domain::physical_plan::collections::kernels::reach::item::{
     ReachScratch, Starts, reached,
@@ -47,7 +49,7 @@ pub(crate) fn kernels(
     match lowering {
         Lowering::Distinct { .. } => {
             output.kinds = kinds.to_vec();
-            emptied(&mut buffers.repeats);
+            buffers.repeats.cleared();
             for source in std::iter::once(input).chain(other) {
                 if kinds_of(source) != kinds {
                     return Err(PortableOperatorFault::ShapeMismatch);
@@ -134,6 +136,21 @@ pub(crate) fn kernels(
                 edges,
                 &run.resources.texts(),
                 &mut buffers.walk,
+                output,
+            );
+        }
+        Lowering::Worklist { worklist, .. } => {
+            let inputs = WorklistInputs {
+                roots: input,
+                edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
+                lattice: third.ok_or(PortableOperatorFault::WrongOperation)?,
+            };
+            return worklisted(
+                worklist,
+                inputs,
+                &run.resources.texts(),
+                &mut buffers.worklist,
+                &mut buffers.repeats,
                 output,
             );
         }

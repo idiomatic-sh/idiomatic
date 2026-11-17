@@ -3,6 +3,7 @@ mod applicability;
 mod axis;
 #[cfg(test)]
 pub(crate) mod consumers;
+mod cutting;
 #[cfg(test)]
 mod declared_empty;
 #[cfg(test)]
@@ -17,6 +18,7 @@ mod pass;
 mod population_reads;
 mod restoration;
 mod rewrites;
+mod row_by_row;
 mod settle;
 mod skipped_frontier;
 pub(crate) mod source_facts;

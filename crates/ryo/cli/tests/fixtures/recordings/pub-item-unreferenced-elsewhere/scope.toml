@@ -1,2 +1,0 @@
-include = ["**"]
-exclude = ["**/src/lib.rs", "**/main.rs", "**/build.rs", "**/tests/**", "**/benches/**", "**/*_test.rs", "**/tests.rs"]

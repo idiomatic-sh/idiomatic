@@ -61,6 +61,14 @@ impl<'a> LoadedEngineSession<'a> {
     pub(crate) fn configuration_files(&self) -> Result<Vec<RelativePath>, ReportsError> {
         self.execution.configuration_files()
     }
+    /// The time each of the loaded rules takes to compile ahead of its run, none from an engine that compiles inside the run, a
+    /// refusal from one that cannot compile.
+    pub(crate) fn compile(
+        &self,
+        configuration: &EngineConfiguration,
+    ) -> Option<Result<std::collections::BTreeMap<RuleId, std::time::Duration>, ReportsError>> {
+        self.execution.compile(&self.rules, configuration)
+    }
     pub(crate) fn execute(
         self,
         configuration: EngineConfiguration,
@@ -71,6 +79,15 @@ impl<'a> LoadedEngineSession<'a> {
 
 /// Crate-owned effects bound by the adapter when it issues the concrete loaded handle.
 pub(crate) trait EngineExecution {
+    /// Compile the configured rules ahead of the run; none for an engine that compiles inside it, a refusal from one that
+    /// cannot compile.
+    fn compile(
+        &self,
+        _rules: &BTreeMap<RuleId, Rule>,
+        _configuration: &EngineConfiguration,
+    ) -> Option<Result<std::collections::BTreeMap<RuleId, std::time::Duration>, ReportsError>> {
+        None
+    }
     fn configuration_files(&self) -> Result<Vec<RelativePath>, ReportsError>;
     fn execute(
         self: Box<Self>,

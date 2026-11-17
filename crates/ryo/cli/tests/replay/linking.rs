@@ -1,5 +1,6 @@
 //! What links the files to one another follows an edit of one of them, whatever the store holds.
 
+use crate::unbounded;
 use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;
@@ -11,11 +12,10 @@ use ryo_sdk::linter::{
 use ryo_sdk::query::RyoQlQuery;
 
 use crate::cache::{sorted, write};
-use crate::counting;
 
 /// The rule that reads how the files link to one another.
 fn linking() -> Vec<Rule> {
-    vec![crate::rule_from_query(
+    vec![crate::tools::rule_from_query(
         "links",
         "let d = select * from \"source-dependency\"; emit d subject source key(target);",
         &["**".to_owned()],
@@ -42,7 +42,7 @@ fn what_links_the_files_follows_an_edit_of_one_whatever_the_store_holds() {
     );
     let rows = |kept| {
         sorted(
-            counting::lint_counting(root.path(), linking(), kept)
+            unbounded::lint_counting(root.path(), linking(), kept)
                 .expect("a run")
                 .rows,
         )
@@ -67,7 +67,7 @@ fn what_links_the_files_follows_an_edit_of_one_whatever_the_store_holds() {
     );
     let after = rows(Arc::clone(&store));
     let oracle = sorted(
-        counting::lint_counting(
+        unbounded::lint_counting(
             root.path(),
             linking(),
             Arc::new(ryo_core::outbound::lint_store::factory::memory()),

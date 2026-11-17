@@ -195,6 +195,36 @@ fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_
         );
     }
 }
+/// A symbolic link in a fingerprinted set is hashed by its target's text, never followed: the same link fingerprints alike, a
+/// link retargeted does not, and a link fingerprints apart from a file holding its target's text.
+#[cfg(unix)]
+fn a_symbolic_link_is_fingerprinted_by_its_target() {
+    let directory = tempfile::tempdir().expect("corpus");
+    let root = directory.path();
+    std::fs::write(root.join("index.js"), "export {}\n").expect("target");
+    std::fs::write(root.join("other.js"), "export {}\n").expect("other target");
+    let link = root.join("linked.js");
+    std::os::unix::fs::symlink("index.js", &link).expect("link");
+    let fingerprint =
+        |path: &std::path::Path| local().fingerprint(ArtifactSet(&[path.to_path_buf()]));
+    let first = fingerprint(&link).expect("a link fingerprints");
+    assert_eq!(
+        fingerprint(&link).expect("again"),
+        first,
+        "one link, one fingerprint"
+    );
+    std::fs::remove_file(&link).expect("unlink");
+    std::os::unix::fs::symlink("other.js", &link).expect("relink");
+    let retargeted = fingerprint(&link).expect("retargeted");
+    assert_ne!(retargeted, first, "a retargeted link differs");
+    std::fs::remove_file(&link).expect("unlink");
+    std::fs::write(&link, "other.js").expect("a file of the target's text");
+    assert_ne!(
+        fingerprint(&link).expect("a file"),
+        retargeted,
+        "a file holding a link's target text is no link"
+    );
+}
 /// Set the permission bits of a file.
 #[cfg(unix)]
 fn set_mode(path: &std::path::Path, mode: u32) {
@@ -238,6 +268,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("source_identity_uses_utf8_name_order_on_every_platform"),
         word: Word::Succeeds,
         input: || source_identity_uses_utf8_name_order_on_every_platform,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("a_symbolic_link_is_fingerprinted_by_its_target"),
+        word: Word::Succeeds,
+        input: || a_symbolic_link_is_fingerprinted_by_its_target,
         expect: Expect::Value(()),
     },
     #[cfg(unix)]

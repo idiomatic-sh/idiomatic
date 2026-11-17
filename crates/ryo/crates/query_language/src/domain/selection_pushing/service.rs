@@ -163,6 +163,7 @@ fn gain_of(steps: &[PlanStep], memo: &mut LineageMemo, input: Input) -> FilterGa
         | Operation::Join { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }

@@ -14,7 +14,7 @@ use crate::outbound::host::interface::HostPort;
 use crate::outbound::{
     context::interface::ContextPort,
     execution::{interface::ExecutionPort, types::ExitObservationMode},
-    inventory::{interface::InventoryPort, types::Registration},
+    inventory::interface::InventoryPort,
     linter::interface::LinterPort,
     receipts::interface::ReceiptsPort,
     suite::interface::SuitePort,
@@ -25,7 +25,7 @@ use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use ryo_benchmark_contracts::domain::workloads::types::{
     PreparedCase, Tool, case_count::value::CaseCount,
 };
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Preserve every registered context, and require measured code to be the code actually tested.
 pub(super) fn prepare(
@@ -54,9 +54,10 @@ pub(super) fn prepare(
         candidate,
         coverage,
     )?;
-    for entry in
-        crate::domain::suite::service::covered(coverage, &loaded.rules, |entry| &entry.rule_id)
-    {
+    for entry in crate::application::registered_certification::service::certified_rules(
+        coverage,
+        &loaded.rules,
+    ) {
         crate::application::inventory_verification::authority::service::verify_context(
             entry, suite, store,
         )

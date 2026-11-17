@@ -1,4 +1,4 @@
-//! The rule a recorded name stands for, and its query: its one definition, a rule of a spec of the Tastemaker package (at the spec's
+//! The rule a name stands for, and its query: its one definition, a rule of a spec of the Tastemaker package (at the spec's
 //! highest version), a replay rule the cli tests own (`tests/fixtures/replay-rules/<rule>/rule.toml`, an engine query no Tastemaker
 //! package defines), or the highest version of a Tastemaker rule (`tastemaker/rules/<rule>`) or a benchmark rule
 //! (`tastemaker/benchmarks/rules/<rule>`). The live rule is the

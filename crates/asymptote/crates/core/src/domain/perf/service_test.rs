@@ -1,7 +1,8 @@
 //! What a run's measurements mean against the lock's perf records, and the verdict they give.
 
 use super::service::{judge, resolved, rewritten};
-use super::types::{Measured, PerfOutcome, Spread};
+use super::types::{Measured, PerfOutcome, Spread, ToleranceKey};
+use crate::domain::manifest::types::Percent;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::judgement::service::with_perf;
 use crate::domain::judgement::types::Verdict;
@@ -9,6 +10,7 @@ use crate::domain::operations::types::{
     BenchmarkName, MeasureName, Number, PerfKey, PerfRecord, Reason,
 };
 use crate::domain::violations::types::ToolId;
+use std::collections::BTreeMap;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]
@@ -27,6 +29,16 @@ enum Question {
     SpreadBelow,
     /// A spread whose high end is under the best around a value over it: never a raise.
     SpreadBelowValueAbove,
+    /// A median over the best by less than the tool's tolerance.
+    WithinTolerance,
+    /// A median over the best by exactly the tool's tolerance.
+    AtTolerance,
+    /// A median over the best by more than the tool's tolerance.
+    BeyondTolerance,
+    /// A median under the best, whatever the tolerance.
+    UnderWithTolerance,
+    /// A tolerance of another measure of the tool.
+    ToleranceOfAnotherMeasure,
     /// A median with no record.
     Unseeded,
     /// A recorded metric the tool no longer reports.
@@ -91,6 +103,22 @@ fn between(lower: f64, upper: f64) -> Measured {
     )
 }
 
+/// No tolerance: every tool is held to its best.
+fn none() -> BTreeMap<ToleranceKey, Percent> {
+    BTreeMap::new()
+}
+
+/// The measure `wall-ms` of the tool `bench` allowed `percent` over its best.
+fn allowing(percent: u32) -> BTreeMap<ToleranceKey, Percent> {
+    BTreeMap::from([(
+        ToleranceKey {
+            tool: ToolId("bench".into()),
+            measure: MeasureName("wall-ms".into()),
+        },
+        Percent(percent),
+    )])
+}
+
 fn ran() -> Vec<ToolId> {
     vec![ToolId("bench".into())]
 }
@@ -108,7 +136,7 @@ fn said(outcome: &PerfOutcome) -> String {
 }
 
 fn judged(value: f64, record: PerfRecord) -> String {
-    said(&judge(&[measured(value)], &[record], &ran()))
+    said(&judge(&[measured(value)], &[record], &ran(), &none()))
 }
 
 fn written(records: &[PerfRecord]) -> String {
@@ -182,6 +210,46 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("a_median_over_the_best_by_less_than_the_tolerance_passes"),
+        word: Word::Succeeds,
+        input: || Question::WithinTolerance,
+        expect: Expect::Value(std::borrow::Cow::Borrowed(
+            "regressed 0 unseeded 0 improved 0 resolved 0 held 1",
+        )),
+    },
+    Case {
+        name: CaseName("a_median_over_the_best_by_exactly_the_tolerance_passes"),
+        word: Word::Succeeds,
+        input: || Question::AtTolerance,
+        expect: Expect::Value(std::borrow::Cow::Borrowed(
+            "regressed 0 unseeded 0 improved 0 resolved 0 held 1",
+        )),
+    },
+    Case {
+        name: CaseName("a_median_over_the_best_by_more_than_the_tolerance_is_regressed"),
+        word: Word::Succeeds,
+        input: || Question::BeyondTolerance,
+        expect: Expect::Value(std::borrow::Cow::Borrowed(
+            "regressed 1 unseeded 0 improved 0 resolved 0 held 0",
+        )),
+    },
+    Case {
+        name: CaseName("a_tolerance_does_not_stop_an_improvement"),
+        word: Word::Succeeds,
+        input: || Question::UnderWithTolerance,
+        expect: Expect::Value(std::borrow::Cow::Borrowed(
+            "regressed 0 unseeded 0 improved 1 resolved 0 held 0",
+        )),
+    },
+    Case {
+        name: CaseName("the_tolerance_of_another_measure_does_not_apply"),
+        word: Word::Succeeds,
+        input: || Question::ToleranceOfAnotherMeasure,
+        expect: Expect::Value(std::borrow::Cow::Borrowed(
+            "regressed 1 unseeded 0 improved 0 resolved 0 held 0",
+        )),
+    },
+    Case {
         name: CaseName("a_median_with_no_record_is_unseeded"),
         word: Word::Succeeds,
         input: || Question::Unseeded,
@@ -242,14 +310,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     reason = "every part's runner takes a subject that answers a Result, as `run` states it; these rows only succeed"
 )]
 fn subject(question: Input) -> Result<Value, Failure> {
-    let outcome = |value: f64| judge(&[measured(value)], &[record()], &ran());
+    let outcome = |value: f64| judge(&[measured(value)], &[record()], &ran(), &none());
     let text = match question {
         Question::Over => judged(100.5, record()),
         Question::AtBest => judged(100.0, record()),
         Question::Under => judged(89.9, record()),
-        Question::SpreadAbove => said(&judge(&[between(105.0, 115.0)], &[record()], &ran())),
-        Question::SpreadAround => said(&judge(&[between(90.0, 110.0)], &[record()], &ran())),
-        Question::SpreadBelow => said(&judge(&[between(80.0, 95.0)], &[record()], &ran())),
+        Question::SpreadAbove => said(&judge(&[between(105.0, 115.0)], &[record()], &ran(), &none())),
+        Question::SpreadAround => said(&judge(&[between(90.0, 110.0)], &[record()], &ran(), &none())),
+        Question::SpreadBelow => said(&judge(&[between(80.0, 95.0)], &[record()], &ran(), &none())),
         Question::SpreadBelowValueAbove => said(&judge(
             &[spread(
                 1000.0,
@@ -258,10 +326,35 @@ fn subject(question: Input) -> Result<Value, Failure> {
             )],
             &[record()],
             &ran(),
+            &none(),
         )),
-        Question::Unseeded => said(&judge(&[measured(100.0)], &[], &ran())),
-        Question::Dropped => said(&judge(&[], &[record()], &ran())),
-        Question::ToolDown => said(&judge(&[], &[record()], &[])),
+        Question::WithinTolerance => {
+            said(&judge(&[measured(104.0)], &[record()], &ran(), &allowing(5)))
+        }
+        Question::AtTolerance => {
+            said(&judge(&[measured(105.0)], &[record()], &ran(), &allowing(5)))
+        }
+        Question::BeyondTolerance => {
+            said(&judge(&[measured(105.5)], &[record()], &ran(), &allowing(5)))
+        }
+        Question::UnderWithTolerance => {
+            said(&judge(&[measured(89.9)], &[record()], &ran(), &allowing(5)))
+        }
+        Question::ToleranceOfAnotherMeasure => said(&judge(
+            &[measured(104.0)],
+            &[record()],
+            &ran(),
+            &BTreeMap::from([(
+                ToleranceKey {
+                    tool: ToolId("bench".into()),
+                    measure: MeasureName("cpu-ms".into()),
+                },
+                Percent(5),
+            )]),
+        )),
+        Question::Unseeded => said(&judge(&[measured(100.0)], &[], &ran(), &none())),
+        Question::Dropped => said(&judge(&[], &[record()], &ran(), &none())),
+        Question::ToolDown => said(&judge(&[], &[record()], &[], &none())),
         Question::Rewrite => written(&rewritten(&outcome(70.0_f64))),
         Question::VerdictRegressed => {
             format!("{:?}", with_perf(Verdict::Pass, &outcome(500.0_f64)))

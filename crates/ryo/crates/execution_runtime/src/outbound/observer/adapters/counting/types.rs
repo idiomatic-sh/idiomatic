@@ -6,3 +6,10 @@ use crate::outbound::observer::types::FedTotals;
 /// `COUNTED_FED` rules of them.
 #[derive(Debug, Default)]
 pub(crate) struct CountedFed(pub std::sync::Mutex<FedTotals>);
+
+/// The handovers the counting observer was told of, in the order they came, behind the lock its reporting threads share; at most
+/// `COUNTED_HANDOVERS` of them.
+#[derive(Debug, Default)]
+pub(crate) struct CountedHandovers(
+    pub std::sync::Mutex<Vec<ryo_values::domain::runs::types::FileHandover>>,
+);

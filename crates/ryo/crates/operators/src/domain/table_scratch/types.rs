@@ -91,8 +91,15 @@ pub struct NamingTest(pub u8);
 pub(crate) struct SubjectHash(pub u64);
 
 /// A place in the memo of what a comparison decided about a name.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::table_scratch::types::MemoSlot;
+/// assert_eq!(MemoSlot(3).0, 3);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct MemoSlot(pub usize);
+pub struct MemoSlot(pub usize);
 
 /// A heavy operator group, constructed only when an operation first accesses it.
 /// Its box and every payload are owned by the enclosing rule invocation.
@@ -168,6 +175,25 @@ pub enum Memo {
     Holds,
 }
 
+/// What each comparison of one filter decided about each name of the open file, by its place, name-major: every place is
+/// undecided but those decided since the filter's run began, which its next run forgets, one by one. Its room grows to the
+/// places decided, not to the file's names: a filter that decides no name by its memo keeps none.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::table_scratch::types::MemoTable;
+/// let memo = MemoTable::default();
+/// assert_eq!(format!("{memo:?}"), "MemoTable { decided: [], written: [] }");
+/// ```
+#[derive(Debug, Default)]
+pub struct MemoTable {
+    /// What was decided at each place; a place past its end is undecided.
+    pub decided: Vec<Memo>,
+    /// The places decided since the run began.
+    pub written: Vec<MemoSlot>,
+}
+
 /// Whether a value, a kind or an entity, is in a set of them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetMembership {
@@ -175,4 +201,16 @@ pub enum SetMembership {
     In,
     /// It is not.
     Out,
+}
+
+impl crate::domain::kept_room::types::KeptRoom for MemoTable {
+    fn kept(&mut self) {
+        self.decided.kept();
+        self.written.kept();
+    }
+
+    #[cfg(test)]
+    fn room(&self) -> crate::domain::kept_room::types::Room {
+        self.decided.room()
+    }
 }

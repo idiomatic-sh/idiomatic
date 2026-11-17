@@ -210,6 +210,7 @@ pub fn instance(tool: &Tool, order: &[CaptureName], captures: &Captures) -> Tool
         output: tool.output,
         group: tool.group.clone(),
         timeout: tool.timeout,
+        tolerance: tool.tolerance.clone(),
         inputs: tool
             .inputs
             .iter()

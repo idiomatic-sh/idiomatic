@@ -31,6 +31,7 @@ pub fn catalog() -> Vec<Feature> {
         OperationKind::SpanBounds,
         OperationKind::OrderedMatch,
         OperationKind::OrderedDfs,
+        OperationKind::Worklist,
         OperationKind::GroupCount,
         OperationKind::GroupDigest,
         OperationKind::Capture,

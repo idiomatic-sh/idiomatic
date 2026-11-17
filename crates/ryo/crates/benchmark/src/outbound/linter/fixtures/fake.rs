@@ -18,6 +18,18 @@ pub struct LinterFake {
     pub diagnostics: Vec<BenchmarkFinding>,
     /// Labels carried through execution for call-order assertions.
     pub arguments: Vec<std::ffi::OsString>,
+    /// What a run leaves in its request's state directory.
+    pub store: KeptState,
+}
+
+/// What a fake run leaves in its request's state directory.
+#[derive(Debug, Default)]
+pub enum KeptState {
+    /// Nothing: the state directory is never made.
+    #[default]
+    Nothing,
+    /// One store file holding these bytes.
+    Store(Vec<u8>),
 }
 impl LinterPort for LinterFake {
     fn rule_configuration(
@@ -39,6 +51,10 @@ impl LinterPort for LinterFake {
             || !(0_i32..=1_i32).contains(&output.status.0)
         {
             return Err(Error::Invalid("operational failure".into()));
+        }
+        if let KeptState::Store(bytes) = &self.store {
+            std::fs::create_dir_all(&request.state)?;
+            std::fs::write(request.state.join("store"), bytes)?;
         }
         Ok(RunReport {
             execution_metadata:

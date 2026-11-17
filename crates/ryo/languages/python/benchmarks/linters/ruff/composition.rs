@@ -10,8 +10,8 @@ use ryo_benchmark::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::constants::{
-    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PARITY,
-    PROFILE_RYO, RUN_RYO, VERIFY_REFERENCE_CASES,
+    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PROFILE_RYO,
+    RUN_RYO, VERIFY_REFERENCE_CASES, VERIFY_TOOL,
 };
 use std::{path::PathBuf, sync::Arc};
 mod certification;
@@ -19,8 +19,8 @@ mod commands;
 pub(crate) mod constants;
 mod locations;
 mod measure;
-mod parity;
 pub(crate) mod profile;
+mod reference_cases;
 mod request_input;
 mod targets;
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
@@ -46,7 +46,7 @@ pub(crate) fn run(
             Ok(())
         }
         Some(VERIFY_REFERENCE_CASES) => {
-            let count = self::commands::verify_reference_cases(args.map(BenchmarkArgument))?;
+            let count = self::reference_cases::verify_reference_cases(args.map(BenchmarkArgument))?;
             writeln!(
                 output,
                 "{count} cases matched the reference; no candidate was executed"
@@ -61,13 +61,8 @@ pub(crate) fn run(
                 &suite_source,
             )
         }
-        Some(PARITY) => self::parity::parity(
-            &mut args.map(BenchmarkArgument),
-            observations,
-            &suite_source,
-        ),
         Some(self::constants::AUDIT) => self::commands::audit(&suite_source, output),
-        Some(self::constants::VERIFY_TOOL) => {
+        Some(VERIFY_TOOL) => {
             let executable = PathBuf::from(
                 args.next()
                     .ok_or_else(|| Error::Invalid(self::constants::EXPECTED_EXECUTABLE.into()))?,

@@ -3,30 +3,27 @@
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusFile, FileBytes};
 
-use super::service::{differences, verdict};
-use super::types::{
-    AllocatedBlocks, AllocationVerdict, Differences, FileCount, InputBytes, JobBlocks, ParserBlocks,
-};
+use super::service::{differences, most};
+use super::types::{AllocatedBlocks, Differences, InputBytes, JobBlocks, ParserBlocks};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::corpus_copies::types::CopyCount;
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]
 enum Scenario {
     /// Judges the files after the warm-up, not the first of each input.
     Judged,
-    /// Judges differences of one block in a few files.
+    /// The most of differences of one block in a few files.
     FewGrew,
-    /// Judges a difference of two blocks.
+    /// The most of a difference of two blocks.
     TwoBlocks,
-    /// Judges one block in more files than the doublings explain.
-    ManyGrew,
+    /// The most of no file judged.
+    NoneJudged,
 }
 
 /// What a row of the cases does.
 type Input = Scenario;
-/// The verdict on the differences.
-type Value = AllocationVerdict;
+/// The most blocks any judged file allocated beyond the parser library.
+type Value = AllocatedBlocks;
 type Failure = ();
 
 fn file(path: &str) -> CorpusFile {
@@ -42,7 +39,6 @@ fn each(blocks: &[u64]) -> Differences {
 }
 
 fn subject(scenario: Scenario) -> Value {
-    let copies = CopyCount(60);
     match scenario {
         Scenario::Judged => {
             let files: Vec<CorpusFile> = ["a/1", "a/2", "a/3", "b/1", "b/2", "b/3"]
@@ -55,11 +51,11 @@ fn subject(scenario: Scenario) -> Value {
                     .collect(),
             );
             let judged = differences(&JobBlocks(vec![9, 9, 9, 9, 2, 3]), &files, &parser);
-            verdict(&judged, copies)
+            most(&judged)
         }
-        Scenario::FewGrew => verdict(&each(&[0, 1, 0, 1, 1]), copies),
-        Scenario::TwoBlocks => verdict(&each(&[0, 2]), copies),
-        Scenario::ManyGrew => verdict(&each(&[1; 20]), copies),
+        Scenario::FewGrew => most(&each(&[0, 1, 0, 1, 1])),
+        Scenario::TwoBlocks => most(&each(&[0, 2])),
+        Scenario::NoneJudged => most(&each(&[])),
     }
 }
 
@@ -68,28 +64,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_first_file_of_each_input_and_the_warm_up_are_not_judged"),
         word: Word::Succeeds,
         input: || Scenario::Judged,
-        expect: Expect::Value(AllocationVerdict::Within),
+        expect: Expect::Value(AllocatedBlocks(1)),
     },
     Case {
-        name: CaseName("a_few_files_one_block_beyond_the_parser_are_within"),
+        name: CaseName("the_most_is_one_where_a_few_files_allocate_one_block_beyond_the_parser"),
         word: Word::Succeeds,
         input: || Scenario::FewGrew,
-        expect: Expect::Value(AllocationVerdict::Within),
+        expect: Expect::Value(AllocatedBlocks(1)),
     },
     Case {
-        name: CaseName("two_blocks_beyond_the_parser_is_too_many"),
+        name: CaseName("the_most_is_the_largest_difference"),
         word: Word::Succeeds,
         input: || Scenario::TwoBlocks,
-        expect: Expect::Value(AllocationVerdict::BeyondOneBlock),
+        expect: Expect::Value(AllocatedBlocks(2)),
     },
     Case {
-        name: CaseName("more_files_than_the_doublings_explain_is_too_many"),
+        name: CaseName("no_judged_file_allocates_nothing_beyond_the_parser"),
         word: Word::Succeeds,
-        input: || Scenario::ManyGrew,
-        expect: Expect::Value(AllocationVerdict::TooManyGrew {
-            grew: FileCount(20),
-            judged: FileCount(20),
-        }),
+        input: || Scenario::NoneJudged,
+        expect: Expect::Value(AllocatedBlocks(0)),
     },
 ];
 

@@ -5,9 +5,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{facts, rows_of};
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{give_back, take};
-use crate::domain::physical_plan::collections::kernels::scan_roots::item::{
-    copied, rooted, roots, tree_read,
-};
+use crate::domain::physical_plan::collections::kernels::scan_roots::item::{rooted, tree_read};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
@@ -57,7 +55,8 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn walked(
     Ok(())
 }
 
-/// Reads `source` for `reader`: a tree relation's rows copied for a text_map stage, which mints while it reads.
+/// Reads `source` for `reader`, in place: a tree relation's rows are read from the elements a chunk at a time, so a text_map
+/// stage, which mints while it reads, holds no borrow of them.
 pub(in crate::domain::physical_plan::service::run::pipeline) fn reading<'r>(
     run: &KernelRun<'r>,
     reader: ChainStage<'_>,
@@ -65,19 +64,13 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn reading<'r>(
     buffers: &mut FileBuffers,
 ) -> Result<ChainRows<'r>, PortableOperatorFault> {
     let inputs = run.inputs;
-    Ok(match (source, reader.lowering) {
-        (RowSource::Facts(relation), _) => ChainRows::Facts(facts(inputs, relation)?),
-        (RowSource::Tree(relation), Lowering::TextMap { .. }) => ChainRows::Copied(copied(&roots(
-            inputs,
-            run.resources.tree(),
-            reader.node,
-            relation,
-        ))),
-        (RowSource::Tree(relation), _) => ChainRows::Tree(rooted(inputs, reader.node, relation)),
-        (RowSource::Node(read), _) => ChainRows::Node(read, take(buffers, read)?),
+    Ok(match source {
+        RowSource::Facts(relation) => ChainRows::Facts(facts(inputs, relation)?),
+        RowSource::Tree(relation) => ChainRows::Tree(rooted(inputs, reader.node, relation)),
+        RowSource::Node(read) => ChainRows::Node(read, take(buffers, read)?),
         // A withheld input faults where it is first read, never as empty rows.
-        (RowSource::Frontier(place), _) => ChainRows::Held(held(inputs.frontier(place))?),
-        (RowSource::Observation(place), _) => ChainRows::Held(held(inputs.observation(place))?),
+        RowSource::Frontier(place) => ChainRows::Held(held(inputs.frontier(place))?),
+        RowSource::Observation(place) => ChainRows::Held(held(inputs.observation(place))?),
     })
 }
 
@@ -97,6 +90,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn right_of(
         | Lowering::SeededReach { .. }
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
         | Lowering::Components { .. }
         | Lowering::TextMap { .. }
         | Lowering::OrderedMatch { .. }
@@ -153,7 +147,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn resolved_rows<'a
             .map_or(rows, |earlier| resolved_rows(earlier, head, rights)),
         ChainRows::Facts(_)
         | ChainRows::Tree(_)
-        | ChainRows::Copied(_)
         | ChainRows::Node(..)
         | ChainRows::Held(_)
         | ChainRows::Untaken(_) => rows,
@@ -167,9 +160,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn rows_kinds<'a>(
     match rows {
         ChainRows::Facts(view) => view.kinds,
         ChainRows::Tree(roots) => roots.kinds,
-        ChainRows::Copied(table) | ChainRows::Node(_, TakenRows { rows: table, .. }) => {
-            &table.kinds
-        }
+        ChainRows::Node(_, TakenRows { rows: table, .. }) => &table.kinds,
         ChainRows::Held(table) => &table.kinds,
         ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => &[],
     }
@@ -182,7 +173,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn rows_count(
     match rows {
         ChainRows::Facts(view) => rows_of(view),
         ChainRows::Tree(roots) => RowCount(roots.candidates.len()),
-        ChainRows::Copied(table) | ChainRows::Node(_, TakenRows { rows: table, .. }) => table.count,
+        ChainRows::Node(_, TakenRows { rows: table, .. }) => table.count,
         ChainRows::Held(table) => table.count,
         ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => RowCount(0),
     }
@@ -196,7 +187,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pending_of(
         ChainRows::Node(_, taken) => taken.pending.clone(),
         ChainRows::Facts(_)
         | ChainRows::Tree(_)
-        | ChainRows::Copied(_)
         | ChainRows::Held(_)
         | ChainRows::Head
         | ChainRows::Right(_)
@@ -213,9 +203,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn in_place<'a>(
     match rows {
         ChainRows::Facts(view) => InputRows::Facts(view),
         ChainRows::Tree(roots) => InputRows::Tree(tree.insert(tree_read(*roots, elements))),
-        ChainRows::Copied(table) | ChainRows::Node(_, TakenRows { rows: table, .. }) => {
-            InputRows::Table(table)
-        }
+        ChainRows::Node(_, TakenRows { rows: table, .. }) => InputRows::Table(table),
         ChainRows::Held(table) => InputRows::Table(table),
         ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => InputRows::Row(&[], &[]),
     }

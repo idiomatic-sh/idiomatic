@@ -195,6 +195,16 @@ pub mod rewrites {
         )
     }
 
+    /// The plan with the rows a file hands over cut to the columns the steps after the files read, as compiling cuts them.
+    #[must_use]
+    pub fn cut(steps: Vec<PlanStep>, emitted: StepId) -> (Vec<PlanStep>, StepId) {
+        rewritten(
+            steps,
+            emitted,
+            crate::domain::cutting::service::cut_handover,
+        )
+    }
+
     /// What the per-file steps of a plan hand over, as compiling finds it.
     #[must_use]
     pub fn frontier(steps: &[PlanStep]) -> Vec<Input> {
