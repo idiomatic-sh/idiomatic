@@ -343,3 +343,57 @@ pub enum TreeLookupKey {
     /// The element's span, then its file.
     SpanThenFile,
 }
+
+/// The families of comparison a `select` tests with.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::service::family_of;
+/// use ryo_values::domain::plan_parts::types::{Family, Test};
+/// assert_eq!(family_of(Test::StartsWith), Family::Affix);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Family {
+    /// Equal and not equal.
+    Equality,
+    /// Less, greater, and their or-equal.
+    Ordering,
+    /// Numbers written as text.
+    FloatText,
+    /// Exact canonical numeric text and whole numbers.
+    Numeric,
+    /// In and not in.
+    Membership,
+    /// Glob matches.
+    Glob,
+    /// Starts with and ends with.
+    Affix,
+    /// Regular expression searches.
+    Regex,
+}
+
+/// How many columns a row has: a column at or past it is not the row's.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::types::RowWidth;
+/// assert_eq!(RowWidth(3).0, 3);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RowWidth(pub usize);
+
+/// The leading comparisons of a select that no row can make fail with an error: each tests a column the row has against a
+/// text the query wrote, by equality or by affix, so its cell's text alone decides it. The rest of the select's comparisons
+/// follow it in their order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::service::fixed_prefix;
+/// use ryo_values::domain::plan_parts::types::RowWidth;
+/// assert!(fixed_prefix(&[], RowWidth(2)).0.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FixedPrefix<'a>(pub &'a [PlanComparison]);

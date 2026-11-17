@@ -5,7 +5,10 @@ use ryo_relations::domain::relations::collections::relations::syntax_tree::item:
 use ryo_relations::domain::relations::service::{columns, relation_of};
 use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::types::{Applied, ColumnIndex, Operand, ParameterId, StepId, TreeLookupKey};
+use super::types::{
+    Applied, ColumnIndex, Family, FixedPrefix, Operand, ParameterId, PlanComparison, QueryLiteral,
+    RowWidth, StepId, Test, TreeLookupKey,
+};
 
 /// The one of `items` that the step `id` names, when there is one.
 #[must_use]
@@ -182,4 +185,72 @@ where
         })),
         other @ (Operand::Parameter(_) | Operand::Literal(_)) => Some(other.clone()),
     }
+}
+
+/// The family of comparison a test belongs to.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::service::family_of;
+/// use ryo_values::domain::plan_parts::types::{Family, Test};
+/// assert_eq!(family_of(Test::NotGlobAny), Family::Glob);
+/// assert_eq!(family_of(Test::Matches), Family::Regex);
+/// ```
+#[must_use]
+pub fn family_of(test: Test) -> Family {
+    match test {
+        Test::Equal | Test::NotEqual => Family::Equality,
+        Test::NaturalLessThan
+        | Test::LessThan
+        | Test::LessThanOrEqual
+        | Test::GreaterThan
+        | Test::GreaterThanOrEqual => Family::Ordering,
+        Test::FloatTextGreaterThanOrEqual => Family::FloatText,
+        Test::NumericGreaterThanOrEqual | Test::IntegerSuccessor => Family::Numeric,
+        Test::In | Test::NotIn => Family::Membership,
+        Test::GlobAny | Test::NotGlobAny => Family::Glob,
+        Test::StartsWith | Test::EndsWith => Family::Affix,
+        Test::Matches => Family::Regex,
+    }
+}
+
+/// The leading comparisons of `comparisons` that cannot fail over a row of `width` columns: a column of the row compared with
+/// a written text by `=`, `!=`, `starts-with` or `ends-with`. The first comparison that may fail (a column past the row, a
+/// parameter, a function, a pattern compiled from the row) ends it, so a fault is never moved behind a test that decides
+/// without it. The one definition the planner's placement, the keyed-select rewrite and the engine's root kinds stop at.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::service::fixed_prefix;
+/// use ryo_values::domain::plan_parts::types::{
+///     ColumnIndex, ComparisonOrigin, LiteralText, Operand, PlanComparison, QueryLiteral, RowWidth, Test,
+/// };
+/// let written = |test, at| PlanComparison {
+///     test,
+///     left: Operand::Column(ColumnIndex(at)),
+///     right: Operand::Literal(QueryLiteral::Text(LiteralText("n".into()))),
+///     origin: ComparisonOrigin::Unrecorded,
+/// };
+/// let comparisons = [written(Test::Equal, 0), written(Test::Matches, 1), written(Test::Equal, 1)];
+/// assert_eq!(fixed_prefix(&comparisons, RowWidth(2)).0.len(), 1);
+/// ```
+#[must_use]
+pub fn fixed_prefix(comparisons: &[PlanComparison], width: RowWidth) -> FixedPrefix<'_> {
+    let infallible = |comparison: &PlanComparison| {
+        matches!(family_of(comparison.test), Family::Equality | Family::Affix)
+            && match (&comparison.left, &comparison.right) {
+                (Operand::Column(column), Operand::Literal(QueryLiteral::Text(_)))
+                | (Operand::Literal(QueryLiteral::Text(_)), Operand::Column(column)) => {
+                    usize::try_from(column.0).is_ok_and(|at| at < width.0)
+                }
+                _ => false,
+            }
+    };
+    let length = comparisons
+        .iter()
+        .position(|comparison| !infallible(comparison))
+        .unwrap_or(comparisons.len());
+    FixedPrefix(comparisons.get(..length).unwrap_or_default())
 }

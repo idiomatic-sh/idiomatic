@@ -1,19 +1,19 @@
-//! Where the comparisons no row can fail end: the fixed prefix the keyed-select rewrite and the engine's root kinds stop at.
-use super::column;
-use crate::domain::comparing::service::fixed_prefix;
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::{
-    ComparisonOrigin, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
+//! Where the comparisons no row can fail end: the fixed prefix the planner's placement, the keyed-select rewrite and the
+//! engine's root kinds stop at.
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::plan_parts::service::fixed_prefix;
+use crate::domain::plan_parts::types::{
+    ColumnIndex, ComparisonOrigin, LiteralText, Operand, ParameterId, PlanComparison,
+    QueryLiteral, RowWidth, Test,
 };
 
-/// What a row of the cases is: a node, then three names.
-const KINDS: &[CellKind] = &[
-    CellKind::Node,
-    CellKind::Symbol,
-    CellKind::Symbol,
-    CellKind::Symbol,
-];
+/// How wide a row of the cases is: a node, then three names.
+const WIDTH: RowWidth = RowWidth(4);
+
+/// The column at `at`.
+fn column(at: u32) -> ColumnIndex {
+    ColumnIndex(at)
+}
 
 /// The comparison of `left` and `right` by `test`.
 fn compared(test: Test, left: Operand, right: Operand) -> PlanComparison {
@@ -98,7 +98,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(0),
     },
     Case {
-        name: CaseName("a_column_past_the_row_ends_the_prefix"),
+        name: CaseName("a_column_past_the_width_ends_the_prefix"),
         word: Word::Succeeds,
         input: || || vec![written(Test::Equal, 3, "n1"), written(Test::Equal, 4, "n2")],
         expect: Expect::Value(1),
@@ -127,7 +127,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(comparisons: Input) -> Result<Value, Failure> {
     let comparisons = comparisons();
-    Ok(fixed_prefix(&comparisons, KINDS).0.len())
+    Ok(fixed_prefix(&comparisons, WIDTH).0.len())
 }
 
 #[test]
