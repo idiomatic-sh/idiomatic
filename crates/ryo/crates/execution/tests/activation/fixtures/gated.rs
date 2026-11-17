@@ -4,9 +4,9 @@ use super::plans::Given;
 use super::subscriber::RunCost;
 use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::{
-    Arena, CaptureContext, CaptureIntent, DiagnosticDelivery, EmittedRoot, ExecutionUseCase,
-    FileEnd, FileRuleIntent, FileRules, FileRunInput, KindSupport, ObservationDemand,
-    ProgramRequestExecutionPort, RootOutcome, SemanticSupport, SourceLanguage,
+    Arena, CaptureContext, CaptureIntent, DiagnosticDelivery, ExecutionUseCase, FileRuleIntent,
+    FileRules, FileRunInput, KindSupport, ObservationDemand, Partiality,
+    ProgramRequestExecutionPort, SemanticSupport, SourceLanguage,
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -170,28 +170,4 @@ pub(crate) fn file_rules(
 /// warms the worker's buffers and the allocator's own metadata.
 pub(crate) fn warm_cost(request: PrepareRequest) -> RunCost {
     ran(request, Operators::Gated, &Given::default(), 2).1
-}
-
-/// What each rule's emitted root came to, then how the file ended.
-pub(crate) fn came_to(rules: &FileRules) -> String {
-    let mut written: Vec<String> = rules
-        .rules
-        .iter()
-        .map(|rule| match &rule.emit {
-            EmittedRoot::Delivered(RootOutcome::Complete(table)) => {
-                format!("rule {} complete {}", rule.rule.0, table.count.0)
-            }
-            EmittedRoot::Delivered(RootOutcome::Failed(error)) => {
-                format!("rule {} failed {error:?}", rule.rule.0)
-            }
-            EmittedRoot::Delivered(other) => format!("rule {} {other:?}", rule.rule.0),
-            EmittedRoot::Withheld => format!("rule {} withheld", rule.rule.0),
-        })
-        .collect();
-    written.push(match &rules.end {
-        FileEnd::Finished(_) => "finished".to_owned(),
-        FileEnd::Unfinished => "unfinished".to_owned(),
-        FileEnd::Refused(stop) => format!("refused {stop:?}"),
-    });
-    written.join("; ")
 }

@@ -9,10 +9,6 @@ use ryo_matching::inbound::use_cases::matching::{
 #[cfg(test)]
 pub(crate) mod facts;
 #[cfg(test)]
-pub(crate) mod mutation_fields;
-#[cfg(test)]
-pub(crate) mod mutations;
-#[cfg(test)]
 pub(crate) mod requests;
 
 /// The real operators capability, as the engine composes it.
