@@ -166,19 +166,25 @@ fn edges_with_elements(answered: &[(Side, u32)]) -> PlanStep {
     )
 }
 
-/// The semantic edges joined with the semantic elements on the child of the edge, answering the parent, the field, the kind
-/// and the text.
+/// The parent and the field of an edge, then the kind and the text of its child.
+const EDGE_AND_CHILD: &[(Side, u32)] = &[
+    (Side::Left, 0),
+    (Side::Left, 3),
+    (Side::Right, 1),
+    (Side::Right, 2),
+];
+
+/// The semantic edges `edges` joined with the semantic elements `elements` on the child of the edge, answering
+/// [`EDGE_AND_CHILD`].
+fn semantic(edges: Reads, elements: Reads) -> PlanStep {
+    join((edges, 1), (elements, 0), EDGE_AND_CHILD, Vec::new())
+}
+
+/// The semantic edges joined with the semantic elements on the child of the edge.
 fn semantic_join() -> PlanStep {
-    join(
-        (relation(Relation::SemanticChild), 1),
-        (relation(Relation::SemanticSyntax), 0),
-        &[
-            (Side::Left, 0),
-            (Side::Left, 3),
-            (Side::Right, 1),
-            (Side::Right, 2),
-        ],
-        Vec::new(),
+    semantic(
+        relation(Relation::SemanticChild),
+        relation(Relation::SemanticSyntax),
     )
 }
 
@@ -199,17 +205,7 @@ fn placed(scenario: Scenario) -> Planned {
                     vec![named(3, "operator")],
                 ),
                 select(relation(Relation::SemanticSyntax), vec![named(2, "||")]),
-                join(
-                    (at(0), 1),
-                    (at(1), 0),
-                    &[
-                        (Side::Left, 0),
-                        (Side::Left, 3),
-                        (Side::Right, 1),
-                        (Side::Right, 2),
-                    ],
-                    Vec::new(),
-                ),
+                semantic(at(0), at(1)),
             ],
             StepId(2),
         ),
@@ -265,12 +261,7 @@ fn placed(scenario: Scenario) -> Planned {
                 join(
                     (relation(Relation::SyntaxChild), 1),
                     (relation(Relation::SyntaxTree), 0),
-                    &[
-                        (Side::Left, 0),
-                        (Side::Left, 3),
-                        (Side::Right, 1),
-                        (Side::Right, 2),
-                    ],
+                    EDGE_AND_CHILD,
                     vec![named(1, "ident")],
                 ),
                 select(at(0), vec![matches(3, "^(?:r#)?feature$")]),
@@ -288,17 +279,7 @@ fn placed(scenario: Scenario) -> Planned {
             StepId(1),
             vec![
                 select(relation(Relation::SemanticChild), vec![named(3, "x")]),
-                join(
-                    (at(0), 1),
-                    (relation(Relation::SemanticSyntax), 0),
-                    &[
-                        (Side::Left, 0),
-                        (Side::Left, 3),
-                        (Side::Right, 1),
-                        (Side::Right, 2),
-                    ],
-                    Vec::new(),
-                ),
+                semantic(at(0), relation(Relation::SemanticSyntax)),
                 select(at(1), vec![matches_parameter(3), named(0, "y")]),
             ],
             StepId(2),
@@ -311,17 +292,7 @@ fn placed(scenario: Scenario) -> Planned {
             StepId(1),
             vec![
                 select(relation(Relation::SemanticChild), vec![named(3, "x")]),
-                join(
-                    (at(0), 1),
-                    (relation(Relation::SemanticSyntax), 0),
-                    &[
-                        (Side::Left, 0),
-                        (Side::Left, 3),
-                        (Side::Right, 1),
-                        (Side::Right, 2),
-                    ],
-                    Vec::new(),
-                ),
+                semantic(at(0), relation(Relation::SemanticSyntax)),
                 select(at(1), vec![same(1, 3)]),
             ],
             StepId(2),
@@ -388,17 +359,7 @@ fn placed(scenario: Scenario) -> Planned {
                 vec![
                     semantic_join(),
                     select(relation(Relation::SemanticChild), vec![named(3, "x")]),
-                    join(
-                        (at(1), 1),
-                        (relation(Relation::SemanticSyntax), 0),
-                        &[
-                            (Side::Left, 0),
-                            (Side::Left, 3),
-                            (Side::Right, 1),
-                            (Side::Right, 2),
-                        ],
-                        Vec::new(),
-                    ),
+                    semantic(at(1), relation(Relation::SemanticSyntax)),
                     antijoin(2, 0),
                 ],
                 StepId(3),
