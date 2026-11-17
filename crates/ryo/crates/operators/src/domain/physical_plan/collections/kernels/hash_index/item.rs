@@ -316,20 +316,16 @@ pub(crate) fn keyed_walk(
         return follow(edges, index, to, start, &mut walk.reached);
     }
     let all = direction != Direction::NearestAncestor;
-    walk.visited.clear();
+    walk.visited.reset();
     walk.entities.clear();
     follow(edges, index, to, start, &mut walk.entities)?;
     while !walk.entities.is_empty() {
         walk.next.clear();
         for place in 0..walk.entities.len() {
             let entity = walk.entities[place];
-            let hash = value_hash(entity).0;
-            if walk.visited.find(hash, |held| *held == entity).is_some() {
+            if walk.visited.meet(entity) == SetMembership::In {
                 continue;
             }
-            let _met = walk
-                .visited
-                .insert_unique(hash, entity, |held| value_hash(*held).0);
             if !all && admitted(entity)? == SetMembership::In {
                 walk.reached.push(entity);
                 return Ok(());
@@ -361,11 +357,4 @@ fn follow(
         row = next_of(index, row);
     }
     Ok(())
-}
-
-/// The hash a walk keeps an entity it met under.
-pub(crate) fn value_hash(value: Value) -> IndexKeyHash {
-    let mut hasher = rustc_hash::FxHasher::default();
-    value.hash(&mut hasher);
-    IndexKeyHash(hasher.finish())
 }

@@ -1,6 +1,7 @@
 //! The work of one worker's graph walks: what a walk met and has left to expand, and what each walked start reached.
 
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, IndexedRow};
+use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
 use ryo_relations::domain::relations::types::Value;
 
 /// The work of the graph walks: what one walk met and has left to expand, and, for a seeded closure, what each walked start
@@ -8,7 +9,7 @@ use ryo_relations::domain::relations::types::Value;
 #[derive(Debug, Default)]
 pub(crate) struct WalkScratch {
     /// The entities the walk from one start has met.
-    pub(crate) visited: hashbrown::HashTable<Value>,
+    pub(crate) visited: VisitedSet,
     /// The edge rows whose destinations it has left to expand.
     pub(crate) frontier: Vec<ryo_values::domain::rows::types::RowIndex>,
     /// What each walked start reached, ascending, run after run.

@@ -1,6 +1,7 @@
 //! A worker's walk scratch starts empty: no walk has met, reached or kept anything before its first file.
 use super::value::WalkScratch;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::contract::types::PredicateOutcome;
 
 /// The walk scratch a worker starts with.
 type Input = Start;
@@ -34,7 +35,7 @@ fn subject(start: Input) -> Result<Value, Failure> {
     let walk = match start {
         Start::New => WalkScratch::default(),
     };
-    let empty = walk.visited.is_empty()
+    let empty = walk.visited.is_empty() == PredicateOutcome::Holds
         && walk.frontier.is_empty()
         && walk.reached.is_empty()
         && walk.runs.is_empty()

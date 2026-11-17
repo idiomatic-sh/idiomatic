@@ -4,7 +4,6 @@
 //! run, found by binary search.
 
 use super::super::hash_index::item::indexed;
-use super::super::hash_index::item::value_hash;
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};
@@ -15,7 +14,9 @@ use crate::domain::physical_plan::types::Resources;
 use crate::domain::physical_plan::types::keyed_rows::value::IndexedRow;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
 use crate::domain::physical_plan::types::walk_scratch::value::WalkScratch;
+use crate::domain::table_scratch::types::SetMembership;
 use crate::domain::table_texts::service::text_of_cell;
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
@@ -204,22 +205,20 @@ struct Sides<'a> {
 fn visit(
     dfs: &DfsParts,
     sides: Sides<'_>,
-    met: &mut hashbrown::HashTable<Value>,
+    met: &mut VisitedSet,
     frames: &mut Vec<RowIndex>,
     output: &mut Table,
 ) -> Result<(), PortableOperatorFault> {
-    met.clear();
+    met.reset();
     frames.clear();
     let start = sides.canon.root(sides.root, sides.canon.keys);
-    let _root = met.insert_unique(value_hash(start).0, start, |held| value_hash(*held).0);
+    let _root = met.meet(start);
     framed(sides, start, frames);
     let mut ordinal = Integer(0);
     let mut pending: Option<Value> = None;
     loop {
         if let Some(destination) = pending.take() {
-            let hash = value_hash(destination).0;
-            if met.find(hash, |held| *held == destination).is_none() {
-                let _met = met.insert_unique(hash, destination, |held| value_hash(*held).0);
+            if met.meet(destination) == SetMembership::Out {
                 framed(sides, destination, frames);
             }
         }
