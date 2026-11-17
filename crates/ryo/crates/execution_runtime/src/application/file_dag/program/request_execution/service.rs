@@ -33,6 +33,10 @@ impl ProgramRequestExecutionPort for RequestExecution {
         })
     }
     fn finish(self) {
+        // The run's last file and its project phase are done: its node counters reach its trace before it is flushed.
+        crate::application::file_dag::file_pass::service::counters::service::emitted_at_end(
+            &self.pass,
+        );
         drop(self);
     }
 

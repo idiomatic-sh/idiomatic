@@ -1,7 +1,8 @@
 //! The node counters of a run, through the pass's program: a subscriber that enables their target switches the counting on
-//! for the files the program runs, and dropping the program emits one `node` event per node made, with its kind and the
+//! for the files the program runs, and the run's end emits one `node` event per node made, with its kind and the
 //! rules whose steps it is, then one `run` event; a subscriber that does not enable it is sent nothing.
 use crate::application::file_dag::file_pass::constants::NODE_COUNTERS_TARGET;
+use crate::application::file_dag::file_pass::service::counters::service::emitted_at_end;
 use crate::application::file_dag::file_pass::service::{given_back, pass_program, taken};
 use crate::application::file_dag::file_pass::types::PassSource;
 use crate::outbound::operators::fixtures::fake::OperatorsFake;
@@ -23,6 +24,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 enum Listening {
     /// It does.
     On,
+    /// It does, and the run makes no node: every file came from the run's retained state.
+    OnNoFile,
     /// The planted counter-example: it does not.
     Off,
 }
@@ -42,6 +45,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "node node=0 kind=Filter runs=2 empty_runs=0 rows_in=6 rows_out=6 \
              rules=[RuleId(\"first\"), RuleId(\"second\")]\n\
              run nodes=1 runs=2 empty_runs=0 rows_in=6 rows_out=6",
+        )),
+    },
+    Case {
+        name: CaseName("a_run_that_makes_no_node_still_emits_its_run"),
+        word: Word::Succeeds,
+        input: || Listening::OnNoFile,
+        expect: Expect::Value(Cow::Borrowed(
+            "run nodes=0 runs=0 empty_runs=0 rows_in=0 rows_out=0",
         )),
     },
     Case {
@@ -123,7 +134,7 @@ fn plan() -> Arc<Plan> {
 fn subject(listening: Input) -> Result<Value, Failure> {
     let lines = Arc::new(Mutex::new(Vec::new()));
     let events = Events {
-        listening: matches!(listening, Listening::On),
+        listening: matches!(listening, Listening::On | Listening::OnNoFile),
         lines: Arc::clone(&lines),
     };
     let source = PassSource {
@@ -147,7 +158,12 @@ fn subject(listening: Input) -> Result<Value, Failure> {
             .emit
             .clone()
             .map_err(|_| ())?;
-        for _file in 0..2 {
+        let files = if matches!(listening, Listening::OnNoFile) {
+            0
+        } else {
+            2
+        };
+        for _file in 0..files {
             let mut scratch = taken(&pass);
             pass.operators
                 .run(
@@ -161,7 +177,7 @@ fn subject(listening: Input) -> Result<Value, Failure> {
             scratch.buffers.release(node);
             given_back(&pass, scratch);
         }
-        drop(pass);
+        emitted_at_end(&pass);
         Ok(())
     })?;
     let lines = lines.lock().unwrap_or_else(PoisonError::into_inner);
