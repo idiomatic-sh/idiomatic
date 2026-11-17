@@ -18,6 +18,23 @@ pub(super) fn a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_f
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");
     super::rule_fixtures_test::write_suppress_module(root.path())?;
+    // The three rules find a decorator's first expression token through these fragments.
+    let mut modules = super::prepared_engine_test::suppress_modules();
+    for (name, source) in [
+        (
+            "decorator-expression-starts",
+            include_str!("../fragments/decorator-expression-starts.ryoql"),
+        ),
+        ("next-token", include_str!("../fragments/next-token.ryoql")),
+        (
+            "code-tokens",
+            include_str!("../fragments/code-tokens.ryoql"),
+        ),
+    ] {
+        let file = format!("fragments/{name}.ryoql");
+        std::fs::write(root.path().join(&file), source)?;
+        let _previous = modules.insert(format!("python/ruff/{name}"), file.into());
+    }
     for (rule, query) in [
         ("PT020", include_str!("../rules/PT020/query.ryoql")),
         ("PT025", include_str!("../rules/PT025/query.ryoql")),
@@ -44,9 +61,7 @@ pub(super) fn a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_f
         context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         rules,
-        query_modules: super::prepared_engine_test::module_names(
-            super::prepared_engine_test::suppress_modules(),
-        ),
+        query_modules: super::prepared_engine_test::module_names(modules),
         rule_applicability: BTreeMap::from([
             (ryo_benchmark_contracts::domain::requests::types::RuleLabel("PT020".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
             (ryo_benchmark_contracts::domain::requests::types::RuleLabel("PT025".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
