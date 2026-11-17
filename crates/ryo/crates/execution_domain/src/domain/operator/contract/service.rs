@@ -235,12 +235,15 @@ fn presence(kind: OperationKind) -> PresenceMask {
     }
 }
 
-/// Which inputs' rows can make a prepared operation fail on their values, read by the program's activation. Replace can
-/// fail on any row of its input: its literal pattern is compiled at its first use, at a row, and one refused by its syntax
-/// or the size limit fails there, whatever its text column holds. A per-file SourceMatches over a span column, with no base
-/// line and no row error, fails only on its span or its pattern: it declares `UnlessLocated`, which activation reads as
-/// failing on its first input.
-pub(crate) fn failure(
+/// Which inputs' rows can make a prepared operation fail on their values. Replace reads its text column through
+/// `table_texts::datum`, which answers text for every `Value::Symbol` and `Value::File`; a `Value::Name` (a name that
+/// left its file, held under `CellKind::Symbol`) may have none. Names reach a region only through paths that never
+/// skip: cross-file steps, steps downstream of a bound observation, project relations and frontiers. So a per-file
+/// Replace over a resolved Symbol or File column cannot fail on its rows; any other Replace can. Its literal pattern is
+/// checked by the presence fold, which makes the input fallible when the pattern does not compile. A per-file
+/// SourceMatches over a span column, with no base line and no row error, fails only on its span or its pattern: it declares
+/// `UnlessLocated`, which the fold drops for a located span and a pattern and capture that compiled.
+fn failure(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
     scope: ryo_values::domain::plan_parts::types::StepScope,
@@ -251,7 +254,12 @@ pub(crate) fn failure(
     let per_file = scope == ryo_values::domain::plan_parts::types::StepScope::PerFile;
     let kinds = inputs.first().map_or(&[][..], |input| input.kinds);
     match operation {
-        Operation::Replace { .. } => RowFailure::OnRows(InputMask(1)),
+        Operation::Replace { text, .. } => {
+            match usize::try_from(text.0).map_or(None, |at| kinds.get(at)) {
+                Some(CellKind::Symbol | CellKind::File) if per_file => RowFailure::Never,
+                _ => RowFailure::OnRows(InputMask(1)),
+            }
+        }
         Operation::SourceMatches {
             span,
             base_line: None,
@@ -293,16 +301,18 @@ pub(crate) fn failure(
     }
 }
 
-/// A regular expression is compiled when a row first reaches its comparison, so it can fail on the rows of the input the
-/// comparisons filter: one read from the row, and a literal one too, refused there by its syntax or the size limit.
+/// A regular expression read from the row is compiled when a row reaches its comparison, so it can fail on the rows of the
+/// input the comparisons filter. A literal pattern is compiled at first use too: the presence fold compiles it with the
+/// request's matcher, so one refused by its syntax or the size limit makes the input fallible there.
 fn comparison_failure(
     comparisons: &[ryo_values::domain::plan_parts::types::PlanComparison],
     input: InputMask,
 ) -> RowFailure {
-    use ryo_values::domain::plan_parts::types::Test;
-    let fallible = comparisons
-        .iter()
-        .any(|comparison| comparison.test == Test::Matches);
+    use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
+    let fallible = comparisons.iter().any(|comparison| {
+        comparison.test == Test::Matches
+            && !matches!(&comparison.right, Operand::Literal(QueryLiteral::Text(_)))
+    });
     if fallible {
         RowFailure::OnRows(input)
     } else {

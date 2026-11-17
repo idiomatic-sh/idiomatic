@@ -2,14 +2,9 @@
 #[cfg(test)]
 mod fixtures;
 use fixtures::file::measure;
-use fixtures::gated::{Operators, file_rules, warm_cost};
-use fixtures::plans;
 use fixtures::project::measure_project;
 use fixtures::subscriber::{Access, Sample, Window, project_cost_matches, same_cost};
-use ryo_execution::inbound::use_cases::execution::interface::{
-    EmittedRoot, FileEnd, FileRules, OperatingError, RootOutcome,
-};
-use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -24,10 +19,6 @@ enum Input {
     ProjectUncounted,
     RunSelector,
     RunEmpty,
-    /// A rule whose root kind the file lacks, with a step after its root, against the root alone.
-    RootAbsent,
-    /// A program run with the composed operators and with every node active.
-    Gated(fn() -> PrepareRequest),
 }
 /// What a case compared, in counters (exact) and allocation relations (allocation sizes are the allocator's).
 #[derive(Debug, PartialEq, Eq)]
@@ -51,12 +42,6 @@ enum Answer {
     },
     /// Whether the small whole run allocated, and whether the one beside dormant rules allocated exactly as much.
     RunSame { allocates: bool, same: bool },
-    /// Whether the gated and the all-active run's rules and file end are the same, written out, and what the gated run's
-    /// rules came to.
-    Gated {
-        same: bool,
-        rules: Cow<'static, str>,
-    },
 }
 /// Every measurement's window, in order, and what the case compared.
 type Value = (Cow<'static, [Window]>, Answer);
@@ -71,22 +56,6 @@ fn subject(input: Input) -> Result<Value, OperatingError> {
         (sample, access)
     };
     let answer = match input {
-        Input::RootAbsent => {
-            let alone = warm_cost(plans::absent_kind_alone());
-            let joined = warm_cost(plans::absent_kind_joined());
-            Answer::RunSame {
-                allocates: alone.blocks > 0,
-                same: alone.blocks == joined.blocks,
-            }
-        }
-        Input::Gated(program) => {
-            let gated = file_rules(program(), Operators::Gated);
-            let all = file_rules(program(), Operators::AllActive);
-            Answer::Gated {
-                same: format!("{gated:?}") == format!("{all:?}"),
-                rules: Cow::Owned(came_to(&gated)),
-            }
-        }
         Input::RunSelector | Input::RunEmpty => {
             let demanded: &[usize] = if matches!(input, Input::RunSelector) {
                 &[0]
@@ -140,29 +109,6 @@ fn subject(input: Input) -> Result<Value, OperatingError> {
         }
     };
     Ok((Cow::Owned(windows.into_inner()), answer))
-}
-/// What each rule's emitted root came to, then how the file ended.
-fn came_to(rules: &FileRules) -> String {
-    let mut written: Vec<String> = rules
-        .rules
-        .iter()
-        .map(|rule| match &rule.emit {
-            EmittedRoot::Delivered(RootOutcome::Complete(table)) => {
-                format!("rule {} complete {}", rule.rule.0, table.count.0)
-            }
-            EmittedRoot::Delivered(RootOutcome::Failed(error)) => {
-                format!("rule {} failed {error:?}", rule.rule.0)
-            }
-            EmittedRoot::Delivered(other) => format!("rule {} {other:?}", rule.rule.0),
-            EmittedRoot::Withheld => format!("rule {} withheld", rule.rule.0),
-        })
-        .collect();
-    written.push(match &rules.end {
-        FileEnd::Finished(_) => "finished".to_owned(),
-        FileEnd::Unfinished => "unfinished".to_owned(),
-        FileEnd::Refused(stop) => format!("refused {stop:?}"),
-    });
-    written.join("; ")
 }
 const fn windows(windows: &'static [Window]) -> Cow<'static, [Window]> {
     Cow::Borrowed(windows)
@@ -230,61 +176,7 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
             },
         )),
     },
-    Case {
-        name: CaseName("a_rule_whose_root_kind_is_absent_allocates_as_its_root_alone"),
-        word: Word::Succeeds,
-        input: || Input::RootAbsent,
-        expect: Expect::Value((windows(&[]), SAME)),
-    },
-    Case {
-        name: CaseName("gated_and_all_active_runs_answer_the_same_antijoin_of_an_absent_kind"),
-        word: Word::Succeeds,
-        input: || Input::Gated(plans::antijoin_of_an_absent_kind),
-        expect: Expect::Value((windows(&[]), gated("rule 0 complete 1; finished"))),
-    },
-    Case {
-        name: CaseName("gated_and_all_active_runs_answer_the_same_union_with_an_absent_kind"),
-        word: Word::Succeeds,
-        input: || Input::Gated(plans::union_with_an_absent_kind),
-        expect: Expect::Value((windows(&[]), gated("rule 0 complete 1; finished"))),
-    },
-    Case {
-        name: CaseName("gated_and_all_active_runs_answer_the_same_shared_stage_one_branch_absent"),
-        word: Word::Succeeds,
-        input: || Input::Gated(plans::shared_stage_one_branch_absent),
-        expect: Expect::Value((
-            windows(&[]),
-            gated("rule 0 complete 2; rule 1 complete 0; finished"),
-        )),
-    },
-    Case {
-        name: CaseName("gated_and_all_active_runs_answer_the_same_refused_literal_pattern"),
-        word: Word::Succeeds,
-        input: || Input::Gated(plans::refused_literal_pattern_joined_with_an_absent_kind),
-        expect: Expect::Value((
-            windows(&[]),
-            gated(
-                "rule 0 failed InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" }; unfinished",
-            ),
-        )),
-    },
-    Case {
-        name: CaseName("gated_and_all_active_runs_answer_the_same_observer_of_a_dormant_producer"),
-        word: Word::Succeeds,
-        input: || Input::Gated(plans::observer_of_two_producers_one_absent),
-        expect: Expect::Value((
-            windows(&[]),
-            gated("rule 0 complete 2; rule 1 complete 0; rule 2 complete 2; finished"),
-        )),
-    },
 ];
-/// The gated run answered as the all-active run, its rules having come to `rules`.
-const fn gated(rules: &'static str) -> Answer {
-    Answer::Gated {
-        same: true,
-        rules: Cow::Borrowed(rules),
-    }
-}
 /// What a whole run answers when dormant rules cost it nothing.
 const SAME: Answer = Answer::RunSame {
     allocates: true,

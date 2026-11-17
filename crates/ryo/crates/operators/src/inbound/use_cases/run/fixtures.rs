@@ -3,7 +3,12 @@
 
 use crate::domain::contract::types::{PortableOperatorFault, WithheldInput};
 use crate::domain::physical_plan::fixtures::Step;
+use crate::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
+use crate::domain::physical_plan::types::candidates::value::Candidates;
+use crate::domain::physical_plan::types::fact_rows::value::FactRows;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
+use crate::domain::physical_plan::types::frontier_place::value::FrontierPlace;
+use crate::domain::physical_plan::types::held_rows::value::HeldRows;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
@@ -20,11 +25,11 @@ use ryo_language::domain::symbols::service::{intern, intern_derived, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Offset;
-use ryo_relations::domain::relations::types::{CellKind, FactColumn, NodeId, Relation, Value};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, NodeId, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plan_parts::types::{HostedNumber, StepScope};
 use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::Table;
 use std::cell::Cell;
@@ -43,7 +48,6 @@ mod kernel_programs;
 pub(crate) mod relational;
 pub(crate) mod stream_programs;
 pub(crate) mod streams;
-mod table_inputs;
 pub mod texts;
 pub mod trees;
 pub mod unshared;
@@ -60,8 +64,6 @@ pub struct TableInputs {
     roots: Vec<NodeId>,
     /// The rows held for each frontier entry, bound observation and host relation.
     after: HeldInputs,
-    /// The nodes that do not run, each with the layout of its empty table; every other node runs.
-    dormant: Vec<(PlanNodeId, Vec<CellKind>)>,
 }
 
 impl TableInputs {
@@ -78,14 +80,7 @@ impl TableInputs {
             reads,
             roots: Vec::new(),
             after: HeldInputs::default(),
-            dormant: Vec::new(),
         }
-    }
-
-    /// These inputs, with each node of `dormant` answered dormant in its layout, and every other node active.
-    #[must_use]
-    pub fn with_dormant(self, dormant: Vec<(PlanNodeId, Vec<CellKind>)>) -> Self {
-        Self { dormant, ..self }
     }
 
     /// These inputs, with every node reading the tree starting from `roots`.
@@ -123,6 +118,41 @@ impl TableInputs {
             .filter(|((held, _), _)| *held == relation)
             .map(|(_, count)| count.get())
             .sum()
+    }
+}
+
+impl PlanInputs for TableInputs {
+    fn facts(&self, relation: Relation) -> FactRows<'_> {
+        self.after
+            .demands
+            .asked(relation, self.held.iter().map(|(held, _)| *held));
+        match self
+            .held
+            .iter()
+            .zip(&self.reads)
+            .find(|((held, _), _)| *held == relation)
+        {
+            Some(((_, columns), count)) => {
+                count.set(count.get() + 1);
+                FactRows::Lent(ColumnsView {
+                    kinds: ryo_relations::domain::relations::fixtures::kinds(relation),
+                    columns,
+                })
+            }
+            None => FactRows::Refused,
+        }
+    }
+    fn roots(&self, _root: PlanNodeId) -> Candidates<'_> {
+        Candidates(&self.roots)
+    }
+    fn frontier(&self, _place: FrontierPlace) -> HeldRows<'_> {
+        self.after.held(demands::Demand::Frontier)
+    }
+    fn observation(&self, _place: BoundObservationPlace) -> HeldRows<'_> {
+        self.after.held(demands::Demand::Observation)
+    }
+    fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {
+        self.after.hosted(relation)
     }
 }
 
