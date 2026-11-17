@@ -2,6 +2,7 @@
 //! held, so none streams), and their answers with every name as its text, their feeds and a warm worker's second file.
 #![cfg(test)]
 use super::demands::Demand;
+use super::stream_programs::join;
 use super::{TableInputs, TextResources, planned, ran};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, defines_rows};
@@ -9,15 +10,18 @@ use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, NodeFlow, NodeRows, PlanInputList, PlanNodeId, Resources,
+    LogicalNode, NodeBindings, NodeFlow, NodeRows, PlanInput, PlanInputList, PlanNodeId, Resources,
 };
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{
-    FileId, NodeId, Position, Relation, Span, Value as Cell,
+    FileId, Integer, NodeId, Offset, Position, Relation, Span, Value as Cell,
 };
-use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, Input as StepInput, JoinColumn, Side, StepId, StepScope,
+};
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::Table;
 
 /// A program over Defines rows: its steps, the one it emits, and the rows and texts of the file.
@@ -265,4 +269,73 @@ pub(crate) fn ran_over_tree(
         &|resources| tables(resources, &nodes),
         nodes.clone(),
     )
+}
+
+/// Runs `steps`, emitting `emit`, over `rows` Defines rows of six cells, the relation's columns lent with its seven kinds but
+/// only six columns: each row read on its own, a short row never read into the next row's cells.
+pub(crate) fn ran_over_short_rows(
+    steps: &[Step],
+    emit: PlanNodeId,
+    rows: usize,
+) -> Result<Ran, PortableOperatorFault> {
+    let short = |_: &TextResources| {
+        let named: Vec<(Cell, Span)> = (0..rows)
+            .map(|at| {
+                let number = i64::try_from(at).unwrap_or(i64::MAX);
+                (
+                    Cell::Number(Integer(number)),
+                    Span {
+                        start: Offset(0),
+                        end: Offset(1),
+                    },
+                )
+            })
+            .collect();
+        let full = defines_rows(&named);
+        let width = full.kinds.len();
+        Vec::from([(
+            Relation::Defines,
+            Table {
+                kinds: full.kinds.iter().copied().take(width - 1).collect(),
+                cells: full
+                    .cells
+                    .chunks(width)
+                    .flat_map(|row| row.iter().copied().take(width - 1))
+                    .collect(),
+                count: full.count,
+            },
+        )])
+    };
+    ran_steps(
+        &Steps {
+            steps,
+            emit,
+            first: &[],
+        },
+        false,
+        &[],
+        &short,
+    )
+}
+
+/// An inner join of node 0's rows with Defines on their node (column 0), answering the left's node: the probe a short row
+/// kept into a chunk is read by.
+pub(crate) fn node_probe() -> Step {
+    let defines = (
+        StepInput::Relation(Relation::Defines),
+        PlanInput::Relation(Relation::Defines),
+    );
+    let left = (StepInput::Step(StepId(0)), PlanInput::Node(PlanNodeId(0)));
+    let output = vec![JoinColumn {
+        side: Side::Left,
+        column: ColumnIndex(0),
+    }];
+    let mut probe = join(left, defines, output, Vec::new());
+    if let Operation::Join {
+        left_on, right_on, ..
+    } = &mut probe.operation
+    {
+        (*left_on, *right_on) = (vec![ColumnIndex(0)], vec![ColumnIndex(0)]);
+    }
+    probe
 }

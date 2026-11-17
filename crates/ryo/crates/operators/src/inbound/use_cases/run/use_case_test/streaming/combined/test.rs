@@ -24,7 +24,7 @@ use crate::inbound::use_cases::run::fixtures::stream_programs::{
     against, both_nodes, span, three_stages,
 };
 use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, Steps, agrees, ran_program, ran_steps,
+    Program, Steps, agrees, ran_over_tree, ran_program, ran_steps,
 };
 use crate::inbound::use_cases::run::fixtures::{TextResources, planned};
 use ryo_relations::domain::relations::types::{Integer, Relation, Value as Cell};
@@ -165,6 +165,31 @@ fn large_file() -> Program {
     }
 }
 
+/// A select of every row of the tree (node 0) and an extension of it (node 1): a chain whose head is the tree's rows.
+fn tree_chain() -> Vec<Step> {
+    let tree = (
+        StepInput::Relation(Relation::SyntaxTree),
+        PlanInput::Relation(Relation::SyntaxTree),
+    );
+    vec![
+        Step {
+            operation: Operation::Select {
+                from: tree.0,
+                comparisons: Vec::new(),
+                kept: Vec::new(),
+            },
+            inputs: vec![tree.1],
+        },
+        over_nodes(
+            Operation::Extend {
+                from: StepInput::Step(StepId(0)),
+                values: vec![Operand::Literal(QueryLiteral::Number(Integer(1)))],
+            },
+            &[0],
+        ),
+    ]
+}
+
 /// The stage calls of the first file of the chain of three stages over `rows` rows.
 fn calls(rows: usize) -> Result<usize, Failure> {
     Ok(ran_program(&three_stages(rows), false)?.stage_calls)
@@ -260,15 +285,29 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
             let streamed = ran_program(&program, false)?;
             let twin = ran_program(&program, true)?;
             let within = |table: &Table| table.cells.capacity() <= STREAM_CHUNK_CELLS;
+            // The tree's rows are decoded into the head chunk, its room kept after the run: past the bound's half, within it.
+            let tree = ran_over_tree(&tree_chain(), PlanNodeId(1), false, &|_, _| Vec::new())?;
+            let head_kept = tree
+                .buffers
+                .stream
+                .levels
+                .iter()
+                .all(|chain| within(&chain.head))
+                && tree
+                    .buffers
+                    .stream
+                    .levels
+                    .iter()
+                    .any(|chain| chain.head.cells.capacity() > STREAM_CHUNK_CELLS / 2);
             Ok(Observation::Bounded {
                 same: agrees(&streamed, &twin),
-                bounded: !streamed.buffers.stream.levels.is_empty()
+                bounded: head_kept
+                    && !streamed.buffers.stream.levels.is_empty()
                     && streamed.buffers.stream.levels.iter().all(|chain| {
-                        within(&chain.head)
-                            && chain
-                                .stages
-                                .iter()
-                                .all(|stage| within(&stage.out) && within(&stage.own.kept))
+                        chain
+                            .stages
+                            .iter()
+                            .all(|stage| within(&stage.out) && within(&stage.own.kept))
                     }),
             })
         }

@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
-use super::super::scan_facts::item::{cell_of, count_of, rows_of};
+use super::super::scan_facts::item::{cell_of, count_of, rows_of, table_row};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::physical_plan::types::keyed_rows::value::{
@@ -236,18 +236,13 @@ pub(crate) fn first_of_row(
     table: &Table,
     start: CellStart,
 ) -> PredicateOutcome {
-    let width = table.kinds.len();
-    let held = &table.cells;
-    let new = held.get(start.0..).unwrap_or_default();
+    let new = table.cells.get(start.0..).unwrap_or_default();
     let mut hasher = rustc_hash::FxHasher::default();
     for cell in new {
         cell.hash(&mut hasher);
     }
     let hash = IndexKeyHash(hasher.finish());
-    let row_at = |row: IndexedRow| {
-        let at = indexed(row).0.saturating_mul(width);
-        held.get(at..at.saturating_add(width)).unwrap_or_default()
-    };
+    let row_at = |row: IndexedRow| table_row(table, indexed(row));
     if rows
         .keys
         .find(hash.0, |run| run.hash == hash && row_at(run.first) == new)
