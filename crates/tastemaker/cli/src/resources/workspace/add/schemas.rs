@@ -132,8 +132,8 @@ pub(super) fn answer(
                 | PatternPiece::Span(name)
                 | PatternPiece::Directory(name) => format!("<{}>", name.0),
                 PatternPiece::Literal(character) => character.0.to_string(),
-                // A wildcard, or a piece a later core adds, is written as the pattern writes it.
-                other => written_piece(other).0,
+                // A wildcard is written as the pattern writes it.
+                other @ (PatternPiece::Star | PatternPiece::Question) => written_piece(other).0,
             })
             .collect();
         rooted(

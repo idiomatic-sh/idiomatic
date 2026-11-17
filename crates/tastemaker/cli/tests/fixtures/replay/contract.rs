@@ -3,6 +3,10 @@
 use std::path::Path;
 
 /// Keep optional reader support explicitly unread in a newly generated language.
+#[expect(
+    clippy::expect_used,
+    reason = "test support: a generated language without its parse contract is a broken scaffold, and the panic names the file"
+)]
 pub(crate) fn assert_contract(language: &Path) {
     let contract =
         std::fs::read_to_string(language.join("src/inbound/contracts/parse/contract.rs"))
