@@ -1,12 +1,12 @@
 //! The `applying` service's cases, over the `check` fixture's workspace: its rule matched here, its files compressed.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::applications::service::known;
-use tastemaker_values::domain::applications::types::Plan;
 use crate::domain::applying::service::matched_rules;
 use crate::inbound::use_cases::check::fixtures::applications::{
     applications, matching, placement, workspace,
 };
+use tastemaker_values::domain::applications::service::known;
+use tastemaker_values::domain::applications::types::Plan;
 
 /// The fixture's tree.
 const FILES: &[&str] = &[

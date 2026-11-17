@@ -139,7 +139,9 @@ impl StoreSchema {
                     release: self.release(&row.version)?,
                     stamp: Stamp {
                         size: tastemaker_values::domain::files::types::FileSize(row.size),
-                        modified: tastemaker_values::domain::files::types::ModifiedTime(row.modified),
+                        modified: tastemaker_values::domain::files::types::ModifiedTime(
+                            row.modified,
+                        ),
                     },
                     digest: Digest(self.text(row.digest)?.into()),
                     uses,
@@ -149,7 +151,10 @@ impl StoreSchema {
     }
 
     /// The store of `build` holding `rows`, each text kept once.
-    fn with(build: &tastemaker_values::domain::settings::types::Build, rows: &[ProvenVersion]) -> Self {
+    fn with(
+        build: &tastemaker_values::domain::settings::types::Build,
+        rows: &[ProvenVersion],
+    ) -> Self {
         let mut numbers = StringsSchema {
             strings: Vec::new(),
             numbers: HashMap::new(),

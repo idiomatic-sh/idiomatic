@@ -412,7 +412,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let check = use_case(files, engine, &store)?;
     if matches!(scenario, Scenario::Nonexistent) {
         let _checked = check.check(CheckRequest {
-            within: vec![tastemaker_values::domain::paths::types::RepoPath("nowhere".into())],
+            within: vec![tastemaker_values::domain::paths::types::RepoPath(
+                "nowhere".into(),
+            )],
             ..request(fixing)
         })?;
         return Ok("a check within no file unexpectedly succeeded".to_owned());
@@ -553,7 +555,9 @@ fn relocked(
     {
         drop(files.insert(
             lock,
-            tastemaker_values::domain::files::types::FileText(format!("{}# relocked\n", text.0).into()),
+            tastemaker_values::domain::files::types::FileText(
+                format!("{}# relocked\n", text.0).into(),
+            ),
         ));
     }
     let _report = check.check(request(Fixing::Report))?;
@@ -600,7 +604,9 @@ fn many(
     for run in 0_u8..12 {
         if let Ok(mut files) = held.files.lock() {
             drop(files.insert(
-                tastemaker_values::domain::paths::types::RepoPath(format!("src/c/note-{run}.txt").into()),
+                tastemaker_values::domain::paths::types::RepoPath(
+                    format!("src/c/note-{run}.txt").into(),
+                ),
                 tastemaker_values::domain::files::types::FileText("c\n".into()),
             ));
         }
@@ -651,7 +657,9 @@ fn rechecked(
     };
     use_case(held.clone(), failing, store)?.check(CheckRequest {
         within: if matches!(scenario, Scenario::Rescoped) {
-            vec![tastemaker_values::domain::paths::types::RepoPath("src/a".into())]
+            vec![tastemaker_values::domain::paths::types::RepoPath(
+                "src/a".into(),
+            )]
         } else {
             Vec::new()
         },

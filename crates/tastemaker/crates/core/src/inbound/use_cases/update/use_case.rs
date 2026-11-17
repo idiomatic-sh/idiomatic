@@ -5,6 +5,18 @@
 use super::errors::UpdateError;
 use super::interface::UpdateUseCase;
 use super::types::{Entries, Move, UpdateReport, UpdateRequest, VersionChoice};
+use crate::domain::loading::service::{begin, definition_loaded, finish, next};
+use crate::outbound::manifest::interface::ManifestPort;
+use crate::outbound::manifest::types::DefinitionText;
+use crate::outbound::matching::interface::MatchingPort;
+use crate::outbound::packages::errors::PackagesError;
+use crate::outbound::packages::interface::PackagesPort;
+use crate::outbound::packages::types::PackageFile;
+use crate::outbound::repository::interface::FoundRepository;
+use crate::outbound::repository::interface::RepositoryPort;
+use crate::outbound::repository::types::Presence;
+use std::collections::VecDeque;
+use std::sync::Arc;
 use tastemaker_values::domain::captures::types::Interpolations;
 use tastemaker_values::domain::definitions::constants::{LOCK_FILE, MISSING_ROOT, WORKSPACE_FILE};
 use tastemaker_values::domain::definitions::service::{governed, local, locals, shared, unloaded};
@@ -13,7 +25,6 @@ use tastemaker_values::domain::entries::service::named_releases;
 use tastemaker_values::domain::entries::service::pin;
 use tastemaker_values::domain::entries::types::NamedRelease;
 use tastemaker_values::domain::files::types::FileText;
-use crate::domain::loading::service::{begin, definition_loaded, finish, next};
 use tastemaker_values::domain::packages::constants::{CHANGELOG_FILE, PACKAGE_FILE};
 use tastemaker_values::domain::packages::service::{
     changes, kind_directory, kind_file, latest, lock, locked_version, offered_version, root_at,
@@ -30,17 +41,6 @@ use tastemaker_values::domain::selectors::service::{covers_any, first_match};
 use tastemaker_values::domain::selectors::types::{Coverage, SelectionContext, Spelling};
 use tastemaker_values::domain::variables::service::apply as apply_variables;
 use tastemaker_values::domain::writing::types::Writing;
-use crate::outbound::manifest::interface::ManifestPort;
-use crate::outbound::manifest::types::DefinitionText;
-use crate::outbound::matching::interface::MatchingPort;
-use crate::outbound::packages::errors::PackagesError;
-use crate::outbound::packages::interface::PackagesPort;
-use crate::outbound::packages::types::PackageFile;
-use crate::outbound::repository::interface::FoundRepository;
-use crate::outbound::repository::interface::RepositoryPort;
-use crate::outbound::repository::types::Presence;
-use std::collections::VecDeque;
-use std::sync::Arc;
 
 /// `update`, over the ports the edge injects.
 pub struct UpdateUseCaseImpl {

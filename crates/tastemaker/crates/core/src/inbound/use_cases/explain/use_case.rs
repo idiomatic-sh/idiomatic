@@ -9,20 +9,34 @@ use std::sync::Arc;
 use super::errors::ExplainError;
 use super::interface::ExplainUseCase;
 use super::types::{Asked, ExplainReport, ExplainRequest, NameAsked, Opened};
+use crate::domain::loading::service::{begin, definition_loaded, finish, next};
+use crate::domain::planning::service::plan;
+use crate::outbound::analysis::interface::AnalysisPort;
+use crate::outbound::manifest::interface::ManifestPort;
+use crate::outbound::manifest::types::DefinitionText;
+use crate::outbound::matching::interface::MatchingPort;
+use crate::outbound::packages::interface::PackagesPort;
+use crate::outbound::packages::types::PackageFile;
+use crate::outbound::repository::interface::FoundRepository;
+use crate::outbound::repository::interface::RepositoryPort;
+use crate::outbound::repository::types::Presence;
 use tastemaker_values::domain::applications::types::{Plan, Purpose};
 use tastemaker_values::domain::captures::types::Interpolations;
-use tastemaker_values::domain::catalog::service::{grammar_sections, operator_sections, relation_sections};
+use tastemaker_values::domain::catalog::service::{
+    grammar_sections, operator_sections, relation_sections,
+};
 use tastemaker_values::domain::catalog::types::{CatalogName, OperatorAnswer, RelationAnswer};
 use tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
 use tastemaker_values::domain::definitions::service::{local, locals, package_paths};
-use tastemaker_values::domain::definitions::types::{ErrorFile, Governed, LoadedWorkspace, LocalPackage, Role};
+use tastemaker_values::domain::definitions::types::{
+    ErrorFile, Governed, LoadedWorkspace, LocalPackage, Role,
+};
 use tastemaker_values::domain::entries::service::identity;
 use tastemaker_values::domain::explanations::service::{
     definition_explained, page, path_sections, placed_by, rule_line, scaffold_line, scope_line,
 };
 use tastemaker_values::domain::explanations::types::{Section, SectionLine, SectionTitle};
 use tastemaker_values::domain::files::types::{FileText, MachinePath};
-use crate::domain::loading::service::{begin, definition_loaded, finish, next};
 use tastemaker_values::domain::packages::constants::PACKAGE_FILE;
 use tastemaker_values::domain::packages::service::{kind_directory, kind_file, kind_of, latest};
 use tastemaker_values::domain::packages::types::{
@@ -34,7 +48,6 @@ use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_values::domain::paths::types::{Containment, PathText};
 use tastemaker_values::domain::placement::service::place;
 use tastemaker_values::domain::placement::types::Placement;
-use crate::domain::planning::service::plan;
 use tastemaker_values::domain::scopes::service::composition_of;
 use tastemaker_values::domain::scopes::types::{Identity, Origin};
 use tastemaker_values::domain::selectors::service::{covers_any, first_match, resolve};
@@ -44,15 +57,6 @@ use tastemaker_values::domain::selectors::types::{
 use tastemaker_values::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD, RYOQL};
 use tastemaker_values::domain::topics::service::{text, topic, topics};
 use tastemaker_values::domain::variables::service::apply as apply_variables;
-use crate::outbound::analysis::interface::AnalysisPort;
-use crate::outbound::manifest::interface::ManifestPort;
-use crate::outbound::manifest::types::DefinitionText;
-use crate::outbound::matching::interface::MatchingPort;
-use crate::outbound::packages::interface::PackagesPort;
-use crate::outbound::packages::types::PackageFile;
-use crate::outbound::repository::interface::FoundRepository;
-use crate::outbound::repository::interface::RepositoryPort;
-use crate::outbound::repository::types::Presence;
 
 /// `explain`, over the ports the edge injects.
 pub struct ExplainUseCaseImpl {
@@ -175,8 +179,10 @@ impl ExplainUseCaseImpl {
         &self,
     ) -> impl Fn(
         &[tastemaker_values::domain::selectors::types::SetGlob],
-    ) -> Result<Arc<dyn tastemaker_values::domain::selectors::types::PathSet>, PatternFailure>
-    + Sync
+    ) -> Result<
+        Arc<dyn tastemaker_values::domain::selectors::types::PathSet>,
+        PatternFailure,
+    > + Sync
     + '_ {
         |globs| self.matching.compile_set(globs)
     }
@@ -202,10 +208,13 @@ impl ExplainUseCaseImpl {
             compile: &compile,
         };
         let selector = |source| {
-            ExplainError::Placement(tastemaker_values::domain::placement::errors::PlacementError::Selector {
-                entry: tastemaker_values::domain::template_placing::constants::WORKSPACE_TABLE.to_owned(),
-                source,
-            })
+            ExplainError::Placement(
+                tastemaker_values::domain::placement::errors::PlacementError::Selector {
+                    entry: tastemaker_values::domain::template_placing::constants::WORKSPACE_TABLE
+                        .to_owned(),
+                    source,
+                },
+            )
         };
         let members = resolve(&section.members, &context).map_err(selector)?;
         let excluded = resolve(&section.rules_exclude, &context).map_err(selector)?;
@@ -405,10 +414,9 @@ impl ExplainUseCaseImpl {
         let failed =
             std::cell::RefCell::new(None::<crate::outbound::packages::errors::PackagesError>);
         let version_of = |release: &tastemaker_values::domain::packages::types::Release| {
-            if let Some(pinned) = pins
-                .as_ref()
-                .and_then(|lock| tastemaker_values::domain::packages::service::locked_version(lock, release))
-            {
+            if let Some(pinned) = pins.as_ref().and_then(|lock| {
+                tastemaker_values::domain::packages::service::locked_version(lock, release)
+            }) {
                 return pinned;
             }
             packages.get(&release.package).map_or_else(
@@ -425,7 +433,9 @@ impl ExplainUseCaseImpl {
                             if failed.borrow().is_none() {
                                 *failed.borrow_mut() = Some(error);
                             }
-                            return tastemaker_values::domain::packages::types::VersionText(Box::default());
+                            return tastemaker_values::domain::packages::types::VersionText(
+                                Box::default(),
+                            );
                         }
                     };
                     latest(
@@ -569,7 +579,9 @@ impl ExplainUseCaseImpl {
                 let reads = rule.include.iter().any(|glob| {
                     self.matching
                         .compile(&Spelling {
-                            glob: tastemaker_values::domain::selectors::types::SpelledGlob(glob.0.clone()),
+                            glob: tastemaker_values::domain::selectors::types::SpelledGlob(
+                                glob.0.clone(),
+                            ),
                             binder: Binding::GlobOnly,
                             groups: Vec::new(),
                         })

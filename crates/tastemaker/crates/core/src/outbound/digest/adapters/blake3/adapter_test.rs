@@ -2,9 +2,9 @@
 
 use super::adapter::DigestBlake3Adapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::findings::types::{Identifying, Ordinal};
 use crate::outbound::digest::fixtures::contract::check;
 use crate::outbound::digest::interface::DigestPort as _;
+use tastemaker_values::domain::findings::types::{Identifying, Ordinal};
 
 type Input = u64;
 type Value = bool;

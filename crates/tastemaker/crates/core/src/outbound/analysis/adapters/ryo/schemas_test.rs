@@ -2,14 +2,14 @@
 
 use super::{cell, parameter, placed, request};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
+use crate::outbound::analysis::errors::AnalysisError;
+use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
 use tastemaker_values::domain::applications::types::PlannedRule;
 use tastemaker_values::domain::applications::types::{GlobText, LintRuleId};
 use tastemaker_values::domain::definitions::types::QueryText;
 use tastemaker_values::domain::entries::types::Value as Param;
 use tastemaker_values::domain::files::types::MachinePath;
 use tastemaker_values::domain::scalars::types::{TextValue, ValueKey, WholeValue};
-use crate::outbound::analysis::errors::AnalysisError;
-use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

@@ -3,7 +3,9 @@
 use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_values::domain::placement::errors::PlacementError;
 use tastemaker_values::domain::scopes::types::ScopeIndex;
-use tastemaker_values::domain::selectors::types::{GlobIndex, Resolved, ResolvedSelectors, Selectors};
+use tastemaker_values::domain::selectors::types::{
+    GlobIndex, Resolved, ResolvedSelectors, Selectors,
+};
 
 /// A rule entry's `include` and `exclude`: what decides the files the entry reaches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

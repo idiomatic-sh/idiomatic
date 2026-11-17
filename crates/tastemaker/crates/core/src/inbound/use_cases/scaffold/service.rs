@@ -2,6 +2,7 @@
 
 use super::errors::ScaffoldError;
 use super::types::{ScaffoldRequest, Workspace};
+use crate::domain::scaffolding::types::{Reads, Staging};
 use tastemaker_values::domain::captures::types::{CaptureName, CaptureValue, Captures, Template};
 use tastemaker_values::domain::definitions::types::LoadedWorkspace;
 use tastemaker_values::domain::entries::service::{identity, reference, release};
@@ -11,7 +12,6 @@ use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName}
 use tastemaker_values::domain::paths::service::join;
 use tastemaker_values::domain::paths::types::{PathText, RepoPath};
 use tastemaker_values::domain::placement::types::Placement;
-use crate::domain::scaffolding::types::{Reads, Staging};
 use tastemaker_values::domain::scopes::service::composition_of;
 
 /// Turns a manifest failure into the error that names `file`.
@@ -58,7 +58,8 @@ pub(super) fn condition_parameters(
             if !needed {
                 continue;
             }
-            let release = tastemaker_values::domain::entries::service::rule_release(&condition.entry);
+            let release =
+                tastemaker_values::domain::entries::service::rule_release(&condition.entry);
             if let Some(rule) = loaded.rules.get(&release) {
                 let mut problems = Vec::new();
                 if tastemaker_values::domain::applications::service::rule_params(

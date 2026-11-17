@@ -7,7 +7,8 @@ pub(super) const TAG: &str = tastemaker_values::domain::definitions::constants::
 /// What keeps the store out of version control wherever it is made, as a tool's cache says of itself.
 pub(super) const GITIGNORE: &str = tastemaker_values::domain::definitions::constants::GITIGNORE;
 /// What it says: every file of the directory, itself too.
-pub(super) const GITIGNORE_TEXT: &str = tastemaker_values::domain::definitions::constants::GITIGNORE_TEXT;
+pub(super) const GITIGNORE_TEXT: &str =
+    tastemaker_values::domain::definitions::constants::GITIGNORE_TEXT;
 /// The note.
 pub(super) const TAG_TEXT: &str = tastemaker_values::domain::definitions::constants::TAG_TEXT;
 /// The mode a file made by `std::fs::write` starts with, before the umask takes its part.

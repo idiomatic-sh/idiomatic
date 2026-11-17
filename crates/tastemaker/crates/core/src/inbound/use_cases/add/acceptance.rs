@@ -4,9 +4,6 @@ use crate::Behavior;
 use cucumber::{given, then, when};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use tastemaker_values::domain::files::types::MachinePath;
-use tastemaker_values::domain::paths::types::RepoPath;
-use tastemaker_values::domain::writing::types::Writing;
 use tastemaker_core::inbound::use_cases::add::interface::AddUseCase as _;
 use tastemaker_core::inbound::use_cases::add::types::{AddRequest, DefinitionAsked};
 use tastemaker_core::inbound::use_cases::add::use_case::AddUseCaseImpl;
@@ -16,6 +13,9 @@ use tastemaker_core::inbound::use_cases::check::fixtures::{
 use tastemaker_core::outbound::manifest::interface::ManifestPort as _;
 use tastemaker_core::outbound::manifest::types::DefinitionText;
 use tastemaker_core::outbound::{manifest, matching, packages, repository};
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 
 /// Sets the definition the add asks for, or `write` to run it for real.
 #[given(expr = "the add input {string}")]

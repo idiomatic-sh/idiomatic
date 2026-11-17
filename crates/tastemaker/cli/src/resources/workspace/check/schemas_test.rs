@@ -1,13 +1,13 @@
 //! What the schemas of `check` accept and refuse, and the SARIF log they make: every result an error, suppressions and
 //! fingerprints as the first Tastemaker wrote them.
 
+use tastemaker_core::inbound::use_cases::check::types::{CheckReport, LockOutcome};
 use tastemaker_values::domain::files::types::MachinePath;
 use tastemaker_values::domain::findings::types::{
     Column, Finding, Fingerprint, Help, Line, MessageText, Place, Reason, Region, Report, RuleId,
     Suppression,
 };
 use tastemaker_values::domain::paths::types::RepoPath;
-use tastemaker_core::inbound::use_cases::check::types::{CheckReport, LockOutcome};
 
 use super::answer;
 use crate::cases::{Case, CaseName, Expect, Word, run};

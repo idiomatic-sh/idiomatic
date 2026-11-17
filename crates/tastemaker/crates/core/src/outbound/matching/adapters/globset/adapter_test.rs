@@ -5,7 +5,11 @@ use std::sync::Arc;
 
 use super::adapter::MatchingGlobsetAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::captures::types::{CaptureName, CaptureValue, Captures, Interpolations};
+use crate::outbound::matching::fixtures::contract::check;
+use crate::outbound::matching::interface::MatchingPort as _;
+use tastemaker_values::domain::captures::types::{
+    CaptureName, CaptureValue, Captures, Interpolations,
+};
 use tastemaker_values::domain::definitions::fixtures::bare;
 use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_values::domain::selectors::service::{
@@ -17,8 +21,6 @@ use tastemaker_values::domain::selectors::types::{
 };
 use tastemaker_values::domain::template_placing::errors::TemplatePlacingError;
 use tastemaker_values::domain::template_placing::service::exclusion;
-use crate::outbound::matching::fixtures::contract::check;
-use crate::outbound::matching::interface::MatchingPort as _;
 
 /// A question asked of a pattern the adapter compiles, placed at a base.
 #[derive(Clone, Copy, Debug)]
@@ -274,11 +276,14 @@ fn selected(base: &str, pattern: &str, question: Question) -> Result<Value, Fail
         Question::Variable => {
             let list = Selectors(vec![Selector::Variable(VariableName("crates".into()))]);
             return match resolve(&list, &context(&base, &values)).err() {
-                Some(tastemaker_values::domain::selectors::errors::SelectorsError::Unresolved { .. }) => {
-                    Err(Refused::Pattern)
-                }
+                Some(
+                    tastemaker_values::domain::selectors::errors::SelectorsError::Unresolved {
+                        ..
+                    },
+                ) => Err(Refused::Pattern),
                 Some(tastemaker_values::domain::selectors::errors::SelectorsError::Pattern {
-                    reason, ..
+                    reason,
+                    ..
                 }) => Ok(Answer::Said(reason)),
                 None => Ok(Answer::Said("resolved".to_owned())),
             };
@@ -345,6 +350,7 @@ fn subject(row: Input) -> Result<Value, Failure> {
 fn succeeds() {
     check(&MatchingGlobsetAdapter::default());
     run(CASES, Word::Succeeds, subject);
+    assert_eq!(Coverage::from(true), Coverage::Covered);
 }
 
 #[test]

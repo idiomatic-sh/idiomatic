@@ -5,11 +5,11 @@ use cucumber::{given, then, when};
 use crate::Behavior;
 use std::sync::Arc;
 
-use tastemaker_values::domain::files::types::MachinePath;
 use tastemaker_core::inbound::use_cases::check::fixtures::{package, repository};
 use tastemaker_core::inbound::use_cases::explain::interface::ExplainUseCase as _;
 use tastemaker_core::inbound::use_cases::explain::types::{Asked, ExplainRequest, NameAsked};
 use tastemaker_core::inbound::use_cases::explain::use_case::ExplainUseCaseImpl;
+use tastemaker_values::domain::files::types::MachinePath;
 
 /// Sets what the `explain` scenario hands the use case.
 #[given(expr = "the explain input {string}")]

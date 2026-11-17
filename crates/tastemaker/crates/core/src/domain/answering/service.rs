@@ -151,7 +151,10 @@ fn import_unknown(plan: &Plan, missing: LintUnknown) -> Option<Finding> {
             missing.path
         };
         return Some(error(
-            check_id(tastemaker_values::domain::imports::constants::WORKSPACE_FILE, UNKNOWN),
+            check_id(
+                tastemaker_values::domain::imports::constants::WORKSPACE_FILE,
+                UNKNOWN,
+            ),
             anchor,
             format!("imports could not be read: {}", missing.message.0),
         ));

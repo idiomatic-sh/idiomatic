@@ -31,7 +31,8 @@ pub(super) const FILE_KIND: &str = "file";
 pub(super) const TEXT_KIND: &str = "text";
 
 /// How the engine writes a span as text, between its start and its end: `12..40`.
-pub(super) const SPAN_TEXT: &str = tastemaker_values::domain::applications::constants::SPAN_SEPARATOR;
+pub(super) const SPAN_TEXT: &str =
+    tastemaker_values::domain::applications::constants::SPAN_SEPARATOR;
 
 /// Ryo's own directory within the store.
 pub(super) const RYO_STORE: &str = "ryo";

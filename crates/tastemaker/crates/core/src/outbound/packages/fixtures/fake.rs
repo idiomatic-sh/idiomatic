@@ -2,11 +2,13 @@
 
 use std::collections::BTreeMap;
 
-use tastemaker_values::domain::files::types::{FileText, Stamp};
-use tastemaker_values::domain::packages::types::{Dependency, PackageRoot, SourcePath, VersionText};
 use crate::outbound::packages::errors::PackagesError;
 use crate::outbound::packages::interface::PackagesPort;
 use crate::outbound::packages::types::{Located, PackageFile};
+use tastemaker_values::domain::files::types::{FileText, Stamp};
+use tastemaker_values::domain::packages::types::{
+    Dependency, PackageRoot, SourcePath, VersionText,
+};
 
 /// The files of packages, by package directory and path.
 type FakeFiles = BTreeMap<(Box<str>, Box<str>), Box<str>>;

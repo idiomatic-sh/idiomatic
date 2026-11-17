@@ -3,22 +3,24 @@
 //! applications are apart are handed whole (`carrying`), the others matched here (`applying`); the built-in rules are
 //! `built_ins`', and the answer is read back by `answering`.
 
-use tastemaker_values::domain::applications::constants::{EVALUATED_CHECKS, PLACING_SEPARATOR};
-use tastemaker_values::domain::applications::service::{known, loaded, parameters, placed_rows, rule_params};
-use tastemaker_values::domain::applications::types::{
-    Carried, Compilers, LintRuleId, Plan, PlannedRule, Purpose, Rendering,
-};
 use crate::domain::applying::service::{handed_reach, matched_rules};
 use crate::domain::built_ins::service::{comments, conditions, imports};
 use crate::domain::carrying::service::carried;
 use crate::domain::carrying::types::CarriedSplit;
+use crate::domain::globs::service::counted;
+use tastemaker_values::domain::applications::constants::{EVALUATED_CHECKS, PLACING_SEPARATOR};
+use tastemaker_values::domain::applications::service::{
+    known, loaded, parameters, placed_rows, rule_params,
+};
+use tastemaker_values::domain::applications::types::{
+    Carried, Compilers, LintRuleId, Plan, PlannedRule, Purpose, Rendering,
+};
 use tastemaker_values::domain::definitions::types::LoadedWorkspace;
 use tastemaker_values::domain::entries::service::{identity, rule_release};
 use tastemaker_values::domain::entries::types::RuleEntry;
 use tastemaker_values::domain::findings::constants::PARAMS;
 use tastemaker_values::domain::findings::service::check_id;
 use tastemaker_values::domain::findings::types::RuleId;
-use crate::domain::globs::service::counted;
 use tastemaker_values::domain::packages::service::release_id;
 use tastemaker_values::domain::packages::types::DefinitionKind;
 use tastemaker_values::domain::paths::types::RepoPath;

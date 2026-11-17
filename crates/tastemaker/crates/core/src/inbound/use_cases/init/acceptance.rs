@@ -2,15 +2,15 @@
 use crate::Behavior;
 use cucumber::{given, then, when};
 use std::sync::Arc;
-use tastemaker_values::domain::definitions::types::Role;
-use tastemaker_values::domain::files::types::MachinePath;
-use tastemaker_values::domain::writing::types::Writing;
 use tastemaker_core::inbound::use_cases::init::{
     interface::InitUseCase as _, types::InitRequest, use_case::InitUseCaseImpl,
 };
 use tastemaker_core::outbound::manifest::interface::ManifestPort as _;
 use tastemaker_core::outbound::manifest::types::DefinitionText;
 use tastemaker_core::outbound::{manifest, repository};
+use tastemaker_values::domain::definitions::types::Role;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::writing::types::Writing;
 /// What an acceptance step fails with: any error the use cases or the filesystem raise.
 type Failure = Box<dyn std::error::Error + Send + Sync>;
 /// Sets what the `init` scenario hands the use case.
@@ -146,10 +146,6 @@ fn author_and_enforce(world: &mut Behavior) -> Result<(), Failure> {
 
 /// Creates the project's own rule, writes its query and a valid source, and adds the rule over `src`.
 fn author(root: &std::path::Path, start: &MachinePath) -> Result<(), Failure> {
-    use tastemaker_values::domain::{
-        packages::types::{DefinitionKind, DefinitionName},
-        paths::types::RepoPath,
-    };
     use tastemaker_core::inbound::use_cases::{
         add::{
             interface::AddUseCase as _,
@@ -163,6 +159,10 @@ fn author(root: &std::path::Path, start: &MachinePath) -> Result<(), Failure> {
         },
     };
     use tastemaker_core::outbound::{matching, packages};
+    use tastemaker_values::domain::{
+        packages::types::{DefinitionKind, DefinitionName},
+        paths::types::RepoPath,
+    };
     let created = CreateUseCaseImpl::new(
         Arc::new(repository::factory::disk(
             Vec::new(),
@@ -211,7 +211,6 @@ fn author(root: &std::path::Path, start: &MachinePath) -> Result<(), Failure> {
 
 /// Validates the rule, then checks the project: the valid source and the files Asymptote adds have no finding, and a prohibited file is the one.
 fn enforce(root: &std::path::Path, start: MachinePath) -> Result<(), Failure> {
-    use tastemaker_values::domain::proofs::types::Proof;
     use tastemaker_core::inbound::use_cases::{
         check::{
             interface::CheckUseCase as _,
@@ -219,6 +218,7 @@ fn enforce(root: &std::path::Path, start: MachinePath) -> Result<(), Failure> {
         },
         validate::{interface::ValidateUseCase as _, types::ValidateRequest},
     };
+    use tastemaker_values::domain::proofs::types::Proof;
     let (check, validate) = crate::check::real_services(root, "init-acceptance");
     let proofs = validate.validate(ValidateRequest {
         start: start.clone(),

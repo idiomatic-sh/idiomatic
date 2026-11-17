@@ -1,7 +1,9 @@
 //! The types of the `manifest` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use tastemaker_values::domain::entries::types::{Count, Description, ParamValues};
-use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName, PackageName, VersionText};
+use tastemaker_values::domain::packages::types::{
+    DefinitionKind, DefinitionName, PackageName, VersionText,
+};
 use tastemaker_values::domain::selectors::types::{PathPattern, Selectors};
 
 /// An entry to write into a `tastemaker.toml`.

@@ -172,10 +172,11 @@ fn scope_reaches<'w>(
                     pair: entry.pair,
                     files: Err(PlacementError::Selector {
                         entry: identity(&rule.header, DefinitionKind::Rule, &rule.rule).0,
-                        source: tastemaker_values::domain::selectors::errors::SelectorsError::Pattern {
-                            pattern: failing.clone(),
-                            reason: failure.0.to_string(),
-                        },
+                        source:
+                            tastemaker_values::domain::selectors::errors::SelectorsError::Pattern {
+                                pattern: failing.clone(),
+                                reason: failure.0.to_string(),
+                            },
                     }),
                 }
             }));

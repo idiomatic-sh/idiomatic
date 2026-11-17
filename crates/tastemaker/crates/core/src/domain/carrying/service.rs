@@ -4,10 +4,12 @@
 use std::collections::BTreeMap;
 
 use super::types::{CarriedSplit, HandedKey, Overlap, RuleGlobs};
-use tastemaker_values::domain::applications::constants::{CARRIED_GLOBS, EVERYTHING};
-use tastemaker_values::domain::applications::types::{Carried, GlobText, HandedRule, Nameable, ParamSet};
-use tastemaker_values::domain::entries::service::identity;
 use crate::domain::globs::service::literal;
+use tastemaker_values::domain::applications::constants::{CARRIED_GLOBS, EVERYTHING};
+use tastemaker_values::domain::applications::types::{
+    Carried, GlobText, HandedRule, Nameable, ParamSet,
+};
+use tastemaker_values::domain::entries::service::identity;
 use tastemaker_values::domain::packages::types::{DefinitionKind, Release};
 use tastemaker_values::domain::paths::service::{containment, relative};
 use tastemaker_values::domain::paths::types::{Containment, RepoPath};

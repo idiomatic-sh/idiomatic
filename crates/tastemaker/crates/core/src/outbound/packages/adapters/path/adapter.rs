@@ -7,14 +7,14 @@ use super::constants::{
     SEPARATOR_TEXT,
 };
 use super::types::HeldPackages;
+use crate::outbound::packages::errors::PackagesError;
+use crate::outbound::packages::interface::PackagesPort;
+use crate::outbound::packages::types::{HeldFiles, Located, PackageFile};
 use tastemaker_values::domain::files::types::{FileText, Stamp};
 use tastemaker_values::domain::packages::types::{
     Dependency, PackageRoot, PackageSource, SourcePath, VersionText,
 };
 use tastemaker_values::domain::paths::types::PathText;
-use crate::outbound::packages::errors::PackagesError;
-use crate::outbound::packages::interface::PackagesPort;
-use crate::outbound::packages::types::{HeldFiles, Located, PackageFile};
 
 /// The path packages adapter, and the packages the run made that it holds in memory, by the directory each is read at.
 #[derive(Debug, Default)]

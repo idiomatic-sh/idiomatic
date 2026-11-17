@@ -3,7 +3,7 @@
 use std::path::Path;
 
 /// Keep optional reader support explicitly unread in a newly generated language.
-pub(super) fn assert_contract(language: &Path) {
+pub(crate) fn assert_contract(language: &Path) {
     let contract =
         std::fs::read_to_string(language.join("src/inbound/contracts/parse/contract.rs"))
             .expect("the generated parse contract");

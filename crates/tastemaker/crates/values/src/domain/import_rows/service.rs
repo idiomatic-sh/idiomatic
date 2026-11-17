@@ -14,8 +14,8 @@ use crate::domain::contracts::types::Holding;
 use crate::domain::definitions::types::QueryText;
 use crate::domain::imports::constants::JOINERS;
 use crate::domain::imports::types::{
-    Import, ImportColumn, ImportPlace, ImportRows, ModuleName, Name, Owner, Package,
-    PackageBinding, Relation, Scope, ScopeKind, Target, WrittenPath,
+    Import, ImportColumn, ImportPlace, ImportRows, ModuleName, Name, NameBinding, Owner, Package,
+    PackageBinding, Relation, ScopeKind, Target, UseScope, WrittenPath,
 };
 use crate::domain::module_paths::service::segments;
 use crate::domain::paths::types::RepoPath;
@@ -75,7 +75,10 @@ pub fn keep(
                 rows.names.push(Name {
                     source: path,
                     written: WrittenPath(written.0),
-                    binding: column(ImportColumn(BINDING)).map(|binding| ModuleName(binding.0)),
+                    binding: column(ImportColumn(BINDING))
+                        .map_or(NameBinding::Unbound, |binding| {
+                            NameBinding::Binds(ModuleName(binding.0))
+                        }),
                     span: place,
                 });
             }
@@ -104,7 +107,7 @@ pub fn keep(
                 Some(MODULE_KIND) => ScopeKind::Module,
                 _ => return,
             };
-            let scope = Scope { span: place, kind };
+            let scope = UseScope { span: place, kind };
             match rows.scopes.get_mut(&path) {
                 Some(scopes) => scopes.push(scope),
                 None => {
@@ -233,7 +236,10 @@ pub fn imports(rows: &ImportRows) -> Vec<Import> {
         // Each import's innermost scope, read once: the bindings a use-site path may start at, where each binds.
         let bindings = brought
             .iter()
-            .filter_map(|name| Some((name.binding.as_ref()?, innermost(&scopes, name.span))))
+            .filter_map(|name| match &name.binding {
+                NameBinding::Binds(binding) => Some((binding, innermost(&scopes, name.span))),
+                NameBinding::Unbound => None,
+            })
             .collect::<Vec<_>>();
         for edge in paths {
             let held = brought

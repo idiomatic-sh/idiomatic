@@ -4,14 +4,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
 use super::project::ProjectFake;
+use crate::outbound::repository::errors::RepositoryError;
+use crate::outbound::repository::interface::{FoundRepository, Repository, RepositoryPort};
+use crate::outbound::repository::types::{Presence, RepoPaths, Walk};
 use tastemaker_values::domain::files::types::{
     Declarer, DirectoryName, FileText, MachinePath, SkippedDirectories, SkippedDirectory, Stamp,
 };
 use tastemaker_values::domain::paths::service::containment;
 use tastemaker_values::domain::paths::types::{Containment, RepoPath};
-use crate::outbound::repository::errors::RepositoryError;
-use crate::outbound::repository::interface::{FoundRepository, Repository, RepositoryPort};
-use crate::outbound::repository::types::{Presence, RepoPaths, Walk};
 
 /// The directory every repository skips, as the disk adapter does: Tastemaker's own, declared by Tastemaker.
 const VERSION_CONTROL: &str = ".git";

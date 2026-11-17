@@ -3,14 +3,14 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
+use crate::outbound::manifest::errors::ManifestError;
+use crate::outbound::manifest::interface::ManifestPort;
+use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 use tastemaker_values::domain::definitions::types::{
     Definition, RuleFile, SpecFile, TemplateFile, WorkspaceFile,
 };
 use tastemaker_values::domain::files::types::FileText;
 use tastemaker_values::domain::packages::types::{DefinitionKind, Lock, PackageManifest};
-use crate::outbound::manifest::errors::ManifestError;
-use crate::outbound::manifest::interface::ManifestPort;
-use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 
 /// What the core's tests stand in for `manifest` with: each definition by the text that names it.
 #[derive(Debug, Default)]

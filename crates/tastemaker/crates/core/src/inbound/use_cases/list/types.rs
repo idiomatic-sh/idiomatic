@@ -2,7 +2,9 @@
 
 use tastemaker_values::domain::entries::types::Description;
 use tastemaker_values::domain::files::types::MachinePath;
-use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName, PackageName, VersionText};
+use tastemaker_values::domain::packages::types::{
+    DefinitionKind, DefinitionName, PackageName, VersionText,
+};
 
 /// Which kinds of definition are listed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

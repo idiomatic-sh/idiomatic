@@ -1,10 +1,10 @@
 //! The shape of the data this command does not control: its arguments become the service's request, and the service's
 //! report becomes the answer printed.
 
-use tastemaker_values::domain::proofs::types::Proof;
 use tastemaker_core::inbound::use_cases::validate::types::{
     Proving, ValidateReport, ValidateRequest, VersionFilter,
 };
+use tastemaker_values::domain::proofs::types::Proof;
 
 use crate::outcome::Outcome;
 

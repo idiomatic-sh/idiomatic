@@ -2,7 +2,9 @@
 
 use super::service::{answered, judge};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::applications::types::{AnswerCell, CellText, CellValue, FoundAt, Rendering};
+use tastemaker_values::domain::applications::types::{
+    AnswerCell, CellText, CellValue, FoundAt, Rendering,
+};
 use tastemaker_values::domain::comments::types::ByteSpan;
 use tastemaker_values::domain::definitions::types::{ColumnName, Diagnostic};
 use tastemaker_values::domain::findings::types::ByteOffset;

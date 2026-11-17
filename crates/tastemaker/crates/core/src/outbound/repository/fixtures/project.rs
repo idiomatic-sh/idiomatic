@@ -3,11 +3,11 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use tastemaker_values::domain::files::types::{FileText, MachinePath};
-use tastemaker_values::domain::paths::types::RepoPath;
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::interface::Repository;
 use crate::outbound::repository::types::{Presence, RepoPaths, Walk};
+use tastemaker_values::domain::files::types::{FileText, MachinePath};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// A scratch directory of the fake, bound to its root: its files are forgotten when it is dropped.
 #[derive(Debug)]

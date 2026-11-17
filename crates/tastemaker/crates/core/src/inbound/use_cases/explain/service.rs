@@ -5,7 +5,9 @@ use tastemaker_values::domain::applications::types::Plan;
 use tastemaker_values::domain::definitions::types::{ErrorFile, LoadedWorkspace};
 use tastemaker_values::domain::explanations::constants::{AUTHORING_TITLE, TOPICS_TITLE};
 use tastemaker_values::domain::explanations::service::workspace_sections;
-use tastemaker_values::domain::explanations::types::{Section, SectionLine, SectionTitle, Tally, Totals};
+use tastemaker_values::domain::explanations::types::{
+    Section, SectionLine, SectionTitle, Tally, Totals,
+};
 use tastemaker_values::domain::files::types::SkippedDirectory;
 use tastemaker_values::domain::placement::types::Placement;
 use tastemaker_values::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD};

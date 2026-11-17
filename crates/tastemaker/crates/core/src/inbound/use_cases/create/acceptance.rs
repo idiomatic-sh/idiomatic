@@ -5,17 +5,17 @@ use cucumber::{given, then, when};
 use crate::Behavior;
 use std::sync::Arc;
 
-use tastemaker_values::domain::files::types::MachinePath;
-use tastemaker_values::domain::packages::service::kind_of;
-use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
-use tastemaker_values::domain::writing::types::Writing;
 use tastemaker_core::inbound::use_cases::check::fixtures::{package, repository};
+use tastemaker_core::inbound::use_cases::create::fixtures::kind_named;
 use tastemaker_core::inbound::use_cases::create::interface::CreateUseCase as _;
 use tastemaker_core::inbound::use_cases::create::types::{
     CreateRequest, Destination, Extension, ScenarioExtension,
 };
 use tastemaker_core::inbound::use_cases::create::use_case::CreateUseCaseImpl;
 use tastemaker_core::outbound::repository::fixtures::fake::RepositoryFake;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
+use tastemaker_values::domain::writing::types::Writing;
 
 /// Sets what the `create` scenario hands the use case.
 #[given(expr = "the create input {string}")]
@@ -45,8 +45,7 @@ fn runs(world: &mut Behavior) {
     );
     world.answer = match create.create(CreateRequest {
         start: MachinePath("/fake".into()),
-        kind: kind_of(tastemaker_values::domain::packages::types::KindWord(kind))
-            .unwrap_or(DefinitionKind::Rule),
+        kind: kind_named(kind).unwrap_or(DefinitionKind::Rule),
         name: DefinitionName(name.into()),
         into: Destination::Workspace,
         extension: extension.map_or(Extension::Unnamed, |extension| {

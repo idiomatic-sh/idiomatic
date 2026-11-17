@@ -4,13 +4,26 @@
 use super::errors::AddError;
 use super::interface::AddUseCase;
 use super::types::{AddReport, AddRequest, Novelty, ShownEntry};
+use crate::domain::loading::service::{begin, definition_loaded, finish, next};
+use crate::outbound::manifest::interface::ManifestPort;
+use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
+use crate::outbound::matching::interface::MatchingPort;
+use crate::outbound::packages::errors::PackagesError;
+use crate::outbound::packages::interface::PackagesPort;
+use crate::outbound::packages::types::PackageFile;
+use crate::outbound::repository::interface::FoundRepository;
+use crate::outbound::repository::interface::RepositoryPort;
+use crate::outbound::repository::types::Presence;
+use std::collections::VecDeque;
+use std::sync::Arc;
 use tastemaker_values::domain::captures::types::Interpolations;
 use tastemaker_values::domain::definitions::constants::{LOCK_FILE, MISSING_ROOT, WORKSPACE_FILE};
-use tastemaker_values::domain::definitions::service::{description, governed, local, locals, shared, unloaded};
+use tastemaker_values::domain::definitions::service::{
+    description, governed, local, locals, shared, unloaded,
+};
 use tastemaker_values::domain::definitions::types::{LoadedWorkspace, LocalFile, Role};
 use tastemaker_values::domain::entries::service::{derived, literal_params, pin};
 use tastemaker_values::domain::files::types::FileText;
-use crate::domain::loading::service::{begin, definition_loaded, finish, next};
 use tastemaker_values::domain::packages::constants::PACKAGE_FILE;
 use tastemaker_values::domain::packages::service::{
     kind_directory, kind_file, latest, lock, locked_version, root_at,
@@ -29,17 +42,6 @@ use tastemaker_values::domain::selectors::types::{
 };
 use tastemaker_values::domain::variables::service::apply as apply_variables;
 use tastemaker_values::domain::writing::types::Writing;
-use crate::outbound::manifest::interface::ManifestPort;
-use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
-use crate::outbound::matching::interface::MatchingPort;
-use crate::outbound::packages::errors::PackagesError;
-use crate::outbound::packages::interface::PackagesPort;
-use crate::outbound::packages::types::PackageFile;
-use crate::outbound::repository::interface::FoundRepository;
-use crate::outbound::repository::interface::RepositoryPort;
-use crate::outbound::repository::types::Presence;
-use std::collections::VecDeque;
-use std::sync::Arc;
 
 /// `add`, over the ports the edge injects.
 pub struct AddUseCaseImpl {

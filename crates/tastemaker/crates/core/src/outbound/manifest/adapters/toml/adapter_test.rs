@@ -2,14 +2,14 @@
 
 use super::adapter::ManifestTomlAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::definitions::types::Role;
-use tastemaker_values::domain::entries::types::ImportPattern;
-use tastemaker_values::domain::topics::service::{keys, topics};
-use tastemaker_values::domain::topics::types::{Necessity, TopicBody};
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::fixtures::contract::check;
 use crate::outbound::manifest::interface::ManifestPort as _;
 use crate::outbound::manifest::types::DefinitionText;
+use tastemaker_values::domain::definitions::types::Role;
+use tastemaker_values::domain::entries::types::ImportPattern;
+use tastemaker_values::domain::topics::service::{keys, topics};
+use tastemaker_values::domain::topics::types::{Necessity, TopicBody};
 
 /// Which definition is read, and its text.
 type Input = (Kind, &'static str);

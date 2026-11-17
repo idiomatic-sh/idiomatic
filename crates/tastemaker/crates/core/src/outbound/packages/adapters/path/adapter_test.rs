@@ -2,13 +2,13 @@
 
 use super::adapter::PackagesPathAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::packages::types::{
-    Dependency, GitSource, PackageName, PackageRoot, PackageSource, SourcePath,
-};
 use crate::outbound::packages::errors::PackagesError;
 use crate::outbound::packages::fixtures::contract::check;
 use crate::outbound::packages::interface::PackagesPort as _;
 use crate::outbound::packages::types::HeldFiles;
+use tastemaker_values::domain::packages::types::{
+    Dependency, GitSource, PackageName, PackageRoot, PackageSource, SourcePath,
+};
 
 /// What a row asks of a temporary package directory.
 #[derive(Clone, Debug)]

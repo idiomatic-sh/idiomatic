@@ -1,8 +1,10 @@
 //! What every `matching` adapter must pass.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::selectors::types::{Binding, Coverage, GlobIndex, PathRest, Spelling};
 use crate::outbound::matching::interface::MatchingPort;
+use tastemaker_values::domain::selectors::types::{
+    Binding, Coverage, GlobIndex, PathRest, Spelling,
+};
 
 /// A glob, with no expression, and a path it is asked about.
 type Input = (&'static str, &'static str);

@@ -8,13 +8,13 @@ use std::sync::Arc;
 use super::types::{CheckRequest, Fixing};
 use super::use_case::{CheckPorts, CheckUseCaseImpl};
 use crate::cases::Selection;
-use tastemaker_values::domain::files::types::MachinePath;
 use crate::outbound::analysis::fixtures::fake::AnalysisFake;
 use crate::outbound::check_store::fixtures::fake::CheckStoreFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
 use crate::outbound::packages::fixtures::fake::PackagesFake;
 use crate::outbound::repository::fixtures::fake::RepositoryFake;
 use crate::outbound::validate_store::fixtures::fake::ValidateStoreFake;
+use tastemaker_values::domain::files::types::MachinePath;
 
 /// The package's manifest.
 pub const PACKAGE: &str = "name = \"p\"\n";
@@ -605,4 +605,12 @@ fn mixed_proofs_agree(
             "mixed proof outcomes settle identically"
         );
     }
+}
+
+/// What `finding` is of, as a report prints it: the rule, or `entry#check`.
+#[must_use]
+pub fn printed_rule(
+    finding: &tastemaker_values::domain::findings::types::Finding,
+) -> tastemaker_values::domain::findings::types::RuleText {
+    tastemaker_values::domain::findings::service::printed(&finding.rule)
 }

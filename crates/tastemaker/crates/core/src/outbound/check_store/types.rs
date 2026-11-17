@@ -12,7 +12,8 @@ pub struct Checked {
     /// The findings in-source ignores accepted, with their reasons.
     pub suppressed: Vec<tastemaker_values::domain::findings::types::Suppression>,
     /// Every rule and check that ran.
-    pub evaluated: std::collections::BTreeSet<tastemaker_values::domain::findings::types::FindingRule>,
+    pub evaluated:
+        std::collections::BTreeSet<tastemaker_values::domain::findings::types::FindingRule>,
     /// The rules the ignores were read against, as one digest: the files in `sourced` hold only while it is the same.
     pub known: tastemaker_values::domain::digests::types::Digest,
     /// What each file settled against its text had before its ignores were applied: while the file and that are as they were, the

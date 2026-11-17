@@ -4,7 +4,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use tastemaker_values::domain::files::types::{DirectoryName, FileText, MachinePath, SkippedDirectory};
+use tastemaker_values::domain::files::types::{
+    DirectoryName, FileText, MachinePath, SkippedDirectory,
+};
 use tastemaker_values::domain::paths::types::RepoPath;
 
 /// The trees an adapter holds, by the scratch directory each is, each behind a lock of its own: the scenarios checked at

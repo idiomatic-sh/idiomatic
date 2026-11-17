@@ -1,16 +1,16 @@
 //! The analysis hex's adapters back to back: the ryo adapter that keeps nothing between calls, and the one that keeps what a
 //! call leaves in a store, each validating the worked queries `explain ryoql` shows.
 
-use tastemaker_values::domain::catalog::constants::WORKED_QUERIES;
-use tastemaker_values::domain::definitions::types::QueryText;
-use tastemaker_values::domain::files::types::MachinePath;
-use tastemaker_values::domain::settings::types::{Build, Store};
-use tastemaker_values::domain::writing::types::Writing;
 use tastemaker_core::outbound::analysis::factory;
 use tastemaker_core::outbound::analysis::interface::AnalysisPort;
 use tastemaker_core::outbound::analysis::types::{AnalysisSettings, Memory};
 use tastemaker_core::outbound::scheduler::factory::pool;
 use tastemaker_core::outbound::scheduler::types::WorkerCount;
+use tastemaker_values::domain::catalog::constants::WORKED_QUERIES;
+use tastemaker_values::domain::definitions::types::QueryText;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::settings::types::{Build, Store};
+use tastemaker_values::domain::writing::types::Writing;
 
 /// The analysis adapters the factory builds.
 #[derive(Clone, Copy, Debug)]

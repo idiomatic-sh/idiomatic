@@ -1,8 +1,8 @@
 //! The `add` service: local free-function helpers, private to this use case.
 
+use crate::outbound::repository::interface::FoundRepository;
 use tastemaker_values::domain::paths::service::join;
 use tastemaker_values::domain::paths::types::{PathText, RepoPath};
-use crate::outbound::repository::interface::FoundRepository;
 
 /// Where the entry applies, `at` given from where the command ran: relative to the workspace's directory, as every path
 /// of its file is, and the workspace's own directory written `.`, since an empty include reaches nothing.

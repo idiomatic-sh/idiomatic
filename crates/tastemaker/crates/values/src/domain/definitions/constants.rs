@@ -7,7 +7,7 @@ pub const LOCK_FILE: &str = "tastemaker.lock";
 /// git's ignore file.
 pub const GITIGNORE: &str = ".gitignore";
 /// What marks a repository's root: a directory, or a file in a linked worktree; every walk skips it.
-pub const GIT: &str = ".git"; // ignore: idiomatic.arch/no-language-names - `.git` is the version-control directory every walk skips, not a file extension or a language's file
+pub const GIT: &str = ".git";
 /// Asymptote's configuration file at a project's top, which `init` leaves unchecked beside the lock: a project that adds Asymptote after
 /// `tm init` stays whole.
 pub const ASYMPTOTE_FILE: &str = "asymptote.toml";

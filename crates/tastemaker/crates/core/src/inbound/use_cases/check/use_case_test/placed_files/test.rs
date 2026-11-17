@@ -2,11 +2,11 @@
 //! count, and the files a `{name:dir}` capture takes only beside the directory it names.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::inbound::use_cases::check::fixtures::applications::{matching, workspace_of};
+use crate::inbound::use_cases::check::fixtures::{SPEC, WORKSPACE};
 use tastemaker_values::domain::findings::service::printed;
 use tastemaker_values::domain::placement::errors::PlacementError;
 use tastemaker_values::domain::placement::service::place;
-use crate::inbound::use_cases::check::fixtures::applications::{matching, workspace_of};
-use crate::inbound::use_cases::check::fixtures::{SPEC, WORKSPACE};
 
 /// The files of the tree, and the spec placed.
 type Input = (&'static [&'static str], &'static str);

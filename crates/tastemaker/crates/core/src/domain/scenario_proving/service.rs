@@ -140,7 +140,9 @@ pub fn explained(
         ));
     }
     if why.0.trim().is_empty() {
-        problems.push(Problem(tastemaker_values::domain::proofs::constants::BLANK_WHY.into()));
+        problems.push(Problem(
+            tastemaker_values::domain::proofs::constants::BLANK_WHY.into(),
+        ));
     }
 }
 

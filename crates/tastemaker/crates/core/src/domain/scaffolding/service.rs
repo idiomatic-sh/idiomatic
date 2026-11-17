@@ -21,7 +21,9 @@ use tastemaker_values::domain::captures::types::{
 use tastemaker_values::domain::contexts::constants::{EXTENSION, SCAFFOLD, SCAFFOLDING};
 use tastemaker_values::domain::contexts::types::{ContextKey, ContextText, RenderContext};
 use tastemaker_values::domain::definitions::service::content;
-use tastemaker_values::domain::definitions::types::{LocalPackage, PackagePath, SpecFile, TemplateFile};
+use tastemaker_values::domain::definitions::types::{
+    LocalPackage, PackagePath, SpecFile, TemplateFile,
+};
 use tastemaker_values::domain::entries::service::{interpolate, minimum};
 use tastemaker_values::domain::entries::types::{
     Amount, Composition, Count, ParamDeclarations, ParamSource, ParamValue, ParamValues, Setting,

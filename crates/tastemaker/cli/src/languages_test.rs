@@ -1,9 +1,9 @@
 //! Proves the skips of the languages this build links are what the walks read: the languages' own declarations, not a list a test hands in.
 
-use tastemaker_values::domain::files::types::MachinePath;
-use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_core::outbound::repository::factory::disk;
 use tastemaker_core::outbound::repository::interface::RepositoryPort as _;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Dependency, environment and build directories at the root and nested, and one source file.
 const FILES: [&str; 7] = [

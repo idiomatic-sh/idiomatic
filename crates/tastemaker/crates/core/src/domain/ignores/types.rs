@@ -3,7 +3,9 @@
 //! it is written.
 
 use tastemaker_values::domain::comments::types::{ByteSpan, LineIndex};
-use tastemaker_values::domain::findings::types::{Finding, MessageText, Reason, RuleId, Suppression};
+use tastemaker_values::domain::findings::types::{
+    Finding, MessageText, Reason, RuleId, Suppression,
+};
 
 /// What an ignore comment says.
 #[derive(Clone, Debug, PartialEq, Eq)]

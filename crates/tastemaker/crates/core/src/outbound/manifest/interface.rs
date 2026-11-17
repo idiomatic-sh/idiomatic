@@ -11,7 +11,9 @@ use tastemaker_values::domain::packages::types::{DefinitionKind, Lock, PackageMa
 
 /// What every `manifest` adapter implements; as a [`ValueWriter`](tastemaker_values::domain::entries::types::ValueWriter) it writes a
 /// param value as a path or a template reads it: text as written, anything else as the format writes it.
-pub trait ManifestPort: Send + Sync + tastemaker_values::domain::entries::types::ValueWriter {
+pub trait ManifestPort:
+    Send + Sync + tastemaker_values::domain::entries::types::ValueWriter
+{
     /// A `tastemaker.toml`, root or local.
     ///
     /// # Errors

@@ -6,7 +6,8 @@ pub(super) const TREES: usize = 16_384;
 pub(super) const TOO_MANY: &str = "the adapter holds as many scratch directories as it may";
 
 /// A workspace's file.
-pub(super) const WORKSPACE_FILE: &str = tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
+pub(super) const WORKSPACE_FILE: &str =
+    tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
 /// What marks a repository's root, and the directory every walk skips.
 pub(super) const GIT: &str = tastemaker_values::domain::definitions::constants::GIT;
 /// The ignore file git reads in each directory.

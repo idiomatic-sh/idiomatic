@@ -50,7 +50,9 @@ pub enum FirstWriting {
 
 /// The captures the optional files of a spec introduce: a file whose path names one of them waits for that file.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Waits(pub std::collections::BTreeSet<tastemaker_values::domain::captures::types::CaptureName>);
+pub struct Waits(
+    pub std::collections::BTreeSet<tastemaker_values::domain::captures::types::CaptureName>,
+);
 
 /// Whether a placed file waits for an optional file that introduces a capture its name still holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,7 +74,9 @@ pub enum Declaring {
 
 /// The names an entry reads from what `--set` gives: the captures its patterns hold and the params it declares or passes.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Reads(pub std::collections::BTreeSet<tastemaker_values::domain::captures::types::CaptureName>);
+pub struct Reads(
+    pub std::collections::BTreeSet<tastemaker_values::domain::captures::types::CaptureName>,
+);
 
 /// Where an instance's files are written, and the values its patterns and templates take.
 #[derive(Debug)]
@@ -98,7 +102,8 @@ pub struct Draft {
 #[derive(Debug, Default)]
 pub struct Staging {
     /// The prospective files, by path.
-    pub drafts: std::collections::BTreeMap<tastemaker_values::domain::paths::types::RepoPath, Draft>,
+    pub drafts:
+        std::collections::BTreeMap<tastemaker_values::domain::paths::types::RepoPath, Draft>,
     /// The order they were planned in.
     pub order: Vec<tastemaker_values::domain::paths::types::RepoPath>,
     /// The directories they need.

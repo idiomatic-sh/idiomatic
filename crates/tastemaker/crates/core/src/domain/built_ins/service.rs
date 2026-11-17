@@ -5,6 +5,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::types::Comparison;
+use crate::domain::globs::service::{compress, literal};
+use crate::domain::globs::types::FileCounts;
 use tastemaker_values::domain::applications::constants::{
     COMMENTS, COMMENTS_QUERY, CONDITION_PREFIX, DECLARATIONS, EVERYTHING,
 };
@@ -18,8 +20,6 @@ use tastemaker_values::domain::contracts::types::{Contract, Syntax};
 use tastemaker_values::domain::definitions::types::{Exactness, LoadedWorkspace, QueryText};
 use tastemaker_values::domain::entries::service::{identity, rule_release};
 use tastemaker_values::domain::entries::types::RuleEntry;
-use crate::domain::globs::service::{compress, literal};
-use crate::domain::globs::types::FileCounts;
 use tastemaker_values::domain::imports::types::Relation;
 use tastemaker_values::domain::packages::types::DefinitionKind;
 use tastemaker_values::domain::paths::service::{beneath, relative};
@@ -145,9 +145,12 @@ pub fn imports(plan: &mut Plan, workspace: &LoadedWorkspace, placement: &Placeme
         Relation::Scopes,
     ] {
         let id = LintRuleId(
-            format!("{}-{relation:?}", tastemaker_values::domain::imports::constants::RULE)
-                .to_lowercase()
-                .into(),
+            format!(
+                "{}-{relation:?}",
+                tastemaker_values::domain::imports::constants::RULE
+            )
+            .to_lowercase()
+            .into(),
         );
         plan.rules.push(PlannedRule {
             id: id.clone(),

@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::inbound::use_cases::check::fixtures::applications::matching;
 use tastemaker_values::domain::applications::types::{
     GlobText, LintAnswer, LintRuleId, Plan, PlannedRule, Purpose, Rendering,
 };
@@ -12,7 +13,6 @@ use tastemaker_values::domain::findings::types::RuleId;
 use tastemaker_values::domain::governance::service::{governance, governed};
 use tastemaker_values::domain::governance::types::{Answers, Governance};
 use tastemaker_values::domain::paths::types::RepoPath;
-use crate::inbound::use_cases::check::fixtures::applications::matching;
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]

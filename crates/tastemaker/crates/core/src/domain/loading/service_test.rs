@@ -53,7 +53,9 @@ fn workspace(package: &str) -> LoadedWorkspace {
         PackageName("p".into()),
         ResolvedPackage {
             directory: PackageRoot("/p".into()),
-            pin: tastemaker_values::domain::packages::types::PackageSource::Path(SourcePath("p".into())),
+            pin: tastemaker_values::domain::packages::types::PackageSource::Path(SourcePath(
+                "p".into(),
+            )),
             manifest: PackageManifest {
                 name: PackageName("p".into()),
                 dependencies: Vec::new(),

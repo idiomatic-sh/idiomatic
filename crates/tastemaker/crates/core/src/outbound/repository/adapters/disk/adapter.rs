@@ -5,14 +5,14 @@ use std::sync::Arc;
 
 use super::constants::{GIT, NOT_UTF8, TASTEMAKER, VERBATIM, WORKSPACE_FILE};
 use super::types::{Kept, RepositoryDiskProject, RepositoryDiskRepository};
+use crate::outbound::repository::errors::RepositoryError;
+use crate::outbound::repository::interface::{FoundRepository, Repository, RepositoryPort};
+use crate::outbound::repository::types::{Marker, Presence, RepoPaths, Walk};
 use tastemaker_values::domain::files::types::{
     Declarer, DirectoryName, FileText, MachinePath, SkippedDirectories, SkippedDirectory, Stamp,
 };
 use tastemaker_values::domain::paths::service::normalize;
 use tastemaker_values::domain::paths::types::{PathText, RepoPath};
-use crate::outbound::repository::errors::RepositoryError;
-use crate::outbound::repository::interface::{FoundRepository, Repository, RepositoryPort};
-use crate::outbound::repository::types::{Marker, Presence, RepoPaths, Walk};
 
 /// The disk repository adapter, and the directory names the linked languages declare skipped, beside the ones Tastemaker always
 /// skips.

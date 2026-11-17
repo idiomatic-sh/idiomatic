@@ -1,9 +1,9 @@
 //! The fake of the `digest` port: the parts written out, so a test reads what was hashed.
 
-use tastemaker_values::domain::digests::types::Digest;
-use tastemaker_values::domain::findings::types::{Fingerprint, Identifying};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestParts;
+use tastemaker_values::domain::digests::types::Digest;
+use tastemaker_values::domain::findings::types::{Fingerprint, Identifying};
 
 /// What the core's tests stand in for `digest` with: the parts joined, readable, never a hash.
 #[derive(Clone, Copy, Debug, Default)]

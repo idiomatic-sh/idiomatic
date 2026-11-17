@@ -1,19 +1,19 @@
 //! The fake of the `analysis` port: the answers a test gives, by rule, and every request kept for the test to read.
 
-use tastemaker_values::domain::applications::types::{AnswerCell, CellText, CellValue, LintAnswer};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
+use tastemaker_values::domain::applications::types::{AnswerCell, CellText, CellValue, LintAnswer};
 
-use tastemaker_values::domain::catalog::types::{
-    CatalogColumn, CatalogEntries, CatalogEntry, CatalogName, CatalogText, Grammar, OperatorAnswer,
-    OperatorPage, Production, RelationAnswer, RelationPage,
-};
-use tastemaker_values::domain::definitions::types::QueryText;
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::analysis::types::{
     AnalysisReport, AnalysisRequest, Corpus, Hosted, QueryVerdict,
 };
+use tastemaker_values::domain::catalog::types::{
+    CatalogColumn, CatalogEntries, CatalogEntry, CatalogName, CatalogText, Grammar, OperatorAnswer,
+    OperatorPage, Production, RelationAnswer, RelationPage,
+};
+use tastemaker_values::domain::definitions::types::QueryText;
 
 /// The one relation the fake's catalog has: `file`, with one column, read by no language.
 fn file_relation() -> RelationPage {
@@ -142,7 +142,9 @@ impl AnalysisPort for AnalysisFake {
                     path: tastemaker_values::domain::paths::types::RepoPath(glob.0.clone()),
                     cells: ["child", "parent"]
                         .map(|name| AnswerCell {
-                            name: tastemaker_values::domain::definitions::types::ColumnName(name.into()),
+                            name: tastemaker_values::domain::definitions::types::ColumnName(
+                                name.into(),
+                            ),
                             value: CellValue::Text(CellText("0".into())),
                         })
                         .into(),
@@ -168,7 +170,9 @@ impl AnalysisPort for AnalysisFake {
                                 start: tastemaker_values::domain::findings::types::ByteOffset(
                                     start.parse().ok()?,
                                 ),
-                                end: tastemaker_values::domain::findings::types::ByteOffset(end.parse().ok()?),
+                                end: tastemaker_values::domain::findings::types::ByteOffset(
+                                    end.parse().ok()?,
+                                ),
                             })
                         },
                     );
@@ -177,11 +181,15 @@ impl AnalysisPort for AnalysisFake {
                         path: file.clone(),
                         cells: [
                             Some(AnswerCell {
-                                name: tastemaker_values::domain::definitions::types::ColumnName("file".into()),
+                                name: tastemaker_values::domain::definitions::types::ColumnName(
+                                    "file".into(),
+                                ),
                                 value: CellValue::File(file),
                             }),
                             span.map(|span| AnswerCell {
-                                name: tastemaker_values::domain::definitions::types::ColumnName("span".into()),
+                                name: tastemaker_values::domain::definitions::types::ColumnName(
+                                    "span".into(),
+                                ),
                                 value: CellValue::Span(span),
                             }),
                         ]
@@ -189,7 +197,9 @@ impl AnalysisPort for AnalysisFake {
                         .flatten()
                         .chain(["doc", "text"].into_iter().zip(parts).map(|(name, said)| {
                             AnswerCell {
-                                name: tastemaker_values::domain::definitions::types::ColumnName(name.into()),
+                                name: tastemaker_values::domain::definitions::types::ColumnName(
+                                    name.into(),
+                                ),
                                 value: CellValue::Text(CellText(said.into())),
                             }
                         }))

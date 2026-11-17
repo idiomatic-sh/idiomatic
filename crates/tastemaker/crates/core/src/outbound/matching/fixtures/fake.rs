@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
+use crate::outbound::matching::interface::MatchingPort;
 use tastemaker_values::domain::captures::types::CaptureValue;
 use tastemaker_values::domain::selectors::types::{
     Binding, Coverage, GlobIndex, PathRest, PathSet, PathTest, PatternFailure, Spelling,
 };
-use crate::outbound::matching::interface::MatchingPort;
 
 /// What the core's tests stand in for `matching` with: no expression, no character class.
 #[derive(Clone, Copy, Debug, Default)]

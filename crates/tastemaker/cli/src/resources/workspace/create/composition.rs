@@ -38,7 +38,9 @@ pub(crate) fn build(
     })
 }
 
-/// Selects the languages this build links, which say whether a skeleton's `extension` is one a language reads.
-pub(crate) fn languages() -> ryo::linter::Languages {
-    crate::languages::linked()
+/// Whether a language this build links reads a scenario file ending in `extension`: a skeleton's scenarios in an
+/// extension no linked language reads would find nothing.
+pub(crate) fn reads_scenarios(extension: &str) -> bool {
+    let scenario = ryo::linter::RelativePath(format!("scenario.{extension}").into());
+    crate::languages::linked().reads(&scenario) != ryo::languages::Recognition::Declines
 }

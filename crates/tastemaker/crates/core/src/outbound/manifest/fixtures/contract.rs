@@ -5,6 +5,9 @@
 // Error locations are contractual; diagnostic wording belongs to each implementation.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::manifest::errors::ManifestError;
+use crate::outbound::manifest::interface::ManifestPort;
+use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 use tastemaker_values::domain::entries::types::{Amount, Count, Description, ParamValues};
 use tastemaker_values::domain::files::types::FileText;
 use tastemaker_values::domain::packages::types::PackageRoot;
@@ -17,9 +20,6 @@ use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_values::domain::scenario_entries::service::root_entry;
 use tastemaker_values::domain::scenario_files::types::{ScenarioRoot, Wrapper};
 use tastemaker_values::domain::selectors::types::{PathPattern, Selector, Selectors};
-use crate::outbound::manifest::errors::ManifestError;
-use crate::outbound::manifest::interface::ManifestPort;
-use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]
@@ -153,7 +153,9 @@ fn answer(adapter: &impl ManifestPort, question: Question) -> Result<Value, Fail
             );
             let alone = adapter.write(&text).0;
             let listed = adapter
-                .write(&tastemaker_values::domain::entries::types::Value::List(vec![text]))
+                .write(&tastemaker_values::domain::entries::types::Value::List(
+                    vec![text],
+                ))
                 .0;
             Ok(alone == "ryo-css" && listed.contains("ryo-css") && listed != alone)
         }
@@ -163,9 +165,9 @@ fn answer(adapter: &impl ManifestPort, question: Question) -> Result<Value, Fail
                 dependencies: vec![PackageName("idiomatic.arch".into())],
                 packages: vec![LockedPackage {
                     name: PackageName("idiomatic.arch".into()),
-                    source: tastemaker_values::domain::packages::types::PackageSource::Path(SourcePath(
-                        "../arch".into(),
-                    )),
+                    source: tastemaker_values::domain::packages::types::PackageSource::Path(
+                        SourcePath("../arch".into()),
+                    ),
                     dependencies: Vec::new(),
                     releases: vec![LockedRelease {
                         kind: DefinitionKind::Rule,

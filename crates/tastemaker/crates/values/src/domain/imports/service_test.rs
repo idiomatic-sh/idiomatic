@@ -9,8 +9,8 @@ use crate::domain::entries::types::{EntryIdentity, ImportDefault};
 use crate::domain::findings::types::ByteOffset;
 use crate::domain::import_rows::service::imports;
 use crate::domain::imports::types::{
-    AllowItem, EntryImports, Import, ImportPlace, ImportRows, Member, ModuleName, Name, Owner,
-    Package, PatternMatch, ScopeImports, Target, WrittenPath,
+    AllowItem, EntryImports, Import, ImportPlace, ImportRows, Member, ModuleName, Name,
+    NameBinding, Owner, Package, PatternMatch, ScopeImports, Target, WrittenPath,
 };
 use crate::domain::module_paths::service::prefixes;
 use crate::domain::paths::types::RepoPath;
@@ -77,19 +77,19 @@ fn rows() -> ImportRows {
             Name {
                 source: path("src/a.txt"),
                 written: "crate::types::T".into(),
-                binding: Some(ModuleName("T".into())),
+                binding: NameBinding::Binds(ModuleName("T".into())),
                 span: span(4, 19),
             },
             Name {
                 source: path("src/a.txt"),
                 written: "other::X".into(),
-                binding: Some(ModuleName("X".into())),
+                binding: NameBinding::Binds(ModuleName("X".into())),
                 span: span(24, 32),
             },
             Name {
                 source: path("src/a.txt"),
                 written: "std::fmt".into(),
-                binding: Some(ModuleName("fmt".into())),
+                binding: NameBinding::Binds(ModuleName("fmt".into())),
                 span: span(37, 45),
             },
         ],

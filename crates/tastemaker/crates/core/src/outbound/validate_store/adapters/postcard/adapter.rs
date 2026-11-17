@@ -9,11 +9,11 @@ use super::constants::ORDINARY_MODE;
 use super::constants::{FILE, GITIGNORE, GITIGNORE_TEXT, TAG, TAG_TEXT};
 use super::schemas::{bytes, definitions};
 use super::types::Unwritten;
+use crate::outbound::validate_store::errors::ValidateStoreError;
+use crate::outbound::validate_store::interface::ValidateStorePort;
 use tastemaker_values::domain::proofs::types::{ProvenVersion, ProvenVersions};
 use tastemaker_values::domain::settings::types::Store;
 use tastemaker_values::domain::writing::types::Writing;
-use crate::outbound::validate_store::errors::ValidateStoreError;
-use crate::outbound::validate_store::interface::ValidateStorePort;
 
 /// A temporary file that, renamed into place, is readable as any file `std::fs::write` makes: its mode is
 /// `ORDINARY_MODE` less the umask, not the private `0o600` a temporary file starts with.

@@ -3,11 +3,11 @@
 
 use std::sync::Arc;
 
+use crate::outbound::matching::interface::MatchingPort;
 use tastemaker_values::domain::captures::types::CaptureValue;
 use tastemaker_values::domain::selectors::types::{
     Binding, Coverage, GlobIndex, PathRest, PathSet, PathTest, PatternFailure, Spelling,
 };
-use crate::outbound::matching::interface::MatchingPort;
 
 /// The globset matching adapter: each spelling compiled once, the first time it is asked for, and kept for the run: an
 /// entry's pattern reads the same at every scope it is placed in.

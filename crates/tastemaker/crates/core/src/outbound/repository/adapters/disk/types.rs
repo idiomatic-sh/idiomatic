@@ -1,8 +1,8 @@
 //! The disk adapter's own plain types: a directory it binds, and a project it makes.
 
-use tastemaker_values::domain::files::types::{DirectoryName, MachinePath, SkippedDirectory};
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::types::Walk;
+use tastemaker_values::domain::files::types::{DirectoryName, MachinePath, SkippedDirectory};
 
 /// A directory of the disk, bound to its root: the files beneath it, walked as the adapter that bound it walks.
 #[derive(Debug)]

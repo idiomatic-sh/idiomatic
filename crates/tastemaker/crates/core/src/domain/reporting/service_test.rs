@@ -11,7 +11,9 @@ use tastemaker_values::domain::contracts::types::{
 use tastemaker_values::domain::definitions::types::Exactness;
 use tastemaker_values::domain::files::types::BorrowedText;
 use tastemaker_values::domain::findings::service::{error, identified};
-use tastemaker_values::domain::findings::types::{Fingerprint, PreparedIdentity, Reason, Suppression};
+use tastemaker_values::domain::findings::types::{
+    Fingerprint, PreparedIdentity, Reason, Suppression,
+};
 use tastemaker_values::domain::paths::types::RepoPath;
 
 /// What a row asks.
@@ -115,16 +117,16 @@ fn subject(question: Input) -> Value {
 /// What settling one standing finding and one suppressed one keeps.
 fn settled() -> Value {
     let first = error(
-        tastemaker_values::domain::findings::service::of_rule(tastemaker_values::domain::findings::types::RuleId(
-            "r".into(),
-        )),
+        tastemaker_values::domain::findings::service::of_rule(
+            tastemaker_values::domain::findings::types::RuleId("r".into()),
+        ),
         RepoPath("a.txt".into()),
         "first",
     );
     let second = error(
-        tastemaker_values::domain::findings::service::of_rule(tastemaker_values::domain::findings::types::RuleId(
-            "s".into(),
-        )),
+        tastemaker_values::domain::findings::service::of_rule(
+            tastemaker_values::domain::findings::types::RuleId("s".into()),
+        ),
         RepoPath("b.txt".into()),
         "second",
     );

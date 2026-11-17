@@ -6,15 +6,15 @@ use std::sync::Arc;
 
 use super::types::SourceFiles;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::reporting::service::fingerprinted;
+use crate::domain::reporting::types::{Candidate, Reported, Reuse, Standing};
+use crate::outbound::matching::interface::MatchingPort as _;
 use tastemaker_values::domain::applications::types::Plan;
 use tastemaker_values::domain::findings::service::{error, whole_identity};
 use tastemaker_values::domain::findings::types::{Fingerprint, Identifying, Reason};
 use tastemaker_values::domain::governance::types::Answers;
 use tastemaker_values::domain::paths::types::RepoPath;
-use crate::domain::reporting::service::fingerprinted;
-use crate::domain::reporting::types::{Candidate, Reported, Reuse, Standing};
 use tastemaker_values::domain::selectors::types::{PathSet, PatternFailure, SetGlob};
-use crate::outbound::matching::interface::MatchingPort as _;
 
 /// The matching adapter's compile of a set of globs, as the service is handed it.
 fn sets(globs: &[SetGlob]) -> Result<Arc<dyn PathSet>, PatternFailure> {
@@ -138,7 +138,9 @@ fn said(scenario: Scenario) -> (String, &'static str) {
 }
 
 /// Observe both accepted and standing findings from the same suppression decision.
-fn accepted(finding: tastemaker_values::domain::findings::types::Finding) -> (String, &'static str) {
+fn accepted(
+    finding: tastemaker_values::domain::findings::types::Finding,
+) -> (String, &'static str) {
     source_lines_survive_settlement();
     let other = error(
         tastemaker_values::domain::findings::service::check_id("p/s", "count"),
@@ -167,7 +169,12 @@ fn accepted(finding: tastemaker_values::domain::findings::types::Finding) -> (St
             "{}:{}|{}",
             made.accepted
                 .iter()
-                .map(|each| tastemaker_values::domain::findings::service::printed(&each.finding.rule).0)
+                .map(
+                    |each| tastemaker_values::domain::findings::service::printed(
+                        &each.finding.rule
+                    )
+                    .0
+                )
                 .collect::<Vec<_>>()
                 .join(","),
             made.accepted
@@ -357,37 +364,41 @@ fn a_file_that_has_what_it_had_is_not_read_again() {
         finding
     };
     let reads = std::cell::RefCell::new(Vec::new());
-    let report_with = |reuse: &Reuse, findings: Vec<tastemaker_values::domain::findings::types::Finding>| {
-        reads.borrow_mut().clear();
-        report(
-            Reported {
-                plan: &plan,
-                answers: ignoring_comment(comments.clone(), &path),
-                findings,
-                within: &[],
-                reuse,
-            },
-            &|wanted: &[RepoPath]| {
-                reads.borrow_mut().extend(wanted.iter().cloned());
-                Ok::<_, std::convert::Infallible>(SourceFiles(
-                    wanted
-                        .iter()
-                        .map(|at| {
-                            (
-                                at.clone(),
-                                super::service::source(FileText(
-                                    "first = 1 # ignore: p/r - valid value\nsecond = 2\n".into(),
-                                )),
-                            )
-                        })
-                        .collect(),
-                ))
-            },
-            &sets,
-            &|identity| Fingerprint(u64::try_from(identity.parts.0[1].len()).unwrap_or(0) + 100),
-        )
-        .unwrap_or_else(|error| panic!("report failed: {error}"))
-    };
+    let report_with =
+        |reuse: &Reuse, findings: Vec<tastemaker_values::domain::findings::types::Finding>| {
+            reads.borrow_mut().clear();
+            report(
+                Reported {
+                    plan: &plan,
+                    answers: ignoring_comment(comments.clone(), &path),
+                    findings,
+                    within: &[],
+                    reuse,
+                },
+                &|wanted: &[RepoPath]| {
+                    reads.borrow_mut().extend(wanted.iter().cloned());
+                    Ok::<_, std::convert::Infallible>(SourceFiles(
+                        wanted
+                            .iter()
+                            .map(|at| {
+                                (
+                                    at.clone(),
+                                    super::service::source(FileText(
+                                        "first = 1 # ignore: p/r - valid value\nsecond = 2\n"
+                                            .into(),
+                                    )),
+                                )
+                            })
+                            .collect(),
+                    ))
+                },
+                &sets,
+                &|identity| {
+                    Fingerprint(u64::try_from(identity.parts.0[1].len()).unwrap_or(0) + 100)
+                },
+            )
+            .unwrap_or_else(|error| panic!("report failed: {error}"))
+        };
     let first = report_with(&Reuse::default(), vec![finding_at(1)]);
     assert_eq!(
         *reads.borrow(),
@@ -418,6 +429,7 @@ fn a_file_that_has_what_it_had_is_not_read_again() {
 /// A name-only import, which has no dependency edge or comment row to request its source for it, is found at its target
 /// and fingerprinted from its line.
 fn name_only_import_is_found_at_its_target() {
+    use crate::outbound::repository::interface::Repository as _;
     use tastemaker_values::domain::applications::types::{LintAnswer, LintRuleId, Purpose};
     use tastemaker_values::domain::entries::types::{EntryIdentity, ImportDefault};
     use tastemaker_values::domain::files::types::FileText;
@@ -425,7 +437,6 @@ fn name_only_import_is_found_at_its_target() {
     use tastemaker_values::domain::imports::types::{
         EntryImports, InstanceName, Member, Relation, ScopeImports,
     };
-    use crate::outbound::repository::interface::Repository as _;
     let repository = crate::outbound::repository::fixtures::fake::RepositoryFake::default();
     let path = RepoPath("src/only.txt".into());
     let text = FileText("use serde::Serialize;\n".into());
@@ -466,7 +477,9 @@ fn name_only_import_is_found_at_its_target() {
                             "span",
                             tastemaker_values::domain::applications::types::CellValue::Span(
                                 tastemaker_values::domain::comments::types::ByteSpan {
-                                    start: tastemaker_values::domain::findings::types::ByteOffset(4),
+                                    start: tastemaker_values::domain::findings::types::ByteOffset(
+                                        4,
+                                    ),
                                     end: tastemaker_values::domain::findings::types::ByteOffset(20),
                                 },
                             ),
@@ -512,13 +525,13 @@ fn name_only_import_is_found_at_its_target() {
 /// An `imports.allow` module pattern that does not compile is refused as a finding of its entry at the workspace's
 /// `tastemaker.toml`, never read as a pattern that matches nothing.
 fn an_allow_pattern_that_does_not_compile_is_refused() {
+    use crate::outbound::repository::interface::Repository as _;
     use tastemaker_values::domain::applications::types::{LintAnswer, LintRuleId, Purpose};
     use tastemaker_values::domain::entries::types::{EntryIdentity, ImportDefault};
     use tastemaker_values::domain::files::types::FileText;
     use tastemaker_values::domain::imports::types::{
         EntryImports, InstanceName, Member, Relation, ScopeImports,
     };
-    use crate::outbound::repository::interface::Repository as _;
     let repository = crate::outbound::repository::fixtures::fake::RepositoryFake::default();
     let path = RepoPath("src/only.txt".into());
     let text = FileText("use serde::Serialize;\n".into());
@@ -559,7 +572,9 @@ fn an_allow_pattern_that_does_not_compile_is_refused() {
                             "span",
                             tastemaker_values::domain::applications::types::CellValue::Span(
                                 tastemaker_values::domain::comments::types::ByteSpan {
-                                    start: tastemaker_values::domain::findings::types::ByteOffset(4),
+                                    start: tastemaker_values::domain::findings::types::ByteOffset(
+                                        4,
+                                    ),
                                     end: tastemaker_values::domain::findings::types::ByteOffset(20),
                                 },
                             ),
@@ -589,14 +604,12 @@ fn an_allow_pattern_that_does_not_compile_is_refused() {
     );
     let made = made.unwrap_or_else(|error| panic!("report failed: {error}"));
     assert!(
-        made.findings
-            .iter()
-            .any(
-                |finding| &*tastemaker_values::domain::findings::service::printed(&finding.rule).0
-                    == "p/entry#imports"
-                    && &*finding.path.0 == "tastemaker.toml"
-                    && finding.message.0.contains("is no module pattern")
-            ),
+        made.findings.iter().any(
+            |finding| &*tastemaker_values::domain::findings::service::printed(&finding.rule).0
+                == "p/entry#imports"
+                && &*finding.path.0 == "tastemaker.toml"
+                && finding.message.0.contains("is no module pattern")
+        ),
         "the pattern that does not compile is a finding: {:?}",
         made.findings
     );
@@ -626,9 +639,9 @@ fn injected_sources_change_identity() {
         );
         let service = injected();
         let mut finding = error(
-            tastemaker_values::domain::findings::service::of_rule(tastemaker_values::domain::findings::types::RuleId(
-                "test".into(),
-            )),
+            tastemaker_values::domain::findings::service::of_rule(
+                tastemaker_values::domain::findings::types::RuleId("test".into()),
+            ),
             path.clone(),
             "finding",
         );

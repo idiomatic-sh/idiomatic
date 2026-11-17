@@ -1,7 +1,8 @@
 //! The names the disk adapter looks for and skips.
 
 /// A workspace's file.
-pub(super) const WORKSPACE_FILE: &str = tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
+pub(super) const WORKSPACE_FILE: &str =
+    tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
 /// What marks a repository's root: a directory, or a file in a linked worktree.
 pub(super) const GIT: &str = tastemaker_values::domain::definitions::constants::GIT;
 /// Who declares the directories every walk skips, as `explain` says it.

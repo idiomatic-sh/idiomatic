@@ -1,11 +1,11 @@
 //! The shape of the data this command does not control: its arguments become the service's request, and the service's
 //! report becomes the answer printed. Each refusal of a conversion is a `<Name>SchemaError`.
 
-use tastemaker_values::domain::packages::service::version_number;
-use tastemaker_values::domain::packages::types::{DefinitionName, VersionText};
 use tastemaker_core::inbound::use_cases::update::types::{
     Entries, UpdateReport, UpdateRequest, VersionChoice,
 };
+use tastemaker_values::domain::packages::service::version_number;
+use tastemaker_values::domain::packages::types::{DefinitionName, VersionText};
 
 /// Why the arguments were refused.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

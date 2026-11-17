@@ -3,14 +3,14 @@
 //! writing are the wire format's, in `schemas.rs`.
 
 use super::schemas;
+use crate::outbound::manifest::errors::ManifestError;
+use crate::outbound::manifest::interface::ManifestPort;
+use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 use tastemaker_values::domain::definitions::types::{
     Definition, RuleFile, SpecFile, TemplateFile, WorkspaceFile,
 };
 use tastemaker_values::domain::files::types::FileText;
 use tastemaker_values::domain::packages::types::{DefinitionKind, Lock, PackageManifest};
-use crate::outbound::manifest::errors::ManifestError;
-use crate::outbound::manifest::interface::ManifestPort;
-use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 
 /// The TOML manifest adapter.
 #[derive(Debug)]

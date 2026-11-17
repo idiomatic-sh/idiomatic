@@ -1,12 +1,12 @@
 //! The `reaching` service's cases, over the `check` fixture's workspace: the files its rule's entry reaches.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::applications::service::known;
 use crate::domain::reaching::service::reaches;
 use crate::domain::reaching::types::{Selection, SelectorPair};
 use crate::inbound::use_cases::check::fixtures::applications::{
     applications, matching, placement, workspace,
 };
+use tastemaker_values::domain::applications::service::known;
 
 /// The fixture's tree.
 const FILES: &[&str] = &[
@@ -65,7 +65,11 @@ fn subject(question: Input) -> Value {
         );
         return match reached.values().next() {
             Some(Err(tastemaker_values::domain::placement::errors::PlacementError::Selector {
-                source: tastemaker_values::domain::selectors::errors::SelectorsError::Pattern { pattern, .. },
+                source:
+                    tastemaker_values::domain::selectors::errors::SelectorsError::Pattern {
+                        pattern,
+                        ..
+                    },
                 ..
             })) if !pattern.is_empty() => String::new(),
             other => format!("{other:?}"),

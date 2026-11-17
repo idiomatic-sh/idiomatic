@@ -4,15 +4,17 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::errors::CheckError;
 use super::types::Listing;
-use tastemaker_values::domain::applications::types::{AnswerCell, CellValue, LintAnswer, LintUnknown, Plan};
-use tastemaker_values::domain::findings::types::{Fingerprint, Report};
-use tastemaker_values::domain::governance::types::Answers;
-use tastemaker_values::domain::linting::service::repository_path;
-use tastemaker_values::domain::paths::types::RepoPath;
 use crate::domain::reporting::types::Reuse;
 use crate::outbound::analysis::types::AnalysisReport;
 use crate::outbound::check_store::types::{Checked, CheckedFile, CheckedPath, SourcedFile};
 use crate::outbound::repository::interface::Repository;
+use tastemaker_values::domain::applications::types::{
+    AnswerCell, CellValue, LintAnswer, LintUnknown, Plan,
+};
+use tastemaker_values::domain::findings::types::{Fingerprint, Report};
+use tastemaker_values::domain::governance::types::Answers;
+use tastemaker_values::domain::linting::service::repository_path;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// The manifest failure of `file`, as the use case's error.
 pub(super) fn manifest_error(
@@ -79,11 +81,9 @@ pub(super) fn package_of(
         .get(&release.package)
         .map(|package| package.directory.clone())
         .or_else(|| {
-            release
-                .package
-                .0
-                .split_once('@')
-                .map(|(_, directory)| tastemaker_values::domain::packages::types::PackageRoot(directory.into()))
+            release.package.0.split_once('@').map(|(_, directory)| {
+                tastemaker_values::domain::packages::types::PackageRoot(directory.into())
+            })
         })
 }
 

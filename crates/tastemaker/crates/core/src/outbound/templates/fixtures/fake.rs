@@ -1,10 +1,10 @@
 //! The fake of the `templates` port: `{{ name }}` replaced by its value, and nothing else read.
 
+use crate::outbound::templates::errors::TemplatesError;
+use crate::outbound::templates::interface::TemplatesPort;
 use tastemaker_values::domain::contexts::types::{ContextKey, ContextKeys, RenderContext};
 use tastemaker_values::domain::definitions::types::TemplateText;
 use tastemaker_values::domain::files::types::FileText;
-use crate::outbound::templates::errors::TemplatesError;
-use crate::outbound::templates::interface::TemplatesPort;
 
 /// What the core's tests stand in for `templates` with.
 #[derive(Clone, Copy, Debug, Default)]

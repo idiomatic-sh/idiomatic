@@ -95,18 +95,20 @@ pub fn repository_for(workspace: Workspace, problem: Problem) -> RepositoryFake 
         }
     }
     if problem == Problem::LockUnreadable {
-        let _: bool = repository
-            .read_failures
-            .insert(tastemaker_values::domain::paths::types::RepoPath(
-                "tastemaker.lock".into(),
-            ));
+        let _: bool =
+            repository
+                .read_failures
+                .insert(tastemaker_values::domain::paths::types::RepoPath(
+                    "tastemaker.lock".into(),
+                ));
     }
     if problem == Problem::LockWrite {
-        let _: bool = repository
-            .write_failures
-            .insert(tastemaker_values::domain::paths::types::RepoPath(
-                "tastemaker.lock".into(),
-            ));
+        let _: bool =
+            repository
+                .write_failures
+                .insert(tastemaker_values::domain::paths::types::RepoPath(
+                    "tastemaker.lock".into(),
+                ));
     }
     repository
 }

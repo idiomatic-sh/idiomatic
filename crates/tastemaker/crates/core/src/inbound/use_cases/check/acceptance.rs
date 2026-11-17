@@ -7,12 +7,12 @@ use std::sync::Arc;
 /// What an acceptance step fails with: any error the use cases or the filesystem raise.
 type Failure = Box<dyn std::error::Error + Send + Sync>;
 
-use tastemaker_values::domain::files::types::{FileText, MachinePath};
-use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_core::inbound::use_cases::check::errors::CheckError;
 use tastemaker_core::inbound::use_cases::check::fixtures::{analysis, repository, use_case};
 use tastemaker_core::inbound::use_cases::check::interface::CheckUseCase as _;
 use tastemaker_core::inbound::use_cases::check::types::{CheckRequest, Fixing};
+use tastemaker_values::domain::files::types::{FileText, MachinePath};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// A TOML file whose second line's finding is ignored, and whose third line's ignore covers nothing.
 const IGNORED: &str = "kept = 1\nother = 2 # ignore: p/marker - accepted here\nstale = 3 # ignore: p/marker - nothing here\n";
@@ -123,7 +123,9 @@ fn runs(world: &mut Behavior) -> Result<(), Failure> {
                 .report
                 .findings
                 .iter()
-                .map(|finding| tastemaker_values::domain::findings::service::printed(&finding.rule).0)
+                .map(|finding| {
+                    tastemaker_core::inbound::use_cases::check::fixtures::printed_rule(finding).0
+                })
                 .collect::<Vec<_>>();
             rules.sort();
             let suppressed = report.report.suppressed.len();
@@ -444,9 +446,9 @@ fn delete_proof_input(world: &mut Behavior, path: String) -> Result<(), Failure>
 /// Validates the consumer from two builds at once, then validates and checks it under each in turn.
 #[when("two builds validate concurrently and each validates and checks the consumer")]
 fn concurrent_builds(world: &mut Behavior) -> Result<(), Failure> {
-    use tastemaker_values::domain::writing::types::Writing;
     use tastemaker_core::inbound::use_cases::validate::interface::ValidateUseCase as _;
     use tastemaker_core::inbound::use_cases::validate::types::ValidateRequest;
+    use tastemaker_values::domain::writing::types::Writing;
     let root = MachinePath(root(world)?.display().to_string().into());
     let barrier = std::sync::Barrier::new(2);
     std::thread::scope(|scope| -> Result<(), Failure> {
@@ -511,8 +513,8 @@ fn answers(world: &mut Behavior, expected: String) {
 /// Checks the consumer through a store reopened and edited between runs.
 #[when("the real consumer checks through a reopened and edited store")]
 fn persistent_lifecycle(world: &mut Behavior) -> Result<(), Failure> {
-    use tastemaker_values::domain::writing::types::Writing;
     use tastemaker_core::inbound::use_cases::check::types::LockOutcome;
+    use tastemaker_values::domain::writing::types::Writing;
     let project = root(world)?;
     let request = CheckRequest {
         start: MachinePath(project.display().to_string().into()),
@@ -553,7 +555,7 @@ fn persistent_lifecycle(world: &mut Behavior) -> Result<(), Failure> {
         "the finding is in the file that was added"
     );
     assert_eq!(
-        &*tastemaker_values::domain::findings::service::printed(&finding.rule).0,
+        &*tastemaker_core::inbound::use_cases::check::fixtures::printed_rule(finding).0,
         "a/marker",
         "the finding is the marker rule's"
     );

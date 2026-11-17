@@ -32,11 +32,13 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 ///
 /// When the implementation breaks the contract.
 pub fn check(adapter: &impl CheckStorePort) {
+    use crate::outbound::check_store::types::{Checked, CheckedFile, CheckedPath, SourcedFile};
     use tastemaker_values::domain::digests::types::Digest;
     use tastemaker_values::domain::files::types::Stamp;
     use tastemaker_values::domain::findings::types::{Column, Finding, Fingerprint, Help, Line};
-    use tastemaker_values::domain::findings::types::{MessageText, Place, Reason, Region, RuleId, Suppression};
-    use crate::outbound::check_store::types::{Checked, CheckedFile, CheckedPath, SourcedFile};
+    use tastemaker_values::domain::findings::types::{
+        MessageText, Place, Reason, Region, RuleId, Suppression,
+    };
     let finding = |place, help| Finding {
         path: tastemaker_values::domain::paths::types::RepoPath("src/a.rs".into()),
         place,

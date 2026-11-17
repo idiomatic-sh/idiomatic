@@ -5,12 +5,12 @@ use super::adapter::ValidateStorePostcardAdapter;
 use super::constants::{FILE, GITIGNORE, UNWRITTEN};
 use super::types::Unwritten;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::files::types::MachinePath;
-use tastemaker_values::domain::settings::types::{Build, Store};
-use tastemaker_values::domain::writing::types::Writing;
 use crate::outbound::validate_store::errors::ValidateStoreError;
 use crate::outbound::validate_store::fixtures::contract::check;
 use crate::outbound::validate_store::interface::ValidateStorePort as _;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::settings::types::{Build, Store};
+use tastemaker_values::domain::writing::types::Writing;
 
 /// What is done to the store.
 #[derive(Clone, Copy, Debug)]

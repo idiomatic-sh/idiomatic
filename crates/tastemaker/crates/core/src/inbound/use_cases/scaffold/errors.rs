@@ -1,10 +1,10 @@
 //! The `scaffold` use case's failures.
 
-use tastemaker_values::domain::placement::errors::PlacementError;
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::packages::errors::PackagesError;
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::templates::errors::TemplatesError;
+use tastemaker_values::domain::placement::errors::PlacementError;
 
 /// Why `scaffold` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

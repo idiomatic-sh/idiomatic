@@ -171,10 +171,10 @@ pub fn prepared_file(
     comments: Option<&Vec<tastemaker_values::domain::comments::types::Comment>>,
     view: Option<tastemaker_values::domain::files::types::SourceView<'_>>,
 ) -> Vec<Candidate> {
-    use tastemaker_values::domain::comments::service::{code_region, indexed_lines};
-    use tastemaker_values::domain::findings::types::SourceText;
     use crate::domain::ignores::service::{first_line, suppress};
     use crate::domain::ignores::types::Suppressed;
+    use tastemaker_values::domain::comments::service::{code_region, indexed_lines};
+    use tastemaker_values::domain::findings::types::SourceText;
     let lines = view
         .zip(comments)
         .map(|(view, found)| indexed_lines(view, found));
@@ -285,11 +285,11 @@ pub fn mismatch(
     text: BorrowedText<'_>,
 ) -> Vec<Finding> {
     use crate::domain::blocks::service::{blocks, sequence};
+    use crate::domain::declarations::service::declarations;
+    use crate::domain::keyed::service::compare_data;
     use tastemaker_values::domain::contracts::service::{compare, facts, message};
     use tastemaker_values::domain::contracts::types::{ComparedText, DeclarationName, Shape};
-    use crate::domain::declarations::service::declarations;
     use tastemaker_values::domain::definitions::constants::{VARIABLES_KEY, WORKSPACE_FILE};
-    use crate::domain::keyed::service::compare_data;
     use tastemaker_values::domain::paths::service::name;
     let Compared {
         data,

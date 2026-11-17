@@ -206,7 +206,9 @@ pub(crate) struct Manifests(
     pub  std::sync::Mutex<
         std::collections::HashMap<
             tastemaker_values::domain::packages::types::PackageRoot,
-            std::sync::Arc<Result<tastemaker_values::domain::packages::types::PackageManifest, Unread>>,
+            std::sync::Arc<
+                Result<tastemaker_values::domain::packages::types::PackageManifest, Unread>,
+            >,
         >,
     >,
 );
@@ -256,14 +258,18 @@ pub(crate) struct Wrappers(
     pub std::sync::Mutex<std::collections::HashMap<WrapperKey, std::sync::Arc<Wrapped>>>,
 );
 
-/// One wrapper package: made once, by the first scenario that asks for it, and the directory the packages port holds it
-/// at; or why it could not be made.
+/// One wrapper package: made once, by the first scenario that asks for it.
 #[derive(Debug, Default)]
-pub(crate) struct Wrapped(
-    pub  std::sync::OnceLock<
-        Result<tastemaker_values::domain::packages::types::PackageRoot, tastemaker_values::domain::proofs::types::Problem>,
-    >,
-);
+pub(crate) struct Wrapped(pub std::sync::OnceLock<WrapperMade>);
+
+/// What making a wrapper package came to: the directory the packages port holds it at, or why it could not be made.
+#[derive(Clone, Debug)]
+pub(crate) enum WrapperMade {
+    /// The packages port holds it at this directory.
+    Held(tastemaker_values::domain::packages::types::PackageRoot),
+    /// It could not be made.
+    Refused(tastemaker_values::domain::proofs::types::Problem),
+}
 
 /// What a wrapper package holds: the package it wraps, the directory of the definition it holds, and the text of its own
 /// definition file.

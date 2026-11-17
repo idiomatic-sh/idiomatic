@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::outbound::check_store::types::{Checked, CheckedFile, CheckedPath, SourcedFile};
 use tastemaker_values::domain::digests::types::Digest;
 use tastemaker_values::domain::files::types::Stamp;
 use tastemaker_values::domain::findings::types::{
@@ -13,7 +14,6 @@ use tastemaker_values::domain::findings::types::{
     Place, Reason, Region, RuleId, Suppression,
 };
 use tastemaker_values::domain::paths::types::RepoPath;
-use crate::outbound::check_store::types::{Checked, CheckedFile, CheckedPath, SourcedFile};
 
 /// The number a text is kept under in `strings`.
 type Text = u32;

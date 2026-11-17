@@ -8,8 +8,6 @@ use crate::Behavior;
 type Failure = Box<dyn std::error::Error + Send + Sync>;
 use std::sync::Arc;
 
-use tastemaker_values::domain::files::types::MachinePath;
-use tastemaker_values::domain::proofs::types::Proof;
 use tastemaker_core::inbound::use_cases::check::fixtures::RULE;
 use tastemaker_core::inbound::use_cases::validate::interface::ValidateUseCase as _;
 use tastemaker_core::inbound::use_cases::validate::types::ValidateRequest;
@@ -19,6 +17,8 @@ use tastemaker_core::outbound::digest::fixtures::fake::DigestFake;
 use tastemaker_core::outbound::packages::fixtures::fake::PackagesFake;
 use tastemaker_core::outbound::repository::fixtures::fake::RepositoryFake;
 use tastemaker_core::outbound::templates::fixtures::fake::TemplatesFake;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::proofs::types::Proof;
 
 /// Sets what the `validate` scenario hands the use case.
 #[given(expr = "the validate input {string}")]

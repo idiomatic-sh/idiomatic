@@ -50,7 +50,10 @@ fn subject(written: Input) -> Value {
             uses: vec![release(DefinitionKind::Rule, "a")],
         },
     ];
-    let kept = StoreSchema::with(&tastemaker_values::domain::settings::types::Build("b".into()), &rows);
+    let kept = StoreSchema::with(
+        &tastemaker_values::domain::settings::types::Build("b".into()),
+        &rows,
+    );
     (kept.strings.len(), kept.definitions() == Some(rows))
 }
 

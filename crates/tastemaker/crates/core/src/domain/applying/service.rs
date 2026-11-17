@@ -2,12 +2,15 @@
 //! lint call, with no IO and no ports. Identical applications (one release with one set of params) reaching a file merge;
 //! one release reaching a file with two sets of params is a finding.
 
-use tastemaker_values::domain::findings::service::of_rule;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use tastemaker_values::domain::findings::service::of_rule;
 
 use rayon::prelude::*;
 
 use super::types::{Application, Applied, Group, ReachedFile};
+use crate::domain::globs::service::{compress, counted};
+use crate::domain::reaching::service::reaches;
+use crate::domain::reaching::types::{Selection, SelectorPair};
 use tastemaker_values::domain::applications::types::{
     Carried, Compilers, GlobText, HandedRule, Nameable, Plan,
 };
@@ -15,14 +18,11 @@ use tastemaker_values::domain::definitions::types::LoadedWorkspace;
 use tastemaker_values::domain::findings::constants::COVERAGE;
 use tastemaker_values::domain::findings::service::{check_id, error};
 use tastemaker_values::domain::findings::types::{Finding, RuleId};
-use crate::domain::globs::service::{compress, counted};
 use tastemaker_values::domain::packages::service::release_id;
 use tastemaker_values::domain::packages::types::Release;
 use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_values::domain::placement::errors::PlacementError;
 use tastemaker_values::domain::placement::types::Placement;
-use crate::domain::reaching::service::reaches;
-use crate::domain::reaching::types::{Selection, SelectorPair};
 use tastemaker_values::domain::scopes::types::Origin;
 
 /// Each application's reached files: one rule of the lint call each.

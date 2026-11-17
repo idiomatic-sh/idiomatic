@@ -3,7 +3,9 @@
 
 use tastemaker_values::domain::proofs::types::FoundOwn;
 use tastemaker_values::domain::scenario_files::types::ScenarioEntry;
-use tastemaker_values::domain::scenarios::types::{ExpectedFinding, ExpectedRule, ScenarioFiles, ScenarioId};
+use tastemaker_values::domain::scenarios::types::{
+    ExpectedFinding, ExpectedRule, ScenarioFiles, ScenarioId,
+};
 
 /// One scenario of a spec or a template, as the project it is checked as.
 pub(crate) struct ProjectScenario<'a> {

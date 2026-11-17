@@ -4,11 +4,11 @@
 
 use super::adapter::AnalysisRyoAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::definitions::types::QueryText;
-use tastemaker_values::domain::files::types::MachinePath;
 use crate::outbound::analysis::fixtures::contract::check;
 use crate::outbound::analysis::interface::AnalysisPort as _;
 use crate::outbound::analysis::types::QueryVerdict;
+use tastemaker_values::domain::definitions::types::QueryText;
+use tastemaker_values::domain::files::types::MachinePath;
 
 /// A query, written out or one of Tastemaker's own.
 #[derive(Clone, Copy, Debug)]
@@ -460,7 +460,9 @@ fn subject(row: Input) -> Result<Value, Failure> {
             }
             return Ok(true);
         }
-        Query::Comments => tastemaker_values::domain::applications::constants::COMMENTS_QUERY.to_owned(),
+        Query::Comments => {
+            tastemaker_values::domain::applications::constants::COMMENTS_QUERY.to_owned()
+        }
         Query::Data => {
             use tastemaker_values::domain::contracts::types::Syntax;
             for syntax in [
@@ -668,12 +670,12 @@ fn expectations_of(
 
 /// The problems ryo's verdict queries give the row's scenario, against the ones the row expects; empty when they agree.
 fn judged(scenario: Judged) -> Result<String, Failure> {
+    use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
     use tastemaker_values::domain::findings::service::{check_id, of_rule};
     use tastemaker_values::domain::findings::types::RuleId;
     use tastemaker_values::domain::scenario_judging::service::{host, problems, rules, verdict_of};
     use tastemaker_values::domain::scenario_judging::types::{ScenarioNumber, VerdictRows};
     use tastemaker_values::domain::scenarios::types::ScenarioId;
-    use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
     let (expected, only, own) = expectations_of(scenario);
     let evaluated = [
         of_rule(RuleId("p/r".into())),
@@ -901,8 +903,8 @@ fn counted_by(
     port: &dyn crate::outbound::analysis::interface::AnalysisPort,
     counted: Counted,
 ) -> Result<String, Failure> {
-    use tastemaker_values::domain::judging::service::{findings, host, judgment_of, rules};
     use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
+    use tastemaker_values::domain::judging::service::{findings, host, judgment_of, rules};
     let closings = tastemaker_values::domain::closing::types::Closings::default();
     let (counts, pairs, holds) = waiting_of(counted);
     let directory = tempfile::tempdir().map_err(|error| error.to_string())?;
@@ -1032,8 +1034,8 @@ fn closed_scene() -> tastemaker_values::domain::closing::types::Closings {
 fn closed_by(
     port: &dyn crate::outbound::analysis::interface::AnalysisPort,
 ) -> Result<String, Failure> {
-    use tastemaker_values::domain::judging::service::{findings, host, judgment_of, rules};
     use crate::outbound::analysis::types::{AnalysisRequest, Corpus};
+    use tastemaker_values::domain::judging::service::{findings, host, judgment_of, rules};
     let closings = closed_scene();
     let directory = tempfile::tempdir().map_err(|error| error.to_string())?;
     let report = port

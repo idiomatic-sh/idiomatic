@@ -38,7 +38,7 @@ pub(super) fn answer(
         arguments.package,
         arguments.set,
         edge,
-        &super::composition::languages(),
+        &super::composition::reads_scenarios,
     )
     .map_err(|error| crate::output::fail(&error, Outcome::Error))?;
     super::composition::build(&edge.store)

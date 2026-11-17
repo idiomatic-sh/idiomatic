@@ -1,10 +1,10 @@
 //! The shape of the data this command does not control: its arguments become the service's request, and the service's
 //! report becomes the answer printed. Each refusal of a conversion is a `<Name>SchemaError`.
 
-use tastemaker_values::domain::files::types::MachinePath;
 use tastemaker_core::inbound::use_cases::explain::types::{
     Asked, ExplainReport, ExplainRequest, NameAsked,
 };
+use tastemaker_values::domain::files::types::MachinePath;
 
 use tastemaker_values::domain::packages::constants::{RULE_WORD, SPEC_WORD, TEMPLATE_WORD};
 use tastemaker_values::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD};

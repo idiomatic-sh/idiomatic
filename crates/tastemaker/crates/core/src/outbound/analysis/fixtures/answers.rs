@@ -117,7 +117,9 @@ pub(super) fn verdict_answers(
 /// What ryo answers the count queries over `rows`, worked out as they say it: each count whose found number is outside
 /// the bounds it is held to, with which bounds, and each pair whose count requires any file; an entry whose condition
 /// is unanswered, or has no answer, is neither.
-pub(super) fn count_answers(rows: &tastemaker_values::domain::judging::types::CountRows) -> Vec<LintAnswer> {
+pub(super) fn count_answers(
+    rows: &tastemaker_values::domain::judging::types::CountRows,
+) -> Vec<LintAnswer> {
     use tastemaker_values::domain::judging::constants::{
         BRANCH, BRANCH_ELSE, BRANCH_OWN, BRANCH_THEN, COUNT_RULE, PAIR_RULE,
     };
@@ -143,7 +145,8 @@ pub(super) fn count_answers(rows: &tastemaker_values::domain::judging::types::Co
         let Some((branch, bounds)) = held else {
             continue;
         };
-        let path = tastemaker_values::domain::paths::types::RepoPath(row.entry.0.to_string().into());
+        let path =
+            tastemaker_values::domain::paths::types::RepoPath(row.entry.0.to_string().into());
         match row.kind {
             EntryKind::Count if outside(row.found.0, bounds) => answers.push(LintAnswer {
                 rule: tastemaker_values::domain::applications::types::LintRuleId(COUNT_RULE.into()),
@@ -165,7 +168,9 @@ pub(super) fn count_answers(rows: &tastemaker_values::domain::judging::types::Co
 /// What the closed query answers over `closings`, decided as it decides: a file beneath a closed directory that no template
 /// places, no `tastemaker.toml` is and no nested instance owns is named after the scope that placed files in the nearest directory
 /// above it, the last declared of those on a tie, else the last declared of the directory's.
-fn closed_answers(closings: &tastemaker_values::domain::closing::types::Closings) -> Vec<LintAnswer> {
+fn closed_answers(
+    closings: &tastemaker_values::domain::closing::types::Closings,
+) -> Vec<LintAnswer> {
     use tastemaker_values::domain::closing::constants::{CLOSED_RULE, OWNER};
     closings
         .candidates
@@ -197,8 +202,12 @@ fn closed_answers(closings: &tastemaker_values::domain::closing::types::Closings
                 .map(|owner| owner.scope);
             let owner = nearest.or(last)?;
             Some(LintAnswer {
-                rule: tastemaker_values::domain::applications::types::LintRuleId(CLOSED_RULE.into()),
-                path: tastemaker_values::domain::paths::types::RepoPath(candidate.stray.0.to_string().into()),
+                rule: tastemaker_values::domain::applications::types::LintRuleId(
+                    CLOSED_RULE.into(),
+                ),
+                path: tastemaker_values::domain::paths::types::RepoPath(
+                    candidate.stray.0.to_string().into(),
+                ),
                 cells: vec![text_cell(OWNER, owner.0.to_string())],
             })
         })

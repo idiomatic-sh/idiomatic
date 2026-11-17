@@ -8,11 +8,11 @@ use super::interface::AddUseCase as _;
 use super::types::{AddRequest, DefinitionAsked};
 use super::use_case::AddUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::inbound::use_cases::check::fixtures::{Workspace, package, repository_of, selection};
+use crate::outbound::repository::interface::RepositoryPort as _;
 use tastemaker_values::domain::files::types::MachinePath;
 use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_values::domain::writing::types::Writing;
-use crate::inbound::use_cases::check::fixtures::{Workspace, package, repository_of, selection};
-use crate::outbound::repository::interface::RepositoryPort as _;
 
 /// The workspace file, the definition asked for, and where.
 type Input = (Workspace, &'static str, &'static str, Writing, Problem);

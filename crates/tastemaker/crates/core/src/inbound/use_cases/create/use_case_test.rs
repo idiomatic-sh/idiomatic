@@ -7,12 +7,12 @@ use super::interface::CreateUseCase as _;
 use super::types::{CreateRequest, Destination, Extension, ScenarioExtension};
 use super::use_case::CreateUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::inbound::use_cases::check::fixtures::{Workspace, package, repository_of, selection};
+use crate::outbound::repository::fixtures::fake::RepositoryFake;
 use tastemaker_values::domain::files::types::{FileText, MachinePath};
 use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
 use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_values::domain::writing::types::Writing;
-use crate::inbound::use_cases::check::fixtures::{Workspace, package, repository_of, selection};
-use crate::outbound::repository::fixtures::fake::RepositoryFake;
 
 /// The repository a row runs over.
 #[derive(Clone, Copy, Debug)]

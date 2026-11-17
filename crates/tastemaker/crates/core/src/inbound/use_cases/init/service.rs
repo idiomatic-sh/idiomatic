@@ -5,7 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::types::{StringBody, TopKind};
 use tastemaker_values::domain::captures::service::escaped;
 use tastemaker_values::domain::captures::types::{CaptureName, PlainText};
-use tastemaker_values::domain::definitions::constants::{ASYMPTOTE_DIRECTORY, ASYMPTOTE_FILE, WORKSPACE_FILE};
+use tastemaker_values::domain::definitions::constants::{
+    ASYMPTOTE_DIRECTORY, ASYMPTOTE_FILE, WORKSPACE_FILE,
+};
 use tastemaker_values::domain::files::types::FileText;
 use tastemaker_values::domain::packages::constants::{
     INIT_CAPTURE, INIT_CAPTURE_FALLBACK, INIT_CAPTURE_JOIN, INIT_DIRECTORY_ENTRY, INIT_ENTRIES,

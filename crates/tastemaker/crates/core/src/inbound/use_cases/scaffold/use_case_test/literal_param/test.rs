@@ -3,8 +3,11 @@
 use std::collections::BTreeMap;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::entries::types::{ParamName, ParamSource, ParamValue, Value as EntryValue};
-use tastemaker_values::domain::instance_params::fixtures::found;
+use tastemaker_values::domain::entries::types::{
+    ParamName, ParamSource, ParamValue, Value as EntryValue,
+};
+use tastemaker_values::domain::instance_params::fixtures::{instance, placed, said};
+use tastemaker_values::domain::instance_params::service::params;
 use tastemaker_values::domain::scalars::types::TextValue;
 
 /// The literal the entry passes `lang`.
@@ -25,11 +28,11 @@ fn subject(literal: Input) -> Value {
         ParamName("lang".into()),
         ParamValue::Literal(EntryValue::Text(TextValue(literal.into()))),
     )]);
-    let (lang, said) = found(
-        given,
-        ParamSource::Given,
-        &crate::outbound::manifest::factory::toml(),
-    );
+    let written = crate::outbound::manifest::factory::toml();
+    let (lang, said) = said(&params(instance(
+        &placed(given, ParamSource::Given),
+        &written,
+    )));
     (if lang == literal { String::new() } else { lang }, said)
 }
 

@@ -9,6 +9,8 @@ use super::constants::{
     DENY, DIRECTORY_NAME, LEVEL_KEY, LOCK_HEAD, LOCK_VERSION, PLACED_ALONE, SCENARIO_KEY,
     SCENARIO_WORKSPACE, SPEC_DROPPED, UNKNOWN_FIELD, VERSION_KEY, WORKSPACE_NAME,
 };
+use crate::outbound::manifest::errors::ManifestError;
+use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 use tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
 use tastemaker_values::domain::definitions::types::{
     ColumnName, Diagnostic, Exactness, Exception, QueryText, Role, RuleFile, SpecFile,
@@ -31,7 +33,9 @@ use tastemaker_values::domain::packages::types::{
     Ownership, PackageManifest, PackageName, PackageSource, RepositoryUrl, Revision, SourcePath,
     VersionText,
 };
-use tastemaker_values::domain::scalars::types::{FlagValue, FloatText, TextValue, ValueKey, WholeValue};
+use tastemaker_values::domain::scalars::types::{
+    FlagValue, FloatText, TextValue, ValueKey, WholeValue,
+};
 use tastemaker_values::domain::scenario_files::types::{
     CountKey, FileKey, ScenarioKeys, ScenarioRoot, Wrapper,
 };
@@ -44,8 +48,6 @@ use tastemaker_values::domain::selectors::types::{
     PartSelector, PathPattern, PlacedBySelector, Recursion, RegexText, Selector, Selectors,
     VariableName,
 };
-use crate::outbound::manifest::errors::ManifestError;
-use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 
 /// Wraps the reason a text was refused as the manifest's shape error.
 fn shape(reason: impl std::fmt::Display) -> ManifestError {

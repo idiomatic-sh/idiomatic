@@ -10,12 +10,12 @@ use crate::domain::entries::types::{
     ParamDeclaration, ParamDeclarations, ParamName, ParamSource, ParamType, ParamValue,
     ParamValues, SpecEntry, ValueWriter,
 };
-use crate::domain::instance_params::service::params;
-use crate::domain::instance_params::types::Instance;
+use crate::domain::findings::types::WorkspaceName;
+use crate::domain::instance_params::types::{Instance, InstanceParams};
 use crate::domain::packages::types::{DefinitionName, Ownership, PackageName, VersionText};
 use crate::domain::paths::types::RepoPath;
 use crate::domain::scopes::service::scope_file;
-use crate::domain::scopes::types::{CompositionRef, Identity};
+use crate::domain::scopes::types::{CompositionRef, Identity, Scope};
 use crate::domain::selectors::types::Selectors;
 
 /// The spec `p/language`, which declares `lang`, taken from `source` when nothing passes it.
@@ -60,36 +60,68 @@ pub fn entry(passed: BTreeMap<ParamName, ParamValue>) -> SpecEntry {
     }
 }
 
-/// The value `lang` is given at `languages/toml` when the entry passes `given` and the spec takes it from `source`, each
-/// value written by `written`, and the messages of the findings, joined.
+/// Where `p/language` is placed: its entry and spec, the instance `languages/toml` and the scope that writes the entry.
+#[derive(Debug)]
+pub struct Placed {
+    /// The entry's identity.
+    pub identity: EntryIdentity,
+    /// The entry.
+    pub entry: SpecEntry,
+    /// The spec.
+    pub spec: SpecFile,
+    /// The file the entry is written in.
+    pub anchor: RepoPath,
+    /// The instance's directory.
+    pub directory: RepoPath,
+    /// The scope the entry is written in.
+    pub parent: Scope,
+    /// What the entry's `include` captured.
+    pub captures: Captures,
+    /// The workspace's name.
+    pub workspace: WorkspaceName,
+}
+
+/// `p/language` placed at `languages/toml` by an entry that passes `given`, its spec taking `lang` from `source`.
 #[must_use]
-pub fn found(
-    given: BTreeMap<ParamName, ParamValue>,
-    source: ParamSource,
-    written: &dyn ValueWriter,
-) -> (String, String) {
-    let spec = spec(source);
-    let entry = entry(given);
+pub fn placed(given: BTreeMap<ParamName, ParamValue>, source: ParamSource) -> Placed {
     let anchor = RepoPath("tastemaker.toml".into());
-    let directory = RepoPath("languages/toml".into());
-    let parent = scope_file(
-        RepoPath::default(),
-        Identity("tastemaker.toml".into()),
-        anchor.clone(),
-        CompositionRef::Root,
-        &Composition::default(),
-    );
-    let found = params(Instance {
-        identity: &EntryIdentity("p/language".into()),
-        entry: &entry,
-        spec: &spec,
-        anchor: &anchor,
-        directory: &directory,
-        parent: &parent,
-        captures: &Captures::default(),
-        workspace: &crate::domain::findings::types::WorkspaceName("ws".into()),
+    Placed {
+        identity: EntryIdentity("p/language".into()),
+        entry: entry(given),
+        spec: spec(source),
+        parent: scope_file(
+            RepoPath::default(),
+            Identity("tastemaker.toml".into()),
+            anchor.clone(),
+            CompositionRef::Root,
+            &Composition::default(),
+        ),
+        anchor,
+        directory: RepoPath("languages/toml".into()),
+        captures: Captures::default(),
+        workspace: WorkspaceName("ws".into()),
+    }
+}
+
+/// The instance `placed` is, each value written by `written`.
+#[must_use]
+pub fn instance<'a>(placed: &'a Placed, written: &'a dyn ValueWriter) -> Instance<'a> {
+    Instance {
+        identity: &placed.identity,
+        entry: &placed.entry,
+        spec: &placed.spec,
+        anchor: &placed.anchor,
+        directory: &placed.directory,
+        parent: &placed.parent,
+        captures: &placed.captures,
+        workspace: &placed.workspace,
         written,
-    });
+    }
+}
+
+/// The value `lang` is given, and the messages of the findings, joined.
+#[must_use]
+pub fn said(found: &InstanceParams) -> (String, String) {
     let lang = found
         .values
         .0
@@ -97,11 +129,11 @@ pub fn found(
         .next()
         .map(|captured| captured.0.to_string())
         .unwrap_or_default();
-    let said = found
+    let messages = found
         .findings
         .iter()
         .map(|finding| finding.message.0.to_string())
         .collect::<Vec<_>>()
         .join("|");
-    (lang, said)
+    (lang, messages)
 }

@@ -2,11 +2,16 @@
 //! Builds a check report using injected source loading, pattern compilation and fingerprinting.
 
 use super::types::{SourceFile, SourceFiles};
-use tastemaker_values::domain::files::types::{BorrowedText, FileText, LineStarts, SourceView};
-use tastemaker_values::domain::findings::types::Report;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, PoisonError};
+use tastemaker_values::domain::files::types::{BorrowedText, FileText, LineStarts, SourceView};
+use tastemaker_values::domain::findings::types::Report;
 
+use crate::domain::reporting::service::{fingerprinted, incoming_of, report_of};
+use crate::domain::reporting::types::{
+    Candidate, Fingerprinted, Reported, Settled, Sinks, Standing,
+};
+use rayon::prelude::*;
 use tastemaker_values::domain::applications::service::{located, reusable_paths, source_paths};
 use tastemaker_values::domain::applications::types::{Compared, Plan, SpannedFinding};
 use tastemaker_values::domain::comments::service::ignoring;
@@ -15,19 +20,18 @@ use tastemaker_values::domain::findings::service::{error, settle};
 use tastemaker_values::domain::findings::types::{Finding, Fingerprint, Identifying, Suppression};
 use tastemaker_values::domain::governance::service::governed;
 use tastemaker_values::domain::import_rows::service::imports;
-use tastemaker_values::domain::imports::service::{by_source, message as import_message, refused, rule_of};
+use tastemaker_values::domain::imports::service::{
+    by_source, message as import_message, refused, rule_of,
+};
 use tastemaker_values::domain::imports::types::{
     AllowItem, ImportPlace, ImportRows, PatternMatch, WrittenPath,
 };
 use tastemaker_values::domain::module_paths::service::{pattern, prefixes};
 use tastemaker_values::domain::paths::service::containment;
 use tastemaker_values::domain::paths::types::{Containment, RepoPath};
-use crate::domain::reporting::service::{fingerprinted, incoming_of, report_of};
-use crate::domain::reporting::types::{
-    Candidate, Fingerprinted, Reported, Settled, Sinks, Standing,
+use tastemaker_values::domain::selectors::types::{
+    PathRest, PathSet, PatternFailure, SetCompiler, SetGlob,
 };
-use tastemaker_values::domain::selectors::types::{PathRest, PathSet, PatternFailure, SetCompiler, SetGlob};
-use rayon::prelude::*;
 
 /// Renders findings, settles dependent counts, applies ignores and fingerprints the final report.
 /// # Errors
@@ -46,12 +50,13 @@ pub(super) fn report<E>(
         sourced,
     } = settled(reported, read, sets, chaining)?;
     let identifying = tracing::info_span!("identify").entered();
-    let identified = tastemaker_values::domain::findings::service::identified(all.iter().map(|candidate| {
-        tastemaker_values::domain::findings::types::PreparedIdentity {
-            finding: &candidate.finding,
-            line: candidate.line.clone(),
-        }
-    }));
+    let identified =
+        tastemaker_values::domain::findings::service::identified(all.iter().map(|candidate| {
+            tastemaker_values::domain::findings::types::PreparedIdentity {
+                finding: &candidate.finding,
+                line: candidate.line.clone(),
+            }
+        }));
     let mut fingerprinted = fingerprinted(all, identified, fingerprint);
     fingerprinted.standing.extend(reused.standing);
     fingerprinted.standing.sort();

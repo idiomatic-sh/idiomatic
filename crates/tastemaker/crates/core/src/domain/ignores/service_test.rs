@@ -5,6 +5,8 @@ use std::collections::BTreeSet;
 
 use super::service::{apply, ignores, read};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::ignores::types::Covered;
+use crate::domain::ignores::types::Sifted;
 use tastemaker_values::domain::comments::service::{comment, lines};
 use tastemaker_values::domain::comments::types::{
     ByteSpan, Comment, CommentKind, CommentText, Documentation, LineIndex,
@@ -13,8 +15,6 @@ use tastemaker_values::domain::findings::service::{finding, spanning};
 use tastemaker_values::domain::findings::types::RuleId;
 use tastemaker_values::domain::findings::types::{ByteOffset, SourceText};
 use tastemaker_values::domain::findings::types::{Help, Place};
-use crate::domain::ignores::types::Covered;
-use crate::domain::ignores::types::Sifted;
 use tastemaker_values::domain::paths::types::RepoPath;
 
 /// A file's text, and the line of the one finding of `p/r` in it (0 for the whole file).

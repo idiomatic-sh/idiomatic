@@ -10,16 +10,16 @@ use super::constants::{
     UNKNOWN_OPERATION,
 };
 use super::schemas::{self, error, operator_page, placed_columns, relation_page, report};
-use tastemaker_values::domain::catalog::types::{
-    CatalogColumn, CatalogEntries, CatalogEntry, CatalogName, CatalogText, Grammar, OperatorAnswer,
-    Production, RelationAnswer, RelationPage,
-};
-use tastemaker_values::domain::definitions::types::QueryText;
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::analysis::types::{
     AnalysisReport, AnalysisRequest, AnalysisSettings, InvalidReason, Memory, QueryVerdict,
 };
+use tastemaker_values::domain::catalog::types::{
+    CatalogColumn, CatalogEntries, CatalogEntry, CatalogName, CatalogText, Grammar, OperatorAnswer,
+    Production, RelationAnswer, RelationPage,
+};
+use tastemaker_values::domain::definitions::types::QueryText;
 
 /// The ryo analysis adapter, over the languages the edge linked and the settings it set.
 #[derive(Debug)]

@@ -12,43 +12,13 @@ use super::errors::CheckError;
 use super::interface::CheckUseCase;
 use super::service::{checked_of, lint_answers, listing, manifest_error, package_of, reusable};
 use super::types::{CheckReport, CheckRequest, Fixing, LintInputs, LockOutcome, PreparedPlan};
-use tastemaker_values::domain::applications::types::Plan;
-use tastemaker_values::domain::captures::types::Interpolations;
 use crate::domain::contract_rendering::service::{rendered, requests};
 use crate::domain::contract_rendering::types::{Rendered, Requested};
-use tastemaker_values::domain::definitions::constants::LOCK_FILE;
-use tastemaker_values::domain::definitions::service::{
-    folded, governed, local, locals, package_paths, shared, variable_findings,
-};
-use tastemaker_values::domain::definitions::types::{Inputs, LoadedWorkspace, LocalText, LockRead, Role};
-use tastemaker_values::domain::entries::service::pin;
-use tastemaker_values::domain::files::types::{FileText, MachinePath};
-use tastemaker_values::domain::findings::types::{Finding, Report};
-use tastemaker_values::domain::governance::service::governance;
-use tastemaker_values::domain::linting::service::{
-    lint_root, listed, made_lock, partitioned, refusals, runtime_refusal, within_paths,
-};
-use tastemaker_values::domain::linting::types::{Partitioned, RefusalReason};
 use crate::domain::loading::service::{begin, definition_read, finish, wanted};
 use crate::domain::loading::types::Parsed;
-use tastemaker_values::domain::packages::constants::PACKAGE_FILE;
-use tastemaker_values::domain::packages::service::{kind_directory, latest, lock, lock_status, locked_version};
-use tastemaker_values::domain::packages::types::{LockStatus, PackageRoot, Reach, ResolvedPackage, SourcePath};
-use tastemaker_values::domain::packages::types::{Ownership, PackageName, Release, VersionText};
-use tastemaker_values::domain::paths::service::{join, relative};
-use tastemaker_values::domain::paths::types::PathText;
-use tastemaker_values::domain::paths::types::RepoPath;
-use tastemaker_values::domain::placement::service::place;
 use crate::domain::planning::service::plan;
-use tastemaker_values::domain::proofs::constants::UNPROVEN;
 use crate::domain::reporting::types::{Reported, Reuse};
 use crate::domain::scenario_proving::service::subject_of;
-use tastemaker_values::domain::selectors::service::{covers_any, first_match, resolve};
-use tastemaker_values::domain::selectors::types::{
-    Coverage, PathTest, PatternFailure, SelectionContext, Spelling,
-};
-use tastemaker_values::domain::variables::service::resolve as resolve_variables;
-use tastemaker_values::domain::writing::types::Writing;
 use crate::outbound::analysis::errors::AnalysisError;
 use crate::outbound::analysis::interface::AnalysisPort;
 use crate::outbound::analysis::types::{
@@ -57,6 +27,42 @@ use crate::outbound::analysis::types::{
 use crate::outbound::check_store::types::{Checked, CheckedFile, CheckedPath};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestParts;
+use tastemaker_values::domain::applications::types::Plan;
+use tastemaker_values::domain::captures::types::Interpolations;
+use tastemaker_values::domain::definitions::constants::LOCK_FILE;
+use tastemaker_values::domain::definitions::service::{
+    folded, governed, local, locals, package_paths, shared, variable_findings,
+};
+use tastemaker_values::domain::definitions::types::{
+    Inputs, LoadedWorkspace, LocalText, LockRead, Role,
+};
+use tastemaker_values::domain::entries::service::pin;
+use tastemaker_values::domain::files::types::{FileText, MachinePath};
+use tastemaker_values::domain::findings::types::{Finding, Report};
+use tastemaker_values::domain::governance::service::governance;
+use tastemaker_values::domain::linting::service::{
+    lint_root, listed, made_lock, partitioned, refusals, runtime_refusal, within_paths,
+};
+use tastemaker_values::domain::linting::types::{Partitioned, RefusalReason};
+use tastemaker_values::domain::packages::constants::PACKAGE_FILE;
+use tastemaker_values::domain::packages::service::{
+    kind_directory, latest, lock, lock_status, locked_version,
+};
+use tastemaker_values::domain::packages::types::{
+    LockStatus, PackageRoot, Reach, ResolvedPackage, SourcePath,
+};
+use tastemaker_values::domain::packages::types::{Ownership, PackageName, Release, VersionText};
+use tastemaker_values::domain::paths::service::{join, relative};
+use tastemaker_values::domain::paths::types::PathText;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::service::place;
+use tastemaker_values::domain::proofs::constants::UNPROVEN;
+use tastemaker_values::domain::selectors::service::{covers_any, first_match, resolve};
+use tastemaker_values::domain::selectors::types::{
+    Coverage, PathTest, PatternFailure, SelectionContext, Spelling,
+};
+use tastemaker_values::domain::variables::service::resolve as resolve_variables;
+use tastemaker_values::domain::writing::types::Writing;
 
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::DefinitionText;
@@ -198,8 +204,10 @@ impl CheckUseCaseImpl {
         &self,
     ) -> impl Fn(
         &[tastemaker_values::domain::selectors::types::SetGlob],
-    ) -> Result<Arc<dyn tastemaker_values::domain::selectors::types::PathSet>, PatternFailure>
-    + Sync
+    ) -> Result<
+        Arc<dyn tastemaker_values::domain::selectors::types::PathSet>,
+        PatternFailure,
+    > + Sync
     + '_ {
         |globs| self.matching.compile_set(globs)
     }
@@ -274,10 +282,13 @@ impl CheckUseCaseImpl {
             compile: &compile,
         };
         let selector = |source| {
-            CheckError::Placement(tastemaker_values::domain::placement::errors::PlacementError::Selector {
-                entry: tastemaker_values::domain::template_placing::constants::WORKSPACE_TABLE.to_owned(),
-                source,
-            })
+            CheckError::Placement(
+                tastemaker_values::domain::placement::errors::PlacementError::Selector {
+                    entry: tastemaker_values::domain::template_placing::constants::WORKSPACE_TABLE
+                        .to_owned(),
+                    source,
+                },
+            )
         };
         let members = resolve(&section.members, &context).map_err(selector)?;
         let excluded = resolve(&section.rules_exclude, &context).map_err(selector)?;
@@ -613,7 +624,8 @@ impl CheckUseCaseImpl {
         report: &AnalysisReport,
         refused: &BTreeSet<tastemaker_values::domain::applications::types::LintRuleId>,
     ) -> Result<Vec<Finding>, CheckError> {
-        let holds = tastemaker_values::domain::judging::service::holds(plan, refused, &report.findings);
+        let holds =
+            tastemaker_values::domain::judging::service::holds(plan, refused, &report.findings);
         let rows = tastemaker_values::domain::judging::service::host(
             &plan.counts,
             &plan.pairs,
@@ -997,9 +1009,10 @@ impl CheckUseCaseImpl {
                 Some(file) if file.stamp == stamp && stamp != Stamp::default() => {
                     file.digest.clone()
                 }
-                _ => text().map_or_else(tastemaker_values::domain::digests::types::Digest::default, |text| {
-                    self.digest.digest(DigestParts(&[text.0.as_bytes()]))
-                }),
+                _ => text().map_or_else(
+                    tastemaker_values::domain::digests::types::Digest::default,
+                    |text| self.digest.digest(DigestParts(&[text.0.as_bytes()])),
+                ),
             };
             CheckedFile {
                 path,

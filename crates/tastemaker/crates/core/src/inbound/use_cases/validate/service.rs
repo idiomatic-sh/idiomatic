@@ -6,6 +6,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::errors::ValidateError;
 use super::types::Version;
+use crate::domain::scenario_proving::service::{release_directory, subject_of};
+use crate::outbound::packages::types::PackageFile;
 use tastemaker_values::domain::definitions::types::ErrorFile;
 use tastemaker_values::domain::packages::service::{kind_directory, kind_file, kind_word};
 use tastemaker_values::domain::packages::types::{
@@ -13,8 +15,6 @@ use tastemaker_values::domain::packages::types::{
 };
 use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_values::domain::proofs::types::{DefinitionLabel, Problem, ProofFile, ProofPath};
-use crate::domain::scenario_proving::service::{release_directory, subject_of};
-use crate::outbound::packages::types::PackageFile;
 
 /// A problem of a fixture, said of `reason`.
 pub(super) fn problem(reason: impl std::fmt::Display) -> Problem {

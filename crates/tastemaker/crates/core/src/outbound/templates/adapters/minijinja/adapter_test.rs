@@ -2,11 +2,11 @@
 
 use super::adapter::TemplatesMinijinjaAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::contexts::types::{ContextKey, ContextText, Present, RenderContext};
-use tastemaker_values::domain::definitions::types::TemplateText;
 use crate::outbound::templates::errors::TemplatesError;
 use crate::outbound::templates::fixtures::contract::check;
 use crate::outbound::templates::interface::TemplatesPort as _;
+use tastemaker_values::domain::contexts::types::{ContextKey, ContextText, Present, RenderContext};
+use tastemaker_values::domain::definitions::types::TemplateText;
 
 /// What a row asks of the adapter.
 #[derive(Clone, Copy, Debug)]

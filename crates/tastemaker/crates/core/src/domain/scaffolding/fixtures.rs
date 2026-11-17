@@ -9,7 +9,9 @@ use tastemaker_values::domain::entries::types::{
     Alias, Count, Described, Description, EntryHeader, Imports, ParamDeclaration,
     ParamDeclarations, ParamName, ParamSource, ParamType, ParamValues, TemplateEntry,
 };
-use tastemaker_values::domain::packages::types::{DefinitionName, Ownership, PackageName, VersionText};
+use tastemaker_values::domain::packages::types::{
+    DefinitionName, Ownership, PackageName, VersionText,
+};
 use tastemaker_values::domain::selectors::types::{PathPattern, Selectors};
 
 /// Captures of the pairs given.

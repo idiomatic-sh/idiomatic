@@ -7,10 +7,12 @@ use super::interface::ExplainUseCase as _;
 use super::types::{Asked, ExplainRequest, NameAsked};
 use super::use_case::ExplainUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::explanations::constants::SKIPPED_NOTE;
-use tastemaker_values::domain::files::types::{Declarer, DirectoryName, MachinePath, SkippedDirectory};
 use crate::inbound::use_cases::check::fixtures::{Workspace, package, repository_of, selection};
 use crate::outbound::analysis::fixtures::fake::AnalysisFake;
+use tastemaker_values::domain::explanations::constants::SKIPPED_NOTE;
+use tastemaker_values::domain::files::types::{
+    Declarer, DirectoryName, MachinePath, SkippedDirectory,
+};
 
 /// What is asked.
 type Input = (Workspace, &'static str);

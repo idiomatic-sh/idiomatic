@@ -24,7 +24,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 fn subject(written: Input) -> Value {
-    use tastemaker_values::domain::findings::types::{Finding, Fingerprint, Help, MessageText, Place, RuleId};
+    use tastemaker_values::domain::findings::types::{
+        Finding, Fingerprint, Help, MessageText, Place, RuleId,
+    };
     let Written::OneRuleTwice = written;
     let rule = tastemaker_values::domain::findings::service::of_rule(RuleId("p/a".into()));
     let answer = Checked {
@@ -39,7 +41,10 @@ fn subject(written: Input) -> Value {
         evaluated: [rule].into(),
         ..Checked::default()
     };
-    let kept = StoreSchema::with(&tastemaker_values::domain::settings::types::Build("b".into()), &answer);
+    let kept = StoreSchema::with(
+        &tastemaker_values::domain::settings::types::Build("b".into()),
+        &answer,
+    );
     (kept.strings.len(), kept.checked() == Some(answer))
 }
 

@@ -2,7 +2,8 @@
 
 use std::collections::BTreeMap;
 
-use super::fixtures::found;
+use super::fixtures::{instance, placed, said};
+use super::service::params;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::entries::fixtures::unwritten;
 use crate::domain::entries::types::{ParamName, ParamSource, ParamValue, Value as EntryValue};
@@ -69,7 +70,7 @@ fn subject(passed: Input) -> Value {
             )
         }
     };
-    let (lang, said) = found(given, source, &unwritten);
+    let (lang, said) = said(&params(instance(&placed(given, source), &unwritten)));
     (
         if lang == value { String::new() } else { lang },
         if said == message { String::new() } else { said },

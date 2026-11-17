@@ -3,8 +3,8 @@
 use super::super::command::CreateArguments;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outcome::remedy::{Next, Remedy as _};
-use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
 use tastemaker_core::inbound::use_cases::create::types::CreateReport;
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
 
 /// What a row asks of `create`.
 #[derive(Clone, Debug)]
@@ -100,7 +100,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         parsed.arguments.package,
         parsed.arguments.set,
         &edge,
-        &crate::languages::linked(),
+        &super::super::composition::reads_scenarios,
     )
     .map(|_| true)
     .map_err(|error| match (&error, error.next()) {

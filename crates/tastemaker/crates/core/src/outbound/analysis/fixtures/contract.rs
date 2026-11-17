@@ -2,13 +2,13 @@
 //! rules of one id is refused whole, and every listed relation and operator has a page.
 
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
+use crate::outbound::analysis::errors::AnalysisError;
+use crate::outbound::analysis::interface::AnalysisPort;
+use crate::outbound::analysis::types::{AnalysisRequest, Corpus, Hosted, QueryVerdict};
 use tastemaker_values::domain::applications::types::{GlobText, LintRuleId, PlannedRule};
 use tastemaker_values::domain::catalog::types::{CatalogName, OperatorAnswer, RelationAnswer};
 use tastemaker_values::domain::definitions::types::QueryText;
 use tastemaker_values::domain::files::types::MachinePath;
-use crate::outbound::analysis::errors::AnalysisError;
-use crate::outbound::analysis::interface::AnalysisPort;
-use crate::outbound::analysis::types::{AnalysisRequest, Corpus, Hosted, QueryVerdict};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

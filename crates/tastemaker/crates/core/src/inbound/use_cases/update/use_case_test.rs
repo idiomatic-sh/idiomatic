@@ -8,10 +8,10 @@ use super::interface::UpdateUseCase as _;
 use super::types::{Entries, UpdateRequest, VersionChoice};
 use super::use_case::UpdateUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::inbound::use_cases::check::fixtures::{Workspace, selection};
 use tastemaker_values::domain::files::types::MachinePath;
 use tastemaker_values::domain::packages::types::{DefinitionName, VersionText};
 use tastemaker_values::domain::writing::types::Writing;
-use crate::inbound::use_cases::check::fixtures::{Workspace, selection};
 
 /// The workspace file, which entries move, to what.
 type Input = (
@@ -278,7 +278,8 @@ fn subject((workspace, entry, to, writing, problem): Input) -> Result<Value, Fai
         assert_eq!(before, after, "rejected updates and dry runs write nothing");
     } else if to == Some("0.2.0") {
         assert_ne!(before, after, "an update to 0.2.0 changes the files");
-        let locked = &after[&tastemaker_values::domain::paths::types::RepoPath("tastemaker.lock".into())];
+        let locked =
+            &after[&tastemaker_values::domain::paths::types::RepoPath("tastemaker.lock".into())];
         assert!(
             locked.0.contains("0.2.0") && locked.0.contains("part"),
             "the lock pins the release the update moved to"

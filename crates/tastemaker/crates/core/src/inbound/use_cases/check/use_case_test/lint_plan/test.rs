@@ -1,14 +1,14 @@
 //! The `planning` service's cases, over the `check` fixture's workspace: the plan of its lint calls.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::applications::types::{PlacingSpec, Plan};
-use tastemaker_values::domain::findings::service::printed;
-use tastemaker_values::domain::paths::types::RepoPath;
 use crate::domain::planning::service::plan;
 use crate::inbound::use_cases::check::fixtures::SPEC;
 use crate::inbound::use_cases::check::fixtures::applications::{
     matching, placement, workspace, workspace_of,
 };
+use tastemaker_values::domain::applications::types::{PlacingSpec, Plan};
+use tastemaker_values::domain::findings::service::printed;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// The fixture's tree.
 const FILES: &[&str] = &[

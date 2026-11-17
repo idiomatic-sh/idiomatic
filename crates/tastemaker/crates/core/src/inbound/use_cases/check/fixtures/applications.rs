@@ -5,10 +5,13 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use super::{PACKAGE, RULE, SPEC, TEMPLATE, WORKSPACE};
+use crate::domain::loading::service::{begin, finish, next, rule_read, spec_read, template_read};
+use crate::outbound::manifest::interface::ManifestPort as _;
+use crate::outbound::manifest::types::DefinitionText;
+use crate::outbound::matching::interface::MatchingPort as _;
 use tastemaker_values::domain::applications::types::{Carried, Compilers, ParamSet};
 use tastemaker_values::domain::definitions::types::{LoadedWorkspace, Role};
 use tastemaker_values::domain::entries::service::rule_release;
-use crate::domain::loading::service::{begin, finish, next, rule_read, spec_read, template_read};
 use tastemaker_values::domain::packages::types::{
     PackageName, PackageRoot, Reach, ResolvedPackage, SourcePath,
 };
@@ -17,10 +20,9 @@ use tastemaker_values::domain::placement::service::place;
 use tastemaker_values::domain::placement::types::Placement;
 use tastemaker_values::domain::scopes::service::composition_of;
 use tastemaker_values::domain::scopes::types::ScopeIndex;
-use tastemaker_values::domain::selectors::types::{PathSet, PathTest, PatternFailure, SetGlob, Spelling};
-use crate::outbound::manifest::interface::ManifestPort as _;
-use crate::outbound::manifest::types::DefinitionText;
-use crate::outbound::matching::interface::MatchingPort as _;
+use tastemaker_values::domain::selectors::types::{
+    PathSet, PathTest, PatternFailure, SetGlob, Spelling,
+};
 
 /// The `check` fixture's workspace over `files`, loaded.
 #[must_use]
@@ -54,7 +56,9 @@ pub fn workspace_of(root: &str, spec: &str, files: &[&str]) -> LoadedWorkspace {
             PackageName("p".into()),
             ResolvedPackage {
                 directory: PackageRoot("/p".into()),
-                pin: tastemaker_values::domain::packages::types::PackageSource::Path(SourcePath("p".into())),
+                pin: tastemaker_values::domain::packages::types::PackageSource::Path(SourcePath(
+                    "p".into(),
+                )),
                 manifest: manifest
                     .package(&DefinitionText(PACKAGE.into()))
                     .expect("the package reads"),

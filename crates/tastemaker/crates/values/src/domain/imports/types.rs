@@ -74,27 +74,36 @@ pub struct Name {
     pub written: WrittenPath,
     /// The name it binds in the file, when it binds one: a path written at a use site that starts at it, where the
     /// import binds, is this import's. An import that binds no name (a side-effect `import "x"`) is still an import.
-    pub binding: Option<ModuleName>,
+    pub binding: NameBinding,
     /// Where.
     pub span: ImportPlace,
 }
 
 /// A block that holds a `use`, or an inline module, of a file: what a `use` written in it binds within.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Scope {
+pub struct UseScope {
     /// Where.
     pub span: ImportPlace,
     /// Which.
     pub kind: ScopeKind,
 }
 
-/// Which scope a [`Scope`] is.
+/// Which scope a [`UseScope`] is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ScopeKind {
     /// A block: what is written within it sees the `use`s of the scopes around it.
     Block,
     /// An inline module: what is written within it sees none of the `use`s written outside it.
     Module,
+}
+
+/// Whether an import binds a name in its file.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NameBinding {
+    /// It binds this name.
+    Binds(ModuleName),
+    /// It binds none: a side-effect `import "x"`.
+    Unbound,
 }
 
 /// A package a manifest depends on: the `package-dependency` relation.
@@ -136,7 +145,7 @@ pub struct ImportRows {
     /// Every `file-package` row.
     pub owners: Vec<Owner>,
     /// Each file's blocks that hold a `use` and its inline modules, the file kept once.
-    pub scopes: BTreeMap<RepoPath, Vec<Scope>>,
+    pub scopes: BTreeMap<RepoPath, Vec<UseScope>>,
 }
 
 /// The package a file belongs to: the `file-package` relation.
@@ -311,12 +320,6 @@ impl std::ops::Deref for ModulePrefix {
     }
 }
 
-impl From<&str> for ModulePrefix {
-    fn from(text: &str) -> Self {
-        Self(text.into())
-    }
-}
-
 impl std::fmt::Display for ModulePrefix {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
@@ -332,12 +335,6 @@ impl std::ops::Deref for ModulePattern {
 
     fn deref(&self) -> &str {
         &self.0
-    }
-}
-
-impl From<&str> for ModulePattern {
-    fn from(text: &str) -> Self {
-        Self(text.into())
     }
 }
 

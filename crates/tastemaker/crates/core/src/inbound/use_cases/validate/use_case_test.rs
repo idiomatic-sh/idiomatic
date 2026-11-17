@@ -11,14 +11,14 @@ use super::interface::ValidateUseCase;
 use super::types::{Proved, Proving, ValidateRequest};
 use super::use_case::{ValidatePorts, ValidateUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_values::domain::files::types::{FileText, MachinePath};
-use tastemaker_values::domain::proofs::types::Proof;
 use crate::inbound::use_cases::check::fixtures::selection;
 use crate::outbound::analysis::fixtures::fake::AnalysisFake;
 use crate::outbound::packages::fixtures::fake::PackagesFake;
 use crate::outbound::repository::fixtures::fake::RepositoryFake;
 use crate::outbound::validate_store::fixtures::fake::ValidateStoreFake as StoreFake;
 use crate::outbound::validate_store::interface::ValidateStorePort;
+use tastemaker_values::domain::files::types::{FileText, MachinePath};
+use tastemaker_values::domain::proofs::types::Proof;
 
 /// A rule with a scenario that expects the marker at line 1, and one that expects nothing.
 const RULE: &str = r#"description = "A marker comment is reported."

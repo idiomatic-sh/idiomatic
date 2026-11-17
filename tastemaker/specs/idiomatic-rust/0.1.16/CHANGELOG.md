@@ -1,3 +1,7 @@
+# idiomatic-rust 0.1.16
+
+Places `client-at-adapter@0.3.0`, which admits the command line's `languages` edge (the file the cli spec's `languages` template places) as it admits a composition: it links the language providers and hands them to the analysis factory. Nothing else changes. 0.1.15 is `claude/int-batch`'s (`io-at-boundary@0.3.0`), not yet on main; whichever of the two lands second carries the other's change.
+
 # idiomatic-rust 0.1.14
 
 The application's `import-directions` entry (`directions-application`) and `no-temp-in-use-cases` leave out the test roles of the grouped layout as they left out `*_test.rs`: a group's `test.rs` and every file beneath a `*_test/` directory (`service_test/<group>/test.rs`, its `fixtures.rs`). Every other rule that left out `*_test.rs` leaves out the same test roles too, `**/test.rs` and `**/*_test/**`, with the fixtures roles `**/fixtures.rs` and `**/fixtures/**` (except `fixtures-reach`, whose subject is the files the `fixtures` feature builds, which keeps reading fixtures). A production file whose name only looks like a test, `test_helpers.rs`, is still read. No rule that read `*_test.rs` before changes. Scenarios `production-service-turning-a-result-into-an-option-is-refused` and `group-test-turning-a-result-into-an-option-passes`. Scenarios `test-roles-of-the-new-layout-are-left-out` and `production-file-named-like-a-test-is-checked`. 0.1.13 is removed with this version, not kept as published: no lock names it, nothing has been released, and an unreleased version keeps no copy for compatibility.

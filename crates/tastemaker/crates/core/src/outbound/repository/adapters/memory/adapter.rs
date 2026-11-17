@@ -15,15 +15,17 @@ use super::types::{
     Entering, HeldFile, IgnoreFile, Ignoring, Kind, Matchers, RepositoryMemoryProject,
     RepositoryMemoryRepository, ScratchPlace, Tree, Trees, Writes,
 };
+use crate::outbound::repository::errors::RepositoryError;
+use crate::outbound::repository::interface::{FoundRepository, Repository, RepositoryPort};
+use crate::outbound::repository::types::{Presence, RepoPaths, Walk};
 use tastemaker_values::domain::files::types::{
     Declarer, DirectoryName, FileSize, FileText, MachinePath, ModifiedTime, SkippedDirectories,
     SkippedDirectory, Stamp,
 };
-use tastemaker_values::domain::paths::service::{ancestors, containment, join, name, parent, relative};
+use tastemaker_values::domain::paths::service::{
+    ancestors, containment, join, name, parent, relative,
+};
 use tastemaker_values::domain::paths::types::{Containment, PathText, RepoPath};
-use crate::outbound::repository::errors::RepositoryError;
-use crate::outbound::repository::interface::{FoundRepository, Repository, RepositoryPort};
-use crate::outbound::repository::types::{Presence, RepoPaths, Walk};
 
 /// The memory repository adapter: its trees, and the directories a walk skips.
 #[derive(Debug)]

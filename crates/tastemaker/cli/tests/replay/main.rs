@@ -2,6 +2,8 @@
 
 mod benchmark_fixture;
 mod check;
+#[path = "../fixtures/replay/contract.rs"]
+mod contract;
 mod create;
 mod explain;
 #[path = "../fixtures/replay/fixes.rs"]

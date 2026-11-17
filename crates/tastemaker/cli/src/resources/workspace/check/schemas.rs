@@ -13,13 +13,13 @@ use serde_sarif::sarif::{
     Result as SarifResult, ResultLevel, Run, Sarif, Suppression as SarifSuppression,
     SupressionKind, SupressionStatus, Tool, ToolComponent, Version,
 };
-use tastemaker_values::domain::findings::types::{Finding, Help, Place, Report, Suppression};
-use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_core::inbound::use_cases::check::errors::CheckError;
 use tastemaker_core::inbound::use_cases::check::types::{CheckReport, CheckRequest, Fixing};
+use tastemaker_values::domain::findings::types::{Finding, Help, Place, Report, Suppression};
+use tastemaker_values::domain::paths::types::RepoPath;
 
-use tastemaker_values::domain::proofs::types::Proof;
 use tastemaker_core::inbound::use_cases::validate::types::{ValidateReport, ValidateRequest};
+use tastemaker_values::domain::proofs::types::Proof;
 
 use crate::outcome::Outcome;
 use crate::output::Format;

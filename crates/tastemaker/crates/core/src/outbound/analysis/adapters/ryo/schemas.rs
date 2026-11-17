@@ -14,6 +14,8 @@ use ryo::linter::{
 };
 
 use super::constants::{PLACED, PLACED_COLUMNS, RYO_STORE, SPAN_TEXT};
+use crate::outbound::analysis::errors::AnalysisError;
+use crate::outbound::analysis::types::{AnalysisReport, AnalysisRequest, Corpus, Hosted};
 use tastemaker_values::domain::applications::types::{
     AnswerCell, CellText, CellValue, GlobText, LintAnswer, LintRuleId, LintUnknown, PlacedRow,
     PlacingSpec,
@@ -28,8 +30,6 @@ use tastemaker_values::domain::entries::types::Value;
 use tastemaker_values::domain::findings::types::{ByteOffset, MessageText};
 use tastemaker_values::domain::paths::types::RepoPath;
 use tastemaker_values::domain::scalars::types::FlagValue;
-use crate::outbound::analysis::errors::AnalysisError;
-use crate::outbound::analysis::types::{AnalysisReport, AnalysisRequest, Corpus, Hosted};
 
 /// The port's engine error carrying `reason`.
 fn engine(reason: impl std::fmt::Display) -> AnalysisError {
@@ -109,7 +109,9 @@ fn number_cell(number: u32) -> Cell {
 
 /// The relations of a verdict call: what the scenarios expected and found, what their `only` names, the rules they
 /// prove and every rule and check their checks ran.
-fn verdict(rows: &tastemaker_values::domain::scenario_judging::types::VerdictRows) -> Vec<HostRelation> {
+fn verdict(
+    rows: &tastemaker_values::domain::scenario_judging::types::VerdictRows,
+) -> Vec<HostRelation> {
     use tastemaker_values::domain::scenario_judging::constants::{
         EVALUATED, EXPECTED, FINDING, FINDING_PATH, FOUND, FULL, LINE, ONLY, ONLY_RULE, OWN, PLACE,
         RULE, SCENARIO,
@@ -287,7 +289,10 @@ fn closings(rows: &tastemaker_values::domain::closing::types::Closings) -> Vec<H
                 .map(|row| {
                     HostRow(vec![
                         number_cell(row.group.0),
-                        text_cell(&tastemaker_values::domain::closing::service::prefix_of(&row.directory).0),
+                        text_cell(
+                            &tastemaker_values::domain::closing::service::prefix_of(&row.directory)
+                                .0,
+                        ),
                         row.owners
                             .last()
                             .map_or_else(|| number_cell(0), |owner| scope(owner.scope)),
@@ -520,7 +525,9 @@ pub(super) fn error(error: LintError) -> AnalysisError {
 }
 
 /// Where ryo keeps its work for `store`: in the store's own directory, or nowhere under `-n/--dry-run`.
-pub(super) fn cache(store: &tastemaker_values::domain::settings::types::Store) -> ryo::linter::Cache {
+pub(super) fn cache(
+    store: &tastemaker_values::domain::settings::types::Store,
+) -> ryo::linter::Cache {
     match store.writing {
         tastemaker_values::domain::writing::types::Writing::Write => {
             ryo::linter::Cache::At(std::path::PathBuf::from(&*store.directory.0).join(RYO_STORE))
