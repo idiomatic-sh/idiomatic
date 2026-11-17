@@ -8,7 +8,7 @@ use ryo_values::domain::plans::types::Operation;
 /// The case program followed by one node of each text kind, each reading Defines: the program the catalogs of the served
 /// stages are checked over.
 #[must_use]
-pub fn text_program() -> Vec<Step> {
+pub(crate) fn text_program() -> Vec<Step> {
     use ryo_values::domain::plan_parts::types::{CapturePattern, ParameterId};
     use ryo_values::domain::query_operators::types::{LineOutput, MaxLine, TabWidth, TextOutput};
     let from = || defines().0;

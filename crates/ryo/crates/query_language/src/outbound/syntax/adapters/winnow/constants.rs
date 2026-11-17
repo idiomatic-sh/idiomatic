@@ -237,7 +237,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     GrammarLine {
         name: ryo_values::domain::descriptions::constants::SELECT,
         form: "select ( \"*\" | select_column { \",\" select_column } ) from source [ join ] [ filters ]",
-        example: "select l.name as \"name\" from \"function\" as l join \"function\" as r on l.file = r.file where r.name != \"main\"",
+        example: "select l.name as \"name\" from \"function\" as l join \"function\" as r on l.name = r.name and l.file = r.file where r.id != l.id",
     },
     GrammarLine {
         name: "select_column",
@@ -252,7 +252,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     GrammarLine {
         name: "join",
         form: "[ nearest | all-pairs ] join source on join_key { and join_key }",
-        example: " nearest join \"function\" as r on l.file = r.file",
+        example: " join \"function\" as r on l.name = r.name and l.file = r.file",
     },
     GrammarLine {
         name: "join_key",

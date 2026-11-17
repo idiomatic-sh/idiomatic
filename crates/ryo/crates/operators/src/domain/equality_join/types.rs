@@ -35,18 +35,17 @@ pub(crate) enum ProbeMode {
 }
 
 #[cfg(test)]
-kinds! {
-    /// The kind of a `ProbeMode`, without its order: what a test that must see every mode compares against.
-    pub(crate) enum ProbeModeKind {
-        /// `ProbeMode::Inner`.
-        Inner,
-        /// `ProbeMode::Semi`.
-        Semi,
-        /// `ProbeMode::Anti`.
-        Anti,
-        /// `ProbeMode::Ordered`.
-        Ordered,
-    }
+/// The kind of a `ProbeMode`, without its order: what a test that must see every mode compares against.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, strum::VariantArray)]
+pub(crate) enum ProbeModeKind {
+    /// `ProbeMode::Inner`.
+    Inner,
+    /// `ProbeMode::Semi`.
+    Semi,
+    /// `ProbeMode::Anti`.
+    Anti,
+    /// `ProbeMode::Ordered`.
+    Ordered,
 }
 
 /// Which end of an order an ordered probe keeps. `pub` until F3 commit 4: the engine's runtime names it.

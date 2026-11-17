@@ -377,7 +377,7 @@ pub(crate) fn lowered(
     }
 }
 
-/// The kind of a row map: one arm per map, so a new row map cannot be added without its kind, which `RowMapKind::ALL` then
+/// The kind of a row map: one arm per map, so a new row map cannot be added without its kind, which `RowMapKind::VARIANTS` then
 /// holds.
 #[cfg(test)]
 pub(crate) const fn row_map_kind(

@@ -60,7 +60,7 @@ pub(crate) fn seeded(
     }
 }
 
-/// The kind of a probe mode: one arm per mode, so a new mode cannot be added without its kind, which `ProbeModeKind::ALL` then
+/// The kind of a probe mode: one arm per mode, so a new mode cannot be added without its kind, which `ProbeModeKind::VARIANTS` then
 /// holds.
 #[cfg(test)]
 pub(crate) const fn mode_kind(mode: super::types::ProbeMode) -> super::types::ProbeModeKind {

@@ -152,7 +152,7 @@ fn row_map(witness: &Witnessed<Lowering>) -> Option<RowMapKind> {
 
 /// Every probe mode and every row map kind is among `witnesses`.
 fn every_kind(witnesses: &[(NodeKind, Witnessed<Lowering>)]) -> Result<Value, Failure> {
-    for wanted in ProbeModeKind::ALL {
+    for wanted in <ProbeModeKind as strum::VariantArray>::VARIANTS {
         if !witnesses
             .iter()
             .any(|(_, witness)| mode(witness) == Some(*wanted))
@@ -160,7 +160,7 @@ fn every_kind(witnesses: &[(NodeKind, Witnessed<Lowering>)]) -> Result<Value, Fa
             return Err(Breach::ModeUnwitnessed(*wanted));
         }
     }
-    for wanted in RowMapKind::ALL {
+    for wanted in <RowMapKind as strum::VariantArray>::VARIANTS {
         if !witnesses
             .iter()
             .any(|(_, witness)| row_map(witness) == Some(*wanted))
@@ -169,7 +169,8 @@ fn every_kind(witnesses: &[(NodeKind, Witnessed<Lowering>)]) -> Result<Value, Fa
         }
     }
     Ok(Answer::Held(
-        ProbeModeKind::ALL.len() + RowMapKind::ALL.len(),
+        <ProbeModeKind as strum::VariantArray>::VARIANTS.len()
+            + <RowMapKind as strum::VariantArray>::VARIANTS.len(),
     ))
 }
 

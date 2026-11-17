@@ -255,26 +255,25 @@ pub(crate) enum BoundScan {
 }
 
 #[cfg(test)]
-kinds! {
-    /// The kind of a `RowMap`, without its parts: what a test that must see every kind compares against.
-    pub(crate) enum RowMapKind {
-        /// `capture`.
-        Capture,
-        /// `replace`.
-        Replace,
-        /// `source-matches`.
-        SourceMatches,
-        /// `span-bounds`.
-        SpanBounds,
-        /// `span-between`.
-        SpanBetween,
-        /// `words`.
-        Words,
-        /// `rank`.
-        Rank,
-        /// `fits-rendered`.
-        FitsRendered,
-    }
+/// The kind of a `RowMap`, without its parts: what a test that must see every kind compares against.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, strum::VariantArray)]
+pub(crate) enum RowMapKind {
+    /// `capture`.
+    Capture,
+    /// `replace`.
+    Replace,
+    /// `source-matches`.
+    SourceMatches,
+    /// `span-bounds`.
+    SpanBounds,
+    /// `span-between`.
+    SpanBetween,
+    /// `words`.
+    Words,
+    /// `rank`.
+    Rank,
+    /// `fits-rendered`.
+    FitsRendered,
 }
 
 impl Lowering {

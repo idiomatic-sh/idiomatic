@@ -99,6 +99,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
+        name: CaseName("a_band_whose_right_column_is_below_keeps_the_least"),
+        word: Word::Succeeds,
+        input: || OrderedShape {
+            pairing: Pairing::Band,
+            test: Test::GreaterThan,
+            ..LATEST
+        },
+        expect: Expect::Value(Rewritten::Ordered {
+            right: RowSource::Facts(EDGES),
+            on_parent: true,
+            order: OrderedProbe {
+                left_order: ColumnIndex(2),
+                right_order: ColumnIndex(2),
+                extremum: PartitionExtremum::Minimum,
+            },
+            unread: 2,
+        }),
+    },
+    Case {
         name: CaseName("a_non_strict_band_declines"),
         word: Word::Succeeds,
         input: || OrderedShape {

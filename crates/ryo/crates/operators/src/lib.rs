@@ -1,24 +1,6 @@
 #![cfg_attr(doc, doc = include_str!("../README.md"))]
 #![cfg_attr(not(doc), doc = env!("CARGO_PKG_DESCRIPTION"))]
 
-/// Declares a fieldless kind and every one of its variants once: `ALL` is generated from the same list as the enum, so a kind
-/// cannot be added and left out of `ALL`.
-#[cfg(test)]
-macro_rules! kinds {
-    ($(#[$meta:meta])* $vis:vis enum $kind:ident { $( $(#[$doc:meta])* $variant:ident, )+ }) => {
-        $(#[$meta])*
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-        $vis enum $kind {
-            $( $(#[$doc])* $variant, )+
-        }
-
-        impl $kind {
-            /// Every variant, in declaration order: generated from the enum's own list.
-            $vis const ALL: &'static [Self] = &[ $( Self::$variant, )+ ];
-        }
-    };
-}
-
 pub mod application;
 pub mod domain;
 pub mod inbound;
