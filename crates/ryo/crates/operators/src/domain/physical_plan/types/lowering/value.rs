@@ -249,7 +249,24 @@ impl Lowering {
                 index: ProbeIndex::Shared(at),
                 ..
             } => Some(*at),
-            _ => None,
+            Self::Filter { .. }
+            | Self::Lookup { .. }
+            | Self::Project { .. }
+            | Self::Extend { .. }
+            | Self::Probe { .. }
+            | Self::Distinct { .. }
+            | Self::Group { .. }
+            | Self::Reach { .. }
+            | Self::SeededReach { .. }
+            | Self::Axis { .. }
+            | Self::OrderedWalk { .. }
+            | Self::Worklist { .. }
+            | Self::Components { .. }
+            | Self::TextMap { .. }
+            | Self::OrderedMatch { .. }
+            | Self::Render { .. }
+            | Self::ScanBound { .. }
+            | Self::Unlowered => None,
         }
     }
 
