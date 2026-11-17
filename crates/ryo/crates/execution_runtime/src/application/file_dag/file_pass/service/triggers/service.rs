@@ -1,7 +1,7 @@
 //! The open file's triggers: each root kind's presence from the kind lists `fill_roots` made, each demanded fact relation's
 //! from its rows; a file that cannot say what it holds holds every trigger.
 use crate::application::file_dag::fact_lookup::service::FactLookup;
-use crate::application::file_dag::file_pass::types::{FileRoots, RefusedRead};
+use crate::application::file_dag::file_pass::types::{FactRead, FactReads, FileRoots};
 use ryo_execution_domain::domain::executable_program::activation::service::trigger_facts;
 use ryo_execution_domain::domain::executable_program::activation::types::{
     TriggerPresence, Triggers,
@@ -12,15 +12,17 @@ use ryo_relations::domain::relations::types::Relation;
 
 /// Writes into `triggers` what the open file holds: a root kind, by its place in `roots` (the plan's kind order), where a node
 /// it starts has a tree node of it; a fact relation where no reader of it runs (it is not in `demand`) or it has a row. A
-/// partial read, or a demanded relation the lookup refuses, makes every trigger present, so every node runs and meets the
-/// partiality or the refusal where it did before; the refusal is answered back, so its readers do not ask the lookup again.
-pub(crate) fn fill(
+/// file read in part holds every trigger and is read nothing here. A demanded relation the lookup refuses makes every trigger
+/// present, so every node runs and meets the refusal where it did before; no other relation is read after it. Each read is
+/// answered back, rows or refusal, as the first read of the relation in the file: its first reader answers it instead of
+/// asking the lookup.
+pub(crate) fn fill<'p>(
     triggers: &mut Triggers,
     program: &ExecutableProgram,
     roots: &FileRoots,
-    lookup: &FactLookup<'_, '_>,
+    lookup: &'p FactLookup<'_, '_>,
     demand: &[Relation],
-) -> Option<RefusedRead> {
+) -> FactReads<'p> {
     triggers.kinds.clear();
     triggers.kinds.extend(roots.kinds.iter().map(|root| {
         let held = root.nodes.iter().any(|node| {
@@ -36,12 +38,23 @@ pub(crate) fn fill(
         }
     }));
     triggers.facts.clear();
-    let mut refused = None;
+    let mut reads = FactReads::default();
+    // A file read in part cannot say a relation has no row: every trigger is present, and nothing is read here.
+    if !lookup.partials().is_empty() {
+        triggers.kinds.fill(TriggerPresence::Present);
+        triggers.facts.resize(
+            trigger_facts(activation(program)).len(),
+            TriggerPresence::Present,
+        );
+        return reads;
+    }
+    let mut refused = false;
     for relation in trigger_facts(activation(program)) {
-        let presence = if refused.is_some() || !demand.contains(relation) {
+        let presence = if refused || !demand.contains(relation) {
             TriggerPresence::Present
         } else {
-            match lookup.columns(*relation) {
+            let read = lookup.columns(*relation);
+            let presence = match &read {
                 // A relation of no column cannot show it has no row.
                 Ok(view)
                     if view
@@ -52,20 +65,22 @@ pub(crate) fn fill(
                     TriggerPresence::Absent
                 }
                 Ok(_) => TriggerPresence::Present,
-                Err(error) => {
-                    refused = Some(RefusedRead {
-                        relation: *relation,
-                        error,
-                    });
+                Err(_) => {
+                    refused = true;
                     TriggerPresence::Present
                 }
-            }
+            };
+            reads.0.push(FactRead {
+                relation: *relation,
+                read: std::cell::RefCell::new(Some(read)),
+            });
+            presence
         };
         triggers.facts.push(presence);
     }
-    if refused.is_some() || !lookup.partials().is_empty() {
+    if refused {
         triggers.kinds.fill(TriggerPresence::Present);
         triggers.facts.fill(TriggerPresence::Present);
     }
-    refused
+    reads
 }

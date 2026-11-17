@@ -33,6 +33,8 @@ enum Scenario {
     RunningFirst,
     /// Each node with no row in the run with every node active is dormant.
     EmptyNodesDormant,
+    /// Two lookups of one index: the first held dormant, then the second built.
+    DormantLookupThenItsIndex,
 }
 type Input = Scenario;
 /// What the run held and read, written out.
@@ -62,6 +64,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::RunningFirst,
         expect: Expect::Value(Cow::Borrowed(
             "node 0 absent; node 1 [Symbol] 2; node 2 [Symbol] 0; reads 1",
+        )),
+    },
+    Case {
+        name: CaseName("a_lookup_built_after_a_dormant_one_of_its_index_leaves_it_held_as_it_was"),
+        word: Word::Succeeds,
+        input: || Scenario::DormantLookupThenItsIndex,
+        expect: Expect::Value(Cow::Borrowed(
+            "node 0 [Node, Symbol, Symbol, Symbol, Node, File, Span] 0; node 1 [Node, Symbol, Symbol, Symbol, Node, File, Span] 1; reads 1",
         )),
     },
     Case {
@@ -237,12 +247,47 @@ fn empty_nodes_dormant() -> Result<Value, Failure> {
     )))
 }
 
+/// Two selects of `DEFINES` by name, one index's lookups, both emitted; the first dormant and asked for first: each one's rows
+/// after both ran, and the relation's reads.
+fn dormant_lookup() -> Result<Value, Failure> {
+    let texts = TextResources::new(&["kind", "a", "b"]);
+    let rows = defines(&[("a", "a"), ("b", "b")], &texts);
+    let steps = [
+        select(PlanInput::Relation(DEFINES), vec![named("a")]),
+        select(PlanInput::Relation(DEFINES), vec![named("b")]),
+    ];
+    let plan = planned(&steps, &[0, 1])?;
+    let inputs = TableInputs::new(&[(DEFINES, &rows)])
+        .with_dormant(vec![(PlanNodeId(0), rows.kinds.clone())]);
+    let run = RunUseCaseImpl::new(std::sync::Arc::new(
+        crate::outbound::matching::factory::use_case(),
+    ));
+    let mut buffers = FileBuffers::default();
+    let mut resources = texts;
+    for node in [0, 1] {
+        run.run(
+            &plan,
+            PlanNodeId(node),
+            &mut buffers,
+            &inputs,
+            &mut resources,
+        )?;
+    }
+    Ok(Cow::Owned(format!(
+        "node 0 {}; node 1 {}; reads {}",
+        held(&buffers, 0),
+        held(&buffers, 1),
+        inputs.reads(DEFINES)
+    )))
+}
+
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::DormantAlone => two_readers(&[2]),
         Scenario::DormantFirst => two_readers(&[2, 1]),
         Scenario::RunningFirst => two_readers(&[1, 2]),
         Scenario::EmptyNodesDormant => empty_nodes_dormant(),
+        Scenario::DormantLookupThenItsIndex => dormant_lookup(),
     }
 }
 
