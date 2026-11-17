@@ -11,7 +11,7 @@ use crate::inbound::use_cases::run::fixtures::stream_programs::{
     against, faulting, one_row_past_the_bound, select_of, span, split_names,
 };
 use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, agrees, node_probe, ran_after, ran_over_short_rows, ran_program,
+    Program, agrees, node_probe, ran_after, ran_over_short_view, ran_program,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
@@ -29,9 +29,8 @@ enum Scenario {
     NamesMintedAcrossChunks,
     ExpandingCapture,
     EngineRanTheMiddle,
-    ShortRowsProjected,
-    ShortRowsFiltered,
-    ShortRowProbed,
+    ShortViewLeft,
+    ShortViewRight,
     OneRowPastTheBound,
 }
 
@@ -134,30 +133,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("a_relations_short_rows_are_each_read_on_their_own"),
+        name: CaseName("a_short_view_read_as_a_chains_head_is_refused"),
         word: Word::Succeeds,
-        input: || Scenario::ShortRowsProjected,
-        expect: Expect::Value(Observation::Rows {
-            rows: 2,
-            fault: Cow::Borrowed(""),
-        }),
-    },
-    Case {
-        name: CaseName("a_filter_refuses_a_relations_short_row"),
-        word: Word::Succeeds,
-        input: || Scenario::ShortRowsFiltered,
+        input: || Scenario::ShortViewLeft,
         expect: Expect::Value(Observation::Rows {
             rows: 0,
             fault: Cow::Borrowed("ShapeMismatch"),
         }),
     },
     Case {
-        name: CaseName("a_short_row_kept_into_a_chunk_is_no_row_to_a_probe"),
+        name: CaseName("a_short_view_read_as_a_probes_right_is_refused"),
         word: Word::Succeeds,
-        input: || Scenario::ShortRowProbed,
+        input: || Scenario::ShortViewRight,
         expect: Expect::Value(Observation::Rows {
             rows: 0,
-            fault: Cow::Borrowed("NoSuchColumn { index: ColumnIndex(0) }"),
+            fault: Cow::Borrowed("ShapeMismatch"),
         }),
     },
     Case {
@@ -171,14 +161,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// Runs `steps` over `rows` short Defines rows, emitting the last: the rows it answered and its fault.
-fn over_short_rows(steps: &[Step], rows: usize) -> Result<Value, Failure> {
+/// Runs `steps` with `short` lent short of its kinds, emitting the last: the rows it answered and its fault.
+fn over_short_view(steps: &[Step], short: Relation) -> Result<Value, Failure> {
     let emit = PlanNodeId(
         u32::try_from(steps.len())
             .unwrap_or(u32::MAX)
             .saturating_sub(1),
     );
-    let ran = ran_over_short_rows(steps, emit, rows)?;
+    let ran = ran_over_short_view(steps, emit, short)?;
     Ok(Observation::Rows {
         rows: ran.answer.as_ref().map_or(0, Vec::len),
         fault: Cow::Owned(
@@ -280,10 +270,7 @@ fn program(scenario: Scenario) -> Option<Program> {
                 texts: vec![name, "x".into()],
             }
         }
-        Scenario::ShortRowsProjected
-        | Scenario::ShortRowsFiltered
-        | Scenario::ShortRowProbed
-        | Scenario::OneRowPastTheBound => {
+        Scenario::ShortViewLeft | Scenario::ShortViewRight | Scenario::OneRowPastTheBound => {
             return None;
         }
     })
@@ -292,33 +279,26 @@ fn program(scenario: Scenario) -> Option<Program> {
 /// What a scenario with no program observes: the short rows read, or a probe's answers handed on.
 fn unprogrammed(scenario: Scenario) -> Result<Value, Failure> {
     match scenario {
-        Scenario::ShortRowsProjected => over_short_rows(
+        // A projection's head is the short view: refused where the chain reads it.
+        Scenario::ShortViewLeft => over_short_view(
             &[over_defines(Operation::Project {
                 from: StepInput::Relation(Relation::Defines),
                 columns: vec![ColumnIndex(0)],
                 distinct: RepeatedRows::Kept,
             })],
-            2,
+            Relation::Defines,
         ),
-        Scenario::ShortRowsFiltered => over_short_rows(
-            &[over_defines(Operation::Select {
-                from: StepInput::Relation(Relation::Defines),
-                comparisons: vec![against(Test::Equal, 0, "a")],
-                kept: Vec::new(),
-            })],
-            2,
-        ),
-        // A select keeps the short row whole into its chunk; the probe reads it from there as no row.
-        Scenario::ShortRowProbed => over_short_rows(
+        // A select of whole Defines rows probes the short view as its right side: refused where the probe reads it.
+        Scenario::ShortViewRight => over_short_view(
             &[
                 over_defines(Operation::Select {
                     from: StepInput::Relation(Relation::Defines),
                     comparisons: Vec::new(),
                     kept: Vec::new(),
                 }),
-                node_probe(),
+                node_probe(Relation::Comment),
             ],
-            1,
+            Relation::Comment,
         ),
         Scenario::OneRowPastTheBound => {
             let program = one_row_past_the_bound();
@@ -374,9 +354,8 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
             ),
         },
         Scenario::EngineRanTheMiddle
-        | Scenario::ShortRowsProjected
-        | Scenario::ShortRowsFiltered
-        | Scenario::ShortRowProbed
+        | Scenario::ShortViewLeft
+        | Scenario::ShortViewRight
         | Scenario::OneRowPastTheBound => return Err(PortableOperatorFault::WrongOperation),
         Scenario::ExpandingCapture => Observation::Bounded {
             same,

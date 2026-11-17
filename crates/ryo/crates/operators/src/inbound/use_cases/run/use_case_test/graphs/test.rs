@@ -1,5 +1,6 @@
 //! The graph kinds through `plan` and `run` only: what a closure, a closure fused into its join and a group digest answer,
 //! and what a seeded closure walks, against the same rows run another way or recorded from main's row meaning.
+use super::super::super::fixtures::graph_workloads::defines_of_edges;
 use super::super::super::fixtures::{TableInputs, TextResources, emitted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
@@ -254,7 +255,7 @@ fn walked(chains: u32, length: u32, bound: &[u32], repeats: usize) -> Result<Val
         .iter()
         .flat_map(|chain| std::iter::repeat_n((chain * (length + 1), 0, 0), repeats))
         .collect();
-    let left = edges(&starts, &resources);
+    let left = defines_of_edges(&edges(&starts, &resources));
     let inputs = TableInputs::new(&[(EDGES, &table), (Relation::Defines, &left)]);
     let step = left_of(
         join(
@@ -320,7 +321,7 @@ fn edges_fault_first() -> Result<Value, Failure> {
         }
         table
     };
-    let (left_rows, edge_rows) = (fields(1, "("), fields(4, "["));
+    let (left_rows, edge_rows) = (defines_of_edges(&fields(1, "(")), fields(4, "["));
     let inputs = TableInputs::new(&[(EDGES, &edge_rows), (Relation::Defines, &left_rows)]);
     let node = |at| {
         (

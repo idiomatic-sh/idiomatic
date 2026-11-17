@@ -38,16 +38,20 @@ impl KernelsItem for ScanFactsItem {
     }
 }
 
-/// A relation's rows as the facts lend them.
+/// A relation's rows as the facts lend them: every relation's columns enter the executor here, and only whole.
 ///
 /// # Errors
 ///
-/// `NotRun` for a relation the facts refused: a fault, never empty rows.
+/// `NotRun` for a relation the facts refused: a fault, never empty rows. `ShapeMismatch` for columns fewer than the
+/// relation's kinds, malformed rows no reader may read part of.
 pub(crate) fn facts(
     inputs: &dyn PlanInputs,
     relation: Relation,
 ) -> Result<ColumnsView<'_>, PortableOperatorFault> {
     match inputs.facts(relation) {
+        FactRows::Lent(view) if view.columns.len() < view.kinds.len() => {
+            Err(PortableOperatorFault::ShapeMismatch)
+        }
         FactRows::Lent(view) => Ok(view),
         FactRows::Refused => Err(PortableOperatorFault::NotRun),
     }
