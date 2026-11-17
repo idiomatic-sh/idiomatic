@@ -24,3 +24,17 @@ pub struct VerificationTimesFile(pub std::path::PathBuf);
 pub struct VerificationTimesFiles(
     pub std::collections::BTreeMap<ryo::linter::RuleId, VerificationTimesFile>,
 );
+
+/// Which measures a published document keeps.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MeasureClass {
+    /// A measure the same tree gives again on any machine of the runner's kind: what a run leaves in its store, and its
+    /// peak memory.
+    Deterministic,
+    /// A measure of time, which moves with the machine and its load: CPU and wall seconds, verification times and growth.
+    Timing,
+}
+
+/// One bench document as BMF writes it: one line of JSON.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PublishedDocument(pub Vec<u8>);

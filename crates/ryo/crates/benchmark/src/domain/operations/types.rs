@@ -5,8 +5,12 @@ use std::path::PathBuf;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BenchOperation {
     /// Every default verified against its cases, then the language's projects linted by both contestants, compared and
-    /// measured, and the rules grown, as one document (`bench`).
+    /// measured, and the rules grown; the document publishes the deterministic measures alone (`bench`), the ones a
+    /// pull request is judged by.
     Bench,
+    /// The same run as `Bench`; the document publishes its timing measures alone (`bench-timing`), which a shared runner
+    /// moves from run to run, so no pull request is judged by them.
+    Timing,
 }
 
 /// The collector verb that names an operation.

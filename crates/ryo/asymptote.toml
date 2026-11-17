@@ -277,12 +277,27 @@ inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo",
 id = "bench"
 group = "bench"
 # Each linter bench over every project of its language: every default verified against its cases, then ryo and the pinned
-# reference over each project, any difference a failure, and ryo's cost, its verification times and its growth as one BMF
-# document. The one pin of every timed measure (whole-repo runs, verification times, growth): the whole process tree runs on
-# processors 0-3 with RAYON_NUM_THREADS=4, and the collector refuses any processor count but four. `store-files` is held
-# exactly. benchmarks.yml's hand-run bench-seed job seeds the lock on the runner that judges it.
+# reference over each project, any difference a failure, and the run's deterministic measures as one BMF document: what the
+# cold run leaves in its store (`store-bytes`, `store-files`, held exactly) and the peak memory of each run. The pull request's
+# `bench` job judges these alone: a shared runner moves the run's times from run to run, so they are `bench-timing`'s,
+# which no pull request is judged by. The whole process tree runs on processors 0-3 with RAYON_NUM_THREADS=4, and the collector refuses any
+# processor count but four. benchmarks.yml's hand-run bench-seed job seeds the lock on the runner that judges it.
 run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "bench", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
-tolerance-percent = { cpu-s = 10, wall-s = 15, peak-rss-bytes = 5, warm-cpu-s = 10, warm-peak-rss-bytes = 5, edited-cpu-s = 10, edited-peak-rss-bytes = 5, store-bytes = 1, total-ms = 10, max-case-ms = 10, compile-ms = 10, doubling-ratio = 10, larger-ms = 10 }
+tolerance-percent = { peak-rss-bytes = 5, warm-peak-rss-bytes = 5, edited-peak-rss-bytes = 5, store-bytes = 1 }
+timeout-seconds = 21600
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
+id = "bench-timing"
+group = "bench-timing"
+# The same run as `bench`, publishing its timing measures alone: the cold, warm and edited runs' CPU and wall seconds, each
+# rule's verification times and each shape's growth. A shared runner moves them from run to run, so no pull request is judged
+# by them: no workflow a pull request starts runs this group. benchmarks.yml's hand-run bench-seed job checks and seeds it
+# on the runner, and a developer runs it to read a change's cost. The one pin of every timed measure: the whole process tree
+# runs on processors 0-3 with RAYON_NUM_THREADS=4.
+run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "bench-timing", "languages/{lang}/benchmarks/linters/{linter}"]
+output = "bmf"
+tolerance-percent = { cpu-s = 10, wall-s = 15, warm-cpu-s = 10, edited-cpu-s = 10, total-ms = 10, max-case-ms = 10, compile-ms = 10, doubling-ratio = 10, larger-ms = 10 }
 timeout-seconds = 21600
 inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]

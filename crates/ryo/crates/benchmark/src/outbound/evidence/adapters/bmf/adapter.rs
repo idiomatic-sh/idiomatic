@@ -83,6 +83,13 @@ impl EvidencePort for EvidenceBmfAdapter {
     ) -> Result<crate::outbound::evidence::types::RuleTimings, Error> {
         schemas::read_verification(files)
     }
+    fn select(
+        &self,
+        document: &crate::outbound::evidence::types::PublishedDocument,
+        class: crate::outbound::evidence::types::MeasureClass,
+    ) -> Result<crate::outbound::evidence::types::PublishedDocument, Error> {
+        schemas::select(document, class)
+    }
     fn finish(&self) -> Result<(), Error> {
         let mut held = self
             .connection

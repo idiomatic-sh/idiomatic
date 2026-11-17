@@ -1,6 +1,8 @@
 //! The words and names of the gated operations.
 /// The collector verb of a language bench: verification, then the corpus, as one document.
 pub(crate) const BENCH: &str = "bench";
+/// The collector verb of a language bench's timing: the same run, its timing measures alone.
+pub(crate) const BENCH_TIMING: &str = "bench-timing";
 /// The directory under the cargo target that holds every operation's output.
 pub(crate) const BENCHMARK: &str = "benchmark";
 /// The first component of a bench directory.

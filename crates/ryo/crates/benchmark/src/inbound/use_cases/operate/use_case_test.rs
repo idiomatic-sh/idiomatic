@@ -28,8 +28,14 @@ type Value = (
 /// The refusal, the artifacts requests, as text, and whether a registration was written.
 type Failure = (Cow<'static, str>, Cow<'static, str>, bool);
 
-/// The document the scripted worker writes.
-const METRICS: &str = "{\"metric\":{}}\n";
+/// What `bench` publishes of the scripted worker's document: its deterministic measures alone.
+const DETERMINISTIC: &str = "{\"fixture/project\":{\"peak-rss-bytes\":{\"value\":4096.0},\"store-bytes\":{\"value\":512.0}}}\n";
+
+/// What `bench-timing` publishes of it: its timing measures alone.
+const TIMING: &str = "{\"fixture/project\":{\"cpu-s\":{\"value\":2.5}},\"fixture/verify/R1\":{\"total-ms\":{\"value\":3.0}}}\n";
+
+/// The requests of a timing run, the same as a bench's under its own directory.
+const TIMING_CALLS: &str = "[SealWorker(\"<root>/target/benchmark/fixture/lint/bench-timing/worker\"), SealCurrent(\"<root>/target/benchmark/fixture/lint/bench-timing/collector\"), Check(\"<root>/target/benchmark/fixture/lint/bench-timing/worker\", [\"verify-tool\", \"<root>/lint\"]), Run(\"<root>/target/benchmark/fixture/lint/bench-timing/worker\", [\"measure-valid\", \"<root>/lint\", \"<root>/target/benchmark/fixture/lint/bench-timing/state\", \"<root>/target/benchmark/fixture/lint/bench-timing/collector\", \"--case-inventory=<root>/target/benchmark/fixture/lint/bench-timing/registration.json\", \"--verification=<root>/target/benchmark/fixture/lint/bench-timing/inventory\", \"--document=<root>/target/benchmark/fixture/lint/bench-timing/document.bmf\"])]";
 
 /// The requests of a bench whose verification passed: the worker and the collector sealed, the reference tool verified once,
 /// then the worker's corpus run.
@@ -52,15 +58,31 @@ const PASSING: Scenario = Scenario {
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
-            "bench passes and its standard output is the worker's one document and nothing else",
+            "bench passes and its standard output is the deterministic measures of the worker's document and nothing else",
         ),
         word: Word::Succeeds,
         input: || PASSING,
         expect: Expect::Value((
             OperationVerdict::Passed,
-            Cow::Borrowed(METRICS),
+            Cow::Borrowed(DETERMINISTIC),
             Published::OneDocument,
             Cow::Borrowed(BENCH_CALLS),
+        )),
+    },
+    Case {
+        name: CaseName(
+            "bench-timing runs the same worker and publishes the timing measures of its document alone",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario {
+            operation: BenchOperation::Timing,
+            ..PASSING
+        },
+        expect: Expect::Value((
+            OperationVerdict::Passed,
+            Cow::Borrowed(TIMING),
+            Published::OneDocument,
+            Cow::Borrowed(TIMING_CALLS),
         )),
     },
     Case {

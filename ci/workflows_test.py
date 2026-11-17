@@ -79,8 +79,12 @@ CAPTURE_GROUP = re.compile(r"asymptote check --groups ([a-z][a-z-]*) --format js
 # chains anything to, or only actions (a build matrix). The values it is handed are crates.io's token, from its trusted publishing,
 # and the token `gh` creates the GitHub Release with; npm and PyPI exchange the OIDC token themselves.
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
-# The one other job command: seeding ryo's bench lock on the runner that judges it, one linter bench a step (benchmarks.yml).
-SEED = re.compile(r'asymptote up --root crates/ryo --reason "seed on [\w.-]+" --tool bench/[a-z]+/[a-z]+')
+# The one other job command: seeding ryo's bench lock on the runner that judges it, after the check of both bench groups: what
+# it found unseeded or over its best recorded (`up`), and the records of measures no tool reports any more dropped (`down`)
+# (benchmarks.yml).
+SEED = re.compile(r'asymptote (up --root crates/ryo --reason "seed on [\w.-]+"|down --root crates/ryo)')
+# The check a seed stands on: both bench groups, the deterministic and the timing one.
+SEED_CHECK = "asymptote check --root crates/ryo --groups bench,bench-timing"
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
 # What may start a workflow: a hand run, and a pull request to main for the workflows `REQUESTED` names, the check alone (GitHub's
 # standard hosted runners are free on a public repository). The workflows `PUSHED` names may start on a push to main too, which
@@ -328,7 +332,8 @@ def problems(workflow: dict) -> list[str]:
         elif positions:
             run = re.sub(r"\$\{\{.*?\}\}", "value", job["steps"][positions[0]]["run"].strip())
             following = enumerate(job["steps"][positions[0] + 1 :], start=positions[0] + 1)
-            if any(not step.get("uses", "").startswith(UPLOAD) and index not in saved for index, step in following):
+            seeding = set(seeds(job))
+            if any(not step.get("uses", "").startswith(UPLOAD) and index not in saved | seeding for index, step in following):
                 found.append(f"{name} does not end in its asymptote check step")
             if not CHECK.fullmatch(run) and not captured_check(run):
                 found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
@@ -1761,10 +1766,8 @@ BENCH = "languages/{lang}/benchmarks/linters/{linter}"
 COLLECTOR = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--"]
 # The one pin of every timed measure: the whole process tree of the bench on processors 0-3 with four workers.
 PIN = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4"]
-BENCH_TOLERANCES = {
-    "cpu-s", "wall-s", "peak-rss-bytes", "warm-cpu-s", "warm-peak-rss-bytes", "edited-cpu-s", "edited-peak-rss-bytes",
-    "store-bytes", "total-ms", "max-case-ms", "compile-ms", "doubling-ratio", "larger-ms",
-}
+# The deterministic measure held to its best exactly, with no tolerance: how many files the store holds.
+EXACT = {"store-files"}
 # The tools the one bench replaced: the verification, the corpus measure and parity, the verify times and growth, and the runs
 # over ruff with Tastemaker's rules, which left ryo.
 RETIRED = {
@@ -1790,8 +1793,14 @@ def bench_tool_problems(tools: list[dict], job: dict) -> list[str]:
     (tool,) = benches
     if tool.get("run") != [*PIN, *COLLECTOR, "bench", BENCH] or BENCH not in tool.get("inputs", []):
         found.append("bench must run the pinned collector's bench verb over each bench directory")
-    if tool.get("output") != "bmf" or set(tool.get("tolerance-percent", {})) != BENCH_TOLERANCES:
+    classes = measure_classes()
+    if tool.get("output") != "bmf" or set(tool.get("tolerance-percent", {})) != set(classes["DETERMINISTIC"]) - EXACT:
         found.append("bench must print BMF with the bench's tolerance table")
+    timing = [each for each in tools if each.get("group") == "bench-timing"]
+    if [each.get("run") for each in timing] != [[*PIN, *COLLECTOR, "bench-timing", BENCH]] or any(
+        set(each.get("tolerance-percent", {})) != set(classes["TIMING"]) or each.get("inputs") != tool.get("inputs") for each in timing
+    ):
+        found.append("bench-timing must run the pinned collector's timing verb over the bench's inputs, every time held to a tolerance")
     if any("tastemaker" in each for each in tool.get("inputs", [])):
         found.append("bench reads no Tastemaker rule")
     found += [f"{each['id']} is retired by bench" for each in tools if each.get("id") in RETIRED]
@@ -1818,14 +1827,16 @@ def test_each_language_bench_is_one_pinned_tool() -> None:
     one_bench = deepcopy(tools)
     bench(one_bench)["run"][-1] = "languages/python/benchmarks/linters/ruff"
     loose = deepcopy(tools)
-    del bench(loose)["tolerance-percent"]["cpu-s"]
+    del bench(loose)["tolerance-percent"]["peak-rss-bytes"]
+    untimed = deepcopy(tools)
+    next(tool for tool in untimed if tool.get("group") == "bench-timing")["tolerance-percent"].pop("wall-s")
     tastemaker = deepcopy(tools)
     bench(tastemaker)["inputs"].append("../../tastemaker")
     second = deepcopy(tools)
     second.append({**bench(second), "id": "bench-replay"})
     retired = deepcopy(tools)
     retired.append({"id": "memory-lint", "group": "memory", "run": ["cargo", "bench"]})
-    for changed in (unpinned, one_worker, one_bench, loose, tastemaker, second, retired):
+    for changed in (unpinned, one_worker, one_bench, loose, untimed, tastemaker, second, retired):
         assert bench_tool_problems(changed, job)
     assert bench_tool_problems(tools, {**job, "env": {**job["env"], "RAYON_NUM_THREADS": "1"}})
 
@@ -1836,6 +1847,69 @@ def test_the_test_tools_filter_no_test_out() -> None:
     assert {identity: tools[identity]["run"] for identity in UNFILTERED_TESTS} == UNFILTERED_TESTS
 
 
+# The measures the collector classes as deterministic (`DETERMINISTIC` in the BMF evidence constants), the one definition the
+# gate reads; every other measure the document writes is a time.
+EVIDENCE_CONSTANTS = ROOT / "crates/ryo/crates/benchmark/src/outbound/evidence/adapters/bmf/constants.rs"
+
+
+def measure_classes() -> dict[str, list[str]]:
+    """Each class the collector's evidence constants name (`DETERMINISTIC`, `TIMING`) and the measures in it, by name."""
+    text = read(EVIDENCE_CONSTANTS)
+    names = dict(re.findall(r'pub\(super\) const ([A-Z_]+): &str = "([a-z-]+)";', text))
+    classes = {}
+    for name, members in re.findall(r"pub\(super\) const (DETERMINISTIC|TIMING): \[&str; \d+\] = \[([^\]]*)\];", text):
+        classes[name] = [names[member.strip()] for member in members.split(",") if member.strip()]
+    return classes
+
+
+def timing_gate_problems(manifest: dict, workflows: dict[str, dict]) -> list[str]:
+    """What lets a timing measure judge a pull request: the gating bench tool holding a timing measure to a tolerance, or
+    publishing through any verb but `bench`, and a workflow a pull request starts running the timing group."""
+    classes = measure_classes()
+    tools = {tool["id"]: tool for tool in manifest["tools"]}
+    found = []
+    gating = [tool for tool in manifest["tools"] if tool["group"] == BENCH_JOB_GROUP]
+    for tool in gating:
+        timed = sorted(set(tool.get("tolerance-percent", {})) - set(classes["DETERMINISTIC"]))
+        found += [f"{tool['id']} holds the time {measure} to a tolerance" for measure in timed]
+        if tool["run"][-2] != "bench":
+            found.append(f"{tool['id']} publishes through {tool['run'][-2]}, not the deterministic `bench`")
+    timing = tools.get("bench-timing", {})
+    if timing.get("group") == BENCH_JOB_GROUP or timing.get("run", [None, None])[-2] != "bench-timing":
+        found.append("the timing measures are not bench-timing's, outside the gating group")
+    for name, workflow in workflows.items():
+        if "pull_request" not in triggers(workflow):
+            continue
+        for job_name, job in workflow["jobs"].items():
+            for step in job.get("steps", []):
+                matched = re.search(r"--groups (\S+)", step.get("run", ""))
+                if matched and "bench-timing" in matched[1].split(","):
+                    found.append(f"{name} runs bench-timing in {job_name}, which a pull request starts")
+    return found
+
+
+def test_a_timing_measure_never_gates_the_pull_request_bench() -> None:
+    """The pull request's `bench` job judges the deterministic measures alone (the store and the peak memory); the times are
+    `bench-timing`'s, which no workflow a pull request starts runs (the owner's decision of 2026-11-17)."""
+    classes = measure_classes()
+    assert classes["DETERMINISTIC"] == ["store-bytes", "store-files", "peak-rss-bytes", "warm-peak-rss-bytes", "edited-peak-rss-bytes"]
+    assert set(classes["TIMING"]) == {"cpu-s", "wall-s", "warm-cpu-s", "edited-cpu-s", "total-ms", "max-case-ms", "compile-ms", "doubling-ratio", "larger-ms"}
+    manifest = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))
+    workflows = {path.name: yaml.safe_load(read(path)) for path in WORKFLOWS}
+    assert timing_gate_problems(manifest, workflows) == []
+    # Planted: #49's bench tool, which held every time to a tolerance in the gating group.
+    planted = deepcopy(manifest)
+    (bench,) = [tool for tool in planted["tools"] if tool["id"] == "bench"]
+    bench["tolerance-percent"] |= {"cpu-s": 10, "wall-s": 15}
+    assert timing_gate_problems(planted, workflows) == ["bench holds the time cpu-s to a tolerance", "bench holds the time wall-s to a tolerance"]
+    # Planted: the pull request's bench job running the timing group beside its own.
+    gated = deepcopy(workflows)
+    for step in gated["check.yml"]["jobs"]["bench"]["steps"]:
+        if step.get("run") == BENCH_JOB_CHECK:
+            step["run"] = BENCH_JOB_CHECK + ",bench-timing"
+    assert timing_gate_problems(manifest, gated) == ["check.yml runs bench-timing in bench, which a pull request starts"]
+
+
 def test_the_bench_lock_is_seeded_only_by_hand() -> None:
     """benchmarks.yml, started only by hand, seeds ryo's bench lock, one linter bench a step, and uploads the lock and the
     receipts its tools wrote; check.yml seeds nothing."""
@@ -1844,9 +1918,15 @@ def test_the_bench_lock_is_seeded_only_by_hand() -> None:
     assert list(workflow["jobs"]) == ["bench-seed"]
     job = workflow["jobs"]["bench-seed"]
     assert "if" not in job and "needs" not in job and "strategy" not in job
-    assert [job["steps"][index]["run"].split()[-1] for index in seeds(job)] == [
-        "bench/python/ruff", "bench/rust/clippy", "bench/typescript/oxlint"
-    ]
+    runs = [step["run"] for step in job["steps"] if "run" in step and step["run"] not in SETUP]
+    assert runs == [SEED_CHECK, 'asymptote up --root crates/ryo --reason "seed on ubuntu-26.04"', "asymptote down --root crates/ryo"]
+    # `up` and `down` run after a check that finished, red (the lock did not hold this runner's numbers) or green, and `down`
+    # only after `up` recorded.
+    (up,) = [step for step in job["steps"] if step.get("id") == "up"]
+    assert up["if"] == "${{ !cancelled() && (steps.check.outcome == 'success' || steps.check.outcome == 'failure') }}"
+    (down,) = [step for step in job["steps"] if step.get("run") == "asymptote down --root crates/ryo"]
+    assert down["if"] == "${{ !cancelled() && steps.up.outcome == 'success' }}"
+    assert not any("continue-on-error" in step for step in job["steps"])
     upload = job["steps"][-1]
     assert upload["uses"].startswith(UPLOAD) and upload["if"] == "always()"
     assert upload["with"]["path"].split() == ["crates/ryo/.asymptote/operations/", "target/benchmark/"]

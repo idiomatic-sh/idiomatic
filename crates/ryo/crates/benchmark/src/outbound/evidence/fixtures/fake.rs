@@ -59,6 +59,14 @@ impl EvidencePort for EvidenceFake {
             ))
         }
     }
+    /// The fake classes no measure: the document is kept whole.
+    fn select(
+        &self,
+        document: &crate::outbound::evidence::types::PublishedDocument,
+        _class: crate::outbound::evidence::types::MeasureClass,
+    ) -> Result<crate::outbound::evidence::types::PublishedDocument, Error> {
+        Ok(document.clone())
+    }
     /// The fake writes nothing.
     fn finish(&self) -> Result<(), Error> {
         Ok(())
@@ -166,6 +174,13 @@ impl EvidencePort for EvidenceRecorder {
         files: &crate::outbound::evidence::types::VerificationTimesFiles,
     ) -> Result<crate::outbound::evidence::types::RuleTimings, Error> {
         EvidenceFake.read_verification(files)
+    }
+    fn select(
+        &self,
+        document: &crate::outbound::evidence::types::PublishedDocument,
+        class: crate::outbound::evidence::types::MeasureClass,
+    ) -> Result<crate::outbound::evidence::types::PublishedDocument, Error> {
+        EvidenceFake.select(document, class)
     }
     fn finish(&self) -> Result<(), Error> {
         self.record(|held| held.documents += 1)
