@@ -3,8 +3,8 @@
 //! so each node reading the tree starts from the tree nodes of its kinds, and a node with no root kind from every tree node.
 
 use crate::application::file_dag::file_pass::types::{
-    FileRoots, PassInputs, PassProgram, PassResources, PassScratch, PassSource, RootKindNodes,
-    TreeStart,
+    CountersListened, FileRoots, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
+    RootKindNodes, TreeStart,
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::publications::service::bound::service::held_observation;
@@ -232,7 +232,7 @@ pub(crate) fn taken(pass: &PassProgram) -> PassScratch {
             ..PassScratch::default()
         };
         // The node counters are on only for a run whose subscriber listens to them, so a run that does not pays nothing.
-        if counters::service::listened() {
+        if counters::service::listened() == CountersListened::Listening {
             made.buffers.count_nodes();
         }
         made

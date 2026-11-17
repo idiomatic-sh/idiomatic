@@ -269,3 +269,12 @@ pub(crate) enum NodeMove {
     /// Answer no column of the node to its readers: it holds no row and its refusal is deferred to its rows.
     Empty(PlanNodeId),
 }
+
+/// Whether the current subscriber listens to the node counters, so a run counts its nodes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CountersListened {
+    /// It listens: the run counts each node and emits the counts at its end.
+    Listening,
+    /// It does not: the run counts nothing and emits nothing.
+    Unheard,
+}
