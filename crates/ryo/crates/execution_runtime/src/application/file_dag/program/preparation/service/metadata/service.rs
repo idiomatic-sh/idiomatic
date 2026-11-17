@@ -21,10 +21,9 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 pub(crate) fn plans(
     plans: &[Plan],
     pass: &PassProgram,
+    sets: &mut ReadSets,
     purposes: &[Vec<FrontierPurpose>],
 ) -> Result<Vec<RulePlan>, OperatingError> {
-    // A root that is a relation itself reads it whole: its set is stored here, once however many roots read it.
-    let mut sets = ReadSets::default();
     plans
         .iter()
         .enumerate()

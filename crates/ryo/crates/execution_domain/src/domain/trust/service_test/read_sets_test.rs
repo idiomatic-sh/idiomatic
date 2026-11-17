@@ -1,6 +1,6 @@
 //! The `trust` service's read sets: what each step of a plan reads, each set stored once per program.
 
-use super::super::service::{kind_place, needs_of, physical_reads, step_read_sets};
+use super::super::service::{kind_place, step_read_sets};
 use super::super::types::read_sets::value::{ReadSets, StepReadSets};
 use super::super::types::relation_read::value::RelationRead;
 use super::super::types::{SetSharing, StoredSets};
@@ -10,16 +10,16 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as PlanInput, LiteralText, Operand, PlanComparison,
     QueryLiteral, StepId, StepScope, Test,
 };
-use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use std::borrow::Cow;
 
 /// What a row asks of the read sets.
 #[derive(Clone, Copy, Debug)]
 enum Ask {
     /// Whether every step of the plan holds the stored uses its first step holds, and how many sets the program stores.
     Sharing(fn() -> Plan),
-    /// How many steps of the plan have read sets equal to what `physical_reads` and the transitive `needs_of` answer.
-    Agreement(fn() -> Plan),
+    /// What each step of the plan reads, its uses and its needs.
+    Sets(fn() -> Plan),
     /// How many uses and needs one step of the plan holds.
     StepReads(fn() -> Plan, usize),
     /// Whether the first step of the second plan holds the stored uses the first step of the first plan holds, both plans' sets
@@ -35,10 +35,77 @@ enum Answer {
         first: SetSharing,
         distinct: StoredSets,
     },
-    /// Of the steps compared, how many disagree.
-    Agreeing { steps: usize, disagreeing: usize },
+    /// What each step reads, by step.
+    Steps(Cow<'static, [StepSeen]>),
     /// How many reads a step's uses and needs hold.
     Reads { uses: usize, needs: usize },
+}
+
+/// One read as a row states it: the relation, and the literal of each comparison on its kind.
+#[derive(Clone, Debug, PartialEq)]
+struct Seen {
+    relation: Relation,
+    kinds: Cow<'static, [Cow<'static, str>]>,
+}
+
+/// What one step reads as a row states it.
+#[derive(Clone, Debug, PartialEq)]
+struct StepSeen {
+    uses: Cow<'static, [Seen]>,
+    needs: Cow<'static, [Seen]>,
+}
+
+/// A read of every row of `relation`.
+const fn whole(relation: Relation) -> Seen {
+    Seen {
+        relation,
+        kinds: Cow::Borrowed(&[]),
+    }
+}
+
+const DEFINES: Seen = whole(Relation::Defines);
+const FUNCTION: Seen = whole(Relation::Function);
+const DEFINES_ENUM: Seen = Seen {
+    relation: Relation::Defines,
+    kinds: Cow::Borrowed(&[Cow::Borrowed("enum")]),
+};
+const READS_DEFINES: StepSeen = StepSeen {
+    uses: Cow::Borrowed(&[DEFINES]),
+    needs: Cow::Borrowed(&[]),
+};
+const READS_DEFINES_ENUM: StepSeen = StepSeen {
+    uses: Cow::Borrowed(&[DEFINES_ENUM]),
+    needs: Cow::Borrowed(&[]),
+};
+const READS_FUNCTION: StepSeen = StepSeen {
+    uses: Cow::Borrowed(&[FUNCTION]),
+    needs: Cow::Borrowed(&[]),
+};
+const TRUSTS_DEFINES_ENUM: StepSeen = StepSeen {
+    uses: Cow::Borrowed(&[FUNCTION, DEFINES_ENUM]),
+    needs: Cow::Borrowed(&[DEFINES_ENUM]),
+};
+const READS_NOTHING: StepSeen = StepSeen {
+    uses: Cow::Borrowed(&[]),
+    needs: Cow::Borrowed(&[]),
+};
+
+/// How a row states `reads`.
+fn seen(reads: &[RelationRead]) -> Cow<'static, [Seen]> {
+    reads
+        .iter()
+        .map(|read| Seen {
+            relation: read.relation(),
+            kinds: read
+                .kinds
+                .iter()
+                .map(|kind| match &kind.right {
+                    Operand::Literal(QueryLiteral::Text(text)) => Cow::Owned(text.0.to_string()),
+                    other => Cow::Owned(format!("{other:?}")),
+                })
+                .collect(),
+        })
+        .collect()
 }
 
 type Input = Ask;
@@ -65,20 +132,16 @@ fn subject(ask: Input) -> Result<Value, Failure> {
                 distinct: sets.distinct(),
             }
         }
-        Ask::Agreement(plan) => {
-            let plan = plan();
-            let made = step_read_sets(&plan, &mut ReadSets::default()).0;
-            let expected = expected_reads(&plan);
-            Answer::Agreeing {
-                steps: made.len().max(expected.len()),
-                disagreeing: made
-                    .iter()
-                    .zip(&expected)
-                    .filter(|(made, (uses, needs))| *made.uses != **uses || *made.needs != **needs)
-                    .count()
-                    + made.len().abs_diff(expected.len()),
-            }
-        }
+        Ask::Sets(plan) => Answer::Steps(
+            step_read_sets(&plan(), &mut ReadSets::default())
+                .0
+                .iter()
+                .map(|each| StepSeen {
+                    uses: seen(&each.uses),
+                    needs: seen(&each.needs),
+                })
+                .collect(),
+        ),
         Ask::Program(one, two) => {
             let mut sets = ReadSets::default();
             let one = step_read_sets(&one(), &mut sets).0;
@@ -100,38 +163,6 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             }
         }
     })
-}
-
-/// What each step of `plan` reads as the per-step reads were worked out before they were stored once: its physical reads (none
-/// for a refused step), and the reads it trusts the absence of together with those of every step it reads.
-fn expected_reads(plan: &Plan) -> Vec<(Vec<RelationRead>, Vec<RelationRead>)> {
-    let uses = physical_reads(plan);
-    let trusted = needs_of(plan);
-    let mut reads: Vec<(Vec<RelationRead>, Vec<RelationRead>)> = Vec::new();
-    for (at, step) in plan.steps.iter().enumerate() {
-        // A refused step reads nothing.
-        let own = if let Some(Ok(read)) = uses.get(at) {
-            read.clone()
-        } else {
-            Vec::new()
-        };
-        let mut needs: Vec<RelationRead> = Vec::new();
-        let mut more: Vec<RelationRead> = trusted.get(at).cloned().unwrap_or_default();
-        for input in named(&inputs_of(&step.operation)) {
-            if let PlanInput::Step(id) = input
-                && let Some((_, earlier)) = usize::try_from(id.0).map_or(None, |at| reads.get(at))
-            {
-                more.extend(earlier.iter().cloned());
-            }
-        }
-        for read in more {
-            if !needs.contains(&read) {
-                needs.push(read);
-            }
-        }
-        reads.push((own, needs));
-    }
-    reads
 }
 
 /// A per-file step of `operation`.
@@ -267,42 +298,39 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("read_sets_answer_what_physical_reads_and_needs_of_answer_over_a_chain"),
+        name: CaseName("read_sets_answer_what_each_step_reads_over_a_chain"),
         word: Word::Succeeds,
-        input: || Ask::Agreement(chained),
-        expect: Expect::Value(Answer::Agreeing {
-            steps: 50,
-            disagreeing: 0,
-        }),
+        input: || Ask::Sets(chained),
+        expect: Expect::Value(Answer::Steps(Cow::Borrowed(&[READS_DEFINES; 50]))),
     },
     Case {
-        name: CaseName("read_sets_answer_what_physical_reads_and_needs_of_answer_over_a_narrowing"),
+        name: CaseName("read_sets_answer_what_each_step_reads_over_a_narrowing"),
         word: Word::Succeeds,
-        input: || Ask::Agreement(narrowed),
-        expect: Expect::Value(Answer::Agreeing {
-            steps: 2,
-            disagreeing: 0,
-        }),
+        input: || Ask::Sets(narrowed),
+        expect: Expect::Value(Answer::Steps(Cow::Borrowed(&[
+            READS_DEFINES,
+            READS_DEFINES_ENUM,
+        ]))),
     },
     Case {
-        name: CaseName(
-            "read_sets_answer_what_physical_reads_and_needs_of_answer_over_a_trusted_absence",
-        ),
+        name: CaseName("read_sets_answer_what_each_step_reads_over_a_trusted_absence"),
         word: Word::Succeeds,
-        input: || Ask::Agreement(trusting),
-        expect: Expect::Value(Answer::Agreeing {
-            steps: 4,
-            disagreeing: 0,
-        }),
+        input: || Ask::Sets(trusting),
+        expect: Expect::Value(Answer::Steps(Cow::Borrowed(&[
+            READS_FUNCTION,
+            READS_DEFINES_ENUM,
+            TRUSTS_DEFINES_ENUM,
+            TRUSTS_DEFINES_ENUM,
+        ]))),
     },
     Case {
-        name: CaseName("read_sets_answer_what_physical_reads_and_needs_of_answer_over_a_refusal"),
+        name: CaseName("read_sets_answer_what_each_step_reads_over_a_refusal"),
         word: Word::Succeeds,
-        input: || Ask::Agreement(refused),
-        expect: Expect::Value(Answer::Agreeing {
-            steps: 2,
-            disagreeing: 0,
-        }),
+        input: || Ask::Sets(refused),
+        expect: Expect::Value(Answer::Steps(Cow::Borrowed(&[
+            READS_DEFINES,
+            READS_NOTHING,
+        ]))),
     },
     Case {
         name: CaseName("a_step_after_a_trusted_absence_needs_what_it_reads_needs"),

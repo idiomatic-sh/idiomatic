@@ -275,7 +275,7 @@ pub fn project_unknowns(
 
 /// One topological physical-read pass for all demanded roots: each step's reads, or the refusal of a step that reads a step not
 /// before it.
-pub fn physical_reads(plan: &Plan) -> Vec<Result<Vec<RelationRead>, OperatingError>> {
+pub(crate) fn physical_reads(plan: &Plan) -> Vec<Result<Vec<RelationRead>, OperatingError>> {
     uses_of(plan)
         .into_iter()
         .map(|reads| reads.map(|reads| reads.uses))

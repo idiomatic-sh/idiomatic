@@ -43,7 +43,10 @@ pub fn prepare(
     operators: Arc<dyn OperatorsPort>,
 ) -> Result<PreparedExecutionProgram, OperatingError> {
     // Every file runs through the file pass, over the compiled plans the compilation shares: its program is planned here, once,
-    // with each rule's stage, so a rule no stage serves yet is refused where it would run.
+    // with each rule's stage, so a rule no stage serves yet is refused where it would run. One store of read sets serves the
+    // program and its metadata: a set two steps or roots rest on, in one rule or two, is held once; the store goes when they are built.
+    let mut sets =
+        ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets::default();
     let pass = crate::application::file_dag::file_pass::service::pass_program(
         &crate::application::file_dag::file_pass::types::PassSource {
             plans: compiled.plans.clone(),
@@ -61,9 +64,10 @@ pub fn prepare(
                 .collect(),
             ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         },
+        &mut sets,
     )?;
     let inner = crate::application::file_dag::program::preparation::service::prepare(
-        compiled, rules, digests, hosted, identity, &pass,
+        compiled, rules, digests, hosted, identity, &pass, &mut sets,
     )?;
     Ok(PreparedExecutionProgram {
         parts: ProgramParts {

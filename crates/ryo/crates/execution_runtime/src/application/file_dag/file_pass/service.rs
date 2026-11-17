@@ -176,12 +176,15 @@ pub(crate) fn roots_of(roots: &FileRoots, node: PlanNodeId) -> Candidates<'_> {
 }
 
 /// The program the file pass runs for a request: its rules merged into one logical program, planned by its operators and
-/// assembled, with what each step of each rule reads.
+/// assembled, with what each step of each rule reads, each read set stored once in `sets`, the program's one store.
 ///
 /// # Errors
 ///
 /// The logical program's refusal, or the shape fault the operators plan with.
-pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, OperatingError> {
+pub(crate) fn pass_program(
+    source: &PassSource,
+    sets: &mut ReadSets,
+) -> Result<PassProgram, OperatingError> {
     let PassSource {
         plans,
         bindings,
@@ -202,11 +205,9 @@ pub(crate) fn pass_program(source: &PassSource) -> Result<PassProgram, Operating
     let build = logical(&rules, &mut inputs)?;
     let plan = operators.plan(build.program()).map_err(portable_fault)?;
     let program = assemble(build, plan);
-    // One store of read sets for the program: a set two steps rest on, in one rule or two, is held once.
-    let mut sets = ReadSets::default();
     let reads = plans
         .iter()
-        .map(|plan| step_read_sets(plan, &mut sets))
+        .map(|plan| step_read_sets(plan, sets))
         .collect();
     Ok(PassProgram {
         program,
