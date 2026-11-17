@@ -18,7 +18,7 @@ let initial_origin_contexts = select context, initial_scope, point, header_point
 let initial_origins = qualified_origins(symbol_contexts=initial_origin_contexts, expressions=origin_expressions);
 let late_mode_files_rows = select file from modes where mode = 1 and matches(file, "\.pyi$");
 let late_mode_files = project(from=late_mode_files_rows, columns=["file"]);
-let late_origin_expressions = select l.id as id, l.file as file from origin_expressions as l all-pairs join late_mode_files as r on l.file = r.file;
+let late_origin_expressions = select l.id as id, l.file as file from origin_expressions as l join late_mode_files as r on l.file = r.file;
 let late_cached_origins = deferred_class_origins(expressions=late_origin_expressions);
 let late_origins = select l.context as context, r.expression as expression, r.path as path, l.file as file from modes as l all-pairs join late_cached_origins as r on l.file = r.file where l.mode = 1;
 let contextual_origins = union(left=initial_origins, right=late_origins);
