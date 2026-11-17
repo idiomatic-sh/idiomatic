@@ -26,12 +26,16 @@ type Failure = &'static str;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
-            "actual trace guards survive loading configuration SDK errors and abandonment",
+            "actual trace guards survive loading configuration SDK errors and abandonment, and a run's node counters reach the trace",
         ),
         word: Word::Succeeds,
         input: || Scenario::TraceSessions,
         expect: Expect::Value(
-            "success 1,load true configure true compile true; load-refusal true,load false configure false compile false; configure-refusal true,load true configure false compile false; execute-refusal true,load true configure true compile true; abandoned load true configure false compile false",
+            "success 1,load true configure true compile true counters runs=\"1\" nodes=\"1\"; \
+             load-refusal true,load false configure false compile false counters none; \
+             configure-refusal true,load true configure false compile false counters none; \
+             execute-refusal true,load true configure true compile true counters runs=\"1\" nodes=\"1\"; \
+             abandoned load true configure false compile false counters none",
         ),
     },
     Case {

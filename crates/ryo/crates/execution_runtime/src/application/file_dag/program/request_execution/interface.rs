@@ -26,7 +26,8 @@ pub trait ProgramRequestExecutionPort {
         &'a self,
         arenas: &'a mut crate::application::file_dag::program::request_execution::types::ObservationArenas,
     ) -> Result<ObservationStage<'a>, OperatingError>;
-    /// Ends the request's execution, releasing what it holds.
+    /// Ends the request's execution, releasing what it holds: called once at the run's end, after its last file and its
+    /// project phase, it emits the run's node counters while the run's subscriber still listens.
     fn finish(self)
     where
         Self: Sized;

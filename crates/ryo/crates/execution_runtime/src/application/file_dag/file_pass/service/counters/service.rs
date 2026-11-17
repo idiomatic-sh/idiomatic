@@ -1,4 +1,4 @@
-//! The node counters of a run, emitted once when the file pass's program is dropped at the run's end: every worker's counts
+//! The node counters of a run, emitted once at the run's end, before its trace is flushed: every worker's counts
 //! summed, one event per node made, with its kind and the rules whose steps it is, then one event for the run: how many node
 //! makings there were, how many wrote no row, and the time of each.
 use crate::application::file_dag::file_pass::constants::{
@@ -13,22 +13,24 @@ use ryo_operators::domain::physical_plan::types::node_counters::value::{
 use ryo_values::domain::runs::types::RuleId;
 use std::sync::PoisonError;
 
-impl Drop for PassProgram {
-    fn drop(&mut self) {
-        let scratch = self
-            .scratch
-            .get_mut()
-            .unwrap_or_else(PoisonError::into_inner);
-        let mut summed: Option<NodeCounters> = None;
+/// Emits the node counters of the files `pass` ran, every worker's summed, and ends the counting: called once at the run's
+/// end, after its last file and while the run's subscriber still listens. A run that made no node, as a warm run whose files
+/// all come from its retained state, still emits its `run` event, of no makings, so its trace says so.
+pub(crate) fn emitted_at_end(pass: &PassProgram) {
+    // A run no subscriber listens to counted nothing and is told nothing.
+    if !tracing::enabled!(target: NODE_COUNTERS_TARGET, tracing::Level::INFO) {
+        return;
+    }
+    let mut summed = NodeCounters::default();
+    {
+        let mut scratch = pass.scratch.lock().unwrap_or_else(PoisonError::into_inner);
         for each in scratch.iter_mut() {
             if let Some(counters) = each.buffers.take_counters() {
-                summed.get_or_insert_default().merge(counters);
+                summed.merge(counters);
             }
         }
-        if let Some(summed) = summed {
-            emitted(self, &summed);
-        }
     }
+    emitted(pass, &summed);
 }
 
 /// Emits `counters`, the counts of `pass`'s nodes over the run: one `node` event per node made, then one `run` event.
