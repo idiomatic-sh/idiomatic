@@ -7,9 +7,10 @@ use crate::domain::physical_plan::fixtures::over_nodes;
 use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
-use crate::inbound::use_cases::run::fixtures::streams::{
-    Program, against, agrees, faulting, ran_after, ran_program, select_of, span, split_names,
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    against, faulting, select_of, span, split_names,
 };
+use crate::inbound::use_cases::run::fixtures::streams::{Program, agrees, ran_after, ran_program};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, RepeatedRows, StepId, Test,
 };

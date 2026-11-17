@@ -1,8 +1,8 @@
-//! The chain's one row loop: each head row pushed through its stages in turn, each stage's chunk handed to its reader once it
-//! reaches the bound, a stage that faults handing on the rows before its fault and reading no more.
-use super::super::super::types::{ChainFault, ChainRows, ChainStage, Push};
+//! The chain's one chunk loop: each chunk of head rows handed to the head stage whole, each stage's chunk handed to its reader
+//! once it reaches the bound, a stage that faults handing on the rows before its fault and reading no more.
+use super::super::super::types::{ChainFault, ChainRows, ChainStage, HeadReads, Push};
 use super::super::sources::service::{physical, resolved_rows, right_of, rows_count, rows_kinds};
-use super::super::stages::service::stage_row;
+use super::super::stages::service::stage_chunk;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::decode;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_with;
@@ -12,10 +12,10 @@ use crate::domain::physical_plan::service::run::counting::service::{counted, tim
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::node_counters::value::MadeIn;
 use crate::domain::physical_plan::types::stream_scratch::value::{
-    STREAM_CHUNK_CELLS, StageScratch,
+    CellBound, ChunkRead, ChunkStop, RowChunk, STREAM_CHUNK_CELLS, StageScratch,
 };
-use crate::domain::physical_plan::types::{CellStart, NodeFed, PlanNodeId, TakenRows};
-use ryo_relations::domain::relations::types::{CellKind, Value};
+use crate::domain::physical_plan::types::{InputRows, NodeFed, PlanNodeId, TakenRows};
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// Records `fault` as the chain's hard fault when it comes before the one recorded: at an earlier node.
@@ -28,9 +28,27 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn first_fault(
     }
 }
 
+/// Whether the head stage reads on: not once a stage before the tail stopped with no probe at or before it. A stopped tail
+/// is still fed every row its input makes, as the held plan feeds it; a probe before a stopped stage may still raise a hard
+/// fault the held plan raises first.
+fn head_reads(push: &Push<'_, '_, '_>, stages: &[StageScratch]) -> HeadReads {
+    match stages
+        .iter()
+        .take(push.last.0)
+        .position(|stage| stage.fault.is_some())
+    {
+        Some(stopped) if push.first_probe.is_none_or(|probe| probe.0 >= stopped) => {
+            HeadReads::Ended
+        }
+        Some(_) | None => HeadReads::On,
+    }
+}
+
 /// Pushes the head's rows through the prepared stages into the tail's table and answers the fault of the last stage that
-/// stopped at one, the one the held plan's tail raises. Once a stage stops, the stages before it run on only when one of
-/// them is a probe, which may still raise a hard fault the held plan raises first.
+/// stopped at one, the one the held plan's tail raises. A held head is handed to the head stage whole, in place; a relation's
+/// or the tree's rows are decoded a chunk at a time into `head` (each row through `row`), the tree lent only while a chunk
+/// is decoded, so a stage that mints between chunks holds no borrow of it. Once a stage stops, the head stage reads on only
+/// when a probe comes at or before it.
 ///
 /// # Errors
 ///
@@ -39,6 +57,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
     push: &mut Push<'_, '_, '_>,
     nodes: &[PlanNodeId],
     row: &mut Vec<Value>,
+    head: &mut Table,
     stages: &mut [StageScratch],
 ) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
     let length = nodes.len();
@@ -51,7 +70,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
     }
     // When counting is on, the head stage's time is the head loop's, less the time of the stages its rows are handed to.
     let span = timed(push.buffers);
-    let looped = head_loop(push, nodes, row, stages);
+    let looped = head_loop(push, nodes, row, head, stages);
     if let Some(head_node) = nodes.first() {
         timed_to(push.buffers, span, *head_node);
     }
@@ -85,7 +104,8 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
     Ok(stages.iter_mut().rev().find_map(|stage| stage.fault.take()))
 }
 
-/// Pushes every head row through the stages, until a stage before the tail stops and no probe before it may still fault.
+/// Hands the head's rows to the head stage: a held head whole, a relation's or the tree's rows a chunk at a time, until the
+/// head stage reads no more.
 ///
 /// # Errors
 ///
@@ -94,133 +114,175 @@ fn head_loop(
     push: &mut Push<'_, '_, '_>,
     nodes: &[PlanNodeId],
     row: &mut Vec<Value>,
+    head: &mut Table,
     stages: &mut [StageScratch],
 ) -> Result<(), PortableOperatorFault> {
-    let length = nodes.len();
     let (head_kinds, head_rows) = (rows_kinds(push.head), rows_count(push.head));
-    let first_probe = nodes.iter().position(|node| {
-        physical(push.plan, *node).is_ok_and(|node| matches!(node.lowering, Lowering::Probe { .. }))
-    });
-    for at in 0..head_rows.0 {
-        // A stopped tail is still fed every row its input makes, as the held plan feeds it: only a stage before the tail
-        // that stopped ends the rows that reach it.
-        if let Some(stopped) = stages
-            .iter()
-            .take(length.saturating_sub(1))
-            .position(|stage| stage.fault.is_some())
-            && first_probe.is_none_or(|probe| probe >= stopped)
-        {
-            break;
+    let held = match push.head {
+        ChainRows::Node(_, TakenRows { rows: table, .. }) => Some(table),
+        ChainRows::Held(table) => Some(*table),
+        ChainRows::Facts(_)
+        | ChainRows::Tree(_)
+        | ChainRows::Head
+        | ChainRows::Right(_)
+        | ChainRows::Untaken(_) => None,
+    };
+    match push.head {
+        ChainRows::Node(..) | ChainRows::Held(_) => {
+            if let Some(table) = held
+                && table.count.0 > 0
+                && head_reads(push, stages) == HeadReads::On
+            {
+                pushed_chunk(push, nodes, stages, table)?;
+            }
         }
-        let head = push.head;
-        let cells: &[Value] = match head {
-            ChainRows::Facts(view) => {
-                decode(view, RowIndex(at), row);
-                row
+        ChainRows::Facts(_) | ChainRows::Tree(_) => {
+            head.kinds.clear();
+            head.kinds.extend_from_slice(head_kinds);
+            // Whole rows, as many as fit the bound, and at least one.
+            let per_chunk = (STREAM_CHUNK_CELLS / head_kinds.len().max(1)).max(1);
+            let mut at = 0;
+            while at < head_rows.0 && head_reads(push, stages) == HeadReads::On {
+                let end = head_rows.0.min(at.saturating_add(per_chunk));
+                head.cells.clear();
+                head.count = RowCount(0);
+                for each in at..end {
+                    match push.head {
+                        ChainRows::Facts(view) => decode(view, RowIndex(each), row),
+                        ChainRows::Tree(roots) => tree_row(
+                            &tree_read(*roots, push.run.resources.tree()),
+                            RowIndex(each),
+                            row,
+                        ),
+                        ChainRows::Node(..)
+                        | ChainRows::Held(_)
+                        | ChainRows::Head
+                        | ChainRows::Right(_)
+                        | ChainRows::Untaken(_) => row.clear(),
+                    }
+                    head.cells.extend_from_slice(row);
+                }
+                head.count = RowCount(end - at);
+                at = end;
+                pushed_chunk(push, nodes, stages, head)?;
             }
-            ChainRows::Tree(roots) => {
-                tree_row(
-                    &tree_read(*roots, push.run.resources.tree()),
-                    RowIndex(at),
-                    row,
-                );
-                row
-            }
-            ChainRows::Copied(table) | ChainRows::Node(_, TakenRows { rows: table, .. }) => {
-                row_at(table, RowIndex(at))
-            }
-            ChainRows::Held(table) => row_at(table, RowIndex(at)),
-            ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => &[],
-        };
-        pushed(push, nodes, stages, head_kinds, cells)?;
+        }
+        ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => {}
     }
     Ok(())
 }
 
-/// The cells of `row` of `table`.
-pub(in crate::domain::physical_plan::service::run::pipeline) fn row_at(
-    table: &Table,
-    row: RowIndex,
-) -> &[Value] {
-    let width = table.kinds.len().max(1);
-    table
-        .cells
-        .get(row.0 * width..row.0 * width + width)
-        .unwrap_or_default()
-}
-
-/// Pushes one input row, of `kinds`, through the first stage of `stages` (the stage of `nodes`' first node): its rows are
-/// written to its chunk, or the tail's table for the last stage, and a chunk that reached the bound is handed on. A stage
-/// that faults hands on the rows it wrote before the fault and reads no row after it; a hard fault is recorded at its place.
+/// Pushes the rows of `input` through the first stage of `stages` (the stage of `nodes`' first node), one call per run of
+/// rows: the stage's rows go to its chunk, or the tail's table for the last stage; a chunk that reached the bound is handed
+/// on whole before the stage reads on. A stage that faults hands on the rows it wrote before the fault and reads no row
+/// after it; a hard fault is recorded at its place. Every row of `input` is a row the stage is fed, before or after its
+/// fault. The head stage reads on after each chunk it handed on only as `head_reads` answers.
 ///
 /// # Errors
 ///
 /// A stage the plan does not hold.
-pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
+pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_chunk(
     push: &mut Push<'_, '_, '_>,
     nodes: &[PlanNodeId],
     stages: &mut [StageScratch],
-    kinds: &[CellKind],
-    cells: &[Value],
+    input: &Table,
 ) -> Result<(), PortableOperatorFault> {
-    let (Some((node, after_nodes)), Some((stage, after))) =
-        (nodes.split_first(), stages.split_first_mut())
-    else {
+    let head_stage = stages.len() == push.last.0.saturating_add(1);
+    let (Some((node, after_nodes)), Some(stage)) = (nodes.split_first(), stages.first_mut()) else {
         return Ok(());
     };
-    // Every row handed to a stage is a row it is fed, before or after its fault; it reads none after its fault.
-    stage.read = RowCount(stage.read.0.saturating_add(1));
+    stage.read = RowCount(stage.read.0.saturating_add(input.count.0));
     if stage.fault.is_some() {
         return Ok(());
     }
     let lowering = &physical(push.plan, *node)?.lowering;
-    let right = right_of(lowering).and_then(|_| {
-        push.rights
-            .get(stage.own.right.0)
-            .map(|rows| resolved_rows(rows, push.head, push.rights))
-    });
-    let out: &mut Table = if after.is_empty() {
-        &mut *push.tail
-    } else {
-        &mut stage.out
-    };
-    stage.last = CellStart(out.cells.len());
-    let fault = match stage_row(
-        push.run,
-        push.buffers,
-        ChainStage {
-            node: *node,
-            lowering,
-        },
-        kinds,
-        cells,
-        &mut stage.own,
-        right,
-        out,
-    ) {
-        Ok(fault) => fault,
-        Err(fault) => {
-            first_fault(
-                &mut push.hard,
-                ChainFault {
-                    node: *node,
-                    fault: fault.clone(),
-                },
-            );
-            Some(fault)
+    let (head, rights) = (push.head, push.rights);
+    let tail = after_nodes.is_empty();
+    let bound = CellBound(if tail { usize::MAX } else { STREAM_CHUNK_CELLS });
+    let mut from = RowIndex(0);
+    loop {
+        let Some((stage, after)) = stages.split_first_mut() else {
+            return Ok(());
+        };
+        let right = right_of(lowering).and_then(|_| {
+            rights
+                .get(stage.own.right.0)
+                .map(|rows| resolved_rows(rows, head, rights))
+        });
+        let out: &mut Table = if tail {
+            &mut *push.tail
+        } else {
+            &mut stage.out
+        };
+        #[cfg(test)]
+        {
+            push.buffers.stage_calls.0 += 1;
+            if out.cells.len() >= bound.0 {
+                push.buffers.chunks =
+                    crate::domain::physical_plan::types::file_buffers::value::ChunkMeter::Over;
+            }
         }
-    };
-    if let Some(fault) = fault {
-        stage.fault = Some(fault);
-        return flushed(push, after_nodes, stage, after);
+        let read = stage_chunk(
+            push.run,
+            push.buffers,
+            ChainStage {
+                node: *node,
+                lowering,
+            },
+            RowChunk {
+                rows: InputRows::Table(input),
+                from,
+            },
+            &mut stage.own,
+            right,
+            out,
+            bound,
+        )
+        .unwrap_or_else(|fault| ChunkRead {
+            read: RowCount(0),
+            stop: ChunkStop::Hard(fault),
+        });
+        match read.stop {
+            ChunkStop::Ended => {
+                // A stage that read every row below its bound left its chunk below it.
+                #[cfg(test)]
+                if !tail && stage.out.cells.len() >= bound.0 {
+                    push.buffers.chunks =
+                        crate::domain::physical_plan::types::file_buffers::value::ChunkMeter::Over;
+                }
+                return Ok(());
+            }
+            ChunkStop::Full => {
+                flushed(push, after_nodes, stage, after)?;
+                from = RowIndex(from.0.saturating_add(read.read.0));
+                // The head stage reads on as it would before its next head row: not once a stage before the tail stopped
+                // with no probe at or before it.
+                if from.0 >= input.count.0
+                    || (head_stage && head_reads(push, stages) == HeadReads::Ended)
+                {
+                    return Ok(());
+                }
+            }
+            ChunkStop::Faulted(fault) => {
+                stage.fault = Some(fault);
+                return flushed(push, after_nodes, stage, after);
+            }
+            ChunkStop::Hard(fault) => {
+                first_fault(
+                    &mut push.hard,
+                    ChainFault {
+                        node: *node,
+                        fault: fault.clone(),
+                    },
+                );
+                stage.fault = Some(fault);
+                return flushed(push, after_nodes, stage, after);
+            }
+        }
     }
-    if !after.is_empty() && stage.out.cells.len() >= STREAM_CHUNK_CELLS {
-        return flushed(push, after_nodes, stage, after);
-    }
-    Ok(())
 }
 
-/// Hands `stage`'s chunk to its reader, the first of `after` (the stages of `nodes`), row by row, and empties it.
+/// Hands `stage`'s chunk to its reader, the first of `after` (the stages of `nodes`), whole, and empties it.
 ///
 /// # Errors
 ///
@@ -234,26 +296,14 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn flushed(
     let Some(reader) = nodes.first() else {
         return Ok(());
     };
-    #[cfg(test)]
-    if stage.last.0 >= STREAM_CHUNK_CELLS {
-        push.buffers.chunks =
-            crate::domain::physical_plan::types::file_buffers::value::ChunkMeter::Over;
+    if stage.out.count.0 > 0 {
+        // When counting is on, the reader's time is the chunk's, less the time of the stages after it.
+        let span = timed(push.buffers);
+        let handed = pushed_chunk(push, nodes, after, &stage.out);
+        timed_to(push.buffers, span, *reader);
+        handed?;
     }
-    // When counting is on, the reader's time is the chunk's, less the time of the stages after it.
-    let span = timed(push.buffers);
-    let handed = (0..stage.out.count.0).try_for_each(|at| {
-        pushed(
-            push,
-            nodes,
-            after,
-            &stage.out.kinds,
-            row_at(&stage.out, RowIndex(at)),
-        )
-    });
-    timed_to(push.buffers, span, *reader);
-    handed?;
     stage.out.cells.clear();
     stage.out.count = RowCount(0);
-    stage.last = CellStart(0);
     Ok(())
 }

@@ -1,5 +1,6 @@
-//! Each streaming stage of a chain: its preparation before any row, in its held kernel's order, and its work on one input
-//! row, each the kernel's own per-row function. Every stage writes through its own state, never another stage's.
+//! Each streaming stage of a chain: its preparation before any row, in its held kernel's order, and its work on a chunk of
+//! input rows, resolved once for the chunk, each row the kernel's own per-row function. Every stage writes through its own
+//! state, never another stage's.
 use super::super::super::types::{ChainRows, ChainStage, StagePrepared};
 use super::super::sources::service::{in_place, pending_of, rows_count, rows_kinds};
 use crate::domain::contract::types::PortableOperatorFault;
@@ -9,21 +10,26 @@ use crate::domain::physical_plan::collections::kernels::extend::item::{
 use crate::domain::physical_plan::collections::kernels::filter::item::{
     filter, keep, kept_kinds, readied,
 };
-use crate::domain::physical_plan::collections::kernels::probe::item::{answer_kinds, probe_row};
+use crate::domain::physical_plan::collections::kernels::probe::item::{answer_kinds, probe_rows};
 use crate::domain::physical_plan::collections::kernels::probe_right::item::{
     ProbeScratch, probe_prepared,
 };
 use crate::domain::physical_plan::collections::kernels::project::item::projected;
+use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
+    chunk_read, count_of, kinds_of, row_of,
+};
 use crate::domain::physical_plan::collections::kernels::text_map::item::{
     RowMapRun, mapped_kinds, row_mapped,
 };
 use crate::domain::physical_plan::service::indexes::service::{probe_build, probe_index};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::stream_scratch::value::{ProbeWork, StageOwn};
-use crate::domain::physical_plan::types::{InputRows, KernelRun, NodeFed, ProbeIndex};
+use crate::domain::physical_plan::types::stream_scratch::value::{
+    CellBound, ChunkRead, ChunkStop, ProbeWork, RowChunk, StageOwn,
+};
+use crate::domain::physical_plan::types::{KernelRun, NodeFed, ProbeIndex};
 use ryo_relations::domain::relations::types::{CellKind, Value};
-use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
+use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// The output kinds of stage `node`, lowered to `lowering`, over input rows of `input`, and what its preparation left, in
 /// its held kernel's order: an extension's values resolved before its kinds, left empty when they fault; a probe's right
@@ -131,28 +137,31 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
     })
 }
 
-/// Runs one input row, `cells` of `kinds`, through stage `node`, lowered to `lowering`, into `out`, and answers the row's
-/// fault: the rows it wrote before the fault stay. A probe does its work before its first left row at its first.
+/// Runs the rows of `input` from its first unread row through stage `stage` into `out`, until every row is read, a row
+/// faults, or `out` holds `bound` cells or more after a row; the stage's per-run work (its kernel, its decisions, its right
+/// rows) is resolved once for the call, never per row, and each row is the kernel's own per-row function's. The rows a row
+/// wrote before its fault stay. A probe does its work before its first left row at the first call that reads one.
 ///
 /// # Errors
 ///
-/// A probe's hard fault: a right key column past its rows, an order that is no number.
+/// A stage the chain does not stream; a probe's hard fault: a right key column past its rows, an order that is no number.
 #[expect(
     clippy::too_many_arguments,
-    reason = "one row of one stage: the run, the buffers, the stage, its input row, its own state, its right rows, its rows"
+    reason = "one chunk of one stage: the run, the buffers, the stage, its rows, its own state, its right rows, its rows, its bound"
 )]
-pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_row(
+pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
     run: &mut KernelRun<'_>,
     buffers: &mut FileBuffers,
     stage: ChainStage<'_>,
-    kinds: &[CellKind],
-    cells: &[Value],
+    input: RowChunk<'_>,
     own: &mut StageOwn,
     right: Option<&ChainRows<'_>>,
     out: &mut Table,
-) -> Result<Option<PortableOperatorFault>, PortableOperatorFault> {
+    bound: CellBound,
+) -> Result<ChunkRead, PortableOperatorFault> {
     let ChainStage { node, lowering } = stage;
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
+    let kinds = kinds_of(input.rows);
     Ok(match lowering {
         Lowering::Filter { select, .. } => {
             let decisions = buffers
@@ -160,46 +169,46 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_row(
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
             let kernel = filter(select, kinds, run.resources.texts());
-            keep(
-                kernel,
-                run.matcher,
-                cells,
-                decisions,
-                &mut buffers.written,
-                out,
-            )
-            .err()
+            let written = &mut buffers.written;
+            each_row(input, &mut buffers.row, out, bound, |cells, out| {
+                keep(kernel, run.matcher, cells, decisions, written, out)
+            })?
         }
         Lowering::TextMap { map, .. } => {
             let decisions = buffers
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
-            row_mapped(
-                map,
-                cells,
-                &mut RowMapRun {
-                    resources: &mut *run.resources,
-                    matcher: run.matcher,
-                    decisions,
-                    scratch: &mut buffers.scratch,
-                    places: &mut buffers.places,
-                    output: out,
-                },
-            )
-            .err()
+            let (scratch, places) = (&mut buffers.scratch, &mut buffers.places);
+            let matcher = run.matcher;
+            let resources = &mut *run.resources;
+            each_row(input, &mut buffers.row, out, bound, |cells, out| {
+                row_mapped(
+                    map,
+                    cells,
+                    &mut RowMapRun {
+                        resources: &mut *resources,
+                        matcher,
+                        decisions: &mut *decisions,
+                        scratch: &mut *scratch,
+                        places: &mut *places,
+                        output: out,
+                    },
+                )
+            })?
         }
-        Lowering::Project { project, .. } => projected(
-            cells,
-            &project.columns,
-            project.distinct,
-            &mut own.repeats,
-            out,
-        )
-        .err(),
+        Lowering::Project { project, .. } => {
+            let repeats = &mut own.repeats;
+            each_row(input, &mut buffers.row, out, bound, |cells, out| {
+                projected(cells, &project.columns, project.distinct, repeats, out)
+            })?
+        }
         Lowering::Extend { .. } => {
-            extended(cells, &own.values, &mut buffers.written, out);
-            None
+            let (values, written) = (&own.values, &mut buffers.written);
+            each_row(input, &mut buffers.row, out, bound, |cells, out| {
+                extended(cells, values, written, out);
+                Ok(())
+            })?
         }
         Lowering::Probe { probe, index, .. } => {
             let right = right.ok_or(PortableOperatorFault::WrongOperation)?;
@@ -237,22 +246,27 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_row(
                     .ok_or(PortableOperatorFault::WrongOperation)?,
                 found: &mut buffers.found,
             };
-            if *work == ProbeWork::Pending {
+            // The probe's work before its first left row: its right filter, its index build, its extremes. Its fault is
+            // its first left row's.
+            if *work == ProbeWork::Pending && count_of(input.rows).0 > input.from.0 {
                 *work = ProbeWork::Done;
                 if let Some(fault) = probe_prepared(probe, kinds, right, run, &mut scratch)? {
-                    return Ok(Some(fault));
+                    return Ok(ChunkRead {
+                        read: RowCount(1),
+                        stop: ChunkStop::Faulted(fault),
+                    });
                 }
             }
             let mut walked = NodeFed([RowCount(0), *fed, RowCount(0)]);
-            let answered = probe_row(
+            let answered = probe_rows(
                 probe,
-                InputRows::Row(cells, kinds),
-                RowIndex(0),
+                input,
                 right,
                 run,
                 &mut scratch,
                 &mut walked,
                 out,
+                bound,
             );
             let [_, right_fed, _] = walked.0;
             *fed = right_fed;
@@ -271,5 +285,20 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_row(
         | Lowering::Render { .. }
         | Lowering::ScanBound { .. }
         | Lowering::Unlowered => return Err(PortableOperatorFault::WrongOperation),
+    })
+}
+
+/// Runs `row`, a kernel's per-row function, over the rows of `input` from its first unread row into `out`, as `chunk_read`
+/// reads them: a row's error is its fault. A row of a relation or the tree is decoded into `scratch`; a
+/// table's is read in place.
+fn each_row(
+    input: RowChunk<'_>,
+    scratch: &mut Vec<Value>,
+    out: &mut Table,
+    bound: CellBound,
+    mut row: impl FnMut(&[Value], &mut Table) -> Result<(), PortableOperatorFault>,
+) -> Result<ChunkRead, PortableOperatorFault> {
+    chunk_read(input, out, bound, |at, out| {
+        Ok(row(row_of(input.rows, at, scratch), out).err())
     })
 }

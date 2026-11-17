@@ -2,14 +2,51 @@
 //! with their capacity across nodes and files, no chunk keeping more room than the bound.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
-use crate::domain::physical_plan::types::{CellStart, IndexPlace, PlanNodeId};
+use crate::domain::physical_plan::types::{IndexPlace, InputRows, PlanNodeId};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// The cells a stage's chunk holds before its reader reads it, checked between input rows: 16 Ki cells (256 KiB of
 /// 16-byte cells). A settled stage keeps no more room than this in its tables.
 pub(crate) const STREAM_CHUNK_CELLS: usize = 1 << 14;
+
+/// The cells a stage writes before it hands its rows on, checked between its input rows: a chain's stages are bound by
+/// `STREAM_CHUNK_CELLS`, its tail by none; a held kernel that runs the same rows (a seeded closure's join) is bound by none.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CellBound(pub(crate) usize);
+
+/// The rows a stage reads in one call: those of `rows` from row `from`, in order, read in place whatever they are (a
+/// relation's columns, the tree's rows, a chunk or a held table), never copied for the call.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RowChunk<'c> {
+    /// The rows: a chain's head chunk or the stage before's chunk, or a held kernel's input (a seeded closure's left).
+    pub(crate) rows: InputRows<'c>,
+    /// The first row not read yet.
+    pub(crate) from: RowIndex,
+}
+
+/// How far a stage read its rows in one call: how many it read, and why it stopped.
+#[derive(Debug, PartialEq)]
+pub(crate) struct ChunkRead {
+    /// The rows it read, the faulting row included.
+    pub(crate) read: RowCount,
+    /// Why it stopped.
+    pub(crate) stop: ChunkStop,
+}
+
+/// Why a stage stopped reading its rows.
+#[derive(Debug, PartialEq)]
+pub(crate) enum ChunkStop {
+    /// It read every row.
+    Ended,
+    /// Its rows reached the bound: its reader reads them before it reads on, from the row after the last it read.
+    Full,
+    /// A row's fault: it keeps the rows before it and reads no more.
+    Faulted(PortableOperatorFault),
+    /// A hard fault, the chain's at this stage: it reads no more.
+    Hard(PortableOperatorFault),
+}
 
 /// The work of the chains of streamed stages a worker runs: one chain's scratch for each chain running at once (a chain
 /// that readies a held source runs that source's chain inside it), kept with its capacity across nodes and files.
@@ -19,13 +56,15 @@ pub(crate) struct StreamScratch {
     pub(crate) levels: Vec<ChainScratch>,
 }
 
-/// One chain's scratch: its nodes, head first, a head row, and each stage's state.
+/// One chain's scratch: its nodes, head first, a head row, the head's chunk, and each stage's state.
 #[derive(Debug, Default)]
 pub(crate) struct ChainScratch {
     /// The chain's nodes, from the head stage to the tail.
     pub(crate) chain: Vec<PlanNodeId>,
     /// A head row, decoded from a relation's columns or the tree.
     pub(crate) row: Vec<Value>,
+    /// The head's rows decoded for one call of the head stage, no more cells than the bound.
+    pub(crate) head: Table,
     /// Each stage's state, by its place in the chain.
     pub(crate) stages: Vec<StageScratch>,
 }
@@ -36,8 +75,6 @@ pub(crate) struct ChainScratch {
 pub(crate) struct StageScratch {
     /// The rows it wrote that its reader has not read yet: its chunk. The tail writes its node's table instead.
     pub(crate) out: Table,
-    /// Where in `out` the rows of the input row it read last start.
-    pub(crate) last: CellStart,
     /// How many input rows it read.
     pub(crate) read: RowCount,
     /// The fault it stopped at; it reads no row after it.
@@ -80,6 +117,10 @@ pub(crate) enum ProbeWork {
     Done,
 }
 
+/// A stage's place in its chain, the head stage's first.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct StagePlace(pub(crate) usize);
+
 /// A probe's right side, by its place among its chain's right sides, in chain order.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RightPlace(pub(crate) usize);
@@ -100,6 +141,21 @@ impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
             .map(|stage| stage.own.repeats.room().max(stage.own.index.room()))
             .max()
             .unwrap_or_default()
+    }
+}
+
+impl ChainScratch {
+    /// Empties the chain after its run: its head chunk and each stage, none keeping more room in its tables than the bound.
+    pub(crate) fn settled(&mut self) {
+        self.head.kinds.clear();
+        self.head.cells.clear();
+        self.head.count = RowCount(0);
+        if self.head.cells.capacity() > STREAM_CHUNK_CELLS {
+            self.head.cells.shrink_to(STREAM_CHUNK_CELLS);
+        }
+        for stage in &mut self.stages {
+            stage.settled();
+        }
     }
 }
 

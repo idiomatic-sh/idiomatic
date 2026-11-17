@@ -8,7 +8,9 @@ use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanned;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::count_of;
-use crate::domain::physical_plan::collections::kernels::scan_node::item::{fed_with, give_back, hold, take};
+use crate::domain::physical_plan::collections::kernels::scan_node::item::{
+    fed_with, give_back, hold, take,
+};
 use crate::domain::physical_plan::service::indexes::service::{closed, opened, sized_shared};
 use crate::domain::physical_plan::service::run::counting::service::{timed, timed_to};
 use crate::domain::physical_plan::service::run::reading::service::{

@@ -41,7 +41,7 @@ pub mod held;
 mod kernel_programs;
 #[cfg(test)]
 pub(crate) mod relational;
-#[cfg(test)]
+pub(crate) mod stream_programs;
 pub(crate) mod streams;
 mod table_inputs;
 pub mod texts;

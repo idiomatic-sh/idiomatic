@@ -1,32 +1,47 @@
 //! Streaming changes no answer: every node of the combined case programs (the case program and one node of each text kind
 //! over Defines, and both ordered existence shapes over the semantic edges), each emitted alone, answers as planned what its
 //! held twin answers, rows in order and the first fault alike. An ordered probe's left rows are its right side's source (the
-//! rewrite proves the shape so), so its left is read twice and held, never streamed: its answer is its twin's.
+//! rewrite proves the shape so), so its left is read twice and held, never streamed: its answer is its twin's. After a large
+//! file every chain's scratch keeps no more room than the bound, and a chain's stage calls and time grow with its rows, not
+//! with their square.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::ProbeMode;
 use crate::domain::physical_plan::fixtures::ordered::{
     EDGES, OrderedShape, ordered_existence, ordered_existence_pair, ordered_rows,
 };
-use crate::domain::physical_plan::fixtures::{DEFINES, Step, defines_rows, text_program};
+use crate::domain::physical_plan::fixtures::{
+    DEFINES, Step, defines_rows, over_defines, over_nodes, text_program,
+};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
+use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, NodeFlow, PlanInput, PlanInputList, PlanNodeId,
 };
-use crate::inbound::use_cases::run::fixtures::streams::{Steps, agrees, ran_steps, span};
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    against, both_nodes, span, three_stages,
+};
+use crate::inbound::use_cases::run::fixtures::streams::{
+    Program, Steps, agrees, ran_program, ran_steps,
+};
 use crate::inbound::use_cases::run::fixtures::{TextResources, planned};
-use ryo_relations::domain::relations::types::{Relation, Value as Cell};
-use ryo_values::domain::plan_parts::types::{Input as StepInput, StepId, StepScope, Test};
+use ryo_relations::domain::relations::types::{Integer, Relation, Value as Cell};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, Input as StepInput, Operand, QueryLiteral, StepId, StepScope, Test,
+};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::Table;
 use std::borrow::Cow;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
     EveryCombinedCase,
     OrderedProbe,
+    LargeFile,
+    TenThenFortyThousandRows,
 }
 
 /// What a case observed.
@@ -48,6 +63,20 @@ enum Observation {
         formed: u32,
         rows: usize,
     },
+    /// Whether the large file answers as its twin, and whether every chain scratch the worker kept after it (each stage's
+    /// chunk, each probe's kept right rows, each head chunk) holds no more room than the bound.
+    Bounded { same: bool, bounded: bool },
+    /// How the stage calls and the time of a chain grow from 10,000 rows to 40,000.
+    Growth(Growth),
+}
+
+/// How a chain's work grows from the smaller file to the larger, four times its rows.
+#[derive(Debug, PartialEq, Eq)]
+enum Growth {
+    /// Its stage calls within four times and three, and its time within eight times.
+    Linear,
+    /// Past either.
+    Superlinear,
 }
 type Input = Scenario;
 type Value = Observation;
@@ -76,7 +105,80 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: 4,
         }),
     },
+    Case {
+        name: CaseName("chain_scratch_stays_bounded_after_a_large_file"),
+        word: Word::Succeeds,
+        input: || Scenario::LargeFile,
+        expect: Expect::Value(Observation::Bounded {
+            same: true,
+            bounded: true,
+        }),
+    },
+    Case {
+        name: CaseName("chained_work_grows_linearly_with_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::TenThenFortyThousandRows,
+        expect: Expect::Value(Observation::Growth(Growth::Linear)),
+    },
 ];
+
+/// 100,000 Defines rows named in turn by ten names. A select of every row (node 0); an inner join of it with Defines on the
+/// node, keeping the right rows whose name ends with `1`, 10,000 rows (node 1); and an extension of the join (node 2).
+fn large_file() -> Program {
+    let names: Vec<String> = (0..10).map(|at| format!("n{at}")).collect();
+    let defines = (
+        StepInput::Relation(Relation::Defines),
+        PlanInput::Relation(Relation::Defines),
+    );
+    Program {
+        steps: vec![
+            over_defines(Operation::Select {
+                from: defines.0,
+                comparisons: Vec::new(),
+                kept: Vec::new(),
+            }),
+            Step {
+                operation: Operation::Join {
+                    left: StepInput::Step(StepId(0)),
+                    right: defines.0,
+                    left_on: vec![ColumnIndex(0)],
+                    right_on: vec![ColumnIndex(0)],
+                    output: both_nodes(),
+                    filter: vec![against(Test::EndsWith, 3, "1")],
+                    view: Vec::new(),
+                    reach: None,
+                },
+                inputs: vec![PlanInput::Node(PlanNodeId(0)), defines.1],
+            },
+            over_nodes(
+                Operation::Extend {
+                    from: StepInput::Step(StepId(1)),
+                    values: vec![Operand::Literal(QueryLiteral::Number(Integer(1)))],
+                },
+                &[1],
+            ),
+        ],
+        emit: PlanNodeId(2),
+        rows: (0..100_000)
+            .map(|at| (names.get(at % 10).cloned().unwrap_or_default(), span(0, 1)))
+            .collect(),
+        texts: names,
+    }
+}
+
+/// The stage calls of the first file of the chain of three stages over `rows` rows, and the fastest of three runs of it.
+fn timed(rows: usize) -> Result<(usize, Duration), Failure> {
+    let program = three_stages(rows);
+    let mut fastest = Duration::MAX;
+    let mut calls = 0;
+    for _ in 0..3 {
+        let started = Instant::now();
+        let ran = ran_program(&program, false)?;
+        fastest = fastest.min(started.elapsed());
+        calls = ran.stage_calls;
+    }
+    Ok((calls, fastest))
+}
 
 /// The file's texts: the Defines names and the semantic edges' field.
 const TEXTS: &[&str] = &["alpha", "beta", "other", "gamma", "kind"];
@@ -163,6 +265,37 @@ fn ordered_over_a_select() -> Vec<Step> {
 
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
     match scenario {
+        Scenario::LargeFile => {
+            let program = large_file();
+            let streamed = ran_program(&program, false)?;
+            let twin = ran_program(&program, true)?;
+            let within = |table: &Table| table.cells.capacity() <= STREAM_CHUNK_CELLS;
+            Ok(Observation::Bounded {
+                same: agrees(&streamed, &twin),
+                bounded: !streamed.buffers.stream.levels.is_empty()
+                    && streamed.buffers.stream.levels.iter().all(|chain| {
+                        within(&chain.head)
+                            && chain
+                                .stages
+                                .iter()
+                                .all(|stage| within(&stage.out) && within(&stage.own.kept))
+                    }),
+            })
+        }
+        Scenario::TenThenFortyThousandRows => {
+            let (small_calls, small_time) = timed(10_000)?;
+            let (large_calls, large_time) = timed(40_000)?;
+            Ok(Observation::Growth(
+                if small_calls > 0
+                    && large_calls <= small_calls * 4 + 3
+                    && large_time < small_time.saturating_mul(8)
+                {
+                    Growth::Linear
+                } else {
+                    Growth::Superlinear
+                },
+            ))
+        }
         Scenario::EveryCombinedCase => {
             let mut differing = Vec::new();
             let (texts, streamed_texts) =

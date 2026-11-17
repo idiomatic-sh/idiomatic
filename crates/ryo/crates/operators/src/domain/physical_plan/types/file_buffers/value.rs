@@ -81,6 +81,9 @@ pub struct FileBuffers {
     /// The node tables held: how many were formed, and the rows they held at once.
     #[cfg(test)]
     pub(crate) meter: TableMeter,
+    /// How many times a chain called a stage: what the chunk-linearity cases read.
+    #[cfg(test)]
+    pub(crate) stage_calls: StageCalls,
     /// The work the ends of files did: what the release-cost case reads.
     #[cfg(test)]
     pub(crate) ending: EndWork,
@@ -90,6 +93,11 @@ pub struct FileBuffers {
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct EndWork(pub(crate) usize);
+
+/// How many times a worker's chains called a stage, each call a run of rows.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct StageCalls(pub(crate) usize);
 
 /// How many probe indexes a worker built.
 #[cfg(test)]
