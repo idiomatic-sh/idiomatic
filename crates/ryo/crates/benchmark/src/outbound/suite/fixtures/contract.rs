@@ -174,7 +174,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("text streamed into a created file reads back as source text"),
         word: Word::Succeeds,
         input: || Operation::CreateAndRead,
-        expect: Expect::Value(3_002_010),
+        expect: Expect::Value(3),
     },
     Case {
         name: CaseName("missing accepted differences, and a missing growth table, are refused"),

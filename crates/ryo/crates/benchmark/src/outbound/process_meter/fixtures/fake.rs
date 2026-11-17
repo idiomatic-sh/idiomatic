@@ -5,6 +5,9 @@ use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Mutex;
 
+/// The bytes of the block the contract's reset row touches and frees before the reset.
+pub(crate) const FREED: usize = 64 << 20;
+
 /// What the fake meter answers.
 #[derive(Debug)]
 pub struct ProcessMeterFake {

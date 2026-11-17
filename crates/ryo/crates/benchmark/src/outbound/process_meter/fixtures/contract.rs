@@ -1,5 +1,6 @@
 //! What every `process_meter` implementation must pass.
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::process_meter::fixtures::fake::FREED;
 use crate::outbound::process_meter::interface::ProcessMeterPort;
 
 type Input = ();
@@ -15,9 +16,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName(
-            "after a reset the peak is no greater than before it plus what was allocated after it",
-        ),
+        name: CaseName("a block freed before a reset does not raise the peak read after it"),
         word: Word::Succeeds,
         input: || (),
         expect: Expect::Value(true),
@@ -38,15 +37,13 @@ pub fn check(port: &impl ProcessMeterPort) {
             let second = port.cpu().map_err(|error| error.to_string())?;
             Ok(second >= first)
         } else {
+            // A block touched and freed before the reset: the peak read before it may hold the block, the one after it holds
+            // only what stays resident, never more than before.
+            drop(std::hint::black_box(vec![1_u8; FREED]));
             let before = port.peak().map_err(|error| error.to_string())?;
             port.reset_peak().map_err(|error| error.to_string())?;
-            // A block of memory allocated and touched after the reset, so a peak read after it may grow by its size and no more.
-            let touched = std::hint::black_box(vec![1_u8; 1 << 20]);
             let after = port.peak().map_err(|error| error.to_string())?;
-            Ok(after.0
-                <= before
-                    .0
-                    .saturating_add(u64::try_from(touched.len()).unwrap_or(u64::MAX)))
+            Ok(after.0 <= before.0)
         }
     });
 }
