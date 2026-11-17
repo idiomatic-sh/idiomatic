@@ -149,6 +149,11 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_chunk(
         return Ok(());
     };
     let count = count_of(input);
+    // A stage after the head is handed a chunk of its reader's rows: the most rows one handoff carried.
+    #[cfg(test)]
+    if !head_stage {
+        push.buffers.chains.handed = push.buffers.chains.handed.max(count);
+    }
     stage.read = RowCount(stage.read.0.saturating_add(count.0));
     if stage.fault.is_some() {
         return Ok(());
@@ -249,10 +254,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn flushed(
 ) -> Result<(), PortableOperatorFault> {
     if nodes.is_empty() {
         return Ok(());
-    }
-    #[cfg(test)]
-    {
-        push.buffers.chains.handed = push.buffers.chains.handed.max(stage.out.count);
     }
     if stage.out.count.0 > 0 {
         pushed_chunk(push, nodes, after, InputRows::Table(&stage.out))?;

@@ -114,12 +114,21 @@ pub(crate) fn facts_cell(
     Some(from_bits(*kind, Bits(*bits)))
 }
 
-/// The cell of row `row` in `column` of a table; none past the row.
+/// The cells of row `row` of a table: none when the table does not hold every cell of the row (a row past its rows, or one
+/// written short of its kinds), so a short row is read as no row, never into the next row's cells.
+pub(crate) fn table_row(table: &Table, row: RowIndex) -> &[Value] {
+    let width = table.kinds.len().max(1);
+    table
+        .cells
+        .get(row.0 * width..row.0 * width + width)
+        .unwrap_or_default()
+}
+
+/// The cell of row `row` in `column` of a table, as `table_row` reads the row; none past the row.
 pub(crate) fn table_cell(table: &Table, row: RowIndex, column: ColumnIndex) -> Option<Value> {
     let at = usize::try_from(column.0).unwrap_or(usize::MAX);
-    let width = table.kinds.len();
-    (at < width && row.0 < table.count.0)
-        .then(|| table.cells.get(row.0 * width + at).copied())
+    (at < table.kinds.len() && row.0 < table.count.0)
+        .then(|| table_row(table, row).get(at).copied())
         .flatten()
 }
 
@@ -195,13 +204,7 @@ pub(crate) fn row_of<'r>(
             tree_row(tree, row, scratch);
             scratch
         }
-        InputRows::Table(table) => {
-            let width = table.kinds.len().max(1);
-            table
-                .cells
-                .get(row.0 * width..row.0 * width + width)
-                .unwrap_or_default()
-        }
+        InputRows::Table(table) => table_row(table, row),
         InputRows::Row(cells, _) => {
             if row.0 == 0 {
                 cells

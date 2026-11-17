@@ -166,6 +166,7 @@ impl ChainScratch {
         self.head.kinds.clear();
         self.head.cells.clear();
         self.head.count = RowCount(0);
+        // A chunk holds no more cells than the bound, but its room grows past it as it is decoded row by row.
         if self.head.cells.capacity() > STREAM_CHUNK_CELLS {
             self.head.cells.shrink_to(STREAM_CHUNK_CELLS);
         }
