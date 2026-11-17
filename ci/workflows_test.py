@@ -740,7 +740,7 @@ cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --doc"""
         job.get("runs-on") != "ubuntu-26.04"
         or job.get("if") is not None
         or job.get("continue-on-error") is not None
-        or len(steps) != 9
+        or len(steps) != 10
         or any(step.get("if") is not None or step.get("continue-on-error") is not None for step in steps)
         or steps[-2].get("run", "").strip() != tm_script
         or steps[-1].get("run", "").strip() != rust_script
@@ -807,3 +807,32 @@ def _check_step(job: dict) -> dict:
 )
 def test_bench_correctness_refuses_skips_masks_and_dropped_receipts(change) -> None:
     assert problems(_altered_bench_correctness(change))
+
+
+# The repository's .cargo/config.toml links with mold on Linux (`-fuse-ld=mold`): a Linux job that compiles without it
+# fails in the first build script with `collect2: fatal error: cannot find 'ld'`.
+MOLD = "rui314/setup-mold@"
+COMPILES = re.compile(r"\bcargo\b|asymptote check")
+
+
+def mold_problems(workflow: dict) -> list[str]:
+    """The jobs of `workflow` that compile before a step sets up mold."""
+    found = []
+    for name, job in workflow["jobs"].items():
+        steps = job.get("steps", [])
+        compiling = next((at for at, step in enumerate(steps) if COMPILES.search(step.get("run", ""))), None)
+        if compiling is None:
+            continue
+        if not any(step.get("uses", "").startswith(MOLD) for step in steps[:compiling]):
+            found.append(f"{name}: compiles at step {compiling} with no {MOLD} step before it")
+    return found
+
+
+def test_every_job_that_compiles_links_with_mold() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert mold_problems(workflow) == []
+    changed = deepcopy(workflow)
+    changed["jobs"]["ownership-contracts"]["steps"] = [
+        step for step in changed["jobs"]["ownership-contracts"]["steps"] if not step.get("uses", "").startswith(MOLD)
+    ]
+    assert mold_problems(changed) == ["ownership-contracts: compiles at step 8 with no rui314/setup-mold@ step before it"]
