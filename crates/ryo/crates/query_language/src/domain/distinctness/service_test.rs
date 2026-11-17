@@ -31,6 +31,14 @@ enum Scenario {
     TheTargetOfEachFile,
     /// The module identity of each file, asked of its file: the provider writes one row per file at most.
     TheModuleOfEachFile,
+    /// The union of two filters of the parser targets (an `or`), asked of its file.
+    TheTargetsOfEitherFilter,
+    /// The same union, asked of a column many files share.
+    TheMajorVersionOfEitherFilter,
+    /// The union of two one-column projections, asked of its one column.
+    TheMarkedFilesOfEitherKind,
+    /// The union of the syntax edges and the parser targets, asked of its first column only.
+    TheEdgesOrTheTargets,
 }
 
 /// Whether the step is distinct on the columns.
@@ -89,6 +97,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::TheModuleOfEachFile,
         expect: Expect::Value(Uniqueness::Unique),
+    },
+    Case {
+        name: CaseName("a_union_of_filters_of_one_input_is_distinct_on_its_key"),
+        word: Word::Succeeds,
+        input: || Scenario::TheTargetsOfEitherFilter,
+        expect: Expect::Value(Uniqueness::Unique),
+    },
+    Case {
+        name: CaseName("a_union_of_filters_of_one_input_is_shared_on_a_column_its_input_shares"),
+        word: Word::Succeeds,
+        input: || Scenario::TheMajorVersionOfEitherFilter,
+        expect: Expect::Value(Uniqueness::Shared),
+    },
+    Case {
+        name: CaseName("a_union_is_distinct_on_every_column_it_has"),
+        word: Word::Succeeds,
+        input: || Scenario::TheMarkedFilesOfEitherKind,
+        expect: Expect::Value(Uniqueness::Unique),
+    },
+    Case {
+        name: CaseName("a_union_of_two_inputs_asked_of_some_of_its_columns_is_shared"),
+        word: Word::Succeeds,
+        input: || Scenario::TheEdgesOrTheTargets,
+        expect: Expect::Value(Uniqueness::Shared),
     },
 ];
 
@@ -154,6 +186,36 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             comparisons: Vec::new(),
             kept: Vec::new(),
         }),
+        // An `or` of two tests of the parser target: a filter for each, and their union (steps 8, 9 and 10).
+        step(Operation::Select {
+            from: Reads::Relation(Relation::LanguageTarget),
+            comparisons: Vec::new(),
+            kept: vec![ColumnIndex(0), ColumnIndex(1)],
+        }),
+        step(Operation::Select {
+            from: Reads::Relation(Relation::LanguageTarget),
+            comparisons: Vec::new(),
+            kept: vec![ColumnIndex(0), ColumnIndex(1)],
+        }),
+        step(Operation::Union {
+            left: Reads::Step(StepId(8)),
+            right: Reads::Step(StepId(9)),
+        }),
+        // A second one-column projection, and its union with the marked files (steps 11 and 12).
+        step(Operation::Project {
+            from: Reads::Relation(Relation::Comment),
+            columns: vec![ColumnIndex(0)],
+            distinct: RepeatedRows::Dropped,
+        }),
+        step(Operation::Union {
+            left: Reads::Step(StepId(1)),
+            right: Reads::Step(StepId(11)),
+        }),
+        // The edges and the parser targets in one union (step 13).
+        step(Operation::Union {
+            left: Reads::Step(StepId(0)),
+            right: Reads::Step(StepId(6)),
+        }),
     ];
     let (at, columns): (u32, &[u32]) = match scenario {
         Scenario::TheChildOfTheEdges => (0, &[1]),
@@ -165,6 +227,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::TheWordsOfOneFunctionKeptRepeated => (5, &[0, 1]),
         Scenario::TheTargetOfEachFile => (6, &[0]),
         Scenario::TheModuleOfEachFile => (7, &[0]),
+        Scenario::TheTargetsOfEitherFilter => (10, &[0]),
+        Scenario::TheMajorVersionOfEitherFilter => (10, &[1]),
+        Scenario::TheMarkedFilesOfEitherKind => (12, &[0]),
+        Scenario::TheEdgesOrTheTargets => (13, &[0]),
     };
     let keys: Vec<ColumnIndex> = columns.iter().copied().map(ColumnIndex).collect();
     Ok(distinct_on(

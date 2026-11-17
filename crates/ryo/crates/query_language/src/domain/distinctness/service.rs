@@ -9,6 +9,7 @@ use crate::domain::lineage::service::column_kind;
 use crate::domain::lineage::types::LineageMemo;
 use crate::domain::lowering::types::Uniqueness;
 use crate::domain::resolving::service::relation_fields;
+use crate::domain::widths::service::width_of;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::band_joins::types::{BandJoin, BandTest};
 use ryo_values::domain::plan_parts::service::column_in;
@@ -164,9 +165,9 @@ fn step_distinct(
                 keys,
             ),
         },
+        Operation::Union { left, right } => union_distinct(steps, memo, id, (*left, *right), keys),
         Operation::Join { .. }
         | Operation::BandJoin(_)
-        | Operation::Union { .. }
         | Operation::Extend { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
@@ -186,6 +187,39 @@ fn step_distinct(
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => Uniqueness::Shared,
     })
+}
+
+/// Whether the union `id` of `sides` is distinct on `keys`. A union drops its repeated rows, so two of its rows differ in some
+/// column: it is distinct on keys covering every column it has. And when both sides filter one input, keeping the same columns
+/// of it (the steps an `or` lowers to), each row of the union is a row of that input, so the union is distinct wherever that
+/// input is.
+fn union_distinct(
+    steps: &[PlanStep],
+    memo: &mut DistinctMemo,
+    id: StepId,
+    sides: (Input, Input),
+    keys: &[ColumnIndex],
+) -> Uniqueness {
+    let every_column = width_of(steps, Input::Step(id))
+        .is_some_and(|width| (0..width.0).all(|column| keys.contains(&ColumnIndex(column))));
+    if every_column {
+        return Uniqueness::Unique;
+    }
+    let filtered = |side: Input| {
+        let Input::Step(side) = side else {
+            return None;
+        };
+        let Operation::Select { from, kept, .. } = &step_in(steps, side)?.operation else {
+            return None;
+        };
+        Some((*from, kept))
+    };
+    let one = filtered(sides.0);
+    if one.is_some() && one == filtered(sides.1) {
+        distinct_on(steps, memo, sides.0, keys)
+    } else {
+        Uniqueness::Shared
+    }
 }
 
 /// Whether an antijoin keeps one row of its left rows S for each set of values of `keys`: when S is distinct on the antijoin's
