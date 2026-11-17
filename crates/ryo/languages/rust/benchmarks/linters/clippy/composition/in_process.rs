@@ -82,11 +82,10 @@ impl ExecutionPort for InProcessExecution {
         invocation: &Invocation,
     ) -> Option<BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
         let path = Self::request_file(invocation)?;
-        let Ok(request) = json(WorkerSource::Stored(path), Box::new(Response::default())).receive()
-        else {
-            return None;
-        };
-        self.engine.compile(&request)
+        let engine: Arc<dyn EnginePort> = self.engine.clone();
+        let context: Arc<dyn ContextPort> = self.context.clone();
+        let transport = json(WorkerSource::Stored(path), Box::new(Response::default()));
+        RunRyoUseCaseImpl::new(engine, Arc::new(transport), context).compile()
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let Some(path) = Self::request_file(&invocation) else {

@@ -49,6 +49,25 @@ impl RunRyoUseCase for RunRyoUseCaseImpl {
         }
         self.worker.respond(&report)
     }
+    fn compile(
+        &self,
+    ) -> Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
+        let Ok(request) = self.worker.receive() else {
+            return None;
+        };
+        let Ok(prepared) = crate::application::worker_request::service::prepare(request) else {
+            return None;
+        };
+        let Ok(session) = self.engine.load(&prepared.request) else {
+            return None;
+        };
+        let Ok(configured) =
+            crate::application::worker_request::service::configure(&prepared.request, session)
+        else {
+            return None;
+        };
+        configured.compile()
+    }
 }
 impl std::fmt::Debug for RunRyoUseCaseImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

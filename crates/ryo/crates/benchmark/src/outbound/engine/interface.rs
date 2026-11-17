@@ -19,12 +19,4 @@ pub trait EnginePort {
     /// # Errors
     /// Refuses invalid physical context or query inputs before execution.
     fn load<'a>(&'a self, request: &'a WorkerRequest) -> Result<LoadedEngineSession<'a>, Error>;
-    /// Compile the rules of `request` ahead of its first run, answering the time each took; none from an engine that compiles
-    /// inside each run.
-    fn compile(
-        &self,
-        _request: &WorkerRequest,
-    ) -> Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
-        None
-    }
 }
