@@ -7,7 +7,7 @@ let modules = select id, file from nodes where kind = "module";
 let events = select occurrence as id, name, scope, ordinal, kind, file from "binding-event";
 let locations = select id, "start-byte" as start, file from "source-location";
 let future_files = select file from "static-import" where ends_with(target, "__future__.annotations");
-let potential_reads = select l.id as id, l.name as name, l.scope as scope, l.phase as phase, l.file as file from reads as l join future_files as r on l.file = r.file where matches(l.file, "[.]py$");
+let potential_reads = select l.id as id, l.name as name, l.scope as scope, l.phase as phase, l.file as file from reads as l all-pairs join future_files as r on l.file = r.file where matches(l.file, "[.]py$");
 let future_inputs = select id, file from potential_reads;
 let deferred_reads = future_context(expressions=future_inputs);
 let runtime_reads = antijoin(left=potential_reads, right=deferred_reads, left-on=["id", "file"], right-on=["id", "file"]);
@@ -44,7 +44,7 @@ let variable_points = select l.id as id, r.id as function, r.point as bind_point
 let variable_annotation_rows = select id, function, file from variable_points;
 let early_annotations = union(left=early_function_annotations, right=variable_annotation_rows);
 let function_points = union(left=function_points0, right=variable_points);
-let previous_points = select l.id as id, l.function as function, r.ordinal as point, l.file as file from function_points as l join events as r on l.file = r.file where r.ordinal < l.bind_point;
+let previous_points = select l.id as id, l.function as function, r.ordinal as point, l.file as file from function_points as l all-pairs join events as r on l.file = r.file where r.ordinal < l.bind_point;
 let older_points = select l.id as id, l.point as point, l.file as file from previous_points as l join previous_points as r on l.id = r.id and l.file = r.file where l.point < r.point;
 let predecessor_points = antijoin(left=previous_points, right=older_points, left-on=["id", "point", "file"], right-on=["id", "point", "file"]);
 let no_predecessor = antijoin(left=function_points, right=previous_points, left-on=["id", "file"], right-on=["id", "file"]);

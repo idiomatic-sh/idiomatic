@@ -101,14 +101,14 @@ let try_phase_ancestors = axis(from=tries, relation="semantic-child", direction=
 let try_phase_rows = select id as attempt, related as phase, file from try_phase_ancestors;
 let module_roots = select id as phase, file from "semantic-syntax" where kind = "module";
 let tries_without_callable_phase = antijoin(left=tries, right=try_phase_rows, left-on=["id"], right-on=["attempt"]);
-let module_phase_tries = select l.id as attempt, r.phase as phase, l.file as file from tries_without_callable_phase as l join module_roots as r on l.file = r.file;
+let module_phase_tries = select l.id as attempt, r.phase as phase, l.file as file from tries_without_callable_phase as l all-pairs join module_roots as r on l.file = r.file;
 let all_try_phases = union(left=try_phase_rows, right=module_phase_tries);
 let name_error_reads_with_phase = select l.attempt as attempt, l.id as id, r.phase as phase, r.file as file from name_error_candidates as l join read_rows as r on l.id = r.reference;
 let same_phase_name_errors = select l.id as id from name_error_reads_with_phase as l join all_try_phases as r on l.attempt = r.attempt and l.phase = r.phase and l.file = r.file;
 let without_name_error_handlers = antijoin(left=pre_suppression_candidates, right=same_phase_name_errors, left-on=["id"], right-on=["id"]);
 let candidates = select * from without_name_error_handlers;
 let package_init_files = select path as file from "filesystem.file" where path = "__init__.py" or ends_with(path, "/__init__.py");
-let package_path_reads = select l.reference as id, l.file as file from "binding-read" as l join package_init_files as r on l.file = r.file where l.name = "__path__" and l.state = "unbound" and l.context = "value";
+let package_path_reads = select l.reference as id, l.file as file from "binding-read" as l all-pairs join package_init_files as r on l.file = r.file where l.name = "__path__" and l.state = "unbound" and l.context = "value";
 let report_candidates = antijoin(left=candidates, right=package_path_reads, left-on=["id", "file"], right-on=["id", "file"]);
 let unresolved_reads = select id, name, scope, phase, file from ordinary_missing;
 let deferred_known = deferred_resolutions(missing=unresolved_reads);

@@ -130,7 +130,7 @@ pub fn describe(operator: QueryOperator) -> OperatorDescription {
                 ),
             ],
             &[],
-            r#"let example = select l.file, r.name from "function" as l join "function" as r on l.file = r.file; emit example subject file key(name);"#,
+            r#"let example = select l.file, r.name from "function" as l join "function" as r on l.id = r.id; emit example subject file key(name);"#,
         ),
         QueryOperator::Union => described(
             "union",

@@ -16,15 +16,15 @@ let located_inputs = select l.id as id, l.scope as scope, r.point as point, l.fi
 let unlocated_inputs = antijoin(left=scoped_inputs, right=input_points, left-on=["id","file"], right-on=["id","file"]);
 let later_points = select l.point as point, l.file as file from events as l join events as r on l.file = r.file where l.point < r.point;
 let final_points = antijoin(left=events, right=later_points, left-on=["point","file"], right-on=["point","file"]);
-let pending_inputs = select l.id as id, l.scope as scope, r.point as point, l.file as file from unlocated_inputs as l join final_points as r on l.file = r.file;
+let pending_inputs = select l.id as id, l.scope as scope, r.point as point, l.file as file from unlocated_inputs as l all-pairs join final_points as r on l.file = r.file;
 let contexts = union(left=located_inputs, right=pending_inputs);
 let checks = select id as check, id as root, scope, point, file from contexts;
 let matches = type_match(checks=checks, builtin="__no_such_builtin__", typing=$member, mode="annotation");
 let lexical_matches = select check as id, file from matches;
 let forward_inputs = forward_context(expressions=expressions);
 let modules = select id, file from "semantic-syntax" where kind = "module";
-let forward_checks0 = select l.id as context, r.id as initial_scope, l.file as file from forward_inputs as l join modules as r on l.file = r.file;
-let forward_checks1 = select l.context as context, l.initial_scope as initial_scope, r.point as point, r.point as header_point, l.file as file from forward_checks0 as l join final_points as r on l.file = r.file;
+let forward_checks0 = select l.id as context, r.id as initial_scope, l.file as file from forward_inputs as l all-pairs join modules as r on l.file = r.file;
+let forward_checks1 = select l.context as context, l.initial_scope as initial_scope, r.point as point, r.point as header_point, l.file as file from forward_checks0 as l all-pairs join final_points as r on l.file = r.file;
 let forward_checks2 = extend(from=forward_checks1, values={stage: 0});
 let forward_checks = select context, initial_scope, point, header_point, stage, file from forward_checks2;
 let name_nodes = select id, file from "semantic-syntax" where kind = "name";

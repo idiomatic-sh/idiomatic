@@ -19,7 +19,7 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
     .unwrap();
     let emission = authored.rfind("emit ").expect("actual I001 emission");
     let producer_query = format!(
-        "{}let known_imports = select r.id as id, r.file as file, r.span as span from first_party_aliases as l join import_nodes as r on l.file = r.file; observe import_nodes as independent_imports; observe known_imports as namespace_imports; {}",
+        "{}let first_party_statements = select l.statement as id, l.file as file from import_aliases as l join first_party_aliases as r on l.alias = r.alias and l.file = r.file; let known_imports = select r.id as id, r.file as file, r.span as span from first_party_statements as l join import_nodes as r on l.id = r.id and l.file = r.file; observe import_nodes as independent_imports; observe known_imports as namespace_imports; {}",
         &authored[..emission],
         &authored[emission..]
     );
@@ -152,7 +152,8 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
                 .iter()
                 .filter(|finding| finding.rule == dependent)
                 .count(),
-            if complete { 2 } else { 0 }
+            if complete { 1 } else { 0 },
+            "the first-party import statement is the one namespace row"
         );
         assert_eq!(
             actual
