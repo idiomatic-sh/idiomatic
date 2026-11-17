@@ -3,6 +3,7 @@
 
 use crate::application::file_dag::file_pass::service::answering::service::step_fed;
 use crate::application::file_dag::file_pass::service::nodes::service::node_rows;
+use crate::application::file_dag::file_pass::service::triggers::service::read;
 use crate::application::file_dag::file_pass::types::{
     CaptureAt, NodeAnswer, OutputCommit, OutputState, PassFile,
 };
@@ -235,10 +236,8 @@ fn relation_rows(
             with_rows(form, &at.inputs.roots.all),
         ),
         None => {
-            let view = at
-                .inputs
-                .lookup
-                .columns(relation)
+            // The file's one read of the relation, shared with its readers.
+            let view = read(&at.inputs.reads, at.inputs.lookup, relation)
                 .map_err(|_| OperatingError::NotRead)?;
             let mut table = Table::default();
             materialize(&Rows::Stored(view), &mut table, &mut Vec::new());

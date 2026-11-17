@@ -49,8 +49,8 @@ enum Answer {
     },
     /// Whether the small whole run allocated, and whether the one beside dormant rules allocated exactly as much.
     RunSame { allocates: bool, same: bool },
-    /// Whether the gated and the all-active run's rules and file end are the same, written out, and what the gated run's
-    /// rules came to with the relations it read, which are the ungated engine's reads.
+    /// Whether the gated run's rules, file end and reads are the all-active run's (the gate removed at the runner), and what
+    /// the gated run's rules came to with the relations it read.
     Gated {
         same: bool,
         rules: Cow<'static, str>,
@@ -79,9 +79,9 @@ fn subject(input: Input) -> Result<Value, OperatingError> {
         }
         Input::Gated(program, given) => {
             let (gated, reads) = file_rules(program(), Operators::Gated, &given());
-            let (all, _) = file_rules(program(), Operators::AllActive, &given());
+            let (all, ungated_reads) = file_rules(program(), Operators::AllActive, &given());
             Answer::Gated {
-                same: format!("{gated:?}") == format!("{all:?}"),
+                same: format!("{gated:?}") == format!("{all:?}") && reads == ungated_reads,
                 rules: Cow::Owned(format!("{}; reads {reads:?}", came_to(&gated))),
             }
         }
@@ -297,7 +297,9 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         input: || Input::Gated(plans::absent_kind_joined_with_functions, plans::no_facts),
         expect: Expect::Value((
             windows(&[]),
-            gated("rule 0 withheld; unfinished; reads [Function]"),
+            gated(
+                "rule 0 withheld; rule 0 stopped Facts(Store { reason: \"Function was not given\" }); unfinished; reads [Function]",
+            ),
         )),
     },
     Case {
@@ -327,6 +329,49 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
         expect: Expect::Value((
             windows(&[]),
             gated("rule 0 complete 2; rule 1 complete 2; finished; reads [Function]"),
+        )),
+    },
+    Case {
+        name: CaseName(
+            "gated_and_all_active_runs_answer_the_same_skipped_reader_beside_another_select",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Input::Gated(
+                plans::skipped_reader_beside_another_select,
+                plans::two_functions,
+            )
+        },
+        expect: Expect::Value((
+            windows(&[]),
+            gated("rule 0 complete 0; rule 1 complete 2; finished; reads [Function]"),
+        )),
+    },
+    Case {
+        name: CaseName("gated_and_all_active_runs_answer_the_same_union_reads_in_execution_order"),
+        word: Word::Succeeds,
+        input: || {
+            Input::Gated(
+                plans::comments_then_functions,
+                plans::functions_and_comments,
+            )
+        },
+        expect: Expect::Value((
+            windows(&[]),
+            gated("rule 0 complete 3; finished; reads [Comment, Function]"),
+        )),
+    },
+    Case {
+        name: CaseName(
+            "gated_and_all_active_runs_answer_the_same_union_refused_in_execution_order",
+        ),
+        word: Word::Succeeds,
+        input: || Input::Gated(plans::comments_then_functions, plans::no_facts),
+        expect: Expect::Value((
+            windows(&[]),
+            gated(
+                "rule 0 withheld; rule 0 stopped Facts(Store { reason: \"Comment was not given\" }); unfinished; reads [Comment]",
+            ),
         )),
     },
 ];

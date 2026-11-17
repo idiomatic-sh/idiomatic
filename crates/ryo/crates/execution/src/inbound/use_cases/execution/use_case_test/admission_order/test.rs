@@ -352,19 +352,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_valid_union_keeps_both_rows"),
         word: Word::Succeeds,
         input: || admission(OperationKind::Union, false, InputSupply::Present),
-        expect: answered(2, &[1, 2], [2, 0]),
+        expect: answered(2, &[1, 2], [1, 0]),
     },
     Case {
         name: CaseName("a_valid_intersection_keeps_both_rows"),
         word: Word::Succeeds,
         input: || admission(OperationKind::Intersection, false, InputSupply::Present),
-        expect: answered(2, &[1, 2], [2, 0]),
+        expect: answered(2, &[1, 2], [1, 0]),
     },
     Case {
         name: CaseName("a_valid_difference_of_a_source_with_itself_is_empty"),
         word: Word::Succeeds,
         input: || admission(OperationKind::Difference, false, InputSupply::Present),
-        expect: answered(0, &[], [2, 0]),
+        expect: answered(0, &[], [1, 0]),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {

@@ -78,7 +78,7 @@ pub(crate) struct PassScratch {
     pub(crate) demand: Vec<ryo_relations::domain::relations::types::Relation>,
     /// Whether a rule that runs on the open file can run each node, by node.
     pub(crate) live: Vec<NodeInFile>,
-    /// What the open file holds of the program's activation triggers.
+    /// What the open file holds of the program's root kinds.
     pub(crate) triggers:
         ryo_execution_domain::domain::executable_program::activation::types::Triggers,
     /// Whether each node can have a row or a row error in the open file, by node.
@@ -86,27 +86,22 @@ pub(crate) struct PassScratch {
         ryo_execution_domain::domain::executable_program::activation::types::Activities,
 }
 
-/// What the lookup answered for a demanded relation when the open file's triggers were read: its rows, or why it refused
-/// them. It is the first read of the relation in the file: the first reader answers it instead of asking the lookup, and
-/// every later reader asks the lookup as before, so the file reads each relation as often as it did with no trigger.
+/// What the lookup answered for one relation in the open file: its rows, or why it refused them. The file reads each relation
+/// once: every reader of it in the file, and activation, answer this read.
 #[derive(Debug)]
 pub(crate) struct FactRead<'p> {
     /// The relation.
     pub(crate) relation: ryo_relations::domain::relations::types::Relation,
-    /// Its rows, lent by the lookup, or the lookup's refusal; taken by the relation's first reader.
-    pub(crate) read: std::cell::RefCell<
-        Option<
-            Result<
-                ryo_relations::domain::relations::types::ColumnsView<'p>,
-                crate::outbound::facts::errors::FactsError,
-            >,
-        >,
+    /// Its rows, lent by the lookup, or the lookup's refusal.
+    pub(crate) read: Result<
+        ryo_relations::domain::relations::types::ColumnsView<'p>,
+        crate::outbound::facts::errors::FactsError,
     >,
 }
 
-/// The reads the open file's triggers made, one for each demanded relation they asked about, in the plan's fact order.
+/// Every relation the open file read so far, each once, in the order first read.
 #[derive(Debug, Default)]
-pub(crate) struct FactReads<'p>(pub(crate) Vec<FactRead<'p>>);
+pub(crate) struct FileReads<'p>(pub(crate) Vec<FactRead<'p>>);
 
 /// Whether a rule that runs on the open file can run a node: a step in each file of such a rule can; any other node runs
 /// nothing in the file.
@@ -144,13 +139,16 @@ pub(crate) struct PassInputs<'p, 'a, 's> {
     pub(crate) withholdings: crate::application::file_dag::frontiers::types::Withholdings,
     /// The host's rows of each relation a rule of this file read, in the file's symbols, by the relation's place.
     pub(crate) hosted: Vec<Option<ryo_values::domain::rows::types::Table>>,
-    /// Whether each node can have a row or a row error in this file, by node.
-    pub(crate) activities:
-        &'p ryo_execution_domain::domain::executable_program::activation::types::Activities,
-    /// The program, whose layouts a dormant node answers in.
+    /// The file's reads, each relation once: every read of a relation in the file answers the first.
+    pub(crate) reads: std::cell::RefCell<FileReads<'p>>,
+    /// What the file holds of the program's root kinds.
+    pub(crate) triggers: &'p ryo_execution_domain::domain::executable_program::activation::types::Triggers,
+    /// Each node's state in this file, by node, once composed.
+    pub(crate) activities: std::cell::RefCell<
+        ryo_execution_domain::domain::executable_program::activation::types::Activities,
+    >,
+    /// The program, whose activation plan and layouts a node's activity is read from.
     pub(crate) program: &'p ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
-    /// What the lookup answered for each relation the file's triggers read: the file's one read of each.
-    pub(crate) read_at_open: FactReads<'p>,
 }
 
 /// What one file's kernels borrow besides rows: its symbols, bytes and tree, and the paths of the run's files.

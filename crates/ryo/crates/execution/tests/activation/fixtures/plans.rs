@@ -349,3 +349,68 @@ pub(crate) fn functions_read_twice() -> PrepareRequest {
         ]),
     ])
 }
+
+/// Two rows of `Function` and one of `Comment`.
+pub(crate) fn functions_and_comments() -> Given {
+    let comments = {
+        let kinds = ryo_relations::domain::relations::fixtures::kinds(Relation::Comment);
+        ryo_values::domain::rows::types::Table {
+            kinds: kinds.to_vec(),
+            cells: kinds
+                .iter()
+                .map(|kind| match kind {
+                    CellKind::Node => Value::Node(
+                        ryo_relations::domain::relations::fixtures::node_id(FileId(0), Position(9)),
+                    ),
+                    CellKind::Symbol => {
+                        Value::Symbol(ryo_relations::domain::terms::types::Symbol(0))
+                    }
+                    CellKind::File => Value::File(FileId(0)),
+                    CellKind::Span => Value::Span(Span {
+                        start: Offset(0),
+                        end: Offset(0),
+                    }),
+                    CellKind::Number => Value::Number(Integer(0)),
+                    CellKind::Flag => Value::Flag(Flag::Lowered),
+                })
+                .collect(),
+            count: ryo_values::domain::rows::types::RowCount(1),
+        }
+    };
+    Given {
+        facts: vec![
+            (Relation::Function, functions(2)),
+            (Relation::Comment, comments),
+        ],
+        partials: vec![],
+    }
+}
+
+/// Rule 0 reads the functions only through a join with the absent kind's nodes, and rule 1 selects their first two columns:
+/// two readers of one relation, the first of them dormant.
+pub(crate) fn skipped_reader_beside_another_select() -> PrepareRequest {
+    requested(vec![
+        rule(vec![all_functions(), of_kind(ABSENT), joined(0, 1)]),
+        rule(vec![Operation::Select {
+            from: Input::Relation(Relation::Function),
+            comparisons: vec![],
+            kept: vec![ColumnIndex(0), ColumnIndex(1)],
+        }]),
+    ])
+}
+
+/// The comments, then the functions, written in the other order: a union read in execution order, comments first.
+pub(crate) fn comments_then_functions() -> PrepareRequest {
+    requested(vec![rule(vec![
+        all_functions(),
+        Operation::Select {
+            from: Input::Relation(Relation::Comment),
+            comparisons: vec![],
+            kept: vec![ColumnIndex(0)],
+        },
+        Operation::Union {
+            left: Input::Step(StepId(1)),
+            right: Input::Step(StepId(0)),
+        },
+    ])])
+}

@@ -6,7 +6,7 @@ use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::{
     Arena, CaptureContext, CaptureIntent, DiagnosticDelivery, EmittedRoot, ExecutionUseCase,
     FileEnd, FileRuleIntent, FileRules, FileRunInput, KindSupport, ObservationDemand,
-    ProgramRequestExecutionPort, RootOutcome, SemanticSupport, SourceLanguage,
+    ProgramRequestExecutionPort, RootOutcome, RuleAfter, SemanticSupport, SourceLanguage,
 };
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -187,6 +187,10 @@ pub(crate) fn came_to(rules: &FileRules) -> String {
             EmittedRoot::Delivered(other) => format!("rule {} {other:?}", rule.rule.0),
             EmittedRoot::Withheld => format!("rule {} withheld", rule.rule.0),
         })
+        .chain(rules.rules.iter().filter_map(|rule| match &rule.after {
+            RuleAfter::Stopped(stop) => Some(format!("rule {} stopped {stop:?}", rule.rule.0)),
+            RuleAfter::Ran { .. } | RuleAfter::Unreached => None,
+        }))
         .collect();
     written.push(match &rules.end {
         FileEnd::Finished(_) => "finished".to_owned(),

@@ -111,8 +111,7 @@ pub enum TriggerPresence {
     Absent,
 }
 
-/// What one file holds of a plan's triggers: by kind slot and by fact slot. A file whose reads are refused or partial holds
-/// every trigger.
+/// What one file holds of a plan's root kinds, by kind slot. A file whose reads are partial holds every kind.
 ///
 /// # Examples
 ///
@@ -124,8 +123,24 @@ pub enum TriggerPresence {
 pub struct Triggers {
     /// Each root kind's presence, by kind slot.
     pub kinds: Vec<TriggerPresence>,
-    /// Each fact relation's presence, by fact slot.
-    pub facts: Vec<TriggerPresence>,
+}
+
+/// What a file's one read of a fact relation answered, as activation reads it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::activation::types::FactAnswer;
+/// assert_ne!(FactAnswer::Rows, FactAnswer::NoRow);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FactAnswer {
+    /// Rows, or a file that cannot say it has none (a partial read).
+    Rows,
+    /// No row.
+    NoRow,
+    /// The read was refused: the reader runs and meets the refusal.
+    Refused,
 }
 
 /// Whether a node runs in the open file.
@@ -160,7 +175,7 @@ pub struct NodeState {
     pub faults: TriggerPresence,
 }
 
-/// Every node's state in the open file, by node id: refilled per file, keeping its room.
+/// Each node's state in the open file, by node id, once it was composed: cleared per file, keeping its room.
 ///
 /// # Examples
 ///
@@ -169,4 +184,4 @@ pub struct NodeState {
 /// assert!(Activities::default().0.is_empty());
 /// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Activities(pub Vec<NodeState>);
+pub struct Activities(pub Vec<Option<NodeState>>);
