@@ -43,6 +43,8 @@ enum Call {
     CaseManifest,
     /// Prepare one file of a root that has its own manifest, then read that manifest.
     ProjectManifest,
+    /// Prepare a request naming only a file that is not there, then say whether the root has a manifest.
+    AbsentFiles,
     /// Prepare one file last modified long ago, then say whether it is now marked modified since the instant before.
     SourceMarked,
     /// Prepare a request that carries a rule configuration.
@@ -104,6 +106,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(
             "CARGO=toolchain/bin/cargo\nCARGO_BUILD_JOBS=4\nCARGO_TARGET_DIR=targets\nCLIPPY_CONF_DIR=targets\nRUSTC=toolchain/bin/rustc",
         )),
+    },
+    Case {
+        name: CaseName("a request naming only absent files writes no manifest into its root"),
+        word: Word::Succeeds,
+        input: || Call::AbsentFiles,
+        expect: Expect::Value(Cow::Borrowed("no manifest")),
     },
     Case {
         name: CaseName("a case root without a manifest becomes the case crate"),
@@ -276,6 +284,18 @@ fn subject(input: Input) -> Result<Value, Failure> {
             Ok(std::fs::read_to_string(root.path().join("Cargo.toml"))
                 .map_err(|_error| Refusal::Unexpected)?
                 .into())
+        }
+        Call::AbsentFiles => {
+            let root = case_root(&[])?;
+            let _invocation = adapter
+                .prepare(&request(&["__certificate_probe__"], root.path()))
+                .map_err(|error| refusal(&error))?;
+            let manifest = std::fs::symlink_metadata(root.path().join("Cargo.toml"));
+            Ok(Cow::Borrowed(match manifest {
+                Ok(_metadata) => "a manifest",
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => "no manifest",
+                Err(_error) => return Err(Refusal::Unexpected),
+            }))
         }
         Call::ProjectManifest => {
             let root = case_root(&["src/lib.rs"])?;

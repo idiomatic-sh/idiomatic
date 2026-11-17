@@ -139,6 +139,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(ProcessReceiptsError::RawStateMissing),
     },
     Case {
+        name: CaseName(
+            "raw argv running on four threads establishes settings spelled at one worker",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            edited(passing, |d| {
+                let raw = invocation(d);
+                raw.arguments
+                    .extend([ArgumentText("--threads".into()), ArgumentText("4".into())]);
+                raw.normalized_settings
+                    .arguments
+                    .extend([ArgumentText("--threads".into()), ArgumentText("1".into())]);
+            })
+        },
+        expect: Expect::Value(Outcome::Accepted),
+    },
+    Case {
         name: CaseName("raw argv that does not establish the pinned settings is refused"),
         word: Word::Refuses,
         input: || {
