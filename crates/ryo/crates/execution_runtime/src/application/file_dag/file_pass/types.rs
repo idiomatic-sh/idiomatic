@@ -88,15 +88,27 @@ pub(crate) struct PassScratch {
         ryo_execution_domain::domain::executable_program::activation::types::Activities,
 }
 
-/// A demanded relation the lookup refused when the open file's triggers were read: its readers answer this refusal without
-/// asking the lookup again, so a refused source is read once.
+/// What the lookup answered for a demanded relation when the open file's triggers were read: its rows, or why it refused
+/// them. It is the first read of the relation in the file: the first reader answers it instead of asking the lookup, and
+/// every later reader asks the lookup as before, so the file reads each relation as often as it did with no trigger.
 #[derive(Debug)]
-pub(crate) struct RefusedRead {
+pub(crate) struct FactRead<'p> {
     /// The relation.
     pub(crate) relation: ryo_relations::domain::relations::types::Relation,
-    /// Why the lookup refused it.
-    pub(crate) error: crate::outbound::facts::errors::FactsError,
+    /// Its rows, lent by the lookup, or the lookup's refusal; taken by the relation's first reader.
+    pub(crate) read: std::cell::RefCell<
+        Option<
+            Result<
+                ryo_relations::domain::relations::types::ColumnsView<'p>,
+                crate::outbound::facts::errors::FactsError,
+            >,
+        >,
+    >,
 }
+
+/// The reads the open file's triggers made, one for each demanded relation they asked about, in the plan's fact order.
+#[derive(Debug, Default)]
+pub(crate) struct FactReads<'p>(pub(crate) Vec<FactRead<'p>>);
 
 /// Whether a rule that runs on the open file can run a node: a step in each file of such a rule can; any other node runs
 /// nothing in the file.
@@ -139,8 +151,8 @@ pub(crate) struct PassInputs<'p, 'a, 's> {
         &'p ryo_execution_domain::domain::executable_program::activation::types::Activities,
     /// The program, whose layouts a dormant node answers in.
     pub(crate) program: &'p ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
-    /// The demanded relation the lookup refused when the file's triggers were read, if any.
-    pub(crate) refused_at_open: Option<RefusedRead>,
+    /// What the lookup answered for each relation the file's triggers read: the file's one read of each.
+    pub(crate) read_at_open: FactReads<'p>,
 }
 
 /// What one file's kernels borrow besides rows: its symbols, bytes and tree, and the paths of the run's files.

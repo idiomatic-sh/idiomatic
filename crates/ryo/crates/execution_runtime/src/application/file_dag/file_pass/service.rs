@@ -298,10 +298,17 @@ fn absorb(into: &mut Vec<RelationRead>, more: &[RelationRead]) {
 
 impl PlanInputs for PassInputs<'_, '_, '_> {
     fn facts(&self, relation: Relation) -> FactRows<'_> {
-        // A relation refused when the file's triggers were read answers that refusal: a refused source is read once.
-        let read = match &self.refused_at_open {
-            Some(refused) if refused.relation == relation => Err(refused.error.clone()),
-            Some(_) | None => self.lookup.columns(relation),
+        // The first reader of a relation the file's triggers read answers that read, rows or refusal: it was the file's first
+        // read of the relation. A later reader asks the lookup, as it did with no trigger.
+        let read = match self
+            .read_at_open
+            .0
+            .iter()
+            .find(|read| read.relation == relation)
+            .and_then(|read| read.read.borrow_mut().take())
+        {
+            Some(first) => first,
+            None => self.lookup.columns(relation),
         };
         match read {
             Ok(view) => FactRows::Lent(view),
