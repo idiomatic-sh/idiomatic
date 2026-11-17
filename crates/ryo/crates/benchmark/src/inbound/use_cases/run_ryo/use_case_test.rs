@@ -227,6 +227,18 @@ impl EnginePort for Engine {
     }
 }
 impl EngineExecution for Session<'_> {
+    fn compile(
+        &self,
+        rules: &std::collections::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>,
+        _configured: &crate::outbound::engine::types::EngineConfiguration,
+    ) -> Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
+        Some(
+            rules
+                .keys()
+                .map(|rule| (rule.clone(), std::time::Duration::from_millis(48)))
+                .collect(),
+        )
+    }
     fn configuration_files(&self) -> Result<Vec<ryo::linter::RelativePath>, Error> {
         Ok(vec![])
     }
@@ -397,3 +409,5 @@ fn succeeds() {
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
+
+mod compile;
