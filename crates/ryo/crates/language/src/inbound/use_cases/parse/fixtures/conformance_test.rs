@@ -329,3 +329,45 @@ fn two_rows_for_one_file_of_a_relation_keyed_by_the_file_are_a_finding() {
                 .to_owned()
         ]);
 }
+
+/// A read of one file in which `module-identity` has one row for each module path given, every one for file 0.
+fn identities(paths: &[u32]) -> Read {
+    use ryo_relations::domain::relations::collections::relations::module_identity::item::ModuleIdentityRow;
+    use ryo_relations::domain::terms::types::Symbol;
+    let mut out = Collect::default();
+    for path in paths {
+        out.write(ModuleIdentityRow {
+            file: FileId(0),
+            path: Symbol(*path),
+            module_name: Symbol(*path),
+            package_name: Symbol(*path),
+            package_root_name: Symbol(*path),
+        });
+    }
+    Read {
+        out,
+        symbols: Symbols::default(),
+        bytes: Vec::new(),
+        files: Vec::new(),
+        texts: vec![Vec::new()],
+        unknowns: &[],
+    }
+}
+
+/// The file is the key of `module-identity`, a relation the manifests write: two different identities for one file are a
+/// finding naming the column and the file, whether or not the case's expected rows hold both, and one is no finding.
+#[test]
+fn two_module_identities_for_one_file_are_a_finding() {
+    let shown = "tests/fixtures/manifests/two/";
+    let findings_of = |paths: &[u32]| {
+        let mut findings = Findings(Vec::new());
+        let written = rows_of_relation(&identities(paths), Relation::ModuleIdentity, shown);
+        super::super::rows::judge_keys(Relation::ModuleIdentity, &written, shown, &mut findings);
+        findings.0
+    };
+    assert_eq!(findings_of(&[1]), Vec::<String>::new());
+    assert_eq!(findings_of(&[1, 2]), vec![
+            "tests/fixtures/manifests/two/: file is the key of module_identity, but more than one row holds File(\"tests/fixtures/manifests/two/\")"
+                .to_owned()
+        ]);
+}

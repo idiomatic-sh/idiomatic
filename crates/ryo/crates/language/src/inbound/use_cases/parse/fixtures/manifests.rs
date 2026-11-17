@@ -150,19 +150,26 @@ pub(super) fn manifest_rows(
                 "tests/fixtures/manifests/{case}/: a project the language fails to read: {error:?}"
             ));
         }
-        let mut got: Vec<Vec<Cell>> = all()
-            .iter()
-            .copied()
-            .filter(|relation| {
-                provenance_of(*relation) == Provenance::Manifests
-                    && language.absence_of(*relation).is_none()
-            })
-            .flat_map(|relation| {
-                rows_of_relation(&held, relation, "")
+        // Each relation's rows of the case held to the keys of the relation first, as the syntax fixtures' rows are: rows the
+        // language expects can repeat a key no less than rows it writes.
+        let mut got: Vec<Vec<Cell>> = Vec::new();
+        for relation in all().iter().copied().filter(|relation| {
+            provenance_of(*relation) == Provenance::Manifests
+                && language.absence_of(*relation).is_none()
+        }) {
+            let written = rows_of_relation(&held, relation, "");
+            super::rows::judge_keys(
+                relation,
+                &written,
+                &format!("tests/fixtures/manifests/{case}/"),
+                findings,
+            );
+            got.extend(
+                written
                     .into_iter()
-                    .map(move |row| with_folder(folder_of(relation).0, row))
-            })
-            .collect();
+                    .map(|row| with_folder(folder_of(relation).0, row)),
+            );
+        }
         got.sort();
         let mut wanted: Vec<Vec<Cell>> = expected
             .iter()
