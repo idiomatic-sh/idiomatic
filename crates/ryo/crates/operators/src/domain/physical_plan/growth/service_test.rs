@@ -3,7 +3,7 @@
 use super::errors::GrowthError;
 use super::service::checked;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::growth::types::{Degree, Fan, Growth};
+use crate::domain::growth::types::Degree;
 use crate::domain::physical_plan::types::lowering::value::{
     BandJoinNode, BoundScan, FilterNode, Lowering, ScanBoundNode,
 };
@@ -73,7 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Given(BandAnswer::Every, KeyFan::FileOnly, Readers::Read),
         expect: Expect::Error(GrowthError::Superlinear {
             node: PlanNodeId(2),
-            growth: Growth::Banded(Fan::FileProduct),
+            kind: "BandJoin",
             degree: Degree(2),
         }),
     },

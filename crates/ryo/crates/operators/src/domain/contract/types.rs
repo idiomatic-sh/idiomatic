@@ -21,11 +21,41 @@ pub struct SourceByteLength(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RenderRefusal(pub u32);
 
+/// A node of a plan the plan's growth check refused, and the one text of that refusal: the node by its number in the plan, its
+/// kind, the degree in rows it grows by, and the first rule, in rule order, whose emit reads it (none when only the engine holds
+/// it). The engine names the rule by its id before this text.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::contract::types::RefusedNode;
+/// let refused = RefusedNode { node: 2, kind: "BandJoin", degree: 2, rule: Some(0) };
+/// assert!(refused.to_string().starts_with("node 2 (BandJoin) pairs every row of a file"));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error(
+    "node {node} ({kind}) pairs every row of a file with every row of it (grows as rows^{degree}): write `nearest join` to \
+     keep the closest row, or `all-pairs join` to declare every pair"
+)]
+pub struct RefusedNode {
+    /// The node, by its number in the plan.
+    pub node: u32,
+    /// The name of its kind.
+    pub kind: &'static str,
+    /// The degree in rows of its output or its work.
+    pub degree: u8,
+    /// The first rule, by its place in rule order, whose emitted node reads it.
+    pub rule: Option<u32>,
+}
+
 /// One portable semantic fault vocabulary for every borrowed operator call.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PortableOperatorFault {
     /// An input the engine withheld: it answers the fault with its own reason, found by the token.
     Withheld(WithheldInput),
+    /// The plan's growth check refused a node whose rows grow faster than the rows of every input it reads, as a product of
+    /// the rows of one file with themselves, which the query did not declare with `all-pairs join`.
+    Superlinear(RefusedNode),
     /// The engine stopped candidate acquisition or downstream delivery.
     Interrupted,
     /// The declared input column is absent.

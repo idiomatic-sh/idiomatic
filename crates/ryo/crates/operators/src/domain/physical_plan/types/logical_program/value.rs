@@ -150,6 +150,11 @@ impl<'p> LogicalProgram<'p> {
         &self.nodes
     }
 
+    /// Each rule and the node it emits, in rule order.
+    pub(crate) fn emits(&self) -> &[Emitted] {
+        &self.emits
+    }
+
     /// Each rule's emitted node, in rule order.
     pub(crate) fn emitted(&self) -> impl Iterator<Item = PlanNodeId> + '_ {
         self.emits.iter().map(|emitted| emitted.node)

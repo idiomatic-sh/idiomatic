@@ -1,12 +1,13 @@
 //! Comparison-family classification and project text identity are pure operating contracts.
 use super::{errors::OperatingError, service::minted, types::AfterTheFiles};
-use crate::domain::operating::service::derived_fault;
+use crate::domain::operating::service::{derived_fault, planned_fault};
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_language::domain::symbols::{
     service::{hash_in, intern_derived, place_of},
     types::{ByteSlice, Symbols},
 };
 use ryo_operators::domain::comparing::{service::family_of, types::Family};
+use ryo_operators::domain::contract::types::{PortableOperatorFault, RefusedNode};
 use ryo_relations::domain::{
     relations::types::{CROSS_FILE, Origin, Value as Cell},
     terms::types::NameText,
@@ -136,4 +137,25 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// A node the growth check refused is refused with the operators' one text of it, after the id of the first rule whose emit
+/// reads it: its number, its kind and the degree it grows by.
+#[test]
+fn a_node_the_growth_check_refused_is_refused_naming_its_rule_kind_and_degree() {
+    let refused = RefusedNode {
+        node: 2,
+        kind: "Probe",
+        degree: 2,
+        rule: Some(1),
+    };
+    let ids = [
+        ryo_values::domain::runs::types::RuleId("first".into()),
+        ryo_values::domain::runs::types::RuleId("PLR2044".into()),
+    ];
+    assert_eq!(
+        planned_fault(PortableOperatorFault::Superlinear(refused), &ids).to_string(),
+        "PLR2044: node 2 (Probe) pairs every row of a file with every row of it (grows as rows^2): write `nearest join` to \
+         keep the closest row, or `all-pairs join` to declare every pair"
+    );
 }
