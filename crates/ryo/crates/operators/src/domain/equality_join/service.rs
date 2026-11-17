@@ -1,5 +1,7 @@
 //! The engine chooses the physical probe; this kernel owns ordered Join row semantics.
-use crate::domain::equality_join::types::JoinShape;
+use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::equality_join::types::{JoinShape, ProbeMode, ProbeParts};
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
 /// The one lowering of a join with no closure demand: an inner probe of a `hash_index` of the right rows its filter keeps, each
@@ -8,8 +10,8 @@ pub(crate) fn lower(
     shape: JoinShape<'_>,
     filter: &[ryo_values::domain::plan_parts::types::PlanComparison],
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
-) -> super::types::ProbeParts {
-    use super::types::{EmptyRight, Existence, ProbeKey, ProbeMode, ProbeParts};
+) -> ProbeParts {
+    use super::types::{EmptyRight, Existence, ProbeKey};
     // No view names every column of the right rows: a column is where it is.
     let placed = |column: &ColumnIndex| match shape
         .view
@@ -56,4 +58,34 @@ pub(crate) fn seeded(
             .unwrap_or_default(),
         probe: lower(shape, filter, bindings),
     }
+}
+
+/// The kinds of a probe's answer over left rows of `left` and right rows of `right`.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for an answer column past its side's rows.
+pub(crate) fn answer_kinds(
+    probe: &ProbeParts,
+    left: &[CellKind],
+    right: &[CellKind],
+) -> Result<Vec<CellKind>, PortableOperatorFault> {
+    if probe.mode != ProbeMode::Inner {
+        return Ok(left.to_vec());
+    }
+    probe
+        .output
+        .iter()
+        .map(|column| {
+            let side = match column.side {
+                Side::Left => left,
+                Side::Right => right,
+            };
+            side.get(usize::try_from(column.column.0).unwrap_or(usize::MAX))
+                .copied()
+                .ok_or(PortableOperatorFault::NoSuchColumn {
+                    index: column.column,
+                })
+        })
+        .collect()
 }

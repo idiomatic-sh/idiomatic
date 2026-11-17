@@ -1,9 +1,13 @@
-//! A row set keeps each first row once, in first-seen order, and tells two rows of one hash apart by their cells.
+//! A row set keeps each first row once, in first-seen order, tells two rows of one hash apart by their cells, and holds each
+//! row of the side it was built from and no other.
 use super::value::{FirstSeen, RowSet, SetEntry, hash_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::types::CellStart;
 use crate::domain::physical_plan::types::keyed_rows::value::IndexedRow;
+use crate::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::service::{push_row, row_in};
 use ryo_values::domain::rows::types::{RowCount, Table};
 use std::borrow::Cow;
 
@@ -16,6 +20,8 @@ enum Given {
     SixHundredOfAThousand,
     /// A row of 2 after a row of 1 planted under the hash of a row of 2.
     Collided,
+    /// A set built from rows of the first numbers, asked for each number of the second.
+    Built(&'static [i64], &'static [i64]),
 }
 type Input = Given;
 type Value = Observation;
@@ -37,6 +43,8 @@ enum Observation {
     },
     /// The set's first-seen answer for the last row.
     Last(FirstSeen),
+    /// Whether the set holds each asked number, in order, and how many rows it keeps.
+    Holds(Cow<'static, [SetMembership]>, RowCount),
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -73,6 +81,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::Collided,
         expect: Expect::Value(Observation::Last(FirstSeen::First)),
+    },
+    Case {
+        name: CaseName("a_built_side_holds_each_of_its_rows"),
+        word: Word::Succeeds,
+        input: || Given::Built(&[5, 6, 5, 7], &[5, 6, 7, 8]),
+        expect: Expect::Value(Observation::Holds(
+            Cow::Borrowed(&[
+                SetMembership::In,
+                SetMembership::In,
+                SetMembership::In,
+                SetMembership::Out,
+            ]),
+            RowCount(3),
+        )),
     },
 ];
 
@@ -146,6 +168,22 @@ fn subject(given: Input) -> Result<Value, Failure> {
                 |kept| kept.hash.0,
             );
             return Ok(Observation::Last(seen(&mut table, &mut set, 2)));
+        }
+        Given::Built(side, asked) => {
+            for number in side {
+                push_row(&mut table, &[Cell::Number(Integer(*number))]);
+            }
+            let cell = |row, column: ColumnIndex| {
+                row_in(&table, row)?
+                    .get(usize::try_from(column.0).ok()?)
+                    .copied()
+            };
+            set.built(table.count, &table.kinds, cell).map_err(|_| ())?;
+            let holds = asked
+                .iter()
+                .map(|number| set.holds(&table.kinds, cell, &[Cell::Number(Integer(*number))]))
+                .collect();
+            return Ok(Observation::Holds(Cow::Owned(holds), set.count()));
         }
     }
     Ok(Observation::Kept {

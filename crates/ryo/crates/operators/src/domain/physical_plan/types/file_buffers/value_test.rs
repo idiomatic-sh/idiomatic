@@ -1,7 +1,8 @@
 //! Buffers answer no rows for a node they do not hold, and keep answering none once it is released; `retain` keeps the rows its
 //! predicate keeps, in their order, and every row when it keeps them all. A released node's table goes to the worker's pool,
 //! unless it is past the pool's cap on its room. A released or ended shared index gives its rows to the worker's index pool,
-//! which keeps no more than its cap of them.
+//! which keeps no more than its cap of them; the file's end gives the worker's own index, second index and repeats to the
+//! pools of their kinds.
 use super::value::FileBuffers;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PredicateOutcome;
@@ -9,7 +10,8 @@ use crate::domain::kept_room::constants::{KEPT_ROOM, POOL_INDEXES};
 use crate::domain::kept_room::types::{KeptRoom as _, PoolSize, Room};
 use crate::domain::physical_plan::types::IndexPlace;
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
-use crate::domain::physical_plan::types::shared_index::value::SharedIndex;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
+use crate::domain::physical_plan::types::shared_index::value::{IndexRows, SharedIndex};
 use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::rows::service::push_row;
@@ -202,7 +204,7 @@ fn index_of(rows: usize) -> SharedIndex {
     let mut keyed = KeyedRows::default();
     keyed.next.resize(rows, NO_ROW);
     SharedIndex {
-        rows: keyed,
+        rows: IndexRows::Keyed(keyed),
         ..SharedIndex::default()
     }
 }
@@ -241,4 +243,48 @@ fn given_back(given: Shared) -> Result<Given, Failure> {
 #[test]
 fn gives_back_shared_indexes() {
     run(SHARED_CASES, Word::Succeeds, given_back);
+}
+
+/// The room a worker's own index, second index and repeats keep once the file ended, and the tables and sets its pools gained:
+/// each is given to the pool of its kind, none keeps room in place.
+#[derive(Debug, PartialEq, Eq)]
+struct OwnGivenBack {
+    index: Room,
+    second: Room,
+    repeats: Room,
+    keyed: PoolSize,
+    sets: PoolSize,
+}
+
+const OWN_CASES: &[Case<(), OwnGivenBack, Failure>] = &[Case {
+    name: CaseName("a_files_end_gives_the_workers_own_index_second_and_repeats_to_their_pools"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(OwnGivenBack {
+        index: Room(0),
+        second: Room(0),
+        repeats: Room(0),
+        keyed: PoolSize(2),
+        sets: PoolSize(1),
+    }),
+}];
+
+fn own_given_back((): ()) -> Result<OwnGivenBack, Failure> {
+    let mut buffers = FileBuffers::default();
+    buffers.index = KeyedRows::with_room(Room(64));
+    buffers.second = IndexRows::Keyed(KeyedRows::with_room(Room(64)));
+    buffers.repeats = RowSet::with_room(Room(64));
+    buffers.ended();
+    Ok(OwnGivenBack {
+        index: buffers.index.room(),
+        second: buffers.second.room(),
+        repeats: buffers.repeats.room(),
+        keyed: buffers.pools.keyed.len(),
+        sets: buffers.pools.rows.len(),
+    })
+}
+
+#[test]
+fn gives_back_own_indexes() {
+    run(OWN_CASES, Word::Succeeds, own_given_back);
 }

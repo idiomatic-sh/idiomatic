@@ -16,18 +16,21 @@ use super::super::scan_facts::item::{
 };
 use super::super::scan_roots::item::{keyed_roots, next_found, tree_cell};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::equality_join::service::answer_kinds;
 use crate::domain::equality_join::types::{Existence, PartitionExtremum, ProbeMode, ProbeParts};
-use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRun, NO_ROW};
+use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, KeyedRun, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::row_set::value::RowSet;
+use crate::domain::physical_plan::types::shared_index::value::IndexRows;
 use crate::domain::physical_plan::types::stream_scratch::value::{
     CellBound, ChunkRead, ChunkStop, RowChunk,
 };
 use crate::domain::physical_plan::types::{
     CellStart, InputRows, KernelRun, KeyedRowAt, KeyedSide, NodeFed, TreeRead,
 };
-use ryo_relations::domain::relations::types::{CellKind, Value};
+use crate::domain::table_scratch::types::SetMembership;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Side};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
@@ -43,43 +46,16 @@ impl KernelsItem for ProbeItem {
     }
 }
 
-/// The right rows one left row matches: a key's run of the index, or the tree rows its walk found.
+/// The right rows one left row matches: a key's run of the index, whether a row set holds the row, or the tree rows its walk
+/// found.
 #[derive(Clone, Copy, Debug)]
 enum Matched<'a> {
-    /// The key's rows in the index; none when it has none.
-    Indexed(Option<KeyedRun>),
+    /// The keyed rows and the key's rows in them; none when it has none.
+    Indexed(&'a KeyedRows, Option<KeyedRun>),
+    /// Whether a whole-row index holds the left row.
+    Member(SetMembership),
     /// The rows of this tree read the walk found, in the probe's `found`.
     Walked(TreeRead<'a>),
-}
-
-/// The kinds of a probe's answer over left rows of `left` and right rows of `right`.
-///
-/// # Errors
-///
-/// `NoSuchColumn` for an answer column past its side's rows.
-pub(crate) fn answer_kinds(
-    probe: &ProbeParts,
-    left: &[CellKind],
-    right: &[CellKind],
-) -> Result<Vec<CellKind>, PortableOperatorFault> {
-    if probe.mode != ProbeMode::Inner {
-        return Ok(left.to_vec());
-    }
-    probe
-        .output
-        .iter()
-        .map(|column| {
-            let side = match column.side {
-                Side::Left => left,
-                Side::Right => right,
-            };
-            side.get(usize::try_from(column.column.0).unwrap_or(usize::MAX))
-                .copied()
-                .ok_or(PortableOperatorFault::NoSuchColumn {
-                    index: column.column,
-                })
-        })
-        .collect()
 }
 
 /// Appends the answers of the rows of `left` from its first unread row, probing the right rows readied by `probe_prepared`
@@ -188,9 +164,9 @@ fn row_probed(
         counted(output, start, probe.repeated, repeats);
         return Ok(None);
     }
-    let matched = match *walked {
-        None => match find_cells(
-            index,
+    let matched = match (*walked, index) {
+        (None, IndexRows::Keyed(rows)) => match find_cells(
+            rows,
             KeyedSide {
                 rows: right,
                 on: right_on,
@@ -203,10 +179,14 @@ fn row_probed(
                 row: at,
             },
         ) {
-            Ok(found) => Matched::Indexed(found),
+            Ok(found) => Matched::Indexed(rows, found),
             Err(fault) => return Ok(Some(fault)),
         },
-        Some(tree) => {
+        // A whole-row index is asked only whether it holds the left row.
+        (None, IndexRows::Rows(set)) => {
+            Matched::Member(set.holds(kinds_of(right), right_cell, row_of(left, at, row)))
+        }
+        (Some(tree), _) => {
             let (Some(left_key), Some(right_key)) = (left_on.first(), right_on.first()) else {
                 return Err(PortableOperatorFault::WrongOperation);
             };
@@ -230,7 +210,7 @@ fn row_probed(
     };
     if probe.mode == ProbeMode::Inner {
         match matched {
-            Matched::Indexed(key) => {
+            Matched::Indexed(rows, key) => {
                 let mut matched_row = key.map_or(NO_ROW, |key| key.first);
                 while matched_row != NO_ROW {
                     if let Some(fault) = answered(
@@ -244,9 +224,10 @@ fn row_probed(
                     ) {
                         return Ok(Some(fault));
                     }
-                    matched_row = next_of(index, matched_row);
+                    matched_row = next_of(rows, matched_row);
                 }
             }
+            Matched::Member(_) => return Err(PortableOperatorFault::WrongOperation),
             Matched::Walked(tree) => {
                 let walked_rows = TreeRead {
                     candidates: nodes.as_slice(),
@@ -274,7 +255,7 @@ fn row_probed(
     }
     if let ProbeMode::Ordered(order) = probe.mode {
         // An ordered probe keeps its index (`tree_probe`): it never walks.
-        let Matched::Indexed(found) = matched else {
+        let Matched::Indexed(_, found) = matched else {
             return Err(PortableOperatorFault::WrongOperation);
         };
         let passed = match found {
@@ -297,16 +278,17 @@ fn row_probed(
     }
     let exists = match (probe.existence, matched) {
         (_, Matched::Walked(_)) => !nodes.is_empty(),
-        (_, Matched::Indexed(None)) => false,
-        (Existence::First, Matched::Indexed(Some(_))) => true,
-        (Existence::Every, Matched::Indexed(Some(key))) => {
-            let mut rows = RowCount(0);
+        (_, Matched::Member(member)) => member == SetMembership::In,
+        (_, Matched::Indexed(_, None)) => false,
+        (Existence::First, Matched::Indexed(_, Some(_))) => true,
+        (Existence::Every, Matched::Indexed(rows, Some(key))) => {
+            let mut count = RowCount(0);
             let mut matched_row = key.first;
             while matched_row != NO_ROW {
-                rows = RowCount(rows.0.saturating_add(1));
-                matched_row = next_of(index, matched_row);
+                count = RowCount(count.0.saturating_add(1));
+                matched_row = next_of(rows, matched_row);
             }
-            rows.0 > 0
+            count.0 > 0
         }
     };
     if exists == (probe.mode == ProbeMode::Semi) {

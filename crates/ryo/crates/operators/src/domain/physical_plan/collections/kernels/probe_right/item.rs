@@ -17,6 +17,8 @@ use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::row_set::value::RowSet;
+use crate::domain::physical_plan::types::row_set::value::columns;
+use crate::domain::physical_plan::types::shared_index::value::IndexRows;
 use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedSide, NodeFed, TreeRead};
 use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -52,8 +54,8 @@ pub(crate) enum IndexBuild {
 /// The scratch a probe writes through, its own across its left rows: its index, the right rows its filter kept and the key
 /// columns of a probe of whole rows, beside the worker's row buffers.
 pub(crate) struct ProbeScratch<'s> {
-    /// The index it reads: its own keyed-row table, or a shared index.
-    pub(crate) index: &'s mut KeyedRows,
+    /// The index it reads, of the kind its key needs: its own, or a shared index.
+    pub(crate) index: &'s mut IndexRows,
     /// Whether it builds that index.
     pub(crate) build: IndexBuild,
     /// The right rows its filter kept, read by every left row; empty when it filters none.
@@ -91,8 +93,8 @@ pub(crate) struct ProbeReads<'a> {
     pub(crate) walked: Option<TreeRead<'a>>,
     /// Its key columns: its left's, then its right's.
     pub(crate) keys: [&'a [ColumnIndex]; 2],
-    /// Its index of the right rows.
-    pub(crate) index: &'a KeyedRows,
+    /// Its index of the right rows, of the kind its key needs.
+    pub(crate) index: &'a IndexRows,
     /// The row read, decoded.
     pub(crate) row: &'a mut Vec<Value>,
     /// The answers kept, keyed by their cells, when repeats are dropped.
@@ -247,16 +249,34 @@ pub(crate) fn probe_prepared(
         ProbeKey::Columns { right, .. } => right.as_slice(),
         ProbeKey::Whole => right_on.as_slice(),
     };
-    if scratch.build == IndexBuild::Builds
-        && let Err(fault) = cells(KeyedSide { rows: right, on }, scratch.index)
-    {
-        // A partial index is no index: the next probe of a shared one builds it again.
-        scratch.index.cleared();
-        return Err(fault);
+    if scratch.build == IndexBuild::Builds {
+        // A whole-row key reads a row set, any other key keyed rows: the index was readied of its key's kind.
+        let built = match (&probe.key, &mut *scratch.index) {
+            (ProbeKey::Columns { .. }, IndexRows::Keyed(rows)) => {
+                cells(KeyedSide { rows: right, on }, rows)
+            }
+            (ProbeKey::Whole, IndexRows::Keyed(rows)) => cells(KeyedSide { rows: right, on }, rows),
+            (ProbeKey::Whole, IndexRows::Rows(set)) => {
+                set.built(count_of(right), kinds_of(right), |row, column| {
+                    cell_of(right, row, column)
+                })
+            }
+            (ProbeKey::Columns { .. }, IndexRows::Rows(_)) => {
+                Err(PortableOperatorFault::WrongOperation)
+            }
+        };
+        if let Err(fault) = built {
+            // A partial index is no index: the next probe of a shared one builds it again.
+            scratch.index.cleared();
+            return Err(fault);
+        }
     }
     // An ordered probe keeps its own index (`shared_indexes`), which it builds: its keys' first rows become their extremes.
     if let ProbeMode::Ordered(order) = probe.mode {
-        extremes(right, order, scratch.index)?;
+        let IndexRows::Keyed(rows) = &mut *scratch.index else {
+            return Err(PortableOperatorFault::WrongOperation);
+        };
+        extremes(right, order, rows)?;
     }
     Ok(None)
 }
@@ -316,5 +336,5 @@ pub(crate) fn number_at(
 /// Every column of rows of `kinds`, in order, into `into`.
 fn every(kinds: &[CellKind], into: &mut Vec<ColumnIndex>) {
     into.clear();
-    into.extend((0..kinds.len()).map(|at| ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX))));
+    into.extend(columns(kinds));
 }

@@ -1,12 +1,15 @@
 //! Rows kept once, each by the hash of all its cells and its place among the rows it was kept from: a distinct's rows being
 //! made, or a set operation's right side. A row set never follows a chain of rows, so it holds no link per row.
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::kept_room::constants::KEPT_ROOM;
 use crate::domain::kept_room::types::{KeptRoom, Poolable, RoomFit, RoomHeld};
 use crate::domain::physical_plan::types::CellStart;
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, IndexedRow};
-use ryo_relations::domain::relations::types::Value;
+use crate::domain::table_scratch::types::SetMembership;
+use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::row_in;
-use ryo_values::domain::rows::types::{RowIndex, Table};
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 use std::hash::{Hash as _, Hasher as _};
 
 /// Whether a row is the first of its kind among the rows kept before it.
@@ -32,6 +35,29 @@ pub(super) struct SetEntry {
     pub(super) hash: IndexKeyHash,
     /// Its place among the rows it was kept from.
     pub(super) row: IndexedRow,
+}
+
+/// Whether row `row` of a side of `kinds`, its cells read through `cell`, holds the cells of `cells`, column by column.
+fn holds_at(
+    kinds: &[CellKind],
+    cell: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+    row: RowIndex,
+    cells: &[Value],
+) -> SetMembership {
+    if cells.len() == kinds.len()
+        && columns(kinds)
+            .zip(cells)
+            .all(|(column, value)| cell(row, column) == Some(*value))
+    {
+        SetMembership::In
+    } else {
+        SetMembership::Out
+    }
+}
+
+/// Every column of rows of `kinds`, in order.
+pub(crate) fn columns(kinds: &[CellKind]) -> impl Iterator<Item = ColumnIndex> {
+    (0..kinds.len()).map(|at| ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX)))
 }
 
 /// The row a kept row is, among the rows it was kept from.
@@ -70,10 +96,71 @@ impl RowSet {
         FirstSeen::First
     }
 
+    /// Empties itself, then keeps once each of `count` rows of `kinds`, each cell read through `cell`, by all its cells: a
+    /// set operation's right side, which `holds` then asks.
+    ///
+    /// # Errors
+    ///
+    /// `NoSuchColumn` for a column of the kinds that a row does not hold.
+    pub(crate) fn built(
+        &mut self,
+        count: RowCount,
+        kinds: &[CellKind],
+        cell: impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+    ) -> Result<(), PortableOperatorFault> {
+        self.kept.clear();
+        let mut cells = Vec::with_capacity(kinds.len());
+        for at in 0..count.0 {
+            cells.clear();
+            for column in columns(kinds) {
+                cells.push(
+                    cell(RowIndex(at), column)
+                        .ok_or(PortableOperatorFault::NoSuchColumn { index: column })?,
+                );
+            }
+            let hash = hash_of(&cells);
+            if self
+                .kept
+                .find(hash.0, |kept| {
+                    kept.hash == hash
+                        && holds_at(kinds, &cell, indexed(kept.row), &cells) == SetMembership::In
+                })
+                .is_none()
+            {
+                let row = IndexedRow(u32::try_from(at).unwrap_or(u32::MAX));
+                let _: hashbrown::hash_table::OccupiedEntry<'_, SetEntry> = self
+                    .kept
+                    .insert_unique(hash.0, SetEntry { hash, row }, |kept| kept.hash.0);
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether `row`, a row's cells, equals a row of the side of `kinds` the set was built from, its cells read through `cell`.
+    pub(crate) fn holds(
+        &self,
+        kinds: &[CellKind],
+        cell: impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+        row: &[Value],
+    ) -> SetMembership {
+        let hash = hash_of(row);
+        if self
+            .kept
+            .find(hash.0, |kept| {
+                kept.hash == hash
+                    && holds_at(kinds, &cell, indexed(kept.row), row) == SetMembership::In
+            })
+            .is_some()
+        {
+            SetMembership::In
+        } else {
+            SetMembership::Out
+        }
+    }
+
     /// How many rows it keeps: none for a set not built in the open file, or built from no row.
-    #[cfg(test)]
-    pub(crate) fn count(&self) -> ryo_values::domain::rows::types::RowCount {
-        ryo_values::domain::rows::types::RowCount(self.kept.len())
+    pub(crate) fn count(&self) -> RowCount {
+        RowCount(self.kept.len())
     }
 
     /// A set of no row with `room` for rows: what the room cases give a stage or a pool.

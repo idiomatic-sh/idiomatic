@@ -24,6 +24,7 @@ use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
 };
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::shared_index::value::{IndexKind, IndexRows};
 use crate::domain::physical_plan::types::{CellStart, KernelRun, PlanNodeId};
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -92,7 +93,12 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
-            // The seeded join's own right rows and key columns, for this run.
+            // The seeded join's own index, right rows and key columns, for this run.
+            if let Lowering::SeededReach { join, .. } = lowering {
+                buffers
+                    .second
+                    .readied(IndexKind::of_probe(&join.probe.key), &mut buffers.pools);
+            }
             let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
             let scratch = ReachScratch {
                 index: &mut buffers.index,
@@ -121,9 +127,14 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
+            // The domain is keyed: the second index is readied as keyed rows.
+            buffers.second.readied(IndexKind::Keyed, &mut buffers.pools);
+            let IndexRows::Keyed(domain) = &mut buffers.second else {
+                return Err(PortableOperatorFault::WrongOperation);
+            };
             let tables = AxisTables {
                 edges: &mut buffers.index,
-                domain: &mut buffers.second,
+                domain,
                 decisions,
             };
             return walked(axis, inputs, run, tables, &mut buffers.walk, output);

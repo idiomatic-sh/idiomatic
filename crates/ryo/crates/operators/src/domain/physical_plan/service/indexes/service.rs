@@ -4,11 +4,11 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
 use crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::shared_index::value::SharedIndex;
+use crate::domain::physical_plan::types::row_set::value::RowSet;
+use crate::domain::physical_plan::types::shared_index::value::{IndexKind, IndexRows, SharedIndex};
 use crate::domain::physical_plan::types::{
     IndexIdentity, IndexKey, IndexPlace, KeyedIndex, KeyedIndexes, NodeReaders, PlanNodeId,
     ProbeIndex,
@@ -82,10 +82,17 @@ pub(crate) fn read_by(
 pub(crate) fn sized_shared(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
     let shared = &mut buffers.shared;
     if shared.indexes.len() < plan.indexes.len() {
+        // Each index keeps the kind of rows its key needs, decided here for every file.
         shared.indexes = plan
             .indexes
             .iter()
-            .map(|_| SharedIndex::default())
+            .map(|index| SharedIndex {
+                rows: match IndexKind::of_index(&index.key) {
+                    IndexKind::Keyed => IndexRows::default(),
+                    IndexKind::Rows => IndexRows::Rows(RowSet::default()),
+                },
+                ..SharedIndex::default()
+            })
             .collect();
         shared.closing = vec![None; plan.nodes.len()];
         shared.opened.clear();
@@ -131,7 +138,7 @@ pub(crate) fn probe_build(shared: &[SharedIndex], index: ProbeIndex) -> IndexBui
         ProbeIndex::Tree => IndexBuild::Walked,
         // An index of no row is built again at no cost: an empty chain is an index not built in this file.
         ProbeIndex::Shared(at) => match shared.get(at.0) {
-            Some(shared) if !shared.rows.next.is_empty() => IndexBuild::Built,
+            Some(shared) if shared.rows.built_rows().0 > 0 => IndexBuild::Built,
             Some(_) | None => IndexBuild::Builds,
         },
     }
@@ -145,9 +152,9 @@ pub(crate) fn probe_build(shared: &[SharedIndex], index: ProbeIndex) -> IndexBui
 /// `WrongOperation` for a shared index the buffers do not hold.
 pub(crate) fn probe_index<'b>(
     shared: &'b mut [SharedIndex],
-    own: &'b mut KeyedRows,
+    own: &'b mut IndexRows,
     index: ProbeIndex,
-) -> Result<&'b mut KeyedRows, PortableOperatorFault> {
+) -> Result<&'b mut IndexRows, PortableOperatorFault> {
     match index {
         ProbeIndex::Own | ProbeIndex::Tree => Ok(own),
         ProbeIndex::Shared(at) => shared

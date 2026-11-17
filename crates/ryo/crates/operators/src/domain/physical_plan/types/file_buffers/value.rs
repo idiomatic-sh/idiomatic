@@ -8,6 +8,7 @@ use crate::domain::kept_room::types::PoolSize;
 use crate::domain::kept_room::types::kept_pool::value::KeptPool;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::shared_index::value::IndexRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::worker_meters::value::{
     ChunkMeter, EndWork, IndexBuilds, TableMeter,
@@ -61,8 +62,9 @@ pub struct FileBuffers {
     pub(crate) places: crate::domain::contract::types::RangeScratch,
     /// The hashes of a group's values, which a group digest folds.
     pub(crate) hashes: crate::domain::reduction::types::GroupHashes,
-    /// The second keyed-row table a kernel reads beside `index`: an axis's domain. The same table, a second instance.
-    pub(crate) second: KeyedRows,
+    /// The second index a kernel reads beside `index`, of the kind it needs: a seeded closure's held probe's own index, or
+    /// an axis's domain, keyed.
+    pub(crate) second: IndexRows,
     /// The work of the graph walks, its capacity kept across nodes and files.
     pub(crate) walk: crate::domain::physical_plan::types::walk_scratch::value::WalkScratch,
     /// The work arrays of a cycle search, kept across files.

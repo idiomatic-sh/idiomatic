@@ -5,9 +5,9 @@ use super::value::{ChainScratch, STREAM_CHUNK_CELLS, StageScratch, StreamScratch
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::kept_room::constants::KEPT_ROOM;
 use crate::domain::kept_room::types::{KeptRoom as _, PoolSize, Room};
-use crate::domain::physical_plan::types::shared_index::value::IndexPools;
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
 use crate::domain::physical_plan::types::row_set::value::RowSet;
+use crate::domain::physical_plan::types::shared_index::value::{IndexPools, IndexRows};
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::domain::rows::types::RowCount;
 
@@ -148,7 +148,7 @@ fn chain(given: Chain) -> Result<Kept, Failure> {
             }
         }
         Chain::OwnIndexes => {
-            stage.own.index = keyed(1 << 10);
+            stage.own.index = IndexRows::Keyed(keyed(1 << 10));
             stage.own.repeats = RowSet::with_room(Room(1 << 9));
         }
     }
@@ -181,4 +181,43 @@ fn chain(given: Chain) -> Result<Kept, Failure> {
 #[test]
 fn settles_chains() {
     run(CHAIN_CASES, Word::Succeeds, chain);
+}
+
+/// The keyed-row tables and the row sets the worker's pools gained when the file ended, its stage's own index a row set.
+#[derive(Debug, PartialEq, Eq)]
+struct GivenBack {
+    keyed: PoolSize,
+    sets: PoolSize,
+}
+
+const ROWS_INDEX_CASES: &[Case<(), GivenBack, Failure>] = &[Case {
+    name: CaseName("a_files_end_gives_a_stages_rows_index_to_the_row_set_pool"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(GivenBack {
+        keyed: PoolSize(0),
+        sets: PoolSize(1),
+    }),
+}];
+
+fn rows_index((): ()) -> Result<GivenBack, Failure> {
+    let mut pools = IndexPools::default();
+    let mut stage = StageScratch::default();
+    stage.own.index = IndexRows::Rows(RowSet::with_room(Room(1 << 9)));
+    let mut stream = StreamScratch {
+        levels: vec![ChainScratch {
+            stages: vec![stage],
+            ..ChainScratch::default()
+        }],
+    };
+    stream.given_back(&mut pools);
+    Ok(GivenBack {
+        keyed: pools.keyed.len(),
+        sets: pools.rows.len(),
+    })
+}
+
+#[test]
+fn gives_back_rows_indexes() {
+    run(ROWS_INDEX_CASES, Word::Succeeds, rows_index);
 }
