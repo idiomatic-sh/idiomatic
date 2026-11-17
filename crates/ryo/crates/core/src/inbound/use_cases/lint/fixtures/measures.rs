@@ -129,7 +129,7 @@ pub fn allocation(corpus: &Corpus, library: &dyn Fn(&[u8])) -> u64 {
     beyond
 }
 
-/// The run the big-blocks row profiles: the fake language reads each of [`BLOCK_FILES`] files as a table of [`BLOCK_ROWS`] rows, for
+/// The run the big-blocks row profiles: the fake language reads each of `BLOCK_FILES` files as a table of `BLOCK_ROWS` rows, for
 /// a rule over each file and one across them, on one worker, keeping its store on disk as a lint does. What
 /// is big in a worker is owned by the worker and kept between files, and what is big in a rule across files is the tables of its
 /// plan, so the blocks of a megabyte or more the run allocates are bounded by the workers and the rules, never by the files. Answers

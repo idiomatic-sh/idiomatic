@@ -14,9 +14,13 @@ pub(super) const VERSION_ARGUMENT: &str = "--version";
 pub(super) const INVALID_RULE_ID: &str = "non-UTF8 rule id";
 /// Fingerprint refusal for a non-UTF-8 artifact name.
 pub(super) const INVALID_EVIDENCE_PATH: &str = "non-UTF8 evidence path";
-/// Fingerprint refusal for non-regular artifact entries.
+/// Fingerprint refusal for an entry that is no regular file, directory or symbolic link.
 pub(super) const INVALID_EVIDENCE_KIND: &str =
-    "evidence paths must be regular files or directories";
+    "evidence paths must be regular files, directories or symbolic links";
+/// What a symbolic link's fingerprint begins with, before its target's text: a link is hashed as the checkout records it, never
+/// followed (a corpus's links, vite's playgrounds, are part of its identity, and following one could leave the tree or loop),
+/// and never hashes as a file holding its target's text.
+pub(super) const LINK_MARKER: &[u8] = b"symlink\0";
 /// Executable digest refusal for a non-regular file.
 pub(super) const INVALID_DIGEST_KIND: &str = "executable digest requires a regular file";
 /// Refusal when executable bytes differ from the pinned digest.
@@ -205,9 +209,11 @@ pub(super) const ACCEPTED_SYNTAX: &str =
 /// The directory below a bench holding the dedicated settings profile of a rule.
 pub(super) const SETTINGS_PROFILES: &str = "profiles";
 /// The refusal of a growth table with no rule, no size or no operation: a run that grew nothing would hold every bound.
-pub(super) const GROWTH_EMPTY: &str = "a growth table names at least one rule, one size and one operation";
+pub(super) const GROWTH_EMPTY: &str =
+    "a growth table names at least one rule, one size and one operation";
 /// The refusal of a whole size that has no whole half.
-pub(super) const GROWTH_ODD_SIZE: &str = "every growth size is even and above zero, so its half is whole";
+pub(super) const GROWTH_ODD_SIZE: &str =
+    "every growth size is even and above zero, so its half is whole";
 /// The refusal of an operation grown in no frame, in a frame the table does not define, or with a segment of no line.
 pub(super) const GROWTH_OPERATION: &str =
     "the operation names no frame, a frame the table does not define, or a segment with no line";

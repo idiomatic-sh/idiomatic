@@ -69,7 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Call::Prepare(&["src/a.ts", "b.tsx"]),
         expect: Expect::Value(Cow::Borrowed(
-            "root: -c state/oxlint.json -A all -D typescript/no-this-alias --format json --threads 1 --disable-nested-config -- src/a.ts b.tsx",
+            "root: -c state/oxlint.json -A all -D typescript/no-this-alias --format json --threads 4 --disable-nested-config -- src/a.ts b.tsx",
         )),
     },
     Case {

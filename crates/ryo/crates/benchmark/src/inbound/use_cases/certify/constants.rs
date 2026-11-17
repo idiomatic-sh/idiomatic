@@ -3,6 +3,9 @@
 pub(crate) const RULE_DIRECTORY: &str = "rules";
 /// Refuse changed content fingerprints of certified artifacts.
 pub(crate) const CHANGED_EVIDENCE: &str = "certification inputs changed during cases";
+/// Refuse an identity probe whose preparation changed a sealed certification input.
+pub(crate) const PROBE_CHANGED_INPUTS: &str =
+    "the identity probe changed a sealed certification input";
 
 // Independent executable fixture inputs and expected refusal vocabulary.
 #[cfg(any(test, feature = "fixtures"))]
@@ -14,6 +17,12 @@ pub(crate) const FIXTURE_RULE_ID: &str = "A";
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture fake program.
 pub(crate) const FIXTURE_FAKE_PROGRAM: &str = "fixture";
+#[cfg(any(test, feature = "fixtures"))]
+/// The program a fixture contestant's command launches beside the certified binary.
+pub(crate) const FIXTURE_LAUNCHER_FILE: &str = "launcher";
+#[cfg(any(test, feature = "fixtures"))]
+/// The file a fixture contestant's preparation writes into its request's root.
+pub(crate) const FIXTURE_WRITTEN_FILE: &str = "written-by-preparation";
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture profile directory.
 pub(crate) const FIXTURE_PROFILE_DIRECTORY: &str = "profile";

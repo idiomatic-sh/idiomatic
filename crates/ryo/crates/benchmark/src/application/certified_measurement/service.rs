@@ -1,7 +1,7 @@
 //! A measurement is certified only while its instrumentation, artifacts and sources stay as certified.
 use super::{
     constants,
-    types::{Certification, Contestants, JudgedRules, RunBaseline, SourceTexts, Strictness},
+    types::{Certification, Contestants, JudgedRules, RunBaseline, SourceTexts},
 };
 use crate::domain::corpus_discrepancy::types::AdmittedDifferences;
 use crate::domain::diagnostics::service::compare_with_contract;
@@ -61,9 +61,11 @@ pub fn admit(
     {
         return Err(Error::Invalid(constants::CHANGED_COMMAND.into()));
     }
+    // Each run launches what its certified probe launched: a contestant's command may launch a sibling of the certified binary
+    // (clippy's cargo-clippy beside the verified clippy-driver), which the probe's own command names.
     for (tool, expected) in [
-        (reference, &certificate.contestants[0]),
-        (candidate, &certificate.contestants[1]),
+        (reference, &certificate.profiles[0].executable),
+        (candidate, &certificate.profiles[1].executable),
     ] {
         if tool.prepare(request)?.executable != *expected {
             return Err(Error::Invalid(constants::CHANGED_EXECUTABLE.into()));
@@ -175,12 +177,11 @@ pub(crate) fn accepted_file(
     }
 }
 
-/// The differences accepted for the corpus `request` reads.
+/// The differences accepted for the corpus `request` reads, which must be the corpus they were written for.
 pub(crate) fn admitted(
     suite: &dyn SuitePort,
     file: Option<&Path>,
     request: &RunRequest,
-    strictness: Strictness,
 ) -> Result<AdmittedDifferences, Error> {
     let Some(file) = file else {
         return Ok(AdmittedDifferences::default());
@@ -190,9 +191,6 @@ pub(crate) fn admitted(
         &request.files,
         &request.context_manifest,
     );
-    if strictness == Strictness::WhereNamed && declared.corpus != corpus {
-        return Ok(AdmittedDifferences::default());
-    }
     Ok(crate::domain::corpus_discrepancy::service::admit_accepted(
         &declared, &corpus,
     )?)

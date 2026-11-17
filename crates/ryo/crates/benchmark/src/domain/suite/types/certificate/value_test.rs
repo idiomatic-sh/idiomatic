@@ -49,7 +49,6 @@ fn subject(_: ()) -> Result<(bool, usize), ()> {
             ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
                 "sealed".into(),
             ),
-        contestants: ["first".into(), "second".into()],
         probe: request,
         profiles: [profile.clone(), profile],
         execution: ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall,

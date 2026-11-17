@@ -35,7 +35,11 @@ pub fn plan(
 ) -> Result<GrowthPlan, Error> {
     let table = suite.growth_table(ArtifactPath(source.table))?;
     let mut shapes = BTreeMap::new();
-    let mut applicability = BTreeMap::new();
+    // The request reads the bench's whole rules directory, so every rule there needs the applicability the bench declares; a
+    // grown rule's own profile then has the last word on it.
+    let mut applicability = suite
+        .profile(ArtifactPath(source.bench))?
+        .rule_applicability;
     for grown in &table.rules {
         let profile = suite.profile(ArtifactPath(&source.bench.join(&grown.profile)))?;
         applicability.extend(profile.rule_applicability);

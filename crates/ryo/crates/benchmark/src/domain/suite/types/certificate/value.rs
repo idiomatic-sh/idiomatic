@@ -23,8 +23,6 @@ pub struct Certificate {
     /// Content identity captured before and after certification.
     pub(crate) fingerprint:
         ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
-    /// Reference and candidate executable paths in that order.
-    pub(crate) contestants: [PathBuf; 2],
     /// Fixed request used to bind contestant invocation configuration.
     pub(crate) probe: RunRequest,
     /// Prepared reference and candidate invocations for the probe.

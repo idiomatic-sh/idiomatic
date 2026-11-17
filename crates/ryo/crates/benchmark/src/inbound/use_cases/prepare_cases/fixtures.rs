@@ -75,6 +75,15 @@ pub fn exercise(
     )
 }
 
+/// The program a contestant's command launches.
+#[derive(Clone, Debug)]
+pub enum Launches {
+    /// The certified executable itself.
+    Itself,
+    /// A launcher beside it, as clippy's cargo-clippy launches beside its driver.
+    Beside(PathBuf),
+}
+
 #[derive(Clone, Debug)]
 /// Deterministic contestant whose findings depend only on the fixture source.
 pub struct Contestant {
@@ -82,6 +91,22 @@ pub struct Contestant {
     pub executable: PathBuf,
     /// Mutable arguments used to prove command-profile drift is refused.
     pub arguments: Vec<std::ffi::OsString>,
+    /// The program the command launches.
+    pub launches: Launches,
+    /// Whether preparing a request writes a file into its root, as a contestant that lays down a case manifest does.
+    pub writes_root: bool,
+}
+impl Contestant {
+    /// A contestant whose command launches `executable` itself, with no arguments, writing nothing.
+    #[must_use]
+    pub fn of(executable: PathBuf) -> Self {
+        Self {
+            executable,
+            arguments: Vec::new(),
+            launches: Launches::Itself,
+            writes_root: false,
+        }
+    }
 }
 impl LinterPort for Contestant {
     fn rule_configuration(
@@ -90,8 +115,17 @@ impl LinterPort for Contestant {
         ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
+        if self.writes_root {
+            std::fs::write(
+                request.root.join(constants::FIXTURE_WRITTEN_FILE),
+                constants::FIXTURE_ALTERED_BYTES,
+            )?;
+        }
         Ok(Invocation {
-            executable: self.executable.clone(),
+            executable: match &self.launches {
+                Launches::Itself => self.executable.clone(),
+                Launches::Beside(launcher) => launcher.clone(),
+            },
             arguments: self.arguments.clone(),
             environment: std::collections::BTreeMap::default(),
             directory: request.root.clone(),
@@ -219,6 +253,8 @@ pub fn with_verification_sources<R>(
     let reference = Contestant {
         executable: executable.clone(),
         arguments: Vec::new(),
+        launches: Launches::Itself,
+        writes_root: false,
     };
     let candidate = reference.clone();
     let execution = crate::outbound::execution::factory::process();

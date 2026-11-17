@@ -27,6 +27,8 @@ use ryo_benchmark_contracts::domain::requests::types::{
 use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
 use std::sync::Arc;
 
+pub mod edited;
+
 /// The bench directory whose settings profiles configure the fixture rules.
 pub const BENCH: &str = "bench";
 
@@ -66,7 +68,6 @@ fn certificate(covered: &[&str]) -> Certificate {
             ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
                 "sealed".into(),
             ),
-        contestants: ["first".into(), "second".into()],
         probe: request,
         profiles: [profile.clone(), profile],
         execution: ExecutionProfile::Wall,
@@ -234,7 +235,11 @@ pub fn with_cohort<R>(
 ) -> R {
     measured(
         pinned(projects, "main"),
-        (certificate(covered), MeasurementMode::Diagnostic),
+        (
+            certificate(covered),
+            MeasurementMode::Diagnostic,
+            ProjectContextMode::Isolated,
+        ),
         cohort,
         (
             std::path::Path::new(BENCH),
@@ -254,7 +259,11 @@ pub fn with_suffixes<R>(
 ) -> R {
     measured(
         pinned(1, &"0".repeat(40)),
-        (certificate(&["A"]), MeasurementMode::Diagnostic),
+        (
+            certificate(&["A"]),
+            MeasurementMode::Diagnostic,
+            ProjectContextMode::Isolated,
+        ),
         &CohortSelection::Frozen,
         (bench, cache, suffixes),
         operate,
@@ -262,18 +271,17 @@ pub fn with_suffixes<R>(
 }
 
 /// Hand `operate` a corpus of one project pinned to a full commit, measuring rule A as the complete inventory under a
-/// certificate the fixture contestants and the local suite hold, over the sources that end in one of `suffixes`, its trials
+/// certificate whose probe names the fixture contestants and the local suite holds, over the sources that end in one of `suffixes`, its trials
 /// kept under `cache`.
 ///
 /// # Panics
 /// When the local suite cannot fingerprint the certificate's artifacts.
 pub fn with_certificate<R>(
     (bench, cache): (&std::path::Path, &std::path::Path),
-    suffixes: &[SourceSuffix<'_>],
+    (suffixes, context_mode): (&[SourceSuffix<'_>], ProjectContextMode),
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
 ) -> R {
     let mut sealed = certificate(&["A"]);
-    sealed.contestants = ["fixture".into(), "fixture".into()];
     sealed.fingerprint = crate::outbound::suite::interface::SuitePort::fingerprint(
         &crate::outbound::suite::factory::local(),
         crate::outbound::suite::types::ArtifactSet(&sealed.paths),
@@ -287,6 +295,7 @@ pub fn with_certificate<R>(
             MeasurementMode::Benchmark {
                 inventory: vec![rule.clone()],
             },
+            context_mode,
         ),
         &CohortSelection::Explicit(vec![rule]),
         (bench, cache, suffixes),
@@ -310,7 +319,7 @@ fn pinned(count: usize, revision: &str) -> Vec<Project> {
 /// that end in one of `suffixes`.
 fn measured<R>(
     projects: Vec<Project>,
-    (certificate, mode): (Certificate, MeasurementMode),
+    (certificate, mode, context_mode): (Certificate, MeasurementMode, ProjectContextMode),
     cohort: &CohortSelection,
     (bench, cache, suffixes): (&std::path::Path, &std::path::Path, &[SourceSuffix<'_>]),
     operate: impl FnOnce(&CorpusMeasurement<'_>) -> R,
@@ -333,7 +342,7 @@ fn measured<R>(
         cohort,
         rule_context: &RuleContextProfile::Undeclared,
         search_roots: &SearchRoots::Undeclared,
-        context_mode: ProjectContextMode::Isolated,
+        context_mode,
         language: CorpusLanguage {
             id: &language,
             display: LanguageTitle("Fixture"),

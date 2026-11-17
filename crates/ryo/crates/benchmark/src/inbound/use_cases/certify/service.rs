@@ -54,9 +54,10 @@ pub(super) fn prepare(
         candidate,
         coverage,
     )?;
-    for entry in
-        crate::domain::suite::service::covered(coverage, &loaded.rules, |entry| &entry.rule_id)
-    {
+    for entry in crate::application::registered_certification::service::certified_rules(
+        coverage,
+        &loaded.rules,
+    ) {
         crate::application::inventory_verification::authority::service::verify_context(
             entry, suite, store,
         )
