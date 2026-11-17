@@ -1,4 +1,5 @@
-//! Behavioral proof of `invocation_identity`: state, root and separators are normalized, and nothing else.
+//! Behavioral proof of `invocation_identity`: state, root and separators are normalized, the worker count is spelled as one
+//! worker, and nothing else.
 use super::errors::InvocationIdentityError;
 use super::service::{boundaries, normalize, normalize_text};
 use super::types::InvocationText;
@@ -13,6 +14,8 @@ use std::ffi::OsString;
 enum Operation {
     Spelling,
     Invocation,
+    /// The arguments are the invocation's environment, each `KEY=VALUE`.
+    Environment,
 }
 
 /// An invocation spelled against the case's state and root.
@@ -68,6 +71,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed("--flag $STATE|$STATE")),
     },
     Case {
+        name: CaseName("the worker count is spelled as one worker, every other variable as it is"),
+        word: Word::Succeeds,
+        input: || {
+            asking(
+                Operation::Environment,
+                vec!["RAYON_NUM_THREADS=4".into(), "OTHER=cache".into()],
+                ".",
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed("OTHER=$STATE RAYON_NUM_THREADS=1")),
+    },
+    Case {
         name: CaseName("a non UTF8 argument is refused"),
         word: Word::Refuses,
         input: || asking(Operation::Invocation, vec![non_utf8()], "."),
@@ -84,6 +99,32 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 &boundaries(&case),
             );
             Ok(Cow::Owned(spelled.0))
+        }
+        Operation::Environment => {
+            let invocation = Invocation {
+                executable: "tool".into(),
+                arguments: Vec::new(),
+                environment: input
+                    .arguments
+                    .iter()
+                    .filter_map(|pair| {
+                        let (key, value) = pair.to_str()?.split_once('=')?;
+                        Some((key.into(), value.into()))
+                    })
+                    .collect(),
+                directory: input.directory.into(),
+            };
+            let normalized = normalize(&invocation, &case)?;
+            Ok(Cow::Owned(
+                normalized
+                    .environment
+                    .iter()
+                    .map(|(key, value)| {
+                        format!("{}={}", key.to_string_lossy(), value.to_string_lossy())
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            ))
         }
         Operation::Invocation => {
             let invocation = Invocation {

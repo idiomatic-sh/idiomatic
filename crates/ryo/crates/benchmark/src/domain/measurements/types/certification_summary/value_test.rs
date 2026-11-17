@@ -65,7 +65,6 @@ fn certificate(coverage: Audit) -> Certificate {
             ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
                 "sealed".into(),
             ),
-        contestants: ["first".into(), "second".into()],
         probe,
         profiles: [profile(), profile()],
         execution: ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall,

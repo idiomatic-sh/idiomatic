@@ -10,7 +10,7 @@ use super::types::{ComparisonName, CorpusBoundaries, CorpusMeasurement};
 use crate::application::certified_measurement::service::{
     accepted_file, admitted, judged, measured, own,
 };
-use crate::application::certified_measurement::types::{Certification, JudgedRules, Strictness};
+use crate::application::certified_measurement::types::{Certification, JudgedRules};
 use crate::application::measurement::service::{
     cost as measurement_cost, finding_counts, observe, run as execute,
 };
@@ -29,7 +29,6 @@ use ryo_benchmark_contracts::domain::requests::types::{
 };
 use ryo_benchmark_contracts::domain::workloads::types::Project;
 use std::path::PathBuf;
-
 /// Refuse a cohort outside the certificate, measure every project of the corpus, then publish the samples of an accounted run or say that a diagnostic one is not a metric.
 pub(super) fn measure_corpus(
     boundaries: &CorpusBoundaries<'_>,
@@ -182,6 +181,10 @@ fn measure_project(
             language.reference_display.0
         )));
     }
+    // Nothing left to lint would pass every comparison: refused before the reference runs, and after it refuses every file.
+    if files.is_empty() {
+        return Err(Error::Invalid(NO_SOURCE.into()));
+    }
     let preflight = request(
         contestants.context,
         &project_corpus,
@@ -208,7 +211,6 @@ fn measure_project(
             finding.end.0
         )?;
     }
-    // A project with nothing left to lint would pass every comparison and measure nothing.
     if files.is_empty() {
         return Err(Error::Invalid(NO_SOURCE.into()));
     }
@@ -247,12 +249,7 @@ fn measure_project(
             &tracked_paths,
             trial.join(RETAINED_DIRECTORY),
         )?;
-        let accepted = admitted(
-            contestants.suite,
-            accepted_file.as_deref(),
-            &initial,
-            Strictness::Pinned,
-        )?;
+        let accepted = admitted(contestants.suite, accepted_file.as_deref(), &initial)?;
         let cold = measured(contestants, certified, &initial, order, &measure)?;
         if store.is_none() {
             store = Some(
@@ -318,12 +315,6 @@ fn measure_project(
             contestants.candidate,
             &own(&clean_request, Contestant::Candidate),
         );
-        let edited_accepted = admitted(
-            contestants.suite,
-            accepted_file.as_deref(),
-            &edited_request,
-            Strictness::WhereNamed,
-        );
         boundaries.workspace.reset(&mut workspace)?;
         let edited = edited?;
         agree(
@@ -340,7 +331,8 @@ fn measure_project(
             contestants.suite,
             &edited_request,
             rules,
-            &edited_accepted?,
+            // The edit changes one file of the corpus the differences were accepted for: they hold for every file it leaves.
+            &accepted,
             &edited,
             observations,
         )?;

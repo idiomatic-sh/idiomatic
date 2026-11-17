@@ -23,7 +23,6 @@ pub(super) fn rule_directory(
     let relative = RelativeArtifactPath::try_from(Path::new(&name))?;
     Ok(rules.join(relative.as_ref()))
 }
-
 /// Refuse module paths that escape the profile or traverse symlinks.
 pub(super) fn validate_query_modules(directory: &Path, tool: &Tool) -> Result<(), Error> {
     let root = directory.canonicalize()?;
@@ -53,7 +52,6 @@ pub(super) fn validate_query_modules(directory: &Path, tool: &Tool) -> Result<()
     }
     Ok(())
 }
-
 /// Freeze the shared project manifest and every declared patch in an owned directory.
 #[expect(
     clippy::create_dir,
@@ -178,6 +176,10 @@ pub(super) fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), E
         let bytes = std::fs::read(path)?;
         hasher.update(bytes.len().to_le_bytes());
         hasher.update(bytes);
+    } else if metadata.is_symlink() {
+        let target = std::fs::read_link(path)?;
+        let bytes = target.as_os_str().as_encoded_bytes();
+        hasher.update([constants::LINK_MARKER, &bytes.len().to_le_bytes(), bytes].concat());
     } else if metadata.is_dir() {
         let mut children = std::fs::read_dir(path)?
             .map(|entry| entry.map(|entry| entry.path()))

@@ -97,12 +97,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     Case {
         name: CaseName(
-            "environment_pins_the_toolchain: the siblings of the verified driver, the shared targets as target and configuration directory, one job",
+            "environment_pins_the_toolchain: the siblings of the verified driver, the shared targets as target and configuration directory, the measured jobs",
         ),
         word: Word::Succeeds,
         input: || Call::Environment,
         expect: Expect::Value(Cow::Borrowed(
-            "CARGO=toolchain/bin/cargo\nCARGO_BUILD_JOBS=1\nCARGO_TARGET_DIR=targets\nCLIPPY_CONF_DIR=targets\nRUSTC=toolchain/bin/rustc",
+            "CARGO=toolchain/bin/cargo\nCARGO_BUILD_JOBS=4\nCARGO_TARGET_DIR=targets\nCLIPPY_CONF_DIR=targets\nRUSTC=toolchain/bin/rustc",
         )),
     },
     Case {

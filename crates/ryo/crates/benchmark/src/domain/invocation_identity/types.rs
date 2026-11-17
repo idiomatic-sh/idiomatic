@@ -12,3 +12,12 @@ pub(crate) struct Boundaries {
     /// The request root.
     pub root: InvocationText,
 }
+
+/// One environment variable of an invocation: its name and its value.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Variable {
+    /// The variable's name.
+    pub name: InvocationText,
+    /// The variable's value.
+    pub value: InvocationText,
+}

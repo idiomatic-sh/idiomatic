@@ -1,7 +1,8 @@
 //! Normalize explicitly supplied invocation paths while preserving flags and environment overrides.
 use super::constants;
 use super::errors::InvocationIdentityError;
-use super::types::{Boundaries, InvocationText};
+use super::types::{Boundaries, InvocationText, Variable};
+use ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::ffi::OsStr;
@@ -16,6 +17,19 @@ pub(crate) fn normalize_text(value: &InvocationText, boundaries: &Boundaries) ->
             .replace(&boundaries.root.0, constants::ROOT)
             .replace(constants::BACKSLASH, constants::NORMALIZED_SEPARATOR),
     )
+}
+
+/// One environment variable as an identity spells it: name and value normalized, and the worker count spelled as one worker,
+/// for the workers a run takes are a measurement setting that never enters the identity.
+pub(crate) fn normalize_variable(variable: &Variable, boundaries: &Boundaries) -> Variable {
+    Variable {
+        name: normalize_text(&variable.name, boundaries),
+        value: if variable.name.0 == THREAD_PIN {
+            InvocationText(constants::IDENTITY_WORKERS.to_owned())
+        } else {
+            normalize_text(&variable.value, boundaries)
+        },
+    }
 }
 
 /// The state boundary and request root of a case.
@@ -49,7 +63,20 @@ pub(crate) fn normalize(
         environment: invocation
             .environment
             .iter()
-            .map(|(key, value)| Ok((spell(key)?.0.into(), spell(value)?.0.into())))
+            .map(|(key, value)| {
+                let text = |value: &OsStr| {
+                    value
+                        .to_str()
+                        .map(|text| InvocationText(text.to_owned()))
+                        .ok_or(InvocationIdentityError::NonUtf8)
+                };
+                let variable = Variable {
+                    name: text(key)?,
+                    value: text(value)?,
+                };
+                let spelled = normalize_variable(&variable, &boundaries);
+                Ok((spelled.name.0.into(), spelled.value.0.into()))
+            })
             .collect::<Result<_, InvocationIdentityError>>()?,
         directory: PathBuf::from(spell(invocation.directory.as_os_str())?.0),
     })

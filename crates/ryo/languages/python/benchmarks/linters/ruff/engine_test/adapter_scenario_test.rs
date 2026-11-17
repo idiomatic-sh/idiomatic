@@ -118,7 +118,11 @@ pub(super) fn invocation_matches(
     Ok(invocation.arguments == expected
         && invocation.environment.get(std::ffi::OsStr::new(
             ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN,
-        )) == Some(&"1".into())
+        )) == Some(
+            &ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
+                .to_string()
+                .into(),
+        )
         && invocation.directory == request.root
         && invocation.executable == executable)
 }

@@ -79,7 +79,15 @@ impl LinterPort for LinterRuffAdapter {
         Ok(Invocation {
             executable: self.settings.executable.clone(),
             arguments,
-            environment: std::collections::BTreeMap::new(),
+            // The reference runs on the workers every timed measure is taken on, as the candidate does.
+            environment: [(
+                ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
+                ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
+                    .to_string()
+                    .into(),
+            )]
+            .into_iter()
+            .collect(),
             directory: request.root.clone(),
         })
     }

@@ -11,15 +11,6 @@ pub struct RunBaseline {
     pub before: ArtifactDigest,
 }
 
-/// Whether accepted differences written for another corpus refuse the run.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Strictness {
-    /// They do: the project's own corpus must be the one they were written for.
-    Pinned,
-    /// They do not: they hold only where they name this corpus (the edited sources are another corpus).
-    WhereNamed,
-}
-
 /// The rules a pair is judged on, and the reference's rule for a source its parser rejects.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct JudgedRules<'a> {

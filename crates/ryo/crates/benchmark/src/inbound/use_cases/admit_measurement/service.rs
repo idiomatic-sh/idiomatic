@@ -15,9 +15,15 @@ pub(super) fn admit(admission: &MeasurementAdmission<'_>) -> Result<MeasurementM
     if *scope == BenchmarkCoverage::Accounted {
         crate::domain::suite::service::require_accounted(audit, tool)?;
     }
+    // The accounted run measures the declared inventory but the defaults the profile defers: a deferred default has no
+    // authored query, so it is never selected, and the accounting above has already held each deferral to its capability.
     let mode = if *scope == BenchmarkCoverage::Accounted {
         MeasurementMode::Benchmark {
-            inventory: declared_inventory.clone(),
+            inventory: declared_inventory
+                .iter()
+                .filter(|rule| !tool.deferred.contains_key(*rule))
+                .cloned()
+                .collect(),
         }
     } else {
         MeasurementMode::Diagnostic
