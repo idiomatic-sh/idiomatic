@@ -11,7 +11,9 @@ use crate::domain::cycles::types::{
     CycleMark, CycleParts, CycleScratch, EdgePlace, EdgeStart, MeetOrder, NodeCount, NodeNumber,
     WalkStep,
 };
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
+use crate::domain::physical_plan::types::lowering::value::ComponentsNode;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{InputRows, KeyedSide};
@@ -27,24 +29,23 @@ pub(crate) struct ComponentsItem;
 impl KernelsItem for ComponentsItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = match lowering {
-            Lowering::Components { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Reach { .. }
-            | Lowering::SeededReach { .. }
-            | Lowering::Axis { .. }
-            | Lowering::OrderedWalk { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Worklist { .. }
-            | Lowering::Unlowered => false,
+            Lowering::Components(_) => true,
+            Lowering::Filter(_)
+            | Lowering::Lookup(_)
+            | Lowering::Project(_)
+            | Lowering::Extend(_)
+            | Lowering::Probe(_)
+            | Lowering::Distinct(_)
+            | Lowering::Group(_)
+            | Lowering::Reach(_)
+            | Lowering::SeededReach(_)
+            | Lowering::Axis(_)
+            | Lowering::OrderedWalk(_)
+            | Lowering::TextMap(_)
+            | Lowering::OrderedMatch(_)
+            | Lowering::Render(_)
+            | Lowering::ScanBound(_)
+            | Lowering::Worklist(_) => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }
     }
@@ -284,5 +285,11 @@ fn mark_components(
                 }
             }
         }
+    }
+}
+
+impl Operator for ComponentsNode {
+    fn growth(&self) -> Growth {
+        Growth::PerStartWalk
     }
 }

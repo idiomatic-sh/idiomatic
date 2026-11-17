@@ -5,10 +5,16 @@ use super::super::hash_index::item::first_of_row;
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::CellStart;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
+use crate::domain::physical_plan::types::lowering::value::DistinctNode;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+#[cfg(test)]
+use crate::domain::physical_plan::types::lowering::value::ProbeNode;
+#[cfg(test)]
+use crate::domain::physical_plan::types::lowering::value::ProjectNode;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
@@ -21,24 +27,25 @@ impl KernelsItem for DistinctItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = {
             match lowering {
-                Lowering::Distinct { .. } => true,
-                Lowering::Project { project, .. } => project.distinct == RepeatedRows::Dropped,
-                Lowering::Probe { probe, .. } => probe.repeated == RepeatedRows::Dropped,
-                Lowering::Filter { .. }
-                | Lowering::Lookup { .. }
-                | Lowering::Extend { .. }
-                | Lowering::Group { .. }
-                | Lowering::TextMap { .. }
-                | Lowering::OrderedMatch { .. }
-                | Lowering::Render { .. }
-                | Lowering::Reach { .. }
-                | Lowering::SeededReach { .. }
-                | Lowering::Axis { .. }
-                | Lowering::OrderedWalk { .. }
-                | Lowering::Worklist { .. }
-                | Lowering::Components { .. }
-                | Lowering::ScanBound { .. }
-                | Lowering::Unlowered => false,
+                Lowering::Distinct(_) => true,
+                Lowering::Project(ProjectNode { project, .. }) => {
+                    project.distinct == RepeatedRows::Dropped
+                }
+                Lowering::Probe(ProbeNode { probe, .. }) => probe.repeated == RepeatedRows::Dropped,
+                Lowering::Filter(_)
+                | Lowering::Lookup(_)
+                | Lowering::Extend(_)
+                | Lowering::Group(_)
+                | Lowering::TextMap(_)
+                | Lowering::OrderedMatch(_)
+                | Lowering::Render(_)
+                | Lowering::Reach(_)
+                | Lowering::SeededReach(_)
+                | Lowering::Axis(_)
+                | Lowering::OrderedWalk(_)
+                | Lowering::Worklist(_)
+                | Lowering::Components(_)
+                | Lowering::ScanBound(_) => false,
             }
         };
         if runs { Reach::Runs } else { Reach::Skips }
@@ -60,4 +67,10 @@ pub(crate) fn counted(
         return;
     }
     output.count = RowCount(output.count.0 + 1);
+}
+
+impl Operator for DistinctNode {
+    fn growth(&self) -> Growth {
+        Growth::AtMostInput
+    }
 }

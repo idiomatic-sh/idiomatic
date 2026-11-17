@@ -5,9 +5,8 @@ use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
 use crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
+use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
 use crate::domain::physical_plan::types::shared_index::value::SharedIndex;
 use crate::domain::physical_plan::types::{
     IndexIdentity, IndexKey, IndexPlace, KeyedIndex, KeyedIndexes, NodeReaders, PlanNodeId,
@@ -21,12 +20,12 @@ use crate::domain::physical_plan::types::{
 pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
     let mut keyed = KeyedIndexes::default();
     for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
-        if let Lowering::Probe {
+        if let Lowering::Probe(ProbeNode {
             right,
             probe,
             index: ProbeIndex::Own,
             ..
-        } = &node.lowering
+        }) = &node.lowering
             && let ProbeKey::Columns { right: on, .. } = &probe.key
             && probe.filter.comparisons.is_empty()
             && !matches!(probe.mode, ProbeMode::Ordered(_))
@@ -45,7 +44,7 @@ pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<Keyed
     for index in keyed.into_iter().filter(|index| index.readers.len() > 1) {
         let at = IndexPlace(indexes.len());
         for reader in &index.readers {
-            if let Some(Lowering::Probe { index: shared, .. }) = nodes
+            if let Some(Lowering::Probe(ProbeNode { index: shared, .. })) = nodes
                 .get_mut(usize::try_from(reader.0).unwrap_or(usize::MAX))
                 .map(|node| &mut node.lowering)
             {

@@ -12,9 +12,11 @@ use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::closure::types::ReachParts;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::SeededJoin;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{ReachNode, SeededReachNode};
 use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
 use crate::domain::physical_plan::types::walk_scratch::value::{
     ReachedCount, ReachedPlace, ReachedRun, WalkScratch,
@@ -33,23 +35,22 @@ pub(crate) struct ReachItem;
 impl KernelsItem for ReachItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = match lowering {
-            Lowering::Reach { .. } | Lowering::SeededReach { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Axis { .. }
-            | Lowering::OrderedWalk { .. }
-            | Lowering::Worklist { .. }
-            | Lowering::Components { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Unlowered => false,
+            Lowering::Reach(_) | Lowering::SeededReach(_) => true,
+            Lowering::Filter(_)
+            | Lowering::Lookup(_)
+            | Lowering::Project(_)
+            | Lowering::Extend(_)
+            | Lowering::Probe(_)
+            | Lowering::Distinct(_)
+            | Lowering::Group(_)
+            | Lowering::Axis(_)
+            | Lowering::OrderedWalk(_)
+            | Lowering::Worklist(_)
+            | Lowering::Components(_)
+            | Lowering::TextMap(_)
+            | Lowering::OrderedMatch(_)
+            | Lowering::Render(_)
+            | Lowering::ScanBound(_) => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }
     }
@@ -379,4 +380,16 @@ fn seeded_rows(
         }
     }
     Ok(())
+}
+
+impl Operator for ReachNode {
+    fn growth(&self) -> Growth {
+        Growth::PerStartWalk
+    }
+}
+
+impl Operator for SeededReachNode {
+    fn growth(&self) -> Growth {
+        Growth::PerStartWalk
+    }
 }

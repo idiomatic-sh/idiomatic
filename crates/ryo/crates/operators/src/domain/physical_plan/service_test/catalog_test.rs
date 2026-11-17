@@ -68,16 +68,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 /// The lowering function a check reads: the planner's, or a planted one.
-type Lower = fn(&Operation, &[PlanInput], &[ParameterBinding]) -> Lowering;
+type Lower = fn(&Operation, &[PlanInput], &[ParameterBinding]) -> Option<Lowering>;
 
 /// The planted counter-example of a lowering: the planner's, with an extension left unlowered.
 fn extension_unlowered(
     operation: &Operation,
     inputs: &[PlanInput],
     bindings: &[ParameterBinding],
-) -> Lowering {
+) -> Option<Lowering> {
     if let Operation::Extend { .. } = operation {
-        Lowering::Unlowered
+        None
     } else {
         lowered(operation, inputs, bindings)
     }
@@ -135,8 +135,7 @@ fn kinds_lower(lower: Lower) -> Result<Value, Failure> {
     let mut held = 0;
     for kind in OperationKind::ALL {
         if !steps.iter().any(|step| {
-            kind_of(&step.operation) == *kind
-                && lower(&step.operation, &step.inputs, &[]) != Lowering::Unlowered
+            kind_of(&step.operation) == *kind && lower(&step.operation, &step.inputs, &[]).is_some()
         }) {
             return Err(Breach::Unlowered(*kind));
         }

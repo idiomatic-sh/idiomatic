@@ -2,6 +2,7 @@
 use super::item::ScanRootsItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
+use crate::domain::physical_plan::types::lowering::value::FilterNode;
 use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use ryo_relations::domain::relations::types::Relation;
 
@@ -16,18 +17,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_filter_of_the_tree_runs_it"),
         word: Word::Succeeds,
-        input: || Lowering::Filter {
-            source: RowSource::Tree(Relation::SyntaxTree),
-            select: crate::domain::select::service::lower(&[], &[], &[]),
+        input: || {
+            Lowering::Filter(FilterNode {
+                source: RowSource::Tree(Relation::SyntaxTree),
+                select: crate::domain::select::service::lower(&[], &[], &[]),
+            })
         },
         expect: Expect::Value(Reach::Runs),
     },
     Case {
         name: CaseName("a_filter_of_a_relation_does_not_run_it"),
         word: Word::Succeeds,
-        input: || Lowering::Filter {
-            source: RowSource::Facts(Relation::Defines),
-            select: crate::domain::select::service::lower(&[], &[], &[]),
+        input: || {
+            Lowering::Filter(FilterNode {
+                source: RowSource::Facts(Relation::Defines),
+                select: crate::domain::select::service::lower(&[], &[], &[]),
+            })
         },
         expect: Expect::Value(Reach::Skips),
     },

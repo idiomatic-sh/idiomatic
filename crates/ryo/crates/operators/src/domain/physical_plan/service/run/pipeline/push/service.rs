@@ -9,7 +9,7 @@ use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_wit
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{tree_read, tree_row};
 use crate::domain::physical_plan::collections::kernels::text_map::item::reserved;
 use crate::domain::physical_plan::service::run::counting::service::{counted, timed, timed_to};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, TextMapNode};
 use crate::domain::physical_plan::types::node_counters::value::MadeIn;
 use crate::domain::physical_plan::types::stream_scratch::value::{
     CellBound, ChunkRead, ChunkStop, RowChunk, STREAM_CHUNK_CELLS, StageScratch,
@@ -64,7 +64,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
     let head_rows = rows_count(push.head);
     // A stage alone on its head that writes one row per row it reads has its table sized once.
     if let [node] = nodes
-        && let Lowering::TextMap { map, .. } = &physical(push.plan, *node)?.lowering
+        && let Lowering::TextMap(TextMapNode { map, .. }) = &physical(push.plan, *node)?.lowering
     {
         reserved(map, head_rows, push.tail);
     }
@@ -89,7 +89,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_all(
     for (at, (node, stage)) in nodes.iter().zip(stages.iter()).enumerate() {
         let left = if at == 0 { head_rows } else { stage.read };
         let right = if physical(push.plan, *node)
-            .is_ok_and(|node| matches!(node.lowering, Lowering::Probe { .. }))
+            .is_ok_and(|node| matches!(node.lowering, Lowering::Probe(_)))
         {
             stage.own.fed
         } else {

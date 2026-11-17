@@ -8,14 +8,15 @@ use super::super::hash_index::item::indexed;
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::ordered_dfs::types::DfsParts;
-use crate::domain::physical_plan::types::InputRows;
-use crate::domain::physical_plan::types::Resources;
 use crate::domain::physical_plan::types::keyed_rows::value::IndexedRow;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::OrderedWalkNode;
 use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
 use crate::domain::physical_plan::types::walk_scratch::value::WalkScratch;
+use crate::domain::physical_plan::types::{InputRows, Resources};
 use crate::domain::table_scratch::types::SetMembership;
 use crate::domain::table_texts::service::text_of_cell;
 use crate::domain::table_texts::types::Texts;
@@ -33,24 +34,23 @@ pub(crate) struct OrderedWalkItem;
 impl KernelsItem for OrderedWalkItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = match lowering {
-            Lowering::OrderedWalk { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Reach { .. }
-            | Lowering::SeededReach { .. }
-            | Lowering::Axis { .. }
-            | Lowering::Components { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Worklist { .. }
-            | Lowering::Unlowered => false,
+            Lowering::OrderedWalk(_) => true,
+            Lowering::Filter(_)
+            | Lowering::Lookup(_)
+            | Lowering::Project(_)
+            | Lowering::Extend(_)
+            | Lowering::Probe(_)
+            | Lowering::Distinct(_)
+            | Lowering::Group(_)
+            | Lowering::Reach(_)
+            | Lowering::SeededReach(_)
+            | Lowering::Axis(_)
+            | Lowering::Components(_)
+            | Lowering::TextMap(_)
+            | Lowering::OrderedMatch(_)
+            | Lowering::Render(_)
+            | Lowering::ScanBound(_)
+            | Lowering::Worklist(_) => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }
     }
@@ -345,4 +345,10 @@ pub(crate) fn interned(fresh: &[Value], resources: &mut dyn Resources) {
 /// The cell of an indexed row.
 fn cell(rows: InputRows<'_>, row: IndexedRow, column: ColumnIndex) -> Option<Value> {
     cell_of(rows, indexed(row), column)
+}
+
+impl Operator for OrderedWalkNode {
+    fn growth(&self) -> Growth {
+        Growth::PerStartWalk
+    }
 }

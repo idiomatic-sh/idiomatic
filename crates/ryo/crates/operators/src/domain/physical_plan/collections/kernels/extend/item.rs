@@ -4,7 +4,9 @@
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::Resources;
+use crate::domain::physical_plan::types::lowering::value::ExtendNode;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Integer, Value};
@@ -21,7 +23,7 @@ pub(crate) struct ExtendItem;
 #[cfg(test)]
 impl KernelsItem for ExtendItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = { matches!(lowering, Lowering::Extend { .. }) };
+        let runs = { matches!(lowering, Lowering::Extend(_)) };
         if runs { Reach::Runs } else { Reach::Skips }
     }
 }
@@ -91,4 +93,10 @@ pub(crate) fn extended(
     crate::domain::append::service::append(row, appended, written);
     output.cells.extend_from_slice(written);
     output.count = RowCount(output.count.0 + 1);
+}
+
+impl Operator for ExtendNode {
+    fn growth(&self) -> Growth {
+        Growth::AtMostInput
+    }
 }

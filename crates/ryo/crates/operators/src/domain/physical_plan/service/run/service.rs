@@ -8,15 +8,14 @@ use crate::domain::physical_plan::collections::kernels::lookup::item::lookups;
 use crate::domain::physical_plan::collections::kernels::ordered_walk::item::interned;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanned;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::count_of;
-use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_with;
-use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
+use crate::domain::physical_plan::collections::kernels::scan_node::item::{fed_with, hold};
 use crate::domain::physical_plan::service::indexes::service::sized_shared;
 use crate::domain::physical_plan::service::run::counting::service::{timed, timed_to};
 use crate::domain::physical_plan::service::run::reading::service::{
     pending_of, reading, returned, rows_in,
 };
 use crate::domain::physical_plan::types::file_buffers::value::{FileBuffers, NodeDecisions};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{LookupNode, Lowering, ScanBoundNode};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{
     EngineUses, KernelRun, NodeFed, NodeReaders, NodeRows, PlanNodeId, RowSource,
@@ -111,11 +110,11 @@ fn kernels_of(
         .get(place)
         .ok_or(PortableOperatorFault::WrongOperation)?
         .lowering;
-    if let Lowering::Filter { .. }
-    | Lowering::Project { .. }
-    | Lowering::Extend { .. }
-    | Lowering::TextMap { .. }
-    | Lowering::Probe { .. } = lowering
+    if let Lowering::Filter(_)
+    | Lowering::Project(_)
+    | Lowering::Extend(_)
+    | Lowering::TextMap(_)
+    | Lowering::Probe(_) = lowering
     {
         return super::pipeline::service::streamed(plan, run, node, buffers, ready);
     }
@@ -131,8 +130,8 @@ pub(super) fn made(
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
     match lowering {
-        Lowering::Lookup { index, .. } => return lookups(plan, run, *index, buffers),
-        Lowering::ScanBound { scan } => {
+        Lowering::Lookup(LookupNode { index, .. }) => return lookups(plan, run, *index, buffers),
+        Lowering::ScanBound(ScanBoundNode { scan }) => {
             let rows = scanned(scan, run)?;
             // What the scan was fed: the bound rows it reads.
             fed_with(
@@ -143,22 +142,21 @@ pub(super) fn made(
             hold(plan, buffers, node, rows, None);
             return Ok(());
         }
-        Lowering::Unlowered => return Err(PortableOperatorFault::NotRun),
-        Lowering::Filter { .. }
-        | Lowering::Project { .. }
-        | Lowering::Extend { .. }
-        | Lowering::Group { .. }
-        | Lowering::Probe { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::TextMap { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Render { .. } => {}
-        Lowering::Reach { .. }
-        | Lowering::SeededReach { .. }
-        | Lowering::Axis { .. }
-        | Lowering::OrderedWalk { .. }
-        | Lowering::Worklist { .. }
-        | Lowering::Components { .. } => {}
+        Lowering::Filter(_)
+        | Lowering::Project(_)
+        | Lowering::Extend(_)
+        | Lowering::Group(_)
+        | Lowering::Probe(_)
+        | Lowering::Distinct(_)
+        | Lowering::TextMap(_)
+        | Lowering::OrderedMatch(_)
+        | Lowering::Render(_) => {}
+        Lowering::Reach(_)
+        | Lowering::SeededReach(_)
+        | Lowering::Axis(_)
+        | Lowering::OrderedWalk(_)
+        | Lowering::Worklist(_)
+        | Lowering::Components(_) => {}
     }
     let mut sources = lowering.sources();
     let first = sources
@@ -173,7 +171,7 @@ pub(super) fn made(
     if let Some(third) = third {
         ready(plan, run, third, buffers)?;
     }
-    if let Lowering::Render { .. } = lowering {
+    if let Lowering::Render(_) = lowering {
         return super::minted::service::minted(plan, run, node, lowering, first, buffers);
     }
     let shared: &KernelRun<'_> = run;
@@ -239,40 +237,37 @@ pub(super) fn made(
     // A graph kernel reads every edge row before it walks: the edges' fault comes first, then an axis's domain's, then an
     // ordered walk's roots' (sorted before use).
     let blocked = match lowering {
-        Lowering::SeededReach { .. } => right_fault.clone(),
-        Lowering::Group { .. }
-        | Lowering::Render { .. }
-        | Lowering::Reach { .. }
-        | Lowering::Components { .. } => left_fault.clone(),
-        Lowering::OrderedMatch { .. } => left_fault.clone().or_else(|| right_fault.clone()),
-        Lowering::Axis { .. } => right_fault.clone().or_else(|| last_fault.clone()),
-        Lowering::OrderedWalk { .. } => right_fault.clone().or_else(|| left_fault.clone()),
-        Lowering::Worklist { .. } => right_fault
+        Lowering::SeededReach(_) => right_fault.clone(),
+        Lowering::Group(_) | Lowering::Render(_) | Lowering::Reach(_) | Lowering::Components(_) => {
+            left_fault.clone()
+        }
+        Lowering::OrderedMatch(_) => left_fault.clone().or_else(|| right_fault.clone()),
+        Lowering::Axis(_) => right_fault.clone().or_else(|| last_fault.clone()),
+        Lowering::OrderedWalk(_) => right_fault.clone().or_else(|| left_fault.clone()),
+        Lowering::Worklist(_) => right_fault
             .clone()
             .or_else(|| last_fault.clone())
             .or_else(|| left_fault.clone()),
-        Lowering::Filter { .. }
-        | Lowering::Project { .. }
-        | Lowering::Extend { .. }
-        | Lowering::Probe { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::TextMap { .. }
-        | Lowering::Lookup { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => None,
+        Lowering::Filter(_)
+        | Lowering::Project(_)
+        | Lowering::Extend(_)
+        | Lowering::Probe(_)
+        | Lowering::Distinct(_)
+        | Lowering::TextMap(_)
+        | Lowering::Lookup(_)
+        | Lowering::ScanBound(_) => None,
     };
-    let walked = matches!(lowering, Lowering::OrderedWalk { .. }) && blocked.is_none();
+    let walked = matches!(lowering, Lowering::OrderedWalk(_)) && blocked.is_none();
     // The node's table: one the worker's pool kept, its room reused.
     let mut output = buffers.pool.fresh();
     let made = match blocked {
         Some(fault) => Ok(Some(fault)),
         None => {
-            let right_rows =
-                if left_fault.is_some() && matches!(lowering, Lowering::Distinct { .. }) {
-                    None
-                } else {
-                    second_read.map(rows_in)
-                };
+            let right_rows = if left_fault.is_some() && matches!(lowering, Lowering::Distinct(_)) {
+                None
+            } else {
+                second_read.map(rows_in)
+            };
             let inputs = KernelInputs {
                 input: rows_in(left),
                 other: right_rows,

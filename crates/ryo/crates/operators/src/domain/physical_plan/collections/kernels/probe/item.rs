@@ -37,7 +37,7 @@ pub(crate) struct ProbeItem;
 #[cfg(test)]
 impl KernelsItem for ProbeItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = { matches!(lowering, Lowering::Probe { .. }) };
+        let runs = { matches!(lowering, Lowering::Probe(_)) };
         if runs { Reach::Runs } else { Reach::Skips }
     }
 }

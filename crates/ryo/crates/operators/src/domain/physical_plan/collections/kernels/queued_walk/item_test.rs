@@ -3,8 +3,9 @@
 use super::item::{QueuedWalkItem, WorklistInputs, worklisted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{InputRole, WitnessColumns, Witnessed, Witnesses};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{DistinctNode, Lowering, WorklistNode};
 use crate::domain::physical_plan::types::{InputRows, PlanNodeId, RowSource};
 use crate::domain::table_texts::types::Texts;
 use crate::domain::worklist::service::lower;
@@ -63,12 +64,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_union_does_not_run_it"),
         word: Word::Succeeds,
         input: || {
-            Given::Lowered(Lowering::Distinct {
+            Given::Lowered(Lowering::Distinct(DistinctNode {
                 sources: [
                     RowSource::Node(PlanNodeId(0)),
                     RowSource::Node(PlanNodeId(1)),
                 ],
-            })
+            }))
         },
         expect: Expect::Value(Answered::Runs(Reach::Skips)),
     },
@@ -76,12 +77,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("only_a_worklist_lowering_runs_the_queued_walk_kernel"),
         word: Word::Succeeds,
         input: || {
-            Given::Lowered(Lowering::Worklist {
+            Given::Lowered(Lowering::Worklist(WorklistNode {
                 roots: RowSource::Node(PlanNodeId(0)),
                 edges: RowSource::Node(PlanNodeId(1)),
                 lattice: RowSource::Node(PlanNodeId(2)),
                 worklist: lower(shape()),
-            })
+            }))
         },
         expect: Expect::Value(Answered::Runs(Reach::Runs)),
     },
@@ -165,4 +166,31 @@ fn subject(given: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+impl Witnesses for WorklistNode {
+    fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>> {
+        vec![Witnessed {
+            node: Self {
+                roots: RowSource::Node(PlanNodeId(0)),
+                edges: RowSource::Node(PlanNodeId(1)),
+                lattice: RowSource::Node(PlanNodeId(2)),
+                worklist: lower(WorklistShape {
+                    root: columns.id,
+                    state: columns.key,
+                    edge_columns: [
+                        columns.parent,
+                        columns.child,
+                        columns.order,
+                        columns.key,
+                        columns.key,
+                    ],
+                    lattice_columns: [columns.parent, columns.child],
+                    root_keys: &[],
+                    edge_keys: &[],
+                }),
+            },
+            roles: vec![InputRole::Rows, InputRole::Edges, InputRole::Domain],
+        }]
+    }
 }

@@ -1,8 +1,10 @@
 //! The `group` item's cases, and the collection's shared cases when it has any: which lowerings run the kernel.
 use super::item::GroupItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::aggregate::types::GroupMeasure;
+use crate::domain::growth::types::{InputRole, WitnessColumns, Witnessed, Witnesses};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{DistinctNode, GroupNode, Lowering};
 use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
 
 /// The lowering a node was given.
@@ -16,23 +18,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_group_runs_it"),
         word: Word::Succeeds,
-        input: || Lowering::Group {
-            source: RowSource::Node(PlanNodeId(0)),
-            group: crate::domain::aggregate::service::lower(
-                &[],
-                crate::domain::aggregate::types::GroupMeasure::Rows,
-            ),
+        input: || {
+            Lowering::Group(GroupNode {
+                source: RowSource::Node(PlanNodeId(0)),
+                group: crate::domain::aggregate::service::lower(&[], GroupMeasure::Rows),
+            })
         },
         expect: Expect::Value(Reach::Runs),
     },
     Case {
         name: CaseName("a_union_does_not_run_it"),
         word: Word::Succeeds,
-        input: || Lowering::Distinct {
-            sources: [
-                RowSource::Node(PlanNodeId(0)),
-                RowSource::Node(PlanNodeId(1)),
-            ],
+        input: || {
+            Lowering::Distinct(DistinctNode {
+                sources: [
+                    RowSource::Node(PlanNodeId(0)),
+                    RowSource::Node(PlanNodeId(1)),
+                ],
+            })
         },
         expect: Expect::Value(Reach::Skips),
     },
@@ -50,4 +53,16 @@ fn subject(lowering: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+impl Witnesses for GroupNode {
+    fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>> {
+        vec![Witnessed {
+            node: Self {
+                source: RowSource::Node(PlanNodeId(0)),
+                group: crate::domain::aggregate::service::lower(&[columns.key], GroupMeasure::Rows),
+            },
+            roles: vec![InputRole::Rows],
+        }]
+    }
 }

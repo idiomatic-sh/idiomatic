@@ -23,7 +23,10 @@ use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, kinds_of, row_of,
 };
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{
+    AxisNode, ComponentsNode, GroupNode, Lowering, OrderedMatchNode, OrderedWalkNode, ReachNode,
+    SeededReachNode, WorklistNode,
+};
 use crate::domain::physical_plan::types::{CellStart, KernelRun, PlanNodeId};
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -47,7 +50,7 @@ pub(crate) fn kernels(
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
     let kinds = kinds_of(input);
     match lowering {
-        Lowering::Distinct { .. } => {
+        Lowering::Distinct(_) => {
             output.kinds = kinds.to_vec();
             buffers.repeats.cleared();
             for source in std::iter::once(input).chain(other) {
@@ -68,7 +71,7 @@ pub(crate) fn kernels(
                 }
             }
         }
-        Lowering::Group { group, .. } => {
+        Lowering::Group(GroupNode { group, .. }) => {
             let scratch = GroupScratch {
                 index: &mut buffers.index,
                 row: &mut buffers.row,
@@ -79,15 +82,17 @@ pub(crate) fn kernels(
             };
             grouped(input, &group.keys, group.measure, scratch, output)?;
         }
-        Lowering::Reach { graph, .. } | Lowering::SeededReach { graph, .. } => {
-            let (edges, starts) = if let Lowering::SeededReach { join, .. } = lowering {
-                (
-                    other.ok_or(PortableOperatorFault::WrongOperation)?,
-                    Starts::Seeded(input, join),
-                )
-            } else {
-                (input, Starts::Every)
-            };
+        Lowering::Reach(ReachNode { graph, .. })
+        | Lowering::SeededReach(SeededReachNode { graph, .. }) => {
+            let (edges, starts) =
+                if let Lowering::SeededReach(SeededReachNode { join, .. }) = lowering {
+                    (
+                        other.ok_or(PortableOperatorFault::WrongOperation)?,
+                        Starts::Seeded(input, join),
+                    )
+                } else {
+                    (input, Starts::Every)
+                };
             let decisions = buffers
                 .decisions
                 .get_mut(place)
@@ -111,7 +116,7 @@ pub(crate) fn kernels(
             };
             return reached(graph, edges, starts, run, scratch, output);
         }
-        Lowering::Axis { axis, .. } => {
+        Lowering::Axis(AxisNode { axis, .. }) => {
             let inputs = AxisInputs {
                 starts: input,
                 edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
@@ -128,7 +133,7 @@ pub(crate) fn kernels(
             };
             return walked(axis, inputs, run, tables, &mut buffers.walk, output);
         }
-        Lowering::OrderedWalk { dfs, .. } => {
+        Lowering::OrderedWalk(OrderedWalkNode { dfs, .. }) => {
             let edges = other.ok_or(PortableOperatorFault::WrongOperation)?;
             return visited(
                 dfs,
@@ -139,7 +144,7 @@ pub(crate) fn kernels(
                 output,
             );
         }
-        Lowering::Worklist { worklist, .. } => {
+        Lowering::Worklist(WorklistNode { worklist, .. }) => {
             let inputs = WorklistInputs {
                 roots: input,
                 edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
@@ -154,7 +159,7 @@ pub(crate) fn kernels(
                 output,
             );
         }
-        Lowering::Components { cycles, .. } => {
+        Lowering::Components(ComponentsNode { cycles, .. }) => {
             return cyclic(
                 cycles,
                 input,
@@ -163,7 +168,7 @@ pub(crate) fn kernels(
                 output,
             );
         }
-        Lowering::OrderedMatch { ordered, .. } => {
+        Lowering::OrderedMatch(OrderedMatchNode { ordered, .. }) => {
             let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
             if let Err(fault) = matched(ordered, input, right, run.resources.texts(), output) {
                 return Ok(Some(fault));
@@ -171,15 +176,14 @@ pub(crate) fn kernels(
         }
         // A filter, a projection, an extension, a probe and a text_map stage are run by the chain of streamed stages, a render by
         // `minted`, which holds the resources mutably while it reads its rows.
-        Lowering::Filter { .. }
-        | Lowering::Project { .. }
-        | Lowering::Extend { .. }
-        | Lowering::Probe { .. }
-        | Lowering::TextMap { .. }
-        | Lowering::Render { .. }
-        | Lowering::Lookup { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => {}
+        Lowering::Filter(_)
+        | Lowering::Project(_)
+        | Lowering::Extend(_)
+        | Lowering::Probe(_)
+        | Lowering::TextMap(_)
+        | Lowering::Render(_)
+        | Lowering::Lookup(_)
+        | Lowering::ScanBound(_) => {}
     }
     Ok(None)
 }

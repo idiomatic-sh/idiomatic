@@ -2,7 +2,7 @@
 use super::item::ScanFactsItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{ExtendNode, FilterNode, Lowering};
 use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
 use ryo_relations::domain::relations::types::Relation;
 
@@ -17,18 +17,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_filter_of_a_relation_runs_it"),
         word: Word::Succeeds,
-        input: || Lowering::Filter {
-            source: RowSource::Facts(Relation::Defines),
-            select: crate::domain::select::service::lower(&[], &[], &[]),
+        input: || {
+            Lowering::Filter(FilterNode {
+                source: RowSource::Facts(Relation::Defines),
+                select: crate::domain::select::service::lower(&[], &[], &[]),
+            })
         },
         expect: Expect::Value(Reach::Runs),
     },
     Case {
         name: CaseName("an_extension_of_a_node_does_not_run_it"),
         word: Word::Succeeds,
-        input: || Lowering::Extend {
-            source: RowSource::Node(PlanNodeId(0)),
-            extension: crate::domain::append::service::lower(&[], &[]),
+        input: || {
+            Lowering::Extend(ExtendNode {
+                source: RowSource::Node(PlanNodeId(0)),
+                extension: crate::domain::append::service::lower(&[], &[]),
+            })
         },
         expect: Expect::Value(Reach::Skips),
     },

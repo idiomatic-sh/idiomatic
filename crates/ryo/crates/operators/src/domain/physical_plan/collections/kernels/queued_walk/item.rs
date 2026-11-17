@@ -8,9 +8,11 @@ use super::super::distinct::item::counted;
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::WorklistNode;
 use crate::domain::physical_plan::types::visited_set::value::value_hash;
 use crate::domain::physical_plan::types::{CellStart, InputRows};
 use crate::domain::table_texts::types::Texts;
@@ -31,24 +33,23 @@ pub(crate) struct QueuedWalkItem;
 impl KernelsItem for QueuedWalkItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = match lowering {
-            Lowering::Worklist { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Reach { .. }
-            | Lowering::SeededReach { .. }
-            | Lowering::Axis { .. }
-            | Lowering::OrderedWalk { .. }
-            | Lowering::Components { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Unlowered => false,
+            Lowering::Worklist(_) => true,
+            Lowering::Filter(_)
+            | Lowering::Lookup(_)
+            | Lowering::Project(_)
+            | Lowering::Extend(_)
+            | Lowering::Probe(_)
+            | Lowering::Distinct(_)
+            | Lowering::Group(_)
+            | Lowering::Reach(_)
+            | Lowering::SeededReach(_)
+            | Lowering::Axis(_)
+            | Lowering::OrderedWalk(_)
+            | Lowering::Components(_)
+            | Lowering::TextMap(_)
+            | Lowering::OrderedMatch(_)
+            | Lowering::Render(_)
+            | Lowering::ScanBound(_) => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }
     }
@@ -389,4 +390,10 @@ fn sorted_roots(
         .roots
         .sort_unstable_by(|one, other| key(*one).cmp(&key(*other)).then(one.0.cmp(&other.0)));
     Ok(())
+}
+
+impl Operator for WorklistNode {
+    fn growth(&self) -> Growth {
+        Growth::PerStartWalk
+    }
 }

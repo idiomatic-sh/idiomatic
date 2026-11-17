@@ -7,11 +7,19 @@ use super::super::scan_roots::item::tree_row;
 use crate::domain::comparing::service::holds_bound;
 use crate::domain::comparing::types::{DecisionWorkspace, NameCount, RowShape};
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::physical_plan::types::TreeRead;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 #[cfg(test)]
+use crate::domain::physical_plan::types::lowering::value::AxisNode;
+use crate::domain::physical_plan::types::lowering::value::FilterNode;
+#[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+#[cfg(test)]
+use crate::domain::physical_plan::types::lowering::value::ProbeNode;
+#[cfg(test)]
+use crate::domain::physical_plan::types::lowering::value::SeededReachNode;
 use crate::domain::select::types::SelectParts;
 use crate::domain::table_scratch::service::forgotten;
 use crate::domain::table_texts::types::Texts;
@@ -28,23 +36,24 @@ impl KernelsItem for FilterItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = {
             match lowering {
-                Lowering::Filter { .. } | Lowering::Lookup { .. } => true,
-                Lowering::Probe { probe, .. } => !probe.filter.comparisons.is_empty(),
-                Lowering::SeededReach { join, .. } => !join.probe.filter.comparisons.is_empty(),
-                Lowering::Axis { axis, .. } => !axis.domain.comparisons.is_empty(),
-                Lowering::Project { .. }
-                | Lowering::Extend { .. }
-                | Lowering::Distinct { .. }
-                | Lowering::Group { .. }
-                | Lowering::TextMap { .. }
-                | Lowering::OrderedMatch { .. }
-                | Lowering::Render { .. }
-                | Lowering::Reach { .. }
-                | Lowering::OrderedWalk { .. }
-                | Lowering::Worklist { .. }
-                | Lowering::Components { .. }
-                | Lowering::ScanBound { .. }
-                | Lowering::Unlowered => false,
+                Lowering::Filter(_) | Lowering::Lookup(_) => true,
+                Lowering::Probe(ProbeNode { probe, .. }) => !probe.filter.comparisons.is_empty(),
+                Lowering::SeededReach(SeededReachNode { join, .. }) => {
+                    !join.probe.filter.comparisons.is_empty()
+                }
+                Lowering::Axis(AxisNode { axis, .. }) => !axis.domain.comparisons.is_empty(),
+                Lowering::Project(_)
+                | Lowering::Extend(_)
+                | Lowering::Distinct(_)
+                | Lowering::Group(_)
+                | Lowering::TextMap(_)
+                | Lowering::OrderedMatch(_)
+                | Lowering::Render(_)
+                | Lowering::Reach(_)
+                | Lowering::OrderedWalk(_)
+                | Lowering::Worklist(_)
+                | Lowering::Components(_)
+                | Lowering::ScanBound(_) => false,
             }
         };
         if runs { Reach::Runs } else { Reach::Skips }
@@ -196,4 +205,10 @@ pub(crate) fn kept_kinds(
                 .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })
         })
         .collect()
+}
+
+impl Operator for FilterNode {
+    fn growth(&self) -> Growth {
+        Growth::AtMostInput
+    }
 }

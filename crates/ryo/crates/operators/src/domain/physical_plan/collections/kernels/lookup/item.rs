@@ -8,12 +8,12 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{decode, facts, rows_of};
 use super::super::scan_node::item::hold;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_with;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, NO_ROW};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::lowering::value::{LookupNode, Lowering};
+use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
 use crate::domain::physical_plan::types::{IndexKey, IndexPlace, KernelRun, NodeFed, RowSource};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
@@ -24,7 +24,7 @@ pub(crate) struct LookupItem;
 #[cfg(test)]
 impl KernelsItem for LookupItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = { matches!(lowering, Lowering::Lookup { .. }) };
+        let runs = { matches!(lowering, Lowering::Lookup(_)) };
         if runs { Reach::Runs } else { Reach::Skips }
     }
 }
@@ -54,7 +54,7 @@ pub(crate) fn lookups(
     for lookup in &shared.readers {
         let place = usize::try_from(lookup.0).unwrap_or(usize::MAX);
         let Some(PhysicalNode {
-            lowering: Lowering::Lookup { key, select, .. },
+            lowering: Lowering::Lookup(LookupNode { key, select, .. }),
             ..
         }) = plan.nodes.get(place)
         else {
@@ -99,4 +99,10 @@ pub(crate) fn lookups(
         hold(plan, buffers, *lookup, output, fault);
     }
     Ok(())
+}
+
+impl Operator for LookupNode {
+    fn growth(&self) -> Growth {
+        Growth::AtMostInput
+    }
 }

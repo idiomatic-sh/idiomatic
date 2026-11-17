@@ -7,9 +7,7 @@ use crate::application::file_dag::file_pass::constants::{
 use crate::application::file_dag::file_pass::types::PassProgram;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::{physical, rule};
-use ryo_operators::domain::physical_plan::types::node_counters::value::{
-    NodeCounters, NodeKind, NodeWork,
-};
+use ryo_operators::domain::physical_plan::types::node_counters::value::{NodeCounters, NodeWork};
 use ryo_values::domain::runs::types::RuleId;
 use std::sync::PoisonError;
 
@@ -41,8 +39,10 @@ fn emitted(pass: &PassProgram, counters: &NodeCounters) {
     let mut nodes = 0_usize;
     for counted in counters.counts() {
         let work = counted.work;
-        // A node made is one of the plan's: the plan the run made it of.
-        let kind = plan.node_kind(counted.node).unwrap_or(NodeKind::Unlowered);
+        // A node made is one of the plan's: the plan the run made it of, so every counted node has a kind.
+        let Some(kind) = plan.node_kind(counted.node) else {
+            continue;
+        };
         let named: &[&RuleId] = rules
             .get(usize::try_from(counted.node.0).unwrap_or(usize::MAX))
             .map_or(&[], Vec::as_slice);

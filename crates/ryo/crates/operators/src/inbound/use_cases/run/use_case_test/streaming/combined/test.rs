@@ -14,7 +14,7 @@ use crate::domain::physical_plan::fixtures::{
     DEFINES, Step, defines_rows, over_defines, over_nodes, text_program,
 };
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{
@@ -351,7 +351,7 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
             program.emit(RuleOrdinal(0), emit);
             let plan = planned(&program)?;
             let ordered = plan.nodes.get(usize::try_from(emit.0).unwrap_or(usize::MAX)).is_some_and(
-                |node| matches!(&node.lowering, Lowering::Probe { probe, .. } if matches!(probe.mode, ProbeMode::Ordered(_))),
+                |node| matches!(&node.lowering, Lowering::Probe(ProbeNode { probe, .. }) if matches!(probe.mode, ProbeMode::Ordered(_))),
             );
             let streams = plan
                 .nodes

@@ -23,7 +23,9 @@ use crate::domain::physical_plan::collections::kernels::text_map::item::{
 };
 use crate::domain::physical_plan::service::indexes::service::{probe_build, probe_index};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{
+    ExtendNode, FilterNode, Lowering, ProbeNode, ProjectNode, TextMapNode,
+};
 use crate::domain::physical_plan::types::stream_scratch::value::{
     CellBound, ChunkRead, ChunkStop, ProbeWork, RowChunk, StageOwn,
 };
@@ -50,7 +52,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
 ) -> Result<StagePrepared, PortableOperatorFault> {
     let ChainStage { node, lowering } = stage;
     Ok(match lowering {
-        Lowering::Filter { select, .. } => {
+        Lowering::Filter(FilterNode { select, .. }) => {
             let kinds = kept_kinds(input, &select.kept)?;
             if let Some(decisions) = buffers
                 .decisions
@@ -60,12 +62,12 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
             }
             StagePrepared { kinds, fault: None }
         }
-        Lowering::TextMap { map, .. } => StagePrepared {
+        Lowering::TextMap(TextMapNode { map, .. }) => StagePrepared {
             kinds: mapped_kinds(map, input),
             fault: None,
         },
         // A projection keeps exactly its columns: none is a row of no column, never every column as a filter's none is.
-        Lowering::Project { project, .. } => {
+        Lowering::Project(ProjectNode { project, .. }) => {
             let kinds = project
                 .columns
                 .iter()
@@ -81,7 +83,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
         }
         // An extension's values are made before its rows are read: making a name changes the file's names, and reading
         // reads them.
-        Lowering::Extend { extension, .. } => match resolved(
+        Lowering::Extend(ExtendNode { extension, .. }) => match resolved(
             &extension.values,
             &extension.bindings,
             run.resources,
@@ -101,7 +103,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
             },
         },
         // A probe reads every right row before it answers one: its right side's fault comes before any of its rows.
-        Lowering::Probe { probe, index, .. } => {
+        Lowering::Probe(ProbeNode { probe, index, .. }) => {
             let right = right.ok_or(PortableOperatorFault::WrongOperation)?;
             // The probe's own state for this run, whatever it answers: what it is fed from its right side (its rows, as
             // read before their fault, or, walking the tree, the rows its walks find), no answer kept and no work done.
@@ -121,19 +123,18 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
             let kinds = answer_kinds(probe, input, rows_kinds(right))?;
             StagePrepared { kinds, fault: None }
         }
-        Lowering::Lookup { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::Group { .. }
-        | Lowering::Reach { .. }
-        | Lowering::SeededReach { .. }
-        | Lowering::Axis { .. }
-        | Lowering::OrderedWalk { .. }
-        | Lowering::Worklist { .. }
-        | Lowering::Components { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Render { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => return Err(PortableOperatorFault::WrongOperation),
+        Lowering::Lookup(_)
+        | Lowering::Distinct(_)
+        | Lowering::Group(_)
+        | Lowering::Reach(_)
+        | Lowering::SeededReach(_)
+        | Lowering::Axis(_)
+        | Lowering::OrderedWalk(_)
+        | Lowering::Worklist(_)
+        | Lowering::Components(_)
+        | Lowering::OrderedMatch(_)
+        | Lowering::Render(_)
+        | Lowering::ScanBound(_) => return Err(PortableOperatorFault::WrongOperation),
     })
 }
 
@@ -163,7 +164,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
     let kinds = kinds_of(input.rows);
     Ok(match lowering {
-        Lowering::Filter { select, .. } => {
+        Lowering::Filter(FilterNode { select, .. }) => {
             let decisions = buffers
                 .decisions
                 .get_mut(place)
@@ -174,7 +175,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
                 keep(kernel, run.matcher, cells, decisions, written, out)
             })?
         }
-        Lowering::TextMap { map, .. } => {
+        Lowering::TextMap(TextMapNode { map, .. }) => {
             let decisions = buffers
                 .decisions
                 .get_mut(place)
@@ -197,20 +198,20 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
                 )
             })?
         }
-        Lowering::Project { project, .. } => {
+        Lowering::Project(ProjectNode { project, .. }) => {
             let repeats = &mut own.repeats;
             each_row(input, &mut buffers.row, out, bound, |cells, out| {
                 projected(cells, &project.columns, project.distinct, repeats, out)
             })?
         }
-        Lowering::Extend { .. } => {
+        Lowering::Extend(_) => {
             let (values, written) = (&own.values, &mut buffers.written);
             each_row(input, &mut buffers.row, out, bound, |cells, out| {
                 extended(cells, values, written, out);
                 Ok(())
             })?
         }
-        Lowering::Probe { probe, index, .. } => {
+        Lowering::Probe(ProbeNode { probe, index, .. }) => {
             let right = right.ok_or(PortableOperatorFault::WrongOperation)?;
             let run: &KernelRun<'_> = run;
             let mut tree = None;
@@ -272,19 +273,18 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
             *fed = right_fed;
             answered?
         }
-        Lowering::Lookup { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::Group { .. }
-        | Lowering::Reach { .. }
-        | Lowering::SeededReach { .. }
-        | Lowering::Axis { .. }
-        | Lowering::OrderedWalk { .. }
-        | Lowering::Worklist { .. }
-        | Lowering::Components { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Render { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => return Err(PortableOperatorFault::WrongOperation),
+        Lowering::Lookup(_)
+        | Lowering::Distinct(_)
+        | Lowering::Group(_)
+        | Lowering::Reach(_)
+        | Lowering::SeededReach(_)
+        | Lowering::Axis(_)
+        | Lowering::OrderedWalk(_)
+        | Lowering::Worklist(_)
+        | Lowering::Components(_)
+        | Lowering::OrderedMatch(_)
+        | Lowering::Render(_)
+        | Lowering::ScanBound(_) => return Err(PortableOperatorFault::WrongOperation),
     })
 }
 

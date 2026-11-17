@@ -6,7 +6,7 @@ use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem
 use crate::domain::physical_plan::fixtures::ordered::{EDGES, OrderedShape, ordered_existence};
 use crate::domain::physical_plan::service::plan_with;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, NodeReaders, PlanInputList, PlanNodeId, RowSource,
@@ -132,7 +132,8 @@ fn subject(shape: Input) -> Result<Value, Failure> {
         .take(3)
         .filter(|node| node.readers == NodeReaders(0))
         .count();
-    let Lowering::Probe { right, probe, .. } = &plan.nodes.get(3).ok_or(())?.lowering else {
+    let Lowering::Probe(ProbeNode { right, probe, .. }) = &plan.nodes.get(3).ok_or(())?.lowering
+    else {
         return Err(());
     };
     match probe.mode {

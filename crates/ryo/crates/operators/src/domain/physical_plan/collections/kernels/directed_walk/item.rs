@@ -9,8 +9,10 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::axis::types::AxisParts;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
+use crate::domain::physical_plan::types::lowering::value::AxisNode;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::walk_scratch::value::WalkScratch;
@@ -33,24 +35,23 @@ pub(crate) struct DirectedWalkItem;
 impl KernelsItem for DirectedWalkItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = match lowering {
-            Lowering::Axis { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Reach { .. }
-            | Lowering::SeededReach { .. }
-            | Lowering::OrderedWalk { .. }
-            | Lowering::Worklist { .. }
-            | Lowering::Components { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Unlowered => false,
+            Lowering::Axis(_) => true,
+            Lowering::Filter(_)
+            | Lowering::Lookup(_)
+            | Lowering::Project(_)
+            | Lowering::Extend(_)
+            | Lowering::Probe(_)
+            | Lowering::Distinct(_)
+            | Lowering::Group(_)
+            | Lowering::Reach(_)
+            | Lowering::SeededReach(_)
+            | Lowering::OrderedWalk(_)
+            | Lowering::Worklist(_)
+            | Lowering::Components(_)
+            | Lowering::TextMap(_)
+            | Lowering::OrderedMatch(_)
+            | Lowering::Render(_)
+            | Lowering::ScanBound(_) => false,
         };
         if runs { Reach::Runs } else { Reach::Skips }
     }
@@ -376,4 +377,10 @@ fn native(tree: &TreeRead<'_>, direction: Direction, start: Value, found: &mut V
         return;
     }
     walked_tree(elements, file, direction, at, found);
+}
+
+impl Operator for AxisNode {
+    fn growth(&self) -> Growth {
+        Growth::PerStartWalk
+    }
 }

@@ -4,16 +4,15 @@ use super::{TableInputs, TextResources, ran};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::fixtures::Step;
-use crate::domain::physical_plan::types::ProbeIndex;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
-    LogicalNode, NodeBindings, NodeRows, PlanInputList, PlanInputs, Resources,
+    LogicalNode, NodeBindings, NodeRows, PlanInput, PlanInputList, PlanInputs, PlanNodeId,
+    ProbeIndex, Resources,
 };
-use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::fixtures::{kinds, node_id};
 use ryo_relations::domain::relations::types::{
     FileId, NodeId, Offset, Position, Relation, Span, Value,
@@ -185,16 +184,16 @@ pub(crate) fn walks_and_answers(
         .nodes
         .iter()
         .map(|node| &node.lowering)
-        .filter(|lowering| matches!(lowering, Lowering::Probe { .. }))
+        .filter(|lowering| matches!(lowering, Lowering::Probe(_)))
         .collect();
     let walks = !probes.is_empty()
         && probes.iter().all(|lowering| {
             matches!(
                 lowering,
-                Lowering::Probe {
+                Lowering::Probe(ProbeNode {
                     index: ProbeIndex::Tree,
                     ..
-                }
+                })
             )
         });
     let answered = match every {

@@ -7,7 +7,7 @@ use crate::domain::physical_plan::collections::kernels::scan_facts::item::{facts
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{give_back, take};
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{rooted, tree_read};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
 use crate::domain::physical_plan::types::stream_scratch::value::RightPlace;
 use crate::domain::physical_plan::types::{
@@ -79,24 +79,23 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn right_of(
     lowering: &Lowering,
 ) -> Option<RowSource> {
     match lowering {
-        Lowering::Probe { right, .. } => Some(*right),
-        Lowering::Filter { .. }
-        | Lowering::Lookup { .. }
-        | Lowering::Project { .. }
-        | Lowering::Extend { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::Group { .. }
-        | Lowering::Reach { .. }
-        | Lowering::SeededReach { .. }
-        | Lowering::Axis { .. }
-        | Lowering::OrderedWalk { .. }
-        | Lowering::Worklist { .. }
-        | Lowering::Components { .. }
-        | Lowering::TextMap { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Render { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => None,
+        Lowering::Probe(ProbeNode { right, .. }) => Some(*right),
+        Lowering::Filter(_)
+        | Lowering::Lookup(_)
+        | Lowering::Project(_)
+        | Lowering::Extend(_)
+        | Lowering::Distinct(_)
+        | Lowering::Group(_)
+        | Lowering::Reach(_)
+        | Lowering::SeededReach(_)
+        | Lowering::Axis(_)
+        | Lowering::OrderedWalk(_)
+        | Lowering::Worklist(_)
+        | Lowering::Components(_)
+        | Lowering::TextMap(_)
+        | Lowering::OrderedMatch(_)
+        | Lowering::Render(_)
+        | Lowering::ScanBound(_) => None,
     }
 }
 

@@ -13,7 +13,7 @@ use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, 
 use crate::domain::physical_plan::service::indexes::service::{closed, opened};
 use crate::domain::physical_plan::service::run::counting::service::{timed, timed_to};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::stream_scratch::value::{
     ChainScratch, RightPlace, StagePlace, StageScratch,
@@ -175,7 +175,7 @@ fn chained(
     let first_probe = nodes
         .iter()
         .position(|node| {
-            physical(plan, *node).is_ok_and(|node| matches!(node.lowering, Lowering::Probe { .. }))
+            physical(plan, *node).is_ok_and(|node| matches!(node.lowering, Lowering::Probe(_)))
         })
         .map(StagePlace);
     let mut push = Push {
@@ -275,10 +275,10 @@ fn prepared(
         .first_mut()
         .ok_or(PortableOperatorFault::WrongOperation)?;
     stage.fault = None;
-    if let Lowering::Probe {
+    if let Lowering::Probe(ProbeNode {
         index: ProbeIndex::Shared(place),
         ..
-    } = chain_stage.lowering
+    }) = chain_stage.lowering
     {
         opened(plan, buffers, *place);
         stage.own.shared = Some(*place);

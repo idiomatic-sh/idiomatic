@@ -1,8 +1,9 @@
 //! The `project` item's cases, and the collection's shared cases when it has any: which lowerings run the kernel.
 use super::item::ProjectItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::growth::types::{InputRole, WitnessColumns, Witnessed, Witnesses};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{DistinctNode, Lowering, ProjectNode};
 use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 
@@ -17,20 +18,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_projection_runs_it"),
         word: Word::Succeeds,
-        input: || Lowering::Project {
-            source: RowSource::Node(PlanNodeId(0)),
-            project: crate::domain::project::service::lower(&[], RepeatedRows::Kept),
+        input: || {
+            Lowering::Project(ProjectNode {
+                source: RowSource::Node(PlanNodeId(0)),
+                project: crate::domain::project::service::lower(&[], RepeatedRows::Kept),
+            })
         },
         expect: Expect::Value(Reach::Runs),
     },
     Case {
         name: CaseName("a_union_does_not_run_it"),
         word: Word::Succeeds,
-        input: || Lowering::Distinct {
-            sources: [
-                RowSource::Node(PlanNodeId(0)),
-                RowSource::Node(PlanNodeId(1)),
-            ],
+        input: || {
+            Lowering::Distinct(DistinctNode {
+                sources: [
+                    RowSource::Node(PlanNodeId(0)),
+                    RowSource::Node(PlanNodeId(1)),
+                ],
+            })
         },
         expect: Expect::Value(Reach::Skips),
     },
@@ -48,4 +53,19 @@ fn subject(lowering: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+impl Witnesses for ProjectNode {
+    fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>> {
+        vec![Witnessed {
+            node: Self {
+                source: RowSource::Node(PlanNodeId(0)),
+                project: crate::domain::project::service::lower(
+                    &[columns.key, columns.id],
+                    RepeatedRows::Dropped,
+                ),
+            },
+            roles: vec![InputRole::Rows],
+        }]
+    }
 }

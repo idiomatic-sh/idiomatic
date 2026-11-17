@@ -1,10 +1,11 @@
 //! The `extend` item's cases, and the collection's shared cases when it has any: which lowerings run the kernel.
 use super::item::ExtendItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::growth::types::{InputRole, WitnessColumns, Witnessed, Witnesses};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{ExtendNode, Lowering, ProjectNode};
 use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
-use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::{Operand, RepeatedRows};
 
 /// The lowering a node was given.
 type Input = Lowering;
@@ -17,18 +18,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_extension_runs_it"),
         word: Word::Succeeds,
-        input: || Lowering::Extend {
-            source: RowSource::Node(PlanNodeId(0)),
-            extension: crate::domain::append::service::lower(&[], &[]),
+        input: || {
+            Lowering::Extend(ExtendNode {
+                source: RowSource::Node(PlanNodeId(0)),
+                extension: crate::domain::append::service::lower(&[], &[]),
+            })
         },
         expect: Expect::Value(Reach::Runs),
     },
     Case {
         name: CaseName("a_projection_does_not_run_it"),
         word: Word::Succeeds,
-        input: || Lowering::Project {
-            source: RowSource::Node(PlanNodeId(0)),
-            project: crate::domain::project::service::lower(&[], RepeatedRows::Kept),
+        input: || {
+            Lowering::Project(ProjectNode {
+                source: RowSource::Node(PlanNodeId(0)),
+                project: crate::domain::project::service::lower(&[], RepeatedRows::Kept),
+            })
         },
         expect: Expect::Value(Reach::Skips),
     },
@@ -46,4 +51,19 @@ fn subject(lowering: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+impl Witnesses for ExtendNode {
+    fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>> {
+        vec![Witnessed {
+            node: Self {
+                source: RowSource::Node(PlanNodeId(0)),
+                extension: crate::domain::append::service::lower(
+                    &[Operand::Column(columns.key)],
+                    &[],
+                ),
+            },
+            roles: vec![InputRole::Rows],
+        }]
+    }
 }

@@ -57,3 +57,27 @@ pub(crate) fn seeded(
         probe: lower(shape, filter, bindings),
     }
 }
+
+/// The kind of a probe mode: one arm per mode, so a new mode cannot be added without its kind, which `ProbeModeKind::ALL` then
+/// holds.
+#[cfg(test)]
+pub(crate) const fn mode_kind(mode: super::types::ProbeMode) -> super::types::ProbeModeKind {
+    use super::types::{ProbeMode, ProbeModeKind};
+    match mode {
+        ProbeMode::Inner => ProbeModeKind::Inner,
+        ProbeMode::Semi => ProbeModeKind::Semi,
+        ProbeMode::Anti => ProbeModeKind::Anti,
+        ProbeMode::Ordered(_) => ProbeModeKind::Ordered,
+    }
+}
+
+/// How many right rows a probe of `mode` writes for each left row: a semi, anti or ordered probe keeps at most the left row; an
+/// inner probe writes the right rows sharing its key.
+pub(crate) const fn fan(mode: super::types::ProbeMode) -> crate::domain::growth::types::Fan {
+    use super::types::ProbeMode;
+    use crate::domain::growth::types::Fan;
+    match mode {
+        ProbeMode::Semi | ProbeMode::Anti | ProbeMode::Ordered(_) => Fan::PerLeft,
+        ProbeMode::Inner => Fan::Repeats,
+    }
+}

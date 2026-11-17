@@ -7,7 +7,9 @@ use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::aggregate::types::GroupMeasure;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
+use crate::domain::physical_plan::types::lowering::value::GroupNode;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{InputRows, KeyedRowAt, KeyedSide};
@@ -25,7 +27,7 @@ pub(crate) struct GroupItem;
 #[cfg(test)]
 impl KernelsItem for GroupItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = { matches!(lowering, Lowering::Group { .. }) };
+        let runs = { matches!(lowering, Lowering::Group(_)) };
         if runs { Reach::Runs } else { Reach::Skips }
     }
 }
@@ -161,5 +163,11 @@ fn digest_datum<'t>(value: Value, texts: &Texts<'t>) -> DigestDatum<'t> {
         Datum::Flag(flag) => DigestDatum::Flag(flag),
         Datum::Numbers(numbers) => DigestDatum::Numbers(numbers),
         Datum::Texts(items) => DigestDatum::Texts(items),
+    }
+}
+
+impl Operator for GroupNode {
+    fn growth(&self) -> Growth {
+        Growth::GroupOutput
     }
 }

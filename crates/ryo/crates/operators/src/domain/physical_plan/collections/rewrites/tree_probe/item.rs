@@ -5,7 +5,7 @@
 use super::super::interface::RewritesItem;
 use crate::domain::comparing::service::fixed_prefix;
 use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{KeyedIndex, ProbeIndex, RowSource};
 use ryo_relations::domain::relations::service::kinds;
@@ -18,12 +18,12 @@ pub(crate) struct TreeProbeItem;
 impl RewritesItem for TreeProbeItem {
     fn rewrite(&self, nodes: &mut [PhysicalNode], _indexes: &mut Vec<KeyedIndex>) {
         for node in nodes {
-            if let Lowering::Probe {
+            if let Lowering::Probe(ProbeNode {
                 right: RowSource::Tree(relation),
                 probe,
                 index,
                 ..
-            } = &mut node.lowering
+            }) = &mut node.lowering
                 && let ProbeKey::Columns { left, right } = &probe.key
                 && let ([_], [on]) = (left.as_slice(), right.as_slice())
                 && matches!(

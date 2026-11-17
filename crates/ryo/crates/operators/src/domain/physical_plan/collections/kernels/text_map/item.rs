@@ -10,10 +10,12 @@ use crate::domain::contract::types::{
     PortableOperatorFault, RangeScratch, RowScratch, SourceByteLength, TextFound, TextScratch,
 };
 use crate::domain::fits_rendered::types::Fit;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::TextMapNode;
 use crate::domain::physical_plan::types::{Resources, RowMap};
 use crate::domain::rank::types::RankLayers;
 use crate::domain::replace::types::{ReplacedText, ReplacementText};
@@ -38,7 +40,7 @@ pub(crate) struct TextMapItem;
 #[cfg(test)]
 impl KernelsItem for TextMapItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        if matches!(lowering, Lowering::TextMap { .. }) {
+        if matches!(lowering, Lowering::TextMap(_)) {
             Reach::Runs
         } else {
             Reach::Skips
@@ -375,4 +377,10 @@ fn searched(
         &mut |found| run.resources.intern(found),
     );
     Ok(())
+}
+
+impl Operator for TextMapNode {
+    fn growth(&self) -> Growth {
+        Growth::PerRowText
+    }
 }

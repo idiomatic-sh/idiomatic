@@ -1,8 +1,9 @@
 //! The `lookup` item's cases, and the collection's shared cases when it has any: which lowerings run the kernel.
 use super::item::LookupItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::growth::types::{WitnessColumns, Witnessed, Witnesses};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{FilterNode, LookupNode, Lowering};
 use crate::domain::physical_plan::types::{IndexPlace, RowSource};
 use ryo_relations::domain::relations::types::{Relation, TextHash};
 
@@ -17,19 +18,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_lookup_runs_it"),
         word: Word::Succeeds,
-        input: || Lowering::Lookup {
-            index: IndexPlace(0),
-            key: TextHash(0),
-            select: crate::domain::select::service::lower(&[], &[], &[]),
+        input: || {
+            Lowering::Lookup(LookupNode {
+                index: IndexPlace(0),
+                key: TextHash(0),
+                select: crate::domain::select::service::lower(&[], &[], &[]),
+            })
         },
         expect: Expect::Value(Reach::Runs),
     },
     Case {
         name: CaseName("a_filter_does_not_run_it"),
         word: Word::Succeeds,
-        input: || Lowering::Filter {
-            source: RowSource::Facts(Relation::Defines),
-            select: crate::domain::select::service::lower(&[], &[], &[]),
+        input: || {
+            Lowering::Filter(FilterNode {
+                source: RowSource::Facts(Relation::Defines),
+                select: crate::domain::select::service::lower(&[], &[], &[]),
+            })
         },
         expect: Expect::Value(Reach::Skips),
     },
@@ -47,4 +52,18 @@ fn subject(lowering: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+impl Witnesses for LookupNode {
+    fn witnesses(_: WitnessColumns) -> Vec<Witnessed<Self>> {
+        // A lookup reads its index's relation, not a node: it names no input.
+        vec![Witnessed {
+            node: Self {
+                index: IndexPlace(0),
+                key: TextHash(0),
+                select: crate::domain::select::service::lower(&[], &[], &[]),
+            },
+            roles: Vec::new(),
+        }]
+    }
 }

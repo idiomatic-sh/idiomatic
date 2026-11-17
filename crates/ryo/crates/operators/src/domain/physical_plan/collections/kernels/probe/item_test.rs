@@ -2,7 +2,7 @@
 use super::item::ProbeItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{DistinctNode, Lowering, ProbeNode};
 use crate::domain::physical_plan::types::{PlanNodeId, ProbeIndex, RowSource};
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 
@@ -18,24 +18,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_antijoin_runs_it"),
         word: Word::Succeeds,
         input: || match crate::domain::set_rows::service::lower(SetKind::Antijoin, &[], &[]) {
-            SetLowering::Probe(probe) => Lowering::Probe {
+            SetLowering::Probe(probe) => Lowering::Probe(ProbeNode {
                 left: RowSource::Node(PlanNodeId(0)),
                 right: RowSource::Node(PlanNodeId(1)),
                 probe,
                 index: ProbeIndex::Own,
-            },
-            SetLowering::Distinct => Lowering::Unlowered,
+            }),
+            SetLowering::Distinct => Lowering::Distinct(DistinctNode {
+                sources: [
+                    RowSource::Node(PlanNodeId(0)),
+                    RowSource::Node(PlanNodeId(1)),
+                ],
+            }),
         },
         expect: Expect::Value(Reach::Runs),
     },
     Case {
         name: CaseName("a_union_does_not_run_it"),
         word: Word::Succeeds,
-        input: || Lowering::Distinct {
-            sources: [
-                RowSource::Node(PlanNodeId(0)),
-                RowSource::Node(PlanNodeId(1)),
-            ],
+        input: || {
+            Lowering::Distinct(DistinctNode {
+                sources: [
+                    RowSource::Node(PlanNodeId(0)),
+                    RowSource::Node(PlanNodeId(1)),
+                ],
+            })
         },
         expect: Expect::Value(Reach::Skips),
     },

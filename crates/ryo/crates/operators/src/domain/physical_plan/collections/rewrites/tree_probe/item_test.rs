@@ -4,7 +4,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::equality_join::types::{JoinShape, OrderedProbe, PartitionExtremum, ProbeMode};
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem as _;
 use crate::domain::physical_plan::service::indexes::service::shared_indexes;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{NodeReaders, PlanNodeId, ProbeIndex, RowSource};
 use ryo_relations::domain::relations::types::Relation;
@@ -108,7 +108,7 @@ fn joined(relation: RowSource, right_on: &[u32], filter: &[PlanComparison]) -> P
         column: ColumnIndex(0),
     }];
     PhysicalNode {
-        lowering: Lowering::Probe {
+        lowering: Lowering::Probe(ProbeNode {
             left: RowSource::Node(PlanNodeId(0)),
             right: relation,
             probe: crate::domain::equality_join::service::lower(
@@ -123,7 +123,7 @@ fn joined(relation: RowSource, right_on: &[u32], filter: &[PlanComparison]) -> P
                 &[],
             ),
             index: ProbeIndex::Own,
-        },
+        }),
         readers: NodeReaders(0),
         engine: crate::domain::physical_plan::types::EngineUses(1),
         flow: crate::domain::physical_plan::types::NodeFlow::Held,
@@ -141,7 +141,7 @@ fn subject(shape: Input) -> Result<Value, Failure> {
         Shape::TreeByFileAndSpan => vec![joined(tree, &[3, 4], &[])],
         Shape::OrderedByParent => {
             let mut node = joined(edges, &[0], &[]);
-            if let Lowering::Probe { probe, .. } = &mut node.lowering {
+            if let Lowering::Probe(ProbeNode { probe, .. }) = &mut node.lowering {
                 probe.mode = ProbeMode::Ordered(OrderedProbe {
                     left_order: ColumnIndex(2),
                     right_order: ColumnIndex(2),
@@ -167,7 +167,7 @@ fn subject(shape: Input) -> Result<Value, Failure> {
     TreeProbeItem.rewrite(&mut nodes, &mut indexes);
     shared_indexes(&mut nodes, &mut indexes);
     let index_of = |node: &PhysicalNode| {
-        if let Lowering::Probe { index, .. } = &node.lowering {
+        if let Lowering::Probe(ProbeNode { index, .. }) = &node.lowering {
             Some(*index)
         } else {
             None

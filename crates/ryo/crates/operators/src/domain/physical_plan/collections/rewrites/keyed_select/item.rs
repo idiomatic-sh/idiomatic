@@ -5,7 +5,7 @@
 use super::super::interface::RewritesItem;
 use crate::domain::comparing::service::fixed_prefix;
 use crate::domain::physical_plan::service::indexes::service::read_by;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{FilterNode, LookupNode, Lowering};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{
     IndexIdentity, IndexKey, IndexPlace, KeyedIndex, KeyedIndexes, PlanNodeId, RowSource,
@@ -70,7 +70,7 @@ fn keyed_selects(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
     let mut keyed = KeyedIndexes::default();
     let mut keys: Vec<Vec<SelectKey>> = Vec::new();
     for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
-        let Lowering::Filter { source, select } = &node.lowering else {
+        let Lowering::Filter(FilterNode { source, select }) = &node.lowering else {
             continue;
         };
         let Some(key) = key_of(*source, &select.comparisons) else {
@@ -99,14 +99,13 @@ fn keyed_selects(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
         let shared = IndexPlace(indexes.len());
         for (lookup, key) in index.readers.iter().zip(&held) {
             if let Some(node) = nodes.get_mut(usize::try_from(lookup.0).unwrap_or(usize::MAX))
-                && let Lowering::Filter { select, .. } =
-                    std::mem::replace(&mut node.lowering, Lowering::Unlowered)
+                && let Lowering::Filter(FilterNode { select, .. }) = &node.lowering
             {
-                node.lowering = Lowering::Lookup {
+                node.lowering = Lowering::Lookup(LookupNode {
                     index: shared,
                     key: key.key,
-                    select,
-                };
+                    select: select.clone(),
+                });
             }
         }
         indexes.push(index);

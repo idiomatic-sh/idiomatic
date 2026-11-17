@@ -4,8 +4,7 @@
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, rows_of, table_row};
-use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::physical_plan::types::keyed_rows::value::{
     IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW,
 };
@@ -32,15 +31,15 @@ impl KernelsItem for HashIndexItem {
         let runs = {
             matches!(
                 lowering,
-                Lowering::Lookup { .. }
-                    | Lowering::Probe { .. }
-                    | Lowering::Group { .. }
-                    | Lowering::Reach { .. }
-                    | Lowering::SeededReach { .. }
-                    | Lowering::Axis { .. }
-                    | Lowering::OrderedWalk { .. }
-                    | Lowering::Worklist { .. }
-                    | Lowering::Components { .. }
+                Lowering::Lookup(_)
+                    | Lowering::Probe(_)
+                    | Lowering::Group(_)
+                    | Lowering::Reach(_)
+                    | Lowering::SeededReach(_)
+                    | Lowering::Axis(_)
+                    | Lowering::OrderedWalk(_)
+                    | Lowering::Worklist(_)
+                    | Lowering::Components(_)
             )
         };
         if runs { Reach::Runs } else { Reach::Skips }

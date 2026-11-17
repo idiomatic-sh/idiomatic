@@ -6,13 +6,14 @@
 use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::KernelRun;
 #[cfg(test)]
 use crate::domain::physical_plan::types::RowSource;
 use crate::domain::physical_plan::types::held_rows::value::HeldRows;
-use crate::domain::physical_plan::types::lowering::value::BoundScan;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{BoundScan, ScanBoundNode};
 use crate::domain::table_rows::types::{RowTexts, TableRowOutput};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -26,7 +27,7 @@ pub(crate) struct ScanBoundItem;
 #[cfg(test)]
 impl KernelsItem for ScanBoundItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = matches!(lowering, Lowering::ScanBound { .. })
+        let runs = matches!(lowering, Lowering::ScanBound(_))
             || lowering
                 .sources()
                 .any(|source| matches!(source, RowSource::Frontier(_) | RowSource::Observation(_)));
@@ -112,5 +113,11 @@ impl TableRowOutput for RowsInto<'_, '_> {
         }
         push_row(self.output, &self.row);
         Ok(())
+    }
+}
+
+impl Operator for ScanBoundNode {
+    fn growth(&self) -> Growth {
+        Growth::AtMostInput
     }
 }

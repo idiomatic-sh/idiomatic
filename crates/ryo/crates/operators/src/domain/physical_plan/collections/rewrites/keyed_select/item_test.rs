@@ -2,7 +2,7 @@
 use super::item::KeyedSelectItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem as _;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{FilterNode, Lowering};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{NodeReaders, RowSource};
 use ryo_relations::domain::relations::types::Relation;
@@ -35,7 +35,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// A filter of `Defines` whose name (column 3) equals `name`.
 fn keyed(name: &str) -> PhysicalNode {
     PhysicalNode {
-        lowering: Lowering::Filter {
+        lowering: Lowering::Filter(FilterNode {
             source: RowSource::Facts(Relation::Defines),
             select: crate::domain::select::service::lower(
                 &[PlanComparison {
@@ -47,7 +47,7 @@ fn keyed(name: &str) -> PhysicalNode {
                 &[],
                 &[],
             ),
-        },
+        }),
         readers: NodeReaders(0),
         engine: crate::domain::physical_plan::types::EngineUses(1),
         flow: crate::domain::physical_plan::types::NodeFlow::Held,
@@ -65,7 +65,7 @@ fn subject(filters: Input) -> Result<Value, Failure> {
     KeyedSelectItem.rewrite(&mut nodes, &mut indexes);
     let lookups = nodes
         .iter()
-        .filter(|node| matches!(node.lowering, Lowering::Lookup { .. }))
+        .filter(|node| matches!(node.lowering, Lowering::Lookup(_)))
         .count();
     Ok((indexes.len(), lookups))
 }

@@ -7,10 +7,14 @@ use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PortableOperatorFault;
 #[cfg(test)]
 use crate::domain::equality_join::types::ProbeMode;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::physical_plan::types::CellStart;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+#[cfg(test)]
+use crate::domain::physical_plan::types::lowering::value::ProbeNode;
+use crate::domain::physical_plan::types::lowering::value::ProjectNode;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
 use ryo_values::domain::rows::types::Table;
@@ -24,24 +28,23 @@ impl KernelsItem for ProjectItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = {
             match lowering {
-                Lowering::Project { .. } => true,
-                Lowering::Probe { probe, .. } => probe.mode == ProbeMode::Inner,
-                Lowering::Filter { .. }
-                | Lowering::Lookup { .. }
-                | Lowering::Extend { .. }
-                | Lowering::Distinct { .. }
-                | Lowering::Group { .. }
-                | Lowering::TextMap { .. }
-                | Lowering::OrderedMatch { .. }
-                | Lowering::Render { .. }
-                | Lowering::Reach { .. }
-                | Lowering::SeededReach { .. }
-                | Lowering::Axis { .. }
-                | Lowering::OrderedWalk { .. }
-                | Lowering::Worklist { .. }
-                | Lowering::Components { .. }
-                | Lowering::ScanBound { .. }
-                | Lowering::Unlowered => false,
+                Lowering::Project(_) => true,
+                Lowering::Probe(ProbeNode { probe, .. }) => probe.mode == ProbeMode::Inner,
+                Lowering::Filter(_)
+                | Lowering::Lookup(_)
+                | Lowering::Extend(_)
+                | Lowering::Distinct(_)
+                | Lowering::Group(_)
+                | Lowering::TextMap(_)
+                | Lowering::OrderedMatch(_)
+                | Lowering::Render(_)
+                | Lowering::Reach(_)
+                | Lowering::SeededReach(_)
+                | Lowering::Axis(_)
+                | Lowering::OrderedWalk(_)
+                | Lowering::Worklist(_)
+                | Lowering::Components(_)
+                | Lowering::ScanBound(_) => false,
             }
         };
         if runs { Reach::Runs } else { Reach::Skips }
@@ -64,4 +67,10 @@ pub(crate) fn projected(
     crate::domain::project::service::project(row, columns, &mut output.cells)?;
     counted(output, start, distinct, repeats);
     Ok(())
+}
+
+impl Operator for ProjectNode {
+    fn growth(&self) -> Growth {
+        Growth::AtMostInput
+    }
 }

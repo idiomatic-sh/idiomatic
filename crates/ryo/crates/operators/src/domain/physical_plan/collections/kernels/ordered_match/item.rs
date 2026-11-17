@@ -6,10 +6,12 @@
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{count_of, kinds_of, row_of};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::ordered_match::types::OrderedParts;
 use crate::domain::physical_plan::types::InputRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::OrderedMatchNode;
 use crate::domain::table_texts::types::Texts;
 use crate::domain::table_texts::types::derived_texts::value::DerivedTexts;
 use ryo_relations::domain::relations::types::Value;
@@ -23,7 +25,7 @@ pub(crate) struct OrderedMatchItem;
 #[cfg(test)]
 impl KernelsItem for OrderedMatchItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        if matches!(lowering, Lowering::OrderedMatch { .. }) {
+        if matches!(lowering, Lowering::OrderedMatch(_)) {
             Reach::Runs
         } else {
             Reach::Skips
@@ -103,4 +105,10 @@ pub(crate) fn matched(
             Ok(())
         },
     )
+}
+
+impl Operator for OrderedMatchNode {
+    fn growth(&self) -> Growth {
+        Growth::OnePerLeftRow
+    }
 }

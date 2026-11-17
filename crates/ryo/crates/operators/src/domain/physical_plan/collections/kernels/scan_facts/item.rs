@@ -29,7 +29,7 @@ pub(crate) struct ScanFactsItem;
 impl KernelsItem for ScanFactsItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
         let runs = {
-            matches!(lowering, Lowering::Lookup { .. })
+            matches!(lowering, Lowering::Lookup(_))
                 || lowering
                     .sources()
                     .any(|source| matches!(source, RowSource::Facts(_)))

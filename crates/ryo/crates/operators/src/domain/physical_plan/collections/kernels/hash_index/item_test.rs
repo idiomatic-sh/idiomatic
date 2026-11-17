@@ -2,7 +2,7 @@
 use super::item::HashIndexItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{GroupNode, Lowering, ProjectNode};
 use crate::domain::physical_plan::types::{PlanNodeId, RowSource};
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 
@@ -17,21 +17,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_group_runs_it"),
         word: Word::Succeeds,
-        input: || Lowering::Group {
-            source: RowSource::Node(PlanNodeId(0)),
-            group: crate::domain::aggregate::service::lower(
-                &[],
-                crate::domain::aggregate::types::GroupMeasure::Rows,
-            ),
+        input: || {
+            Lowering::Group(GroupNode {
+                source: RowSource::Node(PlanNodeId(0)),
+                group: crate::domain::aggregate::service::lower(
+                    &[],
+                    crate::domain::aggregate::types::GroupMeasure::Rows,
+                ),
+            })
         },
         expect: Expect::Value(Reach::Runs),
     },
     Case {
         name: CaseName("a_projection_does_not_run_it"),
         word: Word::Succeeds,
-        input: || Lowering::Project {
-            source: RowSource::Node(PlanNodeId(0)),
-            project: crate::domain::project::service::lower(&[], RepeatedRows::Kept),
+        input: || {
+            Lowering::Project(ProjectNode {
+                source: RowSource::Node(PlanNodeId(0)),
+                project: crate::domain::project::service::lower(&[], RepeatedRows::Kept),
+            })
         },
         expect: Expect::Value(Reach::Skips),
     },

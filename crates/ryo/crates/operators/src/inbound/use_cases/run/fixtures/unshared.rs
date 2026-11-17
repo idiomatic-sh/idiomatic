@@ -5,7 +5,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
@@ -19,7 +19,7 @@ use ryo_values::domain::rows::types::Table;
 #[must_use]
 pub fn unshared(mut plan: PhysicalPlan) -> PhysicalPlan {
     for node in &mut plan.nodes {
-        if let Lowering::Probe { index, .. } = &mut node.lowering {
+        if let Lowering::Probe(ProbeNode { index, .. }) = &mut node.lowering {
             *index = ProbeIndex::Own;
         }
     }

@@ -26,6 +26,7 @@ pub mod comparing;
 pub mod cycles;
 pub mod fits_rendered;
 pub mod functions;
+pub mod growth;
 pub(crate) mod kept_room;
 pub(crate) mod numeric_values;
 pub(crate) mod operands;

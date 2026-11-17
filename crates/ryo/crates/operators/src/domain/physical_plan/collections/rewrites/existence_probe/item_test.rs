@@ -3,7 +3,7 @@ use super::item::ExistenceProbeItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::equality_join::types::{Existence, ProbeMode};
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem as _;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{NodeReaders, PlanNodeId, ProbeIndex, RowSource};
 use crate::domain::set_rows::types::{SetKind, SetLowering};
@@ -40,12 +40,12 @@ fn subject(kind: Input) -> Result<Value, Failure> {
     let mut nodes: Vec<PhysicalNode> = [probe, inner]
         .into_iter()
         .map(|probe| PhysicalNode {
-            lowering: Lowering::Probe {
+            lowering: Lowering::Probe(ProbeNode {
                 left: RowSource::Node(PlanNodeId(0)),
                 right: RowSource::Node(PlanNodeId(1)),
                 probe,
                 index: ProbeIndex::Own,
-            },
+            }),
             readers: NodeReaders(0),
             engine: crate::domain::physical_plan::types::EngineUses(1),
             flow: crate::domain::physical_plan::types::NodeFlow::Held,
@@ -53,7 +53,7 @@ fn subject(kind: Input) -> Result<Value, Failure> {
         .collect();
     ExistenceProbeItem.rewrite(&mut nodes, &mut Vec::new());
     let existence = |node: &PhysicalNode| {
-        if let Lowering::Probe { probe, .. } = &node.lowering {
+        if let Lowering::Probe(ProbeNode { probe, .. }) = &node.lowering {
             Some(probe.existence)
         } else {
             None

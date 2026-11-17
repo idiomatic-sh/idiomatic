@@ -52,6 +52,10 @@ Measures the physical line width of a source prefix and an already rendered cand
 
 Computes comparison function text from typed operand values.
 
+### growth
+
+How each operator's rows grow with its inputs: the one declaration every operator of the plan makes, and the instances a growth test runs.
+
 ### kept_room
 
 Caps the room a worker's scratch keeps past the end of a file, so a big file's room is not kept for the files after it.

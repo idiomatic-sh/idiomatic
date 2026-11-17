@@ -9,9 +9,8 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::rewrites::interface::RewritesItem;
 use crate::domain::physical_plan::service::lowering::service::lowered;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
-use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode, ProjectNode};
+use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
 use crate::domain::physical_plan::types::{
     EngineUses, FirstRead, KeyedIndex, NodeFlow, NodeReaders, PlanInput, PlanNodeId, ReadersFound,
     RowSource,
@@ -110,7 +109,8 @@ pub(crate) fn plan(program: &LogicalProgram<'_>) -> Result<PhysicalPlan, Portabl
 ///
 /// # Errors
 ///
-/// `WrongOperation` when a node reads a later node.
+/// `WrongOperation` when a node reads a later node; `NotRun` when a node does not read the inputs its kind needs, so no kernel
+/// can make its rows.
 pub(crate) fn plan_with(
     program: &LogicalProgram<'_>,
     rewrites: &[&dyn RewritesItem],
@@ -119,13 +119,17 @@ pub(crate) fn plan_with(
     let logical = program.nodes();
     let mut nodes: Vec<PhysicalNode> = logical
         .iter()
-        .map(|node| PhysicalNode {
-            lowering: lowered(node.operation, node.inputs.0, node.bindings.0),
-            readers: NodeReaders(0),
-            engine: EngineUses(0),
-            flow: NodeFlow::Held,
+        .map(|node| {
+            lowered(node.operation, node.inputs.0, node.bindings.0)
+                .map(|lowering| PhysicalNode {
+                    lowering,
+                    readers: NodeReaders(0),
+                    engine: EngineUses(0),
+                    flow: NodeFlow::Held,
+                })
+                .ok_or(PortableOperatorFault::NotRun)
         })
-        .collect();
+        .collect::<Result<_, _>>()?;
     for node in logical {
         for input in node.inputs.0 {
             if let PlanInput::Node(read) = input
@@ -206,31 +210,30 @@ fn flow_of(
                     .is_some_and(|reader| {
                         matches!(
                             reader.lowering,
-                            Lowering::Filter { .. }
-                                | Lowering::Project { .. }
-                                | Lowering::Extend { .. }
-                                | Lowering::TextMap { .. }
-                                | Lowering::Probe { .. }
+                            Lowering::Filter(_)
+                                | Lowering::Project(_)
+                                | Lowering::Extend(_)
+                                | Lowering::TextMap(_)
+                                | Lowering::Probe(_)
                         )
                     })
         });
     let stage = match &node.lowering {
-        Lowering::Filter { .. } | Lowering::Extend { .. } | Lowering::TextMap { .. } => true,
-        Lowering::Project { project, .. } => project.distinct == RepeatedRows::Kept,
-        Lowering::Probe { probe, .. } => probe.repeated == RepeatedRows::Kept,
-        Lowering::Lookup { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::Group { .. }
-        | Lowering::Reach { .. }
-        | Lowering::SeededReach { .. }
-        | Lowering::Axis { .. }
-        | Lowering::OrderedWalk { .. }
-        | Lowering::Worklist { .. }
-        | Lowering::Components { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Render { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => false,
+        Lowering::Filter(_) | Lowering::Extend(_) | Lowering::TextMap(_) => true,
+        Lowering::Project(ProjectNode { project, .. }) => project.distinct == RepeatedRows::Kept,
+        Lowering::Probe(ProbeNode { probe, .. }) => probe.repeated == RepeatedRows::Kept,
+        Lowering::Lookup(_)
+        | Lowering::Distinct(_)
+        | Lowering::Group(_)
+        | Lowering::Reach(_)
+        | Lowering::SeededReach(_)
+        | Lowering::Axis(_)
+        | Lowering::OrderedWalk(_)
+        | Lowering::Worklist(_)
+        | Lowering::Components(_)
+        | Lowering::OrderedMatch(_)
+        | Lowering::Render(_)
+        | Lowering::ScanBound(_) => false,
     };
     if stage
         && node.readers == NodeReaders(1)

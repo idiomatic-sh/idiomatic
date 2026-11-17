@@ -5,7 +5,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{DEFINES, Step, defines_rows};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::worker_meters::value::IndexBuilds;
@@ -172,7 +172,7 @@ fn plan_of(steps: &[Step]) -> Result<PhysicalPlan, Failure> {
 
 /// `plan` with the last probe reading the select's rows on its right, its index unchanged.
 fn reread(mut plan: PhysicalPlan) -> PhysicalPlan {
-    if let Some(Lowering::Probe { right, .. }) =
+    if let Some(Lowering::Probe(ProbeNode { right, .. })) =
         plan.nodes.get_mut(4).map(|node| &mut node.lowering)
     {
         *right = RowSource::Node(PlanNodeId(0));

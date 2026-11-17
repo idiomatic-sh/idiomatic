@@ -6,11 +6,10 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::render::item::rendered;
 use crate::domain::physical_plan::collections::kernels::scan_bound::item::held;
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{count_of, facts};
-use crate::domain::physical_plan::collections::kernels::scan_node::item::fed_with;
-use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, take};
+use crate::domain::physical_plan::collections::kernels::scan_node::item::{fed_with, hold, take};
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{copied, roots};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, RenderNode};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{KernelRun, NodeFed, NodeReaders, PlanNodeId, RowSource};
 use ryo_values::domain::rows::types::RowCount;
@@ -46,28 +45,27 @@ pub(crate) fn minted(
     let mut output = buffers.pool.fresh();
     let made = match lowering {
         // A render reads every row before it answers one: its input's fault comes before any of its rows.
-        Lowering::Render { render, .. } => match &pending {
+        Lowering::Render(RenderNode { render, .. }) => match &pending {
             Some(fault) => Ok(Some(fault.clone())),
             None => Ok(rendered(render, rows_in(&input), run.resources, &mut output).err()),
         },
         // A text_map stage is run by the chain of streamed stages; the other kinds by the runner.
-        Lowering::TextMap { .. }
-        | Lowering::Filter { .. }
-        | Lowering::Lookup { .. }
-        | Lowering::Project { .. }
-        | Lowering::Extend { .. }
-        | Lowering::Probe { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::Group { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Reach { .. }
-        | Lowering::SeededReach { .. }
-        | Lowering::Axis { .. }
-        | Lowering::OrderedWalk { .. }
-        | Lowering::Worklist { .. }
-        | Lowering::Components { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => Err(PortableOperatorFault::WrongOperation),
+        Lowering::TextMap(_)
+        | Lowering::Filter(_)
+        | Lowering::Lookup(_)
+        | Lowering::Project(_)
+        | Lowering::Extend(_)
+        | Lowering::Probe(_)
+        | Lowering::Distinct(_)
+        | Lowering::Group(_)
+        | Lowering::OrderedMatch(_)
+        | Lowering::Reach(_)
+        | Lowering::SeededReach(_)
+        | Lowering::Axis(_)
+        | Lowering::OrderedWalk(_)
+        | Lowering::Worklist(_)
+        | Lowering::Components(_)
+        | Lowering::ScanBound(_) => Err(PortableOperatorFault::WrongOperation),
     };
     returned(buffers, input, NodeReaders(1));
     let fault = made?;

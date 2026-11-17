@@ -7,7 +7,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::Step;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{Lowering, ProbeNode};
 use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId, ProbeIndex,
@@ -182,10 +182,10 @@ fn antijoin_of_no_edges() -> Result<Value, Failure> {
     let walks = plan.nodes.get(1).is_some_and(|node| {
         matches!(
             node.lowering,
-            Lowering::Probe {
+            Lowering::Probe(ProbeNode {
                 index: ProbeIndex::Tree,
                 ..
-            }
+            })
         )
     });
     let rows = emitted(

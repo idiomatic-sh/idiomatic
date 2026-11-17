@@ -11,11 +11,13 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{
     EmptyRight, OrderedProbe, PartitionExtremum, ProbeKey, ProbeMode, ProbeParts,
 };
+use crate::domain::growth::types::{Growth, Operator};
 use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::ProbeNode;
 use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedSide, NodeFed, TreeRead};
 use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -28,10 +30,7 @@ pub(crate) struct ProbeRightItem;
 #[cfg(test)]
 impl KernelsItem for ProbeRightItem {
     fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = matches!(
-            lowering,
-            Lowering::Probe { .. } | Lowering::SeededReach { .. }
-        );
+        let runs = matches!(lowering, Lowering::Probe(_) | Lowering::SeededReach(_));
         if runs { Reach::Runs } else { Reach::Skips }
     }
 }
@@ -316,4 +315,10 @@ pub(crate) fn number_at(
 fn every(kinds: &[CellKind], into: &mut Vec<ColumnIndex>) {
     into.clear();
     into.extend((0..kinds.len()).map(|at| ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX))));
+}
+
+impl Operator for ProbeNode {
+    fn growth(&self) -> Growth {
+        Growth::Keyed(crate::domain::equality_join::service::fan(self.probe.mode))
+    }
 }

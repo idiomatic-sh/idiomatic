@@ -3,11 +3,14 @@
 //! is done with each of its reads, unless nothing consumes it in the plan, when its sources never counted them.
 use super::value::ConsumersDone;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{
+    BoundScan, DistinctNode, Lowering, ScanBoundNode,
+};
 use crate::domain::physical_plan::types::physical_plan::value::{PhysicalNode, PhysicalPlan};
 use crate::domain::physical_plan::types::{
     EngineUses, NodeFlow, NodeReaders, PlanNodeId, RowSource,
 };
+use ryo_values::domain::plan_parts::types::HostedNumber;
 
 /// What a case does before node 1, of three readers and two engine uses, is made.
 #[derive(Clone, Copy, Debug)]
@@ -91,15 +94,17 @@ fn subject(given: Input) -> Result<Value, Failure> {
     // A plan of three nodes, as the cases count them.
     // A plan of three nodes; node 2 reads node 1 on both sides, consumed by an engine use or by nothing as the case says.
     let reader = |engine: EngineUses| PhysicalNode {
-        lowering: Lowering::Distinct {
+        lowering: Lowering::Distinct(DistinctNode {
             sources: [RowSource::Node(one), RowSource::Node(one)],
-        },
+        }),
         readers: NodeReaders(0),
         engine,
         flow: NodeFlow::Held,
     };
     let plain = || PhysicalNode {
-        lowering: Lowering::Unlowered,
+        lowering: Lowering::ScanBound(ScanBoundNode {
+            scan: BoundScan::Hosted(HostedNumber(0)),
+        }),
         readers: NodeReaders(3),
         engine: EngineUses(2),
         flow: NodeFlow::Held,

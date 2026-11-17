@@ -3,8 +3,12 @@
 use super::item::{OrderedWalkItem, visited};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::growth::types::{InputRole, WitnessColumns, Witnessed, Witnesses};
+use crate::domain::ordered_dfs::types::DfsShape;
 use crate::domain::physical_plan::collections::kernels::interface::{KernelsItem as _, Reach};
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{
+    DistinctNode, Lowering, OrderedWalkNode,
+};
 use crate::domain::physical_plan::types::{InputRows, PlanNodeId, RowSource};
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::symbols::service::{intern_derived, name_made_across};
@@ -44,12 +48,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_union_does_not_run_it"),
         word: Word::Succeeds,
         input: || {
-            Given::Lowered(Lowering::Distinct {
+            Given::Lowered(Lowering::Distinct(DistinctNode {
                 sources: [
                     RowSource::Node(PlanNodeId(0)),
                     RowSource::Node(PlanNodeId(1)),
                 ],
-            })
+            }))
         },
         expect: Expect::Value(Answered::Runs(Reach::Skips)),
     },
@@ -92,18 +96,17 @@ fn text_and_its_name() -> Result<Value, Failure> {
         ],
         count: RowCount(1),
     };
-    let dfs =
-        crate::domain::ordered_dfs::service::lower(crate::domain::ordered_dfs::types::DfsShape {
-            root: ColumnIndex(0),
-            edge_columns: [
-                ColumnIndex(0),
-                ColumnIndex(1),
-                ColumnIndex(2),
-                ColumnIndex(3),
-            ],
-            root_keys: &[],
-            edge_keys: &[],
-        });
+    let dfs = crate::domain::ordered_dfs::service::lower(DfsShape {
+        root: ColumnIndex(0),
+        edge_columns: [
+            ColumnIndex(0),
+            ColumnIndex(1),
+            ColumnIndex(2),
+            ColumnIndex(3),
+        ],
+        root_keys: &[],
+        edge_keys: &[],
+    });
     let mut output = Table::default();
     let _fault = visited(
         &dfs,
@@ -127,4 +130,22 @@ fn subject(given: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+impl Witnesses for OrderedWalkNode {
+    fn witnesses(columns: WitnessColumns) -> Vec<Witnessed<Self>> {
+        vec![Witnessed {
+            node: Self {
+                roots: RowSource::Node(PlanNodeId(0)),
+                edges: RowSource::Node(PlanNodeId(1)),
+                dfs: crate::domain::ordered_dfs::service::lower(DfsShape {
+                    root: columns.id,
+                    edge_columns: [columns.parent, columns.child, columns.order, columns.id],
+                    root_keys: &[],
+                    edge_keys: &[],
+                }),
+            },
+            roles: vec![InputRole::Rows, InputRole::Edges],
+        }]
+    }
 }

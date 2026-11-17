@@ -8,7 +8,9 @@ use super::super::interface::RewritesItem;
 use crate::domain::equality_join::types::{
     EmptyRight, OrderedProbe, PartitionExtremum, ProbeKey, ProbeMode, ProbeParts,
 };
-use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::lowering::value::{
+    DistinctNode, FilterNode, LookupNode, Lowering, ProbeNode, ProjectNode,
+};
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::{
     EngineUses, KeyedIndex, NodeReaders, PlanNodeId, RowSource,
@@ -62,7 +64,7 @@ impl RewritesItem for OrderedExistenceItem {
                 node.readers = NodeReaders(node.readers.0.saturating_sub(1));
             }
             if let Some(PhysicalNode {
-                lowering: Lowering::Probe { right, probe, .. },
+                lowering: Lowering::Probe(ProbeNode { right, probe, .. }),
                 ..
             }) = node_mut(nodes, recognised.antijoin)
             {
@@ -126,7 +128,7 @@ fn recognised(
     indexes: &[KeyedIndex],
     antijoin: PlanNodeId,
 ) -> Option<Recognised> {
-    let Lowering::Probe {
+    let Lowering::Probe(ProbeNode {
         left,
         right,
         probe:
@@ -143,7 +145,7 @@ fn recognised(
                 ..
             },
         ..
-    } = &node_of(nodes, antijoin)?.lowering
+    }) = &node_of(nodes, antijoin)?.lowering
     else {
         return None;
     };
@@ -152,10 +154,11 @@ fn recognised(
     }
     let OnlyRead {
         id: project,
-        lowering: Lowering::Project {
-            source,
-            project: parts,
-        },
+        lowering:
+            Lowering::Project(ProjectNode {
+                source,
+                project: parts,
+            }),
     } = only_read(nodes, *right)?
     else {
         return None;
@@ -165,10 +168,11 @@ fn recognised(
     }
     let OnlyRead {
         id: select,
-        lowering: Lowering::Filter {
-            source,
-            select: kept,
-        },
+        lowering:
+            Lowering::Filter(FilterNode {
+                source,
+                select: kept,
+            }),
     } = only_read(nodes, *source)?
     else {
         return None;
@@ -179,12 +183,12 @@ fn recognised(
     let OnlyRead {
         id: join,
         lowering:
-            Lowering::Probe {
+            Lowering::Probe(ProbeNode {
                 left: source,
                 right: other,
                 probe: joined,
                 ..
-            },
+            }),
     } = only_read(nodes, *source)?
     else {
         return None;
@@ -305,11 +309,11 @@ fn numbered(
         reason = "the proof follows only the value-preserving kernels; every other kernel declines it"
     )]
     match &node.lowering {
-        Lowering::Filter { source, select } => kept(&select.kept, column)
+        Lowering::Filter(FilterNode { source, select }) => kept(&select.kept, column)
             .map_or(NumberProof::Unproven, |column| {
                 numbered(nodes, indexes, *source, column, id)
             }),
-        Lowering::Lookup { index, select, .. } => kept(&select.kept, column)
+        Lowering::Lookup(LookupNode { index, select, .. }) => kept(&select.kept, column)
             .zip(indexes.get(index.0))
             .map_or(NumberProof::Unproven, |(column, index)| {
                 match index.source {
@@ -320,15 +324,15 @@ fn numbered(
                     | RowSource::Observation(_) => NumberProof::Unproven,
                 }
             }),
-        Lowering::Project { source, project } => project
+        Lowering::Project(ProjectNode { source, project }) => project
             .columns
             .get(usize::from(column))
             .map_or(NumberProof::Unproven, |column| {
                 numbered(nodes, indexes, *source, *column, id)
             }),
-        Lowering::Probe {
+        Lowering::Probe(ProbeNode {
             left, right, probe, ..
-        } => match probe.mode {
+        }) => match probe.mode {
             ProbeMode::Inner => {
                 probe
                     .output
@@ -346,7 +350,7 @@ fn numbered(
                 numbered(nodes, indexes, *left, column, id)
             }
         },
-        Lowering::Distinct { sources } => sources
+        Lowering::Distinct(DistinctNode { sources }) => sources
             .iter()
             .map(|source| numbered(nodes, indexes, *source, column, id))
             .find(|proof| *proof == NumberProof::Unproven)

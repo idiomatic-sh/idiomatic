@@ -104,8 +104,6 @@ pub enum NodeKind {
     Render,
     /// A scan of rows the engine holds.
     ScanBound,
-    /// No kernel at this stage.
-    Unlowered,
 }
 
 /// The counts of every node of a plan one worker made while counting was on, by node id.
