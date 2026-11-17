@@ -1,5 +1,7 @@
 //! The guards on what a run reads, hands and keeps, each with the breach planted that it must find.
-use super::fixtures::{Between, Breach, Change, Damage, Handed, Held, changed, damaged, handover, warm};
+use super::fixtures::{
+    Between, Breach, Change, Damage, Handed, Held, changed, damaged, handover, warm,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// Which guard a row holds, over what.
@@ -36,7 +38,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((3, 1)),
     },
     Case {
-        name: CaseName("a_rule_that_pairs_the_rows_of_a_file_is_handed_more_than_four_rows_for_each"),
+        name: CaseName(
+            "a_rule_that_pairs_the_rows_of_a_file_is_handed_more_than_four_rows_for_each",
+        ),
         word: Word::Refuses,
         input: || Guard::Handover(Handed::Pairs),
         expect: Expect::Error(Breach::Wide {
@@ -75,25 +79,29 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Breach::Kept(0)),
     },
     Case {
-        name: CaseName("a_warm_run_over_an_unchanged_tree_leaves_the_store_as_it_was"),
+        name: CaseName("a_warm_run_over_an_unchanged_tree_keeps_nothing_in_the_store"),
         word: Word::Succeeds,
         input: || Guard::Changed(Change::Nothing, Held::AnswerAndStore),
         expect: Expect::Value((0, 1)),
     },
     Case {
-        name: CaseName("an_edit_that_leaves_what_a_file_shows_the_others_keeps_the_cross_file_findings"),
+        name: CaseName(
+            "an_edit_that_leaves_what_a_file_shows_the_others_keeps_the_cross_file_findings",
+        ),
         word: Word::Succeeds,
         input: || Guard::Changed(Change::Body, Held::Answer),
         expect: Expect::Value((1, 1)),
     },
     Case {
-        name: CaseName("a_file_added_before_the_others_and_one_removed_answer_as_a_run_that_keeps_nothing"),
+        name: CaseName(
+            "a_file_added_before_the_others_and_one_removed_answer_as_a_run_that_keeps_nothing",
+        ),
         word: Word::Succeeds,
         input: || Guard::Changed(Change::AddedAndRemoved, Held::Answer),
         expect: Expect::Value((1, 1)),
     },
     Case {
-        name: CaseName("a_run_over_a_changed_tree_writes_the_store_again"),
+        name: CaseName("a_run_over_a_changed_tree_keeps_in_the_store_again"),
         word: Word::Refuses,
         input: || Guard::Changed(Change::AddedAndRemoved, Held::AnswerAndStore),
         expect: Expect::Error(Breach::Rewritten),

@@ -15,6 +15,7 @@ use crate::inbound::use_cases::lint::fixtures::stores::store_of;
 use crate::inbound::use_cases::lint::fixtures::worlds::compiled_world;
 use crate::inbound::use_cases::lint::interface::LintUseCase as _;
 use crate::outbound::language::fixtures::fake::LanguageFake;
+use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
 use crate::outbound::lint_store::interface::LintStorePort;
 use crate::outbound::row_sink::types::KeptRow;
 use ryo_execution_runtime::outbound::observer::factory::counting;
@@ -56,7 +57,7 @@ pub(crate) enum Breach {
     Kept(usize),
     /// The run after the store was damaged, or after the tree changed, answered other rows than a run that keeps nothing.
     Answered,
-    /// The store file holds other bytes after the run than before it.
+    /// The run kept something in the store though `Held::AnswerAndStore` holds that it keeps nothing.
     Rewritten,
 }
 
@@ -146,7 +147,10 @@ pub(crate) fn warm(between: Between) -> Result<(usize, usize), Breach> {
     if warm.reads > 0 {
         return Err(Breach::Read(warm.reads));
     }
-    assert!(warm.rows == cold.rows, "a warm run answers what the cold run did");
+    assert!(
+        warm.rows == cold.rows,
+        "a warm run answers what the cold run did"
+    );
     Ok((warm.reads, warm.rows.len()))
 }
 
@@ -173,7 +177,10 @@ pub(crate) fn handover(handed: Handed) -> Result<(usize, u64), Breach> {
     let directory = tempfile::tempdir().expect("a directory");
     let run = linted(rule, WIDER, store_of("memory", directory.path()));
     // A run that counted no handover would hold every bound.
-    assert!(!run.handovers.is_empty(), "the run reports what each file handed");
+    assert!(
+        !run.handovers.is_empty(),
+        "the run reports what each file handed"
+    );
     let widest = run
         .handovers
         .iter()
@@ -249,7 +256,7 @@ pub(crate) fn damaged(damage: Damage) -> Result<(usize, usize), Breach> {
 /// What changes in the tree between the cold run and the next one over the store it left.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Change {
-    /// Nothing: the store file is left as it was.
+    /// Nothing: the run keeps nothing.
     Nothing,
     /// The body of one of the copies is edited, its name kept: what it shows the other files is as it was.
     Body,
@@ -272,36 +279,41 @@ fn changed_files(change: Change) -> Vec<(&'static str, &'static str)> {
 pub(crate) enum Held {
     /// The answer is the one a run that keeps nothing gives.
     Answer,
-    /// That, and the store file holds the bytes it held before the run: what a run over an unchanged tree keeps. Held over a
-    /// changed tree, it is the plant.
+    /// That, and the run keeps nothing in the store: what a run over an unchanged tree does, counted through the store fake's
+    /// keeps. Held over a changed tree, it is the plant.
     AnswerAndStore,
 }
 
 /// The run after `change`, over the store the cold run left, answers what a run that keeps nothing does, and, when `held` says
-/// so, leaves the store file as it was: the files it read and the rows it answered.
+/// so, keeps nothing: the files it read and the rows it answered. The answer is held over the store on disk; the keeps are
+/// counted through the store fake, which the cold and the next run share.
 ///
 /// # Errors
 ///
-/// [`Breach::Answered`] when it answers other rows; [`Breach::Rewritten`] when the store file changed and `held` holds it.
+/// [`Breach::Answered`] when it answers other rows; [`Breach::Rewritten`] when the run kept anything and `held` holds it.
 pub(crate) fn changed(change: Change, held: Held) -> Result<(usize, usize), Breach> {
     let directory = tempfile::tempdir().expect("a directory");
     let files = changed_files(change);
     let none = linted_over(&files, COPIES, 0, store_of("discard", directory.path()));
-    let _cold = cold(directory.path());
-    let file = std::fs::read_dir(directory.path())
-        .expect("the cache directory")
-        .flatten()
-        .map(|entry| entry.path())
-        .find(|path| path.is_file())
-        .expect("the store the cold run kept");
-    let before = std::fs::read(&file).expect("the store");
-    let after = linted_over(&files, COPIES, 0, store_of("postcard", directory.path()));
+    let after = match held {
+        Held::Answer => {
+            let _cold = cold(directory.path());
+            linted_over(&files, COPIES, 0, store_of("postcard", directory.path()))
+        }
+        Held::AnswerAndStore => {
+            let fake = Arc::new(LintStoreFake::default());
+            let _cold = linted(COPIES, 0, Arc::<LintStoreFake>::clone(&fake));
+            let before = fake.keeps.load(Ordering::SeqCst);
+            assert!(before > 0, "the cold run keeps what it found");
+            let after = linted_over(&files, COPIES, 0, Arc::<LintStoreFake>::clone(&fake));
+            if fake.keeps.load(Ordering::SeqCst) > before {
+                return Err(Breach::Rewritten);
+            }
+            after
+        }
+    };
     if after.rows != none.rows {
         return Err(Breach::Answered);
-    }
-    let unchanged = std::fs::read(&file).is_ok_and(|now| now == before);
-    if !unchanged && matches!(held, Held::AnswerAndStore) {
-        return Err(Breach::Rewritten);
     }
     Ok((after.reads, after.rows.len()))
 }

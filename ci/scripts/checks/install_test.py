@@ -18,8 +18,9 @@ sys.modules["install"] = install
 SPEC.loader.exec_module(install)
 
 # Commands the machine provides before any tool is installed.
-# setup-python supplies python3, which the checked-in tool config runs (this container has no bare `python`).
-SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq", "python3"}
+# setup-python supplies python3, which the checked-in tool config runs (this container has no bare `python`). taskset is util-linux's,
+# on every Linux machine; the bench tool runs on the Linux runner alone and pins its process tree with it.
+SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq", "python3", "taskset"}
 
 
 def manifest(path: Path, tools: str) -> None:
