@@ -15,6 +15,8 @@ use crate::domain::relations::collections::relations::call_argument::item::CallA
 use crate::domain::relations::collections::relations::comment::item::CommentColumn;
 use crate::domain::relations::collections::relations::defines::item::DefinesColumn;
 use crate::domain::relations::collections::relations::entry::item::EntryColumn;
+use crate::domain::relations::collections::relations::file_package::item::FilePackageColumn;
+use crate::domain::relations::collections::relations::filesystem_file::item::FilesystemFileColumn;
 use crate::domain::relations::collections::relations::function::item::FunctionColumn;
 use crate::domain::relations::collections::relations::language_target::item::LanguageTargetColumn;
 use crate::domain::relations::collections::relations::mapping::item::MappingColumn;
@@ -370,6 +372,8 @@ pub fn is_key(column: Column) -> ColumnKeyness {
             | Column::BytesLiteral(BytesLiteralColumn::Occurrence)
             | Column::LanguageTarget(LanguageTargetColumn::File)
             | Column::ModuleIdentity(ModuleIdentityColumn::File)
+            | Column::FilePackage(FilePackageColumn::Path)
+            | Column::FilesystemFile(FilesystemFileColumn::Path)
     ) {
         ColumnKeyness::Key
     } else {
