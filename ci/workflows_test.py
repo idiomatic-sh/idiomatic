@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import tomllib
 from copy import deepcopy
@@ -26,12 +27,18 @@ CAPTURE_GROUP = re.compile(r"asymptote check --groups ([a-z][a-z-]*) --format js
 # and the token `gh` creates the GitHub Release with; npm and PyPI exchange the OIDC token themselves.
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
-# What may start a workflow: a hand run alone (no paid CI: no pull request, no schedule). The release workflow, by name, may start
-# on a push to main too, which only the owner's merged release pull request makes; `pull_request_target`, which runs a fork's code
-# with the repository's secrets, never. A schedule starts only the workflows `SCHEDULED` names: none.
+# What may start a workflow: a hand run (no schedule). The release workflow, by name, may start on a push to main too, which only
+# the owner's merged release pull request makes. The check workflow, by name, may start on a pull request to main too, so its
+# `gate` is the check main's branch protection requires (a hand run never counts for a pull request), and only on the events
+# `PULL_REQUESTED` names, every job of it skipped while the pull request is a draft (`READY`): a draft runs no CI.
+# `pull_request_target`, which runs a fork's code with the repository's secrets, never. A schedule starts only the workflows
+# `SCHEDULED` names: none.
 ALLOWED = {"workflow_dispatch"}
 PUSHED = {"release.yml"}
+PULL_REQUESTED = {"check.yml": {"branches": ["main"], "types": ["opened", "synchronize", "reopened", "ready_for_review"]}}
 SCHEDULED: set[str] = set()
+# The condition every job of a workflow a pull request starts carries: a hand run, or a pull request that is no draft.
+READY = "github.event_name != 'pull_request' || !github.event.pull_request.draft"
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
 UPLOAD = "actions/upload-artifact@"
 # The GitHub Release is the one step beside the job command that is not a command of its own: `gh` calls and the checksums they upload.
@@ -58,8 +65,17 @@ BENCH_CORRECTNESS_UPLOAD = {
 }
 
 
-# The one condition the job carries: it is ryo's own proof, so another product's check skips it, as it skips the Ruff guard.
-RYO_ONLY = "inputs.product == 'ryo'"
+# The one condition the job carries besides `READY`: it is ryo's own proof, so another product's check skips it, and a pull
+# request's run, which has no `product` input, never runs it (390 minutes).
+RYO_ONLY = f"({READY}) && inputs.product == 'ryo'"
+# The Ruff authoring guard runs for ryo: on a hand run that names it, and on every pull request's run, which checks every product.
+RUFF_CANDIDATES = f"({READY}) && (github.event_name == 'pull_request' || inputs.product == 'ryo')"
+# A hand run checks the one product it names; a pull request's run, which has no input, every product.
+PRODUCT_MATRIX = (
+    "${{ fromJSON(inputs.product && format('[\"{0}\"]', inputs.product) || '"
+    + json.dumps(list(PRODUCTS), separators=(",", ":"))
+    + "') }}"
+)
 
 
 def bench_correctness_problems(job: dict) -> list[str]:
@@ -107,15 +123,37 @@ def environment(job: dict) -> str | None:
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
     """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push for any
-    workflow `PUSHED` does not name, and a push to a branch other than main for one it does."""
+    workflow `PUSHED` does not name, and a push to a branch other than main for one it does; a pull request for any workflow
+    `PULL_REQUESTED` does not name, and for one it does, a pull request to another branch or on other events."""
     started = triggers(workflow)
     pushed = name in PUSHED
-    allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
-    found = [f"{name} starts on {each}" for each in sorted(started - allowed - ({"push"} if pushed else set()))]
+    requested = name in PULL_REQUESTED
+    allowed = (
+        ALLOWED
+        | ({"schedule"} if name in SCHEDULED else set())
+        | ({"push"} if pushed else set())
+        | ({"pull_request"} if requested else set())
+    )
+    found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
     on = workflow["on" if "on" in workflow else True]
     if pushed and "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
+    if requested and "pull_request" in started and (on.get("pull_request") if isinstance(on, dict) else None) != PULL_REQUESTED[name]:
+        found.append(f"{name} starts on a pull request other than {PULL_REQUESTED[name]}")
     return found
+
+
+def draft_problems(name: str, workflow: dict) -> list[str]:
+    """The jobs of a workflow a pull request starts that run while the pull request is a draft: each job's condition is
+    `READY`, `READY` and a further condition, or, for a job that waits for the others whatever they did, `always()` and `READY`."""
+    if "pull_request" not in triggers(workflow):
+        return []
+    skipping = {READY, f"always() && ({READY})"}
+    return [
+        f"{name} runs {job_name} on a draft pull request"
+        for job_name, job in workflow["jobs"].items()
+        if job.get("if") not in skipping and not str(job.get("if", "")).startswith(f"({READY}) && ")
+    ]
 
 
 def checks(job: dict) -> list[int]:
@@ -212,9 +250,15 @@ def job(*run: str, needs: str | None = None) -> dict:
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
 def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
-    """A workflow starts only by hand; one that publishes, on a push to main too. The git hook `asymptote init` installs and the
-    local gates stay the per-change gate."""
+    """A workflow starts only by hand; one that publishes, on a push to main too; the check workflow, on a pull request to main
+    that is ready for review too. The git hook `asymptote init` installs and the local gates stay the per-change gate."""
     assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
+def test_every_job_a_pull_request_starts_skips_a_draft(path: Path) -> None:
+    """A draft pull request runs no CI: every job of a workflow a pull request starts, `gate` among them, is skipped."""
+    assert draft_problems(path.name, yaml.safe_load(path.read_text())) == []
 
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
@@ -384,9 +428,37 @@ def test_a_schedule_starts_only_the_scheduled_workflows() -> None:
     assert trigger_problems("benchmarks.yml", scheduled) == ["benchmarks.yml starts on schedule"]
 
 
-def test_a_pull_request_starts_no_workflow() -> None:
-    requested = yaml.safe_load("on:\n  pull_request:\n    branches: [main]\n  workflow_dispatch:\njobs: {}\n")
-    assert trigger_problems("check.yml", requested) == ["check.yml starts on pull_request"]
+def test_a_pull_request_starts_only_the_check_workflow_to_main_once_ready() -> None:
+    ready = (
+        "on:\n  pull_request:\n    branches: [main]\n    types: [opened, synchronize, reopened, ready_for_review]\n"
+        "  workflow_dispatch:\njobs: {}\n"
+    )
+    assert trigger_problems("check.yml", yaml.safe_load(ready)) == []
+    assert trigger_problems("release.yml", yaml.safe_load(ready)) == ["release.yml starts on pull_request"]
+    assert trigger_problems("benchmarks.yml", yaml.safe_load(ready)) == ["benchmarks.yml starts on pull_request"]
+    # Any branch, or the default events (which leave out a draft turning ready for review), is refused.
+    any_branch = yaml.safe_load("on:\n  pull_request:\n    types: [opened, synchronize, reopened, ready_for_review]\njobs: {}\n")
+    default_events = yaml.safe_load("on:\n  pull_request:\n    branches: [main]\njobs: {}\n")
+    edited = yaml.safe_load(ready.replace("ready_for_review]", "ready_for_review, edited]"))
+    for changed in (any_branch, default_events, edited):
+        assert trigger_problems("check.yml", changed) == [f"check.yml starts on a pull request other than {PULL_REQUESTED['check.yml']}"]
+
+
+def test_a_job_a_pull_request_starts_that_does_not_skip_a_draft_is_refused() -> None:
+    """A draft pull request runs no CI: a job without `READY`, or whose condition `READY` does not bound, runs on a draft."""
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert draft_problems("check.yml", workflow) == []
+    unguarded = deepcopy(workflow)
+    unguarded["jobs"]["check"].pop("if")
+    widened = deepcopy(workflow)
+    widened["jobs"]["ruff-candidates"]["if"] = f"{READY} && inputs.product == 'ryo'"
+    always = deepcopy(workflow)
+    always["jobs"]["gate"]["if"] = "always()"
+    assert draft_problems("check.yml", unguarded) == ["check.yml runs check on a draft pull request"]
+    assert draft_problems("check.yml", widened) == ["check.yml runs ruff-candidates on a draft pull request"]
+    assert draft_problems("check.yml", always) == ["check.yml runs gate on a draft pull request"]
+    # A workflow no pull request starts has no draft to skip.
+    assert draft_problems("release.yml", yaml.safe_load((DIRECTORY / "release.yml").read_text())) == []
 
 
 def test_a_pull_request_target_is_refused() -> None:
@@ -571,13 +643,14 @@ def test_a_push_to_main_releases_the_products_whose_version_it_changes_without_c
     assert download["with"] == {"pattern": "${{ matrix.product }}-*", "merge-multiple": True, "path": "dist"}
 
 
-def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
-    """A run, started only by hand (no paid CI), checks the one product it names: its whole check fan-out, the rows release.yml
-    checks a hand run with. One `gate` job fails when a job failed or was cancelled and passes when each succeeded or was skipped;
-    the Ruff authoring guard alone may be skipped, for a product other than ryo."""
+def test_a_run_checks_its_products_check_fan_out_behind_one_gate() -> None:
+    """A hand run checks the one product it names, and a pull request's run every product: each one's whole check fan-out, the
+    rows release.yml checks a hand run with. One `gate` job fails when a job failed or was cancelled and passes when each
+    succeeded or was skipped; the Ruff authoring guard alone may be skipped, for a hand run of a product other than ryo."""
     workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
     on = workflow["on" if "on" in workflow else True]
-    assert set(on) == {"workflow_dispatch"}
+    assert set(on) == {"workflow_dispatch", "pull_request"}
+    assert on["pull_request"] == PULL_REQUESTED["check.yml"]
     assert on["workflow_dispatch"]["inputs"] == {
         "product": {
             "description": "The one product this run checks",
@@ -586,15 +659,19 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
             "options": list(PRODUCTS),
         }
     }
-    assert workflow["concurrency"] == {"group": "check-${{ github.ref }}-${{ inputs.product }}", "cancel-in-progress": True}
+    # A new push to a pull request cancels its run before; a hand run, the run before on its ref for its product.
+    assert workflow["concurrency"] == {
+        "group": "check-${{ github.event.pull_request.number || github.ref }}-${{ inputs.product }}",
+        "cancel-in-progress": True,
+    }
     jobs = workflow["jobs"]
     assert set(jobs) == {"check", "gate", "speed", "ruff-candidates", "bench-correctness", "ownership-contracts"}
     # Every default of the ryo linter benches is ryo's own proof: another product's check never runs it.
     assert jobs["bench-correctness"].get("if") == RYO_ONLY
     assert sorted(path.parent.name for path in ROOT.glob("crates/*/Cargo.toml")) == sorted(PRODUCTS)
     check = jobs["check"]
-    assert "needs" not in check and "if" not in check
-    assert check["strategy"]["matrix"]["product"] == ["${{ inputs.product }}"]
+    assert "needs" not in check and check["if"] == READY
+    assert check["strategy"]["matrix"]["product"] == PRODUCT_MATRIX
     (checking,) = [step["run"] for step in check["steps"] if "asymptote check" in step.get("run", "")]
     assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.group }}"
     release = yaml.safe_load((DIRECTORY / "release.yml").read_text())["jobs"]["check"]["strategy"]["matrix"]["include"]
@@ -611,7 +688,7 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
     gate = jobs["gate"]
     # `speed` runs but does not decide the gate: ci/perf benches this repository, which the owner ruled out as a perf
     # target, and asymptote's per-language bench ratchets judge perf (#49 deletes the job).
-    assert gate["if"] == "always()" and gate["needs"] == ["check", "ruff-candidates", "ownership-contracts"]
+    assert gate["if"] == f"always() && ({READY})" and gate["needs"] == ["check", "ruff-candidates", "ownership-contracts"]
     (deciding,) = gate["steps"]
     assert deciding["uses"].startswith("re-actors/")
     assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "ruff-candidates"}
@@ -625,7 +702,7 @@ def ruff_candidates_covered(workflow: dict) -> bool:
         return False
     return (
         "needs" not in job
-        and job.get("if") == RYO_ONLY
+        and job.get("if") == RUFF_CANDIDATES
         and job.get("runs-on") == "ubuntu-26.04"
         and [step["run"] for step in job["steps"] if "asymptote check" in step.get("run", "")]
         == ["asymptote check --root crates/ryo --groups ruff-candidates"]
@@ -740,7 +817,8 @@ cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --doc"""
     allowed = gate.get("steps", [{}])[0].get("with", {}).get("allowed-skips", "")
     if (
         job.get("runs-on") != "ubuntu-26.04"
-        or job.get("if") is not None
+        # Unconditional but for a draft pull request, which runs no CI.
+        or job.get("if") != READY
         or job.get("continue-on-error") is not None
         or len(steps) != 10
         or any(step.get("if") is not None or step.get("continue-on-error") is not None for step in steps)
@@ -760,6 +838,8 @@ def test_real_ownership_contract_suites_are_required() -> None:
         lambda w: w["jobs"].pop("ownership-contracts"),
         lambda w: w["jobs"]["gate"]["needs"].remove("ownership-contracts"),
         lambda w: w["jobs"]["ownership-contracts"].update({"continue-on-error": True}),
+        lambda w: w["jobs"]["ownership-contracts"].update({"if": f"({READY}) && inputs.product == 'ryo'"}),
+        lambda w: w["jobs"]["ownership-contracts"].pop("if"),
         lambda w: w["jobs"]["ownership-contracts"]["steps"][-2].update({"run": "true"}),
         lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": "true"}),
         lambda w: w["jobs"]["ownership-contracts"]["steps"][-2].update({"run": "tm validate --root crates/ryo || true\ntm check --root crates/ryo"}),

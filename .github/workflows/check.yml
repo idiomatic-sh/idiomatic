@@ -1,14 +1,17 @@
-# The check workflow on GitHub Actions, its thin edge, started only by hand (no paid CI: it starts on no pull request, push or
-# schedule; the local gates are the per-change gate). A run checks the one product its `product` input names: the `check` job
-# runs that product's whole check fan-out, the groups and machines release.yml's own `check` job runs (`asymptote check --root
-# crates/<product> --groups <group>`, one job per group and machine): the tests on every machine the products ship to, the SDK's API
-# on macOS, where cargo-public-api ships a prebuilt, and every other group once, on Linux. The release pull request workflow
-# (release-pr.yml) starts one on its branch, and that run's `gate` is the check the pull request's head commit needs. Each job is
-# a machine, the toolchains (every sample's among them: a sample whose toolchain is missing fails its test), `tools/install.py`,
-# which installs every tool the checks run at the version declared for it, prebuilt, and one `asymptote check` call. The `gate`
-# job waits for every other and fails when one failed or was cancelled; the Ruff authoring guard, ryo's alone, is skipped for
-# another product, which passes; the independent speed guard is also required by `gate`. The commit gate stays `asymptote check
-# --hook pre-commit`, the git hook `asymptote init` installs, which runs the `lint` group.
+# The check workflow on GitHub Actions, its thin edge. It starts by hand, or on a pull request to main once it is ready for review:
+# a draft runs nothing (every job, `gate` among them, is skipped while the pull request is a draft), so a pull request stays in
+# draft until it is ready for CI. The public repository runs on GitHub's standard runners, which are free; the local gates stay the
+# per-change gate. A hand run checks the one product its `product` input names, a pull request's run every product: the `check`
+# job runs each product's whole check fan-out, the groups and machines release.yml's own `check` job runs (`asymptote check --root
+# crates/<product> --groups <group>`, one job per product, group and machine): the tests on every machine the products ship to, the
+# SDK's API on macOS, where cargo-public-api ships a prebuilt, and every other group once, on Linux. The release pull request
+# workflow (release-pr.yml) starts one by hand on its branch. Main's branch protection requires the `gate` check, which only a
+# pull request's own run reports. Each job is a machine, the toolchains (every sample's among them: a sample whose toolchain is
+# missing fails its test), `tools/install.py`, which installs every tool the checks run at the version declared for it, prebuilt,
+# and one `asymptote check` call. The `gate` job waits for every other and fails when one failed or was cancelled; the Ruff
+# authoring guard, ryo's alone, runs on every pull request and on a hand run of ryo, and is skipped, which passes, on a hand run of
+# another product. The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote init` installs, which runs
+# the `lint` group.
 name: check
 on:
   workflow_dispatch:
@@ -18,13 +21,19 @@ on:
         type: choice
         required: true
         options: [ryo, tastemaker, asymptote]
+  # Never `pull_request_target`, which runs a fork's code with the repository's secrets. `ready_for_review` starts the run a draft
+  # skipped.
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
 permissions:
   contents: read
 concurrency:
-  group: check-${{ github.ref }}-${{ inputs.product }}
+  group: check-${{ github.event.pull_request.number || github.ref }}-${{ inputs.product }}
   cancel-in-progress: true
 jobs:
   ownership-contracts:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -74,11 +83,13 @@ jobs:
 
   check:
     name: check (${{ matrix.product }}, ${{ matrix.check.group }}, ${{ matrix.check.runner }})
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
       fail-fast: false
-      # The product the run names, times release.yml's check rows: one job per independent build, the tools of a group sharing one.
+      # The product a hand run names, or every product on a pull request (which has no input), times release.yml's check rows:
+      # one job per independent build, the tools of a group sharing one.
       matrix:
-        product: ["${{ inputs.product }}"]
+        product: ${{ fromJSON(inputs.product && format('["{0}"]', inputs.product) || '["ryo","tastemaker","asymptote"]') }}
         check:
           - { runner: ubuntu-26.04, group: lint }
           - { runner: ubuntu-26.04, group: clippy }
@@ -163,7 +174,7 @@ jobs:
     # repository with ryo, our own tooling, which the owner ruled out as a perf target ("i dont want us looking at our
     # internal tooling for this").
     needs: [check, ruff-candidates, ownership-contracts]
-    if: always()
+    if: always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     runs-on: ubuntu-26.04
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
@@ -171,7 +182,8 @@ jobs:
           jobs: ${{ toJSON(needs) }}
           allowed-skips: ruff-candidates
   ruff-candidates:
-    if: inputs.product == 'ryo'
+    # A pull request's run checks every product, ryo among them.
+    if: (github.event_name != 'pull_request' || !github.event.pull_request.draft) && (github.event_name == 'pull_request' || inputs.product == 'ryo')
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -216,6 +228,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - run: asymptote check --root crates/ryo --groups ruff-candidates
   speed:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -299,7 +312,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
   bench-correctness:
-    if: inputs.product == 'ryo'
+    # A hand run of ryo alone: a pull request's run has no `product` input, and this job is not among gate's needs.
+    if: (github.event_name != 'pull_request' || !github.event.pull_request.draft) && inputs.product == 'ryo'
     # Every default of every linter bench, verified by the shared collector on one Linux runner (asymptote group
     # bench-correctness, never a check matrix row). The job's limit is above the tool's 21600-second timeout, so asymptote
     # reports a timeout before the runner cancels the job.
