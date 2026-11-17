@@ -19,6 +19,45 @@ pub fn minted(
     ryo_relations::domain::relations::types::Value::Symbol(symbol)
 }
 
+/// The operating error a plan's fault stands for, a node the growth check refused named by its rule's id among `ids`, the
+/// program's rules in rule order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operating::service::planned_fault;
+/// use ryo_operators::domain::contract::types::{PortableOperatorFault, RefusedNode};
+/// use ryo_values::domain::runs::types::RuleId;
+/// let refused = RefusedNode { node: 2, kind: "Probe".into(), degree: 2, rule: Some(0) };
+/// let error = planned_fault(PortableOperatorFault::Superlinear(refused), &[RuleId("PLR2044".into())]);
+/// assert!(error.to_string().starts_with("PLR2044: node 2 (Probe)"));
+/// ```
+#[must_use]
+pub fn planned_fault(
+    error: ryo_operators::domain::contract::types::PortableOperatorFault,
+    ids: &[ryo_values::domain::runs::types::RuleId],
+) -> OperatingError {
+    match error {
+        ryo_operators::domain::contract::types::PortableOperatorFault::Superlinear(refused) => {
+            refused_rule(refused, ids)
+        }
+        other => portable_fault(other),
+    }
+}
+
+/// The refusal of a node the growth check refused, named by its rule's id among `ids`.
+fn refused_rule(
+    refused: ryo_operators::domain::contract::types::RefusedNode,
+    ids: &[ryo_values::domain::runs::types::RuleId],
+) -> OperatingError {
+    let rule = refused
+        .rule
+        .and_then(|rule| ids.get(usize::try_from(rule).unwrap_or(usize::MAX)))
+        .cloned()
+        .unwrap_or_default();
+    OperatingError::Superlinear { rule, refused }
+}
+
 /// The operating error a portable operator fault stands for.
 pub fn portable_fault(
     error: ryo_operators::domain::contract::types::PortableOperatorFault,
@@ -43,9 +82,7 @@ pub fn portable_fault(
             OperatingError::NotRun
         }
         PortableOperatorFault::WrongTest => OperatingError::WrongTest,
-        PortableOperatorFault::Superlinear(refused) => {
-            OperatingError::Superlinear { node: refused.0 }
-        }
+        PortableOperatorFault::Superlinear(refused) => refused_rule(refused, &[]),
         PortableOperatorFault::Pattern(
             ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex {
                 reason,

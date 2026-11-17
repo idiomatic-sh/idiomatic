@@ -156,7 +156,7 @@ pub(super) fn judge_keys(
         let mut repeated = std::collections::BTreeSet::new();
         for cell in written.iter().filter_map(|row| row.get(at)) {
             if !seen.insert(cell) {
-                repeated.insert(cell);
+                let _first_repeat = repeated.insert(cell);
             }
         }
         for cell in repeated {

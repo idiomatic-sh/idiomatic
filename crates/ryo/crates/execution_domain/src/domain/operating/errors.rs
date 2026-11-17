@@ -64,14 +64,13 @@ pub enum OperatingError {
     /// An operator was given an operation that is not its own.
     #[error("the operation is not this operator's")]
     WrongOperation,
-    /// The plan's growth check refused a node: it pairs every row of a file with every row of it.
-    #[error(
-        "node {node} pairs every row of a file with every row of it (grows as rows^2): write `nearest join` to keep \
-         the closest row, or `all-pairs join` to declare every pair"
-    )]
+    /// The plan's growth check refused a node of a rule: the operators' one text of the refusal, after the rule's id.
+    #[error("{}: {refused}", rule.0)]
     Superlinear {
-        /// The node of the plan.
-        node: u32,
+        /// The first rule, in rule order, whose emit reads the node; empty when no rule's emit does.
+        rule: ryo_values::domain::runs::types::RuleId,
+        /// The node, its kind and the degree it grows by.
+        refused: ryo_operators::domain::contract::types::RefusedNode,
     },
     /// A step reads a step that has not run.
     #[error("a step reads a step that has not run")]

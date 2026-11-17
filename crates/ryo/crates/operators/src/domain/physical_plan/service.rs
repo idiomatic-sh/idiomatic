@@ -154,9 +154,14 @@ pub(crate) fn plan_with(
     }
     // After the rewrites: a node a rewrite left unread is not judged, and a probe it made is judged as it now runs.
     let _bounds = growth::service::checked(&nodes).map_err(|refused| match refused {
-        growth::errors::GrowthError::Superlinear { node, .. } => {
-            PortableOperatorFault::Superlinear(RefusedNode(node.0))
-        }
+        growth::errors::GrowthError::Superlinear {
+            node, kind, degree, ..
+        } => PortableOperatorFault::Superlinear(RefusedNode {
+            node: node.0,
+            kind,
+            degree: degree.0,
+            rule: rule_reading(program, node),
+        }),
     })?;
     // After the rewrites: a rewrite changes a probe's right rows, key and mode, and replaces probes.
     indexes::service::shared_indexes(&mut nodes, &mut indexes);
@@ -261,4 +266,35 @@ fn flow_of(
 /// The node at `id`, to change.
 fn place(nodes: &mut [PhysicalNode], id: PlanNodeId) -> Option<&mut PhysicalNode> {
     nodes.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
+}
+
+/// The first rule, in rule order, whose emitted node is `node` or reads it, through the nodes between: every node reads only
+/// earlier ones, so one walk back from each emit finds what it reads.
+fn rule_reading(program: &LogicalProgram<'_>, node: PlanNodeId) -> Option<u32> {
+    let nodes = program.nodes();
+    let at = |id: PlanNodeId| usize::try_from(id.0).unwrap_or(usize::MAX);
+    program.emits().iter().find_map(|emitted| {
+        let mut reached = vec![false; nodes.len()];
+        if let Some(slot) = reached.get_mut(at(emitted.node)) {
+            *slot = true;
+        }
+        for (index, each) in nodes
+            .iter()
+            .enumerate()
+            .take(at(emitted.node).saturating_add(1))
+            .rev()
+        {
+            if reached.get(index) != Some(&true) {
+                continue;
+            }
+            for input in each.inputs.0 {
+                if let PlanInput::Node(read) = input
+                    && let Some(slot) = reached.get_mut(at(*read))
+                {
+                    *slot = true;
+                }
+            }
+        }
+        (reached.get(at(node)) == Some(&true)).then_some(emitted.rule.0)
+    })
 }

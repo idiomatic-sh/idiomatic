@@ -1,6 +1,6 @@
 //! Comparison-family classification and project text identity are pure operating contracts.
 use super::{errors::OperatingError, service::minted, types::AfterTheFiles};
-use crate::domain::operating::service::{derived_fault, portable_fault};
+use crate::domain::operating::service::{derived_fault, planned_fault};
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_language::domain::symbols::{
     service::{hash_in, intern_derived, place_of},
@@ -26,8 +26,6 @@ enum Ask {
     Mint(&'static str, AfterTheFiles),
     /// The refusal a derived fault becomes.
     Fault(DerivedFault),
-    /// The refusal the plan's growth check becomes, for the node numbered.
-    Superlinear(u32),
 }
 
 /// What a minted cell is.
@@ -90,12 +88,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Ask::Fault(DerivedFault::DuplicateDfsOrder),
         expect: Expect::Error(OperatingError::DuplicateDfsOrder),
     },
-    Case {
-        name: CaseName("a_node_the_growth_check_refused_is_refused_naming_it"),
-        word: Word::Refuses,
-        input: || Ask::Superlinear(2),
-        expect: Expect::Error(OperatingError::Superlinear { node: 2 }),
-    },
 ];
 fn minted_of(text: &'static str, after: AfterTheFiles) -> Minted {
     use ryo_operators::domain::table_texts::types::{Datum, TextView, Texts};
@@ -134,9 +126,6 @@ fn minted_of(text: &'static str, after: AfterTheFiles) -> Minted {
 fn subject(ask: Input) -> Result<Value, Failure> {
     match ask {
         Ask::Fault(fault) => Err(derived_fault(fault)),
-        Ask::Superlinear(node) => Err(portable_fault(PortableOperatorFault::Superlinear(
-            RefusedNode(node),
-        ))),
         Ask::Family(test) => Ok(Answer::Family(family_of(test))),
         Ask::Mint(text, after) => Ok(Answer::Minted(minted_of(text, after))),
     }
@@ -148,4 +137,25 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// A node the growth check refused is refused with the operators' one text of it, after the id of the first rule whose emit
+/// reads it: its number, its kind and the degree it grows by.
+#[test]
+fn a_node_the_growth_check_refused_is_refused_naming_its_rule_kind_and_degree() {
+    let refused = RefusedNode {
+        node: 2,
+        kind: "Probe",
+        degree: 2,
+        rule: Some(1),
+    };
+    let ids = [
+        ryo_values::domain::runs::types::RuleId("first".into()),
+        ryo_values::domain::runs::types::RuleId("PLR2044".into()),
+    ];
+    assert_eq!(
+        planned_fault(PortableOperatorFault::Superlinear(refused), &ids).to_string(),
+        "PLR2044: node 2 (Probe) pairs every row of a file with every row of it (grows as rows^2): write `nearest join` to \
+         keep the closest row, or `all-pairs join` to declare every pair"
+    );
 }

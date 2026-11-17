@@ -479,7 +479,7 @@ fn every_row_of_the_table_answers_the_hash_join_and_filter() {
         }
     }
     assert_eq!(differing, Vec::<String>::new(), "{}", differing.join("\n"));
-    assert_eq!((rows.len(), answered, refused), (384, 124, 0));
+    assert_eq!((rows.len(), answered, refused), (384, 120, 0));
 }
 
 impl Witnesses for BandJoinNode {

@@ -73,8 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Given(BandAnswer::Every, KeyFan::FileOnly, Readers::Read),
         expect: Expect::Error(GrowthError::Superlinear {
             node: PlanNodeId(2),
-            kind: crate::domain::physical_plan::types::node_counters::value::NodeKind::BandJoin,
-            growth: Growth::Banded(Fan::FileProduct),
+            kind: "BandJoin",
             degree: Degree(2),
         }),
     },

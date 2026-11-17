@@ -21,16 +21,32 @@ pub struct SourceByteLength(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RenderRefusal(pub u32);
 
-/// The node of a plan a plan check refused, by its number in the plan.
+/// A node of a plan the plan's growth check refused, and the one text of that refusal: the node by its number in the plan, its
+/// kind, the degree in rows it grows by, and the first rule, in rule order, whose emit reads it (none when only the engine holds
+/// it). The engine names the rule by its id before this text.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_operators::domain::contract::types::RefusedNode;
-/// assert_eq!(RefusedNode(2).0, 2);
+/// let refused = RefusedNode { node: 2, kind: "BandJoin", degree: 2, rule: Some(0) };
+/// assert!(refused.to_string().starts_with("node 2 (BandJoin) pairs every row of a file"));
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RefusedNode(pub u32);
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error(
+    "node {node} ({kind}) pairs every row of a file with every row of it (grows as rows^{degree}): write `nearest join` to \
+     keep the closest row, or `all-pairs join` to declare every pair"
+)]
+pub struct RefusedNode {
+    /// The node, by its number in the plan.
+    pub node: u32,
+    /// The name of its kind.
+    pub kind: &'static str,
+    /// The degree in rows of its output or its work.
+    pub degree: u8,
+    /// The first rule, by its place in rule order, whose emitted node reads it.
+    pub rule: Option<u32>,
+}
 
 /// One portable semantic fault vocabulary for every borrowed operator call.
 #[derive(Clone, Debug, PartialEq, Eq)]

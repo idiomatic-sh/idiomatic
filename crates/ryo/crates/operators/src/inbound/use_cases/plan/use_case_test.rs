@@ -55,13 +55,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_file_only_band_join_is_refused_at_plan"),
         word: Word::Refuses,
         input: || Scenario::FileOnlyBand,
-        expect: Expect::Error(PortableOperatorFault::Superlinear(RefusedNode(2))),
+        expect: Expect::Error(PortableOperatorFault::Superlinear(RefusedNode {
+            node: 2,
+            kind: "BandJoin",
+            degree: 2,
+            rule: Some(0),
+        })),
     },
     Case {
         name: CaseName("a_file_only_join_against_a_non_distinct_set_is_refused"),
         word: Word::Refuses,
         input: || Scenario::FileOnlyJoin,
-        expect: Expect::Error(PortableOperatorFault::Superlinear(RefusedNode(2))),
+        expect: Expect::Error(PortableOperatorFault::Superlinear(RefusedNode {
+            node: 2,
+            kind: "Probe",
+            degree: 2,
+            rule: Some(0),
+        })),
     },
     Case {
         name: CaseName("the_same_join_against_a_distinct_file_set_is_accepted"),
