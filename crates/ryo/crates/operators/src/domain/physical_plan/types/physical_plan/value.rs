@@ -34,6 +34,25 @@ impl PhysicalPlan {
     pub fn node_count(&self) -> crate::domain::physical_plan::types::NodeTotal {
         crate::domain::physical_plan::types::NodeTotal(self.nodes.len())
     }
+
+    /// The kind of `node`'s kernels, as the node counters report it; none for a node the plan does not hold.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
+    /// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+    /// assert_eq!(PhysicalPlan::default().node_kind(PlanNodeId(0)), None);
+    /// ```
+    #[must_use]
+    pub fn node_kind(
+        &self,
+        node: crate::domain::physical_plan::types::PlanNodeId,
+    ) -> Option<crate::domain::physical_plan::types::node_counters::value::NodeKind> {
+        self.nodes
+            .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+            .map(|physical| physical.lowering.kind())
+    }
 }
 
 /// One node of the physical plan: its kernels and who reads its rows.

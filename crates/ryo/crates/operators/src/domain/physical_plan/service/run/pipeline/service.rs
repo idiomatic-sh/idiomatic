@@ -12,6 +12,7 @@ use crate::domain::comparing::types::NameCount;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::{hold, take};
 use crate::domain::physical_plan::service::indexes::service::{closed, opened};
+use crate::domain::physical_plan::service::run::counting::service::{timed, timed_to};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
@@ -151,7 +152,9 @@ fn chained(
         let head = head_rows
             .as_ref()
             .ok_or(PortableOperatorFault::WrongOperation)?;
-        if let Some(fault) = prepared(
+        // When counting is on, a stage's preparation is its own time: a probe's right side indexed, an extension resolved.
+        let span = timed(buffers);
+        let readied = prepared(
             Prepare {
                 plan,
                 head,
@@ -163,7 +166,9 @@ fn chained(
             run,
             buffers,
             stages,
-        )? {
+        );
+        timed_to(buffers, span, *node);
+        if let Some(fault) = readied? {
             hard = Some(fault);
             break;
         }

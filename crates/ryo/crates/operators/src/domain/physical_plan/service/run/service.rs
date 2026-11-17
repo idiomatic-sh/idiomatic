@@ -10,6 +10,7 @@ use crate::domain::physical_plan::collections::kernels::scan_bound::item::scanne
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::count_of;
 use crate::domain::physical_plan::collections::kernels::scan_node::item::hold;
 use crate::domain::physical_plan::service::indexes::service::sized_shared;
+use crate::domain::physical_plan::service::run::counting::service::{timed, timed_to};
 use crate::domain::physical_plan::service::run::reading::service::{
     pending_of, reading, returned, rows_in,
 };
@@ -81,8 +82,22 @@ pub(super) fn ready(
 }
 
 /// Runs `node`'s kernels and holds its rows and pending fault: a streaming stage through the chain of streamed stages that
-/// ends at it; a lookup's build answers every lookup of its index.
+/// ends at it; a lookup's build answers every lookup of its index. When counting is on, the time it takes, less the time
+/// of the nodes it makes first, is `node`'s.
 fn materialize(
+    plan: &PhysicalPlan,
+    run: &mut KernelRun<'_>,
+    node: PlanNodeId,
+    buffers: &mut FileBuffers,
+) -> Result<(), PortableOperatorFault> {
+    let span = timed(buffers);
+    let made = kernels_of(plan, run, node, buffers);
+    timed_to(buffers, span, node);
+    made
+}
+
+/// What `materialize` runs for `node`.
+fn kernels_of(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
     node: PlanNodeId,

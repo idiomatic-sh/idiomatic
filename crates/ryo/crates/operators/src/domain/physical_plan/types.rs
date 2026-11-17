@@ -11,6 +11,7 @@ pub mod held_rows;
 pub(crate) mod keyed_rows;
 pub mod logical_program;
 pub(crate) mod lowering;
+pub mod node_counters;
 pub mod physical_plan;
 pub mod rule_ordinal;
 pub(crate) mod stream_scratch;
