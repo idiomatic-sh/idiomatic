@@ -6,9 +6,8 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::tools::{
-    differences, entries, fixture, json, manifest_in, relative, ryo_lines, text_at, tool_output,
-};
+use crate::ecosystems::{entries, fixture, manifest_in, tool_output};
+use crate::tools::{differences, json, relative, ryo_lines, text_at};
 
 /// The query of the dependencies the check compares: every column uv's metadata says, which resolves requirements to versions and
 /// says nothing of `build-system.requires`.

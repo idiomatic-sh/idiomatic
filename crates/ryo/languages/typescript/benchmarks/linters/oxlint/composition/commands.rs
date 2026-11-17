@@ -13,7 +13,7 @@ use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::select_cases::types::CaseRun;
+use ryo_benchmark::inbound::use_cases::select_cases::types::{CaseRun, VerifyTimes};
 use ryo_benchmark::inbound::use_cases::verify_rule_profiles::{
     interface::VerifyRuleProfilesUseCase as _, use_case::VerifyRuleProfilesUseCaseImpl,
 };
@@ -60,21 +60,13 @@ pub(super) fn worker(
         WorkerInput::File(path) => WorkerSource::Stored(path),
         WorkerInput::Inline(payload) => WorkerSource::Argument(payload.0.into()),
     };
-    let transport: Arc<dyn WorkerPort> = Arc::new(ryo_benchmark::outbound::worker::factory::json(
+    let transport: Arc<dyn WorkerPort + Send + Sync> = Arc::new(ryo_benchmark::outbound::worker::factory::json(
         source,
         Box::new(std::io::stdout()),
     ));
     let languages = ryo::linter::Languages(vec![ryo_typescript::linked()]);
-    let frontend_diagnostic =
-        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
-            rule: ryo::linter::RuleId::try_from(crate::constants::INVALID_SYNTAX)
-                .map_err(|error| Error::Invalid(error.to_string()))?,
-            query: ryo::query::RyoQlQuery::try_from(
-                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?,
-        };
-    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
+    let frontend_diagnostic = frontend_diagnostic()?;
+    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
         match (tracing, trace_path) {
             (WorkerTracing::JsonLines, Some(path)) => Arc::new(
                 ryo_benchmark::outbound::engine::factory::local_with_diagnostic_events(
@@ -139,8 +131,8 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
     let suite_source: Arc<dyn SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let tool = suite_source.profile(ArtifactPath(&source))?;
-    let expected = reference(executable.clone(), tool.clone()).version_line(&tool);
-    suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
+    // The bench verified the reference tool's pinned bytes and version line once, before any rule (`verify-tool`); the
+    // registration pins its digest, which the inventory checks before and after every rule.
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(&suite_source),
     )
@@ -175,26 +167,36 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
         staged.rule_observations.clone(),
     ));
     let languages = ryo::linter::Languages(vec![ryo_typescript::linked()]);
-    let frontend_diagnostic =
-        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
-            rule: ryo::linter::RuleId::try_from(crate::constants::INVALID_SYNTAX)
-                .map_err(|error| Error::Invalid(error.to_string()))?,
-            query: ryo::query::RyoQlQuery::try_from(
-                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?,
-        };
+    let frontend_diagnostic = frontend_diagnostic()?;
     // The candidate runs in this process over one engine, which compiles each rule once and keeps its plans for every case.
-    let execution = Arc::new(super::in_process::InProcessExecution::new(
-        Box::new(ryo_benchmark::outbound::execution::factory::process()),
+    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
         Arc::new(
             ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
                 languages,
                 frontend_diagnostic,
             ),
-        ),
-        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+        );
+    let context: Arc<dyn ryo_benchmark::outbound::context::interface::ContextPort + Send + Sync> =
+        Arc::new(ryo_benchmark::outbound::context::factory::local());
+    // The worker in this process reads each stored request it is handed and answers its bytes through the JSON transport, which
+    // receives and publishes nothing of its own.
+    let transport = Arc::new(ryo_benchmark::outbound::worker::factory::json(
+        ryo_benchmark::outbound::worker::types::WorkerSource::Argument(std::ffi::OsString::new()),
+        Box::new(std::io::sink()),
     ));
+    let worker = RunRyoUseCaseImpl::new(engine, transport, context);
+    let execution = ryo_benchmark::outbound::execution::factory::in_process(&worker);
+    // The times of a verification go to its times file when the run names one, and nowhere when it does not.
+    let evidence: Box<dyn ryo_benchmark::outbound::evidence::interface::EvidencePort> =
+        match &run.timings {
+            VerifyTimes::Recorded(path) => {
+                Box::new(ryo_benchmark::outbound::evidence::factory::bmf_appending(path.clone()))
+            }
+            VerifyTimes::Unrecorded => Box::new(ryo_benchmark::outbound::evidence::factory::bmf(
+                Box::new(std::io::sink()),
+                Box::new(std::io::sink()),
+            )),
+        };
     let reference = Arc::new(reference(executable, staged));
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
@@ -204,9 +206,12 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
             &ryo_benchmark::outbound::context::factory::local(),
             reference.as_ref(),
             candidate.as_ref(),
-            execution.as_ref(),
+            ryo_benchmark::inbound::use_cases::verify_cases::types::Executions {
+                reference: &ryo_benchmark::outbound::execution::factory::process(),
+                candidate: &execution,
+            },
             &ryo_benchmark::outbound::inventory::factory::local(),
-            &super::in_process::rule_times(run)?,
+            evidence.as_ref(),
         )
         .verify_cases(
             &profile.join(constants::RULES_DIRECTORY),
@@ -350,4 +355,23 @@ pub(super) fn audit(
         tool.defaults.len()
     )?;
     AccountDefaultsUseCaseImpl::new().account_defaults(&result, &tool)
+}
+
+/// The projection of the parser's diagnostics to the `invalid-syntax` rule, as every run of the candidate in this composition
+/// makes it.
+///
+/// # Errors
+/// A rule id or a query the SDK refuses.
+pub(super) fn frontend_diagnostic()
+-> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error> {
+    Ok(
+        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
+            rule: ryo::linter::RuleId::try_from(crate::constants::INVALID_SYNTAX)
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+            query: ryo::query::RyoQlQuery::try_from(
+                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
+            )
+            .map_err(|error| Error::Invalid(error.to_string()))?,
+        },
+    )
 }

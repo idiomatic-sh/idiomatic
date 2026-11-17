@@ -9,6 +9,8 @@ pub const STDERR_BIN: &str = "stderr.bin";
 pub const INVOCATION_JSON: &str = "invocation.json";
 /// The explicit receipt destination every registered verifier accepts, followed by its path.
 pub const CASE_RECEIPTS_ARGUMENT: &str = "--case-receipts=";
+/// The flag that names the file a verifier writes its verification times to, as BMF, followed by its path.
+pub const VERIFY_TIMES_ARGUMENT: &str = "--verify-times=";
 /// The row field naming the sealed identity of a case's sources.
 pub const SOURCE_SHA256: &str = "source_sha256";
 /// The row field saying whether an observation completed.

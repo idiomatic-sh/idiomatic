@@ -1,20 +1,18 @@
 //! Query loading, compilation and SDK startup occur inside the measured child.
 use super::constants;
-use crate::outbound::engine::types::FrontendDiagnosticProjection;
+use crate::outbound::engine::interface::EnginePort;
 use crate::outbound::engine::types::loaded_engine_session::value::EngineExecution;
 use crate::outbound::engine::types::{
     EngineConfiguration, EngineRun, loaded_engine_session::value::LoadedEngineSession,
 };
+use crate::outbound::engine::types::{FrontendDiagnosticProjection, Retention};
 use ryo::linter::{
     self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId, Slot, WorkerPool,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount};
+use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount, RunReport};
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
-
-use crate::outbound::engine::interface::EnginePort;
 
 /// Runs authored queries through the SDK with the injected language registry.
 #[derive(Debug)]
@@ -46,7 +44,7 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: None,
             frontend_diagnostic,
-            retention: crate::outbound::engine::types::Retention::PerVerification,
+            retention: Retention::PerVerification,
             kept_rules: std::sync::OnceLock::new(),
             kept_linter: std::sync::OnceLock::new(),
         }
@@ -58,7 +56,7 @@ impl EngineLocalAdapter {
         own: &'a mut Option<linter::Linter>,
         cache: Cache,
     ) -> Result<&'a linter::Linter, Error> {
-        if self.retention == crate::outbound::engine::types::Retention::PerVerification {
+        if self.retention == Retention::PerVerification {
             if let Some(engine) = self.kept_linter.get() {
                 return Ok(engine);
             }
@@ -79,8 +77,7 @@ impl EngineLocalAdapter {
     }
     /// The slot the rules are kept in, when this engine keeps them across runs.
     fn retained_rules(&self) -> Option<&std::sync::OnceLock<BTreeMap<RuleId, Rule>>> {
-        (self.retention == crate::outbound::engine::types::Retention::PerVerification)
-            .then_some(&self.kept_rules)
+        (self.retention == Retention::PerVerification).then_some(&self.kept_rules)
     }
     /// The pool the files of a run are read on: rayon's own size, `RAYON_NUM_THREADS` when the caller sets it.
     fn pool() -> Result<WorkerPool, Error> {
@@ -103,7 +100,7 @@ impl EngineLocalAdapter {
             trace,
             diagnostic_events: None,
             frontend_diagnostic,
-            retention: crate::outbound::engine::types::Retention::PerRun,
+            retention: Retention::PerRun,
             kept_rules: std::sync::OnceLock::new(),
             kept_linter: std::sync::OnceLock::new(),
         }
@@ -119,7 +116,7 @@ impl EngineLocalAdapter {
             trace: None,
             diagnostic_events: Some(path),
             frontend_diagnostic,
-            retention: crate::outbound::engine::types::Retention::PerRun,
+            retention: Retention::PerRun,
             kept_rules: std::sync::OnceLock::new(),
             kept_linter: std::sync::OnceLock::new(),
         }
@@ -171,13 +168,12 @@ impl EngineExecution for LocalEngineSession<'_> {
         &self,
         rules: &BTreeMap<RuleId, Rule>,
         configuration: &EngineConfiguration,
-    ) -> Option<BTreeMap<RuleId, std::time::Duration>> {
-        if self.adapter.retention != crate::outbound::engine::types::Retention::PerVerification {
-            return None;
-        }
+    ) -> Option<Result<BTreeMap<RuleId, std::time::Duration>, Error>> {
+        (self.adapter.retention == Retention::PerVerification).then_some(())?;
         let mut own = None;
-        let Ok(engine) = self.adapter.engine(&mut own, Cache::None) else {
-            return None;
+        let engine = match self.adapter.engine(&mut own, Cache::None) {
+            Ok(engine) => engine,
+            Err(error) => return Some(Err(error)),
         };
         // The rules and relations the run is given, each alone first and the cache keeping what compiled.
         let mut compiled = BTreeMap::new();
@@ -207,7 +203,7 @@ impl EngineExecution for LocalEngineSession<'_> {
                 }
             }
         }
-        Some(compiled)
+        Some(Ok(compiled))
     }
     fn configuration_files(&self) -> Result<Vec<linter::RelativePath>, Error> {
         configuration_files(self.request, &self.adapter.languages)

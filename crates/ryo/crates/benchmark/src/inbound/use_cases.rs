@@ -3,7 +3,6 @@ pub mod account_defaults;
 pub mod admit_measurement;
 pub mod audit;
 pub mod compare;
-pub mod compare_corpus;
 pub mod measure;
 pub mod measure_corpus;
 pub mod operate;
@@ -23,7 +22,6 @@ pub mod verify_inventory;
 /// Recheck one explicit receipt file through the shared policy.
 pub mod validate_case_receipts;
 
-pub mod publish;
 
 pub mod prepare_cases;
 pub mod select_cases;

@@ -9,3 +9,7 @@ pub enum WorkerSource {
     /// A stored request, read when the request is received.
     Stored(PathBuf),
 }
+
+/// The bytes a worker publishes for one report, framing included.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EncodedResponse(pub Vec<u8>);

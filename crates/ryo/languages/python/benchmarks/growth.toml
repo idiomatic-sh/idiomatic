@@ -1,0 +1,298 @@
+# Python's growth table: how the rules that resolve a name grow with the file, in every shape.
+#
+# Each operation (bind, rebind, import, handler, loop and with targets, walrus, annotation, def, class, read, delete, `global`
+# and `nonlocal` declarations, defaults, lambdas and comprehensions, many functions reading a rebound module name, many distinct
+# names, a read run of more than 16,384 reads) is grown in every frame it makes sense in (module, function, nested function,
+# class body, method). Each rule runs every program at each whole size and its half; the shared growth service holds each
+# shape to the one CPU limit and to Ruff's floor and memory bound. A rule that joins every read to every binding, pairs every
+# effect with every other, or tests every handler against every read grows 3.5 to 8 times per doubling and holds gigabytes.
+#
+# A shape is `<rule>/<frame>/<operation>/<whole size>`. A segment's line `i` is `lines[i % len]` with `{i}` replaced by `i`,
+# written `fixed + per-size * size` times, each line indented by the frame's indent. Profiles are relative to the linter's bench.
+file = "case.py"
+sizes = [1000]
+
+[[rules]]
+rule = "F401"
+profile = "profiles/F401"
+
+[[rules]]
+rule = "F841"
+profile = "profiles/F841"
+
+[[rules]]
+rule = "F811"
+profile = "profiles/F811"
+
+[[rules]]
+rule = "F821"
+profile = "profiles/F821"
+
+[frames.module]
+head = ""
+indent = ""
+tail = ""
+
+[frames.function]
+head = "def f():\n"
+indent = "    "
+tail = ""
+
+[frames.nested]
+head = "def f():\n    def g():\n"
+indent = "        "
+tail = ""
+
+[frames.nested-bound]
+head = "def f():\n    v = 1\n    def g():\n"
+indent = "        "
+tail = ""
+
+[frames.class]
+head = "class C:\n"
+indent = "    "
+tail = ""
+
+[frames.method]
+head = "class C:\n    def m(self):\n"
+indent = "        "
+tail = ""
+
+[[operations]]
+name = "assign"
+frames = ["module"]
+segments = [
+  { lines = ["v = 1\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "assign-read"
+frames = ["module", "function", "nested", "class", "method"]
+segments = [
+  { lines = ["v = 1\nprint(v)\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "import"
+frames = ["module"]
+segments = [
+  { lines = ["import v\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "import-read"
+frames = ["module", "function", "nested", "class", "method"]
+segments = [
+  { lines = ["import v\nprint(v)\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "handler"
+frames = ["module"]
+segments = [
+  { lines = ["try:\n    pass\nexcept Exception as v:\n    pass\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "handler-read"
+frames = ["module", "function", "nested", "class", "method"]
+segments = [
+  { lines = ["try:\n    pass\nexcept Exception as v:\n    print(v)\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "for-target"
+frames = ["module"]
+segments = [
+  { lines = ["for v in y:\n    print(v)\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "with-target"
+frames = ["module"]
+segments = [
+  { lines = ["with y as v:\n    print(v)\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "walrus"
+frames = ["module"]
+segments = [
+  { lines = ["(v := 1)\nprint(v)\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "annotation"
+frames = ["module"]
+segments = [
+  { lines = ["v: int\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "annotation-read"
+frames = ["module", "function", "nested", "class", "method"]
+segments = [
+  { lines = ["v: int\nprint(v)\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "def"
+frames = ["module"]
+segments = [
+  { lines = ["def v():\n    pass\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "class"
+frames = ["module"]
+segments = [
+  { lines = ["class v:\n    pass\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "read"
+frames = ["module"]
+segments = [
+  { lines = ["v = 1\n"], fixed = 1, per-size = 0 },
+  { lines = ["print(v)\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "assign-del"
+frames = ["module", "function", "nested", "class", "method"]
+segments = [
+  { lines = ["v = 1\ndel v\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "del"
+frames = ["module"]
+segments = [
+  { lines = ["v = 1\n"], fixed = 1, per-size = 0 },
+  { lines = ["del v\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "global-declaration"
+frames = ["module"]
+segments = [
+  { lines = ["global v\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "global-assign"
+frames = ["module", "function", "nested", "class", "method"]
+segments = [
+  { lines = ["global v\nv = 1\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "global-read"
+frames = ["module", "function", "nested", "class", "method"]
+segments = [
+  { lines = ["global v\nprint(v)\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "global-del"
+frames = ["module", "function", "nested", "class", "method"]
+segments = [
+  { lines = ["global v\ndel v\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "nonlocal-assign"
+frames = ["nested-bound"]
+segments = [
+  { lines = ["nonlocal v\nv = 1\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "distinct-import"
+frames = ["module"]
+segments = [
+  { lines = ["import v{i}\nprint(v{i})\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "distinct-assign"
+frames = ["module", "function", "nested", "class", "method"]
+segments = [
+  { lines = ["v{i} = 1\nprint(v{i})\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "distinct-def"
+frames = ["module"]
+segments = [
+  { lines = ["def v{i}():\n    pass\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "distinct-class"
+frames = ["module"]
+segments = [
+  { lines = ["class v{i}:\n    x = 1\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "distinct-handler"
+frames = ["module"]
+segments = [
+  { lines = ["try:\n    pass\nexcept Exception as v{i}:\n    print(v{i})\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "default-argument"
+frames = ["module"]
+segments = [
+  { lines = ["v = 1\n"], fixed = 1, per-size = 0 },
+  { lines = ["def g{i}(a=v):\n    pass\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "rebind-read-by-functions"
+frames = ["module"]
+segments = [
+  { lines = ["v = 1\ndef g{i}():\n    return v\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "lambda-read"
+frames = ["module"]
+segments = [
+  { lines = ["v = 1\n"], fixed = 1, per-size = 0 },
+  { lines = ["w{i} = lambda: v\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "comprehension-read"
+frames = ["module"]
+segments = [
+  { lines = ["v = 1\n"], fixed = 1, per-size = 0 },
+  { lines = ["w{i} = [v for _ in y]\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "method-read"
+frames = ["module"]
+segments = [
+  { lines = ["v = 1\n"], fixed = 1, per-size = 0 },
+  { lines = ["def m{i}(self):\n    return v\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "global-skipped-read"
+frames = ["module"]
+segments = [
+  { lines = ["global v\n"], fixed = 1, per-size = 0 },
+  { lines = ["v = 1\ndef g{i}():\n    return v\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "long-read-run"
+frames = ["module"]
+segments = [
+  { lines = ["v = 1\n"], fixed = 0, per-size = 1 },
+  { lines = ["v\n"], fixed = 16384, per-size = 1 },
+]

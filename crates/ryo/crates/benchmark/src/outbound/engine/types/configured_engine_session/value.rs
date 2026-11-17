@@ -32,11 +32,16 @@ impl<'a> ConfiguredEngineSession<'a> {
         Self { session, context }
     }
     /// The time each configured rule takes to compile ahead of the run, with the rules and relations the run itself is given;
-    /// none from an engine that compiles inside the run.
+    /// none from an engine that compiles inside the run, a refusal from one that cannot compile.
     #[must_use]
     pub fn compile(
         &self,
-    ) -> Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
+    ) -> Option<
+        Result<
+            std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>,
+            ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+        >,
+    > {
         self.session.compile(&self.context)
     }
     /// Consume the same configured session and flush its diagnostics on completion.

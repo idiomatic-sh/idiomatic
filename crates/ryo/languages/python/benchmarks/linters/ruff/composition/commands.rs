@@ -20,7 +20,7 @@ use ryo_benchmark::inbound::use_cases::check_worker_request::{
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::select_cases::types::CaseRun;
+use ryo_benchmark::inbound::use_cases::select_cases::types::{CaseRun, VerifyTimes};
 use ryo_benchmark::inbound::use_cases::verify_rule_profiles::{
     interface::VerifyRuleProfilesUseCase as _, use_case::VerifyRuleProfilesUseCaseImpl,
 };
@@ -29,7 +29,6 @@ use ryo_benchmark::inbound::use_cases::{
     stage_suite::interface::StageSuiteUseCase as _,
     verify_cases::interface::VerifyCasesUseCase as _,
 };
-use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactText},
@@ -78,26 +77,18 @@ pub(super) fn worker(
         WorkerInput::File(path) => WorkerSource::Stored(path),
         WorkerInput::Inline(payload) => WorkerSource::Argument(payload.0.into()),
     };
-    let transport: Arc<dyn WorkerPort> = Arc::new(ryo_benchmark::outbound::worker::factory::json(
+    let transport: Arc<dyn WorkerPort + Send + Sync> = Arc::new(ryo_benchmark::outbound::worker::factory::json(
         source,
         Box::new(std::io::stdout()),
     ));
-    CheckWorkerRequestUseCaseImpl::new(Arc::clone(&transport))
+    CheckWorkerRequestUseCaseImpl::new(Arc::<dyn WorkerPort + Send + Sync>::clone(&transport))
         .check_worker_request(&expectation)?;
     let target_version = parser_target(parser_configuration.as_deref().map(TargetConfiguration))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
     )]);
-    let frontend_diagnostic =
-        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
-            rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
-                .map_err(|error| Error::Invalid(error.to_string()))?,
-            query: ryo::query::RyoQlQuery::try_from(
-                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?,
-        };
-    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort> =
+    let frontend_diagnostic = frontend_diagnostic()?;
+    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
         match (tracing, trace_path) {
             (WorkerTracing::Chrome, Some(path)) => Arc::new(
                 ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
@@ -170,8 +161,8 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
     let suite_source: Arc<dyn SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let tool = suite_source.profile(ArtifactPath(&source))?;
-    let expected = reference(executable.clone(), tool.clone())?.version_line(&tool);
-    suite_source.verify_tool(ArtifactPath(&executable), &tool, &expected)?;
+    // The bench verified the reference tool's pinned bytes and version line once, before any rule (`verify-tool`); the
+    // registration pins its digest, which the inventory checks before and after every rule.
     let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
         Arc::clone(&suite_source),
     )
@@ -205,35 +196,40 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
         staged.rule_observation_selection,
         staged.rule_observations.clone(),
     ));
-    let target_version = parser_target(match &staged.parser_configuration {
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
-            Some(TargetConfiguration(name.0.as_str()))
-        }
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
-    })?;
+    let target_version = parser_target(configured(&staged.parser_configuration))?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
     )]);
-    let frontend_diagnostic =
-        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
-            rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
-                .map_err(|error| Error::Invalid(error.to_string()))?,
-            query: ryo::query::RyoQlQuery::try_from(
-                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
-            )
-            .map_err(|error| Error::Invalid(error.to_string()))?,
-        };
+    let frontend_diagnostic = frontend_diagnostic()?;
     // The candidate runs in this process over one engine, which compiles each rule once and keeps its plans for every case.
-    let execution = Arc::new(super::in_process::InProcessExecution::new(
-        Box::new(ryo_benchmark::outbound::execution::factory::process()),
+    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
         Arc::new(
             ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
                 languages,
                 frontend_diagnostic,
             ),
-        ),
-        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+        );
+    let context: Arc<dyn ryo_benchmark::outbound::context::interface::ContextPort + Send + Sync> =
+        Arc::new(ryo_benchmark::outbound::context::factory::local());
+    // The worker in this process reads each stored request it is handed and answers its bytes through the JSON transport, which
+    // receives and publishes nothing of its own.
+    let transport = Arc::new(ryo_benchmark::outbound::worker::factory::json(
+        ryo_benchmark::outbound::worker::types::WorkerSource::Argument(std::ffi::OsString::new()),
+        Box::new(std::io::sink()),
     ));
+    let worker = RunRyoUseCaseImpl::new(engine, transport, context);
+    let execution = ryo_benchmark::outbound::execution::factory::in_process(&worker);
+    // The times of a verification go to its times file when the run names one, and nowhere when it does not.
+    let evidence: Box<dyn ryo_benchmark::outbound::evidence::interface::EvidencePort> =
+        match &run.timings {
+            VerifyTimes::Recorded(path) => {
+                Box::new(ryo_benchmark::outbound::evidence::factory::bmf_appending(path.clone()))
+            }
+            VerifyTimes::Unrecorded => Box::new(ryo_benchmark::outbound::evidence::factory::bmf(
+                Box::new(std::io::sink()),
+                Box::new(std::io::sink()),
+            )),
+        };
     let reference = Arc::new(reference(executable, staged)?);
     let count =
         ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
@@ -243,9 +239,12 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
             &ryo_benchmark::outbound::context::factory::local(),
             reference.as_ref(),
             candidate.as_ref(),
-            execution.as_ref(),
+            ryo_benchmark::inbound::use_cases::verify_cases::types::Executions {
+                reference: &ryo_benchmark::outbound::execution::factory::process(),
+                candidate: &execution,
+            },
             &ryo_benchmark::outbound::inventory::factory::local(),
-            &super::in_process::rule_times(run)?,
+            evidence.as_ref(),
         )
         .verify_cases(
             &profile.join(constants::RULES_DIRECTORY),
@@ -258,14 +257,9 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
 }
 
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
-    let target_version = ruff_target(match &tool.parser_configuration {
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
-            Some(TargetConfiguration(name.0.as_str()))
-        }
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
-    })?
-    .0
-    .to_owned();
+    let target_version = ruff_target(configured(&tool.parser_configuration))?
+        .0
+        .to_owned();
     Ok(LinterRuffAdapter::new(LinterRuffSettings {
         executable,
         defaults: tool.defaults.into_iter().collect(),
@@ -279,7 +273,39 @@ fn ruff_target(configuration: Option<TargetConfiguration<'_>>) -> Result<Referen
 }
 
 /// Use exactly the same explicit identity for the linked parser as the reference.
-fn parser_target(
+/// The projection of the parser's diagnostics to the `invalid-syntax` rule, as every run of the candidate in this composition makes it.
+///
+/// # Errors
+///
+/// A rule id or a query the SDK refuses.
+pub(super) fn frontend_diagnostic()
+-> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error> {
+    Ok(
+        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
+            rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+            query: ryo::query::RyoQlQuery::try_from(
+                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
+            )
+            .map_err(|error| Error::Invalid(error.to_string()))?,
+        },
+    )
+}
+
+/// The target configuration a parser selection names, none when it names none.
+pub(super) fn configured(
+    selection: &ryo_benchmark_contracts::domain::requests::types::ParserSelection,
+) -> Option<TargetConfiguration<'_>> {
+    match selection {
+        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
+            Some(TargetConfiguration(name.0.as_str()))
+        }
+        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
+    }
+}
+
+/// The linked parser's target version for a target configuration, the same identity the reference is given.
+pub(super) fn parser_target(
     configuration: Option<TargetConfiguration<'_>>,
 ) -> Result<ryo_python::settings::PythonTargetVersion, Error> {
     Ok(super::targets::resolve(configuration)?.parser)

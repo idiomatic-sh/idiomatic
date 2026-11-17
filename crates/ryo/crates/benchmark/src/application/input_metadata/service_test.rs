@@ -131,6 +131,7 @@ fn host(kernel: HostKernel, isolation: HostIsolation) -> HostFake {
             kernel,
             isolation,
         },
+        ..HostFake::default()
     }
 }
 

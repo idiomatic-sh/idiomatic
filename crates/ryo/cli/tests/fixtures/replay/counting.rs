@@ -1,6 +1,5 @@
 //! The lint counting what it asks of the language, over any root: what the suites that measure a run share.
 
-use super::base::{Pending, recordings, rule_of};
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
 use std::path::Path;
 use std::sync::Arc;
@@ -270,17 +269,4 @@ pub(crate) fn lint_observing<T>(
         projects: projects.load(std::sync::atomic::Ordering::Relaxed),
     };
     Ok(observe(counted, output, report))
-}
-
-/// The rules of the recordings that run today, by name: what the bench measures over ruff.
-///
-/// # Panics
-///
-/// When the recordings cannot be read.
-pub(crate) fn runnable() -> Vec<(String, Rule)> {
-    recordings()
-        .iter()
-        .filter(|each| each.pending == Pending::Missing)
-        .map(|each| (each.name.clone(), rule_of(each)))
-        .collect()
 }

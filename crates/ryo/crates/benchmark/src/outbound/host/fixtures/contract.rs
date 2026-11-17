@@ -8,7 +8,7 @@ type Failure = std::convert::Infallible;
 
 /// The contract's rows.
 pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("a host answers the same question the same way"),
+    name: CaseName("a host answers the same question the same way, its facts and its processors"),
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value(true),
@@ -20,5 +20,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
 ///
 /// Panics when an implementation violates a contract row.
 pub fn check(port: &impl HostPort) {
-    run(CASES, Word::Succeeds, |()| Ok(port.facts() == port.facts()));
+    run(CASES, Word::Succeeds, |()| {
+        Ok(port.facts() == port.facts() && port.processors() == port.processors())
+    });
 }

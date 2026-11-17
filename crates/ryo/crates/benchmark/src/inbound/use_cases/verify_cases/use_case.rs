@@ -11,7 +11,7 @@ pub struct VerifyCasesUseCaseImpl<'a> {
     context: &'a dyn crate::outbound::context::interface::ContextPort,
     reference: &'a dyn crate::outbound::linter::interface::LinterPort,
     candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
-    execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+    executions: super::types::Executions<'a>,
     inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
     evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
 }
@@ -25,7 +25,7 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
         context: &'a dyn crate::outbound::context::interface::ContextPort,
         reference: &'a dyn crate::outbound::linter::interface::LinterPort,
         candidate: &'a dyn crate::outbound::linter::interface::LinterPort,
-        execution: &'a dyn crate::outbound::execution::interface::ExecutionPort,
+        executions: super::types::Executions<'a>,
         inventory: &'a dyn crate::outbound::inventory::interface::InventoryPort,
         evidence: &'a dyn crate::outbound::evidence::interface::EvidencePort,
     ) -> Self {
@@ -36,7 +36,7 @@ impl<'a> VerifyCasesUseCaseImpl<'a> {
             context,
             reference,
             candidate,
-            execution,
+            executions,
             inventory,
             evidence,
         }
@@ -79,7 +79,7 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
             self.context,
             self.reference,
             self.candidate,
-            self.execution,
+            self.executions,
             self.inventory,
             rules,
             cases,
@@ -92,7 +92,15 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
                     ReportsError::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into())
                 })?,
             ))?;
-        self.evidence.verification(&tool.tool, &verified.timings)?;
+        // The times file of a verification names the tool it verified against: the bench reads it back by rule, and its own
+        // document names the language.
+        if !verified.timings.is_empty() {
+            self.evidence.verification(
+                &tool.tool.0.as_str().into(),
+                &crate::outbound::evidence::types::RuleTimings(verified.timings),
+            )?;
+            self.evidence.finish()?;
+        }
         Ok(verified.count)
     }
 }

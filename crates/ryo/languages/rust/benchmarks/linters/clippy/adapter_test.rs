@@ -102,7 +102,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Call::Environment,
         expect: Expect::Value(Cow::Borrowed(
-            "CARGO=toolchain/bin/cargo\nCARGO_BUILD_JOBS=1\nCARGO_TARGET_DIR=targets\nCLIPPY_CONF_DIR=targets\nRAYON_NUM_THREADS=1\nRUSTC=toolchain/bin/rustc",
+            "CARGO=toolchain/bin/cargo\nCARGO_BUILD_JOBS=1\nCARGO_TARGET_DIR=targets\nCLIPPY_CONF_DIR=targets\nRUSTC=toolchain/bin/rustc",
         )),
     },
     Case {

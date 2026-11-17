@@ -26,7 +26,7 @@ pub struct ProfileToolsFake {
     /// Every file written, the reports and the receipt among them.
     pub files: Arc<Mutex<BTreeMap<PathBuf, FileContents>>>,
     /// The recordings the CPU profiler was asked to make.
-    pub recordings: Arc<Mutex<Vec<PathBuf>>>,
+    recordings: Arc<Mutex<Vec<PathBuf>>>,
 }
 impl Default for ProfileToolsFake {
     fn default() -> Self {

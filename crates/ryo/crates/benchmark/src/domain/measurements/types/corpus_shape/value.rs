@@ -1,5 +1,5 @@
 //! The corpus a language's benchmark measures: that language's projects, two or three of them.
-use super::super::super::constants::{FEWEST_PROJECTS, MOST_PROJECTS};
+use super::super::super::constants::{FEWEST_PROJECTS, MOST_PROJECTS, RESERVED_PROJECTS};
 use super::super::LanguageTitle;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Suite;
@@ -36,6 +36,16 @@ impl CorpusShape<'_> {
             return Err(Error::Invalid(format!(
                 "{} suite requires {FEWEST_PROJECTS}–{MOST_PROJECTS} projects",
                 self.display.0
+            )));
+        }
+        if let Some(reserved) = suite
+            .projects
+            .iter()
+            .find(|project| RESERVED_PROJECTS.contains(&project.name.0.as_str()))
+        {
+            return Err(Error::Invalid(format!(
+                "{} project `{}` takes a name the bench reserves",
+                self.display.0, reserved.name.0
             )));
         }
         Ok(())

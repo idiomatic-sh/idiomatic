@@ -1,5 +1,5 @@
 //! What every executables adapter keeps: the target answers, a sealed copy carries the digest of its bytes, and an
-//! absent reference tool, an absent bench and an absent executable are refused.
+//! absent reference tool, an absent bench and an absent executable, run or checked, are refused.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::executables::interface::ExecutablesPort;
 use crate::outbound::executables::types::{BenchPackage, RunArguments};
@@ -19,6 +19,8 @@ pub enum Request {
     AbsentBench,
     /// Run an executable that does not exist.
     AbsentExecutable,
+    /// Check with an executable that does not exist.
+    AbsentCheck,
 }
 
 /// How a contract row ends.
@@ -71,6 +73,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Request::AbsentExecutable,
         expect: Expect::Error(Outcome::Refused),
     },
+    Case {
+        name: CaseName("a check with an executable that does not exist is refused"),
+        word: Word::Refuses,
+        input: || Request::AbsentCheck,
+        expect: Expect::Error(Outcome::Refused),
+    },
 ];
 
 /// Run the shared observations against the supplied implementation.
@@ -117,6 +125,16 @@ pub fn check(adapter: &impl ExecutablesPort) {
                 .map_err(refused),
             Request::AbsentExecutable => adapter
                 .run_sealed(
+                    &root.path().join("absent-executable"),
+                    &RunArguments(Vec::new()),
+                    &root.path().join("document.bmf"),
+                    &mut Vec::new(),
+                    &mut Vec::new(),
+                )
+                .map(|_verdict| Outcome::Answered)
+                .map_err(refused),
+            Request::AbsentCheck => adapter
+                .check_sealed(
                     &root.path().join("absent-executable"),
                     &RunArguments(Vec::new()),
                     &mut Vec::new(),

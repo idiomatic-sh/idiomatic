@@ -9,8 +9,9 @@
 #[cfg(target_os = "linux")]
 use ryo_benchmark::outbound::execution::factory::{direct, timed};
 use ryo_benchmark::outbound::execution::{
-    factory::{bounded, process},
+    factory::{bounded, in_process, process},
     interface::ExecutionPort as _,
+    types::{InProcessWorker, RuleCompileTimes, StoredRequest, WorkerResponse},
 };
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 /// Construct the same explicit child workload for each execution adapter.
@@ -98,6 +99,51 @@ fn bounded_child(bencher: divan::Bencher<'_, '_>) {
         assert_eq!(
             output.stdout.0, b"result",
             "workload output must survive capture"
+        );
+        divan::black_box(output)
+    });
+}
+/// A worker that answers every stored request with the same response, as the language's worker answers one.
+#[derive(Debug)]
+struct Answering;
+impl InProcessWorker for Answering {
+    fn run(
+        &self,
+        _request: &StoredRequest,
+    ) -> Result<WorkerResponse, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
+    {
+        Ok(WorkerResponse(b"result".to_vec()))
+    }
+    fn compile(
+        &self,
+        _request: &StoredRequest,
+    ) -> Result<
+        Option<RuleCompileTimes>,
+        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    > {
+        Ok(Some(RuleCompileTimes::default()))
+    }
+}
+#[divan::bench]
+/// Measure one worker request run in this process, its response captured as a child's stdout.
+fn in_process_worker(bencher: divan::Bencher<'_, '_>) {
+    let adapter = in_process(&Answering);
+    let input = Invocation {
+        executable: "/bin/sh".into(),
+        arguments: vec![
+            ryo_benchmark_contracts::domain::requests::constants::RUN_RYO.into(),
+            ryo_benchmark_contracts::domain::requests::constants::REQUEST_FILE.into(),
+            "request.json".into(),
+        ],
+        environment: std::collections::BTreeMap::new(),
+        directory: std::env::temp_dir(),
+    };
+    bencher.bench_local(|| {
+        let output = adapter.run(input.clone()).expect("worker runs");
+        assert_eq!(output.status.0, 0_i32, "workload must complete");
+        assert_eq!(
+            output.stdout.0, b"result",
+            "workload response must survive capture"
         );
         divan::black_box(output)
     });

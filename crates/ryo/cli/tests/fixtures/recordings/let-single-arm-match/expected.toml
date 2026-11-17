@@ -1,7 +1,0 @@
-rows = [
-  { path = "crates/ruff_linter/src/checkers/ast/mod.rs", key = "100060..100949" },
-  { path = "crates/ruff_python_parser/src/semantic_errors.rs", key = "29812..30179" },
-  { path = "crates/ruff_python_semantic/src/cfg/visualize.rs", key = "6186..6801" },
-  { path = "crates/ty_ide/src/symbols.rs", key = "20836..21042" },
-  { path = "crates/ty_server/src/session.rs", key = "80112..80333" },
-]

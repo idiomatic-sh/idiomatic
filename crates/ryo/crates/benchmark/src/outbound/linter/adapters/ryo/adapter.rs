@@ -100,12 +100,7 @@ impl LinterPort for LinterRyoAdapter {
         Ok(Invocation {
             executable: self.executable.clone(),
             arguments,
-            environment: [(
-                ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
-                constants::ONE_WORKER.into(),
-            )]
-            .into_iter()
-            .collect(),
+            environment: std::collections::BTreeMap::new(),
             directory: request.root.clone(),
         })
     }

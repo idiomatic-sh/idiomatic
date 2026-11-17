@@ -1,7 +1,7 @@
 //! A target's checkout is fetched into the shared cache once, however many test processes ask for it at the same time: the
 //! release check runs the default tests and the coverage run side by side, and both fetch ruff.
 
-use crate::base::snapshot::fetched;
+use crate::fetch::fetched;
 use std::path::Path;
 use std::process::Command;
 

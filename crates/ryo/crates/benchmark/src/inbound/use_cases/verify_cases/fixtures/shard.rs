@@ -110,7 +110,10 @@ pub(crate) fn verify_shard(
         &crate::outbound::context::factory::local(),
         reference,
         candidate,
-        execution,
+        crate::inbound::use_cases::verify_cases::types::Executions {
+            reference: execution,
+            candidate: execution,
+        },
         &crate::outbound::inventory::factory::local(),
         rules,
         suite.prepared.clone(),

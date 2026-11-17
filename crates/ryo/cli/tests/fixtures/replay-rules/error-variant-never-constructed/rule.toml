@@ -1,4 +1,4 @@
-# A replay rule: an engine query the replay runs over ruff (tests/fixtures/recordings/error-variant-never-constructed), which no Tastemaker rule ships.
+# A replay rule: an engine query its own scenarios prove (tests/replay/scenarios.rs), which no Tastemaker rule ships.
 description = "An error enum's variant that no expression constructs."
 why = "A variant with a `#[from]` field is constructed: the derived `From` impl builds it whenever `?` converts (owner, checkpoint 336)."
 

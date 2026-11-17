@@ -19,15 +19,16 @@ let parts = capture(from=listed, path=\"path\", pattern=\"{*dir}/x.rs\", capture
 let dirs = project(from=parts, columns=[\"dir\"]);
 let missing = antijoin(left=dirs, right=dirs, left-on=[\"dir\"], right-on=[\"dir\"]);
 emit missing subject dir key(dir);";
-    let rule_across = crate::rule_from_query("across", across, &["nothing-here/**".to_owned()]);
-    let rule = crate::rule_from_query(
+    let rule_across =
+        crate::tools::rule_from_query("across", across, &["nothing-here/**".to_owned()]);
+    let rule = crate::tools::rule_from_query(
         "workspace-completeness",
         &query,
         &["nothing-here/**".to_owned()],
     );
     let (rows, _) = base::lint_with(
         root.path(),
-        vec![rule, rule_across, crate::rule_from_query("every", "let a = select * from \"syntax-tree\" where kind = \"fn\"; emit a subject file key(id);", &["**".to_owned()])],
+        vec![rule, rule_across, crate::tools::rule_from_query("every", "let a = select * from \"syntax-tree\" where kind = \"fn\"; emit a subject file key(id);", &["**".to_owned()])],
         Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
     )
@@ -43,7 +44,7 @@ fn the_work_of_a_rule_is_a_count_of_rows_per_step() {
     base::COUNTING.store(true, std::sync::atomic::Ordering::Relaxed);
     let root = workspace();
     let rule = |id: &str, include: &str| {
-        crate::rule_from_query(
+        crate::tools::rule_from_query(
             id,
             "let a = select * from \"syntax-tree\" where kind = \"fn\"; let b = project(from=a, columns=[\"file\"]); emit b subject file key(file);",
             &[include.to_owned()],
@@ -95,7 +96,8 @@ fn a_probe_of_the_tree_is_fed_what_it_finds() {
         format!("{many}pub fn run() {{}}\n"),
     )
     .expect("a file");
-    let rule = |id: &str, query: &str| crate::rule_from_query(id, query, &["**/*.rs".to_owned()]);
+    let rule =
+        |id: &str, query: &str| crate::tools::rule_from_query(id, query, &["**/*.rs".to_owned()]);
     let (_, report) = base::lint_report(
         root.path(),
         vec![
@@ -140,7 +142,7 @@ fn a_module_without_a_file_is_unknown_at_its_file_and_a_file_no_crate_root_reach
     write("benches/performance.rs", "fn main() {}\n");
     write("benches/performance/adapter.rs", "pub fn run() {}\n");
     let query = "let listed = project(from=\"filesystem.file\", columns=[\"path\"]);\nlet seen = project(from=\"source-dependency\", columns=[\"source\"]);\nlet missing = antijoin(left=listed, right=seen, left-on=[\"path\"], right-on=[\"source\"]);\nemit missing subject path key(path);";
-    let rule = crate::rule_from_query("examined", query, &["**".to_owned()]);
+    let rule = crate::tools::rule_from_query("examined", query, &["**".to_owned()]);
     let (_, report) = base::lint_report(
         root.path(),
         vec![rule],
@@ -186,8 +188,8 @@ emit missing subject dir key(dir);";
         let (_, report) = base::lint_report(
             root,
             vec![
-                crate::rule_from_query("every", every, &["**".to_owned()]),
-                crate::rule_from_query("across", across, &["**".to_owned()]),
+                crate::tools::rule_from_query("every", every, &["**".to_owned()]),
+                crate::tools::rule_from_query("across", across, &["**".to_owned()]),
             ],
             Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
             store.clone(),

@@ -15,7 +15,7 @@ use crate::cache::{sorted, write};
 
 /// The rule that reads how the files link to one another.
 fn linking() -> Vec<Rule> {
-    vec![crate::rule_from_query(
+    vec![crate::tools::rule_from_query(
         "links",
         "let d = select * from \"source-dependency\"; emit d subject source key(target);",
         &["**".to_owned()],

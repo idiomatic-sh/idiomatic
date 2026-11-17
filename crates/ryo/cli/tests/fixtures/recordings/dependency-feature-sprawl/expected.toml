@@ -1,8 +1,0 @@
-rows = [
-  { path = "Cargo.toml", key = "11309..11316" },
-  { path = "Cargo.toml", key = "11810..11813" },
-  { path = "Cargo.toml", key = "4740..4744" },
-  { path = "Cargo.toml", key = "6184..6193" },
-  { path = "Cargo.toml", key = "7499..7503" },
-  { path = "Cargo.toml", key = "9905..9919" },
-]

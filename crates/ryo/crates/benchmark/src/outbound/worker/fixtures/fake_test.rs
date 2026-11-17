@@ -7,7 +7,7 @@ use super::WorkerFake;
 #[test]
 fn succeeds() {
     let fake = WorkerFake::new(request());
-    check(&fake);
+    check(&fake, std::path::Path::new("request.json"));
     assert_eq!(fake.receive_calls(), 1);
     assert_eq!(fake.respond_calls(), 1);
     assert_eq!(fake.reports(), [report()]);

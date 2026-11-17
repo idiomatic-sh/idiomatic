@@ -166,15 +166,17 @@ impl LinterClippyAdapter {
         .into_iter()
         .collect()
     }
-    /// The toolchain's environment with one job and one worker: the runs `prepare` builds, measured or compared. Discovery,
-    /// which checks every dependency once, runs at the default job count.
+    /// The toolchain's environment with the bench's four jobs: the runs `prepare` builds, measured or compared, take the jobs
+    /// every timed measure is taken on (`MEASURED_WORKERS`). Discovery, which checks every dependency once, runs at the default
+    /// job count.
     fn environment(&self) -> BTreeMap<OsString, OsString> {
         let mut environment = self.toolchain();
         environment.extend([
-            (constants::JOBS_VARIABLE.into(), constants::ONE_JOB.into()),
             (
-                ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
-                constants::ONE_JOB.into(),
+                constants::JOBS_VARIABLE.into(),
+                ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
+                    .to_string()
+                    .into(),
             ),
         ]);
         environment

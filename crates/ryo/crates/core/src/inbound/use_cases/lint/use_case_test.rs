@@ -23,6 +23,7 @@ use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use std::sync::Arc;
 
+mod guards;
 mod inapplicable_identity;
 mod lifecycle;
 mod project_budget;

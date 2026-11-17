@@ -1,12 +1,10 @@
 //! Minimal process composition; contestant clocks start inside the direct observer.
 //!
-//! For the shipped recording benchmark, check `cargo metadata --locked --no-deps --format-version 1`: package `idiomatic-sh-ryo` has target `lint`, kind `bench`, source `cli/benches/lint.rs` (`harness = false`). Build it with `cargo bench --locked --no-run -p idiomatic-sh-ryo --bench lint`, seal the reported bench executable, then run that executable with `--bench --rounds 1`. The ordinary `ryo` CLI binary is a different target and does not accept those arguments.
-//!
-//! The collector also runs the gated operations of a linter bench: `verify-inventory`, `measure-valid` and `parity`, each
-//! with one argument, the bench directory `languages/<lang>/benchmarks/linters/<linter>`. Each builds and seals the bench's
-//! worker under `<target>/benchmark/<lang>/<linter>/<verb>/`; `verify-inventory` registers every default from the bench's
-//! `benchmark.toml` and `rules/<ID>/{query.ryoql,cases.toml}` and verifies it in process, the other two run the worker's verb
-//! of the same name with the sealed paths. The shared domain initializes every default as FAIL; the application invokes the existing verification path for each implementation, retains native observations, and continues after missing or failed rules. A default the profile defers (its `[deferred]` table) and does not implement is DEFERRED with its capability as the reason and runs nothing; the run passes when no row is FAIL. The injected artifact boundary atomically publishes `summary.json` (`benchmark-inventory/v2`) and raw per-rule evidence. PASS plus FAIL plus DEFERRED always equals the supplied inventory length; no provider-specific count or admission list exists in the runner. Existing collector stdin measurement behavior is unchanged when no command is supplied.
+//! The collector runs a language bench: `bench`, with one argument, the bench directory
+//! `languages/<lang>/benchmarks/linters/<linter>`. It refuses any count of processors but four, builds and seals the bench's
+//! worker and itself under `<target>/benchmark/<lang>/<linter>/bench/`, registers every default from the bench's
+//! `benchmark.toml` and `rules/<ID>/{query.ryoql,cases.toml}` and verifies each against its cases once, and only when every
+//! default passed runs the worker's `measure-valid` over the language's projects, which writes the bench's one document. The shared domain initializes every default as FAIL; the application invokes the existing verification path for each implementation, retains native observations, and continues after missing or failed rules. A default the profile defers (its `[deferred]` table) and does not implement is DEFERRED with its capability as the reason and runs nothing; the run passes when no row is FAIL. The injected artifact boundary atomically publishes `summary.json` (`benchmark-inventory/v2`) and raw per-rule evidence. PASS plus FAIL plus DEFERRED always equals the supplied inventory length; no provider-specific count or admission list exists in the runner. Existing collector stdin measurement behavior is unchanged when no command is supplied.
 //!
 //! ## Explicit reference process failures
 //!
@@ -44,7 +42,6 @@ use ryo_benchmark::{
         inventory::{self, interface::InventoryPort as _},
     },
 };
-use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use std::{
     io::{Read as _, Write as _},
     sync::Arc,
@@ -82,18 +79,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(ryo_benchmark::domain::operations::types::OperationVerb)
         .and_then(ryo_benchmark::domain::operations::service::operation)
     {
-        let (bench, shards) = match arguments.as_slice() {
-            [_verb, bench] => (bench, ShardCount(1)),
-            [_verb, option, count, bench] if option == operate_constants::SHARDS_OPTION => (
-                bench,
-                ShardCount(
-                    count
-                        .to_str()
-                        .ok_or(operate_constants::USAGE)?
-                        .parse::<usize>()?,
-                ),
-            ),
-            _ => return Err(operate_constants::USAGE.into()),
+        let [_verb, bench] = arguments.as_slice() else {
+            return Err(operate_constants::USAGE.into());
         };
         let operate = OperateUseCaseImpl::new(
             Arc::new(ryo_benchmark::outbound::executables::factory::cargo(
@@ -118,14 +105,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 operate_constants::RULE_TIMEOUT_SECONDS,
             ))),
             Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
+            Arc::new(ryo_benchmark::outbound::host::factory::local()),
         );
         let report = operate.operate(
             &OperationRequest {
                 operation,
                 bench: BenchDirectory(bench.into()),
-                shards,
             },
             &mut std::io::stdout().lock(),
+            &mut std::io::stderr().lock(),
         )?;
         return if report.verdict == OperationVerdict::Passed {
             Ok(())

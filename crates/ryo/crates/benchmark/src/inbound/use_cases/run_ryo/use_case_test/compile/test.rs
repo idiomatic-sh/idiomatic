@@ -1,9 +1,10 @@
 //! The rules compile ahead of the run through the session the run is configured with.
-use super::super::{Engine, Stage};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::run_ryo::{
-    fixtures::CountingContext, interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
+    fixtures::{CountingContext, Engine, Failing},
+    use_case::RunRyoUseCaseImpl,
 };
+use crate::outbound::execution::types::{InProcessWorker as _, StoredRequest};
 use crate::outbound::worker::fixtures::{data::request, fake::WorkerFake};
 use std::sync::{Arc, atomic::AtomicUsize};
 use std::time::Duration;
@@ -26,15 +27,17 @@ fn subject(_request: Input) -> Result<Value, Failure> {
         calls: AtomicUsize::new(0),
         loaded: AtomicUsize::new(0),
         closed: AtomicUsize::new(0),
-        stage: Stage::Complete,
+        failing: Failing::Nothing,
     });
     let compiled = RunRyoUseCaseImpl::new(
         engine,
         Arc::new(WorkerFake::new(request())),
         Arc::new(CountingContext::default()),
     )
-    .compile()
-    .ok_or_else(|| "the session compiles nothing".to_owned())?;
+    .compile(&StoredRequest(std::path::PathBuf::from("request.json")))
+    .map_err(|error| error.to_string())?
+    .ok_or_else(|| "the session compiles nothing".to_owned())?
+    .0;
     Ok((
         compiled.len(),
         compiled.values().all(|elapsed| *elapsed > Duration::ZERO),

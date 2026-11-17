@@ -53,13 +53,15 @@ impl ExecutionPort for CompilingExecution {
     fn profile(&self) -> ExecutionProfile {
         self.inner.profile()
     }
-    fn compile(&self, _invocation: &Invocation) -> Option<BTreeMap<ryo::linter::RuleId, Duration>> {
-        Some(
-            self.compiled
-                .iter()
-                .map(|rule| (rule.clone(), Duration::from_millis(48)))
-                .collect(),
-        )
+    fn compile(
+        &self,
+        _invocation: &Invocation,
+    ) -> Option<Result<BTreeMap<ryo::linter::RuleId, Duration>, ReportsError>> {
+        Some(Ok(self
+            .compiled
+            .iter()
+            .map(|rule| (rule.clone(), Duration::from_millis(48)))
+            .collect()))
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, ReportsError> {
         self.inner.run(invocation)
@@ -95,7 +97,10 @@ fn subject(compiled: Input) -> Result<Value, Failure> {
         &crate::outbound::context::factory::local(),
         &reference,
         &candidate,
-        &execution,
+        crate::inbound::use_cases::verify_cases::types::Executions {
+            reference: &execution,
+            candidate: &execution,
+        },
         &crate::outbound::inventory::factory::local(),
         Path::new("rules"),
         suite.prepared.clone(),

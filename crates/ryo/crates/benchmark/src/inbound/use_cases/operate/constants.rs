@@ -1,11 +1,10 @@
 //! The command line vocabulary of the bench operations.
 /// What the operation commands take.
-pub const USAGE: &str = "usage: (verify-inventory [--shards <count>] | measure-valid | parity) <languages/<lang>/benchmarks/linters/<linter>>";
-/// The option of `verify-inventory` that verifies the inventory in that many shards at once.
-pub const SHARDS_OPTION: &str = "--shards";
-/// The refusal of a shard count on an operation other than `verify-inventory`.
-pub const SHARDS_ONLY_VERIFY_INVENTORY: &str = "--shards applies to verify-inventory only";
-/// The refusal when the operation failed.
+pub const USAGE: &str = "usage: bench <languages/<lang>/benchmarks/linters/<linter>>";
+/// The refusal of a reference tool whose bytes or version line are not the profile's.
+pub const REFERENCE_NOT_VERIFIED: &str =
+    "the reference tool is not the pinned one: its bytes or its version line differ";
+/// The refusal of a bench whose operation failed.
 pub const FAILED: &str = "the bench operation failed; see its output directory";
 /// How long one rule's whole worker may run before it is taken to be hung, in seconds; the per-case limit is the harness's
 /// `CASE_TIME_LIMIT`.

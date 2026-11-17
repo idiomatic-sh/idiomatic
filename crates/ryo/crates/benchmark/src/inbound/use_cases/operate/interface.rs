@@ -14,5 +14,6 @@ pub trait OperateUseCase {
         &self,
         request: &OperationRequest,
         output: &mut dyn std::io::Write,
+        observations: &mut dyn std::io::Write,
     ) -> Result<OperationReport, ReportsError>;
 }

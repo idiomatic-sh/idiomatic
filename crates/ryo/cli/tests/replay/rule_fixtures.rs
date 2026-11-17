@@ -78,7 +78,7 @@ pub(crate) fn check(rule: &str) {
             listed if listed.is_empty() => vec!["**".to_owned()],
             listed => listed,
         };
-        let mut each = crate::rule_from_query(rule, &query, &include);
+        let mut each = crate::tools::rule_from_query(rule, &query, &include);
         each.parameters = parameters_of(given);
         // A directory an entry excludes holds everything beneath it.
         each.exclude = words("exclude")
@@ -149,7 +149,7 @@ fn no_language_names_finds_what_its_scenarios_state() {
 /// The relation Tastemaker hosts for the crates it places.
 const PLACED: &str = "tastemaker.placed";
 
-/// The values a scenario binds the rule's params to, each as `base::parameter` binds a recording's: a value it cannot bind fails.
+/// The values a scenario binds the rule's params to, each as `base::parameter` binds it: a value it cannot bind fails.
 fn parameters_of(given: Option<&toml::Table>) -> Vec<RuleParameter> {
     let Some(params) = given
         .and_then(|given| given.get("params"))

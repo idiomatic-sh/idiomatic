@@ -7,5 +7,3 @@ mod schemas;
 #[path = "schemas_test.rs"]
 mod schemas_test;
 mod settings;
-#[cfg(test)]
-mod sharing;

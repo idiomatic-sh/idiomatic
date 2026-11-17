@@ -92,6 +92,7 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
         } else {
             Vec::new()
         },
+        ..Default::default()
     };
     let execution = ExecutionFake {
         status: 0,

@@ -48,7 +48,10 @@ fn verify(
         &context,
         reference,
         candidate,
-        execution,
+        crate::inbound::use_cases::verify_cases::types::Executions {
+            reference: execution,
+            candidate: execution,
+        },
         &inventory,
         &crate::outbound::evidence::fixtures::fake::EvidenceFake,
     )

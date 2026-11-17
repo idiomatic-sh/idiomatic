@@ -9,6 +9,8 @@ use ryo_benchmark_contracts::domain::hosts::types::{
 pub struct HostFake {
     /// What every question is answered with.
     pub facts: HostFacts,
+    /// The processors the process may run on: four, the count every bench is measured on, unless a row says otherwise.
+    pub processors: crate::outbound::host::types::ProcessorCount,
 }
 
 impl Default for HostFake {
@@ -20,6 +22,12 @@ impl Default for HostFake {
                 kernel: HostKernel::Native,
                 isolation: HostIsolation::Bare,
             },
+            processors: crate::outbound::host::types::ProcessorCount(
+                std::num::NonZeroUsize::new(
+                    ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS,
+                )
+                .unwrap_or(std::num::NonZeroUsize::MIN),
+            ),
         }
     }
 }
@@ -27,6 +35,9 @@ impl Default for HostFake {
 impl HostPort for HostFake {
     fn facts(&self) -> HostFacts {
         self.facts
+    }
+    fn processors(&self) -> crate::outbound::host::types::ProcessorCount {
+        self.processors
     }
 }
 #[cfg(test)]

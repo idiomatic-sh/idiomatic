@@ -3,7 +3,7 @@
 //! process's own CPU time: a busy host moves it far less than wall time); every workload runs with `-q` so that stdout
 //! carries nothing else. Asymptote's `perf` group judges it against the ratchet, the bench asserts no budget. A setup or
 //! a run that fails panics, which fails the bench, as does a workload with no rounds or an unwritable stdout. What ryo
-//! costs over ruff is the other entry, `benches/lint.rs`.
+//! costs over each language's projects is the language benches' (`ryo-benchmark-collector bench`).
 //!
 //! Run it with `cargo bench --locked -p idiomatic-sh-ryo --bench commands`.
 

@@ -1,8 +1,6 @@
 //! Certification of a measure invocation: what it names, what it stages, which contestant it builds and what it reports.
 use super::constants;
-use super::constants::{
-    CANONICAL_BENCHMARK_REQUIRES_EXPLI, CASE_INVENTORY, REGISTERED_CASE_RESULTS,
-};
+use super::constants::{CANONICAL_BENCHMARK_REQUIRES_EXPLI, REGISTERED_CASE_RESULTS};
 use super::locations;
 use ryo_benchmark::domain::command_line::types::{BenchmarkArgument, Selection};
 use ryo_benchmark::domain::suite::types::audit::value::Audit;
@@ -12,6 +10,7 @@ use ryo_benchmark::inbound::use_cases::stage_suite::{
 use ryo_benchmark::outbound::suite::interface::SuitePort;
 use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactText};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::constants::CASE_INVENTORY_ARGUMENT;
 use ryo_benchmark_contracts::domain::requests::types::{
     BenchmarkCoverage, CertificationCases, RegisteredCoverage,
 };
@@ -67,7 +66,7 @@ fn registered_cases(
     suite_source: &Arc<dyn SuitePort>,
 ) -> Result<CertificationCases, Error> {
     let input = inventory
-        .and_then(|s| s.0.strip_prefix(CASE_INVENTORY))
+        .and_then(|s| s.0.strip_prefix(CASE_INVENTORY_ARGUMENT))
         .filter(|s| !s.is_empty())
         .ok_or_else(|| Error::Invalid(CANONICAL_BENCHMARK_REQUIRES_EXPLI.into()))?;
     Ok(CertificationCases::Registered {

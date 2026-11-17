@@ -293,3 +293,48 @@ pub(crate) fn skip_problems(
     }
     problems
 }
+
+/// Judge one measured pair rule by rule: `located` holds the selected rules' comparisons first, one for each of `selected`, then
+/// the rules outside the selection. Every unaccepted or stale difference of a selected rule, every finding outside the
+/// selection the rejected-syntax rule does not explain, and every unexplained skip is a problem.
+#[must_use]
+pub(crate) fn judge(
+    located: &[ryo_benchmark_contracts::domain::reports::types::RuleComparison<
+        ryo_benchmark_contracts::domain::reports::types::LocatedFinding,
+    >],
+    selected: &[ryo::linter::RuleId],
+    accepted: &AdmittedDifferences,
+    reports: [&ryo_benchmark_contracts::domain::reports::types::RunReport; 2],
+    syntax: &ryo::linter::RuleId,
+) -> Vec<ParityProblem> {
+    use ryo_benchmark_contracts::domain::reports::types::{
+        DifferenceSide, FindingCount, LocatedDifference, LocatedFinding,
+    };
+    let (rules, outside) = located.split_at(selected.len().min(located.len()));
+    let differences = |side: DifferenceSide, findings: &[LocatedFinding]| {
+        findings
+            .iter()
+            .map(|finding| LocatedDifference {
+                side,
+                file: finding.file.clone(),
+                start: finding.start,
+            })
+            .collect::<Vec<_>>()
+    };
+    let observed: Vec<_> = rules
+        .iter()
+        .map(|rule| ObservedDifferences {
+            rule: rule.rule.clone(),
+            differences: differences(DifferenceSide::Missing, &rule.missing)
+                .into_iter()
+                .chain(differences(DifferenceSide::Extra, &rule.extra))
+                .collect(),
+            end_differences: FindingCount(rule.end_differences.len()),
+        })
+        .collect();
+    let [reference, candidate] = reports;
+    let mut problems = corpus_problems(&observed, accepted);
+    problems.extend(outside_problems(outside, syntax));
+    problems.extend(skip_problems(reference, candidate, syntax));
+    problems
+}

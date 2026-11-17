@@ -29,7 +29,10 @@ fn verify(
         &context,
         reference,
         candidate,
-        execution,
+        ryo_benchmark::inbound::use_cases::verify_cases::types::Executions {
+            reference: execution,
+            candidate: execution,
+        },
         &inventory,
         &ryo_benchmark::outbound::evidence::fixtures::fake::EvidenceFake,
     )

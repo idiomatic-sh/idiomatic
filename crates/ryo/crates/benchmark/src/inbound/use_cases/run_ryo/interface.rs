@@ -7,9 +7,4 @@ pub trait RunRyoUseCase {
     /// # Errors
     /// Propagates receive, engine and response failures without publishing a clean result.
     fn run_ryo(&self) -> Result<(), Error>;
-    /// Receive and configure the request as a run does, and compile its rules ahead of the run, answering the time each took;
-    /// none when the request cannot be received or its engine compiles inside the run.
-    fn compile(
-        &self,
-    ) -> Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>>;
 }

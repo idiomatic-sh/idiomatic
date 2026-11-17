@@ -1,30 +1,34 @@
-//! Every project is measured in both orders and compared cold, retained and edited.
+//! Every project is measured in both orders, cold, retained and edited; each pair is judged rule by rule against the
+//! reference, and the candidate's costs, the verification times and the growth are the bench's one document.
 use super::constants::{
-    CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY,
-    COHORT_OUTSIDE_CERTIFICATE, EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, FINDING_SEPARATOR,
-    ONE_FINDING, PATH_SEPARATOR, REFERENCE_EDITED, REFERENCE_FIRST, REFERENCE_RETAINED,
-    RETAINED_CACHE_CONDITION, RETAINED_DIRECTORY, TRIAL_PREFIX, TRIALS,
+    CANDIDATE_EDITED, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY, COHORT_OUTSIDE_CERTIFICATE,
+    EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, GROWTH_INCOMPLETE, NO_SOURCE, NOT_COMPLETE,
+    PATH_SEPARATOR, REFERENCE_EDITED, REFERENCE_RETAINED, RETAINED_CACHE_CONDITION,
+    RETAINED_DIRECTORY, SCENES_DIRECTORY, TRIAL_PREFIX, TRIALS,
 };
-use super::types::{
-    ComparisonName, CorpusBoundaries, CorpusMeasurement, FindingCounts, SourceProfile,
+use super::types::{ComparisonName, CorpusBoundaries, CorpusMeasurement};
+use crate::application::certified_measurement::service::{
+    accepted_file, admitted, judged, measured, own,
 };
-use crate::application::certified_measurement::service::{admit, conclude, pair, require_covered};
-use crate::application::measurement::service::run as execute;
+use crate::application::certified_measurement::types::{Certification, JudgedRules, Strictness};
+use crate::application::measurement::service::{
+    cost as measurement_cost, finding_counts, observe, run as execute,
+};
+use crate::application::project_request::service::request;
 use crate::application::project_request::types::ProjectCorpus;
-use crate::domain::measurements::types::{pair::value::Pair, sample::value::BenchmarkSample};
+use crate::domain::discrepancy::types::Contestant;
+use crate::domain::measurements::types::MeasurementEligibility;
 use crate::domain::source_validity::constants::PREFLIGHT_DIRECTORY;
-use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet, ArtifactText};
-use ryo_benchmark_contracts::domain::measurements::types::{
-    Measurement, ResourceObservation, RunOrder, SampleName,
-};
+use ryo_benchmark_contracts::domain::costs::types::{ProjectCost, ProjectCosts, StoreSize};
+use ryo_benchmark_contracts::domain::measurements::types::{Measurement, RunOrder};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::{
-    BenchmarkCoverage, CohortSelection, RunRequest,
+    CohortSelection, RunRequest, WorkerRequest,
 };
 use ryo_benchmark_contracts::domain::workloads::types::Project;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Refuse a cohort outside the certificate, measure every project of the corpus, then publish the samples of an accounted run or say that a diagnostic one is not a metric.
 pub(super) fn measure_corpus(
@@ -32,6 +36,7 @@ pub(super) fn measure_corpus(
     corpus: &CorpusMeasurement<'_>,
     observations: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
+    let contestants = boundaries.contestants;
     let covered = corpus.certificate.coverage.authored();
     if let CohortSelection::Explicit(rules) = corpus.cohort
         && !rules.iter().all(|rule| covered.contains(rule))
@@ -43,16 +48,16 @@ pub(super) fn measure_corpus(
         CohortSelection::Frozen => covered.iter().cloned().collect(),
     };
     crate::application::input_metadata::service::admit_rules(
-        boundaries.suite,
+        contestants.suite,
         boundaries.host,
         corpus.bench,
         &selected,
     )?;
-    let mut samples = Vec::new();
+    let mut costs = Vec::new();
     let mut failures = Vec::new();
     for project in &corpus.projects {
-        match measure_project(boundaries, corpus, project, observations) {
-            Ok(observed) => samples.extend(observed),
+        match measure_project(boundaries, corpus, project, &selected, observations) {
+            Ok(cost) => costs.push(cost),
             Err(error) => {
                 writeln!(
                     observations,
@@ -63,33 +68,87 @@ pub(super) fn measure_corpus(
             }
         }
     }
-    // The evidence boundary refuses an empty observation set; never bypass that guard.
-    if corpus.scope == BenchmarkCoverage::Accounted {
-        crate::application::publication::service::publish(boundaries.evidence, &samples)?;
-    } else {
-        writeln!(
-            observations,
-            "diagnostic-only: scoped samples are not benchmark metrics"
-        )?;
+    if !failures.is_empty() {
+        return Err(Error::Invalid(format!(
+            "corpus comparisons failed: {failures:?}"
+        )));
     }
-    if failures.is_empty() {
+    let evidence = boundaries.evidence;
+    evidence.costs(corpus.language.id, &ProjectCosts(costs))?;
+    let timings = evidence.read_verification(
+        &crate::application::inventory_verification::service::times_files(
+            corpus.verification.directory,
+            corpus.verification.rules,
+        ),
+    )?;
+    if !timings.0.is_empty() {
+        evidence.verification(corpus.language.id, &timings)?;
+    }
+    if let crate::domain::growth::types::CorpusGrowth::Grown(source) = corpus.growth {
+        let scenes = contestants
+            .suite
+            .ensure_directory(ArtifactPath(&corpus.cache.join(SCENES_DIRECTORY)))?;
+        let plan = crate::application::growth::service::plan(contestants.suite, source)?;
+        let lint = |request: &WorkerRequest| lint(boundaries.engine, request);
+        let grown = crate::application::growth::service::grow(
+            &lint,
+            contestants.suite,
+            boundaries.meter,
+            ArtifactPath(&scenes),
+            &plan,
+        )?;
+        evidence.growth(corpus.language.id, &grown)?;
+    }
+    evidence.finish()
+}
+
+/// One growth lint, as the worker runs a request: prepare, load, configure and execute; refused unless it completes.
+fn lint(
+    engine: &dyn crate::outbound::engine::interface::EnginePort,
+    request: &WorkerRequest,
+) -> Result<(), Error> {
+    let prepared = crate::application::worker_request::service::prepare(request.clone())?;
+    let session = engine.load(&prepared.request)?;
+    let configured =
+        crate::application::worker_request::service::configure(&prepared.request, session)?;
+    if configured.execute()?.report.execution_metadata
+        == ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete
+    {
         Ok(())
     } else {
-        Err(Error::Invalid(format!(
-            "corpus comparisons failed: {failures:?}"
-        )))
+        Err(Error::Invalid(GROWTH_INCOMPLETE.into()))
     }
 }
 
-/// Measure one project in both orders, cold, retained and edited, and write what was observed.
+/// Measure one project in both orders, cold, retained and edited; judge every pair against the reference; and give the
+/// candidate's cost.
 fn measure_project(
     boundaries: &CorpusBoundaries<'_>,
     corpus: &CorpusMeasurement<'_>,
     project: &Project,
+    selected: &[ryo::linter::RuleId],
     observations: &mut dyn std::io::Write,
-) -> Result<Vec<BenchmarkSample>, Error> {
+) -> Result<ProjectCost, Error> {
     let language = &corpus.language;
-    let mut project_samples = Vec::new();
+    let contestants = boundaries.contestants;
+    let certified = Certification {
+        certificate: corpus.certificate,
+        mode: corpus.mode,
+    };
+    let rules = JudgedRules {
+        selected,
+        syntax: language.invalid_syntax,
+    };
+    let project_corpus = ProjectCorpus {
+        cohort: corpus.cohort,
+        rule_context: corpus.rule_context,
+        search_roots: corpus.search_roots,
+        context_mode: corpus.context_mode,
+    };
+    let measure = |linter: &dyn crate::outbound::linter::interface::LinterPort,
+                   request: &RunRequest| {
+        execute(contestants.context, linter, contestants.execution, request)
+    };
     let mut workspace = boundaries.workspace.prepare(project)?;
     let discovered = boundaries.discovery.files(workspace.root())?;
     let (mut files, excluded): (Vec<_>, Vec<_>) = discovered.into_iter().partition(|file| {
@@ -123,51 +182,52 @@ fn measure_project(
             language.reference_display.0
         )));
     }
-    if corpus.profile == SourceProfile::Valid {
-        let preflight = request(
-            boundaries,
-            corpus,
-            workspace.root(),
-            &files,
-            &tracked_paths,
-            corpus.cache.join(PREFLIGHT_DIRECTORY).join(&project.name.0),
+    let preflight = request(
+        contestants.context,
+        &project_corpus,
+        workspace.root(),
+        &files,
+        &tracked_paths,
+        corpus.cache.join(PREFLIGHT_DIRECTORY).join(&project.name.0),
+    )?;
+    let parsed = measure(contestants.reference, &preflight)?;
+    let refused = crate::domain::source_validity::service::exclude_refused(
+        &parsed.report,
+        language.invalid_syntax,
+        &mut files,
+    );
+    for finding in &refused {
+        writeln!(
+            observations,
+            "{}: excluded invalid {} (pinned {} parser), path={} range={}..{}; frontend parser capability gap",
+            project.name,
+            language.display.0,
+            language.reference_display.0,
+            finding.file.0,
+            finding.start.0,
+            finding.end.0
         )?;
-        let parsed = run_linter(boundaries, boundaries.reference, &preflight)?;
-        let refused = crate::domain::source_validity::service::exclude_refused(
-            &parsed.report,
-            language.invalid_syntax,
-            &mut files,
-        );
-        for finding in &refused {
-            writeln!(
-                observations,
-                "{}: excluded invalid {} (pinned {} parser), path={} range={}..{}; frontend parser capability gap",
-                project.name,
-                language.display.0,
-                language.reference_display.0,
-                finding.file.0,
-                finding.start.0,
-                finding.end.0
-            )?;
-        }
+    }
+    // A project with nothing left to lint would pass every comparison and measure nothing.
+    if files.is_empty() {
+        return Err(Error::Invalid(NO_SOURCE.into()));
     }
     let paths: Vec<_> = files
         .iter()
         .map(|file| workspace.root().join(file.0.as_ref()))
         .collect();
-    let bytes = boundaries.suite.total_size(ArtifactSet(&paths))?.0;
+    let bytes = contestants.suite.total_size(ArtifactSet(&paths))?.0;
     writeln!(
         observations,
         "{}: measured source files={} bytes={bytes} digest={} input-profile={}",
         project.name,
         files.len(),
-        boundaries.suite.fingerprint(ArtifactSet(&paths))?,
-        if corpus.profile == SourceProfile::Valid {
-            language.valid_profile.0
-        } else {
-            language.full_profile.0
-        }
+        contestants.suite.fingerprint(ArtifactSet(&paths))?,
+        language.valid_profile.0
     )?;
+    let accepted_file = accepted_file(contestants.suite, corpus.bench, project)?;
+    let mut runs: [Vec<Measurement>; 3] = Default::default();
+    let mut store = None;
     for order in [RunOrder::ReferenceFirst, RunOrder::CandidateFirst]
         .into_iter()
         .cycle()
@@ -175,26 +235,47 @@ fn measure_project(
     {
         // A new owned directory makes both retained and clean baselines fresh,
         // even if an earlier trial left caches behind in the caller's root.
-        let trial = boundaries
+        let trial = contestants
             .suite
             .retained_directory(ArtifactPath(corpus.cache), ArtifactText(TRIAL_PREFIX))?
             .0;
         let initial = request(
-            boundaries,
-            corpus,
+            contestants.context,
+            &project_corpus,
             workspace.root(),
             &files,
             &tracked_paths,
             trial.join(RETAINED_DIRECTORY),
         )?;
-        let cold = measured(boundaries, corpus, &initial, order)?;
+        let accepted = admitted(
+            contestants.suite,
+            accepted_file.as_deref(),
+            &initial,
+            Strictness::Pinned,
+        )?;
+        let cold = measured(contestants, certified, &initial, order, &measure)?;
+        if store.is_none() {
+            store = Some(
+                contestants
+                    .suite
+                    .directory_size(ArtifactPath(&own(&initial, Contestant::Candidate).state))?,
+            );
+        }
         writeln!(
             observations,
             "{}: exact matching findings per rule: {}",
             project.name,
             finding_counts(&cold.reference().report)
         )?;
-        let retained = measured(boundaries, corpus, &initial, order)?;
+        judged(
+            contestants.suite,
+            &initial,
+            rules,
+            &accepted,
+            &cold,
+            observations,
+        )?;
+        let retained = measured(contestants, certified, &initial, order, &measure)?;
         agree(
             ComparisonName(REFERENCE_RETAINED),
             &cold.reference().report,
@@ -205,12 +286,20 @@ fn measure_project(
             &cold.candidate().report,
             &retained.candidate().report,
         )?;
+        judged(
+            contestants.suite,
+            &initial,
+            rules,
+            &accepted,
+            &retained,
+            observations,
+        )?;
         boundaries
             .workspace
             .apply_patch(&mut workspace, &corpus.frozen_workload.join(&project.patch))?;
         let edited_request = request(
-            boundaries,
-            corpus,
+            contestants.context,
+            &project_corpus,
             workspace.root(),
             &files,
             &tracked_paths,
@@ -220,9 +309,21 @@ fn measure_project(
             state: trial.join(CLEAN_EDITED_DIRECTORY),
             ..edited_request.clone()
         };
-        let edited = measured(boundaries, corpus, &edited_request, order);
-        let clean_reference = run_linter(boundaries, boundaries.reference, &clean_request);
-        let clean_candidate = run_linter(boundaries, boundaries.candidate, &clean_request);
+        let edited = measured(contestants, certified, &edited_request, order, &measure);
+        let clean_reference = measure(
+            contestants.reference,
+            &own(&clean_request, Contestant::Reference),
+        );
+        let clean_candidate = measure(
+            contestants.candidate,
+            &own(&clean_request, Contestant::Candidate),
+        );
+        let edited_accepted = admitted(
+            contestants.suite,
+            accepted_file.as_deref(),
+            &edited_request,
+            Strictness::WhereNamed,
+        );
         boundaries.workspace.reset(&mut workspace)?;
         let edited = edited?;
         agree(
@@ -235,147 +336,63 @@ fn measure_project(
             &edited.candidate().report,
             &clean_candidate?.report,
         )?;
-        for (condition, measured_pair) in [
+        judged(
+            contestants.suite,
+            &edited_request,
+            rules,
+            &edited_accepted?,
+            &edited,
+            observations,
+        )?;
+        for ((condition, measured_pair), condition_runs) in [
             (EMPTY_CACHE_CONDITION, cold),
             (RETAINED_CACHE_CONDITION, retained),
             (EDITED_CACHE_CONDITION, edited),
-        ] {
-            let contestants = [
-                language.reference_name.0,
-                ryo_benchmark_contracts::domain::reports::constants::CANDIDATE_NAME,
-            ];
-            let named = measured_pair.samples(contestants.map(|contestant| {
-                SampleName(format!("{}/{contestant}/{condition}", project.name))
-            }));
-            for (contestant, sample) in contestants.into_iter().zip(named) {
+        ]
+        .into_iter()
+        .zip(&mut runs)
+        {
+            if measured_pair.eligibility() != MeasurementEligibility::CompleteInventory {
+                return Err(Error::Invalid(NOT_COMPLETE.into()));
+            }
+            for (contestant, measurement) in [
+                (language.reference_display.0, measured_pair.reference()),
+                (
+                    ryo_benchmark_contracts::domain::reports::constants::CANDIDATE_NAME,
+                    measured_pair.candidate(),
+                ),
+            ] {
                 writeln!(
                     observations,
                     "findings: project={} contestant={contestant} condition={condition} counts={}",
                     project.name,
-                    finding_counts(&sample.measurement().report)
+                    finding_counts(&measurement.report)
                 )?;
-                observe_sample(observations, &sample, order)?;
-                project_samples.push(sample);
+                observe(
+                    observations,
+                    &ryo_benchmark_contracts::domain::measurements::types::SampleName(format!(
+                        "{}/{contestant}/{condition}",
+                        project.name
+                    )),
+                    measurement,
+                    order,
+                )?;
             }
+            condition_runs.push(measured_pair.candidate().clone());
         }
     }
-    Ok(project_samples)
+    let [cold, warm, edited] = runs;
+    Ok(ProjectCost {
+        project: project.name.clone(),
+        cold: measurement_cost(&cold)?,
+        warm: measurement_cost(&warm)?,
+        edited: measurement_cost(&edited)?,
+        store: store.unwrap_or(StoreSize::default()),
+    })
 }
 
 /// Require two reports to agree in full, naming what was compared when they differ.
 fn agree(what: ComparisonName, first: &RunReport, second: &RunReport) -> Result<(), Error> {
     crate::domain::diagnostics::service::compare_conditions(first, second)
         .map_err(|difference| Error::Invalid(format!("{} mismatch: {difference:?}", what.0)))
-}
-
-/// Run one linter over the request through the shared measurement.
-fn run_linter(
-    boundaries: &CorpusBoundaries<'_>,
-    linter: &dyn LinterPort,
-    request: &RunRequest,
-) -> Result<Measurement, Error> {
-    execute(boundaries.context, linter, boundaries.execution, request)
-}
-
-/// Both contestants measured under the certificate, in the requested order.
-fn measured(
-    boundaries: &CorpusBoundaries<'_>,
-    corpus: &CorpusMeasurement<'_>,
-    request: &RunRequest,
-    order: RunOrder,
-) -> Result<Pair, Error> {
-    let baseline = admit(
-        corpus.certificate,
-        corpus.mode,
-        boundaries.suite,
-        boundaries.execution,
-        boundaries.reference,
-        boundaries.candidate,
-        request,
-    )?;
-    require_covered(corpus.certificate)?;
-    let (reference, candidate) = match order {
-        RunOrder::ReferenceFirst => (
-            run_linter(boundaries, boundaries.reference, request)?,
-            run_linter(boundaries, boundaries.candidate, request)?,
-        ),
-        RunOrder::CandidateFirst => {
-            let candidate = run_linter(boundaries, boundaries.candidate, request)?;
-            (
-                run_linter(boundaries, boundaries.reference, request)?,
-                candidate,
-            )
-        }
-    };
-    let measured_pair = pair(boundaries.evidence, reference, candidate)?;
-    conclude(
-        corpus.certificate,
-        corpus.mode,
-        boundaries.suite,
-        boundaries.execution,
-        &baseline,
-        measured_pair,
-    )
-}
-
-/// One run of the corpus project over its explicit files, built by the one project request builder.
-fn request(
-    boundaries: &CorpusBoundaries<'_>,
-    corpus: &CorpusMeasurement<'_>,
-    root: &Path,
-    files: &[ryo::linter::RelativePath],
-    tracked: &[PathBuf],
-    state: PathBuf,
-) -> Result<RunRequest, Error> {
-    crate::application::project_request::service::request(
-        boundaries.context,
-        &ProjectCorpus {
-            cohort: corpus.cohort,
-            rule_context: corpus.rule_context,
-            search_roots: corpus.search_roots,
-            context_mode: corpus.context_mode,
-        },
-        root,
-        files,
-        tracked,
-        state,
-    )
-}
-
-/// Count the findings of each rule, duplicates included.
-fn finding_counts(report: &RunReport) -> FindingCounts<'_> {
-    let mut counts = std::collections::BTreeMap::new();
-    for diagnostic in &report.diagnostics {
-        *counts.entry(&diagnostic.rule).or_insert(0_usize) += ONE_FINDING;
-    }
-    FindingCounts(counts)
-}
-
-/// Write scalar child measurements and the explicit execution order.
-fn observe_sample(
-    output: &mut dyn std::io::Write,
-    sample: &BenchmarkSample,
-    order: RunOrder,
-) -> Result<(), Error> {
-    let order = match order {
-        RunOrder::ReferenceFirst => REFERENCE_FIRST,
-        RunOrder::CandidateFirst => CANDIDATE_FIRST,
-    };
-    match sample.measurement().resources {
-        ResourceObservation::Collected(resources) => writeln!(
-            output,
-            "sample: name={} order={order} wall_seconds={} cpu_seconds={} rss_bytes={}",
-            sample.name().0,
-            sample.measurement().wall.as_secs_f64(),
-            resources.cpu.as_secs_f64(),
-            resources.peak_rss_bytes.0
-        )?,
-        ResourceObservation::WallOnly => writeln!(
-            output,
-            "sample: name={} order={order} wall_seconds={} resources=absent",
-            sample.name().0,
-            sample.measurement().wall.as_secs_f64()
-        )?,
-    }
-    Ok(())
 }

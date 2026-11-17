@@ -1,12 +1,17 @@
 //! Preparation and decoding are deliberately outside the measured interval.
 use super::constants;
+use super::types::FindingCounts;
 use crate::domain::diagnostics::service::validate_coverage;
 use crate::domain::rule_context::service::admit_configuration;
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::interface::LinterPort;
-use ryo_benchmark_contracts::domain::measurements::types::Measurement;
+use ryo_benchmark_contracts::domain::costs::types::RunCost;
+use ryo_benchmark_contracts::domain::measurements::types::{
+    Measurement, ResourceObservation, RunOrder,
+};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::{
     ContextSeal, FileMetadataDeclaration, RunRequest,
 };
@@ -22,27 +27,6 @@ pub fn run(
     execution: &dyn ExecutionPort,
     request: &RunRequest,
 ) -> Result<Measurement, Error> {
-    run_with(
-        context,
-        linter,
-        execution,
-        request,
-        super::types::Pinning::Timed,
-    )
-}
-
-/// Run as `run` does, keeping the thread pin the linter sets for comparable timing only for a timed
-/// run; an untimed run drops that one variable, so the child runs at its default threads.
-///
-/// # Errors
-/// As `run`.
-pub(crate) fn run_with(
-    context: &dyn ContextPort,
-    linter: &dyn LinterPort,
-    execution: &dyn ExecutionPort,
-    request: &RunRequest,
-    pinning: super::types::Pinning,
-) -> Result<Measurement, Error> {
     if request.file_metadata != FileMetadataDeclaration::Undeclared {
         return Err(Error::Invalid(
             constants::DECLARED_FILE_OBSERVATIONS_REQUIRE_VERIFICAT.into(),
@@ -52,12 +36,7 @@ pub(crate) fn run_with(
         context.validate(manifest, &request.root)?;
     }
     admit_configuration(request, linter.rule_configuration())?;
-    let mut invocation = linter.prepare(request)?;
-    if pinning == super::types::Pinning::Untimed {
-        let _pin = invocation.environment.remove(std::ffi::OsStr::new(
-            ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN,
-        ));
-    }
+    let invocation = linter.prepare(request)?;
     let output = execution.run(invocation)?;
     let wall = output.wall;
     let resources = output.resources;
@@ -75,4 +54,67 @@ pub(crate) fn run_with(
         resources,
         report,
     })
+}
+
+/// The candidate's CPU, wall and peak of one condition across the trials.
+///
+/// # Errors
+/// Refuses a run whose resources were not collected.
+pub(crate) fn cost(runs: &[Measurement]) -> Result<RunCost, Error> {
+    let mut cost = RunCost {
+        cpu: Vec::new(),
+        wall: Vec::new(),
+        peak: Vec::new(),
+    };
+    for run in runs {
+        let ResourceObservation::Collected(resources) = run.resources else {
+            return Err(Error::Invalid(constants::NO_RESOURCES.into()));
+        };
+        cost.cpu.push(resources.cpu);
+        cost.wall.push(run.wall);
+        cost.peak.push(resources.peak_rss_bytes);
+    }
+    Ok(cost)
+}
+
+/// Count the findings of each rule, duplicates included.
+pub(crate) fn finding_counts(report: &RunReport) -> FindingCounts<'_> {
+    let mut counts = std::collections::BTreeMap::new();
+    for diagnostic in &report.diagnostics {
+        *counts.entry(&diagnostic.rule).or_insert(0_usize) += constants::ONE_FINDING;
+    }
+    FindingCounts(counts)
+}
+
+/// Write one run's scalar measurements and the explicit execution order.
+///
+/// # Errors
+/// A write the observations stream refuses.
+pub(crate) fn observe(
+    output: &mut dyn std::io::Write,
+    name: &ryo_benchmark_contracts::domain::measurements::types::SampleName,
+    measurement: &Measurement,
+    order: RunOrder,
+) -> Result<(), Error> {
+    let order = match order {
+        RunOrder::ReferenceFirst => constants::REFERENCE_FIRST,
+        RunOrder::CandidateFirst => constants::CANDIDATE_FIRST,
+    };
+    match measurement.resources {
+        ResourceObservation::Collected(resources) => writeln!(
+            output,
+            "sample: name={} order={order} wall_seconds={} cpu_seconds={} rss_bytes={}",
+            name.0,
+            measurement.wall.as_secs_f64(),
+            resources.cpu.as_secs_f64(),
+            resources.peak_rss_bytes.0
+        )?,
+        ResourceObservation::WallOnly => writeln!(
+            output,
+            "sample: name={} order={order} wall_seconds={} resources=absent",
+            name.0,
+            measurement.wall.as_secs_f64()
+        )?,
+    }
+    Ok(())
 }

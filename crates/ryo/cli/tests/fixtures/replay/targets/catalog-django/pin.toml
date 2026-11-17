@@ -1,6 +1,0 @@
-# Real production package sources, at the existing Python benchmark's exact pin.
-# Replayed without the benchmark's injected source edit or local fixture generation.
-# Sparse catalog witnesses and their invariants retain real file/source identities.
-repository = "https://github.com/django/django.git"
-revision = "36b5f39d9372147f0e758f590e35ee2b2bc317dd"
-directory = "."

@@ -5,6 +5,7 @@ pub mod evidence;
 pub mod execution;
 pub mod host;
 pub mod linter;
+pub mod process_meter;
 pub mod profile_tools;
 pub mod receipts;
 pub mod scheduler;

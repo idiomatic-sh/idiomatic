@@ -4,12 +4,9 @@ use std::path::PathBuf;
 /// One gated operation of a linter bench.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BenchOperation {
-    /// Every default verified against its registered cases (`verify-inventory`).
-    Correctness,
-    /// Both contestants certified, then measured on the language's projects (`measure-valid`).
-    Measure,
-    /// Both contestants compared rule by rule on the language's projects (`parity`).
-    Parity,
+    /// Every default verified against its cases, then the language's projects linted by both contestants, compared and
+    /// measured, and the rules grown, as one document (`bench`).
+    Bench,
 }
 
 /// The collector verb that names an operation.

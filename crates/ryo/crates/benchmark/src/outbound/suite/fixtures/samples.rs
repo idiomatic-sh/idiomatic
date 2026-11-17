@@ -101,3 +101,39 @@ pub fn tool() -> ryo_benchmark_contracts::domain::workloads::types::Tool {
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     }
 }
+
+/// A store below `root`: `one.bin` of 3 bytes and `nested/two.bin` of 7.
+///
+/// # Errors
+/// Refuses a root that cannot hold it.
+pub fn store(root: &std::path::Path) -> std::io::Result<std::path::PathBuf> {
+    let store = root.join("store");
+    std::fs::create_dir_all(store.join("nested"))?;
+    std::fs::write(store.join("one.bin"), b"abc")?;
+    std::fs::write(store.join("nested/two.bin"), b"abcdefg")?;
+    Ok(store)
+}
+
+/// How the contract classifies a refusal: a missing artifact, or anything else.
+pub(super) fn classify(
+    error: ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+) -> Refusal {
+    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+    match error {
+        Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Refusal::MissingArtifact
+        }
+        Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => Refusal::Unexpected,
+    }
+}
+
+/// How the contract tells refusals apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Refusal {
+    /// Anything but a missing artifact.
+    Unexpected,
+    /// The artifact is missing.
+    MissingArtifact,
+    /// The adapter refused the request.
+    Refused,
+}

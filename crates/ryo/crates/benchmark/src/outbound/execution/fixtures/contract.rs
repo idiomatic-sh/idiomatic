@@ -190,6 +190,20 @@ fn missing() -> Invocation {
         directory: PathBuf::from("."),
     }
 }
+/// The promise every execution keeps, whether or not it launches children: `child`, an invocation that is no worker
+/// request, compiles no rule ahead.
+///
+/// # Panics
+///
+/// Panics when the implementation breaks it.
+pub fn check_with(adapter: &impl ExecutionPort, child: &Invocation) {
+    assert!(
+        adapter
+            .compile(child)
+            .is_none_or(|compiled| compiled.is_ok_and(|times| times.is_empty())),
+        "an invocation that is no worker request compiles no rule"
+    );
+}
 /// Run the shared observations against the supplied implementation.
 ///
 /// # Panics
@@ -200,12 +214,7 @@ fn missing() -> Invocation {
     reason = "fixture setup failures must fail the contract test"
 )]
 pub fn check(adapter: &impl ExecutionPort) {
-    assert!(
-        adapter
-            .compile(&invocation())
-            .is_none_or(|compiled| compiled.is_empty()),
-        "an invocation that is no worker request compiles no rule"
-    );
+    check_with(adapter, &invocation());
     let subject = |input| {
         let profile = adapter.profile();
         let mode = adapter.exit_observation();

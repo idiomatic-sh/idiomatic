@@ -1,15 +1,15 @@
 //! Receive, engine and response failures stop the pipeline at the failed boundary.
-use super::fixtures::{CountingContext, sealed_request};
+use super::fixtures::{CountingContext, Engine, Failing, ForwardingPort, report, sealed_request};
 use super::{interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::engine::types::loaded_engine_session::value::EngineExecution;
+use crate::outbound::execution::types::{InProcessWorker, StoredRequest};
+use crate::outbound::worker::interface::WorkerPort as _;
 use crate::outbound::{
     engine::interface::EnginePort,
     worker::fixtures::{data::request, fake::WorkerFake},
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
@@ -25,6 +25,10 @@ enum Stage {
     Configure,
     Respond,
     Sealed,
+    /// The request run in the bench's own process: the use case as the in-process worker.
+    InProcess,
+    /// The request compiled ahead in the bench's own process, the engine refusing it.
+    Uncompiled,
 }
 type Input = Stage;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,6 +51,7 @@ enum Refusal {
     Configure(Trace),
     Respond(Trace),
     Association(Trace),
+    Compile(Trace),
     Unexpected,
 }
 type Failure = Refusal;
@@ -179,132 +184,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             seam: (0, 0, false),
         })),
     },
+    Case {
+        name: CaseName("run in the bench's own process the request answers the encoded report"),
+        word: Word::Succeeds,
+        input: || Stage::InProcess,
+        expect: Expect::Value(Trace {
+            received: 0,
+            loaded: 1,
+            closed: 1,
+            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            responded: 0,
+            published: true,
+            seam: (0, 0, false),
+        }),
+    },
+    Case {
+        name: CaseName(
+            "an engine that refuses to compile a request ahead refuses the in-process compile",
+        ),
+        word: Word::Fails,
+        input: || Stage::Uncompiled,
+        expect: Expect::Error(Refusal::Compile(Trace {
+            received: 0,
+            loaded: 1,
+            closed: 1,
+            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+            responded: 0,
+            published: false,
+            seam: (0, 0, false),
+        })),
+    },
 ];
-#[derive(Debug)]
-struct Engine {
-    calls: AtomicUsize,
-    loaded: AtomicUsize,
-    closed: AtomicUsize,
-    stage: Stage,
-}
-struct Session<'a> {
-    engine: &'a Engine,
-    request: &'a WorkerRequest,
-}
-impl Drop for Session<'_> {
-    fn drop(&mut self) {
-        self.engine.closed.fetch_add(1, Ordering::SeqCst);
-    }
-}
-impl EnginePort for Engine {
-    fn load<'a>(
-        &'a self,
-        request: &'a WorkerRequest,
-    ) -> Result<
-        crate::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession<'a>,
-        Error,
-    > {
-        self.loaded.fetch_add(1, Ordering::SeqCst);
-        if matches!(self.stage, Stage::Load) {
-            return Err(Error::Invalid("fixture load failure".into()));
-        }
-        let rules = if matches!(self.stage, Stage::Configure) {
-            Default::default()
-        } else {
-            crate::outbound::engine::fixtures::fake::loaded_rules(request)?
-        };
-        Ok(
-            crate::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession::new(
-                request,
-                rules,
-                None,
-                Box::new(Session {
-                    engine: self,
-                    request,
-                }),
-            ),
-        )
-    }
-}
-impl EngineExecution for Session<'_> {
-    fn compile(
-        &self,
-        rules: &std::collections::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>,
-        _configured: &crate::outbound::engine::types::EngineConfiguration,
-    ) -> Option<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>> {
-        Some(
-            rules
-                .keys()
-                .map(|rule| (rule.clone(), std::time::Duration::from_millis(48)))
-                .collect(),
-        )
-    }
-    fn configuration_files(&self) -> Result<Vec<ryo::linter::RelativePath>, Error> {
-        Ok(vec![])
-    }
-    fn execute(
-        self: Box<Self>,
-        _rules: std::collections::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>,
-        configured: crate::outbound::engine::types::EngineConfiguration,
-    ) -> Result<crate::outbound::engine::types::EngineRun, Error> {
-        assert_eq!(
-            self.engine.closed.load(Ordering::SeqCst),
-            0,
-            "session stays live throughout SDK execution"
-        );
-        self.engine.calls.fetch_add(1, Ordering::SeqCst);
-        if matches!(self.engine.stage, Stage::Engine) {
-            return Err(Error::Invalid("fixture engine failure".into()));
-        }
-        assert_eq!(
-            configured.selected_pairs,
-            crate::outbound::engine::types::SelectedPairs(1)
-        );
-        assert!(configured.hosted.is_empty());
-        Ok(crate::outbound::engine::types::EngineRun {
-            dependencies: Vec::new(),
-            report: RunReport {
-                execution_metadata:
-                    ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                project_context:
-                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
-                files: self.request.files.clone(),
-                skipped: Vec::new(),
-                coverage:
-                    ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
-                                1,
-                            ),
-                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                            unknown_or_unread:
-                                ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                        },
-                    ),
-                diagnostics: Vec::new(),
-            },
-        })
-    }
-}
-// This wrapper uses only the public EnginePort contract: it cannot inspect or mutate the handle.
-struct ForwardingPort {
-    inner: Arc<Engine>,
-    other: WorkerRequest,
-    retarget: bool,
-}
-impl EnginePort for ForwardingPort {
-    fn load<'a>(
-        &'a self,
-        request: &'a WorkerRequest,
-    ) -> Result<
-        crate::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession<'a>,
-        Error,
-    > {
-        self.inner
-            .load(if self.retarget { &self.other } else { request })
-    }
-}
 fn subject(stage: Input) -> Result<Value, Failure> {
     let mut transport = WorkerFake::new(if matches!(stage, Stage::Sealed) {
         sealed_request()
@@ -318,27 +228,58 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         calls: AtomicUsize::new(0),
         loaded: AtomicUsize::new(0),
         closed: AtomicUsize::new(0),
-        stage,
+        failing: match stage {
+            Stage::Load => Failing::Load,
+            Stage::Configure => Failing::Configure,
+            Stage::Engine => Failing::Execute,
+            Stage::Uncompiled => Failing::Compile,
+            Stage::Complete
+            | Stage::Forward
+            | Stage::Retarget
+            | Stage::Receive
+            | Stage::Respond
+            | Stage::Sealed
+            | Stage::InProcess => Failing::Nothing,
+        },
     });
-    let port: Arc<dyn EnginePort> = if matches!(stage, Stage::Forward | Stage::Retarget) {
-        let mut other = request();
-        other.files = vec![ryo::linter::RelativePath("other.txt".into())];
-        Arc::new(ForwardingPort {
-            inner: Arc::clone(&engine),
-            other,
-            retarget: matches!(stage, Stage::Retarget),
-        })
-    } else {
-        Arc::<Engine>::clone(&engine)
-    };
+    let port: Arc<dyn EnginePort + Send + Sync> =
+        if matches!(stage, Stage::Forward | Stage::Retarget) {
+            let mut other = request();
+            other.files = vec![ryo::linter::RelativePath("other.txt".into())];
+            Arc::new(ForwardingPort {
+                inner: Arc::clone(&engine),
+                other,
+                retarget: matches!(stage, Stage::Retarget),
+            })
+        } else {
+            Arc::<Engine>::clone(&engine)
+        };
     let context = Arc::new(CountingContext::default());
-    let result = RunRyoUseCaseImpl::new(
+    let use_case = RunRyoUseCaseImpl::new(
         port,
         Arc::<WorkerFake>::clone(&transport),
         Arc::<CountingContext>::clone(&context),
-    )
-    .run_ryo();
+    );
+    let stored = StoredRequest(std::path::PathBuf::from("request.json"));
+    // In the bench's own process the report is answered as bytes, not published: the bytes are the fake's encoding of the report.
+    let mut answered = None;
+    let result = match stage {
+        Stage::InProcess => InProcessWorker::run(&use_case, &stored).map(|response| {
+            answered = Some(response.0);
+        }),
+        Stage::Uncompiled => InProcessWorker::compile(&use_case, &stored).map(|_times| ()),
+        Stage::Complete
+        | Stage::Forward
+        | Stage::Retarget
+        | Stage::Receive
+        | Stage::Engine
+        | Stage::Load
+        | Stage::Configure
+        | Stage::Respond
+        | Stage::Sealed => use_case.run_ryo(),
+    };
     let reports = transport.reports();
+    let expected = report(request().files);
     let trace = Trace {
         received: transport.receive_calls(),
         loaded: engine.loaded.load(Ordering::SeqCst),
@@ -347,34 +288,23 @@ fn subject(stage: Input) -> Result<Value, Failure> {
             engine.calls.load(Ordering::SeqCst),
         ),
         responded: transport.respond_calls(),
-        published: reports
-            .iter()
-            .map(|report| RunReport {
-                project_context:
-                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
-                ..report.clone()
-            })
-            .eq([RunReport {
-                execution_metadata:
-                    ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                project_context:
-                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
-                files: request().files,
-                skipped: Vec::new(),
-                coverage:
-                    ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
-                                1,
-                            ),
-                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                            unknown_or_unread:
-                                ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                        },
-                    ),
-                diagnostics: Vec::new(),
-            }]),
+        published: answered.map_or_else(
+            || {
+                reports
+                    .iter()
+                    .map(|report| RunReport {
+                        project_context:
+                            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                        ..report.clone()
+                    })
+                    .eq([expected.clone()])
+            },
+            |bytes| {
+                transport
+                    .encoded(&expected)
+                    .is_ok_and(|encoded| encoded.0 == bytes)
+            },
+        ),
         seam: (
             context.validated.load(Ordering::SeqCst),
             context.receipted.load(Ordering::SeqCst),
@@ -390,6 +320,7 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         Error::Invalid(message) if message == "fixture receive failure" => Refusal::Receive(trace),
         Error::Invalid(message) if message == "fixture engine failure" => Refusal::Engine(trace),
         Error::Invalid(message) if message == "fixture load failure" => Refusal::Load(trace),
+        Error::Invalid(message) if message == "fixture compile failure" => Refusal::Compile(trace),
         Error::Invalid(message)
             if message.starts_with("selected or required producer has no registered query:") =>
         {

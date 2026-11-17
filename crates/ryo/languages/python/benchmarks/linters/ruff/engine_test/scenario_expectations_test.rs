@@ -24,10 +24,6 @@ pub(super) fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
-        | EngineScenario::RuleCostGrowsWithTheFileF401
-        | EngineScenario::RuleCostGrowsWithTheFileF841
-        | EngineScenario::RuleCostGrowsWithTheFileF811
-        | EngineScenario::RuleCostGrowsWithTheFileF821
         | EngineScenario::ActualRootedQueriesKeepTheirSparseAxis => "input.py",
         EngineScenario::PreservedStubSemanticSyntaxError => "input.pyi",
     }
@@ -60,10 +56,6 @@ pub(super) fn source_for(scenario: EngineScenario) -> &'static str {
         | EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
-        | EngineScenario::RuleCostGrowsWithTheFileF401
-        | EngineScenario::RuleCostGrowsWithTheFileF841
-        | EngineScenario::RuleCostGrowsWithTheFileF811
-        | EngineScenario::RuleCostGrowsWithTheFileF821
         | EngineScenario::ActualRootedQueriesKeepTheirSparseAxis => {
             "try:\n    pass\nexcept:\n    pass\n"
         }
@@ -138,10 +130,6 @@ pub(super) fn expected_diagnostics(
         | EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
-        | EngineScenario::RuleCostGrowsWithTheFileF401
-        | EngineScenario::RuleCostGrowsWithTheFileF841
-        | EngineScenario::RuleCostGrowsWithTheFileF811
-        | EngineScenario::RuleCostGrowsWithTheFileF821
         | EngineScenario::ActualRootedQueriesKeepTheirSparseAxis => ("E722", 14, 20),
     };
     Ok(vec![BenchmarkFinding {
