@@ -27,6 +27,9 @@ sha256 = [
 defaults = ["PT026"]
 
 [query-modules]
+"python/ruff/code-tokens" = "fragments/code-tokens.ryoql"
+"python/ruff/next-token" = "fragments/next-token.ryoql"
+"python/ruff/decorator-expression-starts" = "fragments/decorator-expression-starts.ryoql"
 "python/ruff/noqa-line-map" = "fragments/noqa-line-map.ryoql"
 "python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql"
 "python/ruff/noqa-additional-locations" = "fragments/noqa-additional-locations.ryoql"
