@@ -246,16 +246,12 @@ pub fn check(adapter: &impl ExecutionPort) {
                     } else {
                         "missing-interpreter"
                     }));
-                std::fs::write(
-                    &path,
-                    if format {
-                        "not executable image bytes"
-                    } else {
-                        "#!/ryo-benchmark-missing-interpreter\n"
-                    },
-                )
-                .expect("executable fixture");
-                super::driver::make_executable(&path).expect("executable permission fixture");
+                let contents = if format {
+                    "not executable image bytes"
+                } else {
+                    "#!/ryo-benchmark-missing-interpreter\n"
+                };
+                super::executable::write(&path, contents.as_bytes()).expect("executable fixture");
                 call.executable = path;
             }
             Operation::Signaled => {

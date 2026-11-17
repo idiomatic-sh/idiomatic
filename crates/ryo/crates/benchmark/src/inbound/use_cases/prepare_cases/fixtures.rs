@@ -231,8 +231,8 @@ pub fn with_verification_sources<R>(
         "#!/bin/sh\nprintf 'launch\\n' >> '{}'\nprintf 'fixture 1\\n'\n",
         launches.display()
     );
-    std::fs::write(&executable, &script).expect(constants::FIXTURE_PRECONDITION);
-    executable_permissions(&executable);
+    crate::outbound::execution::fixtures::executable::write(&executable, script.as_bytes())
+        .expect(constants::FIXTURE_PRECONDITION);
     std::fs::write(
         profile.join(constants::FIXTURE_PROFILE_FILE),
         format!(
@@ -332,20 +332,6 @@ pub fn case_document() -> toml::Value {
         .collect(),
     )
 }
-
-/// Mark the fixed Unix fixture script executable before native tool verification.
-///
-/// # Panics
-/// When the script's permissions cannot be set.
-#[cfg(unix)]
-pub fn executable_permissions(path: &Path) {
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
-        .expect(constants::FIXTURE_PRECONDITION);
-}
-/// Windows launches the fixed `.cmd` fixture without Unix executable mode bits.
-#[cfg(not(unix))]
-pub fn executable_permissions(_path: &std::path::Path) {}
 
 /// The frozen workload snapshot keeps the exact patch bytes even when its source or itself is edited.
 ///
