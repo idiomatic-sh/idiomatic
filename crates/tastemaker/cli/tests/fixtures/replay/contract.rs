@@ -1,4 +1,5 @@
-//! Assertions for the generated language reader contract.
+//! Assertions for the generated language reader contract: no optional capability, the shared readers, and no optional
+//! semantic relation answered.
 
 use std::path::Path;
 
@@ -25,28 +26,16 @@ pub(crate) fn assert_contract(language: &Path) {
             "missing shared reader {reader}"
         );
     }
-    for (method, relation) in [
-        ("identifier", "Identifier"),
-        ("qualified_name", "QualifiedName"),
-        ("embedded_expression", "EmbeddedExpression"),
-        ("expression_shape", "ExpressionShape"),
-        ("literal_properties", "LiteralProperties"),
-        ("format_specification", "FormatSpecification"),
-        ("bytes_literal", "BytesLiteral"),
-        ("interpolated_string_literal", "InterpolatedStringLiteral"),
-        ("implicit_symbol", "ImplicitSymbol"),
-        ("binding_event", "BindingEvent"),
-        ("binding_read", "BindingRead"),
-        ("binding_use", "BindingUse"),
-        ("binding_shadow", "BindingShadow"),
-        ("indent_region", "IndentRegion"),
-    ] {
-        let answer = format!(
-            "fn {method}(&self) -> Support<Reader<languages::{relation}, Self::FileModel>> {{\n        languages::absent(AbsenceCause::NotYetRead)\n    }}"
-        );
-        assert!(
-            contract.contains(&answer),
-            "{method} must remain explicitly unread until implemented"
-        );
-    }
+    // The optional semantic relations (identifiers, bindings, indent regions and the rest) are answered through the
+    // language's `Semantics`, and a fresh language implements none: it reads none of them until its author writes them.
+    assert!(
+        contract.contains(
+            "fn semantics(&self) -> Option<&dyn languages::Semantics> {\n        None\n    }"
+        ),
+        "a fresh language must answer no optional semantic relation until implemented"
+    );
+    assert!(
+        !contract.contains("impl languages::Semantics"),
+        "a fresh language must implement no `Semantics` until its author writes one"
+    );
 }

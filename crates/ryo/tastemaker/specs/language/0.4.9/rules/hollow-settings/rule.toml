@@ -1,0 +1,94 @@
+description = "An adapter's settings.rs declares a settings struct, and every struct in it has fields."
+why = "Settings exist only when an adapter is configured with values, and settings.rs is optional: an adapter configured with nothing has no such file. A settings.rs that declares no struct, a unit struct or a struct with no field fills the shape without configuring anything and invites a bogus field, so the file is either real or absent. The check reads the file as written: a hand-written trait impl does not make a unit struct a settings struct."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let struct-nodes = select * from tree-nodes where kind = "struct";
+let structs-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from files as l join "syntax-child" as r on l."id" = r."parent";
+let structs = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from struct-nodes as l join structs-edges as r on l."id" = r."child";
+let structless-files = antijoin(left=files, right=structs, left-on=["id"], right-on=["parent"]);
+let file-findings-labelled = extend(from=structless-files, values={"what": "this settings.rs declares no settings struct"});
+let file-findings = project(from=file-findings-labelled, columns=["id", "file", "span", "kind", "what"]);
+let field-lists = select * from tree-nodes where glob_any(kind, "{record-field-list,tuple-field-list}");
+let struct-field-lists-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from structs as l join "syntax-child" as r on l."id" = r."parent";
+let struct-field-lists = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from field-lists as l join struct-field-lists-edges as r on l."id" = r."child";
+let field-nodes = select * from tree-nodes where glob_any(kind, "{record-field,tuple-field}");
+let struct-fields-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from struct-field-lists as l join "syntax-child" as r on l."id" = r."parent";
+let struct-fields = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from field-nodes as l join struct-fields-edges as r on l."id" = r."child";
+let filled-lists = select l."parent" as "parent" from struct-field-lists as l join struct-fields as r on l."id" = r."parent";
+let fieldless-structs = antijoin(left=structs, right=filled-lists, left-on=["id"], right-on=["parent"]);
+let struct-findings-labelled = extend(from=fieldless-structs, values={"what": "a settings struct with no fields configures nothing"});
+let struct-findings = project(from=struct-findings-labelled, columns=["id", "file", "span", "kind", "what"]);
+let findings = union(left=file-findings, right=struct-findings);
+emit findings subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "{what}"
+help = "Give the settings struct the values the adapter is configured with, or delete settings.rs and its `mod settings;` line and keep the adapter a unit struct. An ignore is not legitimate here: a settings file that configures nothing is the finding."
+
+[given]
+include = ['settings.rs']
+
+[[scenarios]]
+id = 'settings-values-pass'
+scenario = 'Settings with values pass.'
+given.files.'settings.rs' = '''
+/// The disk storage adapter's settings.
+pub struct StorageDiskSettings {
+    root: std::path::PathBuf,
+}
+
+pub struct Limits(u64);
+'''
+
+[[scenarios]]
+id = 'empty-struct'
+scenario = 'A settings struct with no fields.'
+given.files.'settings.rs' = '''
+pub struct StorageDiskSettings {}
+'''
+then.findings = [
+  { path = 'settings.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'unit-struct'
+scenario = 'A unit settings struct, even one implementing a trait.'
+given.files.'settings.rs' = '''
+#[derive(Debug, Default)]
+pub struct StorageDiskSettings;
+
+impl std::fmt::Display for StorageDiskSettings {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("disk")
+    }
+}
+'''
+then.findings = [
+  { path = 'settings.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'no-struct'
+scenario = 'A settings.rs of only comments.'
+given.files.'settings.rs' = '''
+//! The disk storage adapter's settings, still to come.
+'''
+then.findings = [
+  { path = 'settings.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'enum-only'
+scenario = 'A settings.rs declaring no struct.'
+given.files.'settings.rs' = '''
+pub enum Mode {
+    Fast,
+}
+'''
+then.findings = [
+  { path = 'settings.rs', line = 1 },
+]

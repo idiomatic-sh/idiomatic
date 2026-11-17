@@ -944,6 +944,39 @@ impl ScaffoldUseCaseImpl {
     }
 
     /// Writes the files one instance of a spec places at `directory`, and those of the specs it places at literal paths.
+    /// The files the local `tastemaker.toml` this instance writes places itself: written with the instance, as `tm check`
+    /// will ask for them, each entry at the version the workspace loaded its template at.
+    fn local_placed(
+        &self,
+        workspace: &Workspace,
+        placing: &Placing<'_>,
+        request: &ScaffoldRequest,
+        report: &mut ScaffoldReport,
+        staged: &mut Staging,
+    ) -> Result<(), ScaffoldError> {
+        let local = join(placing.directory, PathText(WORKSPACE_FILE)).unwrap_or_default();
+        let Some(text) = staged.texts.get(&local) else {
+            return Ok(());
+        };
+        let mut read = self
+            .manifest
+            .workspace_file(&DefinitionText(text.0.clone().into()))
+            .map_err(service::manifest_error(PathText(&local.0)))?;
+        apply_variables(&mut read.composition, &mut []);
+        for mut entry in read.composition.templates {
+            if let Some(loaded) = workspace.loaded.templates.keys().find(|release| {
+                release.package == entry.header.package && release.name == entry.template
+            }) {
+                entry.header.version = loaded.version.clone();
+            }
+            match self.write(workspace, placing, &entry, request, report, staged) {
+                Ok(()) | Err(ScaffoldError::Unwritten { .. }) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(())
+    }
+
     fn instance(
         &self,
         workspace: &Workspace,
@@ -981,6 +1014,7 @@ impl ScaffoldUseCaseImpl {
                 Err(error) => return Err(error),
             }
         }
+        self.local_placed(workspace, placing, request, report, staged)?;
         for entry in &composition.specs {
             let Some(spec) = workspace.loaded.specs.get(&spec_release(entry)) else {
                 continue;

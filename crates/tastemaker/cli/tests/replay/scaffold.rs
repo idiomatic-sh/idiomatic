@@ -143,7 +143,12 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
         std::fs::remove_dir_all(&scratch).expect("the previous scene removed");
     }
     let crates = scratch.join("crates");
+    // Every lock first, so the copied ryo tree keeps its own: a version only another product's lock reads is not unread.
+    crate::locks::copy_locks(&root(), &root(), &scratch).expect("the workspace locks copied");
     copy(&root().join("crates/ryo"), &crates.join("ryo")).expect("ryo copied");
+    // The role package the proofs of collection-members and program-implementation-boundary name as `foreign`.
+    let roles = "crates/tastemaker/cli/tests/fixtures/replay/roles";
+    copy(&root().join(roles), &scratch.join(roles)).expect("the role package copied");
     copy(&root().join("tastemaker"), &scratch.join("tastemaker"))
         .expect("the package tastemaker/ copied");
     let workspace = crates.join("ryo");
@@ -177,7 +182,7 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
             "EXTENSION: &str = \".ts\"",
         ),
         ("src/domain/language/service_test.rs", "src/main.ts"),
-        ("benches/performance.rs", "generated.ts"),
+        ("benchmarks/provider/bench.rs", "generated.ts"),
         ("README.md", "`.ts`"),
     ] {
         let body = std::fs::read_to_string(language.join(path)).expect("generated file");

@@ -11,6 +11,8 @@ mod fixes;
 mod imports;
 mod init;
 mod languages;
+#[path = "../fixtures/replay/locks.rs"]
+mod locks;
 mod samples;
 mod scaffold;
 mod validate;

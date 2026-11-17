@@ -1,0 +1,161 @@
+description = "A file of a syntax adapter, the implementation of the syntax port for one parser library: `src/outbound/syntax/adapters/<library>/adapter_test.rs`."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The `{{ library }}` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
+
+use super::adapter::Syntax{{ library | pascal }}Adapter;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::syntax::service::kind_name;
+use crate::outbound::syntax::fixtures::contract::{check, elements_of};
+
+/// {{ lang }} text.
+type Input = &'static str;
+/// The elements the adapter read it into, in order, each as its kind.
+type Value = &'static str;
+type Failure = ();
+
+/// The rows of what is specific to this adapter.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_empty_file_is_its_root_alone"),
+        word: Word::Succeeds,
+        input: || "",
+        expect: Expect::Value("source-file"),
+    },
+    Case {
+        name: CaseName("the_text_of_a_file_is_a_token_under_its_root"),
+        word: Word::Succeeds,
+        input: || "a",
+        expect: Expect::Value("source-file text"),
+    },
+];
+
+fn subject(text: Input) -> Value {
+    check(&Syntax{{ library | pascal }}Adapter);
+    let shown = elements_of(&Syntax{{ library | pascal }}Adapter, text)
+        .iter()
+        .map(|(kind, _)| kind_name(*kind).0)
+        .collect::<Vec<_>>()
+        .join(" ");
+    Box::leak(shown.into_boxed_str())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+'''
+
+[params]
+lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name." }
+
+[given]
+file = 'src/outbound/syntax/adapters/{library}/adapter_test.rs'
+params = { lang = 'demo' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/syntax/adapters/demo_parser/adapter_test.rs' = '''
+//! The `demo_parser` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
+
+use super::adapter::SyntaxDemoParserAdapter;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::syntax::service::kind_name;
+use crate::outbound::syntax::fixtures::contract::{check, elements_of};
+
+/// demo text.
+type Input = &'static str;
+/// The elements the adapter read it into, in order, each as its kind.
+type Value = &'static str;
+type Failure = ();
+
+/// The rows of what is specific to this adapter.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_empty_file_is_its_root_alone"),
+        word: Word::Succeeds,
+        input: || "",
+        expect: Expect::Value("source-file"),
+    },
+    Case {
+        name: CaseName("the_text_of_a_file_is_a_token_under_its_root"),
+        word: Word::Succeeds,
+        input: || "a",
+        expect: Expect::Value("source-file text"),
+    },
+];
+
+fn subject(text: Input) -> Value {
+    check(&SyntaxDemoParserAdapter);
+    let shown = elements_of(&SyntaxDemoParserAdapter, text)
+        .iter()
+        .map(|(kind, _)| kind_name(*kind).0)
+        .collect::<Vec<_>>()
+        .join(" ");
+    Box::leak(shown.into_boxed_str())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/syntax/adapters/demo_parser/adapter_test.rs' = '''
+//! The `demo_parser` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
+
+use super::adapter::SyntaxDemoParserAdapter;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::syntax::service::kind_name;
+use crate::outbound::syntax::fixtures::contract::{check, elements_of};
+
+/// demo text.
+type Input = &'static str;
+/// The elements the adapter read it into, in order, each as its kind.
+type Value = &'static str;
+type Failure = ();
+
+/// The rows of what is specific to this adapter.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_empty_file_is_its_root_alone"),
+        word: Word::Succeeds,
+        input: || "",
+        expect: Expect::Value("source-file"),
+    },
+    Case {
+        name: CaseName("the_text_of_a_file_is_a_token_under_its_root"),
+        word: Word::Succeeds,
+        input: || "a",
+        expect: Expect::Value("source-file text"),
+    },
+];
+
+fn subject(text: Input) -> Value {
+    check(&SyntaxDemoParserAdapter);
+    let shown = elements_of(&SyntaxDemoParserAdapter, text)
+        .iter()
+        .map(|(kind, _)| kind_name(*kind).0)
+        .collect::<Vec<_>>()
+        .join(" ");
+    Box::leak(shown.into_boxed_str())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-outbound-syntax-adapters-library-adapter-test#count', path = '.' },
+]

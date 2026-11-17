@@ -1,0 +1,139 @@
+description = "A file of a syntax adapter, the implementation of the syntax port for one parser library: `src/outbound/syntax/adapters/<library>/fixtures/walk.rs`."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes, among them the function `walked` the conformance calls; the bodies and the language's words are the author's. The library's tree is walked from the library itself: a walk that read the adapter's element table would compare the adapter with itself and prove nothing about the library."
+content = '''
+//! The library's own tree of a file, in the language's kinds: what the shape rail of the conformance holds our tree to. It parses the
+//! text with the library and gathers each node and token the library gives, at its own range; it reads nothing of the adapter, its
+//! schemas or the element table, so a tree the adapter writes wrongly is a difference and not the same mistake twice.
+
+use ryo::languages::Offset;
+use ryo::languages::contract::{Leafness, Walked};
+
+use crate::domain::nodes::types::Node;
+use crate::domain::syntax::service::kind_bits;
+use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
+
+/// The library's tree of `text`: parsed by the library, each node and token gathered with its range.
+#[must_use]
+pub(crate) fn walked(text: &str) -> Walked {
+{%- if scaffold | default(false) %}
+    // A scaffold: replace this with the parse by the library and the gathering of its nodes and tokens.
+    let length = Offset(u32::try_from(text.len()).unwrap_or(u32::MAX));
+    let text_token = Walked {
+        kind: kind_bits(Kind::Token(Token::Text)),
+        leaf: Leafness::Token,
+        start: Offset(0),
+        end: length,
+        children: Vec::new(),
+    };
+    Walked {
+        kind: kind_bits(Kind::Node(Node::SourceFile)),
+        leaf: Leafness::Node,
+        start: Offset(0),
+        end: length,
+        children: if text.is_empty() {
+            Vec::new()
+        } else {
+            vec![text_token]
+        },
+    }
+{%- else %}
+    unimplemented!()
+{%- endif %}
+}
+'''
+
+[given]
+file = 'src/outbound/syntax/adapters/{library}/fixtures/walk.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/syntax/adapters/demo_parser/fixtures/walk.rs' = '''
+//! The library's own tree of a file, in the language's kinds: what the shape rail of the conformance holds our tree to. It parses the
+//! text with the library and gathers each node and token the library gives, at its own range; it reads nothing of the adapter, its
+//! schemas or the element table, so a tree the adapter writes wrongly is a difference and not the same mistake twice.
+
+use ryo::languages::Offset;
+use ryo::languages::contract::{Leafness, Walked};
+
+use crate::domain::nodes::types::Node;
+use crate::domain::syntax::service::kind_bits;
+use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
+
+/// The library's tree of `text`: parsed by the library, each node and token gathered with its range.
+#[must_use]
+pub(crate) fn walked(text: &str) -> Walked {
+    let length = Offset(u32::try_from(text.len()).unwrap_or(u32::MAX));
+    Walked {
+        kind: kind_bits(Kind::Node(Node::SourceFile)),
+        leaf: Leafness::Node,
+        start: Offset(0),
+        end: length,
+        children: Vec::new(),
+    }
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/syntax/adapters/demo_parser/fixtures/walk.rs' = '''
+//! The library's own tree of a file, in the language's kinds: what the shape rail of the conformance holds our tree to. It parses the
+//! text with the library and gathers each node and token the library gives, at its own range; it reads nothing of the adapter, its
+//! schemas or the element table, so a tree the adapter writes wrongly is a difference and not the same mistake twice.
+
+use ryo::languages::Offset;
+use ryo::languages::contract::{Leafness, Walked};
+
+use crate::domain::nodes::types::Node;
+use crate::domain::syntax::service::kind_bits;
+use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
+
+/// The library's tree of `text`: parsed by the library, each node and token gathered with its range.
+#[must_use]
+pub(crate) fn walked(text: &str) -> Walked {
+    let length = Offset(u32::try_from(text.len()).unwrap_or(u32::MAX));
+    Walked {
+        kind: kind_bits(Kind::Node(Node::SourceFile)),
+        leaf: Leafness::Node,
+        start: Offset(0),
+        end: length,
+        children: Vec::new(),
+    }
+}
+
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-outbound-syntax-adapters-library-fixtures-walk#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'without-walked'
+scenario = 'The walk declares no function the conformance calls.'
+given.files.'src/outbound/syntax/adapters/demo_parser/fixtures/walk.rs' = '''
+//! The library's own tree of a file, in the language's kinds: what the shape rail of the conformance holds our tree to. It parses the
+//! text with the library and gathers each node and token the library gives, at its own range; it reads nothing of the adapter, its
+//! schemas or the element table, so a tree the adapter writes wrongly is a difference and not the same mistake twice.
+
+use ryo::languages::Offset;
+use ryo::languages::contract::{Leafness, Walked};
+
+use crate::domain::nodes::types::Node;
+use crate::domain::syntax::service::kind_bits;
+use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
+
+/// The library's tree of `text`: parsed by the library, each node and token gathered with its range.
+'''
+then.findings = [
+  { rule = 'language-outbound-syntax-adapters-library-fixtures-walk#template', path = 'src/outbound/syntax/adapters/demo_parser/fixtures/walk.rs' },
+]

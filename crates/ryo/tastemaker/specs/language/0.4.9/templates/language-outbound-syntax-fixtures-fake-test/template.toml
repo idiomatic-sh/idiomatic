@@ -1,0 +1,55 @@
+description = "A file of the syntax port, which the parser library implements: `src/outbound/syntax/fixtures/fake_test.rs`."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The `syntax` port's fake runs the port's contract.
+
+use super::super::contract::check;
+use super::SyntaxFake;
+
+#[test]
+fn succeeds() {
+    check(&SyntaxFake);
+}
+'''
+
+[given]
+file = 'src/outbound/syntax/fixtures/fake_test.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/syntax/fixtures/fake_test.rs' = '''
+//! The `syntax` port's fake runs the port's contract.
+
+use super::super::contract::check;
+use super::SyntaxFake;
+
+#[test]
+fn succeeds() {
+    check(&SyntaxFake);
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/syntax/fixtures/fake_test.rs' = '''
+//! The `syntax` port's fake runs the port's contract.
+
+use super::super::contract::check;
+use super::SyntaxFake;
+
+#[test]
+fn succeeds() {
+    check(&SyntaxFake);
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-outbound-syntax-fixtures-fake-test#count', path = '.' },
+]

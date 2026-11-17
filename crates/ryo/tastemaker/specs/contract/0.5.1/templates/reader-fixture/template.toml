@@ -1,0 +1,27 @@
+description = "One file of a reader concept's test support."
+why = "The samples and expectations the concept's proof reads, one file each, beneath the concept's fixtures directory."
+content = '''
+//! A file of the `{{ concept }}` readers' test support.
+'''
+
+[params]
+concept = { type = "identifier", description = "The reader concept, captured from its path." }
+fixture = { type = "string", description = "The file's name beneath fixtures, captured from its path." }
+
+[given]
+file = 'readers/format/fixtures/walk.rs'
+params = { concept = 'format', fixture = 'walk' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'readers/format/fixtures/walk.rs' = '''
+//! A file of the `format` readers' test support.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'reader-fixture#count', path = '.' },
+]

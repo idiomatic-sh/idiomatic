@@ -1,0 +1,53 @@
+description = "The notice of a held input of a language, `NOTICE` beside the README of its pinned test suite, of its pinned standard and of its real-world corpus: what the directory holds and where the files go."
+why = "The suite and the corpus are another project's files, copied unchanged and pinned, and the workspace keeps rules off them. The notice stands in the directory from the first scaffold, so that the directory exists, says what belongs in it and where its source is named, and is not mistaken for a directory a language forgot."
+content = '''
+{% if scaffold | default(false) -%}
+{% if held == "suite" -%}
+This directory holds the official test suite of the {{ lang }} language, copied unchanged and pinned: README.md names its source and the version pinned. Place the suite's cases beside this file, the valid ones under valid/ and the invalid ones under invalid/ as the suite lays them out, with the suite's license.
+{%- elif held == "standard" -%}
+This directory holds the standard that defines the nodes and the tokens of the {{ lang }} language, copied unchanged and pinned: README.md names its source and the version pinned. Place the standard's files beside this file, with the license of the standard.
+{%- else -%}
+This directory holds real-world {{ lang }} files, copied unchanged and pinned: README.md names the source and the version pinned of each. Place the files beside this file, with the license of each source.
+{%- endif %}
+{% endif -%}
+'''
+
+[params]
+lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name." }
+held = { type = "string", description = "What the directory holds: the pinned test suite (`suite`), the pinned standard (`standard`) or the real-world corpus (`corpus`)." }
+
+[[scenarios]]
+id = 'notice-suite'
+scenario = 'The notice of the suite.'
+given.file = 'tests/fixtures/suite/NOTICE'
+given.params = { lang = 'demo', held = 'suite' }
+given.files.'tests/fixtures/suite/NOTICE' = '''
+This directory holds the official test suite of the demo language, copied unchanged and pinned: README.md names its source and the version pinned. Place the suite's cases beside this file, the valid ones under valid/ and the invalid ones under invalid/ as the suite lays them out, with the suite's license.
+'''
+
+[[scenarios]]
+id = 'notice-standard'
+scenario = 'The notice of the standard.'
+given.file = 'tests/fixtures/standard/NOTICE'
+given.params = { lang = 'demo', held = 'standard' }
+given.files.'tests/fixtures/standard/NOTICE' = '''
+This directory holds the standard that defines the nodes and the tokens of the demo language, copied unchanged and pinned: README.md names its source and the version pinned. Place the standard's files beside this file, with the license of the standard.
+'''
+
+[[scenarios]]
+id = 'notice-corpus'
+scenario = 'The notice of the corpus.'
+given.file = 'tests/fixtures/corpus/NOTICE'
+given.params = { lang = 'demo', held = 'corpus' }
+given.files.'tests/fixtures/corpus/NOTICE' = '''
+This directory holds real-world demo files, copied unchanged and pinned: README.md names the source and the version pinned of each. Place the files beside this file, with the license of each source.
+'''
+
+[[scenarios]]
+id = 'notice-missing'
+scenario = 'The notice is missing.'
+given.file = 'tests/fixtures/suite/NOTICE'
+given.params = { lang = 'demo', held = 'suite' }
+then.findings = [
+  { rule = 'language-notice#count', path = '.' },
+]

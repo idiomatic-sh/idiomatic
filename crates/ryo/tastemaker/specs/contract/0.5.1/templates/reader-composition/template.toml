@@ -1,0 +1,35 @@
+description = "A reader concept's readers, bound to the grammar adapters that serve them."
+why = "A reader is a struct and the `reads!` that writes its rows. It names the grammar adapter that prepares what it reads, which only a composition may do (`adapter-at-root`), so a concept's readers live in its `composition.rs`; the pure helpers they call are in its `service.rs`, its plain types in `types.rs` and its words in `constants.rs`. The file states its role and is the home `readers-in-items` names for a parse reader."
+content = '''
+//! The `{{ concept }}` readers, bound to their grammar adapters: the one place that names them.
+'''
+
+[params]
+concept = { type = "identifier", from = "directory-name", description = "The reader concept, its directory's name." }
+
+[given]
+file = 'readers/format/composition.rs'
+params = { concept = 'format' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'readers/format/composition.rs' = '''
+//! The `format` readers, bound to their grammar adapters: the one place that names them.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template: the readers.'
+given.files.'readers/format/composition.rs' = '''
+//! The `format` readers, bound to their grammar adapters: the one place that names them.
+
+pub(crate) struct FormatItem;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'reader-composition#count', path = '.' },
+]
