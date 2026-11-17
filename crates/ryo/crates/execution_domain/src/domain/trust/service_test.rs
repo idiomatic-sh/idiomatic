@@ -30,6 +30,9 @@ enum Ask {
     Agreement(fn() -> Plan),
     /// How many uses and needs one step of the plan holds.
     StepReads(fn() -> Plan, usize),
+    /// Whether the first step of the second plan holds the stored uses the first step of the first plan holds, both plans' sets
+    /// stored in one program, and how many sets the program stores.
+    Program(fn() -> Plan, fn() -> Plan),
 }
 
 /// What trust answers.
@@ -124,6 +127,18 @@ fn subject(ask: Input) -> Result<Value, Failure> {
                     .filter(|(made, (uses, needs))| *made.uses != **uses || *made.needs != **needs)
                     .count()
                     + made.len().abs_diff(expected.len()),
+            }
+        }
+        Ask::Program(one, two) => {
+            let mut sets = ReadSets::default();
+            let one = step_read_sets(&one(), &mut sets).0;
+            let two = step_read_sets(&two(), &mut sets).0;
+            Answer::Stored {
+                first: match (one.first(), two.first()) {
+                    (Some(one), Some(two)) => two.uses.sharing(&one.uses),
+                    (Some(_) | None, None) | (None, Some(_)) => SetSharing::Copied,
+                },
+                distinct: sets.distinct(),
             }
         }
         Ask::StepReads(plan, at) => {
@@ -311,6 +326,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Answer::Stored {
             first: SetSharing::Shared,
             distinct: StoredSets(2),
+        }),
+    },
+    Case {
+        name: CaseName("rules_that_rest_on_equal_reads_hold_one_stored_set"),
+        word: Word::Succeeds,
+        input: || Ask::Program(chained, narrowed),
+        expect: Expect::Value(Answer::Stored {
+            first: SetSharing::Shared,
+            distinct: StoredSets(3),
         }),
     },
     Case {
