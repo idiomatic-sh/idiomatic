@@ -1,6 +1,6 @@
 //! The `comparing` service's cases: what is decided for a name or a text is remembered, and a comparison of what is not bound is refused.
 
-use crate::domain::table_scratch::types::Memo;
+use crate::domain::table_scratch::types::MemoTable;
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::Integer;
@@ -41,7 +41,7 @@ pub(super) fn holds_all(
     symbols: &Symbols,
     source: &[u8],
     scratch: &mut OperatorScratch,
-    memo: &mut Vec<Memo>,
+    memo: &mut MemoTable,
 ) -> Result<PredicateOutcome, ComparingError> {
     let texts = Texts {
         symbols,
@@ -79,7 +79,7 @@ fn reads_each_rows_pattern() -> Result<Value, ComparingError> {
         right: Operand::Column(column(1)),
         origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }];
-    let mut memo = Vec::new();
+    let mut memo = MemoTable::default();
     let mut scratch = OperatorScratch::default();
     let mut kept = 0;
     for pattern in [matches, differs] {
@@ -110,7 +110,7 @@ fn refuses_an_unbound_parameter() -> Result<Value, ComparingError> {
         origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let symbols = Symbols::default();
-    let mut memo = Vec::new();
+    let mut memo = MemoTable::default();
     let mut scratch = OperatorScratch::default();
     holds_all(
         &[comparison],
@@ -147,7 +147,7 @@ fn refuses_a_parameter_bound_to_sets_of_text() -> Result<Value, ComparingError> 
     let mut scratch = OperatorScratch::default();
     let work = DecisionWorkspace {
         select: &mut scratch.select_scratch,
-        memo: &mut Vec::new(),
+        memo: &mut MemoTable::default(),
     };
     holds_bound(
         &[comparison],
@@ -192,7 +192,7 @@ fn fails_on_a_pattern_that_does_not_compile() -> Result<Value, ComparingError> {
         &symbols,
         source,
         &mut scratch,
-        &mut Vec::new(),
+        &mut MemoTable::default(),
     )
     .map(|verdict| usize::from(verdict == PredicateOutcome::Holds))
 }
@@ -205,7 +205,7 @@ fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, ComparingError>
         hash: TextHash(7),
         place: PlaceNumber(99),
     });
-    let mut memo = Vec::new();
+    let mut memo = MemoTable::default();
     let mut scratch = OperatorScratch::default();
     let mut held = 0;
     for (place, test) in [

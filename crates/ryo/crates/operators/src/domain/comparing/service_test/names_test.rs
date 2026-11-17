@@ -2,7 +2,7 @@
 use super::{FROM, column, holds_all};
 use crate::domain::comparing::types::RowShape;
 use crate::domain::contract::types::PredicateOutcome;
-use crate::domain::table_scratch::types::OperatorScratch;
+use crate::domain::table_scratch::types::{MemoTable, OperatorScratch};
 use crate::domain::{comparing::errors::ComparingError, comparing::types::NameCount};
 use ryo_language::domain::names::service::name_count;
 use ryo_language::domain::symbols::service::intern;
@@ -50,7 +50,7 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, ComparingError> {
             comparisons: vec![comparison],
             kept: Vec::new(),
         };
-        let mut memo = Vec::new();
+        let mut memo = MemoTable::default();
         let mut scratch = OperatorScratch::default();
         let Operation::Select { comparisons, .. } = operation else {
             panic!("the fixture builds a Select")
@@ -108,7 +108,7 @@ fn decides_once_for_each_name() -> Result<Value, ComparingError> {
         comparisons: vec![comparison],
         kept: Vec::new(),
     };
-    let mut memo = Vec::new();
+    let mut memo = MemoTable::default();
     let mut scratch = OperatorScratch::default();
     let Operation::Select { comparisons, .. } = operation else {
         panic!("the fixture builds a Select")
@@ -175,7 +175,7 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Comparin
         for name in names {
             push_row(&mut table, &[name]);
         }
-        let mut memo = Vec::new();
+        let mut memo = MemoTable::default();
         let Operation::Select { comparisons, .. } = &operation else {
             panic!("the fixture builds a Select")
         };

@@ -2,7 +2,6 @@
 //! row, each the kernel's own per-row function. Every stage writes through its own state, never another stage's.
 use super::super::super::types::{ChainRows, ChainStage, StagePrepared};
 use super::super::sources::service::{in_place, pending_of, rows_count, rows_kinds};
-use crate::domain::comparing::types::NameCount;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::extend::item::{
     extended, kind_of, resolved,
@@ -10,7 +9,6 @@ use crate::domain::physical_plan::collections::kernels::extend::item::{
 use crate::domain::physical_plan::collections::kernels::filter::item::{
     filter, keep, kept_kinds, readied,
 };
-use crate::domain::physical_plan::collections::kernels::hash_index::item::emptied;
 use crate::domain::physical_plan::collections::kernels::probe::item::{answer_kinds, probe_row};
 use crate::domain::physical_plan::collections::kernels::probe_right::item::{
     ProbeScratch, probe_prepared,
@@ -29,7 +27,7 @@ use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// The output kinds of stage `node`, lowered to `lowering`, over input rows of `input`, and what its preparation left, in
 /// its held kernel's order: an extension's values resolved before its kinds, left empty when they fault; a probe's right
-/// side's fault before its kinds, which it leaves empty. A filter's memo is readied for the file's `names`; a tail's
+/// side's fault before its kinds, which it leaves empty. A filter's memo is readied; a tail's
 /// repeats are emptied. A probe does its right side's work only at its first left row, as its held kernel does none for a
 /// left of no row.
 ///
@@ -41,7 +39,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
     buffers: &mut FileBuffers,
     stage: ChainStage<'_>,
     input: &[CellKind],
-    names: NameCount,
     own: &mut StageOwn,
     right: Option<&ChainRows<'_>>,
 ) -> Result<StagePrepared, PortableOperatorFault> {
@@ -53,7 +50,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
                 .decisions
                 .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
             {
-                readied(select, decisions, names);
+                readied(decisions);
             }
             StagePrepared { kinds, fault: None }
         }
@@ -73,7 +70,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
                         .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })
                 })
                 .collect::<Result<_, _>>()?;
-            emptied(&mut own.repeats);
+            own.repeats.cleared();
             StagePrepared { kinds, fault: None }
         }
         // An extension's values are made before its rows are read: making a name changes the file's names, and reading
@@ -107,7 +104,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
             } else {
                 rows_count(right)
             };
-            emptied(&mut own.repeats);
+            own.repeats.cleared();
             own.work = ProbeWork::Pending;
             if let Some(fault) = pending_of(right) {
                 return Ok(StagePrepared {
@@ -218,14 +215,14 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_row(
                 fed,
                 ..
             } = own;
-            let build = probe_build(&buffers.shared, *index);
+            let build = probe_build(&buffers.shared.indexes, *index);
             #[cfg(test)]
             if *work == ProbeWork::Pending
                 && build == crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild::Builds
             {
                 buffers.builds.0 += 1;
             }
-            let index = probe_index(&mut buffers.shared, own_index, *index)?;
+            let index = probe_index(&mut buffers.shared.indexes, own_index, *index)?;
             let mut scratch = ProbeScratch {
                 index,
                 build,

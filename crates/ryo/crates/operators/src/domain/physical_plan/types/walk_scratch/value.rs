@@ -62,3 +62,35 @@ pub(crate) struct ReachedPlace(pub(crate) u32);
 /// How many entities one walked start reached.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ReachedCount(pub(crate) u32);
+
+impl crate::domain::kept_room::types::KeptRoom for WalkScratch {
+    fn kept(&mut self) {
+        self.visited.kept();
+        self.frontier.kept();
+        self.reached.kept();
+        self.runs.kept();
+        self.starts.kept();
+        self.rows.cells.kept();
+        self.entities.kept();
+        self.next.kept();
+        self.written.kept();
+    }
+
+    #[cfg(test)]
+    fn room(&self) -> crate::domain::kept_room::types::Room {
+        [
+            self.visited.room(),
+            self.frontier.room(),
+            self.reached.room(),
+            self.runs.room(),
+            self.starts.room(),
+            self.rows.cells.room(),
+            self.entities.room(),
+            self.next.room(),
+            self.written.room(),
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or_default()
+    }
+}

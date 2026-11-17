@@ -5,6 +5,7 @@
 
 use super::super::distinct::item::counted;
 use super::super::hash_index::item::emptied;
+use super::super::hash_index::item::value_hash;
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};
@@ -105,7 +106,7 @@ pub(crate) fn worklisted(
     })?;
     sorted_edges(worklist, inputs.edges, texts, scratch)?;
     sorted_roots(worklist, inputs.roots, texts, scratch)?;
-    emptied(repeats);
+    repeats.cleared();
     let width = worklist.root_keys.len() + 2;
     let mut at = 0;
     while let Some(first) = scratch.roots.get(at).copied() {

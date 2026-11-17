@@ -19,6 +19,7 @@ use crate::domain::functions::types::MadeText;
 use crate::domain::operands::service::resolve;
 use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::patterns::types::prepared::value::PreparedMatchers;
+use crate::domain::table_scratch::service::{decision, remember};
 use crate::domain::table_scratch::types::Memo;
 use crate::domain::table_scratch::types::{
     ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch, SubjectHash, SubjectTag,
@@ -237,7 +238,7 @@ fn holds_one_bound(
         return Ok(verdict);
     }
     let place = memo_place(numbered, row, kinds, names);
-    let remembered = place.and_then(|each| memo.get(each.place.0).copied());
+    let remembered = place.and_then(|each| decision(memo, each.place));
     Ok(match remembered {
         Some(Memo::Holds) => PredicateOutcome::Holds,
         Some(Memo::Fails) => PredicateOutcome::Fails,
@@ -275,11 +276,15 @@ fn holds_one_bound(
                     }
                     verdict
                 };
-            if let Some(held) = place.and_then(|each| memo.get_mut(each.place.0)) {
-                *held = match decided {
-                    PredicateOutcome::Holds => Memo::Holds,
-                    PredicateOutcome::Fails => Memo::Fails,
-                };
+            if let Some(each) = place {
+                remember(
+                    memo,
+                    each.place,
+                    match decided {
+                        PredicateOutcome::Holds => Memo::Holds,
+                        PredicateOutcome::Fails => Memo::Fails,
+                    },
+                );
             }
             decided
         }

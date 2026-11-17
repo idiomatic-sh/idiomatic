@@ -84,6 +84,25 @@ pub(crate) enum ProbeWork {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RightPlace(pub(crate) usize);
 
+impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
+    fn kept(&mut self) {
+        for stage in self.levels.iter_mut().flat_map(|level| &mut level.stages) {
+            stage.own.repeats.kept();
+            stage.own.index.kept();
+        }
+    }
+
+    #[cfg(test)]
+    fn room(&self) -> crate::domain::kept_room::types::Room {
+        self.levels
+            .iter()
+            .flat_map(|level| &level.stages)
+            .map(|stage| stage.own.repeats.room().max(stage.own.index.room()))
+            .max()
+            .unwrap_or_default()
+    }
+}
+
 impl StageScratch {
     /// Empties the stage after its chain's run, keeping no more room in its tables than the bound, and its index empty.
     pub(crate) fn settled(&mut self) {

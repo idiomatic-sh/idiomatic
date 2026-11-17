@@ -49,14 +49,8 @@ impl KernelsItem for HashIndexItem {
 
 /// Empties `rows` for the rows of `count`, keeping its capacity.
 fn cleared(rows: &mut KeyedRows, count: RowCount) {
-    rows.keys.clear();
-    rows.next.clear();
+    rows.cleared();
     rows.next.resize(count.0, NO_ROW);
-}
-
-/// Empties `rows` of every key and row, keeping its capacity.
-pub(crate) fn emptied(rows: &mut KeyedRows) {
-    cleared(rows, RowCount(0));
 }
 
 /// Adds `row` to the key `same` finds under `hash`, or as a key of its own.

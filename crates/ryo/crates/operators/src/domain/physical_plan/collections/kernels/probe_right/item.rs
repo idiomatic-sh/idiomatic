@@ -3,7 +3,7 @@
 //! it walks) and an ordered probe's extremes, each probe's its own.
 
 use super::super::filter::item::{filter, keep, readied};
-use super::super::hash_index::item::{cells, emptied, indexed};
+use super::super::hash_index::item::{cells, indexed};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
@@ -123,7 +123,7 @@ pub(crate) fn probe_prepared(
     if !probe.filter.comparisons.is_empty() && walked.is_none() {
         let kinds = kinds_of(right);
         let kernel = filter(&probe.filter, kinds, run.resources.texts());
-        readied(&probe.filter, scratch.decisions, kernel.names);
+        readied(scratch.decisions);
         scratch.kept.kinds.extend_from_slice(kinds);
         for at in 0..count_of(right).0 {
             let read = row_of(right, RowIndex(at), scratch.row);
@@ -140,8 +140,7 @@ pub(crate) fn probe_prepared(
         }
     }
     if walked.is_some() && !probe.filter.comparisons.is_empty() {
-        let kernel = filter(&probe.filter, kinds_of(right), run.resources.texts());
-        readied(&probe.filter, scratch.decisions, kernel.names);
+        readied(scratch.decisions);
     }
     let right = read_right(probe, scratch.build, right, scratch.kept);
     let [left_on, right_on] = &mut scratch.whole;
@@ -157,7 +156,7 @@ pub(crate) fn probe_prepared(
         && let Err(fault) = cells(KeyedSide { rows: right, on }, scratch.index)
     {
         // A partial index is no index: the next probe of a shared one builds it again.
-        emptied(scratch.index);
+        scratch.index.cleared();
         return Err(fault);
     }
     // An ordered probe keeps its own index (`shared_indexes`), which it builds: its keys' first rows become their extremes.

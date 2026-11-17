@@ -2,10 +2,11 @@
 //! their capacity kept across files.
 
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
+use crate::domain::kept_room::types::KeptRoom as _;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{EngineUses, NodeFed, NodeReaders, NodeRows, PlanNodeId};
-use crate::domain::table_scratch::types::{LazyScratch, Memo, SelectScratch};
+use crate::domain::table_scratch::types::{LazyScratch, MemoTable, SelectScratch};
 use ryo_relations::domain::relations::types::{NodeId, Value};
 
 /// The buffers of one worker, reused across files.
@@ -60,8 +61,10 @@ pub struct FileBuffers {
     pub(crate) repeats: KeyedRows,
     /// The tree nodes one left row of a tree probe found, its capacity kept across files.
     pub(crate) found: Vec<NodeId>,
-    /// Each probe index the plan shares, by its place, its capacity kept across files.
-    pub(crate) shared: Vec<SharedIndex>,
+    /// The probe indexes the plan shares, those the open file opened, and the node whose release empties each.
+    pub(crate) shared: crate::domain::physical_plan::types::shared_index::value::SharedIndexes,
+    /// The nodes the open file gave rows or a feed: the nodes its end releases.
+    pub(crate) touched: crate::domain::physical_plan::types::touched_nodes::value::TouchedNodes,
     /// The work of the chains of streamed stages, its capacity kept across nodes and files.
     pub(crate) stream: crate::domain::physical_plan::types::stream_scratch::value::StreamScratch,
     /// The work of a worklist, its capacity kept across nodes and files.
@@ -75,7 +78,15 @@ pub struct FileBuffers {
     /// The node tables held: how many were formed, and the rows they held at once.
     #[cfg(test)]
     pub(crate) meter: TableMeter,
+    /// The work the ends of files did: what the release-cost case reads.
+    #[cfg(test)]
+    pub(crate) ending: EndWork,
 }
+
+/// The work the releases and the ends of a worker's files did: each node released, each shared index it visited.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EndWork(pub(crate) usize);
 
 /// How many probe indexes a worker built.
 #[cfg(test)]
@@ -125,25 +136,13 @@ pub(crate) enum ChunkMeter {
     Over,
 }
 
-/// A probe index the plan shares: built by the first of its probes in a file to read its rows, and emptied after the last,
-/// or when the engine releases its last probe at the file's end, so no file reads another file's index.
-#[derive(Debug)]
-pub(crate) struct SharedIndex {
-    /// The keyed rows; empty until a probe of the open file builds them.
-    pub(crate) rows: KeyedRows,
-    /// How many of its probes have not run in the open file; none before its first.
-    pub(crate) remaining: NodeReaders,
-    /// Its last probe in node order.
-    pub(crate) last: PlanNodeId,
-}
-
 /// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.
 #[derive(Debug, Default)]
 pub(crate) struct NodeDecisions {
     /// The verdicts and compiled patterns of the node's comparisons.
     pub(crate) select: LazyScratch<SelectScratch>,
     /// What each comparison decided about each name of the open file.
-    pub(crate) memo: Vec<Memo>,
+    pub(crate) memo: MemoTable,
 }
 
 impl FileBuffers {
@@ -306,8 +305,8 @@ impl FileBuffers {
         }
     }
 
-    /// The node's last consumer is done: its buffer returns to the worker's pool. At the file's end, when the engine releases
-    /// every node, a shared index whose last probe it is is emptied with it.
+    /// The node's last consumer is done: its buffer returns to the worker's pool, and a shared index whose last probe it is is
+    /// emptied with it.
     ///
     /// # Examples
     ///
@@ -319,11 +318,11 @@ impl FileBuffers {
     /// assert!(matches!(buffers.rows(PlanNodeId(0)), NodeRows::Absent));
     /// ```
     pub fn release(&mut self, node: PlanNodeId) {
-        for shared in &mut self.shared {
-            if shared.last == node {
-                shared.emptied();
-            }
+        #[cfg(test)]
+        {
+            self.ending.0 += 1;
         }
+        self.shared.released(node);
         if let Ok(at) = usize::try_from(node.0)
             && let Some(held) = self.nodes.get_mut(at)
         {
@@ -347,19 +346,46 @@ impl FileBuffers {
     }
 }
 
-impl SharedIndex {
-    /// The index of no file yet: its last probe is `last`.
-    pub(crate) fn new(last: PlanNodeId) -> Self {
-        Self {
-            rows: KeyedRows::default(),
-            remaining: NodeReaders(0),
-            last,
+impl FileBuffers {
+    /// Ends the open file: each node it touched is released and each shared index it opened emptied, no other, so the work is
+    /// the file's, not the program's; its scratch keeps its room for the next file only within the cap.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers;
+    /// use ryo_operators::domain::physical_plan::types::{NodeRows, PlanNodeId};
+    /// let mut buffers = FileBuffers::default();
+    /// buffers.ended();
+    /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
+    /// ```
+    pub fn ended(&mut self) {
+        let touched = self.touched.taken();
+        for node in &touched {
+            self.release(*node);
+            if let Some(decisions) = self
+                .decisions
+                .get_mut(usize::try_from(node.0).unwrap_or(usize::MAX))
+            {
+                decisions.memo.kept();
+            }
         }
-    }
-
-    /// Empties the index for the next file, keeping its capacity.
-    pub(crate) fn emptied(&mut self) {
-        self.rows.cleared();
-        self.remaining = NodeReaders(0);
+        self.touched.given_back(touched);
+        self.done.file_ended();
+        #[cfg(test)]
+        {
+            self.ending.0 += self.shared.opened.len();
+        }
+        self.shared.ended();
+        self.index.kept();
+        self.second.kept();
+        self.repeats.kept();
+        self.stream.kept();
+        self.values.kept();
+        self.hashes.0.kept();
+        self.found.kept();
+        self.walk.kept();
+        self.cycles.kept();
+        self.worklist.kept();
     }
 }
