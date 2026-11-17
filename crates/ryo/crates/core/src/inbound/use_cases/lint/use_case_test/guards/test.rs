@@ -1,5 +1,5 @@
 //! The guards on what a run reads, hands and keeps, each with the breach planted that it must find.
-use super::fixtures::{Between, Breach, Damage, Handed, damaged, handover, warm};
+use super::fixtures::{Between, Breach, Change, Damage, Handed, Held, changed, damaged, handover, warm};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// Which guard a row holds, over what.
@@ -8,6 +8,7 @@ enum Guard {
     Warm(Between),
     Handover(Handed),
     Damaged(Damage),
+    Changed(Change, Held),
 }
 
 type Input = Guard;
@@ -73,6 +74,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Guard::Damaged(Damage::Untouched),
         expect: Expect::Error(Breach::Kept(0)),
     },
+    Case {
+        name: CaseName("a_warm_run_over_an_unchanged_tree_leaves_the_store_as_it_was"),
+        word: Word::Succeeds,
+        input: || Guard::Changed(Change::Nothing, Held::AnswerAndStore),
+        expect: Expect::Value((0, 1)),
+    },
+    Case {
+        name: CaseName("an_edit_that_leaves_what_a_file_shows_the_others_keeps_the_cross_file_findings"),
+        word: Word::Succeeds,
+        input: || Guard::Changed(Change::Body, Held::Answer),
+        expect: Expect::Value((1, 1)),
+    },
+    Case {
+        name: CaseName("a_file_added_before_the_others_and_one_removed_answer_as_a_run_that_keeps_nothing"),
+        word: Word::Succeeds,
+        input: || Guard::Changed(Change::AddedAndRemoved, Held::Answer),
+        expect: Expect::Value((1, 1)),
+    },
+    Case {
+        name: CaseName("a_run_over_a_changed_tree_writes_the_store_again"),
+        word: Word::Refuses,
+        input: || Guard::Changed(Change::AddedAndRemoved, Held::AnswerAndStore),
+        expect: Expect::Error(Breach::Rewritten),
+    },
 ];
 
 fn subject(input: Input) -> Result<Value, Failure> {
@@ -81,6 +106,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Guard::Warm(between) => warm(between).map(widened),
         Guard::Handover(handed) => handover(handed),
         Guard::Damaged(damage) => damaged(damage).map(widened),
+        Guard::Changed(change, held) => changed(change, held).map(widened),
     }
 }
 

@@ -1,6 +1,7 @@
 //! The runs the guards hold, over three files of the fake language with inline rules, and the breach each guard finds: an
 //! unchanged warm run over the store a cold run left reads no file; no file hands a rule more than four rows for each row of its
-//! tree; and a damaged store answers as if there were none.
+//! tree; a damaged store answers as if there were none; and after an edit, or files added and removed, the run answers what a run
+//! that keeps nothing does, the store left as it was when nothing changed.
 
 #![expect(
     clippy::expect_used,
@@ -53,8 +54,10 @@ pub(crate) enum Breach {
     Wide { handed: u64, parsed: u64 },
     /// The run after the store was damaged read only this many files: it used what the store kept.
     Kept(usize),
-    /// The run after the store was damaged answered other rows than a run that keeps nothing.
+    /// The run after the store was damaged, or after the tree changed, answered other rows than a run that keeps nothing.
     Answered,
+    /// The store file holds other bytes after the run than before it.
+    Rewritten,
 }
 
 /// What one lint did: the files the corpus read, the rows it wrote and the handovers it reported.
@@ -67,8 +70,18 @@ struct Linted {
 /// One lint of [`FILES`] with `rule`, the fake language reading `extra_rows` rows beyond the first of each, over `store`, counting
 /// what each file hands.
 fn linted(rule: &'static str, extra_rows: u32, store: Arc<dyn LintStorePort>) -> Linted {
+    linted_over(&FILES, rule, extra_rows, store)
+}
+
+/// The same lint of `files`.
+fn linted_over(
+    files: &[(&'static str, &'static str)],
+    rule: &'static str,
+    extra_rows: u32,
+    store: Arc<dyn LintStorePort>,
+) -> Linted {
     let given = Given {
-        files: FILES.to_vec(),
+        files: files.to_vec(),
         rules: vec![rule],
         kept_in: Some(store),
         language: LanguageFake {
@@ -229,6 +242,66 @@ pub(crate) fn damaged(damage: Damage) -> Result<(usize, usize), Breach> {
     }
     if after.rows != none.rows {
         return Err(Breach::Answered);
+    }
+    Ok((after.reads, after.rows.len()))
+}
+
+/// What changes in the tree between the cold run and the next one over the store it left.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Change {
+    /// Nothing: the store file is left as it was.
+    Nothing,
+    /// The body of one of the copies is edited, its name kept: what it shows the other files is as it was.
+    Body,
+    /// A file is added before the others in the order of the paths and one of the copies is removed, so every file after them
+    /// moves to another number.
+    AddedAndRemoved,
+}
+
+/// The files of the run after `change`.
+fn changed_files(change: Change) -> Vec<(&'static str, &'static str)> {
+    match change {
+        Change::Nothing => FILES.to_vec(),
+        Change::Body => vec![FILES[0], ("two.rs", "copied() { 1 }"), FILES[2]],
+        Change::AddedAndRemoved => vec![("a.rs", "alone() {}"), FILES[0], FILES[2]],
+    }
+}
+
+/// What the guard of a change holds.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Held {
+    /// The answer is the one a run that keeps nothing gives.
+    Answer,
+    /// That, and the store file holds the bytes it held before the run: what a run over an unchanged tree keeps. Held over a
+    /// changed tree, it is the plant.
+    AnswerAndStore,
+}
+
+/// The run after `change`, over the store the cold run left, answers what a run that keeps nothing does, and, when `held` says
+/// so, leaves the store file as it was: the files it read and the rows it answered.
+///
+/// # Errors
+///
+/// [`Breach::Answered`] when it answers other rows; [`Breach::Rewritten`] when the store file changed and `held` holds it.
+pub(crate) fn changed(change: Change, held: Held) -> Result<(usize, usize), Breach> {
+    let directory = tempfile::tempdir().expect("a directory");
+    let files = changed_files(change);
+    let none = linted_over(&files, COPIES, 0, store_of("discard", directory.path()));
+    let _cold = cold(directory.path());
+    let file = std::fs::read_dir(directory.path())
+        .expect("the cache directory")
+        .flatten()
+        .map(|entry| entry.path())
+        .find(|path| path.is_file())
+        .expect("the store the cold run kept");
+    let before = std::fs::read(&file).expect("the store");
+    let after = linted_over(&files, COPIES, 0, store_of("postcard", directory.path()));
+    if after.rows != none.rows {
+        return Err(Breach::Answered);
+    }
+    let unchanged = std::fs::read(&file).is_ok_and(|now| now == before);
+    if !unchanged && matches!(held, Held::AnswerAndStore) {
+        return Err(Breach::Rewritten);
     }
     Ok((after.reads, after.rows.len()))
 }
