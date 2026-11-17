@@ -18,7 +18,7 @@ use std::sync::PoisonError;
 /// all come from its retained state, still emits its `run` event, of no makings, so its trace says so.
 pub(crate) fn emitted_at_end(pass: &PassProgram) {
     // A run no subscriber listens to counted nothing and is told nothing.
-    if !tracing::enabled!(target: NODE_COUNTERS_TARGET, tracing::Level::INFO) {
+    if !listened() {
         return;
     }
     let mut summed = NodeCounters::default();
@@ -31,6 +31,21 @@ pub(crate) fn emitted_at_end(pass: &PassProgram) {
         }
     }
     emitted(pass, &summed);
+}
+
+/// Whether the current subscriber listens to the node counters, asked of it on each call. `tracing::enabled!` answers from
+/// its callsite's cached interest, which a callsite registered on another thread while no listening subscriber was alive
+/// keeps at never; a run under a subscriber that listens then counts nothing.
+pub(crate) fn listened() -> bool {
+    let callsite = tracing::callsite! {
+        name: "node counters listened",
+        kind: tracing::metadata::Kind::HINT,
+        target: NODE_COUNTERS_TARGET,
+        level: tracing::Level::INFO,
+        fields:
+    };
+    let metadata = tracing::callsite::Callsite::metadata(callsite);
+    tracing::dispatcher::get_default(|dispatch| dispatch.enabled(metadata))
 }
 
 /// Emits `counters`, the counts of `pass`'s nodes over the run: one `node` event per node made, then one `run` event.

@@ -2,7 +2,6 @@
 //! the file's facts and tree in place; and the plan's root kinds, written as texts, mapped to the open file's own kind numbers,
 //! so each node reading the tree starts from the tree nodes of its kinds, and a node with no root kind from every tree node.
 
-use crate::application::file_dag::file_pass::constants::NODE_COUNTERS_TARGET;
 use crate::application::file_dag::file_pass::types::{
     FileRoots, PassInputs, PassProgram, PassResources, PassScratch, PassSource, RootKindNodes,
     TreeStart,
@@ -233,7 +232,7 @@ pub(crate) fn taken(pass: &PassProgram) -> PassScratch {
             ..PassScratch::default()
         };
         // The node counters are on only for a run whose subscriber listens to them, so a run that does not pays nothing.
-        if tracing::enabled!(target: NODE_COUNTERS_TARGET, tracing::Level::INFO) {
+        if counters::service::listened() {
             made.buffers.count_nodes();
         }
         made
