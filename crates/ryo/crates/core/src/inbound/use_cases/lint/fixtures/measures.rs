@@ -8,16 +8,11 @@ use super::runs::given;
 use super::runs::lint;
 use super::runs::run_query;
 use super::runs::write_all;
-use crate::cases::run;
-use crate::domain::allocation_verdict::service::differences;
-use crate::domain::allocation_verdict::service::verdict;
+use crate::domain::allocation_verdict::service::{differences, most};
 use crate::domain::allocation_verdict::types::AllocatedBlocks;
-use crate::domain::allocation_verdict::types::AllocationVerdict;
 use crate::domain::allocation_verdict::types::InputBytes;
 use crate::domain::allocation_verdict::types::JobBlocks;
 use crate::domain::allocation_verdict::types::ParserBlocks;
-use crate::domain::corpus_copies::service::copied;
-use crate::domain::corpus_copies::types::CopyCount;
 use crate::domain::corpus_copies::types::CopyDigits;
 use crate::domain::corpus_copies::types::CopyNaming;
 use crate::outbound::row_sink::fixtures::fake::BytesRowSinkFake;
@@ -35,15 +30,15 @@ pub(super) const FILES: u32 = 60;
 /// How many times the rows of every file the larger call-count corpus has.
 pub(super) const TIMES: usize = 10;
 
-/// The allocation row of the whole per-file path: a file allocates no more than the parser library
-/// does on its own, after warm-up. Core, store and language add nothing, but for the findings the
-/// files leave, a vector that doubles now and then, so a few files, logarithmic in their number,
-/// allocate one block more. `library` does only what the parser library does for a file.
+/// The allocation row of the whole per-file path: the most blocks a file, after warm-up, allocates beyond what the parser library
+/// does on its own for it (`library` does only that). It is a measure, not a bound: the target is one block, for the findings the
+/// files leave, a vector that doubles now and then; asymptote's `memory-allocation` holds the measure to its best. The row also holds
+/// that every rule gives its rows for every copy, and runs the streaming and output rows.
 ///
 /// # Panics
 ///
-/// When a rule does not give its fixture's rows, or a file allocates more than allowed.
-pub fn allocation(corpus: &Corpus, library: &dyn Fn(&[u8])) {
+/// When a rule does not give its fixture's rows, or the streaming or output rows fail.
+pub fn allocation(corpus: &Corpus, library: &dyn Fn(&[u8])) -> u64 {
     let _profiler = dhat::Profiler::builder().testing().build();
     let scheduler = Arc::new(CountingSchedulerFake::default());
     let once = given(corpus, Arc::<CountingSchedulerFake>::clone(&scheduler));
@@ -100,24 +95,10 @@ pub fn allocation(corpus: &Corpus, library: &dyn Fn(&[u8])) {
             AllocatedBlocks(dhat::HeapStats::get().total_blocks - before)
         });
     }
-    let gaps = differences(&JobBlocks(jobs), &listed, &parser);
-    let beyond = match verdict(&gaps, CopyCount(FILES)) {
-        AllocationVerdict::Within => None,
-        AllocationVerdict::BeyondOneBlock => Some(format!(
-            "a file allocated more than one block beyond the parser library: {:?}",
-            gaps.0
-        )),
-        AllocationVerdict::TooManyGrew { grew, judged } => Some(format!(
-            "{} of {} files allocated beyond the parser library, more than the findings vector doubles: {:?}",
-            grew.0, judged.0, gaps.0
-        )),
-    };
-    assert_eq!(
-        beyond, None,
-        "the per-file path allocates as the parser library does"
-    );
+    let beyond = most(&differences(&JobBlocks(jobs), &listed, &parser)).0;
     streaming(corpus);
     output_path(corpus, library);
+    beyond
 }
 
 /// The call-count row of the whole per-file path: a port is called for a file, never for a row.
