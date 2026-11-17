@@ -1177,6 +1177,58 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
 
 
+@functools.cache
+def publishable(workspace: Path) -> frozenset[str]:
+    """The workspace members cargo would publish (`publish` not false), read from `cargo metadata`."""
+    command = ["cargo", "metadata", "--format-version", "1", "--no-deps", "--locked", "--manifest-path", str(workspace / "Cargo.toml")]
+    metadata = json.loads(subprocess.run(command, capture_output=True, text=True, check=True).stdout)
+    members = set(metadata["workspace_members"])
+    return frozenset(package["name"] for package in metadata["packages"] if package["id"] in members and package["publish"] != [])
+
+
+def release_plz_problems(product: str, configuration: dict, published: frozenset[str]) -> list[str]:
+    """What keeps a product's release-plz.toml from releasing every crate it publishes as one: a publishable member with no
+    `[[package]]` (release-plz would leave it at its old version while the others move), a `[[package]]` that is no publishable
+    member, one outside the product's `version_group`, and a crate missing from the changelog of the one package that keeps it."""
+    packages = {package["name"]: package for package in configuration.get("package", [])}
+    found = [f"{product}: {name} is published but has no [[package]]" for name in sorted(published - set(packages))]
+    found += [f"{product}: [[package]] {name} is no publishable member" for name in sorted(set(packages) - published)]
+    found += [f"{product}: {name} is not in version_group {product}" for name, package in packages.items() if package.get("version_group") != product]
+    keeping = [name for name, package in packages.items() if package.get("changelog_update")]
+    if len(keeping) != 1:
+        return [*found, f"{product}: {len(keeping)} packages keep the changelog, not 1"]
+    included = {keeping[0], *packages[keeping[0]].get("changelog_include", [])}
+    found += [f"{product}: {name} is not in {keeping[0]}'s changelog_include" for name in sorted(published - included)]
+    return found
+
+
+@pytest.mark.parametrize("product", PRODUCTS)
+def test_release_plz_releases_every_published_crate_of_the_product(product: str) -> None:
+    """Every crate a product publishes moves to the product's one version in its release pull request, its commits in the
+    product's changelog."""
+    workspace = ROOT / "crates" / product
+    assert publishable(workspace)
+    assert release_plz_problems(product, tomllib.loads(read(workspace / "release-plz.toml")), publishable(workspace)) == []
+
+
+def test_a_published_crate_missing_from_release_plz_is_refused() -> None:
+    """ryo's release-plz.toml lacked six published crates (derived, execution, execution-domain, execution-runtime, matching,
+    operators): planted again, each is named."""
+    workspace = ROOT / "crates" / "ryo"
+    configuration = tomllib.loads(read(workspace / "release-plz.toml"))
+    dropped = {"idiomatic-sh-ryo-derived", "idiomatic-sh-ryo-operators"}
+    configuration["package"] = [package for package in configuration["package"] if package["name"] not in dropped]
+    for package in configuration["package"]:
+        if "changelog_include" in package:
+            package["changelog_include"] = [name for name in package["changelog_include"] if name not in dropped]
+    assert release_plz_problems("ryo", configuration, publishable(workspace)) == [
+        "ryo: idiomatic-sh-ryo-derived is published but has no [[package]]",
+        "ryo: idiomatic-sh-ryo-operators is published but has no [[package]]",
+        "ryo: idiomatic-sh-ryo-derived is not in idiomatic-sh-ryo's changelog_include",
+        "ryo: idiomatic-sh-ryo-operators is not in idiomatic-sh-ryo's changelog_include",
+    ]
+
+
 def test_the_bench_job_is_an_independent_complete_gate() -> None:
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     assert bench_job_problems(workflow["jobs"]["bench"]) == []

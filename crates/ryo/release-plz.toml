@@ -19,7 +19,7 @@ version_group = "ryo"
 git_tag_name = "idiomatic-sh-ryo-v{{ version }}"
 changelog_update = true
 changelog_path = "CHANGELOG.md"
-changelog_include = ["idiomatic-sh-ryo-core", "idiomatic-sh-ryo-css", "idiomatic-sh-ryo-go", "idiomatic-sh-ryo-html", "idiomatic-sh-ryo-json", "idiomatic-sh-ryo-language", "idiomatic-sh-ryo-markdown", "idiomatic-sh-ryo-python", "idiomatic-sh-ryo-query_language", "idiomatic-sh-ryo-relations", "idiomatic-sh-ryo-rust", "idiomatic-sh-ryo-sdk", "idiomatic-sh-ryo-toml", "idiomatic-sh-ryo-typescript", "idiomatic-sh-ryo-values"]
+changelog_include = ["idiomatic-sh-ryo-core", "idiomatic-sh-ryo-css", "idiomatic-sh-ryo-derived", "idiomatic-sh-ryo-execution", "idiomatic-sh-ryo-execution-domain", "idiomatic-sh-ryo-execution-runtime", "idiomatic-sh-ryo-go", "idiomatic-sh-ryo-html", "idiomatic-sh-ryo-json", "idiomatic-sh-ryo-language", "idiomatic-sh-ryo-markdown", "idiomatic-sh-ryo-matching", "idiomatic-sh-ryo-operators", "idiomatic-sh-ryo-python", "idiomatic-sh-ryo-query_language", "idiomatic-sh-ryo-relations", "idiomatic-sh-ryo-rust", "idiomatic-sh-ryo-sdk", "idiomatic-sh-ryo-toml", "idiomatic-sh-ryo-typescript", "idiomatic-sh-ryo-values"]
 
 [[package]]
 name = "idiomatic-sh-ryo-core"
@@ -27,6 +27,22 @@ version_group = "ryo"
 
 [[package]]
 name = "idiomatic-sh-ryo-css"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-derived"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-execution"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-domain"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-runtime"
 version_group = "ryo"
 
 [[package]]
@@ -47,6 +63,14 @@ version_group = "ryo"
 
 [[package]]
 name = "idiomatic-sh-ryo-markdown"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-matching"
+version_group = "ryo"
+
+[[package]]
+name = "idiomatic-sh-ryo-operators"
 version_group = "ryo"
 
 [[package]]
