@@ -13,7 +13,6 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols};
 use ryo_operators::domain::contract::types::{PortableOperatorFault, WithheldInput};
-use ryo_operators::domain::physical_plan::types::activity::value::Activity;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::candidates::value::Candidates;
 use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
@@ -62,10 +61,6 @@ impl PlanInputs for PhaseInputs<'_> {
             Ok(Some(table)) => HeldRows::Held(table),
             Ok(None) | Err(_) => HeldRows::Withheld(WithheldInput(u32::MAX)),
         }
-    }
-    fn activity(&self, _node: PlanNodeId) -> Activity<'_> {
-        // After the files no file's triggers say a node cannot have rows: every step after the files runs.
-        Activity::Active
     }
 }
 

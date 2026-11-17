@@ -11,7 +11,7 @@ use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdina
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::observations::types::BoundObservationInput;
-use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plan_parts::types::{LiteralText, StepScope};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
@@ -91,6 +91,24 @@ pub struct RuleNodes {
 /// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Consumers(pub u32);
+
+/// A root kind of a program: the text the plans write for it and the nodes that start from the tree nodes of that kind.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RootKind;
+/// use ryo_values::domain::plan_parts::types::LiteralText;
+/// let kind = LiteralText("function_definition".into());
+/// assert!(RootKind { kind: &kind, nodes: &[] }.nodes.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RootKind<'a> {
+    /// The kind's text, as the plans write it.
+    pub kind: &'a LiteralText,
+    /// The nodes that start from it, in node order.
+    pub nodes: &'a [PlanNodeId],
+}
 
 /// One node of the logical program while it is drafted: the operation, the rule it was first written in, its scope and its
 /// output's columns.

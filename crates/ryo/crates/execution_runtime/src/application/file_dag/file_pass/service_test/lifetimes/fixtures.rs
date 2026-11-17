@@ -5,7 +5,6 @@ use super::super::fixtures::{engine, request};
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::domain::physical_plan::types::activity::value::Activity;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::candidates::value::Candidates;
 use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
@@ -100,9 +99,6 @@ impl PlanInputs for Lending<'_> {
     }
     fn hosted(&self, relation: HostedNumber) -> HeldRows<'_> {
         self.inner.hosted(relation)
-    }
-    fn activity(&self, node: PlanNodeId) -> Activity<'_> {
-        self.inner.activity(node)
     }
 }
 

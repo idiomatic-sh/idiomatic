@@ -46,6 +46,4 @@ pub struct ExecutableProgram {
     pub(crate) scopes: Vec<RuleScopes>,
     /// Whether each node's rows answer the phase or one occurrence, by node.
     pub(crate) reach: Vec<ObservationReach>,
-    /// What each node needs to be active in a file.
-    pub(crate) activation: crate::domain::executable_program::activation::types::ActivationPlan,
 }

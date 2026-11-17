@@ -9,8 +9,6 @@ use crate::application::file_dag::file_pass::service::inputs::service::{
 use crate::application::file_dag::file_pass::service::nodes::service::{
     node_outcome, node_rows, released, rule_done, unread_unrun,
 };
-use crate::application::file_dag::file_pass::service::reads::types::FileReads;
-use crate::application::file_dag::file_pass::service::triggers::service::fill;
 use crate::application::file_dag::file_pass::service::{fill_roots, given_back};
 use crate::application::file_dag::file_pass::types::{
     CaptureAt, NodeAnswer, OpenedFile, OutputCommit, OutputState, PassFile, PassInputs,
@@ -97,11 +95,6 @@ pub(crate) fn run_rules(
         },
         file,
     );
-    // Which root kinds the file holds; a node's activity is composed where it is first asked.
-    let mut triggers = std::mem::take(&mut scratch.triggers);
-    fill(&mut triggers, &scratch.roots, &lookup);
-    let mut states = std::mem::take(&mut scratch.activities);
-    states.0.clear();
     let mut at = PassFile {
         request,
         pass,
@@ -112,10 +105,6 @@ pub(crate) fn run_rules(
             bound: BoundTables::default(),
             withholdings: Withholdings::default(),
             hosted: Vec::new(),
-            reads: RefCell::new(FileReads::default()),
-            triggers: &triggers,
-            activities: RefCell::new(states),
-            program: &pass.program,
         },
         buffers: std::mem::take(&mut scratch.buffers),
         file,
@@ -220,15 +209,12 @@ pub(crate) fn run_rules(
         buffers,
         outputs,
         answers,
-        inputs,
         ..
     } = at;
-    scratch.activities = inputs.activities.into_inner();
     scratch.buffers = buffers;
     scratch.outputs = outputs;
     scratch.answers = answers;
     scratch.live = live;
-    scratch.triggers = triggers;
     given_back(pass, scratch);
     let (rules, end) = ran;
     FileRules {

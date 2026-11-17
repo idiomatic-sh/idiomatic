@@ -14,9 +14,7 @@ use crate::domain::physical_plan::types::keyed_rows::value::{IndexKeyHash, NO_RO
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
-use crate::domain::physical_plan::types::{
-    IndexKey, IndexPlace, KernelRun, NodeFed, NodeRows, RowSource,
-};
+use crate::domain::physical_plan::types::{IndexKey, IndexPlace, KernelRun, NodeFed, RowSource};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// `lookup`, one item of the `kernels` collection.
@@ -54,10 +52,6 @@ pub(crate) fn lookups(
     let texts_of = run.resources.texts();
     texts(&view, *column, &texts_of, &mut buffers.index);
     for lookup in &shared.readers {
-        // A reader the file already holds, made dormant or by an earlier build, keeps its rows and what it waits for.
-        if buffers.rows(*lookup) != NodeRows::Absent {
-            continue;
-        }
         let place = usize::try_from(lookup.0).unwrap_or(usize::MAX);
         let Some(PhysicalNode {
             lowering: Lowering::Lookup { key, select, .. },

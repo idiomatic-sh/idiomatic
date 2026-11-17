@@ -106,9 +106,6 @@ mod conformance;
 mod conformance_emptied;
 
 #[cfg(test)]
-mod conformance_faults;
-
-#[cfg(test)]
 mod conformance_boundary;
 
 #[cfg(test)]
