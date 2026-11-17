@@ -2,7 +2,8 @@
 //! the file's facts and tree in place; and the plan's root kinds, written as texts, mapped to the open file's own kind numbers,
 //! so each node reading the tree starts from the tree nodes of its kinds, and a node with no root kind from every tree node.
 
-use crate::application::file_dag::file_pass::service::triggers::service::{node_activity, read};
+use crate::application::file_dag::file_pass::service::reads::service::read;
+use crate::application::file_dag::file_pass::service::triggers::service::node_activity;
 use crate::application::file_dag::file_pass::types::{
     FileRoots, NodeReads, PassInputs, PassProgram, PassResources, PassScratch, PassSource,
     RootKindNodes, TreeStart,
@@ -59,6 +60,7 @@ pub(crate) mod answering;
 pub(crate) mod captures;
 pub(crate) mod inputs;
 pub(crate) mod nodes;
+pub(crate) mod reads;
 pub(crate) mod rules;
 pub(crate) mod triggers;
 

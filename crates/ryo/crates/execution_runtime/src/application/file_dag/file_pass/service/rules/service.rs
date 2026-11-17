@@ -9,10 +9,11 @@ use crate::application::file_dag::file_pass::service::inputs::service::{
 use crate::application::file_dag::file_pass::service::nodes::service::{
     node_outcome, node_rows, released, rule_done, unread_unrun,
 };
+use crate::application::file_dag::file_pass::service::reads::types::FileReads;
 use crate::application::file_dag::file_pass::service::triggers::service::fill;
 use crate::application::file_dag::file_pass::service::{fill_roots, given_back};
 use crate::application::file_dag::file_pass::types::{
-    CaptureAt, FileReads, NodeAnswer, OpenedFile, OutputCommit, OutputState, PassFile, PassInputs,
+    CaptureAt, NodeAnswer, OpenedFile, OutputCommit, OutputState, PassFile, PassInputs,
     PassProgram, PassRequest, PassScratch,
 };
 use crate::application::file_dag::frontiers::types::Withholdings;

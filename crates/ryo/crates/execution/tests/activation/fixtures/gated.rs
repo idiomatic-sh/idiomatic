@@ -1,6 +1,6 @@
 //! One file run through the public seam over a program, by the operators as the engine composes them or with every node
 //! active (`all_active`): what the file's rules came to, and what a warm run allocated.
-use super::plans::Given;
+use super::given::Given;
 use super::subscriber::RunCost;
 use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::{

@@ -1,8 +1,8 @@
 //! The `activation` service: each node's requirement from its operator's contract, and every node's state in one file,
 //! composed in node order from its inputs'. No rows, IO or ports.
 use crate::domain::executable_program::activation::types::{
-    ActivationInput, ActivationPlan, Activities, FactAnswer, FactSlot, KindSlot, NodeActivity,
-    NodeRequirement, NodeState, TriggerPresence, Triggers,
+    ActivationInput, ActivationLeaves, ActivationPlan, Activities, FactAnswer, FactSlot, KindSlot,
+    NodeActivity, NodeDecision, NodeInputs, NodeRequirement, NodeState, TriggerPresence, Triggers,
 };
 use crate::domain::executable_program::types::{Draft, SchemaTiming};
 use crate::domain::operating::errors::OperatingError;
@@ -30,10 +30,10 @@ pub fn trigger_kinds(plan: &ActivationPlan) -> &[LiteralText] {
     &plan.kinds
 }
 
-/// Whether `node` runs in the file `triggers` and `facts` describe: dormant only when it can have neither a row nor a row
+/// Whether `node` runs in the file `triggers` and `leaves` describe: dormant only when it can have neither a row nor a row
 /// error. Its state is composed when it is first asked for, and kept in `into` for the rest of the file: from its inputs'
 /// states, its node inputs first and then its fact relations, each in operand order, as the runner readies and reads them.
-/// `facts` answers a relation's read: each relation is read once in the file, so a read here is the read its readers get.
+/// `leaves` answers a relation's read: each relation is read once in the file, so a read here is the read its readers get.
 /// A refused read stops the composition there: the node and every node waiting on it run, and meet the refusal. A node the
 /// plan does not hold runs.
 ///
@@ -42,11 +42,18 @@ pub fn trigger_kinds(plan: &ActivationPlan) -> &[LiteralText] {
 /// ```
 /// use ryo_execution_domain::domain::executable_program::activation::service::activity;
 /// use ryo_execution_domain::domain::executable_program::activation::types::{
-///     ActivationPlan, Activities, FactAnswer, NodeActivity, Triggers,
+///     ActivationLeaves, ActivationPlan, Activities, FactAnswer, NodeActivity, Triggers,
 /// };
 /// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+/// use ryo_relations::domain::relations::types::Relation;
+/// struct Full;
+/// impl ActivationLeaves for Full {
+///     fn rows(&mut self, _relation: Relation) -> FactAnswer {
+///         FactAnswer::Rows
+///     }
+/// }
 /// let mut into = Activities::default();
-/// let answer = activity(&ActivationPlan::default(), &Triggers::default(), &mut |_| FactAnswer::Rows, &mut into, PlanNodeId(0));
+/// let answer = activity(&ActivationPlan::default(), &Triggers::default(), &mut Full, &mut into, PlanNodeId(0));
 /// assert_eq!(answer.unwrap(), NodeActivity::Active);
 /// ```
 ///
@@ -57,154 +64,149 @@ pub fn trigger_kinds(plan: &ActivationPlan) -> &[LiteralText] {
 pub fn activity(
     plan: &ActivationPlan,
     triggers: &Triggers,
-    facts: &mut dyn FnMut(Relation) -> FactAnswer,
+    leaves: &mut dyn ActivationLeaves,
     into: &mut Activities,
     node: PlanNodeId,
 ) -> Result<NodeActivity, OperatingError> {
     if into.0.len() < plan.nodes.len() {
         into.0.resize(plan.nodes.len(), None);
     }
-    let mut composing = Composing {
-        plan,
-        triggers,
-        facts,
-        into,
-        refusal: Refusal::NotMet,
-    };
-    Ok(match composing.state(node)? {
-        NodeState {
+    Ok(match state(plan, triggers, leaves, into, node)? {
+        NodeDecision::Decided(NodeState {
             rows: TriggerPresence::Absent,
             faults: TriggerPresence::Absent,
-        } => NodeActivity::Dormant,
-        NodeState { .. } => NodeActivity::Active,
+        }) => NodeActivity::Dormant,
+        NodeDecision::Decided(_) | NodeDecision::Refused => NodeActivity::Active,
     })
 }
 
-/// Whether a composition met a refused read.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Refusal {
-    /// It did not.
-    NotMet,
-    /// It did: nothing more is read, and every node waiting runs.
-    Met,
-}
-
-/// One composition of node states in a file.
-struct Composing<'c> {
-    plan: &'c ActivationPlan,
-    triggers: &'c Triggers,
-    facts: &'c mut dyn FnMut(Relation) -> FactAnswer,
-    into: &'c mut Activities,
-    refusal: Refusal,
-}
-
-impl Composing<'_> {
-    /// `node`'s state, composed once and kept.
-    fn state(&mut self, node: PlanNodeId) -> Result<NodeState, OperatingError> {
-        let at = usize::try_from(node.0).map_err(|_| OperatingError::ShapeMismatch)?;
-        if let Some(Some(known)) = self.into.0.get(at) {
-            return Ok(*known);
-        }
-        let plan = self.plan;
-        let state = match plan.nodes.get(at) {
-            None | Some(NodeRequirement::Live) => NodeState::default(),
-            Some(NodeRequirement::Kinds { slots, fallible }) => {
-                let rows = any_kind(self.triggers, slots)?;
-                // The prefix cannot fail; a comparison after it fails only on a row.
-                let faults = if rows == TriggerPresence::Present && fallible.0 != 0 {
-                    TriggerPresence::Present
-                } else {
-                    TriggerPresence::Absent
-                };
-                NodeState { rows, faults }
-            }
-            Some(NodeRequirement::Inputs {
-                rows,
-                fallible,
-                from,
-            }) => self.composed(node, *rows, *fallible, from)?,
-        };
-        if let Some(slot) = self.into.0.get_mut(at) {
-            *slot = Some(state);
-        }
-        Ok(state)
+/// `node`'s state, composed once and kept: a refused read on the way keeps it as able to have rows and faults, so it runs.
+fn state(
+    plan: &ActivationPlan,
+    triggers: &Triggers,
+    leaves: &mut dyn ActivationLeaves,
+    into: &mut Activities,
+    node: PlanNodeId,
+) -> Result<NodeDecision, OperatingError> {
+    let at = usize::try_from(node.0).map_err(|_| OperatingError::ShapeMismatch)?;
+    if let Some(Some(known)) = into.0.get(at) {
+        return Ok(NodeDecision::Decided(*known));
     }
-
-    /// An operation's state from its inputs', in the order the runner meets them: its node inputs, then its fact relations.
-    /// Its rows are as its presence mask declares, and it can fault when an input carries a fault or a fallible input can have
-    /// rows. An input a mask names past the node's inputs cannot be shown empty, so it is read as having rows.
-    fn composed(
-        &mut self,
-        node: PlanNodeId,
-        rows: PresenceMask,
-        fallible: InputMask,
-        from: &[ActivationInput],
-    ) -> Result<NodeState, OperatingError> {
-        let mut with_rows = u8::MAX
-            .checked_shl(u32::try_from(from.len()).unwrap_or(u32::MAX))
-            .unwrap_or(0);
-        let mut carried = TriggerPresence::Absent;
-        let bit = |place: usize| {
-            1_u8.checked_shl(u32::try_from(place).unwrap_or(u32::MAX))
-                .unwrap_or(0)
-        };
-        for (place, input) in from.iter().enumerate() {
-            let ActivationInput::Node(read) = input else {
-                continue;
-            };
-            if *read >= node {
-                return Err(OperatingError::ShapeMismatch);
-            }
-            let state = self.state(*read)?;
-            if self.refusal == Refusal::Met {
-                return Ok(NodeState::default());
-            }
-            if state.rows == TriggerPresence::Present {
-                with_rows |= bit(place);
-            }
-            if state.faults == TriggerPresence::Present {
-                carried = TriggerPresence::Present;
-            }
-        }
-        for (place, input) in from.iter().enumerate() {
-            match input {
-                ActivationInput::Node(_) => {}
-                ActivationInput::Tree => with_rows |= bit(place),
-                ActivationInput::Fact(FactSlot(slot)) => {
-                    let relation = *self
-                        .plan
-                        .facts
-                        .get(*slot)
-                        .ok_or(OperatingError::ShapeMismatch)?;
-                    match (self.facts)(relation) {
-                        FactAnswer::Rows => with_rows |= bit(place),
-                        FactAnswer::NoRow => {}
-                        FactAnswer::Refused => {
-                            self.refusal = Refusal::Met;
-                            return Ok(NodeState::default());
-                        }
-                    }
-                }
-            }
-        }
-        let has_rows = match rows {
-            PresenceMask::AllOf(mask) => mask.0 & !with_rows == 0,
-            PresenceMask::AnyOf(mask) => mask.0 & with_rows != 0,
-            PresenceMask::Always => true,
-        };
-        Ok(NodeState {
-            rows: if has_rows {
+    let decision = match plan.nodes.get(at) {
+        None | Some(NodeRequirement::Live) => NodeDecision::Decided(NodeState::default()),
+        Some(NodeRequirement::Kinds { slots, fallible }) => {
+            let rows = any_kind(triggers, slots)?;
+            // The prefix cannot fail; a comparison after it fails only on a row.
+            let faults = if rows == TriggerPresence::Present && fallible.0 != 0 {
                 TriggerPresence::Present
             } else {
                 TriggerPresence::Absent
+            };
+            NodeDecision::Decided(NodeState { rows, faults })
+        }
+        Some(NodeRequirement::Inputs {
+            rows,
+            fallible,
+            from,
+        }) => composed(
+            plan,
+            triggers,
+            leaves,
+            into,
+            NodeInputs {
+                node,
+                rows: *rows,
+                fallible: *fallible,
+                from,
             },
-            faults: if fallible.0 & with_rows != 0 {
-                TriggerPresence::Present
-            } else {
-                carried
-            },
-        })
+        )?,
+    };
+    if let Some(slot) = into.0.get_mut(at) {
+        *slot = Some(match decision {
+            NodeDecision::Decided(known) => known,
+            NodeDecision::Refused => NodeState::default(),
+        });
     }
+    Ok(decision)
+}
+
+/// An operation's state from its inputs', in the order the runner meets them: its node inputs, then its fact relations. Its
+/// rows are as its presence mask declares, and it can fault when an input carries a fault or a fallible input can have rows.
+/// An input a mask names past the node's inputs cannot be shown empty, so it is read as having rows.
+fn composed(
+    plan: &ActivationPlan,
+    triggers: &Triggers,
+    leaves: &mut dyn ActivationLeaves,
+    into: &mut Activities,
+    inputs: NodeInputs<'_>,
+) -> Result<NodeDecision, OperatingError> {
+    let NodeInputs {
+        node,
+        rows,
+        fallible,
+        from,
+    } = inputs;
+    let mut with_rows = InputMask(
+        u8::MAX
+            .checked_shl(u32::try_from(from.len()).unwrap_or(u32::MAX))
+            .unwrap_or(0),
+    );
+    let mut carried = TriggerPresence::Absent;
+    for (place, input) in from.iter().enumerate() {
+        let ActivationInput::Node(read) = input else {
+            continue;
+        };
+        if *read >= node {
+            return Err(OperatingError::ShapeMismatch);
+        }
+        let NodeDecision::Decided(state) = state(plan, triggers, leaves, into, *read)? else {
+            return Ok(NodeDecision::Refused);
+        };
+        if state.rows == TriggerPresence::Present {
+            with_rows.0 |= 1_u8
+                .checked_shl(u32::try_from(place).unwrap_or(u32::MAX))
+                .unwrap_or(0);
+        }
+        if state.faults == TriggerPresence::Present {
+            carried = TriggerPresence::Present;
+        }
+    }
+    for (place, input) in from.iter().enumerate() {
+        let present = match input {
+            ActivationInput::Node(_) => continue,
+            ActivationInput::Tree => TriggerPresence::Present,
+            ActivationInput::Fact(FactSlot(slot)) => {
+                let relation = *plan.facts.get(*slot).ok_or(OperatingError::ShapeMismatch)?;
+                match leaves.rows(relation) {
+                    FactAnswer::Rows => TriggerPresence::Present,
+                    FactAnswer::NoRow => TriggerPresence::Absent,
+                    FactAnswer::Refused => return Ok(NodeDecision::Refused),
+                }
+            }
+        };
+        if present == TriggerPresence::Present {
+            with_rows.0 |= 1_u8
+                .checked_shl(u32::try_from(place).unwrap_or(u32::MAX))
+                .unwrap_or(0);
+        }
+    }
+    let has_rows = match rows {
+        PresenceMask::AllOf(mask) => mask.0 & !with_rows.0 == 0,
+        PresenceMask::AnyOf(mask) => mask.0 & with_rows.0 != 0,
+        PresenceMask::Always => true,
+    };
+    Ok(NodeDecision::Decided(NodeState {
+        rows: if has_rows {
+            TriggerPresence::Present
+        } else {
+            TriggerPresence::Absent
+        },
+        faults: if fallible.0 & with_rows.0 != 0 {
+            TriggerPresence::Present
+        } else {
+            carried
+        },
+    }))
 }
 
 /// A root select's rows: present where the file holds any of its kinds.

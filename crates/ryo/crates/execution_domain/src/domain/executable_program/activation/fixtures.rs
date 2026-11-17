@@ -1,7 +1,9 @@
 //! Test support of the `activation` concept: a case's program, built from real operations, its drafts and one file's
 //! triggers, and each node's activity in that file.
 use super::service::{activity, plan_of, trigger_kinds};
-use super::types::{Activities, FactAnswer, NodeActivity, TriggerPresence, Triggers};
+use super::types::{
+    ActivationLeaves, Activities, FactAnswer, NodeActivity, TriggerPresence, Triggers,
+};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::executable_program::types::{Draft, SchemaTiming};
 use crate::domain::operating::errors::OperatingError;
@@ -210,27 +212,41 @@ pub(super) fn activity_of(program: &Program) -> Result<Cow<'static, str>, Operat
             })
             .collect(),
     };
-    let mut reads: Vec<Relation> = Vec::new();
-    let mut facts = |relation: Relation| {
-        reads.push(relation);
-        if program.refused.contains(&relation) {
-            FactAnswer::Refused
-        } else if program.empty.contains(&relation) {
-            FactAnswer::NoRow
-        } else {
-            FactAnswer::Rows
-        }
+    let mut file = FakeFile {
+        program,
+        reads: Vec::new(),
     };
     let mut states = Activities::default();
     let mut answered = String::new();
     for at in 0..program.nodes.len() {
         let node = PlanNodeId(u32::try_from(at).unwrap_or(u32::MAX));
         answered.push(
-            match activity(&plan, &triggers, &mut facts, &mut states, node)? {
+            match activity(&plan, &triggers, &mut file, &mut states, node)? {
                 NodeActivity::Active => 'A',
                 NodeActivity::Dormant => 'D',
             },
         );
     }
-    Ok(Cow::Owned(format!("{answered}; reads {reads:?}")))
+    Ok(Cow::Owned(format!("{answered}; reads {:?}", file.reads)))
+}
+
+/// A file a case describes, answering activation's reads from its program's empty and refused relations, and keeping each read.
+struct FakeFile<'p> {
+    /// The program and the file it describes.
+    program: &'p Program,
+    /// Each relation read, in order.
+    reads: Vec<Relation>,
+}
+
+impl ActivationLeaves for FakeFile<'_> {
+    fn rows(&mut self, relation: Relation) -> FactAnswer {
+        self.reads.push(relation);
+        if self.program.refused.contains(&relation) {
+            FactAnswer::Refused
+        } else if self.program.empty.contains(&relation) {
+            FactAnswer::NoRow
+        } else {
+            FactAnswer::Rows
+        }
+    }
 }
