@@ -609,7 +609,9 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
         step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step
     ]
     gate = jobs["gate"]
-    assert gate["if"] == "always()" and gate["needs"] == ["check", "speed", "ruff-candidates", "ownership-contracts"]
+    # `speed` runs but does not decide the gate: ci/perf benches this repository, which the owner ruled out as a perf
+    # target, and asymptote's per-language bench ratchets judge perf (#49 deletes the job).
+    assert gate["if"] == "always()" and gate["needs"] == ["check", "ruff-candidates", "ownership-contracts"]
     (deciding,) = gate["steps"]
     assert deciding["uses"].startswith("re-actors/")
     assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "ruff-candidates"}

@@ -158,7 +158,11 @@ jobs:
   # The product gate also requires the independent speed and Ruff authoring guards. The strict full inventory records parity
   # separately and remains a release acceptance requirement while rules are still being implemented.
   gate:
-    needs: [check, speed, ruff-candidates, ownership-contracts]
+    # `speed` runs but does not decide the gate: it is the root ci/perf comparison, which #49 deletes for asymptote's
+    # per-language bench ratchets, the one place perf is judged; and its Tastemaker `commands` bench lints this
+    # repository with ryo, our own tooling, which the owner ruled out as a perf target ("i dont want us looking at our
+    # internal tooling for this").
+    needs: [check, ruff-candidates, ownership-contracts]
     if: always()
     runs-on: ubuntu-26.04
     steps:
