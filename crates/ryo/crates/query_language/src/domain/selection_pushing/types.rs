@@ -30,4 +30,3 @@ pub(crate) struct SplitComparisons {
     /// comparison from the first that may fail on.
     pub rest: Vec<PlanComparison>,
 }
-

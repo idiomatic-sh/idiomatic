@@ -75,9 +75,9 @@ fn over_the_answer(
     view: &[ColumnIndex],
 ) -> Option<Vec<PlanComparison>> {
     let answered = |column: ColumnIndex| -> Option<ColumnIndex> {
-        let place = answer
-            .iter()
-            .position(|each| each.side == Side::Right && view_source(view, each.column) == Some(column))?;
+        let place = answer.iter().position(|each| {
+            each.side == Side::Right && view_source(view, each.column) == Some(column)
+        })?;
         match u32::try_from(place) {
             Ok(at) => Some(ColumnIndex(at)),
             // A place past every column number names no column.
@@ -289,11 +289,11 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         },
     )?;
     // The comparisons no element can fail ride the walk of the second join; the rest filter its answer.
-    let walked =
-        fixed_prefix(&folded, RowWidth(columns(Relation::SyntaxTree).len())).0.len();
+    let walked = fixed_prefix(&folded, RowWidth(columns(Relation::SyntaxTree).len()))
+        .0
+        .len();
     let (filters, rest) = folded.split_at(walked);
-    if rides_the_walk(Relation::SyntaxTree, element_on, element_view, filters).is_none()
-    {
+    if rides_the_walk(Relation::SyntaxTree, element_on, element_view, filters).is_none() {
         return None;
     }
     // The key is the parent of the edge the made rows were found by.

@@ -172,7 +172,12 @@ fn semantic_join() -> PlanStep {
     join(
         (relation(Relation::SemanticChild), 1),
         (relation(Relation::SemanticSyntax), 0),
-        &[(Side::Left, 0), (Side::Left, 3), (Side::Right, 1), (Side::Right, 2)],
+        &[
+            (Side::Left, 0),
+            (Side::Left, 3),
+            (Side::Right, 1),
+            (Side::Right, 2),
+        ],
         Vec::new(),
     )
 }
@@ -189,12 +194,20 @@ fn placed(scenario: Scenario) -> Planned {
             ],
             StepId(1),
             vec![
-                select(relation(Relation::SemanticChild), vec![named(3, "operator")]),
+                select(
+                    relation(Relation::SemanticChild),
+                    vec![named(3, "operator")],
+                ),
                 select(relation(Relation::SemanticSyntax), vec![named(2, "||")]),
                 join(
                     (at(0), 1),
                     (at(1), 0),
-                    &[(Side::Left, 0), (Side::Left, 3), (Side::Right, 1), (Side::Right, 2)],
+                    &[
+                        (Side::Left, 0),
+                        (Side::Left, 3),
+                        (Side::Right, 1),
+                        (Side::Right, 2),
+                    ],
                     Vec::new(),
                 ),
             ],
@@ -278,7 +291,12 @@ fn placed(scenario: Scenario) -> Planned {
                 join(
                     (at(0), 1),
                     (relation(Relation::SemanticSyntax), 0),
-                    &[(Side::Left, 0), (Side::Left, 3), (Side::Right, 1), (Side::Right, 2)],
+                    &[
+                        (Side::Left, 0),
+                        (Side::Left, 3),
+                        (Side::Right, 1),
+                        (Side::Right, 2),
+                    ],
                     Vec::new(),
                 ),
                 select(at(1), vec![matches_parameter(3), named(0, "y")]),
@@ -296,7 +314,12 @@ fn placed(scenario: Scenario) -> Planned {
                 join(
                     (at(0), 1),
                     (relation(Relation::SemanticSyntax), 0),
-                    &[(Side::Left, 0), (Side::Left, 3), (Side::Right, 1), (Side::Right, 2)],
+                    &[
+                        (Side::Left, 0),
+                        (Side::Left, 3),
+                        (Side::Right, 1),
+                        (Side::Right, 2),
+                    ],
                     Vec::new(),
                 ),
                 select(at(1), vec![same(1, 3)]),
@@ -304,9 +327,15 @@ fn placed(scenario: Scenario) -> Planned {
             StepId(2),
         ),
         Scenario::OrAlternativesPlaceEach => {
-            let alternative = |kind: &str| select_kept(at(0), vec![named(1, "test"), named(2, kind)], &[0]);
+            let alternative =
+                |kind: &str| select_kept(at(0), vec![named(1, "test"), named(2, kind)], &[0]);
             let placed = |edges: u32, elements: u32| {
-                join((at(edges), 1), (at(elements), 0), &[(Side::Left, 0)], Vec::new())
+                join(
+                    (at(edges), 1),
+                    (at(elements), 0),
+                    &[(Side::Left, 0)],
+                    Vec::new(),
+                )
             };
             (
                 vec![
@@ -321,10 +350,16 @@ fn placed(scenario: Scenario) -> Planned {
                 StepId(3),
                 vec![
                     select(relation(Relation::SemanticChild), vec![named(3, "test")]),
-                    select(relation(Relation::SemanticSyntax), vec![named(1, "if-statement")]),
+                    select(
+                        relation(Relation::SemanticSyntax),
+                        vec![named(1, "if-statement")],
+                    ),
                     placed(0, 1),
                     select(relation(Relation::SemanticChild), vec![named(3, "test")]),
-                    select(relation(Relation::SemanticSyntax), vec![named(1, "while-statement")]),
+                    select(
+                        relation(Relation::SemanticSyntax),
+                        vec![named(1, "while-statement")],
+                    ),
                     placed(3, 4),
                     step(Operation::Union {
                         left: at(2),
@@ -356,7 +391,12 @@ fn placed(scenario: Scenario) -> Planned {
                     join(
                         (at(1), 1),
                         (relation(Relation::SemanticSyntax), 0),
-                        &[(Side::Left, 0), (Side::Left, 3), (Side::Right, 1), (Side::Right, 2)],
+                        &[
+                            (Side::Left, 0),
+                            (Side::Left, 3),
+                            (Side::Right, 1),
+                            (Side::Right, 2),
+                        ],
                         Vec::new(),
                     ),
                     antijoin(2, 0),

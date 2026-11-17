@@ -3,8 +3,8 @@
 
 use super::service::push_selections;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_relations::domain::relations::types::Relation;
 use crate::domain::rewriting::types::Planned;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, HostedNumber, Input as Reads, JoinColumn, LiteralText, Operand,
     ParameterId, PlanComparison, QueryLiteral, Side, StepId, StepScope, Test,
@@ -58,7 +58,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("the_infallible_prefix_of_each_filter_of_a_union_is_made_on_both_its_inputs"),
+        name: CaseName(
+            "the_infallible_prefix_of_each_filter_of_a_union_is_made_on_both_its_inputs",
+        ),
         word: Word::Succeeds,
         input: || Scenario::UnionOfFilterReadersPushesThePrefix,
         expect: Expect::Value(true),

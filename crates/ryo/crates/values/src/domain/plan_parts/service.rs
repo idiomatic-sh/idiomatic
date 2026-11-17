@@ -321,10 +321,8 @@ pub fn rides_the_walk<'a>(
     comparisons: &'a [PlanComparison],
 ) -> Option<FixedPrefix<'a>> {
     // The columns of `relation` that the keys read through the view.
-    let read: Option<Vec<ColumnIndex>> = right_on
-        .iter()
-        .map(|key| view_source(view, *key))
-        .collect();
+    let read: Option<Vec<ColumnIndex>> =
+        right_on.iter().map(|key| view_source(view, *key)).collect();
     let by_a_node = read.is_some_and(|read| {
         matches!(
             tree_lookup_key(relation, &read),

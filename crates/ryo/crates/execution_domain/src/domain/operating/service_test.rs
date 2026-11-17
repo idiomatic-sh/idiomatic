@@ -6,11 +6,11 @@ use ryo_language::domain::symbols::{
     service::{hash_in, intern_derived, place_of},
     types::{ByteSlice, Symbols},
 };
-use ryo_values::domain::plan_parts::{service::family_of, types::Family};
 use ryo_relations::domain::{
     relations::types::{CROSS_FILE, Origin, Value as Cell},
     terms::types::NameText,
 };
+use ryo_values::domain::plan_parts::{service::family_of, types::Family};
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::plan_parts::types::Test,

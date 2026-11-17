@@ -50,7 +50,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("a_where_of_the_elements_joined_by_their_id_rides_the_walk_and_the_edges_are_filtered"),
+        name: CaseName(
+            "a_where_of_the_elements_joined_by_their_id_rides_the_walk_and_the_edges_are_filtered",
+        ),
         word: Word::Succeeds,
         input: || BODY_RETURNS,
         expect: Expect::Value(Cow::Borrowed(
@@ -58,7 +60,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("a_pattern_of_the_elements_stays_a_filter_of_the_join_and_their_kind_rides_the_walk"),
+        name: CaseName(
+            "a_pattern_of_the_elements_stays_a_filter_of_the_join_and_their_kind_rides_the_walk",
+        ),
         word: Word::Succeeds,
         input: || FEATURE_KEYS,
         expect: Expect::Value(Cow::Borrowed(
@@ -72,7 +76,9 @@ fn operand(operand: &Operand) -> String {
     match operand {
         Operand::Column(column) => format!("#{}", column.0),
         Operand::Literal(QueryLiteral::Text(text)) => format!("{:?}", text.0),
-        Operand::Literal(_) | Operand::Parameter(_) | Operand::Function(_) => format!("{operand:?}"),
+        Operand::Literal(_) | Operand::Parameter(_) | Operand::Function(_) => {
+            format!("{operand:?}")
+        }
     }
 }
 
@@ -126,7 +132,10 @@ fn subject(text: Input) -> Result<Value, Failure> {
         .enumerate()
         .filter_map(|(at, step)| {
             let Operation::Join {
-                left, right, filter, ..
+                left,
+                right,
+                filter,
+                ..
             } = &step.operation
             else {
                 return None;
@@ -138,7 +147,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
                         from: Reads::Step(id),
                         comparisons: tested,
                         ..
-                    } if usize::try_from(id.0).unwrap_or(usize::MAX) == at => Some(comparisons(tested)),
+                    } if usize::try_from(id.0).unwrap_or(usize::MAX) == at => {
+                        Some(comparisons(tested))
+                    }
                     _ => None,
                 })
                 .collect();

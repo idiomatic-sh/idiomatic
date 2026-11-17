@@ -3,8 +3,8 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::plan_parts::service::fixed_prefix;
 use crate::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, LiteralText, Operand, ParameterId, PlanComparison,
-    QueryLiteral, RowWidth, Test,
+    ColumnIndex, ComparisonOrigin, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral,
+    RowWidth, Test,
 };
 
 /// How wide a row of the cases is: a node, then three names.

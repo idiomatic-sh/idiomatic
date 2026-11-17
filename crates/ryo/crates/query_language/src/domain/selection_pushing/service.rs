@@ -159,9 +159,13 @@ fn split_comparisons(
             split.rest.push(comparison.clone());
         }
     }
-    split
-        .rest
-        .extend(comparisons.get(prefix.len()..).unwrap_or_default().iter().cloned());
+    split.rest.extend(
+        comparisons
+            .get(prefix.len()..)
+            .unwrap_or_default()
+            .iter()
+            .cloned(),
+    );
     split
 }
 
@@ -216,7 +220,14 @@ fn pushed_union(
         scope: made.scope,
     };
     let rest = comparisons.get(prefix.len()..).unwrap_or_default().to_vec();
-    Some(finished(reader, before, combined, filtering, rest, kept.clone()))
+    Some(finished(
+        reader,
+        before,
+        combined,
+        filtering,
+        rest,
+        kept.clone(),
+    ))
 }
 
 /// What takes the place of the filter at `reader` of the join `id`, when some of its comparisons are placed on an input.
@@ -292,7 +303,9 @@ fn pushed_join(steps: &[PlanStep], id: StepId, reader: StepIndex) -> Option<Push
         },
         scope: made.scope,
     };
-    Some(finished(reader, before, combined, filtering, split.rest, kept))
+    Some(finished(
+        reader, before, combined, filtering, split.rest, kept,
+    ))
 }
 
 /// What takes the place of `filtering`, the filter at `reader`, once `before` and the union or the join of them, `combined`, are

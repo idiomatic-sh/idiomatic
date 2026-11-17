@@ -21,10 +21,10 @@ use ryo_operators::domain::tree_cells::service::native_form;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::fixed_prefix;
-use ryo_values::domain::plan_parts::types::{RowWidth, StepId};
 use ryo_values::domain::plan_parts::types::{
     Input, InputNumber, LiteralText, Operand, QueryLiteral, StepScope, Test,
 };
+use ryo_values::domain::plan_parts::types::{RowWidth, StepId};
 use ryo_values::domain::plans::service::{each_input, inputs_of, kind_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use std::borrow::Cow;

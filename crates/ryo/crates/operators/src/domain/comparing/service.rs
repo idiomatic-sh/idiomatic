@@ -13,8 +13,6 @@ use crate::domain::comparing::collections::comparisons::membership::item::Member
 use crate::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
 use crate::domain::comparing::errors::ComparingError;
 use crate::domain::comparing::types::{ComparisonCount, ComparisonNumber, NameCount};
-use ryo_values::domain::plan_parts::service::family_of;
-use ryo_values::domain::plan_parts::types::Family;
 use crate::domain::comparing::types::{DecisionWorkspace, NumberedComparison, RowShape};
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::functions::types::MadeText;
@@ -29,6 +27,8 @@ use crate::domain::table_scratch::types::{
 };
 use crate::domain::table_texts::types::Texts;
 use ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs;
+use ryo_values::domain::plan_parts::service::family_of;
+use ryo_values::domain::plan_parts::types::Family;
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use ryo_values::domain::rows::service::{cell, column_in};
 
