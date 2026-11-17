@@ -29,6 +29,7 @@ use ryo_language::domain::semantics::types::RenderOutcome;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::contract::types::{PortableOperatorFault, RenderRefusal, WithheldInput};
+use ryo_operators::domain::physical_plan::types::activity::value::Activity;
 use ryo_operators::domain::physical_plan::types::bound_observation_place::value::BoundObservationPlace;
 use ryo_operators::domain::physical_plan::types::candidates::value::Candidates;
 use ryo_operators::domain::physical_plan::types::fact_rows::value::FactRows;
@@ -306,6 +307,9 @@ impl PlanInputs for PassInputs<'_, '_, '_> {
             Some(table) => HeldRows::Held(table),
             None => HeldRows::Withheld(WithheldInput(u32::MAX)),
         }
+    }
+    fn activity(&self, _node: PlanNodeId) -> Activity<'_> {
+        Activity::Active
     }
 }
 
