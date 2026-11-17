@@ -69,6 +69,7 @@ fn join(left: Reads, right: Reads, output: Vec<JoinColumn>) -> Operation {
         output,
         filter: Vec::new(),
         view: Vec::new(),
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     }
 }

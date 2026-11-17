@@ -54,6 +54,7 @@ pub(crate) fn ordered_existence(first: u32, shape: OrderedShape) -> Vec<Step> {
                 ],
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
             &[edges.1, edges.1],

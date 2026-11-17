@@ -141,6 +141,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 &step.name,
                 select,
                 join,
+                &[],
                 source,
                 LastStep::Later,
             )?;

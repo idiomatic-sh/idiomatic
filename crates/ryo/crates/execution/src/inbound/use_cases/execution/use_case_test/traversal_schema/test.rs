@@ -140,7 +140,7 @@ fn native_operation(traversal: Traversal) -> Operation {
             ],
             filter: Vec::new(),
             view: vec![column(1), column(0)],
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }
     }

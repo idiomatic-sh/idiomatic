@@ -88,6 +88,7 @@ impl Witnesses for SeededReachNode {
                         output: &output,
                         view: &[],
                         reach: Some(&reach),
+                        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                     },
                     &[],
                     &[],

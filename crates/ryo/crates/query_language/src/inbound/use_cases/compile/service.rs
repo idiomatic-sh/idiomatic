@@ -85,6 +85,7 @@ pub(super) fn unresolved(error: LoweringError) -> CompileError {
         | LoweringError::UnknownColumn { span, .. }
         | LoweringError::UnknownSide { span, .. }
         | LoweringError::UnknownSideColumn { span, .. }
+        | LoweringError::NearestNeedsOneOrder { span, .. }
         | LoweringError::UnknownParameterType { span, .. }
         | LoweringError::FunctionArity { span, .. }
         | LoweringError::TooManyComparisonOrigins { span }

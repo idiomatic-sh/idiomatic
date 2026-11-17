@@ -70,6 +70,7 @@ pub(crate) fn graph_source(
             Operation::Select { .. }
             | Operation::Extend { .. }
             | Operation::Join { .. }
+            | Operation::BandJoin { .. }
             | Operation::Union { .. }
             | Operation::Intersection { .. }
             | Operation::Difference { .. }
@@ -160,6 +161,7 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> GraphInputKind {
                     | Operation::Project { .. }
                     | Operation::Extend { .. }
                     | Operation::Join { .. }
+                    | Operation::BandJoin { .. }
                     | Operation::Union { .. }
                     | Operation::Intersection { .. }
                     | Operation::Difference { .. }

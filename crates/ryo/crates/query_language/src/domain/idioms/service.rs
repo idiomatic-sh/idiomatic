@@ -50,7 +50,7 @@ pub(crate) fn push_same_sets(
             output,
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         first_fields.clone(),
@@ -76,7 +76,7 @@ pub(crate) fn push_same_sets(
             output: both_output,
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         both_fields.clone(),
@@ -160,7 +160,7 @@ pub(crate) fn push_same_sets_joined(
             output: columns,
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         widened,
@@ -179,7 +179,7 @@ pub(crate) fn push_same_sets_joined(
             output,
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         met_fields,
@@ -289,7 +289,7 @@ pub(crate) fn recognize_same_sets(builder: &Builder<'_>, idiom: SameSets) -> Opt
         output,
         filter,
         view,
-
+        fan: _,
         reach: None,
     }) = builder
         .steps

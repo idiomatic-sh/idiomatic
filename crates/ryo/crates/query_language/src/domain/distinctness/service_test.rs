@@ -96,6 +96,7 @@ fn edges_joined(left: u32, right: u32) -> Operation {
         }],
         filter: Vec::new(),
         view: Vec::new(),
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     }
 }

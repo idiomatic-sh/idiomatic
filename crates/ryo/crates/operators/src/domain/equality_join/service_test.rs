@@ -29,11 +29,12 @@ fn places_right_columns_through_the_view() -> bool {
             output: &output,
             view: &[ColumnIndex(2), ColumnIndex(5)],
             reach: None,
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         },
         &[],
         &[],
     );
-    probe.mode == ProbeMode::Inner
+    matches!(probe.mode, ProbeMode::Inner(_))
         && probe.key
             == ProbeKey::Columns {
                 left: vec![ColumnIndex(0)],
@@ -64,6 +65,7 @@ fn a_column_past_the_view_stays() -> bool {
             output: &[],
             view: &[ColumnIndex(2)],
             reach: None,
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         },
         &[],
         &[],
@@ -83,6 +85,7 @@ fn unseeded_join_probes_as_the_join() -> bool {
         output: &[],
         view: &[],
         reach: None,
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
     };
     let join = seeded(shape, &[], &[]);
     join.columns.is_empty() && join.probe == lower(shape, &[], &[])

@@ -141,6 +141,7 @@ pub(crate) fn author(
             ],
             filter: vec![],
             view: vec![],
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         };
         let mut a = inputs::table_inputs(join, &[&left, &right], bindings, symbols);

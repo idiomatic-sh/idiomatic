@@ -163,6 +163,7 @@ fn join(right: (StepInput, PlanInput), residual: bool, reach: Option<ReachLookup
             ],
             filter: Vec::new(),
             view: Vec::new(),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach,
         },
         inputs: vec![PlanInput::Relation(EDGES), right.1],

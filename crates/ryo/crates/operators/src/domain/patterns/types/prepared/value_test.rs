@@ -120,6 +120,7 @@ fn join(comparison: PlanComparison) -> Operation {
         output: vec![],
         filter: vec![comparison],
         view: vec![],
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     }
 }

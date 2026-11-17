@@ -95,6 +95,7 @@ fn joined(
         output: left_two(),
         filter: Vec::new(),
         view: Vec::new(),
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     };
     output_coverage(

@@ -219,7 +219,7 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output,
         filter,
         view,
-
+        fan: _,
         reach: None,
     } = &steps.get(place.0)?.operation
     else {
@@ -258,7 +258,7 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output: made_output,
         filter: element_filter,
         view: element_view,
-
+        fan,
         reach: None,
     } = made
     else {
@@ -316,7 +316,7 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         output: answer,
         filter: filters,
         view: element_view.clone(),
-
+        fan: *fan,
         reach: None,
     };
     Some(Pushed { below, above })
@@ -348,7 +348,7 @@ fn edge_lookup(
             .collect(),
         filter: Vec::new(),
         view: Vec::new(),
-
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     }
 }

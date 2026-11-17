@@ -3,9 +3,9 @@
 use crate::domain::aggregate::types::GroupMeasure;
 use crate::domain::ordered_dfs::types::DfsShape;
 use crate::domain::physical_plan::types::lowering::value::{
-    AxisNode, BoundScan, ComponentsNode, DistinctNode, ExtendNode, FilterNode, GroupNode, Lowering,
-    OrderedMatchNode, OrderedWalkNode, ProbeNode, ProjectNode, ReachNode, RenderNode,
-    ScanBoundNode, SeededReachNode, TextMapNode, WorklistNode,
+    AxisNode, BandJoinNode, BoundScan, ComponentsNode, DistinctNode, ExtendNode, FilterNode,
+    GroupNode, Lowering, OrderedMatchNode, OrderedWalkNode, ProbeNode, ProjectNode, ReachNode,
+    RenderNode, ScanBoundNode, SeededReachNode, TextMapNode, WorklistNode,
 };
 use crate::domain::physical_plan::types::{PlanInput, ProbeIndex, RowMap, RowSource};
 use crate::domain::set_rows::types::{SetKind, SetLowering};
@@ -83,6 +83,7 @@ pub(crate) fn lowered(
             output,
             filter,
             view,
+            fan,
             reach: None,
             ..
         } => both().map(|(left, right)| {
@@ -96,6 +97,7 @@ pub(crate) fn lowered(
                         output,
                         view,
                         reach: None,
+                        fan: *fan,
                     },
                     filter,
                     bindings,
@@ -103,6 +105,28 @@ pub(crate) fn lowered(
                 index: ProbeIndex::Own,
             })
         }),
+        // A band join reads its right rows unfiltered: one whose right rows a filter keeps first makes no node.
+        Operation::BandJoin {
+            left_on,
+            right_on,
+            band,
+            answer,
+            output,
+            filter,
+            view,
+            fan,
+            ..
+        } => both()
+            .filter(|_| filter.is_empty())
+            .zip(crate::domain::band_join::service::lower(
+                [left_on, right_on],
+                band,
+                *answer,
+                output,
+                view,
+                *fan,
+            ))
+            .map(|((left, right), band)| Lowering::BandJoin(BandJoinNode { left, right, band })),
         Operation::Union { .. } => set(SetKind::Union, &[], &[]),
         Operation::Intersection { .. } => set(SetKind::Intersection, &[], &[]),
         Operation::Difference { .. } => set(SetKind::Difference, &[], &[]),
@@ -205,6 +229,7 @@ pub(crate) fn lowered(
             output,
             filter,
             view,
+            fan,
             reach: Some(reach),
             ..
         } => both().map(|(left, edges)| {
@@ -219,6 +244,7 @@ pub(crate) fn lowered(
                         output,
                         view,
                         reach: Some(reach),
+                        fan: *fan,
                     },
                     filter,
                     bindings,

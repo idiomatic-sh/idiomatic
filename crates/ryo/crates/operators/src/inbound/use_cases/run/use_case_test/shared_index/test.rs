@@ -110,6 +110,7 @@ fn probe_of(left: (StepInput, PlanInput), left_on: u32, output: &[(Side, u32)]) 
                 .collect(),
             filter: Vec::new(),
             view: Vec::new(),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         inputs: vec![left.1, PlanInput::Relation(DEFINES)],

@@ -131,6 +131,15 @@ pub(crate) enum LoweringError {
         /// Where the query names it.
         span: QuerySpan,
     },
+    /// A `nearest join` whose `where` compares its sides in order other than exactly once: the nearest row is nearest by one
+    /// order.
+    #[error("a nearest join orders by one comparison between its sides; this one has {count}")]
+    NearestNeedsOneOrder {
+        /// How many comparisons in order between the sides the `where` has.
+        count: usize,
+        /// Where the query writes the join.
+        span: QuerySpan,
+    },
     /// A `where` after a join names `alias.column` with a column that side does not have.
     #[error("the side `{alias}` of the join has no column named `{name}`")]
     UnknownSideColumn {

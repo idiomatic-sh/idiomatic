@@ -150,6 +150,7 @@ pub(super) fn made(
         | Lowering::Distinct(_)
         | Lowering::TextMap(_)
         | Lowering::OrderedMatch(_)
+        | Lowering::BandJoin(_)
         | Lowering::Render(_) => {}
         Lowering::Reach(_)
         | Lowering::SeededReach(_)
@@ -241,7 +242,9 @@ pub(super) fn made(
         Lowering::Group(_) | Lowering::Render(_) | Lowering::Reach(_) | Lowering::Components(_) => {
             left_fault.clone()
         }
-        Lowering::OrderedMatch(_) => left_fault.clone().or_else(|| right_fault.clone()),
+        Lowering::OrderedMatch(_) | Lowering::BandJoin(_) => {
+            left_fault.clone().or_else(|| right_fault.clone())
+        }
         Lowering::Axis(_) => right_fault.clone().or_else(|| last_fault.clone()),
         Lowering::OrderedWalk(_) => right_fault.clone().or_else(|| left_fault.clone()),
         Lowering::Worklist(_) => right_fault

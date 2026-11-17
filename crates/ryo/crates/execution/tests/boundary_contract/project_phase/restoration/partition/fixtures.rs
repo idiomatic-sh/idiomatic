@@ -151,6 +151,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
                     ],
                     filter: vec![],
                     view: vec![],
+                    fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                     reach: None,
                 },
             });
@@ -251,6 +252,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
                     ],
                     filter: vec![],
                     view: vec![],
+                    fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                     reach: None,
                 },
             });

@@ -125,6 +125,7 @@ pub(crate) fn mixed_plan(relation: Relation) -> ryo_values::domain::plans::types
                 }],
                 filter: vec![],
                 view: vec![],
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
         },

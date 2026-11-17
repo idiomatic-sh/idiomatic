@@ -74,6 +74,7 @@ fn join(
             ],
             filter,
             view: Vec::new(),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         &[left.1, right.1],
@@ -390,6 +391,7 @@ fn seeded_join() -> Step {
                 keys: Vec::new(),
                 columns: vec![ColumnIndex(0), ColumnIndex(1)],
             }),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         },
         &inputs,
     )

@@ -46,6 +46,8 @@ crate::lowerings! {
     Components(ComponentsNode),
     /// `text_map`: each row of the source through one text kind's per-row meaning, giving none, one or many rows.
     TextMap(TextMapNode),
+    /// `band_join`: each left row with the right rows of its key inside a band of order comparisons, every one or the nearest.
+    BandJoin(BandJoinNode),
     /// `ordered_match`: both sources ordered by key then order, each left row paired with the earliest later right row.
     OrderedMatch(OrderedMatchNode),
     /// `render`: one batch of renderings for every row of the source, refused whole on one unsupported answer.
@@ -225,6 +227,17 @@ pub(crate) struct ScanBoundNode {
     pub(crate) scan: BoundScan,
 }
 
+/// A `band_join` node.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct BandJoinNode {
+    /// The left rows, read in order.
+    pub(crate) left: RowSource,
+    /// The right rows.
+    pub(crate) right: RowSource,
+    /// The keys, the band, the answer and the output.
+    pub(crate) band: crate::domain::band_join::types::BandParts,
+}
+
 /// What a bound scan reads: the host's rows of a declared relation, or the tables a `list<table>` parameter is bound to.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum BoundScan {
@@ -277,6 +290,7 @@ impl Lowering {
             Self::Reach(ReachNode { edges, .. })
             | Self::Components(ComponentsNode { edges, .. }) => (Some(*edges), None, None),
             Self::Probe(ProbeNode { left, right, .. })
+            | Self::BandJoin(BandJoinNode { left, right, .. })
             | Self::OrderedMatch(OrderedMatchNode { left, right, .. }) => {
                 (Some(*left), Some(*right), None)
             }

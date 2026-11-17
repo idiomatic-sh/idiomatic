@@ -85,6 +85,7 @@ pub(crate) fn one_row_past_the_bound() -> Program {
                     output: both_nodes(),
                     filter: Vec::new(),
                     view: Vec::new(),
+                    fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                     reach: None,
                 },
                 inputs: vec![PlanInput::Node(PlanNodeId(0)), defines.1],
@@ -186,6 +187,7 @@ pub(crate) fn join(
             output,
             filter,
             view: Vec::new(),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         inputs: vec![left.1, right.1],
@@ -320,13 +322,13 @@ pub(crate) fn probe_of_a_held_node(mode: ProbeMode, rows: usize) -> Program {
             },
             inputs: vec![node(1).1, node(0).1],
         },
-        ProbeMode::Inner | ProbeMode::Semi | ProbeMode::Ordered(_) => {
+        ProbeMode::Inner(_) | ProbeMode::Semi | ProbeMode::Ordered(_) => {
             join(node(1), node(0), both_nodes(), Vec::new())
         }
     };
     let held = match mode {
         ProbeMode::Anti => defines_named(Test::EndsWith, "1"),
-        ProbeMode::Inner | ProbeMode::Semi | ProbeMode::Ordered(_) => {
+        ProbeMode::Inner(_) | ProbeMode::Semi | ProbeMode::Ordered(_) => {
             defines_named(Test::StartsWith, "n")
         }
     };

@@ -34,6 +34,10 @@ pub(crate) enum Keyword {
     As,
     /// `join`.
     Join,
+    /// `nearest`, before `join`.
+    Nearest,
+    /// `all-pairs`, before `join`.
+    AllPairs,
     /// `on`.
     On,
     /// `where`.
@@ -106,6 +110,8 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::From => "from",
         Keyword::As => "as",
         Keyword::Join => "join",
+        Keyword::Nearest => "nearest",
+        Keyword::AllPairs => "all-pairs",
         Keyword::On => "on",
         Keyword::Where => "where",
         Keyword::And => "and",
@@ -245,8 +251,8 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "join",
-        form: "join source on join_key { and join_key }",
-        example: " join \"function\" as r on l.file = r.file",
+        form: "[ nearest | all-pairs ] join source on join_key { and join_key }",
+        example: " nearest join \"function\" as r on l.file = r.file",
     },
     GrammarLine {
         name: "join_key",

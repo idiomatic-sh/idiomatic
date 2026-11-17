@@ -71,6 +71,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                         ],
                         filter: vec![],
                         view: vec![],
+                        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                         reach: None,
                     },
                 },

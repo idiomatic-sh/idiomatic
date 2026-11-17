@@ -133,6 +133,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
         | Lowering::Worklist(_)
         | Lowering::Components(_)
         | Lowering::OrderedMatch(_)
+        | Lowering::BandJoin(_)
         | Lowering::Render(_)
         | Lowering::ScanBound(_) => return Err(PortableOperatorFault::WrongOperation),
     })
@@ -283,6 +284,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
         | Lowering::Worklist(_)
         | Lowering::Components(_)
         | Lowering::OrderedMatch(_)
+        | Lowering::BandJoin(_)
         | Lowering::Render(_)
         | Lowering::ScanBound(_) => return Err(PortableOperatorFault::WrongOperation),
     })

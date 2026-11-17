@@ -34,6 +34,7 @@ fn join(right: u32, right_on: Vec<ColumnIndex>) -> PlanStep {
         }],
         filter: vec![],
         view: vec![],
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     })
 }

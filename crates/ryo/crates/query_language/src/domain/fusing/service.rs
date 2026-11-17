@@ -79,7 +79,7 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter: no_filter,
         view: no_view,
-
+        fan,
         reach: None,
     } = &steps.get(place.0)?.operation
     else {
@@ -109,7 +109,7 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: output.clone(),
         filter: comparisons.clone(),
         view: kept.clone(),
-
+        fan: *fan,
         reach: None,
     })
 }
@@ -204,7 +204,7 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
-
+        fan,
         reach: None,
     } = &producer.operation
     else {
@@ -254,7 +254,7 @@ fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: answer,
         filter: merged,
         view: view.clone(),
-
+        fan: *fan,
         reach: None,
     })
 }

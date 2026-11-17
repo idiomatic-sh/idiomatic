@@ -48,6 +48,7 @@ impl KernelsItem for OrderedWalkItem {
             | Lowering::Components(_)
             | Lowering::TextMap(_)
             | Lowering::OrderedMatch(_)
+            | Lowering::BandJoin(_)
             | Lowering::Render(_)
             | Lowering::ScanBound(_)
             | Lowering::Worklist(_) => false,

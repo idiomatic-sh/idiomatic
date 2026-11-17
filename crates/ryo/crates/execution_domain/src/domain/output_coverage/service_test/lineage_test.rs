@@ -106,6 +106,7 @@ fn the_placement_of_a_node_key(operand: Reads) -> Result<Placement, OperatingErr
         ],
         filter: Vec::new(),
         view: Vec::new(),
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     };
     let kinds = [CellKind::Node, CellKind::File];
@@ -153,6 +154,7 @@ fn the_placement_through_lineage(
         output,
         filter: Vec::new(),
         view: Vec::new(),
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     };
     let kinds = [CellKind::Node, CellKind::File, CellKind::Number];

@@ -50,6 +50,23 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
             },
             reach: reach.clone(),
         }),
+        Operation::BandJoin {
+            left_on,
+            right_on,
+            filter,
+            view,
+            ..
+        } => ResourceProgram::Join(JoinResources {
+            left_on: left_on.clone(),
+            right_on: right_on.clone(),
+            view: view.clone(),
+            has_filter: if filter.is_empty() {
+                Filtering::Unfiltered
+            } else {
+                Filtering::Filtered
+            },
+            reach: None,
+        }),
         Operation::GroupCount { keys, distinct, .. } => ResourceProgram::Count {
             keys: keys.clone(),
             distinct: *distinct,
@@ -158,7 +175,8 @@ pub(crate) fn binding_dependent(
         ryo_values::domain::plans::types::Operation::Select { comparisons, .. } => {
             comparisons.as_slice()
         }
-        ryo_values::domain::plans::types::Operation::Join { filter, .. } => filter.as_slice(),
+        ryo_values::domain::plans::types::Operation::Join { filter, .. }
+        | ryo_values::domain::plans::types::Operation::BandJoin { filter, .. } => filter.as_slice(),
         ryo_values::domain::plans::types::Operation::Axis { domain_filter, .. } => {
             domain_filter.as_slice()
         }

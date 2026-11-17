@@ -29,7 +29,9 @@ impl KernelsItem for ProjectItem {
         let runs = {
             match lowering {
                 Lowering::Project(_) => true,
-                Lowering::Probe(ProbeNode { probe, .. }) => probe.mode == ProbeMode::Inner,
+                Lowering::Probe(ProbeNode { probe, .. }) => {
+                    matches!(probe.mode, ProbeMode::Inner(_))
+                }
                 Lowering::Filter(_)
                 | Lowering::Lookup(_)
                 | Lowering::Extend(_)
@@ -37,6 +39,7 @@ impl KernelsItem for ProjectItem {
                 | Lowering::Group(_)
                 | Lowering::TextMap(_)
                 | Lowering::OrderedMatch(_)
+                | Lowering::BandJoin(_)
                 | Lowering::Render(_)
                 | Lowering::Reach(_)
                 | Lowering::SeededReach(_)

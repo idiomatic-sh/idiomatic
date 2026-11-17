@@ -198,6 +198,7 @@ pub(super) fn through(operator: Operator, partly: Partly) -> Result<CoverageStat
                 }],
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
             &KINDS[..1],

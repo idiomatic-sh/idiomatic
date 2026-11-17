@@ -113,6 +113,7 @@ impl<'a> DemandClosure<'a> {
                         output: output.clone(),
                         filter: filter.clone(),
                         view: view.clone(),
+                        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                         reach: Some(rooted.reach),
                     },
                 }
@@ -179,6 +180,7 @@ impl<'a> DemandClosure<'a> {
             | Operation::Project { .. }
             | Operation::Extend { .. }
             | Operation::Join { .. }
+            | Operation::BandJoin { .. }
             | Operation::Union { .. }
             | Operation::Intersection { .. }
             | Operation::Difference { .. }

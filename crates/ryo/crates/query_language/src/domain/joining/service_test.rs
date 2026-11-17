@@ -27,6 +27,7 @@ fn source(alias: &str) -> ast::QuerySource {
 fn lower(key: &str) -> Result<plans::Operation, LoweringError> {
     let mut builder = lowering_builder();
     let join = ast::Join {
+        kind: ast::JoinKind::Equal,
         source: source("right"),
         on: vec![ast::JoinKey {
             left: column("left", key),
@@ -51,6 +52,7 @@ fn lower(key: &str) -> Result<plans::Operation, LoweringError> {
         ),
         &select,
         &join,
+        &[],
         input,
         crate::domain::lowering::types::LastStep::Join,
     )?;
@@ -65,6 +67,7 @@ fn typed_join_keeps_keys_and_selected_side() {
         output,
         filter,
         view,
+        fan: _,
         reach,
     } = lower("file").unwrap()
     else {
@@ -97,6 +100,7 @@ fn unknown_join_key_keeps_name_and_span() {
 fn refusal_of(key: ast::JoinKey, filters: Vec<ast::Condition>) -> LoweringError {
     let mut builder = lowering_builder();
     let join = ast::Join {
+        kind: ast::JoinKind::Equal,
         source: source("right"),
         on: vec![key],
     };
@@ -119,6 +123,7 @@ fn refusal_of(key: ast::JoinKey, filters: Vec<ast::Condition>) -> LoweringError 
         ),
         &select,
         &join,
+        &[],
         input,
         crate::domain::lowering::types::LastStep::Join,
     )

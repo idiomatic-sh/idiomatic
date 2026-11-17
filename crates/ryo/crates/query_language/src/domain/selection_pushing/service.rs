@@ -4,13 +4,13 @@ use super::types::FilterGain;
 use super::types::PushedFilter;
 use super::types::SplitComparisons;
 use super::types::Tested;
-use crate::domain::lineage::service::column_kind;
+use crate::domain::distinctness::service::keyed_on_file_alone;
+use crate::domain::distinctness::types::FileKeyed;
 use crate::domain::lineage::types::LineageMemo;
 use crate::domain::planning::service::planned_scope;
 use crate::domain::pruning::service::without_unused_roots;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
-use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::service::remapped;
@@ -135,12 +135,9 @@ fn gain_of(steps: &[PlanStep], memo: &mut LineageMemo, input: Input) -> FilterGa
             left_on,
             reach: None,
             ..
-        } => {
-            if !left_on.is_empty()
-                && left_on
-                    .iter()
-                    .all(|key| column_kind(steps, memo, *left, *key) == Some(CellKind::File))
-            {
+        }
+        | Operation::BandJoin { left, left_on, .. } => {
+            if keyed_on_file_alone(steps, memo, *left, left_on) == FileKeyed::Alone {
                 FilterGain::Pays
             } else {
                 FilterGain::Stays
@@ -285,6 +282,7 @@ fn pushed_filter(steps: &[PlanStep], id: StepId, reader: StepIndex) -> Option<Pu
             output,
             filter,
             view,
+            fan,
             reach: None,
         } = &made.operation
         else {
@@ -313,6 +311,7 @@ fn pushed_filter(steps: &[PlanStep], id: StepId, reader: StepIndex) -> Option<Pu
                 output: output.clone(),
                 filter: filter.clone(),
                 view: view.clone(),
+                fan: *fan,
                 reach: None,
             },
             split.rest,

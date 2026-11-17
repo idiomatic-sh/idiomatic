@@ -163,6 +163,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
                         }],
                         filter: vec![],
                         view: vec![],
+                        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                         reach: None,
                     },
                 },

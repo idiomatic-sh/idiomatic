@@ -94,6 +94,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn right_of(
         | Lowering::Components(_)
         | Lowering::TextMap(_)
         | Lowering::OrderedMatch(_)
+        | Lowering::BandJoin(_)
         | Lowering::Render(_)
         | Lowering::ScanBound(_) => None,
     }

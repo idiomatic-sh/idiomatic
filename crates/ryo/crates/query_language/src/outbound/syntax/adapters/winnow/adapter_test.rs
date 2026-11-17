@@ -454,7 +454,7 @@ fn refuses() {
 }
 
 /// Every keyword, in the order the grammar meets them.
-const KEYWORDS: [Keyword; 35] = [
+const KEYWORDS: [Keyword; 37] = [
     Keyword::Param,
     Keyword::Import,
     Keyword::Input,
@@ -470,6 +470,8 @@ const KEYWORDS: [Keyword; 35] = [
     Keyword::From,
     Keyword::As,
     Keyword::Join,
+    Keyword::Nearest,
+    Keyword::AllPairs,
     Keyword::On,
     Keyword::Where,
     Keyword::And,

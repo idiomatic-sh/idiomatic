@@ -76,6 +76,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
                     ],
                     filter: vec![],
                     view: vec![],
+                    fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                     reach: None,
                 },
             },

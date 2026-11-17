@@ -126,6 +126,7 @@ pub(crate) fn join(
                 .collect(),
             filter: Vec::new(),
             view: Vec::new(),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         left.0,

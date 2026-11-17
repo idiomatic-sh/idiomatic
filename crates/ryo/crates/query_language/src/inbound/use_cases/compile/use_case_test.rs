@@ -232,6 +232,9 @@ mod decoded_columns;
 mod idioms;
 
 #[cfg(test)]
+mod band_joins;
+
+#[cfg(test)]
 mod joining;
 
 #[cfg(test)]

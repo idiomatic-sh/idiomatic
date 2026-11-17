@@ -61,7 +61,7 @@ pub(crate) fn answer_kinds(
     left: &[CellKind],
     right: &[CellKind],
 ) -> Result<Vec<CellKind>, PortableOperatorFault> {
-    if probe.mode != ProbeMode::Inner {
+    if !matches!(probe.mode, ProbeMode::Inner(_)) {
         return Ok(left.to_vec());
     }
     probe
@@ -227,7 +227,7 @@ fn row_probed(
             Matched::Walked(tree)
         }
     };
-    if probe.mode == ProbeMode::Inner {
+    if matches!(probe.mode, ProbeMode::Inner(_)) {
         match matched {
             Matched::Indexed(key) => {
                 let mut matched_row = key.map_or(NO_ROW, |key| key.first);

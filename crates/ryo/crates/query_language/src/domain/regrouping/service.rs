@@ -105,6 +105,7 @@ fn split_join<'a>(steps: &[PlanStep], operation: &'a Operation) -> Option<SplitJ
         output,
         filter,
         view,
+        fan: _,
         reach: None,
     } = operation
     else {
@@ -208,6 +209,7 @@ fn regrouped_on(
         output,
         filter,
         view,
+        fan,
         reach: None,
     } = outer
     else {
@@ -298,6 +300,7 @@ fn regrouped_on(
                     .collect(),
                 filter: filter.clone(),
                 view: view.clone(),
+                fan: *fan,
                 reach: None,
             },
             ColumnPrefixLength(0),
@@ -314,6 +317,7 @@ fn regrouped_on(
                     .collect(),
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: *fan,
                 reach: None,
             },
             ColumnPrefixLength(other_kept.len()),
@@ -358,6 +362,7 @@ fn regrouped_on(
             output: answer,
             filter: Vec::new(),
             view: Vec::new(),
+            fan: *fan,
             reach: None,
         },
         Side::Right => Operation::Join {
@@ -368,6 +373,7 @@ fn regrouped_on(
             output: answer,
             filter: Vec::new(),
             view: split.view.to_vec(),
+            fan: *fan,
             reach: None,
         },
     };

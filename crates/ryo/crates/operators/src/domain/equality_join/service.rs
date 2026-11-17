@@ -19,7 +19,7 @@ pub(crate) fn lower(
         None => *column,
     };
     ProbeParts {
-        mode: ProbeMode::Inner,
+        mode: ProbeMode::Inner(shape.fan),
         key: ProbeKey::Columns {
             left: shape.left_on.to_vec(),
             right: shape.right_on.iter().map(placed).collect(),
@@ -64,7 +64,7 @@ pub(crate) fn seeded(
 pub(crate) const fn mode_kind(mode: super::types::ProbeMode) -> super::types::ProbeModeKind {
     use super::types::{ProbeMode, ProbeModeKind};
     match mode {
-        ProbeMode::Inner => ProbeModeKind::Inner,
+        ProbeMode::Inner(_) => ProbeModeKind::Inner,
         ProbeMode::Semi => ProbeModeKind::Semi,
         ProbeMode::Anti => ProbeModeKind::Anti,
         ProbeMode::Ordered(_) => ProbeModeKind::Ordered,
@@ -72,12 +72,12 @@ pub(crate) const fn mode_kind(mode: super::types::ProbeMode) -> super::types::Pr
 }
 
 /// How many right rows a probe of `mode` writes for each left row: a semi, anti or ordered probe keeps at most the left row; an
-/// inner probe writes the right rows sharing its key.
+/// inner probe writes the right rows its proven keys pair.
 pub(crate) const fn fan(mode: super::types::ProbeMode) -> crate::domain::growth::types::Fan {
     use super::types::ProbeMode;
     use crate::domain::growth::types::Fan;
     match mode {
         ProbeMode::Semi | ProbeMode::Anti | ProbeMode::Ordered(_) => Fan::PerLeft,
-        ProbeMode::Inner => Fan::Repeats,
+        ProbeMode::Inner(key) => crate::domain::growth::service::fan_of(key),
     }
 }

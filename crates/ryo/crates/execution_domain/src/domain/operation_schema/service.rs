@@ -61,7 +61,9 @@ pub fn schema_of(
         Operation::Extend { values, .. } => {
             BindingShape::new(bindings).extended(values, first()?.kinds.to_vec())
         }
-        Operation::Join { .. } => join_schema(operation, inputs, bindings),
+        Operation::Join { .. } | Operation::BandJoin { .. } => {
+            join_schema(operation, inputs, bindings)
+        }
         Operation::Union { .. } => union_schema(operation, inputs, bindings),
         Operation::Intersection { .. } | Operation::Difference { .. } => {
             let (left, right) = (first()?, second()?);
@@ -286,28 +288,35 @@ pub(crate) fn join_schema(
     inputs: &[InputShape<'_>],
     bindings: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
-    let Operation::Join {
-        left_on,
-        right_on,
-        output,
-        filter,
-        view,
-        reach,
-        ..
-    } = operation
-    else {
-        return Err(OperatingError::WrongOperation);
+    let (left_on, right_on, output, filter, view, reach) = match operation {
+        Operation::Join {
+            left_on,
+            right_on,
+            output,
+            filter,
+            view,
+            reach,
+            ..
+        } => (left_on, right_on, output, filter, view, reach.as_ref()),
+        Operation::BandJoin {
+            left_on,
+            right_on,
+            output,
+            filter,
+            view,
+            ..
+        } => (left_on, right_on, output, filter, view, None),
+        _ => return Err(OperatingError::WrongOperation),
     };
     let (left, right) = (
         schema_input(inputs, InputPlace(0))?,
         schema_input(inputs, InputPlace(1))?,
     );
     let virtual_right = reach
-        .as_ref()
         .map(|reach| reach_kinds(right.kinds, reach))
         .transpose()?;
     let right_kinds = virtual_right.as_deref().unwrap_or(right.kinds);
-    let view = right_view(view, right.tree, reach.as_ref());
+    let view = right_view(view, right.tree, reach);
     let answer = joined(left.kinds, right_kinds, view, output)?;
     for column in right_on {
         check_columns(

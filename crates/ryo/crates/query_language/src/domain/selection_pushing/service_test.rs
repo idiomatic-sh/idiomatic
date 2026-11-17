@@ -95,6 +95,7 @@ fn join(left: Reads, right: Reads) -> PlanStep {
         ],
         filter: Vec::new(),
         view: Vec::new(),
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     })
 }
@@ -169,6 +170,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     output: Vec::new(),
                     filter: Vec::new(),
                     view: Vec::new(),
+                    fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                     reach: None,
                 }),
             ];

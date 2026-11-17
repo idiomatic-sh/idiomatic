@@ -62,6 +62,7 @@ fn rule(at: u32) -> [Step; 3] {
                 }],
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
             &[at + 1, at],

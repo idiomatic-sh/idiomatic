@@ -36,7 +36,7 @@ fn subject(kind: Input) -> Result<Value, Failure> {
         return Err(());
     };
     let mut inner = probe.clone();
-    inner.mode = ProbeMode::Inner;
+    inner.mode = ProbeMode::Inner(ryo_values::domain::plan_parts::types::KeyFan::Shared);
     let mut nodes: Vec<PhysicalNode> = [probe, inner]
         .into_iter()
         .map(|probe| PhysicalNode {

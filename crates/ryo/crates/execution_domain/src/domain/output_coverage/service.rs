@@ -207,6 +207,13 @@ pub fn output_coverage(
                 output,
                 view,
                 ..
+            }
+            | Operation::BandJoin {
+                left_on,
+                right_on,
+                output,
+                view,
+                ..
             } => {
                 let proven =
                     proven_by_lineage(inputs, left_on, right_on, output, view, output_kinds);

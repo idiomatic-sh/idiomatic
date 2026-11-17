@@ -16,13 +16,15 @@ pub(crate) struct JoinShape<'a> {
     pub view: &'a [ColumnIndex],
     /// The reachability lookup of a join over a closure.
     pub reach: Option<&'a ryo_values::domain::plan_parts::types::ReachLookup>,
+    /// What the keys are proven to pair.
+    pub fan: ryo_values::domain::plan_parts::types::KeyFan,
 }
 
 /// Which left rows a probe keeps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ProbeMode {
-    /// Each left row with each right row of its key, the right rows ascending.
-    Inner,
+    /// Each left row with each right row of its key, the right rows ascending; the keys proven to pair as the fan says.
+    Inner(ryo_values::domain::plan_parts::types::KeyFan),
     /// A left row with a right row of its key.
     Semi,
     /// A left row with no right row of its key.

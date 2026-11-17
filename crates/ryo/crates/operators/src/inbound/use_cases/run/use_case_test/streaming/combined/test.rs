@@ -145,6 +145,7 @@ fn large_file() -> Program {
                     output: both_nodes(),
                     filter: vec![against(Test::EndsWith, 3, "1")],
                     view: Vec::new(),
+                    fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                     reach: None,
                 },
                 inputs: vec![PlanInput::Node(PlanNodeId(0)), defines.1],

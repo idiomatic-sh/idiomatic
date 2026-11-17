@@ -2,6 +2,7 @@
 //! rows.
 use super::super::run::types::KernelInputs;
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::physical_plan::collections::kernels::band_join::item::banded;
 use crate::domain::physical_plan::collections::kernels::components::item::cyclic;
 use crate::domain::physical_plan::collections::kernels::directed_walk::item::{
     AxisInputs, AxisTables, walked,
@@ -24,8 +25,8 @@ use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
 };
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::{
-    AxisNode, ComponentsNode, GroupNode, Lowering, OrderedMatchNode, OrderedWalkNode, ReachNode,
-    SeededReachNode, WorklistNode,
+    AxisNode, BandJoinNode, ComponentsNode, GroupNode, Lowering, OrderedMatchNode, OrderedWalkNode,
+    ReachNode, SeededReachNode, WorklistNode,
 };
 use crate::domain::physical_plan::types::{CellStart, KernelRun, PlanNodeId};
 use ryo_values::domain::rows::types::{RowIndex, Table};
@@ -167,6 +168,12 @@ pub(crate) fn kernels(
                 &mut buffers.cycles,
                 output,
             );
+        }
+        Lowering::BandJoin(BandJoinNode { band, .. }) => {
+            let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
+            if let Err(fault) = banded(band, input, right, run.resources.texts(), output) {
+                return Ok(Some(fault));
+            }
         }
         Lowering::OrderedMatch(OrderedMatchNode { ordered, .. }) => {
             let right = other.ok_or(PortableOperatorFault::WrongOperation)?;

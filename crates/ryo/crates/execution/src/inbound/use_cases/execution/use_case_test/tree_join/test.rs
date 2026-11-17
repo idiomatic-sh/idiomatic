@@ -60,6 +60,7 @@ fn subject((): Input) -> Result<Value, Failure> {
                     column: ColumnIndex(1),
                 },
             ],
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
     ]);
@@ -82,6 +83,7 @@ fn subject((): Input) -> Result<Value, Failure> {
                     column: ColumnIndex(2),
                 },
             ],
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
     ]);
