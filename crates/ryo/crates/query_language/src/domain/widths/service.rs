@@ -22,7 +22,7 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
                     counted(kept)
                 }
             }
-            Operation::Join { output, .. } => counted(output),
+            Operation::Join { output, .. } | Operation::BandJoin { output, .. } => counted(output),
             Operation::Project { columns, .. } => counted(columns),
             Operation::Axis { from, output, .. } => {
                 if output.is_empty() {

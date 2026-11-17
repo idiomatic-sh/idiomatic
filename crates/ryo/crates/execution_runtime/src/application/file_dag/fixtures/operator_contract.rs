@@ -78,6 +78,7 @@ pub fn fixture(kind: OperationKind) -> Fixture {
                 ],
                 filter: vec![],
                 view: vec![],
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
             vec![

@@ -94,6 +94,7 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output,
         filter,
         view,
+        fan: _,
         reach: None,
     } = &steps.get(place.0)?.operation
     else {
@@ -117,6 +118,7 @@ fn fuse_descent(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         output: edges_output,
         filter: no_filter,
         view: no_view,
+        fan: _,
         reach: None,
     } = &middle.operation
     else {

@@ -194,7 +194,7 @@ fn recognised(
         return None;
     };
     let ProbeParts {
-        mode: ProbeMode::Inner,
+        mode: ProbeMode::Inner(_),
         key: ProbeKey::Columns {
             left: partition,
             right: right_on,
@@ -333,7 +333,7 @@ fn numbered(
         Lowering::Probe(ProbeNode {
             left, right, probe, ..
         }) => match probe.mode {
-            ProbeMode::Inner => {
+            ProbeMode::Inner(_) => {
                 probe
                     .output
                     .get(usize::from(column))

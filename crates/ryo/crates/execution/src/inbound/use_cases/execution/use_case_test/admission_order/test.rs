@@ -79,6 +79,7 @@ pub(crate) fn operation(kind: OperationKind, invalid: bool) -> Operation {
             ],
             filter: vec![],
             view: vec![],
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         OperationKind::Union => Operation::Union { left, right },

@@ -27,6 +27,7 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
         | Operation::Words { from, .. } => (*from, *from, *from, 1),
         Operation::OrderedMatch { left, right, .. }
         | Operation::Join { left, right, .. }
+        | Operation::BandJoin { left, right, .. }
         | Operation::Union { left, right }
         | Operation::Intersection { left, right }
         | Operation::Difference { left, right }
@@ -110,6 +111,7 @@ pub fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) 
         | Operation::Words { from, .. } => visit(from),
         Operation::OrderedMatch { left, right, .. }
         | Operation::Join { left, right, .. }
+        | Operation::BandJoin { left, right, .. }
         | Operation::Union { left, right }
         | Operation::Intersection { left, right }
         | Operation::Difference { left, right }
@@ -158,7 +160,8 @@ pub fn kind_of(operation: &Operation) -> OperationKind {
         Operation::Select { .. } => OperationKind::Select,
         Operation::Project { .. } => OperationKind::Project,
         Operation::Extend { .. } => OperationKind::Extend,
-        Operation::Join { .. } => OperationKind::Join,
+        // A band join is the language's `join` whose `where` compares its sides in order: one written kind.
+        Operation::Join { .. } | Operation::BandJoin { .. } => OperationKind::Join,
         Operation::Union { .. } => OperationKind::Union,
         Operation::Intersection { .. } => OperationKind::Intersection,
         Operation::Difference { .. } => OperationKind::Difference,
@@ -184,7 +187,7 @@ pub fn kind_of(operation: &Operation) -> OperationKind {
 pub fn comparisons_of(operation: &Operation) -> &[PlanComparison] {
     match operation {
         Operation::Select { comparisons, .. } => comparisons,
-        Operation::Join { filter, .. } => filter,
+        Operation::Join { filter, .. } | Operation::BandJoin { filter, .. } => filter,
         Operation::Axis { domain_filter, .. } => domain_filter,
         Operation::Project { .. }
         | Operation::Extend { .. }

@@ -283,6 +283,10 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
         | Operation::Join {
             filter: comparisons,
             ..
+        }
+        | Operation::BandJoin {
+            filter: comparisons,
+            ..
         } => comparisons
             .iter()
             .find_map(|comparison| match comparison.origin {

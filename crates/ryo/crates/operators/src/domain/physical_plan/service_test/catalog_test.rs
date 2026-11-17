@@ -57,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_kernel_is_reached"),
         word: Word::Succeeds,
         input: || Scenario::KernelsReached,
-        expect: Expect::Value(21),
+        expect: Expect::Value(22),
     },
     Case {
         name: CaseName("a_kernel_no_lowering_runs_fails_every_kernel_is_reached"),
@@ -125,6 +125,25 @@ fn catalog_program() -> Vec<Step> {
             edge_keys: Vec::new(),
         },
         inputs: vec![PlanInput::Node(PlanNodeId(12)); 3],
+    });
+    steps.push(Step {
+        operation: Operation::BandJoin {
+            left: count(),
+            right: count(),
+            left_on: vec![first],
+            right_on: vec![first],
+            band: vec![ryo_values::domain::plan_parts::types::BandEdge {
+                left: first,
+                test: ryo_values::domain::plan_parts::types::BandTest::Below,
+                right: first,
+            }],
+            answer: ryo_values::domain::plan_parts::types::BandAnswer::Nearest,
+            output: Vec::new(),
+            filter: Vec::new(),
+            view: Vec::new(),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
+        },
+        inputs: vec![PlanInput::Node(PlanNodeId(12)); 2],
     });
     steps
 }

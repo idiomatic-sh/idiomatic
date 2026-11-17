@@ -24,7 +24,7 @@ use ryo_values::domain::program::types::{
 };
 use ryo_values::domain::query_syntax::types::{
     Alias, Argument, ArgumentValue, Call, ColumnReference, Columns, Condition, Expression, Filter,
-    Join, JoinKey, Joining, QuerySource, Renaming, Select, SelectColumn, SourceReference,
+    Join, JoinKey, JoinKind, Joining, QuerySource, Renaming, Select, SelectColumn, SourceReference,
     WrittenApplied, WrittenFunction, WrittenOperand, WrittenTest,
 };
 use ryo_values::domain::query_tokens::types::{
@@ -659,9 +659,19 @@ pub(super) fn source(input: &mut Input<'_>) -> ModalResult<QuerySource> {
     })
 }
 
-/// ` join source on a = b and c = d`.
+/// ` join source on a = b and c = d`, its `join` written `join`, `nearest join` or `all-pairs join`.
 pub(super) fn join(input: &mut Input<'_>) -> ModalResult<Join> {
-    (multispace1, keyword(Keyword::Join), multispace1)
+    multispace1.void().parse_next(input)?;
+    let kind = opt(terminated(
+        alt((
+            keyword(Keyword::Nearest).value(JoinKind::Nearest),
+            keyword(Keyword::AllPairs).value(JoinKind::AllPairs),
+        )),
+        multispace1,
+    ))
+    .parse_next(input)?
+    .unwrap_or(JoinKind::Equal);
+    (keyword(Keyword::Join), multispace1)
         .void()
         .parse_next(input)?;
     let source = source.parse_next(input)?;
@@ -674,7 +684,7 @@ pub(super) fn join(input: &mut Input<'_>) -> ModalResult<Join> {
         (multispace1, keyword(Keyword::And), multispace1),
     )
     .parse_next(input)?;
-    Ok(Join { source, on })
+    Ok(Join { kind, source, on })
 }
 
 /// `a = b`.

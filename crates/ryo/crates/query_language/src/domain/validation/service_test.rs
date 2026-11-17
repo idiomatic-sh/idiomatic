@@ -241,6 +241,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut joined = source("function");
             if let Expression::Select(select) = &mut joined.expression {
                 select.join = Joining::Joined(Join {
+                    kind: ryo_values::domain::query_syntax::types::JoinKind::Equal,
                     source: select.from.clone(),
                     on: Vec::new(),
                 });

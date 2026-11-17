@@ -103,6 +103,7 @@ fn seeded_closure() -> Step {
                 keys: Vec::new(),
                 columns: vec![ColumnIndex(0), ColumnIndex(1)],
             }),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         },
         inputs: vec![PlanInput::Relation(DEFINES), PlanInput::Relation(EDGES)],
     }

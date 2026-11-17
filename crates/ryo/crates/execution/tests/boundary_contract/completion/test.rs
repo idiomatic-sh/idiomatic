@@ -216,6 +216,7 @@ fn first_of_each_line_plan(
             ],
             filter: vec![],
             view: vec![],
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         Operation::Select {

@@ -80,6 +80,8 @@ kernels! {
     Group => crate::domain::physical_plan::collections::kernels::group::item::GroupItem,
     /// The `text_map` kernel.
     TextMap => crate::domain::physical_plan::collections::kernels::text_map::item::TextMapItem,
+    /// The `band_join` kernel.
+    BandJoin => crate::domain::physical_plan::collections::kernels::band_join::item::BandJoinItem,
     /// The `ordered_match` kernel.
     OrderedMatch => crate::domain::physical_plan::collections::kernels::ordered_match::item::OrderedMatchItem,
     /// The `render` kernel.
@@ -232,6 +234,7 @@ fn flow_of(
         | Lowering::Worklist(_)
         | Lowering::Components(_)
         | Lowering::OrderedMatch(_)
+        | Lowering::BandJoin(_)
         | Lowering::Render(_)
         | Lowering::ScanBound(_) => false,
     };

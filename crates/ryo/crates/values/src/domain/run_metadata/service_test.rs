@@ -325,6 +325,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                         output: Vec::new(),
                         filter: vec![comparison(Test::Equal), comparison(Test::GreaterThan)],
                         view: Vec::new(),
+                        fan: crate::domain::plan_parts::types::KeyFan::Shared,
                         reach: None,
                     },
                     scope: StepScope::PerFile,

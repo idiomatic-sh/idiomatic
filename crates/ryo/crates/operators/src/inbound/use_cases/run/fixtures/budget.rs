@@ -7,7 +7,7 @@ use crate::domain::physical_plan::types::PlanNodeId;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use ryo_relations::domain::relations::types::{Offset, Relation, Span};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as StepInput, JoinColumn, Side, StepId,
+    ColumnIndex, Input as StepInput, JoinColumn, KeyFan, Side, StepId,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::Table;
@@ -56,6 +56,7 @@ pub fn one_name_product(
                 filter: Vec::new(),
                 view: Vec::new(),
                 reach: None,
+                fan: KeyFan::Shared,
             },
             &[0, 0],
         ),

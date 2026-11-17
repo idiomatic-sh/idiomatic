@@ -88,7 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_instance_names_one_role_per_input"),
         word: Word::Succeeds,
         input: || Given::OneRolePerInput,
-        expect: Expect::Value(Answer::Held(27)),
+        expect: Expect::Value(Answer::Held(31)),
     },
     Case {
         name: CaseName("a_probe_grows_by_its_mode"),

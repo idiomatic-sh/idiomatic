@@ -53,6 +53,7 @@ fn join(key: u32) -> Operation {
         ],
         filter: Vec::new(),
         view: Vec::new(),
+        fan: crate::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     }
 }
@@ -141,6 +142,7 @@ fn subject(input: Input) {
                 output,
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: crate::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             };
             let column = |side, at| JoinColumn {

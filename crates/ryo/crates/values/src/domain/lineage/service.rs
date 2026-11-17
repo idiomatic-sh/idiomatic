@@ -312,6 +312,13 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
             view,
             reach: None,
             ..
+        }
+        | Operation::BandJoin {
+            left_on,
+            right_on,
+            output,
+            view,
+            ..
         } => joined(&first, left_on, &second, right_on, output, view, kinds),
         Operation::OrderedMatch {
             left_on,

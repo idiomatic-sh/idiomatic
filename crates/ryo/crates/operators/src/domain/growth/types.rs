@@ -51,7 +51,8 @@ pub trait Operator {
 pub enum Growth {
     /// At most the rows of its inputs together: a filter, a projection, an extension, a distinct, a lookup, a render, a scan.
     AtMostInput,
-    /// At most the file's text: rows per row bounded by the bytes they read, as `words` and `source-matches` write.
+    /// At most the file's text: rows per row bounded by the bytes they read, as `words` and `source-matches` write. The file
+    /// is the partition the runner gives every keyed kernel (today one file).
     PerRowText,
     /// At most one row per left row: an ordered match.
     OnePerLeftRow,
@@ -79,10 +80,39 @@ pub enum Fan {
     PerLeft,
     /// The right rows sharing its key, which repeat a bounded number of times.
     Repeats,
-    /// Every right row of its file: a key of the file alone, a product of the file's rows.
+    /// Every right row of its file: a key of the file alone, a product of the file's rows. The file is the partition the
+    /// runner gives every keyed kernel (today one file).
     FileProduct,
     /// Every pair, as the query declared with `all-pairs join`.
     DeclaredPairs,
+}
+
+/// A degree of a size variable in a bound: `rows^2` has the rows degree 2.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct Degree(pub(crate) u8);
+
+/// A bound as a monomial `rows^a · depth^b · repeats^c`: the rows of the partition, the depth of a walk, and how often a shared
+/// key repeats.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub(crate) struct Bound {
+    /// The degree in rows.
+    pub(crate) rows: Degree,
+    /// The degree in a walk's depth.
+    pub(crate) depth: Degree,
+    /// The degree in a shared key's repeats.
+    pub(crate) repeats: Degree,
+}
+
+/// What a node writes, and the work it does to write it, each as a bound.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub(crate) struct NodeBound {
+    /// The rows it writes.
+    pub(crate) output: Bound,
+    /// The work it does.
+    pub(crate) work: Bound,
 }
 
 /// The instances of an operator a growth test runs: the test-side companion of `Operator`, which the plan's one list requires of

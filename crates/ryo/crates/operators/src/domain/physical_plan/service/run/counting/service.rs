@@ -69,5 +69,8 @@ pub(crate) fn counted(
         .ok_or(PortableOperatorFault::WrongOperation)?;
     within_budget(physical.lowering.growth(), making.fed, wrote).map_err(|error| match error {
         GrowthError::OverBudget { fed, wrote } => PortableOperatorFault::OverBudget { fed, wrote },
+        // The budget answers no plan refusal: that is the plan check's, which no making reaches.
+        #[cfg(test)]
+        GrowthError::Superlinear { .. } => PortableOperatorFault::WrongOperation,
     })
 }

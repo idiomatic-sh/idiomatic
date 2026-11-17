@@ -2,7 +2,7 @@
 //! projection, each only when the query wrote it.
 
 use crate::domain::comparing::service::comparison_of;
-use crate::domain::joining::service::{select_join, shown_of};
+use crate::domain::joining::service::{band_split, select_join, shown_of};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
     Addressable, Builder, Joined, LastStep, PlannedColumn, ShownColumns, Sourced,
@@ -85,6 +85,24 @@ pub(crate) fn lower_select(
         mut input,
         mut fields,
     } = read_source(builder, &select.from)?;
+    // A join's band is answered by the join itself: only the rest of its `where` filters after it.
+    let split = match &select.join {
+        ryo_values::domain::query_syntax::types::Joining::Joined(join) => {
+            Some(band_split(builder, select, join)?)
+        }
+        ryo_values::domain::query_syntax::types::Joining::Alone => None,
+    };
+    let rest;
+    let (select, band) = match split {
+        Some(split) => {
+            rest = ryo_values::domain::query_syntax::types::Select {
+                filters: split.rest,
+                ..select.clone()
+            };
+            (&rest, split.band)
+        }
+        None => (select, Vec::new()),
+    };
     let projects = matches!(
         select.join,
         ryo_values::domain::query_syntax::types::Joining::Alone
@@ -104,7 +122,15 @@ pub(crate) fn lower_select(
         Joined {
             sourced: Sourced { input, fields },
             sides,
-        } = select_join(builder, name, select, join, Sourced { input, fields }, last)?;
+        } = select_join(
+            builder,
+            name,
+            select,
+            join,
+            &band,
+            Sourced { input, fields },
+            last,
+        )?;
     }
     // The columns only the `where` reads are dropped after it, so the filter is not the last step.
     let select_is_last = !projects && shown.0 == fields.len();

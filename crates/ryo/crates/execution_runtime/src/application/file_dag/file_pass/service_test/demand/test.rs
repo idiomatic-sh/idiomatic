@@ -174,6 +174,7 @@ fn scenario(input: Scenario) -> (Vec<Plan>, Vec<FileRuleIntent>, Vec<ReadInPart>
                         }],
                         filter: Vec::new(),
                         view: Vec::new(),
+                        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                         reach: None,
                     }),
                 ],

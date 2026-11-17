@@ -277,6 +277,7 @@ fn tree_join(
                 .collect(),
             filter,
             view: Vec::new(),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         inputs: vec![PlanInput::Relation(DEFINES), PlanInput::Relation(right.0)],

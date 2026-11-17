@@ -1,5 +1,6 @@
 //! One collection: the interface every item implements and its items in order.
 
+pub(crate) mod band_join;
 pub(crate) mod components;
 pub(crate) mod directed_walk;
 pub(crate) mod distinct;

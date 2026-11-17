@@ -123,8 +123,17 @@ fn reads_role(operation: &Operation) -> RoleRead {
             output,
             filter,
             view,
-
-            reach: _,
+            ..
+        }
+        | Operation::BandJoin {
+            left,
+            right,
+            left_on,
+            right_on,
+            output,
+            filter,
+            view,
+            ..
         } => {
             (edges(*right) == EdgeInput::Edges
                 && (view.contains(&role_column())

@@ -199,6 +199,7 @@ fn repeats_read(operation: &Operation) -> RepeatedRows {
         | Operation::Select { .. }
         | Operation::Extend { .. }
         | Operation::Join { .. }
+        | Operation::BandJoin { .. }
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }

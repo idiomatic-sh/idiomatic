@@ -28,6 +28,7 @@ fn recognizer_requires_matching_function_columns() {
             ],
             filter: vec![],
             view: vec![],
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
     }];

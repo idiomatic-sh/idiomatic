@@ -172,7 +172,7 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> Fused {
             output: vec![right(1), left(0), left(2), left(3)],
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
         per_file(Operation::Join {
@@ -183,7 +183,7 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> Fused {
             output: vec![left(1), left(2), left(3), right(0)],
             filter: vec![tokens.clone()],
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
     ];
@@ -218,7 +218,7 @@ fn a_lookup_through_the_edges(by: u32, other_end: u32, kept: Kept) -> Fused {
             output: edges_output,
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
         per_file(Operation::Join {
@@ -229,7 +229,7 @@ fn a_lookup_through_the_edges(by: u32, other_end: u32, kept: Kept) -> Fused {
             output,
             filter: vec![tokens.clone()],
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
     ];

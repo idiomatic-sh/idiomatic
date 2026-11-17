@@ -216,6 +216,7 @@ fn probe(left: (StepInput, PlanInput)) -> Step {
             }],
             filter: Vec::new(),
             view: Vec::new(),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         &[left.1, PlanInput::Relation(DEFINES)],

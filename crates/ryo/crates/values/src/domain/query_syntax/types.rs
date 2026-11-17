@@ -115,10 +115,31 @@ pub enum SourceReference {
 /// `join source on l.a = r.b and l.c = r.d`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Join {
+    /// Which join was written.
+    pub kind: JoinKind,
     /// The right side.
     pub source: QuerySource,
     /// The keys the rows are joined on, each a column of each side.
     pub on: Vec<JoinKey>,
+}
+
+/// Which join a `select` wrote: `join`, `nearest join` or `all-pairs join`.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::query_syntax::types::JoinKind;
+/// assert_ne!(JoinKind::Nearest, JoinKind::AllPairs);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum JoinKind {
+    /// `join`: every right row of the key the `where` keeps.
+    Equal,
+    /// `nearest join`: for each left row, the right rows of its key nearest it by the one order its `where` compares across
+    /// the sides, ties all kept.
+    Nearest,
+    /// `all-pairs join`: every pair the `where` keeps, declared to be the answer however many there are.
+    AllPairs,
 }
 
 /// One `l.a = r.b` of a join.

@@ -3,6 +3,7 @@
 //! `Relation`, a column becomes its position, a step becomes its number, a test becomes an enum.
 //! Nothing after this works on names.
 
+use crate::domain::distinctness::service::fanned;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::Vocabulary;
 
@@ -172,7 +173,7 @@ pub(crate) fn lower_with_observations(
         // Full-scan/exported consumers remain ordinary; pruning removes only fully replaced closure chains.
         let Planned { steps, emitted } =
             without_unused(fuse_keyed_reaches(steps, &[emitted]), emitted);
-        (steps, emitted, Vec::new())
+        (fanned(steps), emitted, Vec::new())
     } else {
         let mut roots = std::iter::once(named)
             .chain(observed.iter().map(|output| output.1))
@@ -186,7 +187,7 @@ pub(crate) fn lower_with_observations(
         let steps = push_selections_roots(steps, &mut roots);
         let steps = cut_handover_roots(steps, &mut roots);
         let steps = fuse_keyed_reaches(steps, &roots);
-        let steps = without_unused_roots(steps, &mut roots);
+        let steps = fanned(without_unused_roots(steps, &mut roots));
         let observations = observed
             .into_iter()
             .zip(roots.iter().skip(1))

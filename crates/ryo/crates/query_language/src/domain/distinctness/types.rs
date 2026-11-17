@@ -19,3 +19,13 @@ pub(crate) struct StepKeys {
     /// Its columns, each once, in ascending order.
     pub columns: Vec<ColumnIndex>,
 }
+
+/// Whether a join's keys are the file alone: every key column of its left side is the file the row lies in, so the join pairs
+/// every row of a file with every row of it on the other side.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FileKeyed {
+    /// Every key is the file, and there is one.
+    Alone,
+    /// A key is something other than the file, or there is none.
+    Not,
+}

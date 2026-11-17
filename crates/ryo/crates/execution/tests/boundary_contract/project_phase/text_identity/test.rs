@@ -83,6 +83,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                             }],
                             filter: vec![],
                             view: vec![],
+                            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                             reach: None,
                         },
                     },

@@ -102,7 +102,7 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
             output,
             filter,
             view,
-
+            fan: _,
             reach: None,
         } => {
             if is(right) && (!filter.is_empty() || !view.is_empty()) {
@@ -111,6 +111,30 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
             used.extend(join_read_columns(
                 *left, *right, left_on, right_on, output, read,
             )?);
+        }
+        Operation::BandJoin {
+            left,
+            right,
+            left_on,
+            right_on,
+            band,
+            output,
+            filter,
+            view,
+            ..
+        } => {
+            if is(right) && (!filter.is_empty() || !view.is_empty()) {
+                return None;
+            }
+            used.extend(join_read_columns(
+                *left, *right, left_on, right_on, output, read,
+            )?);
+            if is(left) {
+                used.extend(band.iter().map(|edge| edge.left));
+            }
+            if is(right) {
+                used.extend(band.iter().map(|edge| edge.right));
+            }
         }
         Operation::Antijoin {
             left,
@@ -242,6 +266,28 @@ pub(crate) fn reading_through(
             if is(right) {
                 *right = through;
                 right_on.iter_mut().for_each(place);
+                side_columns_mut(output, Side::Right).for_each(place);
+            }
+        }
+        Operation::BandJoin {
+            left,
+            right,
+            left_on,
+            right_on,
+            band,
+            output,
+            ..
+        } => {
+            if is(left) {
+                *left = through;
+                left_on.iter_mut().for_each(place);
+                band.iter_mut().for_each(|edge| place(&mut edge.left));
+                side_columns_mut(output, Side::Left).for_each(place);
+            }
+            if is(right) {
+                *right = through;
+                right_on.iter_mut().for_each(place);
+                band.iter_mut().for_each(|edge| place(&mut edge.right));
                 side_columns_mut(output, Side::Right).for_each(place);
             }
         }

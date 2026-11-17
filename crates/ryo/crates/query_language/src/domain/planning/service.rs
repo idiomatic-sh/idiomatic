@@ -129,6 +129,9 @@ pub(crate) fn placed(
         | plans::Operation::Join {
             left_on, right_on, ..
         }
+        | plans::Operation::BandJoin {
+            left_on, right_on, ..
+        }
         | plans::Operation::Antijoin {
             left_on, right_on, ..
         } => {

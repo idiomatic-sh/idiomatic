@@ -88,6 +88,7 @@ impl Witnesses for ProbeNode {
                 output: &output,
                 view: &[],
                 reach: None,
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             },
             &[],
             &[],

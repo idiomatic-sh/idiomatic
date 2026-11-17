@@ -48,6 +48,7 @@ pub(super) fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<
         }
         | Operation::Extend { .. }
         | Operation::Join { .. }
+        | Operation::BandJoin { .. }
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }

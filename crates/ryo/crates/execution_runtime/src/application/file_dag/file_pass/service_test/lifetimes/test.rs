@@ -309,6 +309,7 @@ fn later_siblings_absent() -> Plan {
                 ],
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             }),
             per_file(Operation::Select {
@@ -352,6 +353,7 @@ fn parents_joined() -> Plan {
                 output: vec![column_of(Side::Left, 0)],
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             }),
         ],

@@ -76,6 +76,7 @@ pub(crate) fn compared(
             output: vec![],
             filter: vec![],
             view: vec![],
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         Compared::Antijoin => plans::Operation::Antijoin {
@@ -163,6 +164,7 @@ pub(crate) fn compared_with_file(
             output: vec![],
             filter: vec![],
             view: vec![],
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         Compared::Antijoin => plans::Operation::Antijoin {

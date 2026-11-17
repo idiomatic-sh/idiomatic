@@ -56,6 +56,7 @@ pub(crate) fn selected_join(distinct: bool) -> Plan {
                 ],
                 filter: vec![],
                 view: vec![],
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
         },

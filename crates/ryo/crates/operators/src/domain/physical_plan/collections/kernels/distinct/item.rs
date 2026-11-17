@@ -38,6 +38,7 @@ impl KernelsItem for DistinctItem {
                 | Lowering::Group(_)
                 | Lowering::TextMap(_)
                 | Lowering::OrderedMatch(_)
+                | Lowering::BandJoin(_)
                 | Lowering::Render(_)
                 | Lowering::Reach(_)
                 | Lowering::SeededReach(_)

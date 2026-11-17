@@ -106,6 +106,33 @@ pub enum Operation {
         view: Vec<ColumnIndex>,
         /// Source-keyed closure demand; the right input is physical edges when present.
         reach: Option<crate::domain::plan_parts::types::ReachLookup>,
+
+        /// What its keys are proven to pair.
+        fan: crate::domain::plan_parts::types::KeyFan,
+    },
+    /// Combine rows with equal keys whose columns also stand in order across the sides: each left row meets the right rows of
+    /// its key inside its band.
+    BandJoin {
+        /// The left input.
+        left: Input,
+        /// The right input.
+        right: Input,
+        /// The left key columns.
+        left_on: Vec<ColumnIndex>,
+        /// The right key columns.
+        right_on: Vec<ColumnIndex>,
+        /// The band: one or two comparisons of a right column with a left one; the first orders the right rows.
+        band: Vec<crate::domain::plan_parts::types::BandEdge>,
+        /// Which right rows of the band it answers.
+        answer: crate::domain::plan_parts::types::BandAnswer,
+        /// The columns of the answer.
+        output: Vec<JoinColumn>,
+        /// What the rows of the right input must satisfy to be joined, as the comparisons of a filter of it.
+        filter: Vec<PlanComparison>,
+        /// The columns of the right input the keys, the band and the answer name, in order; none named means all of them.
+        view: Vec<ColumnIndex>,
+        /// What its keys are proven to pair.
+        fan: crate::domain::plan_parts::types::KeyFan,
     },
     /// Rows in either input.
     Union {

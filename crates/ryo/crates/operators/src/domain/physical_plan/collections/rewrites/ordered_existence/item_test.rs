@@ -148,7 +148,7 @@ fn subject(shape: Input) -> Result<Value, Failure> {
             })
         }
         ProbeMode::Anti => Ok(Rewritten::Declined),
-        ProbeMode::Inner | ProbeMode::Semi => Err(()),
+        ProbeMode::Inner(_) | ProbeMode::Semi => Err(()),
     }
 }
 

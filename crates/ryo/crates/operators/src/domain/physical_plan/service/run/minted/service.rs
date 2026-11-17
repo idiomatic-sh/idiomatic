@@ -59,6 +59,7 @@ pub(crate) fn minted(
         | Lowering::Distinct(_)
         | Lowering::Group(_)
         | Lowering::OrderedMatch(_)
+        | Lowering::BandJoin(_)
         | Lowering::Reach(_)
         | Lowering::SeededReach(_)
         | Lowering::Axis(_)

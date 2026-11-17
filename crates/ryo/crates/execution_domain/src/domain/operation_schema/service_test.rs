@@ -101,6 +101,7 @@ fn reach_join() -> Operation {
             keys: vec![ColumnIndex(2)],
             columns: vec![ColumnIndex(2), ColumnIndex(0), ColumnIndex(1)],
         }),
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
     }
 }
 

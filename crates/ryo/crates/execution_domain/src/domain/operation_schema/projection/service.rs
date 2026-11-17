@@ -149,6 +149,20 @@ pub(crate) fn output_origins<T: Copy>(
         }
         Operation::SpanBounds { .. } => answer.extend([None, None]),
         Operation::Antijoin { .. } | Operation::Difference { .. } => {}
+        Operation::BandJoin { output, view, .. } => {
+            let view = right_view(view, inputs.get(1).and_then(|right| right.tree), None);
+            answer = output
+                .iter()
+                .map(|column| match column.side {
+                    Side::Left => side(OriginSide::Left, pick(input(InputPlace(0)), column.column)),
+                    Side::Right => side(
+                        OriginSide::Right,
+                        right_column(view, column.column)
+                            .and_then(|source| pick(input(InputPlace(1)), source)),
+                    ),
+                })
+                .collect();
+        }
         Operation::Join {
             output,
             view,

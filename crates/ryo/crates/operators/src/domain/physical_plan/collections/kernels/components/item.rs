@@ -43,6 +43,7 @@ impl KernelsItem for ComponentsItem {
             | Lowering::OrderedWalk(_)
             | Lowering::TextMap(_)
             | Lowering::OrderedMatch(_)
+            | Lowering::BandJoin(_)
             | Lowering::Render(_)
             | Lowering::ScanBound(_)
             | Lowering::Worklist(_) => false,

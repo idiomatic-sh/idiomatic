@@ -2,15 +2,20 @@
 //! once, followed from a relation's key column through the steps that keep it.
 
 use super::types::DistinctMemo;
+use super::types::FileKeyed;
 use super::types::StepKeys;
+use crate::domain::lineage::service::column_kind;
+use crate::domain::lineage::types::LineageMemo;
 use crate::domain::lowering::types::Uniqueness;
 use crate::domain::resolving::service::relation_fields;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::step_in;
 use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
+use ryo_values::domain::plan_parts::types::KeyFan;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
@@ -140,6 +145,7 @@ fn step_distinct(
         | Operation::Difference { left, .. }
         | Operation::Antijoin { left, .. } => distinct_on(steps, memo, *left, keys),
         Operation::Join { .. }
+        | Operation::BandJoin { .. }
         | Operation::Union { .. }
         | Operation::Extend { .. }
         | Operation::Capture { .. }
@@ -172,4 +178,98 @@ fn covers<T>(keys: &[ColumnIndex], made: &[T]) -> Uniqueness {
     } else {
         Uniqueness::Shared
     }
+}
+
+/// Whether the keys `keys` of `input` are the file alone: the one definition the planner's filter placement and a join's proven
+/// fan read.
+pub(crate) fn keyed_on_file_alone(
+    steps: &[PlanStep],
+    memo: &mut LineageMemo,
+    input: Input,
+    keys: &[ColumnIndex],
+) -> FileKeyed {
+    if !keys.is_empty()
+        && keys
+            .iter()
+            .all(|key| column_kind(steps, memo, input, *key) == Some(CellKind::File))
+    {
+        FileKeyed::Alone
+    } else {
+        FileKeyed::Not
+    }
+}
+
+/// What a join's keys are proven to pair: as written for an `all-pairs join`; `Unique` when either side is distinct on its keys
+/// (the right through its view); `FileOnly` when the left keys are the file alone; `Shared` otherwise.
+pub(crate) fn key_fan(
+    steps: &[PlanStep],
+    memos: (&mut DistinctMemo, &mut LineageMemo),
+    sides: [(Input, &[ColumnIndex]); 2],
+    view: &[ColumnIndex],
+    written: KeyFan,
+) -> KeyFan {
+    let (distinct, kinds) = memos;
+    let [(left, left_on), (right, right_on)] = sides;
+    if written == KeyFan::AllPairs {
+        return KeyFan::AllPairs;
+    }
+    let right_keys: Option<Vec<ColumnIndex>> =
+        right_on.iter().map(|key| view_source(view, *key)).collect();
+    if right_keys.is_some_and(|keys| {
+        !keys.is_empty() && distinct_on(steps, distinct, right, &keys) == Uniqueness::Unique
+    }) || (!left_on.is_empty()
+        && distinct_on(steps, distinct, left, left_on) == Uniqueness::Unique)
+    {
+        KeyFan::Unique
+    } else if keyed_on_file_alone(steps, kinds, left, left_on) == FileKeyed::Alone {
+        KeyFan::FileOnly
+    } else {
+        KeyFan::Shared
+    }
+}
+
+/// The plan with each join's fan proven by `key_fan`: run once the plan's steps are placed, before it crosses to the operators.
+#[must_use]
+pub(crate) fn fanned(mut steps: Vec<PlanStep>) -> Vec<PlanStep> {
+    let mut distinct = DistinctMemo::default();
+    let mut kinds = LineageMemo::default();
+    let proven: Vec<Option<KeyFan>> = steps
+        .iter()
+        .map(|step| match &step.operation {
+            Operation::Join {
+                left,
+                right,
+                left_on,
+                right_on,
+                view,
+                fan,
+                reach: None,
+                ..
+            }
+            | Operation::BandJoin {
+                left,
+                right,
+                left_on,
+                right_on,
+                view,
+                fan,
+                ..
+            } => Some(key_fan(
+                &steps,
+                (&mut distinct, &mut kinds),
+                [(*left, left_on), (*right, right_on)],
+                view,
+                *fan,
+            )),
+            _ => None,
+        })
+        .collect();
+    for (step, found) in steps.iter_mut().zip(proven) {
+        if let (Operation::Join { fan, .. } | Operation::BandJoin { fan, .. }, Some(found)) =
+            (&mut step.operation, found)
+        {
+            *fan = found;
+        }
+    }
+    steps
 }

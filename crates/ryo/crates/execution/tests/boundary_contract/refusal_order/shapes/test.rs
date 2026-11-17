@@ -21,6 +21,7 @@ fn join_rel_left(at: u32, key: u32) -> Operation {
         }],
         filter: vec![],
         view: vec![],
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     }
 }

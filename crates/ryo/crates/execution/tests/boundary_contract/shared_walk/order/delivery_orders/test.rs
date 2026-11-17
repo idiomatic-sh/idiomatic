@@ -141,6 +141,7 @@ fn conditional_join_request(count: usize) -> PrepareRequest {
                 }],
                 filter: vec![],
                 view: vec![],
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
         },

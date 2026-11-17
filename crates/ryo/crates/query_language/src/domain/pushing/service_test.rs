@@ -69,7 +69,7 @@ fn lookup(asked: u32) -> Vec<PlanStep> {
             ],
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
         step(Operation::Join {
@@ -89,7 +89,7 @@ fn lookup(asked: u32) -> Vec<PlanStep> {
             ],
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
     ]

@@ -105,6 +105,7 @@ fn children_of_defines() -> Step {
             ],
             filter: Vec::new(),
             view: Vec::new(),
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         inputs: vec![

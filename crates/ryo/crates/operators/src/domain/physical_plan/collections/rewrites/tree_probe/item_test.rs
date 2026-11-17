@@ -118,6 +118,7 @@ fn joined(relation: RowSource, right_on: &[u32], filter: &[PlanComparison]) -> P
                     output: &output,
                     view: &[],
                     reach: None,
+                    fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 },
                 filter,
                 &[],

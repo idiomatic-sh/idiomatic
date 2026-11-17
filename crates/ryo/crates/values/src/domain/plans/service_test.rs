@@ -128,6 +128,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 output: Vec::new(),
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: crate::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             }),
             step(select(PlanInput::Relation(Relation::ModuleIdentity))),

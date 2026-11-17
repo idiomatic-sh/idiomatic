@@ -72,6 +72,7 @@ pub(in crate::refusal_order) fn join_functions(at: u32, key: u32) -> Operation {
         }],
         filter: vec![],
         view: vec![],
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     }
 }
@@ -97,6 +98,7 @@ pub(in crate::refusal_order) fn join(left: u32, right: u32) -> Operation {
         }],
         filter: vec![],
         view: vec![],
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     }
 }

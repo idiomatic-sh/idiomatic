@@ -112,6 +112,7 @@ fn join(left: Reads, right: Reads, keys: (u32, u32), output: Vec<JoinColumn>) ->
         output,
         filter: Vec::new(),
         view: Vec::new(),
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach: None,
     }
 }
@@ -316,6 +317,7 @@ fn words_kept() -> Vec<PlanStep> {
                 output: vec![column(Side::Left, 0), column(Side::Right, 0)],
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
             StepScope::CrossFile,

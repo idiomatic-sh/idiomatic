@@ -48,6 +48,7 @@ impl KernelsItem for FilterItem {
                 | Lowering::Group(_)
                 | Lowering::TextMap(_)
                 | Lowering::OrderedMatch(_)
+                | Lowering::BandJoin(_)
                 | Lowering::Render(_)
                 | Lowering::Reach(_)
                 | Lowering::OrderedWalk(_)

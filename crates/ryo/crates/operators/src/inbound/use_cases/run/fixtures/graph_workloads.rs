@@ -104,6 +104,7 @@ fn closure_steps(fused: bool) -> Vec<Step> {
         ],
         filter: Vec::new(),
         view: Vec::new(),
+        fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
         reach,
     };
     if fused {

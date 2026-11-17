@@ -100,6 +100,7 @@ fn joined_then_asked(asked: Vec<ColumnIndex>) -> Vec<PlanStep> {
                 ],
                 filter: Vec::new(),
                 view: Vec::new(),
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
             scope: StepScope::PerFile,

@@ -121,6 +121,8 @@ pub enum NodeKind {
     Components,
     /// A map of each row's text.
     TextMap,
+    /// A band join.
+    BandJoin,
     /// An ordered match.
     OrderedMatch,
     /// A rendering.

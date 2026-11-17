@@ -65,6 +65,7 @@ fn operation_name(operation: &Operation) -> &'static str {
         } => "project-keyed",
         Operation::Project { .. } => "project",
         Operation::Join { .. } => "join",
+        Operation::BandJoin { .. } => "band-join",
         Operation::Replace { .. } => "replace",
         Operation::SpanBetween { .. } => "span-between",
         Operation::SpanBounds { .. } => "span-bounds",

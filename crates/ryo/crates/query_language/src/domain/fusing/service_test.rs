@@ -116,7 +116,7 @@ fn a_join_on_ids_reads_the_filtered_elements_in_place(scenario: Scenario) -> usi
             output: Vec::new(),
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
     ];
@@ -151,7 +151,7 @@ fn a_join_on_the_stretch_reads_the_filtered_elements_in_place() -> usize {
             output: Vec::new(),
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
     ];
@@ -187,7 +187,7 @@ fn a_join_on_the_edges_reads_them_in_place(scenario: Scenario) -> usize {
             output: Vec::new(),
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
     ];
@@ -280,7 +280,7 @@ fn a_filter_of_a_join_with_the_tree_is_the_joins_own(scenario: Scenario) -> usiz
             ],
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         }),
         step(Operation::Select {

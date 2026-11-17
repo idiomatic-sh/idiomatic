@@ -71,6 +71,13 @@ fn step_kind(
             output,
             view,
             ..
+        }
+        | Operation::BandJoin {
+            left,
+            right,
+            output,
+            view,
+            ..
         } => {
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             match side {
@@ -176,6 +183,15 @@ fn step_origins(
             value_origins(steps, memo, *from, *column_in(columns, column)?)
         }
         Operation::Join {
+            left,
+            right,
+            left_on,
+            right_on,
+            output,
+            view,
+            ..
+        }
+        | Operation::BandJoin {
             left,
             right,
             left_on,

@@ -93,6 +93,7 @@ fn reach(scope: StepScope) -> Vec<PlanStep> {
                     keys: vec![],
                     columns: vec![ColumnIndex(0), ColumnIndex(1)],
                 }),
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             },
         ),
     ]
@@ -162,6 +163,7 @@ fn an_anti_join_over_the_self_join_of_syntax_child_ordinals_answers_the_first_to
                 ],
                 filter: vec![],
                 view: vec![],
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
         ),
@@ -193,6 +195,7 @@ fn an_anti_join_over_the_self_join_of_syntax_child_ordinals_answers_the_first_to
                 ],
                 filter: vec![],
                 view: vec![],
+                fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
                 reach: None,
             },
         ),

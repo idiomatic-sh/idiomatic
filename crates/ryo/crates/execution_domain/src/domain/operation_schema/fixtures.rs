@@ -213,7 +213,7 @@ fn binary() -> Vec<Operation> {
             output: output(),
             filter: Vec::new(),
             view: Vec::new(),
-
+            fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
             reach: None,
         },
         Operation::Union {
@@ -344,6 +344,7 @@ pub fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> Vec<Tab
             ],
         }],
         Operation::Join { .. }
+        | Operation::BandJoin { .. }
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }

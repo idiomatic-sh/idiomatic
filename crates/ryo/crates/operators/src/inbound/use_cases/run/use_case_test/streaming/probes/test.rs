@@ -342,7 +342,10 @@ fn program(scenario: Scenario) -> Option<Program> {
             ],
             chunk * 2,
         ),
-        Scenario::InnerOfAHeldNode => probe_of_a_held_node(ProbeMode::Inner, chunk * 3),
+        Scenario::InnerOfAHeldNode => probe_of_a_held_node(
+            ProbeMode::Inner(ryo_values::domain::plan_parts::types::KeyFan::Shared),
+            chunk * 3,
+        ),
         Scenario::AntiOfAHeldNode => probe_of_a_held_node(ProbeMode::Anti, chunk * 3),
         Scenario::OneRowPastTheBound => one_row_past_the_bound(),
         Scenario::InnerOfTheTree => return None,
