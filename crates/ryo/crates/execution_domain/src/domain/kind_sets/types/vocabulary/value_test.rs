@@ -1,11 +1,6 @@
 //! Literal-mask setup work, exact vocabulary identity and generation isolation.
 
-use crate::domain::kind_sets::service::{kind_tests, passes, prepare_vocabulary};
-use crate::domain::kind_sets::types::KindScratch;
-use crate::domain::operator::types::OperatorContext;
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::Verdict;
-use crate::domain::table_scratch::types::OperatorScratch;
+use crate::domain::kind_sets::service::prepare_vocabulary;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
@@ -13,24 +8,6 @@ use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
-};
-
-/// One authored kind comparison at the supplied input column.
-fn compared(test: Test, place: u32, literal: &str) -> PlanComparison {
-    PlanComparison {
-        test,
-        left: Operand::Column(column(place)),
-        right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
-        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-    }
-}
-
-/// A typed column index used by the fixture.
-fn column(place: u32) -> ColumnIndex {
-    ColumnIndex(place)
-}
 
 /// Build a small real vocabulary; the payload is irrelevant to prepared kind predicates.
 fn prepared_tree(names: &[&str]) -> (Elements, Symbols) {
@@ -48,146 +25,6 @@ fn prepared_tree(names: &[&str]) -> (Elements, Symbols) {
         );
     }
     (elements, symbols)
-}
-
-/// A literal mask is computed once across files, with no metadata lock in row admission.
-#[test]
-fn prepared_masks_reuse_exact_vocabulary_without_per_row_setup() {
-    use std::sync::atomic::Ordering;
-    let comparisons = vec![compared(Test::GlobAny, 1, "wor*")];
-    let mut previous = None;
-    let mut last_set = None;
-    for file in 0..2 {
-        let (elements, mut symbols) = prepared_tree(&["file", "word"]);
-        let prepared =
-            prepare_vocabulary(&mut previous, &elements, &symbols, SourceView(b"a")).unwrap();
-        let tree = TreeRows {
-            elements: &elements,
-            file: FileId(file),
-            form: TreeForm::Elements,
-        };
-        let mut kinds = KindScratch {
-            names: Default::default(),
-            sets: Vec::new(),
-            tests: Default::default(),
-        };
-        let mut scratch = OperatorScratch::default();
-        let mut memo = Vec::new();
-        let context = OperatorContext {
-            phase: crate::domain::operating::types::AfterTheFiles::Before,
-            semantic: None,
-            prepared_kinds: Some(&prepared),
-            prepared_matchers: None,
-            matcher: crate::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-            ),
-            bindings: &[],
-            symbols: (&mut symbols).into(),
-            source: SourceView(b"a"),
-            paths: &[],
-            arenas: &[],
-            memo: &mut memo,
-            scratch: &mut scratch,
-        };
-        kind_tests(
-            &tree,
-            &comparisons,
-            context.prepared_kinds,
-            context.matcher,
-            context.symbols.as_ref(),
-            context.source,
-            &mut kinds,
-        );
-        let lookups = prepared.lookups.load(Ordering::Relaxed);
-        for _row in 0..1000 {
-            assert_eq!(passes(&kinds, KindBits(1)), Verdict::Holds);
-            assert_eq!(passes(&kinds, KindBits(0)), Verdict::Fails);
-        }
-        kind_tests(
-            &tree,
-            &comparisons,
-            context.prepared_kinds,
-            context.matcher,
-            context.symbols.as_ref(),
-            context.source,
-            &mut kinds,
-        );
-        assert_eq!(prepared.lookups.load(Ordering::Relaxed), lookups);
-        assert_eq!(prepared.builds.load(Ordering::Relaxed), 1);
-        assert_eq!(prepared.masks.lock().unwrap().len(), 1);
-        let set = kinds.sets.first().unwrap();
-        if let Some(previous) = last_set.as_ref() {
-            assert!(std::sync::Arc::ptr_eq(previous, set));
-        }
-        last_set = Some((set).clone());
-    }
-}
-
-/// Exact name numbering replaces the generation; old active handles retain their own immutable masks.
-#[test]
-fn prepared_vocabulary_replacement_preserves_live_old_masks_and_test_identity() {
-    let comparisons = vec![
-        compared(Test::Equal, 1, "word"),
-        compared(Test::NotEqual, 1, "word"),
-    ];
-    let mut previous = None;
-    let mut first = None;
-    for names in [["file", "word"], ["word", "file"], ["file", "word"]] {
-        let (elements, mut symbols) = prepared_tree(&names);
-        let prepared =
-            prepare_vocabulary(&mut previous, &elements, &symbols, SourceView(b"a")).unwrap();
-        if let Some(first) = first.as_ref() {
-            assert!(!std::sync::Arc::ptr_eq(first, &prepared));
-        }
-        let mut kinds = KindScratch {
-            names: Default::default(),
-            sets: Vec::new(),
-            tests: Default::default(),
-        };
-        let mut scratch = OperatorScratch::default();
-        let mut memo = Vec::new();
-        let context = OperatorContext {
-            phase: crate::domain::operating::types::AfterTheFiles::Before,
-            semantic: None,
-            prepared_kinds: Some(&prepared),
-            prepared_matchers: None,
-            matcher: crate::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-            ),
-            bindings: &[],
-            symbols: (&mut symbols).into(),
-            source: SourceView(b"a"),
-            paths: &[],
-            arenas: &[],
-            memo: &mut memo,
-            scratch: &mut scratch,
-        };
-        kind_tests(
-            &TreeRows {
-                elements: &elements,
-                file: FileId(0),
-                form: TreeForm::Elements,
-            },
-            &comparisons,
-            context.prepared_kinds,
-            context.matcher,
-            context.symbols.as_ref(),
-            context.source,
-            &mut kinds,
-        );
-        assert_eq!(prepared.masks.lock().unwrap().len(), 2);
-        // Equal and not-equal cannot alias merely because their literal text is the same.
-        assert_eq!(passes(&kinds, KindBits(0)), Verdict::Fails);
-        assert_eq!(passes(&kinds, KindBits(1)), Verdict::Fails);
-        if first.is_none() {
-            first = Some((prepared).clone());
-        }
-    }
-    let first = first.unwrap();
-    let masks = first.masks.lock().unwrap();
-    assert_eq!(masks.len(), 2);
-    assert!(masks.values().any(|set| set.kinds == [KindBits(1)]));
-    assert!(masks.values().any(|set| set.kinds == [KindBits(0)]));
 }
 
 /// A real collision in the old additive KindSum cannot reuse a differently numbered vocabulary.
@@ -225,61 +62,6 @@ fn equal_kind_sums_do_not_identify_prepared_vocabularies() {
     assert_eq!(
         b.names.first().unwrap().as_ref().map(|name| &*name.0),
         Some(right)
-    );
-}
-
-/// Runtime operands are not admitted to finite prepared literal metadata.
-#[test]
-fn dynamic_kind_patterns_do_not_enter_prepared_metadata() {
-    let (elements, mut symbols) = prepared_tree(&["file", "word"]);
-    let prepared = prepare_vocabulary(&mut None, &elements, &symbols, SourceView(b"a")).unwrap();
-    let comparisons = vec![PlanComparison {
-        test: Test::Matches,
-        left: Operand::Column(column(1)),
-        right: Operand::Column(column(2)),
-        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-    }];
-    let mut kinds = KindScratch {
-        names: Default::default(),
-        sets: Vec::new(),
-        tests: Default::default(),
-    };
-    let mut scratch = OperatorScratch::default();
-    let mut memo = Vec::new();
-    let context = OperatorContext {
-        phase: crate::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: Some(&prepared),
-        prepared_matchers: None,
-        matcher: crate::domain::matching::types::PatternMatcher(
-            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-        ),
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(b"a"),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    kind_tests(
-        &TreeRows {
-            elements: &elements,
-            file: FileId(0),
-            form: TreeForm::Elements,
-        },
-        &comparisons,
-        context.prepared_kinds,
-        context.matcher,
-        context.symbols.as_ref(),
-        context.source,
-        &mut kinds,
-    );
-    assert!(prepared.masks.lock().unwrap().is_empty());
-    assert!(kinds.tests.0.is_empty());
-    assert_eq!(
-        prepared.lookups.load(std::sync::atomic::Ordering::Relaxed),
-        0
     );
 }
 

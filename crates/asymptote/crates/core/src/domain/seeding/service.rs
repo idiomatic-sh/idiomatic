@@ -2,19 +2,22 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::operations::types::Reason;
-use crate::domain::operations::types::{PerfKey, PerfRecord};
-use crate::domain::perf::service::standing_of;
-use crate::domain::perf::types::Measured;
-use crate::domain::violations::types::ToolId;
+use asymptote_values::domain::manifest::types::Percent;
+use asymptote_values::domain::operations::types::Reason;
+use asymptote_values::domain::operations::types::{PerfKey, PerfRecord};
+use asymptote_values::domain::perf::service::standing_of;
+use asymptote_values::domain::perf::types::{Measured, ToleranceKey};
+use asymptote_values::domain::violations::types::ToolId;
 
 /// The records `up` writes for a run of `measured`: a median with no record seeds one, and a run over its record's best
-/// raises the best to its median and appends the reason, each of a tool in `tools` (any, when none is named).
+/// raised by its tolerance in `allowed` (the one `check` judges by) raises the best to its median and appends the reason, each of
+/// a tool in `tools` (any, when none is named): a run `check` holds is never raised.
 #[must_use]
 pub fn seeding(
     measured: &[Measured],
     records: &[PerfRecord],
     tools: &[ToolId],
+    allowed: &BTreeMap<ToleranceKey, Percent>,
     reason: &Reason,
 ) -> Vec<PerfRecord> {
     let recorded: BTreeMap<&PerfKey, &PerfRecord> =
@@ -27,7 +30,22 @@ pub fn seeding(
         let key = each.key.clone();
         let mut reasons = match recorded.get(&key).copied() {
             None => Vec::new(),
-            Some(record) if standing_of(each, record.best).is_gt() => record.reasons.clone(),
+            Some(record)
+                if standing_of(
+                    each,
+                    record.best,
+                    allowed
+                        .get(&ToleranceKey {
+                            tool: each.key.tool.clone(),
+                            measure: each.key.measure.clone(),
+                        })
+                        .copied()
+                        .unwrap_or_default(),
+                )
+                .is_gt() =>
+            {
+                record.reasons.clone()
+            }
             Some(_) => continue,
         };
         reasons.push(reason.clone());

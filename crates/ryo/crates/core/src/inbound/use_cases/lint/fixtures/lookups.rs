@@ -8,8 +8,8 @@ use super::given::request;
 use super::given::violations;
 use super::lifecycle::counted_lint;
 use super::lifecycle::reading_the_project;
-use super::stores::compiled_lint;
 use super::worlds::again;
+use super::worlds::compiled_lint;
 use super::worlds::scheduled_world_with_query;
 use super::worlds::world;
 use crate::outbound::language::fixtures::fake::LanguageFake;
@@ -251,7 +251,8 @@ pub(crate) fn edited_beside_an_excluded_file() -> Result<(usize, usize), LintErr
         ..violations()
     };
     let linted = |given: Given| -> Result<std::collections::BTreeSet<String>, LintError> {
-        let (world, _report) = compiled_lint(given)?;
+        let asked = request(&given);
+        let (world, _report) = compiled_lint(given, asked)?;
         Ok(collected_file_paths(&world))
     };
     let store = Arc::new(LintStoreFake::default());

@@ -9,26 +9,18 @@ use super::super::errors::ParseError;
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition, SourceFile};
 use super::collect::Collect;
-use super::row_checks::{Scenario, read, rows, rows_on};
-use super::validators::{
-    embedded_roots_valid, filtered_projection_valid, identifier_valid, projection_preserves_native,
-    qualified_name_valid, semantic_spans_valid, shape_representatives_valid, well_formed,
-};
+use super::row_checks::{read, rows, rows_on};
+use super::validators::well_formed;
 use crate::domain::files::types::SourcePath;
 use crate::domain::symbols::types::ByteSlice;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
 
-use super::super::service::{absence, build, read as read_file};
+use super::super::service::{build, read as read_file};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
 use crate::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
-use ryo_relations::domain::relations::service::{all, columns, is_declaring, provenance_of};
-use ryo_relations::domain::relations::types::Provenance;
-use ryo_relations::domain::relations::types::{
-    Bits, FileId, Missing, Relation, RelationDeclaring, Rows,
-};
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::{FileId, Missing, Relation, Rows};
 
 /// A writer that keeps nothing: the contract looks at what the language answers, not at what it wrote.
 #[derive(Default, Clone, Copy, Debug)]
@@ -123,6 +115,35 @@ pub fn flow(subject: &dyn ParseEngine, samples: &[SourceFile]) {
         assert!(
             well_formed(&table),
             "the table of {} is not a well-formed pre-order tree",
+            sample.path
+        );
+        // The engine builds a file's tree for the relations it wants and walks it for them later: the rows are a read's.
+        let (mut built, mut symbols) = (Elements::default(), Symbols::default());
+        subject
+            .build_file(request, &mut built, &mut symbols, all())
+            .expect("a sample is a file the language builds");
+        let (mut walked, mut read) = (Collect::default(), Collect::default());
+        subject.walk_file(
+            &mut built,
+            &mut symbols,
+            request.bytes,
+            request.file,
+            all(),
+            &mut walked,
+        );
+        read_file(
+            subject,
+            request,
+            &mut Elements::default(),
+            &mut Symbols::default(),
+            all(),
+            &mut read,
+        )
+        .expect("a sample is a file the language reads");
+        assert!(
+            (walked.relations, walked.words, walked.partials)
+                == (read.relations, read.words, read.partials),
+            "{}: its tree built for every relation, then walked, writes other rows than a read of it",
             sample.path
         );
     }

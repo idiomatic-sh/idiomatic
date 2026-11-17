@@ -1,6 +1,8 @@
 import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
 import constant_values from "typescript/oxlint/constant-values";
+import quoted_strings from "typescript/oxlint/quoted-strings";
+let quoted = quoted_strings();
 let nodes = select id, file, span, kind from "semantic-syntax";
 let tokens = select file, span, text from "semantic-syntax" where kind = "identifier-token";
 let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
@@ -8,7 +10,7 @@ let names = select l.id as id, l.file as file, l.span as span, r.text as name fr
 let then_names = select id, file, span from names where name = "then";
 let computed = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "[";
 let optional = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "?.";
-let then_strings = select occurrence as id from "string-literal" where value = "then";
+let then_strings = select occurrence as id from quoted where value = "then";
 let template_literals = select id, file, span from "semantic-syntax" where kind = "template-literal";
 let then_tokens = select file, span from "semantic-syntax" where kind = "template" and matches(text, "^\x60then\x60$");
 let then_templates = select l.id as id from template_literals as l join then_tokens as r on l.file = r.file and l.span = r.span;

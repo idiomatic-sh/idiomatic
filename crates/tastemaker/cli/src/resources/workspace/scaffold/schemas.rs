@@ -3,10 +3,10 @@
 
 use std::collections::BTreeMap;
 
-use tastemaker_core::domain::entries::types::Setting;
-use tastemaker_core::domain::packages::types::DefinitionName;
-use tastemaker_core::domain::paths::types::RepoPath;
 use tastemaker_core::inbound::use_cases::scaffold::types::{ScaffoldReport, ScaffoldRequest};
+use tastemaker_values::domain::entries::types::Setting;
+use tastemaker_values::domain::packages::types::DefinitionName;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Why the arguments were refused.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

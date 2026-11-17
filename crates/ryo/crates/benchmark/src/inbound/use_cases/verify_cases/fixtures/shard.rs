@@ -105,17 +105,21 @@ pub(crate) fn verify_shard(
 ) -> Result<usize, ReportsError> {
     verify_prepared_shard(
         suite,
+        &crate::outbound::host::fixtures::fake::HostFake::default(),
         receipts,
         &crate::outbound::context::factory::local(),
         reference,
         candidate,
-        execution,
+        crate::inbound::use_cases::verify_cases::types::Executions {
+            reference: execution,
+            candidate: execution,
+        },
         &crate::outbound::inventory::factory::local(),
         rules,
         suite.prepared.clone(),
         CaseSelection::default(),
     )
-    .map(|count| count.0)
+    .map(|verified| verified.count.0)
 }
 
 /// Sets the permission bits of `path`; a file system with no modes has none to set.

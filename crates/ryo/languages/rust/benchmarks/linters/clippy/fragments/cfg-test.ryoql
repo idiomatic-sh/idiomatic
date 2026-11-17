@@ -1,0 +1,3 @@
+output relation<declaration: node, file: file>;
+let tests = select declaration, file from "decorates" where target = "cfg" and arguments = "test";
+return tests;

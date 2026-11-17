@@ -6,16 +6,28 @@ pub(crate) const EXTENSIONS: [&str; 5] = [
     crate::domain::language::constants::PLAIN_EXTENSION,
     crate::domain::language::constants::JSX_EXTENSION,
     ".d.ts",
-    ".js",
-    ".jsx",
+    crate::domain::language::constants::SCRIPT_EXTENSION,
+    crate::domain::language::constants::SCRIPT_JSX_EXTENSION,
 ];
 
 /// A JavaScript ending a specifier writes and the TypeScript endings of the file it names, in the order TypeScript tries them.
 pub(crate) const REWRITES: [(&str, &[&str]); 4] = [
-    (".js", &[".ts", ".tsx", ".d.ts"]),
-    (".jsx", &[".tsx", ".d.ts"]),
-    (".mjs", &[".mts", ".d.mts"]),
-    (".cjs", &[".cts", ".d.cts"]),
+    (
+        crate::domain::language::constants::SCRIPT_EXTENSION,
+        &[".ts", ".tsx", ".d.ts"],
+    ),
+    (
+        crate::domain::language::constants::SCRIPT_JSX_EXTENSION,
+        &[".tsx", ".d.ts"],
+    ),
+    (
+        crate::domain::language::constants::SCRIPT_MODULE_EXTENSION,
+        &[".mts", ".d.mts"],
+    ),
+    (
+        crate::domain::language::constants::SCRIPT_COMMONJS_EXTENSION,
+        &[".cts", ".d.cts"],
+    ),
 ];
 
 /// The file a directory a specifier names is, without its ending.

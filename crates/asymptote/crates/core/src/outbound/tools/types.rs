@@ -1,6 +1,6 @@
 //! The types of the `tools` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::manifest::types::{Argv, ProductRoot, Seconds};
+use asymptote_values::domain::manifest::types::{Argv, ProductRoot, Seconds};
 
 /// One run asked of a tool.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -101,7 +101,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             ));
             row[2] = Value::File(file_id);
         }
-        let facts = TableFacts::new(&[(Relation::Function, &table)]);
+        let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut rules = run_file_into(
             &request,
@@ -124,7 +124,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
                 places: &mut places,
                 words: &mut words,
             },
-            &facts,
+            &mut facts,
         );
         let rule = ran(&mut rules, 0);
         assert!(matches!(
@@ -183,13 +183,14 @@ fn project_grouping_reads_only_actual_captured_function_names() {
         &partials,
         &mut symbols,
     );
-    // The exact persisted frame is admitted once, with no unrelated project facts.
+    // The exact persisted frame is admitted once (its provenance read to prove it, its words read once to decode it), with no
+    // unrelated project facts.
     assert_eq!(
         project.reads.load(Ordering::SeqCst),
         0,
         "no unrelated project facts"
     );
-    assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
+    assert_eq!(stored.reads.load(Ordering::SeqCst), 2);
     let RootOutcome::Complete(result) = outcome.unwrap().emit else {
         panic!("project count must complete")
     };

@@ -1,15 +1,20 @@
 //! Read TypeScript with Oxc and project its typed AST into TypeScript-ESTree nodes.
 
 use super::constants::{IMPORT_META, IMPORT_OPTIONS_KEY, NEW_TARGET, NOT_UTF8};
+use super::flow::service::{drafted_flow, placed_nodes, written_flow};
 use super::patterns::service::{carried, constructed, written_patterns};
 use super::projection::service::{
     annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, node_properties,
-    normalized, parameter, source_type_of, write,
+    normalized, parameter, write,
 };
-use super::schemas::{node_kind, token_kind};
-use super::types::{ChildCursor, Decoded, DecodedText, Piece, Text, VisitorStack};
+use super::schemas::{node_kind, source_type_of, token_kind};
+use super::types::{
+    ChildCursor, Decoded, DecodedText, FlowDraft, NodePositions, NodeProperty, Piece, Text,
+    VisitorStack,
+};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
+use crate::domain::syntax::constants::{LOWERED_FLAG, RAISED_FLAG, TYPESCRIPT_SYNTAX_FLAG};
 use crate::domain::syntax::types::{Dialect, Kind};
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -58,6 +63,22 @@ impl<'a> Visit<'a> for VisitorStack<'a> {
                 token_kind: Token::PrivateIdentifierToken,
             });
         }
+        // A template with no substitution is a string: its one quasi's cooked value, which a tagged template's tag reads raw instead.
+        if let AstKind::TemplateLiteral(template) = kind
+            && template.expressions.is_empty()
+            && !self
+                .open
+                .last()
+                .is_some_and(|piece| piece.kind == Kind::Node(Node::TaggedTemplateExpression))
+            && let [quasi] = template.quasis.as_slice()
+            && let Some(cooked) = &quasi.value.cooked
+        {
+            self.decoded.push(Decoded {
+                span: template.span,
+                value: DecodedText(cooked.to_string()),
+                token_kind: Token::Template,
+            });
+        }
         if let AstKind::StringLiteral(literal) = kind {
             self.decoded.push(Decoded {
                 span: literal.span,
@@ -75,6 +96,7 @@ impl<'a> Visit<'a> for VisitorStack<'a> {
             cursor: ChildCursor(0),
             properties: node_properties(&self.scoping, kind),
             carries,
+            node: Some(kind.node_id()),
         });
     }
 
@@ -210,10 +232,17 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
             })
             .with_config(TokensParserConfig)
             .parse();
-        // The semantic pass runs first: it fills the reference and symbol cells of the AST the projection reads.
+        // The semantic pass runs first: it fills the reference and symbol cells of the AST the projection reads, and builds the
+        // control flow graph with the node store its block of each node is kept in, as oxlint's linter pass does; the graph is
+        // drafted by node id before the pass is dropped.
         let semantic = oxc_semantic::SemanticBuilder::new()
             .with_check_syntax_error(true)
+            .with_build_nodes(true)
+            .with_cfg(true)
             .build(&parsed.program);
+        let mut flow = FlowDraft::default();
+        drafted_flow(&semantic.semantic, &mut flow);
+        let mut positions = NodePositions(vec![None; semantic.semantic.nodes().len()]);
         let mut projection = VisitorStack {
             scoping: semantic.semantic.into_scoping(),
             ..VisitorStack::default()
@@ -225,6 +254,18 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
         let length = u32::try_from(text.0.len()).unwrap_or(u32::MAX);
         let mut root = projection.roots.remove(0);
         root.span = Span::new(0, length);
+        // Whether the file is TypeScript, as Oxc's source type says: the fact oxlint's JavaScript-only rules test.
+        root.properties.push(NodeProperty {
+            id: TYPESCRIPT_SYNTAX_FLAG,
+            value: DecodedText(
+                if source_type.is_typescript() {
+                    RAISED_FLAG
+                } else {
+                    LOWERED_FLAG
+                }
+                .to_owned(),
+            ),
+        });
         let mut leaves = Vec::new();
         for token in &parsed.tokens {
             if token.start() < token.end() {
@@ -302,13 +343,29 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
                 leaf(Kind::Extra(Extra::Error), Span::new(readable, length)),
             );
         }
+        let first = languages::builder_position(builder);
         write(&mut root, &mut projection.carriers, builder);
+        placed_nodes(&root, first, &mut positions);
+        written_flow(&flow, &positions, builder);
         written_patterns(
             &allocator,
             languages::NameText(source),
             &projection.carriers,
             &projection.scoping,
             builder,
+        );
+        // The parser accepts a file when neither it nor the semantic pass's syntax check reported an error and every byte was
+        // readable: the files oxlint lints, where it reports only the error for any other.
+        languages::set_syntax_acceptance(
+            builder,
+            if parsed.diagnostics.is_empty()
+                && semantic.diagnostics.is_empty()
+                && readable == length
+            {
+                languages::SyntaxAcceptance::Accepted
+            } else {
+                languages::SyntaxAcceptance::Rejected
+            },
         );
         for diagnostic in parsed.diagnostics.iter().chain(semantic.diagnostics.iter()) {
             let span = diagnostic

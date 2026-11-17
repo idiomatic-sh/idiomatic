@@ -65,7 +65,38 @@ fn ordered_rows(
     Ok(rows)
 }
 
-pub(crate) fn build(
+/// Both sides ordered by key then order, each row's keys read as text where a key is a name.
+///
+/// # Errors
+///
+/// `ShapeMismatch` for keys of unequal count or kind, an order that is no number, or a name key with no text;
+/// `NoSuchColumn` for a key column past its side; `DuplicateOrder` for two rows of one key with one order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_derived::domain::ordered::service::build;
+/// use ryo_derived::domain::row_cells::types::ValueTexts;
+/// use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// use ryo_values::domain::row_texts::types::CellText;
+/// use ryo_values::domain::rows::types::{RowCount, Table};
+/// struct NoTexts;
+/// impl ValueTexts for NoTexts {
+///     fn text(&self, _value: Value) -> Option<CellText<'_>> {
+///         None
+///     }
+/// }
+/// let rows = Table {
+///     kinds: vec![CellKind::Number],
+///     cells: vec![Value::Number(Integer(2)), Value::Number(Integer(1))],
+///     count: RowCount(2),
+/// };
+/// let order = ColumnIndex(0);
+/// let ordered = build(&rows, &rows, &[], &[], order, order, &NoTexts, &mut Vec::new());
+/// assert!(ordered.is_ok_and(|ordered| ordered.left[0].row.0 == 1));
+/// ```
+pub fn build(
     left: &dyn RowCells,
     right: &dyn RowCells,
     left_on: &[ColumnIndex],

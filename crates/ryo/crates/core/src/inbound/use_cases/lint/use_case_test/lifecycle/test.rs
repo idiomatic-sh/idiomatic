@@ -108,6 +108,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 0)),
     },
     Case {
+        name: CaseName("a_rule_turned_on_for_a_kept_file_reads_it_again_with_its_parts"),
+        word: Word::Succeeds,
+        input: || Scenario::RuleTurnedOnForAKeptFile,
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("a_file_no_language_reads_keeps_no_frame_that_holds_no_row"),
+        word: Word::Succeeds,
+        input: || Scenario::FramesOfAFileNoLanguageReads,
+        expect: Expect::Value((2, 0)),
+    },
+    Case {
         name: CaseName("interleaved_runs_naming_different_rules_compile_each_rule_once"),
         word: Word::Succeeds,
         input: || Scenario::InterleavedRuns,

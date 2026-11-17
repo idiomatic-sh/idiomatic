@@ -10,4 +10,4 @@ Feature: list_operators
 
       Examples:
         | name | input | expected |
-        | all | none | 25 operators |
+        | all | none | 26 operators |

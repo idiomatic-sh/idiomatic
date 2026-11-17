@@ -1,0 +1,6 @@
+diff --git a/src/lib.rs b/src/lib.rs
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -110 +110,2 @@ pub mod _tutorial;
+ pub struct ReadmeDoctests;
++const _MODE: u32 = 0644;

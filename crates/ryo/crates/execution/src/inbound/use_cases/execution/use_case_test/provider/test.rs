@@ -92,7 +92,7 @@ fn subject((operator, missing): Input) -> Result<Value, Failure> {
             _ => Err(fixtures::facts::not_held()),
         }
     };
-    let facts = fixtures::facts::ReadFacts::new(read);
+    let mut facts = fixtures::facts::ReadFacts::new(read);
     let left = PlanInput::Step(StepId(0));
     let right = PlanInput::Step(StepId(1));
     let operation = match operator {
@@ -126,7 +126,7 @@ fn subject((operator, missing): Input) -> Result<Value, Failure> {
         b"abcd",
         &elements,
         &mut symbols,
-        &facts,
+        &mut facts,
     )
     .map(|_| ());
     let delivered = Delivered {
@@ -137,14 +137,8 @@ fn subject((operator, missing): Input) -> Result<Value, Failure> {
         None => Ok(delivered),
     }
 }
-/// The reads of a rule whose left provider answers: the left, the right, then the left's pinned borrows again.
-const BOTH_READ: &[Relation] = &[
-    Relation::Function,
-    Relation::Comment,
-    Relation::Function,
-    Relation::Function,
-    Relation::Function,
-];
+/// The reads of a rule whose left provider answers: the left, then the right, each once.
+const BOTH_READ: &[Relation] = &[Relation::Function, Relation::Comment];
 const fn refused(history: &'static [Relation]) -> Expect<Value, Failure> {
     Expect::Error(Refused {
         error: OperatingError::NotRead,

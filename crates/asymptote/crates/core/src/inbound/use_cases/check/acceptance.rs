@@ -4,8 +4,6 @@ use cucumber::{given, then, when};
 
 use crate::Behavior;
 
-use asymptote_core::domain::manifest::types::ProductRoot;
-use asymptote_core::domain::operations::types::Revision;
 use asymptote_core::inbound::use_cases::check::fixtures::{
     captured_product, captured_runs, change_captured, fixing, lock_state, measured_product,
     request, scenario, scene, seed_lock, use_case,
@@ -13,6 +11,8 @@ use asymptote_core::inbound::use_cases::check::fixtures::{
 use asymptote_core::inbound::use_cases::check::interface::CheckUseCase as _;
 use asymptote_core::inbound::use_cases::check::types::{Against, CheckRequest, Fixing, Reuse};
 use asymptote_core::outbound::tools::types::{Ending, ExitCode};
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::operations::types::Revision;
 
 /// Names the scene the next `check` step runs.
 #[given(expr = "the check input {string}")]
@@ -79,8 +79,8 @@ fn runs(world: &mut Behavior) {
 }
 
 /// How a fix failed, in the feature's words.
-fn failed_as(failure: &asymptote_core::domain::judgement::types::Failure) -> String {
-    use asymptote_core::domain::judgement::types::Failure;
+fn failed_as(failure: &asymptote_values::domain::judgement::types::Failure) -> String {
+    use asymptote_values::domain::judgement::types::Failure;
     match failure {
         Failure::Exited { code, stderr } => format!("exited {}: {}", code.0, stderr.0),
         Failure::Signalled { stderr } => format!("was ended by a signal: {}", stderr.0),
@@ -309,12 +309,12 @@ fn expected_report(
     reuse: Reuse,
     has_finding: bool,
 ) -> asymptote_core::inbound::use_cases::check::types::CheckReport {
-    use asymptote_core::domain::judgement::types::{Inventory, Judgement, Run, Status, Verdict};
-    use asymptote_core::domain::violations::types::{
+    use asymptote_core::inbound::use_cases::check::types::{CheckReport, ToolRun};
+    use asymptote_values::domain::judgement::types::{Inventory, Judgement, Run, Status, Verdict};
+    use asymptote_values::domain::violations::types::{
         Fingerprint, Fingerprinted, Level, LineNumber, MessageText, Place, RepoPath, RuleId,
         Suppression, ToolId, Violation,
     };
-    use asymptote_core::inbound::use_cases::check::types::{CheckReport, ToolRun};
     let new = if has_finding {
         vec![Violation {
             path: RepoPath("src/a.rs".into()),
@@ -333,7 +333,7 @@ fn expected_report(
     CheckReport {
         root,
         runs: vec![ToolRun {
-            failure_output: asymptote_core::domain::reports::types::FailureOutput::Unavailable,
+            failure_output: asymptote_values::domain::reports::types::FailureOutput::Unavailable,
             run: Run {
                 tool: ToolId("lint".into()),
                 status: Status::Completed,
@@ -356,7 +356,7 @@ fn expected_report(
             Verdict::Pass
         },
         against: Against::Lock,
-        perf: asymptote_core::domain::perf::types::PerfOutcome::default(),
+        perf: asymptote_values::domain::perf::types::PerfOutcome::default(),
         failed_fixes: Vec::new(),
     }
 }
@@ -391,10 +391,9 @@ pub(crate) fn real_check(
         lock: Arc::new(lock::factory::toml(product.clone())),
         sources: Arc::new(sources::factory::disk(product)),
         digest: Arc::new(digest::factory::blake3()),
-        store: Arc::new(check_store::factory::postcard(check_store::types::Store {
-            directory: root.join(asymptote_core::domain::operations::constants::CACHE),
-            build: check_store::types::Build("acceptance".into()),
-        })),
+        store: Arc::new(check_store::factory::postcard(
+            check_store::fixtures::fake::kept_beneath(&root),
+        )),
         repository,
     })
 }

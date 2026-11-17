@@ -40,6 +40,8 @@ fn git(
             constants::DISABLE_HOOKS,
             constants::CONFIG,
             constants::LOCAL_TRANSPORT,
+            constants::CONFIG,
+            constants::NO_LINE_ENDING_CONVERSION,
         ])
         .args(args)
         .current_dir(root)

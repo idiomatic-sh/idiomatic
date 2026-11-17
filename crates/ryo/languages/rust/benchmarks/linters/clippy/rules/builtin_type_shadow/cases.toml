@@ -1,0 +1,74 @@
+[[cases]]
+name = "function-parameter"
+files = { "src/lib.rs" = "pub fn f<u32>(x: u32) -> u32 {\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 12 }]
+
+[[cases]]
+name = "every-primitive"
+files = { "src/lib.rs" = "pub struct A<bool, char, str: ?Sized, i8, i16, i32, i64, i128, isize>(\n    std::marker::PhantomData<(bool, char, i8, i16, i32, i64, i128, isize, Box<str>)>,\n);\npub struct B<u8, u16, u64, u128, usize, f32, f64>(std::marker::PhantomData<(u8, u16, u64, u128, usize, f32, f64)>);\n" }
+expected = [{ file = "src/lib.rs", start = 13, end = 17 }, { file = "src/lib.rs", start = 19, end = 23 }, { file = "src/lib.rs", start = 25, end = 28 }, { file = "src/lib.rs", start = 38, end = 40 }, { file = "src/lib.rs", start = 42, end = 45 }, { file = "src/lib.rs", start = 47, end = 50 }, { file = "src/lib.rs", start = 52, end = 55 }, { file = "src/lib.rs", start = 57, end = 61 }, { file = "src/lib.rs", start = 63, end = 68 }, { file = "src/lib.rs", start = 173, end = 175 }, { file = "src/lib.rs", start = 177, end = 180 }, { file = "src/lib.rs", start = 182, end = 185 }, { file = "src/lib.rs", start = 187, end = 191 }, { file = "src/lib.rs", start = 193, end = 198 }, { file = "src/lib.rs", start = 200, end = 203 }, { file = "src/lib.rs", start = 205, end = 208 }]
+
+[[cases]]
+name = "unstable-floats-and-near-names"
+files = { "src/lib.rs" = "pub struct C<f16, f128, U32, String, Option, never>(std::marker::PhantomData<(f16, f128, U32, String, Option, never)>);\n" }
+expected = [{ file = "src/lib.rs", start = 13, end = 16 }, { file = "src/lib.rs", start = 18, end = 22 }]
+
+[[cases]]
+name = "lifetime-and-const-params"
+files = { "src/lib.rs" = "#[allow(non_upper_case_globals)]\npub struct D<'u8, const usize: usize>(&'u8 [u8; usize]);\n" }
+expected = []
+
+[[cases]]
+name = "impl-trait-alias-and-method"
+files = { "src/lib.rs" = "pub trait T<char> {\n    fn m<bool>(&self, b: bool) -> bool {\n        b\n    }\n}\npub struct S;\nimpl<u8> T<u8> for S {}\nimpl S {\n    pub fn n<i64>(x: i64) -> i64 {\n        x\n    }\n}\npub type Alias<f64> = Vec<f64>;\npub enum E<str: ?Sized> {\n    V(Box<str>),\n}\n" }
+expected = [{ file = "src/lib.rs", start = 12, end = 16 }, { file = "src/lib.rs", start = 29, end = 33 }, { file = "src/lib.rs", start = 98, end = 100 }, { file = "src/lib.rs", start = 139, end = 142 }, { file = "src/lib.rs", start = 194, end = 197 }, { file = "src/lib.rs", start = 222, end = 225 }]
+
+[[cases]]
+name = "nested-function-and-closure"
+files = { "src/lib.rs" = "pub fn outer() -> u32 {\n    fn inner<u32>(x: u32) -> u32 {\n        x\n    }\n    let c = |x: u32| x;\n    c(inner(1u32))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 37, end = 40 }]
+
+[[cases]]
+name = "where-and-bounds"
+files = { "src/lib.rs" = "pub fn f<i32: Copy + Default>(x: i32) -> i32\nwhere\n    i32: Clone,\n{\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 12 }]
+
+[[cases]]
+name = "raw-identifier"
+files = { "src/lib.rs" = "pub fn f<r#u32>(x: r#u32) -> r#u32 {\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 14 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    fn id<u8>(x: u8) -> u8 {\n        x\n    }\n    #[test]\n    fn t() {\n        assert_eq!(id(1), 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 35, end = 37 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! unused {\n    () => {\n        pub fn h<u16>(x: u16) -> u16 {\n            x\n        }\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::builtin_type_shadow)]\npub fn f<u32>(x: u32) -> u32 {\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub fn f<u32>(x: u32) -> u32 {\n    x\n}\n#[expect(warnings)]\npub fn g<u32>(x: u32) -> u32 {\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::builtin_type_shadow)]\npub fn f<u32>(x: u32) -> u32 {\n    x\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::builtin_type_shadow)]\npub fn f<u32>(x: u32) -> u32 {\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 71, end = 74 }]
+
+[[cases]]
+name = "allowed-on-the-impl"
+files = { "src/lib.rs" = "pub struct S;\n#[allow(clippy::builtin_type_shadow)]\nimpl S {\n    pub fn n<i64>(x: i64) -> i64 {\n        x\n    }\n}\nimpl S {\n    #[allow(clippy::all)]\n    pub fn m<i64>(x: i64) -> i64 {\n        x\n    }\n    pub fn k<i64>(x: i64) -> i64 {\n        x\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 213, end = 216 }]

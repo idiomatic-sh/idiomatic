@@ -10,7 +10,6 @@ use super::types::traversal::value::TraversalShape;
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
 use crate::domain::table_model::service::check_columns;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -71,12 +70,11 @@ pub fn schema_of(
             }
             Ok(left.kinds.to_vec())
         }
-        Operation::Antijoin {
-            left_on, right_on, ..
-        } => {
-            let (left, right) = (first()?, second()?);
+        // Its right keys are checked when a left row reaches them, as the interpreter does: an empty left side answers its
+        // rows' layout and reads no right key.
+        Operation::Antijoin { left_on, .. } => {
+            let (left, _right) = (first()?, second()?);
             check_columns(left.kinds, left_on)?;
-            check_columns(right.kinds, right_on)?;
             Ok(left.kinds.to_vec())
         }
         Operation::GroupCount { keys, distinct, .. } => {
@@ -91,25 +89,22 @@ pub fn schema_of(
             let mut answer = input.kinds.to_vec();
             answer.extend(std::iter::repeat_n(
                 CellKind::Symbol,
-                memchr::memchr_iter(b'{', pattern.0.as_bytes()).count(),
+                ryo_operators::domain::capture::service::slot_count(
+                    ryo_operators::domain::capture::types::SlotPattern(&pattern.0),
+                )
+                .0,
             ));
             Ok(answer)
         }
-        Operation::Rank { column, sets, .. } => {
-            let input = first()?;
-            let ParameterBinding::TextSets(_) =
-                parameter_in(bindings, *sets).ok_or(OperatingError::Unbound)?
-            else {
-                return Err(OperatingError::WrongBinding);
-            };
-            appended(input.kinds, &[*column], CellKind::Number)
-        }
+        // What its parameter is bound to is checked at its first row, as the interpreter does: no row, no refusal.
+        Operation::Rank { column, .. } => appended(first()?.kinds, &[*column], CellKind::Number),
         Operation::Replace { text, .. } | Operation::Words { text, .. } => {
             appended(first()?.kinds, &[*text], CellKind::Symbol)
         }
-        Operation::Axis { .. } | Operation::OrderedMatch { .. } | Operation::OrderedDfs { .. } => {
-            TraversalShape::new(inputs).of(operation, bindings)
-        }
+        Operation::Axis { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. } => TraversalShape::new(inputs).of(operation, bindings),
         Operation::Closure {
             keys,
             source,
@@ -157,8 +152,8 @@ pub fn schema_of(
             ..
         } => {
             let input = first()?;
-            if texts.is_empty()
-                || literals.len() != texts.len() + 1
+            // A candidate of literals alone is a candidate: the row meaning interleaves no text column.
+            if literals.len() != texts.len() + 1
                 || texts.iter().any(|text| {
                     !matches!(
                         projected(input.kinds, &[*text]),
@@ -315,7 +310,12 @@ pub(crate) fn join_schema(
     let view = right_view(view, right.tree, reach.as_ref());
     let answer = joined(left.kinds, right_kinds, view, output)?;
     for column in right_on {
-        check_columns(right_kinds, &[right_column(view, *column)])?;
+        check_columns(
+            right_kinds,
+            &[right_column(view, *column).ok_or(
+                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: column.0 },
+            )?],
+        )?;
     }
     check_columns(left.kinds, left_on)?;
     BindingShape::new(bindings).predicates(filter, right_kinds)?;

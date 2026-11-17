@@ -21,23 +21,3 @@ pub(crate) struct ParserBlocks(pub BTreeMap<InputBytes, AllocatedBlocks>);
 /// The blocks each judged file allocated beyond the parser library.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Differences(pub Vec<AllocatedBlocks>);
-
-/// How many files.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FileCount(pub usize);
-
-/// What the differences come to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AllocationVerdict {
-    /// No file allocated more than allowed, and no more files allocated at all than the findings explain.
-    Within,
-    /// A file allocated more than one block beyond the parser library.
-    BeyondOneBlock,
-    /// More files allocated beyond the parser library than a vector that doubles explains.
-    TooManyGrew {
-        /// How many allocated beyond it.
-        grew: FileCount,
-        /// How many were judged.
-        judged: FileCount,
-    },
-}

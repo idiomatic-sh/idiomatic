@@ -217,3 +217,23 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line no-unused-expressions\na;\n" }
 expected = []
+
+[[cases]]
+name = "js-logical-call-in-catch"
+files = { "case.js" = "try {\n  run()\n} catch (e) {\n  vite && vite.ssrFixStacktrace(e)\n}\n" }
+expected = [{ file = "case.js", start = 30, end = 62 }]
+
+[[cases]]
+name = "js-negated-logical-call"
+files = { "case.js" = "try {\n  run()\n} catch (e) {\n  !isProd && vite.ssrFixStacktrace(e)\n}\n" }
+expected = [{ file = "case.js", start = 30, end = 65 }]
+
+[[cases]]
+name = "js-logical-assignment-in-parentheses"
+files = { "case.js" = "/* global document */\ndocument &&\n  (document.querySelector('.side-effect-result').textContent =\n    'Hello from side effect')\n" }
+expected = [{ file = "case.js", start = 22, end = 126 }]
+
+[[cases]]
+name = "js-optional-member-of-a-call"
+files = { "case.js" = ";(function () {})()?.foo\n" }
+expected = [{ file = "case.js", start = 1, end = 24 }]

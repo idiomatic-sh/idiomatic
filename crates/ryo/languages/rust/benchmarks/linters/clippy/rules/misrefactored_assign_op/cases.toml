@@ -1,0 +1,79 @@
+[[cases]]
+name = "same-operator-first"
+files = { "src/lib.rs" = "pub fn f(mut a: u32, b: u32) -> u32 {\n    a += a + b;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 42, end = 52 }]
+
+[[cases]]
+name = "plain"
+files = { "src/lib.rs" = "pub fn f(mut a: u32, b: u32) -> u32 {\n    a += b;\n    a += b * 2;\n    a -= b + a;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "commutative-second"
+files = { "src/lib.rs" = "pub fn f(mut a: u32, b: u32) -> u32 {\n    a += b + a;\n    a *= b * a;\n    a |= b | a;\n    a &= b & a;\n    a ^= b ^ a;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 42, end = 52 }, { file = "src/lib.rs", start = 58, end = 68 }, { file = "src/lib.rs", start = 74, end = 84 }, { file = "src/lib.rs", start = 90, end = 100 }, { file = "src/lib.rs", start = 106, end = 116 }]
+
+[[cases]]
+name = "not-commutative-second"
+files = { "src/lib.rs" = "pub fn f(mut a: u32, b: u32) -> u32 {\n    a -= b - a;\n    a /= b / a;\n    a %= b % a;\n    a <<= b << a;\n    a >>= b >> a;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "not-commutative-first"
+files = { "src/lib.rs" = "pub fn f(mut a: u32, b: u32) -> u32 {\n    a -= a - b;\n    a /= a / b;\n    a %= a % b;\n    a <<= a << b;\n    a >>= a >> b;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 42, end = 52 }, { file = "src/lib.rs", start = 58, end = 68 }, { file = "src/lib.rs", start = 74, end = 84 }, { file = "src/lib.rs", start = 90, end = 102 }, { file = "src/lib.rs", start = 108, end = 120 }]
+
+[[cases]]
+name = "other-operator"
+files = { "src/lib.rs" = "pub fn f(mut a: u32, b: u32) -> u32 {\n    a += a * b;\n    a *= a + b;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized"
+files = { "src/lib.rs" = "pub fn f(mut a: u32, b: u32) -> u32 {\n    a += (a + b);\n    a += ((a + b));\n    (a) += a + b;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 42, end = 54 }, { file = "src/lib.rs", start = 60, end = 74 }, { file = "src/lib.rs", start = 80, end = 92 }]
+
+[[cases]]
+name = "nested-left"
+files = { "src/lib.rs" = "pub fn f(mut a: u32, b: u32) -> u32 {\n    a += a + b + 1;\n    a += b + 1 + a;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 62, end = 76 }]
+
+[[cases]]
+name = "place-expressions"
+files = { "src/lib.rs" = "pub struct S {\n    pub x: u32,\n    pub v: [u32; 2],\n}\npub fn f(s: &mut S, p: &mut u32, b: u32) {\n    s.x += s.x + b;\n    s.v[0] += s.v[0] + b;\n    *p += *p + b;\n    s.v[0] += s.v[1] + b;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 101, end = 115 }, { file = "src/lib.rs", start = 121, end = 141 }, { file = "src/lib.rs", start = 147, end = 159 }]
+
+[[cases]]
+name = "call-in-place"
+files = { "src/lib.rs" = "pub fn g(v: &mut [u32]) -> &mut [u32] {\n    v\n}\npub fn f(v: &mut [u32], b: u32) {\n    g(v)[0] += g(v)[0] + b;\n    v[b.min(1) as usize] += v[b.min(1) as usize] + b;\n}\n" }
+expected = []
+
+[[cases]]
+name = "bool-and-floats"
+files = { "src/lib.rs" = "pub fn f(mut a: bool, b: bool, mut x: f64, y: f64) -> (bool, f64) {\n    a &= a & b;\n    x += x + y;\n    x *= y * x;\n    (a, x)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 72, end = 82 }, { file = "src/lib.rs", start = 88, end = 98 }, { file = "src/lib.rs", start = 104, end = 114 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let mut a = 1;\n        a += a + 1;\n        assert_eq!(a, 3);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 81, end = 91 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::misrefactored_assign_op)]\npub fn f(mut a: u32, b: u32) -> u32 {\n    a += a + b;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub fn f(mut a: u32, b: u32) -> u32 {\n    a += a + b;\n    a\n}\n#[allow(clippy::all)]\npub fn g(mut a: u32, b: u32) -> u32 {\n    a += a + b;\n    a\n}\n#[expect(warnings)]\npub fn h(mut a: u32, b: u32) -> u32 {\n    a += a + b;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::misrefactored_assign_op)]\npub fn f(mut a: u32, b: u32) -> u32 {\n    a += a + b;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::misrefactored_assign_op)]\npub fn f(mut a: u32, b: u32) -> u32 {\n    a += a + b;\n    a\n}\npub fn g(mut a: u32, b: u32) -> u32 {\n    a += a + b;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 106, end = 116 }]

@@ -2,9 +2,9 @@
 //! one that could not start.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::manifest::types::{Argument, Argv, ProductRoot, Seconds};
 use crate::outbound::tools::interface::ToolsPort;
 use crate::outbound::tools::types::{Ending, ExitCode, Invocation};
+use asymptote_values::domain::manifest::types::{Argument, Argv, ProductRoot, Seconds};
 
 /// The command line.
 type Input = Vec<&'static str>;

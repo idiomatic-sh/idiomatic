@@ -47,10 +47,7 @@ fn file_number(partial: Option<&FilePartial>) -> usize {
 fn partials_found() -> [usize; 3] {
     let mut rules = world(counting_plan(1, Vec::new()));
     rules.needs = vec![Needs {
-        cross: vec![RelationRead {
-            relation: Relation::Function,
-            kinds: Vec::new(),
-        }],
+        cross: vec![RelationRead::whole(Relation::Function)],
         ..Needs::default()
     }];
     rules.project = vec![

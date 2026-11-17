@@ -10,6 +10,9 @@ pub use ryo::languages::AnnotatesRow
 pub use ryo::languages::Assigns
 pub use ryo::languages::AssignsColumn
 pub use ryo::languages::AssignsRow
+pub use ryo::languages::AttributePath
+pub use ryo::languages::AttributePathColumn
+pub use ryo::languages::AttributePathRow
 pub use ryo::languages::BindingEvent
 pub use ryo::languages::BindingEventColumn
 pub use ryo::languages::BindingEventRow
@@ -23,6 +26,7 @@ pub use ryo::languages::BindingUse
 pub use ryo::languages::BindingUseColumn
 pub use ryo::languages::BindingUseRow
 pub use ryo::languages::Bits
+pub use ryo::languages::BlockNumber
 pub use ryo::languages::BraceFormatField
 pub use ryo::languages::BraceFormatFieldColumn
 pub use ryo::languages::BraceFormatFieldRow
@@ -70,6 +74,7 @@ pub use ryo::languages::DiagnosticPhase
 pub use ryo::languages::Directive
 pub use ryo::languages::DirectiveColumn
 pub use ryo::languages::DirectiveRow
+pub use ryo::languages::EdgeOrdinal
 pub use ryo::languages::ElementOrigin
 pub use ryo::languages::Elements
 pub use ryo::languages::EmbeddedExpression
@@ -113,6 +118,25 @@ pub use ryo::languages::Flag
 pub use ryo::languages::Flags
 pub use ryo::languages::FloatBits
 pub use ryo::languages::FloatBuffer
+pub use ryo::languages::FlowBlock
+pub use ryo::languages::FlowBlockColumn
+pub use ryo::languages::FlowBlockFact
+pub use ryo::languages::FlowBlockRow
+pub use ryo::languages::FlowEdge
+pub use ryo::languages::FlowEdgeColumn
+pub use ryo::languages::FlowEdgeFact
+pub use ryo::languages::FlowEdgeKind
+pub use ryo::languages::FlowEdgeRow
+pub use ryo::languages::FlowGraph
+pub use ryo::languages::FlowMember
+pub use ryo::languages::FlowMemberColumn
+pub use ryo::languages::FlowMemberFact
+pub use ryo::languages::FlowMemberRow
+pub use ryo::languages::FlowStep
+pub use ryo::languages::FlowStepColumn
+pub use ryo::languages::FlowStepFact
+pub use ryo::languages::FlowStepKind
+pub use ryo::languages::FlowStepRow
 pub use ryo::languages::Folder
 pub use ryo::languages::FormatField
 pub use ryo::languages::FormatFieldColumn
@@ -147,6 +171,7 @@ pub use ryo::languages::Integer
 pub use ryo::languages::InterpolatedStringLiteral
 pub use ryo::languages::InterpolatedStringLiteralColumn
 pub use ryo::languages::InterpolatedStringLiteralRow
+pub use ryo::languages::KeptShapeWords
 pub use ryo::languages::KeyState
 pub use ryo::languages::KindBits
 pub use ryo::languages::KindName
@@ -273,6 +298,7 @@ pub use ryo::languages::SampleText
 pub use ryo::languages::Scope
 pub use ryo::languages::ScopeColumn
 pub use ryo::languages::ScopeRow
+pub use ryo::languages::SemanticAnswers
 pub use ryo::languages::SemanticChild
 pub use ryo::languages::SemanticChildColumn
 pub use ryo::languages::SemanticChildRow
@@ -286,6 +312,11 @@ pub use ryo::languages::SemanticsError
 pub use ryo::languages::SequenceElement
 pub use ryo::languages::SequenceElementColumn
 pub use ryo::languages::SequenceElementRow
+pub use ryo::languages::ShapeClasses
+pub use ryo::languages::ShapeExtent
+pub use ryo::languages::ShapeIndex
+pub use ryo::languages::ShapeKey
+pub use ryo::languages::ShapeStep
 pub use ryo::languages::ShapeWord
 pub use ryo::languages::SkippedDirectory
 pub use ryo::languages::SourceDependency
@@ -307,6 +338,7 @@ pub use ryo::languages::StaticCallRow
 pub use ryo::languages::StaticImport
 pub use ryo::languages::StaticImportColumn
 pub use ryo::languages::StaticImportRow
+pub use ryo::languages::StepOrdinal
 pub use ryo::languages::StringLiteral
 pub use ryo::languages::StringLiteralColumn
 pub use ryo::languages::StringLiteralRow
@@ -349,16 +381,22 @@ pub use ryo::languages::WorkspaceMemberColumn
 pub use ryo::languages::WorkspaceMemberRow
 pub use ryo::languages::WrittenTarget
 pub use ryo::languages::absent
+pub use ryo::languages::add_flow_block
+pub use ryo::languages::add_flow_edge
+pub use ryo::languages::add_flow_member
+pub use ryo::languages::add_flow_step
 pub use ryo::languages::adopt
 pub use ryo::languages::all
 pub use ryo::languages::append_embedded
 pub use ryo::languages::begin_name
 pub use ryo::languages::binary64_text
 pub use ryo::languages::builder_position
+pub use ryo::languages::child_class
 pub use ryo::languages::child_of_kind
 pub use ryo::languages::children
 pub use ryo::languages::clear_elements
 pub use ryo::languages::clear_keys
+pub use ryo::languages::clear_shapes
 pub use ryo::languages::completion_requirement
 pub use ryo::languages::decoded_at
 pub use ryo::languages::decoded_token
@@ -376,18 +414,22 @@ pub use ryo::languages::enter_implied_node
 pub use ryo::languages::enter_node
 pub use ryo::languages::entry_state
 pub use ryo::languages::exact_digits
+pub use ryo::languages::expanded_semantic_child
+pub use ryo::languages::expanded_semantic_syntax
 pub use ryo::languages::field_at
 pub use ryo::languages::field_name_at
 pub use ryo::languages::fill_to
 pub use ryo::languages::first_token_text
 pub use ryo::languages::flags_at
+pub use ryo::languages::flow_edge_word
+pub use ryo::languages::flow_of
+pub use ryo::languages::flow_step_word
 pub use ryo::languages::has_incomplete_lexical_stream
 pub use ryo::languages::has_incomplete_syntax
 pub use ryo::languages::has_noted_words
 pub use ryo::languages::impact_name
 pub use ryo::languages::intern_derived
 pub use ryo::languages::intern_key
-pub use ryo::languages::key_class_at
 pub use ryo::languages::kind_at
 pub use ryo::languages::kinds
 pub use ryo::languages::last_at
@@ -415,11 +457,13 @@ pub use ryo::languages::origin_at
 pub use ryo::languages::parent_at
 pub use ryo::languages::phase_name
 pub use ryo::languages::positions
+pub use ryo::languages::prepare_shapes
 pub use ryo::languages::primary_role_from_manifests
 pub use ryo::languages::property_at
 pub use ryo::languages::provenance_of
 pub use ryo::languages::push_key_word
 pub use ryo::languages::push_name
+pub use ryo::languages::push_shape_word
 pub use ryo::languages::push_span
 pub use ryo::languages::push_text
 pub use ryo::languages::reach_of
@@ -430,9 +474,11 @@ pub use ryo::languages::relation_named
 pub use ryo::languages::release
 pub use ryo::languages::resolve_target
 pub use ryo::languages::retain_for_semantics
+pub use ryo::languages::rewrite_shape_words
 pub use ryo::languages::search_roots
 pub use ryo::languages::set_note
 pub use ryo::languages::set_syntax_acceptance
+pub use ryo::languages::shape_class_at
 pub use ryo::languages::size_at
 pub use ryo::languages::source_locations
 pub use ryo::languages::source_order
@@ -454,6 +500,7 @@ pub mod ryo::languages::contract
 pub use ryo::languages::contract::AnalyzedSourceExpectedRow
 pub use ryo::languages::contract::AnnotatesExpectedRow
 pub use ryo::languages::contract::AssignsExpectedRow
+pub use ryo::languages::contract::AttributePathExpectedRow
 pub use ryo::languages::contract::BindingEventExpectedRow
 pub use ryo::languages::contract::BindingReadExpectedRow
 pub use ryo::languages::contract::BindingShadowExpectedRow
@@ -485,6 +532,10 @@ pub use ryo::languages::contract::FilesystemFileExpectedRow
 pub use ryo::languages::contract::FilesystemLineCountExpectedRow
 pub use ryo::languages::contract::FilesystemReadFailureExpectedRow
 pub use ryo::languages::contract::Fixtures
+pub use ryo::languages::contract::FlowBlockExpectedRow
+pub use ryo::languages::contract::FlowEdgeExpectedRow
+pub use ryo::languages::contract::FlowMemberExpectedRow
+pub use ryo::languages::contract::FlowStepExpectedRow
 pub use ryo::languages::contract::FormatFieldExpectedRow
 pub use ryo::languages::contract::FormatParseExpectedRow
 pub use ryo::languages::contract::FormatSpecificationExpectedRow
@@ -956,6 +1007,8 @@ impl core::marker::StructuralPartialEq for ryo::linter::LintRequest
 pub struct ryo::linter::lint::types::Linter(_)
 impl ryo::linter::Linter
 pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache) -> Self
+impl ryo::linter::Linter
+pub fn ryo::linter::Linter::prepare(&self, &alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>, &[ryo::linter::HostRelation]) -> core::result::Result<(), ryo::linter::LintError>
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct ryo::linter::lint::types::Message(pub alloc::boxed::Box<str>)
@@ -1810,6 +1863,8 @@ impl core::marker::StructuralPartialEq for ryo::linter::LintRequest
 pub struct ryo::linter::Linter(_)
 impl ryo::linter::Linter
 pub fn ryo::linter::Linter::new(ryo::linter::Languages, ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache) -> Self
+impl ryo::linter::Linter
+pub fn ryo::linter::Linter::prepare(&self, &alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>, &[ryo::linter::HostRelation]) -> core::result::Result<(), ryo::linter::LintError>
 impl core::fmt::Debug for ryo::linter::Linter
 pub fn ryo::linter::Linter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct ryo::linter::Message(pub alloc::boxed::Box<str>)

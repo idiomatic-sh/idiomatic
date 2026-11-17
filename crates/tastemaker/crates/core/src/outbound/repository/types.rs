@@ -1,6 +1,6 @@
 //! The types of the `repository` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// What a walk beneath a directory found: every file, and every directory it went into, the one it started at first.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

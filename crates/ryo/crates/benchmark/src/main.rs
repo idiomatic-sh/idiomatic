@@ -1,12 +1,10 @@
 //! Minimal process composition; contestant clocks start inside the direct observer.
 //!
-//! For the shipped recording benchmark, check `cargo metadata --locked --no-deps --format-version 1`: package `idiomatic-sh-ryo` has target `lint`, kind `bench`, source `cli/benches/lint.rs` (`harness = false`). Build it with `cargo bench --locked --no-run -p idiomatic-sh-ryo --bench lint`, seal the reported bench executable, then run that executable with `--bench --rounds 1`. The ordinary `ryo` CLI binary is a different target and does not accept those arguments.
-//!
-//! The collector also runs the gated operations of a linter bench: `verify-inventory`, `measure-valid` and `parity`, each
-//! with one argument, the bench directory `languages/<lang>/benchmarks/linters/<linter>`. Each builds and seals the bench's
-//! worker under `<target>/benchmark/<lang>/<linter>/<verb>/`; `verify-inventory` registers every default from the bench's
-//! `benchmark.toml` and `rules/<ID>/{query.ryoql,cases.toml}` and verifies it in process, the other two run the worker's verb
-//! of the same name with the sealed paths. The shared domain initializes every default as FAIL; the application invokes the existing verification path for each implementation, retains native observations, and continues after missing or failed rules. The injected artifact boundary atomically publishes `summary.json` and raw per-rule evidence. PASS plus FAIL always equals the supplied inventory length; no provider-specific count or admission list exists in the runner. Existing collector stdin measurement behavior is unchanged when no command is supplied.
+//! The collector runs a language bench: `bench`, with one argument, the bench directory
+//! `languages/<lang>/benchmarks/linters/<linter>`. It refuses any count of processors but four, builds and seals the bench's
+//! worker and itself under `<target>/benchmark/<lang>/<linter>/bench/`, registers every default from the bench's
+//! `benchmark.toml` and `rules/<ID>/{query.ryoql,cases.toml}` and verifies each against its cases once, and only when every
+//! default passed runs the worker's `measure-valid` over the language's projects, which writes the bench's one document. The shared domain initializes every default as FAIL; the application invokes the existing verification path for each implementation, retains native observations, and continues after missing or failed rules. A default the profile defers (its `[deferred]` table) and does not implement is DEFERRED with its capability as the reason and runs nothing; the run passes when no row is FAIL. The injected artifact boundary atomically publishes `summary.json` (`benchmark-inventory/v2`) and raw per-rule evidence. PASS plus FAIL plus DEFERRED always equals the supplied inventory length; no provider-specific count or admission list exists in the runner. Existing collector stdin measurement behavior is unchanged when no command is supplied.
 //!
 //! ## Explicit reference process failures
 //!
@@ -87,8 +85,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let operate = OperateUseCaseImpl::new(
             Arc::new(ryo_benchmark::outbound::executables::factory::cargo(
                 operate_constants::BUILD_TOOL.into(),
-                // ignore: idiomatic.arch/no-env-reads - the reference tool is the first of its name on the search path, the operating system's convention for finding a command
-                std::env::var_os(operate_constants::SEARCH_PATH).unwrap_or_default(),
+                std::env::join_paths(
+                    // ignore: idiomatic.arch/no-env-reads - the reference tool is the first of its name in the starting build tool's toolchain, then on the search path, the operating system's convention for finding a command
+                    std::env::var_os(operate_constants::TOOLCHAIN_TOOL)
+                        .map(std::path::PathBuf::from)
+                        .and_then(|tool| tool.parent().map(std::path::Path::to_path_buf))
+                        .into_iter()
+                        .chain(std::env::split_paths(
+                            &std::env::var_os(operate_constants::SEARCH_PATH).unwrap_or_default(),
+                        )),
+                )?,
             )),
             Arc::new(ryo_benchmark::outbound::suite::factory::local()),
             Arc::new(inventory::factory::local()),
@@ -98,6 +104,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arc::new(execution::factory::bounded(std::time::Duration::from_secs(
                 operate_constants::RULE_TIMEOUT_SECONDS,
             ))),
+            Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
+            Arc::new(ryo_benchmark::outbound::host::factory::local()),
         );
         let report = operate.operate(
             &OperationRequest {
@@ -105,6 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 bench: BenchDirectory(bench.into()),
             },
             &mut std::io::stdout().lock(),
+            &mut std::io::stderr().lock(),
         )?;
         return if report.verdict == OperationVerdict::Passed {
             Ok(())

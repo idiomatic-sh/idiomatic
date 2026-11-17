@@ -59,7 +59,7 @@ pub(super) fn reference_roots_must_match_the_declared_project_scope() -> Result<
         files: vec![RelativePath("input.py".into())],
         state: "/tmp/cache".into(),
     };
-    adapter.prepare(&request)?;
+    let _invocation = adapter.prepare(&request)?;
     request.project_search_roots =
         ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(vec![
             RelativePath("".into()),
@@ -70,7 +70,7 @@ pub(super) fn reference_roots_must_match_the_declared_project_scope() -> Result<
     assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
     request.project_search_roots =
         ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared;
-    adapter.prepare(&request)?;
+    let _invocation = adapter.prepare(&request)?;
     let unrelated = LinterRuffAdapter::new(LinterRuffSettings {
         executable: "/missing-ruff".into(),
         defaults: [RuleId::try_from("F401").expect("valid rule")]
@@ -118,7 +118,11 @@ pub(super) fn invocation_matches(
     Ok(invocation.arguments == expected
         && invocation.environment.get(std::ffi::OsStr::new(
             ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN,
-        )) == Some(&"1".into())
+        )) == Some(
+            &ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
+                .to_string()
+                .into(),
+        )
         && invocation.directory == request.root
         && invocation.executable == executable)
 }

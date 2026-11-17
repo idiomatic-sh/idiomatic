@@ -1,96 +1,58 @@
-//! An axis answers one row for each admitted candidate, in walk order; the nearest ancestor answers one.
-use super::service::evaluate;
+//! The `axis` service's cases, on values alone.
+
+use super::service::lower;
+use super::types::AxisShape;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::axis::types::AxisAdmission;
-use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::evaluation::fixtures::{FakeDriver, number, written};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, JoinColumn, Side};
 
-/// Which walk the engine answers with.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    /// Three entities, the second not admitted.
-    Entities,
-    /// The nearest ancestor of three candidates, the first not admitted.
-    Nearest,
-    /// A complete answer the engine already holds.
-    Cached,
-    /// Two elements, answered in the declared output over the row and the element.
-    Elements,
-}
-type Input = Scenario;
-type Value = std::borrow::Cow<'static, str>;
-type Failure = PortableOperatorFault;
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("each_admitted_entity_is_one_row_in_walk_order"),
-        word: Word::Succeeds,
-        input: || Scenario::Entities,
-        expect: Expect::Value(std::borrow::Cow::Borrowed("1 2|1 4")),
-    },
-    Case {
-        name: CaseName("the_nearest_ancestor_is_the_first_admitted_candidate_alone"),
-        word: Word::Succeeds,
-        input: || Scenario::Nearest,
-        expect: Expect::Value(std::borrow::Cow::Borrowed("1 3")),
-    },
-    Case {
-        name: CaseName("a_cached_answer_is_emitted_as_it_is"),
-        word: Word::Succeeds,
-        input: || Scenario::Cached,
-        expect: Expect::Value(std::borrow::Cow::Borrowed("1 7|1 8")),
-    },
-    Case {
-        name: CaseName("an_element_answers_the_declared_output"),
-        word: Word::Succeeds,
-        input: || Scenario::Elements,
-        expect: Expect::Value(std::borrow::Cow::Borrowed("1 21|1 31")),
-    },
-];
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    let row = [number(1)];
-    let mut driver = FakeDriver {
-        candidates: vec![number(2), number(3), number(4)],
-        ..FakeDriver::default()
-    };
-    let cached = [number(7), number(8)];
-    let output = [
-        JoinColumn {
-            side: Side::Left,
-            column: ColumnIndex(0),
+/// A scenario: whether what the part answers is what the case states.
+type Input = fn() -> bool;
+type Value = bool;
+type Failure = ();
+
+/// An axis walks in its direction over its columns, and its domain is a select over the domain's comparisons.
+fn walks_its_columns() -> bool {
+    let output = [JoinColumn {
+        side: Side::Right,
+        column: ColumnIndex(0),
+    }];
+    let parts = lower(
+        AxisShape {
+            direction: Direction::Ancestor,
+            id: ColumnIndex(0),
+            parent: ColumnIndex(1),
+            child: ColumnIndex(2),
+            domain_id: ColumnIndex(3),
+            output: &output,
         },
-        JoinColumn {
-            side: Side::Right,
-            column: ColumnIndex(1),
-        },
-    ];
-    let (direction, output, cached): (Direction, &[JoinColumn], Option<&[_]>) = match scenario {
-        Scenario::Entities => {
-            driver.admitted = vec![AxisAdmission::In, AxisAdmission::Out, AxisAdmission::In];
-            (Direction::Descendant, &[][..], None)
-        }
-        Scenario::Nearest => {
-            driver.admitted = vec![AxisAdmission::Out, AxisAdmission::In, AxisAdmission::In];
-            (Direction::NearestAncestor, &[][..], None)
-        }
-        Scenario::Cached => (Direction::Descendant, &[][..], Some(&cached[..])),
-        Scenario::Elements => {
-            driver.candidates = vec![number(2), number(3)];
-            driver.elements = vec![vec![number(20), number(21)], vec![number(30), number(31)]];
-            (Direction::Descendant, &output[..], None)
-        }
-    };
-    evaluate(
-        &row,
-        ColumnIndex(0),
-        direction,
-        output,
-        cached,
-        &mut driver,
-        &mut Vec::new(),
-    )?;
-    Ok(std::borrow::Cow::Owned(written(&driver.emitted)))
+        &[],
+        &[ColumnIndex(3)],
+        &[],
+    );
+    parts.direction == Direction::Ancestor
+        && (parts.id, parts.parent, parts.child, parts.domain_id)
+            == (
+                ColumnIndex(0),
+                ColumnIndex(1),
+                ColumnIndex(2),
+                ColumnIndex(3),
+            )
+        && parts.output == output
+        && parts.domain == crate::domain::select::service::lower(&[], &[ColumnIndex(3)], &[])
 }
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("an_axis_walks_its_columns_in_its_direction"),
+    word: Word::Succeeds,
+    input: || walks_its_columns,
+    expect: Expect::Value(true),
+}];
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    Ok(input())
+}
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);

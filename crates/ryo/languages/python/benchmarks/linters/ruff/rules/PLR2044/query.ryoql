@@ -5,7 +5,7 @@ let empty_comments = select id, file, span from comments where matches(text, "^[
 let comment_locations = select l.id as id, l.file as file, l.span as span, l.text as text, r."start-line" as line, r."start-column" as column, r."start-byte" as start from comments as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let physical_content = select id, text, file from "syntax-tree" where matches(text, "[^ \t\r\n\x0c][^\r\n]*$");
 let content_ends = select l.id as id, l.file as file, r."end-line" as end_line, r."end-column" as end_column, r."end-byte" as end from physical_content as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let inline_comment_ids = select l.id as id, l.file as file from comment_locations as l join content_ends as r on l.file = r.file where l.line = r.end_line and r.end <= l.start and r.end_column > 1;
+let inline_comment_ids = select l.id as id, l.file as file from comment_locations as l join content_ends as r on l.file = r.file and l.line = r.end_line where r.end <= l.start and r.end_column > 1;
 let own_line_ids = antijoin(left=comment_locations, right=inline_comment_ids, left-on=["id","file"], right-on=["id","file"]);
 let own_line_comments = select l.id as id, l.file as file, l.span as span, l.text as text, l.line as line, l.column as column from comment_locations as l join own_line_ids as r on l.id = r.id and l.file = r.file;
 let newlines = select id, file from "syntax-tree" where kind = "newline" or kind = "nl";

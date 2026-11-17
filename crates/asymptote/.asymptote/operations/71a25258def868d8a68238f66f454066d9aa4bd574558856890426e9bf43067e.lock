@@ -1,0 +1,8 @@
+version = 1
+parents = ["faf038106049b091ca0e7584cd26253975ef460a1beffe1fc334b6f12a4703a9"]
+
+removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/cli#outdated", path = "tastemaker.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/crate(crate-core)#outdated", path = "tastemaker.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/crate(cli-crate)#outdated", path = "tastemaker.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
+]

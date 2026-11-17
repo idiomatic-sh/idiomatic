@@ -38,7 +38,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let table = source();
         // Project facts must never be read by the file owner: the facts hold Function alone and refuse any other read.
-        let file_facts = TableFacts::new(&[(Relation::Function, &table)]);
+        let mut file_facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut symbols = Symbols::default();
         let mut rules = run_file(
@@ -52,7 +52,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
                 &elements,
             ),
             &mut symbols,
-            &file_facts,
+            &mut file_facts,
         );
         let rule = ran(&mut rules, 0);
         assert!(matches!(
@@ -116,8 +116,9 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             project_symbols: &project_symbols,
             arenas: &[],
         };
-        // The production sequence: one call with two declared occurrences of one population. The phase prepares every occurrence
-        // before it evaluates any, so the second reuses the first's acquisition while nothing outside the engine holds it.
+        // The production sequence: one call with two declared occurrences of one population. The phase proves every occurrence
+        // before it evaluates any, so the second reuses the first's acquisition while nothing outside the engine holds it: the
+        // file frontier's provenance is read to prove it, and its words once, to decode it at the first occurrence that evaluates.
         let mut outcomes = crate::boundary_fixture::fixtures::project_roots(
             &phase,
             occurrences(&pair),
@@ -125,7 +126,7 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             &partials,
             &mut symbols,
         );
-        assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
+        assert_eq!(stored.reads.load(Ordering::SeqCst), 2);
         assert_eq!(project.reads.load(Ordering::SeqCst), 1);
         let again = outcomes.pop().unwrap().unwrap();
         let outcome = outcomes
@@ -152,8 +153,8 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
         phase.finish().expect("release project publications");
         assert_eq!(
             stored.reads.load(Ordering::SeqCst),
-            2,
-            "the two occurrences of one call share one acquisition of the file frontiers"
+            4,
+            "the two occurrences of one call share one acquisition of the file frontiers: provenance to prove, words to decode"
         );
         assert_eq!(
             project.reads.load(Ordering::SeqCst),
@@ -190,10 +191,10 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let table = source();
-    let read = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut read = TableFacts::new(&[(Relation::Function, &table)]);
     let mut symbols = Symbols::default();
     let stored = CapturedFacts {
-        captures: captured_in_file_0_of(&request, &read, &mut symbols),
+        captures: captured_in_file_0_of(&request, &mut read, &mut symbols),
         reads: AtomicUsize::new(0),
     };
     let project = ProjectFacts::new(relation);
@@ -268,12 +269,12 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     );
     assert_eq!(
         after_ordinary,
-        (1, 1),
-        "the ordinary population acquires the frontier and the provider once"
+        (2, 1),
+        "the ordinary population acquires the frontier (provenance to prove, words to decode) and the provider once"
     );
     assert_eq!(
         after_observed,
-        (2, 2),
+        (4, 2),
         "the observed population is a separate acquisition of both"
     );
     let RootOutcome::Complete(ordinary) = ordinary.emit else {

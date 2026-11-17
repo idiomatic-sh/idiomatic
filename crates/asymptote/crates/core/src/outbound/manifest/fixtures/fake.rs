@@ -1,13 +1,13 @@
 //! The fake of the `manifest` port: one product, held in memory.
 
-use crate::domain::manifest::types::{
-    Argument, Argv, Fix, Group, Hook, HookName, Manifest, Output, Pathspec, ProductRoot, Seconds,
-    Tool,
-};
-use crate::domain::violations::types::ToolId;
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::{HookTable, Products};
+use asymptote_values::domain::manifest::types::{
+    Argument, Argv, Fix, Group, Hook, HookName, Manifest, Output, Pathspec, ProductRoot, Seconds,
+    Tool,
+};
+use asymptote_values::domain::violations::types::ToolId;
 
 /// What the core's tests stand in for `manifest` with.
 #[derive(Debug, Default)]
@@ -27,7 +27,7 @@ impl ManifestFake {
         Self {
             root: ProductRoot(root.into()),
             manifest: Manifest {
-                asymptote: crate::domain::manifest::types::Pin::Unpinned,
+                asymptote: asymptote_values::domain::manifest::types::Pin::Unpinned,
                 tools: ids
                     .iter()
                     .map(|id| Tool {
@@ -37,6 +37,7 @@ impl ManifestFake {
                         output: Output::Sarif,
                         group: Group("lint".into()),
                         timeout: Seconds(60),
+                        tolerance: std::collections::BTreeMap::new(),
                         inputs: vec![Pathspec(".".into())],
                     })
                     .collect(),

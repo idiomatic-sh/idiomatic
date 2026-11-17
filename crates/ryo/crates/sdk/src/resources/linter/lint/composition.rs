@@ -108,11 +108,10 @@ pub(crate) fn build(
     settings: LinterLintSettings,
 ) -> impl LintUseCase {
     let LinterLintSettings { root, budget } = settings;
-    let spill: Arc<dyn ryo_execution_runtime::outbound::facts::interface::FactsPort> =
-        match &connections.spill {
-            Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
-            Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
-        };
+    let spill: Arc<dyn facts::interface::FactsPort> = match &connections.spill {
+        Spill::Kept(path) => Arc::new(facts::factory::spill(path.clone())),
+        Spill::Scratch => Arc::new(facts::factory::spill_scratch()),
+    };
     let store: Arc<dyn LintStorePort> = match connections.store.clone() {
         Some(store) => Arc::new(lint_store::factory::postcard(store)),
         None => Arc::new(lint_store::factory::discard()),
@@ -150,9 +149,8 @@ pub(crate) fn build(
             let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> = files;
             let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
-            let analysis_digest: Arc<
-                dyn ryo_execution_runtime::outbound::digest::interface::DigestPort,
-            > = Arc::new(digest::factory::blake3());
+            let analysis_digest: Arc<dyn digest::interface::DigestPort> =
+                Arc::new(digest::factory::blake3());
             ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
                 ryo_core::application::file_analysis::service::FileAnalysis::new(
                     Arc::clone(&analysis_corpus),
@@ -162,15 +160,14 @@ pub(crate) fn build(
                 ),
                 ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                     &analysis_corpus,
-                ), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
+                ), Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
                 Arc::clone(&analysis_corpus),
                 spill,
                 analysis_language,
                 matching,
                 query,
                 analysis_memory,
-                Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
-ryo_execution::derived(),
+                Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(), ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
                 pool,
                 workers,
                 Arc::new(row_sink::factory::collect(collector)),
@@ -323,11 +320,21 @@ pub(crate) fn store_skip(
 impl From<DependencyBytes<'_>> for DependencyFingerprint {
     fn from(bytes: DependencyBytes<'_>) -> Self {
         use ryo_execution_runtime::outbound::digest::interface::DigestPort as _;
-        let digest = digest::factory::blake3().digest(
-            ryo_execution_runtime::outbound::digest::types::DigestBytes(bytes.0),
-        );
+        let digest = digest::factory::blake3().digest(digest::types::DigestBytes(bytes.0));
         Self(digest.0)
     }
 }
 /// What joins the parts of a path the walk skips, on every platform.
 const SKIP_SEPARATOR: char = '/';
+
+/// Chooses the compilation of rules into the plans every run over `engine` shares.
+pub(crate) fn build_compilation(
+    engine: &LinterLintEngine,
+) -> impl ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase {
+    let digest: Arc<dyn digest::interface::DigestPort> = Arc::new(digest::factory::blake3());
+    ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl::new(
+        Arc::clone(&engine.query_language),
+        digest,
+    )
+    .compiling_into(engine.plans.clone())
+}

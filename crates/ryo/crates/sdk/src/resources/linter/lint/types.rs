@@ -369,9 +369,14 @@ pub struct ObservationBinding {
 pub enum ObservationProducer {
     /// Read the named output of the selected rule's actual query.
     Output {
+        /// The rule whose output is read.
         rule: RuleId,
+        /// The output of the rule's query that is read.
         output: crate::domain::observation::types::ObservationName,
     },
     /// The selection contains the rule but no query is registered.
-    NoQuery { rule: RuleId },
+    NoQuery {
+        /// The rule the selection contains.
+        rule: RuleId,
+    },
 }

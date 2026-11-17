@@ -5,8 +5,8 @@
 /// store's directory `store`.
 #[must_use]
 pub fn disk(
-    skipped: Vec<crate::domain::files::types::SkippedDirectory>,
-    store: crate::domain::files::types::DirectoryName,
+    skipped: Vec<tastemaker_values::domain::files::types::SkippedDirectory>,
+    store: tastemaker_values::domain::files::types::DirectoryName,
 ) -> impl crate::outbound::repository::interface::RepositoryPort {
     super::adapters::disk::adapter::RepositoryDiskAdapter { skipped, store }
 }
@@ -15,8 +15,8 @@ pub fn disk(
 /// directories `skipped` names nor the store's directory `store`. Each scenario's project is written there.
 #[must_use]
 pub fn memory(
-    skipped: Vec<crate::domain::files::types::SkippedDirectory>,
-    store: crate::domain::files::types::DirectoryName,
+    skipped: Vec<tastemaker_values::domain::files::types::SkippedDirectory>,
+    store: tastemaker_values::domain::files::types::DirectoryName,
 ) -> impl crate::outbound::repository::interface::RepositoryPort {
     super::adapters::memory::adapter::RepositoryMemoryAdapter {
         skipped,

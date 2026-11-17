@@ -38,10 +38,11 @@ use ryo_execution::inbound::use_cases::compile_rules::interface::{
 };
 use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_execution::inbound::use_cases::prepare::types::{DerivedViews, PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
@@ -83,7 +84,6 @@ pub struct LintUseCaseImpl {
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
     operators: Arc<dyn OperatorsPort>,
-    derived: DerivedViews,
     /// Takes the findings the rules write.
     rows: Arc<dyn RowSinkPort>,
     /// Digests the rules and files whose results the store keeps between runs.
@@ -118,7 +118,6 @@ impl LintUseCaseImpl {
         query_language: Arc<dyn QueryLanguagePort>,
         memory: Arc<dyn MemoryPort>,
         operators: Arc<dyn OperatorsPort>,
-        derived: DerivedViews,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
         rows: Arc<dyn RowSinkPort>,
@@ -151,7 +150,6 @@ impl LintUseCaseImpl {
             compilation: Compilation::new(query_language, Arc::clone(&digest)),
             memory,
             operators,
-            derived,
             rows,
             digest,
             store,
@@ -187,7 +185,7 @@ impl LintUseCase for LintUseCaseImpl {
             hosted: &request.hosted,
             vocabularies: &self.language.kind_vocabularies(),
         })?;
-        let plans = compiled.plans();
+        let plans: Vec<&ryo_values::domain::plans::types::Plan> = compiled.plans().collect();
         let ids = ids_of(&rules);
         let Wanting { placed, wants } = wanting(
             self.matching.as_ref(),
@@ -242,11 +240,7 @@ impl LintUseCase for LintUseCaseImpl {
             Reuse::Whole,
         );
         let unknown = self.language.unknown_reasons();
-        let execution = Execution::new(
-            Arc::clone(&self.operators),
-            self.derived.clone(),
-            Arc::clone(&self.digest),
-        );
+        let execution = Execution::new(Arc::clone(&self.operators));
         let digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let request_failed = |error: &dyn std::fmt::Display| {
             ryo_values::domain::rule_requests::service::failed(
@@ -371,7 +365,7 @@ impl LintUseCase for LintUseCaseImpl {
             language: self.language.as_ref(),
             memory: self.memory.as_ref(),
         };
-        answer(
+        let answered = answer(
             &self.visits,
             &self.cross_file,
             ports,
@@ -381,6 +375,10 @@ impl LintUseCase for LintUseCaseImpl {
             &run,
             &visit,
             &mut project,
-        )
+        );
+        // Every file and the project phase ran: ending the run's execution emits its node counters before its trace is
+        // flushed.
+        services.finish();
+        answered
     }
 }

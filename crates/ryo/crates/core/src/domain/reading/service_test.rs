@@ -135,7 +135,7 @@ fn findings_are_put_in_the_order_of_their_keys() -> Value {
 }
 
 fn findings_have_bucket_zero_and_each_frontier_the_buckets_after() -> Value {
-    u64::from(first_buckets(&[plan(2), plan(1)]) == [Bucket(1), Bucket(3)])
+    u64::from(first_buckets(&[&plan(2), &plan(1)]) == [Bucket(1), Bucket(3)])
 }
 
 /// The rows of this part's cases.

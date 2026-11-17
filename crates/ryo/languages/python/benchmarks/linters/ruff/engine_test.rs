@@ -144,6 +144,34 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(true),
     },
+    Case {
+        name: CaseName("pie794_rooted_equivalence_reports_nothing_across_unrelated_growth"),
+        word: Word::Succeeds,
+        input: || EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName(
+            "sparse_descendant_consumers_equivalence_reports_nothing_across_unrelated_growth",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("plr1708_rooted_equivalence_reports_nothing_across_unrelated_growth"),
+        word: Word::Succeeds,
+        input: || EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("actual_rooted_queries_keep_their_sparse_axis"),
+        word: Word::Succeeds,
+        input: || EngineScenario::ActualRootedQueriesKeepTheirSparseAxis,
+        expect: Expect::Value(true),
+    },
 ];
 fn exercise(scenario: Input) -> Result<Value, Error> {
     if scenario == EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile {
@@ -174,6 +202,21 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     {
         i001_observation_test::i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory();
         return Ok(true);
+    }
+    if scenario == EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth {
+        return sparse_traversal_test::pie794_rooted_equivalence_reports_nothing_across_unrelated_growth().map(|()| true);
+    }
+    if scenario
+        == EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
+    {
+        return sparse_traversal_test::sparse_descendant_consumers_equivalence_reports_nothing_across_unrelated_growth().map(|()| true);
+    }
+    if scenario == EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth {
+        return sparse_traversal_test::plr1708_rooted_equivalence_reports_nothing_across_unrelated_growth().map(|()| true);
+    }
+    if scenario == EngineScenario::ActualRootedQueriesKeepTheirSparseAxis {
+        return sparse_traversal_test::actual_rooted_queries_keep_their_sparse_axis()
+            .map(|()| true);
     }
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");
@@ -247,6 +290,8 @@ mod future_directives_test;
 mod project_inputs_test;
 
 mod i001_observation_test;
+
+mod sparse_traversal_test;
 
 mod rejected_syntax_consumer_test;
 

@@ -3,10 +3,10 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::manifest::types::Pathspec;
-use crate::domain::operations::types::OperationText;
-use crate::domain::renames::types::{Introduction, Rename, RenameEvent};
-use crate::domain::violations::types::RepoPath;
+use asymptote_values::domain::manifest::types::Pathspec;
+use asymptote_values::domain::operations::types::OperationText;
+use asymptote_values::domain::renames::types::{Introduction, Rename, RenameEvent};
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// A file as a revision holds it.
 #[derive(Clone, Debug, PartialEq, Eq)]

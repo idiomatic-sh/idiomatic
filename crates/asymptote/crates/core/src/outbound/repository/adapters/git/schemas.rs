@@ -3,11 +3,11 @@
 //! or `impl TryFrom`.
 
 use super::constants::{BEFORE_PATH, FIELD, NEGATED, RECORD, UNMATCHED};
-use crate::domain::operations::types::Revision;
-use crate::domain::renames::types::{Introduction, Parent, Rename, RenameEvent};
-use crate::domain::violations::service::normalize;
-use crate::domain::violations::types::RepoPath;
 use crate::outbound::repository::errors::RepositoryError;
+use asymptote_values::domain::operations::types::Revision;
+use asymptote_values::domain::renames::types::{Introduction, Parent, Rename, RenameEvent};
+use asymptote_values::domain::violations::service::normalize;
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// Why git's output was refused.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

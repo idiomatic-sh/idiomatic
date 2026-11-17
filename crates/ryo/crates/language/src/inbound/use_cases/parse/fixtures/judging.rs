@@ -1,25 +1,18 @@
 //! The judgments of a language's answers for the relations its fixtures read from trees, from presence and from kinds.
 
 use std::collections::BTreeSet;
-use std::io::Write as _;
 use std::path::Path;
 
 use super::super::service::{absence as parse_absence, build, kinds_read};
 use super::super::types::ParseEngine;
 use super::super::types::Sample;
 use super::super::types::{FieldRequest, NoteRequest, ParseRequest, Recognition};
-use super::configuration::{Configuration, Selection};
-use super::contract::{check, flow};
+use super::configuration::Selection;
 use super::expected::{Cell, Expected, Fixtures};
 use super::findings::{Findings, folders_in, input_in, inputs_in};
-use super::judgments::{judge_classes, judge_columns, judge_reasons, judge_unknowns};
-use super::manifests::manifest_rows;
-use super::not_yet_read::report_not_yet_read;
-use super::rails::judge_rails;
 use super::rendered::{expected_source, shown as row_shown};
 use super::rows::{compare, rows_of_inputs_with};
 use super::samples::samples_in;
-use super::semantics::judge as judge_semantics;
 use super::unread;
 use crate::domain::elements::service::{kind_at, positions};
 use crate::domain::elements::types::Elements;
@@ -28,7 +21,7 @@ use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::project::types::ProjectEngine;
 use ryo_relations::domain::relations::constants::TOKEN;
-use ryo_relations::domain::relations::service::{KIND_LIMIT, all, folder_of, provenance_of};
+use ryo_relations::domain::relations::service::{all, folder_of, provenance_of};
 use ryo_relations::domain::relations::types::Provenance;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 

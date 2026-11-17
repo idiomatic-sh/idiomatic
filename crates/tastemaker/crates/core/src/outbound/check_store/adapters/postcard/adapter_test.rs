@@ -4,13 +4,13 @@
 use super::adapter::CheckStorePostcardAdapter;
 use super::constants::{FILE, GITIGNORE};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::files::types::MachinePath;
-use crate::domain::settings::types::{Build, Store};
-use crate::domain::writing::types::Writing;
 use crate::outbound::check_store::errors::CheckStoreError;
 use crate::outbound::check_store::fixtures::contract::check;
 use crate::outbound::check_store::interface::CheckStorePort as _;
 use crate::outbound::check_store::types::Checked;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::settings::types::{Build, Store};
+use tastemaker_values::domain::writing::types::Writing;
 
 /// What is done to the store.
 #[derive(Clone, Copy, Debug)]
@@ -122,8 +122,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         | Scenario::Ordinary => directory.path().join("store"),
     };
     let answer = Checked {
-        evaluated: [crate::domain::findings::service::of_rule(
-            crate::domain::findings::types::RuleId("p/a".into()),
+        evaluated: [tastemaker_values::domain::findings::service::of_rule(
+            tastemaker_values::domain::findings::types::RuleId("p/a".into()),
         )]
         .into(),
         ..Checked::default()

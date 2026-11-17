@@ -1,9 +1,7 @@
 //! Inbound composition of private, pure execution metadata concepts.
-use super::interface::MetadataUseCase;
 use super::interface::*;
 use super::types::*;
-use ryo_execution_domain::domain::features::types::StepWork;
-use ryo_execution_domain::domain::kind_check::types::{AskedKind, KindRefusal};
+use ryo_execution_domain::domain::kind_check::types::KindRefusal;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
@@ -12,11 +10,11 @@ use ryo_values::domain::files::types::Hits;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::QueryOperator;
-use ryo_values::domain::run_metadata::types::Feature;
 use ryo_values::domain::runs::types::{RuleId, RuleNumber};
 use ryo_values::domain::stored_facts::types::ReadInPart;
 
 /// Stateless access to pure decisions. No program, owner, or permit is held here.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct MetadataUseCaseImpl;
 
 impl MetadataUseCase for MetadataUseCaseImpl {
@@ -28,31 +26,29 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         plan: &Plan,
         vocabularies: &KindVocabularies,
         matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
-    ) -> super::types::KindRefusalFound {
-        super::types::KindRefusalFound(ryo_execution_domain::domain::kind_check::service::refusal(
+    ) -> KindRefusalFound {
+        KindRefusalFound(ryo_execution_domain::domain::kind_check::service::refusal(
             plan,
             vocabularies,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
+            ryo_operators::domain::patterns::types::PatternMatcher(matching),
         ))
     }
-    fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> super::types::AskedKinds {
-        super::types::AskedKinds(
-            ryo_execution_domain::domain::kind_check::service::kinds_asked(plan, bound),
-        )
+    fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> AskedKinds {
+        AskedKinds(ryo_execution_domain::domain::kind_check::service::kinds_asked(plan, bound))
     }
     fn first_unknown(
         &self,
-        plans: &[Plan],
-        bindings: super::types::PlanBindings<'_>,
+        plans: &[&Plan],
+        bindings: PlanBindings<'_>,
         vocabularies: &KindVocabularies,
         matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
-    ) -> super::types::UnknownKindFound {
-        super::types::UnknownKindFound(
+    ) -> UnknownKindFound {
+        UnknownKindFound(
             ryo_execution_domain::domain::kind_check::service::first_unknown(
                 plans,
                 bindings.0,
                 vocabularies,
-                ryo_execution_domain::domain::matching::types::PatternMatcher(matching),
+                ryo_operators::domain::patterns::types::PatternMatcher(matching),
             ),
         )
     }
@@ -78,24 +74,24 @@ impl MetadataUseCase for MetadataUseCaseImpl {
     fn unplace(&self, mask: &mut Mask, rule: RuleNumber) {
         ryo_execution_domain::domain::placement::service::unplace(mask, rule);
     }
-    fn feature_catalog(&self) -> super::types::FeatureCatalog {
-        super::types::FeatureCatalog(ryo_execution_domain::domain::features::service::catalog())
+    fn feature_catalog(&self) -> FeatureCatalog {
+        FeatureCatalog(ryo_execution_domain::domain::features::service::catalog())
     }
     fn work_over(
         &self,
         metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
-        fed: super::types::FedRows<'_>,
-    ) -> super::types::StepWorks {
-        super::types::StepWorks(ryo_execution_domain::domain::features::service::work_over(
+        fed: FedRows<'_>,
+    ) -> StepWorks {
+        StepWorks(ryo_execution_domain::domain::features::service::work_over(
             metadata, fed.0,
         ))
     }
     fn fed_over(
         &self,
         metadata: &[ryo_values::domain::run_metadata::types::RuleRunMetadata],
-        fed: super::types::FedRows<'_>,
-    ) -> super::types::FeatureRowsByRule {
-        super::types::FeatureRowsByRule(ryo_execution_domain::domain::features::service::fed_over(
+        fed: FedRows<'_>,
+    ) -> FeatureRowsByRule {
+        FeatureRowsByRule(ryo_execution_domain::domain::features::service::fed_over(
             metadata, fed.0,
         ))
     }
@@ -104,8 +100,8 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         said: &[ReadInPart],
         recovery: Recovery,
         wanted: &[Relation],
-    ) -> super::types::PartialReads {
-        super::types::PartialReads(ryo_execution_domain::domain::coverage::service::partial_of(
+    ) -> PartialReads {
+        PartialReads(ryo_execution_domain::domain::coverage::service::partial_of(
             said, recovery, wanted,
         ))
     }
@@ -125,10 +121,8 @@ impl MetadataUseCase for MetadataUseCaseImpl {
     fn scoped_needs(&self, plan: &Plan) -> Needs {
         ryo_execution_domain::domain::trust::service::scoped_needs(plan)
     }
-    fn observed_reads(&self, plan: &Plan) -> super::types::ObservedReads {
-        super::types::ObservedReads(
-            ryo_execution_domain::domain::trust::service::observed_reads(plan),
-        )
+    fn observed_reads(&self, plan: &Plan) -> ObservedReads {
+        ObservedReads(ryo_execution_domain::domain::trust::service::observed_reads(plan))
     }
     fn matters(&self, read: &RelationRead, partial: &Partial) -> Bearing {
         ryo_execution_domain::domain::trust::service::matters(read, partial)
@@ -142,8 +136,8 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         named: &[FilePath],
         needs: &[Needs],
         ids: &[RuleId],
-    ) -> super::types::ProjectUnknowns {
-        super::types::ProjectUnknowns(
+    ) -> ProjectUnknowns {
+        ProjectUnknowns(
             ryo_execution_domain::domain::trust::service::project_unknowns(
                 partials, named, needs, ids,
             ),

@@ -2,7 +2,7 @@
 
 use super::super::contract::check;
 use super::ToolsFake;
-use crate::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::manifest::types::ProductRoot;
 
 #[test]
 fn succeeds() {

@@ -8,9 +8,12 @@ pub mod collect;
 pub mod configuration;
 pub mod conformance;
 pub mod contract;
+#[cfg(test)]
+pub mod expanding;
 pub mod expected;
 pub mod expected_rows;
 pub mod findings;
+pub mod flowing;
 pub mod inputs;
 pub mod items;
 pub mod judging;

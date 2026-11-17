@@ -4,10 +4,6 @@ Holds the execution engine's domain, the bottom of its crates: the compiled prog
 
 ## Domains
 
-### comparing
-
-Evaluates typed selection comparisons against borrowed rows and bindings.
-
 ### completion
 
 Decides physical completeness independent of execution scheduling.
@@ -30,15 +26,11 @@ Builds operator and field descriptions for request reporting.
 
 ### executable_program
 
-Defines immutable compiled regions, producers and dependency edges.
+Merges a request's rules into one logical program and assembles the planned program the file pass runs.
 
 ### features
 
 Attributes observed row work to the features used by a request.
-
-### file_program
-
-Compiles per-file operation dependencies and admissible cut points.
 
 ### finish
 
@@ -52,14 +44,6 @@ Describes the frontier a rule retains and the scope it is captured in.
 
 Carries a coverage of files to the file-frontier boundary and restores it.
 
-### frontiers
-
-Describes the retained rows and project facts read by cross-file steps.
-
-### functions
-
-Computes comparison function text from typed operand values.
-
 ### hosted
 
 Describes host-provided relations and their declared row shapes.
@@ -72,21 +56,9 @@ Checks query kind names against the linked language vocabulary.
 
 Prepares named kind comparisons as sets of admitted kinds.
 
-### matching
-
-Evaluates compiled text patterns over borrowed query values.
-
-### numeric_values
-
-Orders canonical decimal and binary numeric values consistently.
-
 ### observation_schedule
 
 Schedules the rules that read named observations and links the plans beneath them.
-
-### operands
-
-Reads typed comparison operands from rows, parameters and literals.
 
 ### operating
 
@@ -112,14 +84,6 @@ Decides which configured rules govern a source file.
 
 Holds immutable request declarations consumed by compilation.
 
-### readiness
-
-Wakes exactly the demanded producers for the admission interpreter.
-
-### replay
-
-Describes how produced rows are passed to their consumers.
-
 ### row_emission
 
 Preserves physical uncertainty when rows are delivered.
@@ -132,14 +96,6 @@ Freezes each rule's emit, observation and frontier demand before any file is wal
 
 Looks up admitted rule coordinates in the compiled request.
 
-### self_join_recogniser
-
-Recognises a dominated-key subtree for self joins.
-
-### shared_walk
-
-Groups compatible selections for one request-wide file walk.
-
 ### source_partitions
 
 Declares the immutable producer partitions of a compiled request.
@@ -148,45 +104,9 @@ Declares the immutable producer partitions of a compiled request.
 
 Checks equal name hashes against retained text to detect collisions.
 
-### step_classes
-
-Classifies compatible selection steps before shared traversal.
-
-### stored_graph
-
-Describes generation-bound graph population and adjacency.
-
-### table_cells
-
-Reads and validates typed cells in produced tables.
-
-### table_dedup
-
-Tracks distinct table rows while preserving encounter order.
-
-### table_groups
-
-Groups table rows for aggregate operations.
-
 ### table_model
 
 Defines table representations and their physical row access.
-
-### table_reach
-
-Traverses reachable table nodes in source order.
-
-### table_scratch
-
-Holds per-invocation table workspace and work counters.
-
-### table_texts
-
-Resolves table text cells through their retained name sources.
-
-### text_gate
-
-Prepares fixed text comparisons for tree selection.
 
 ### tree_walk
 

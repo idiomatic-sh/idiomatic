@@ -6,7 +6,6 @@ use crate::selects;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase as _;
 use ryo_matching::inbound::use_cases::matching::types::{GroupName, RegexSource, SearchText};
-use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 
 /// What a row of the contract is given: the pattern, the text, and the group asked for, when one is.
 type Input = (&'static str, &'static str, Option<&'static str>);
@@ -58,7 +57,7 @@ pub fn answer(
     adapter: &impl MatchingPort,
     (pattern, text, group): Input,
 ) -> Result<Value, Failure> {
-    let regex = MatchingUseCaseImpl::new().compile_regex(RegexSource(pattern))?;
+    let regex = adapter.semantics().compile_regex(RegexSource(pattern))?;
     let mut found = Vec::new();
     match group {
         None => {

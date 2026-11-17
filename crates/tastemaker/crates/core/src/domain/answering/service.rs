@@ -6,26 +6,26 @@ use std::collections::BTreeMap;
 
 use super::constants::{DOC, RAISED, SPAN, TESTS, TEXT};
 use super::types::{Heading, Owned};
-use crate::domain::applications::constants::{PATH_SEPARATOR, SPAN_SEPARATOR};
-use crate::domain::applications::types::{
+use tastemaker_values::domain::applications::constants::{PATH_SEPARATOR, SPAN_SEPARATOR};
+use tastemaker_values::domain::applications::types::{
     AnswerCell, Answered, CellText, CellValue, FoundAt, Judged, LintAnswer, LintUnknown, Plan,
     Purpose, Rendering, SpannedFinding,
 };
-use crate::domain::comments::service::comment;
-use crate::domain::comments::types::{ByteSpan, Comment, CommentText, Documentation};
-use crate::domain::contracts::constants::RENDERED;
-use crate::domain::contracts::types::{
+use tastemaker_values::domain::comments::service::comment;
+use tastemaker_values::domain::comments::types::{ByteSpan, Comment, CommentText, Documentation};
+use tastemaker_values::domain::contracts::constants::RENDERED;
+use tastemaker_values::domain::contracts::types::{
     ColumnText, DataRow, RowKey, RowNode, RowPlace, Syntax, SyntaxKind, WrittenValue,
 };
-use crate::domain::entries::types::ConditionName;
-use crate::domain::findings::constants::UNKNOWN;
-use crate::domain::findings::service::{check_id, error, finding, render, said};
-use crate::domain::findings::types::{
+use tastemaker_values::domain::entries::types::ConditionName;
+use tastemaker_values::domain::findings::constants::UNKNOWN;
+use tastemaker_values::domain::findings::service::{check_id, error, finding, render, said};
+use tastemaker_values::domain::findings::types::{
     Finding, MessageText, Place, Placeholder, PlaceholderValue, RuleId,
 };
-use crate::domain::imports::types::{ImportColumn, ImportPlace};
-use crate::domain::paths::types::RepoPath;
-use crate::domain::scopes::types::Identity;
+use tastemaker_values::domain::imports::types::{ImportColumn, ImportPlace};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::scopes::types::Identity;
 
 /// A finding of the lint call rendered with the diagnostic of the rule it came from: its message and help with its
 /// cells put in, and its place when its primary column is a span.
@@ -49,7 +49,7 @@ pub fn answered(rendering: &Rendering, path: RepoPath, cells: &[AnswerCell]) -> 
     let help = render(&rendering.diagnostic.help, &values).0;
     Answered {
         finding: finding(
-            crate::domain::findings::service::of_rule(rendering.rule.clone()),
+            tastemaker_values::domain::findings::service::of_rule(rendering.rule.clone()),
             path,
             Place::Whole,
             message,
@@ -94,7 +94,7 @@ fn spanned(found: &LintAnswer, name: Heading<'_>) -> Option<ByteSpan> {
 /// One row of a built-in comparison rule, kept with the rows of its file; a row without its node is counted as dropped,
 /// so the contracts of its file are not compared blind.
 fn syntax_row(judged: &mut Judged, syntax: Syntax, found: &LintAnswer) {
-    let names = crate::domain::contracts::service::columns(syntax);
+    let names = tastemaker_values::domain::contracts::service::columns(syntax);
     let text = |name: ColumnText| {
         if name.0.is_empty() {
             Box::default()
@@ -151,7 +151,10 @@ fn import_unknown(plan: &Plan, missing: LintUnknown) -> Option<Finding> {
             missing.path
         };
         return Some(error(
-            check_id(crate::domain::imports::constants::WORKSPACE_FILE, UNKNOWN),
+            check_id(
+                tastemaker_values::domain::imports::constants::WORKSPACE_FILE,
+                UNKNOWN,
+            ),
             anchor,
             format!("imports could not be read: {}", missing.message.0),
         ));
@@ -161,7 +164,7 @@ fn import_unknown(plan: &Plan, missing: LintUnknown) -> Option<Finding> {
 
 /// What the lint call's `answers` and `unknowns` come to under `plan`: each rule's findings rendered and the comments of
 /// the files that may hold an ignore read. What the conditions answered is the count call's to judge
-/// (`crate::domain::judging`).
+/// (`tastemaker_values::domain::judging`).
 #[must_use]
 pub fn judge(plan: &Plan, answers: Vec<LintAnswer>, unknowns: Vec<LintUnknown>) -> Judged {
     let mut judged = Judged::default();
@@ -184,7 +187,7 @@ pub fn judge(plan: &Plan, answers: Vec<LintAnswer>, unknowns: Vec<LintUnknown>) 
                 };
                 let place =
                     spanned(&found, Heading(SPAN)).map_or(ImportPlace::Unplaced, ImportPlace::At);
-                crate::domain::import_rows::service::keep(
+                tastemaker_values::domain::import_rows::service::keep(
                     &mut judged.imports,
                     *relation,
                     found.path.clone(),

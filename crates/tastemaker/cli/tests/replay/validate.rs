@@ -62,42 +62,28 @@ fn a_stray_file_in_the_package_fails_validation() {
     });
 }
 
-/// The bounds for validating the repository's own definitions: under 5 s with nothing proved yet, under 1 s with everything
-/// proved, and no more than 500 MB resident. The goals are 300 ms cold and 10 ms warm, and these bounds are lowered when the run reaches them.
-#[cfg(target_os = "linux")]
-const COLD_BOUND: std::time::Duration = std::time::Duration::from_secs(5);
-#[cfg(target_os = "linux")]
-const WARM_BOUND: std::time::Duration = std::time::Duration::from_secs(1);
-#[cfg(target_os = "linux")]
-const PEAK_BOUND_KIB: u64 = 500 * 1024;
-
-/// Runs `tm validate` in `directory` under `time`, answering how long it took and the peak resident set it reached, in KiB.
-#[cfg(target_os = "linux")]
-fn validated(directory: &std::path::Path) -> Result<(std::time::Duration, u64), String> {
-    let started = std::time::Instant::now();
-    let output = std::process::Command::new("/usr/bin/time")
-        .args(["-f", "peak-kib %M", env!("CARGO_BIN_EXE_tm"), "validate"])
+/// Runs `tm validate` in `directory`, answering what it said when it fails.
+fn validated(directory: &std::path::Path) -> Result<(), String> {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_tm"))
+        .arg("validate")
         .current_dir(directory)
         .output()
         .map_err(|error| format!("tm cannot start: {error}"))?;
-    let elapsed = started.elapsed();
-    let said = String::from_utf8_lossy(&output.stderr).into_owned();
-    if !output.status.success() {
-        return Err(format!("tm validate failed:\n{said}"));
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "tm validate failed:\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        ))
     }
-    let peak = said
-        .lines()
-        .find_map(|line| line.strip_prefix("peak-kib "))
-        .and_then(|kib| kib.trim().parse::<u64>().ok())
-        .ok_or_else(|| format!("`time` reported no peak:\n{said}"))?;
-    Ok((elapsed, peak))
 }
 
-/// Validating the definitions of the repository itself stays within the bounds above: cold, warm and in memory. The bounds are limits, not
-/// what is measured today.
+/// Validating the crate's own distribution fixture package (a rule with its scenarios) succeeds, cold and then warm. How long validating
+/// takes and how much memory it reaches are measured over a pinned target by the `distribution` bench's memory run, which asymptote
+/// holds to its best.
 #[test]
-#[cfg(target_os = "linux")]
-fn validating_the_repository_s_definitions_stays_within_its_bounds() {
+fn validating_the_distribution_fixture_succeeds_cold_and_warm() {
     let scratch = tempfile::tempdir().expect("the scene directory");
     let git = std::process::Command::new("git")
         .args(["init", "-q"])
@@ -106,34 +92,19 @@ fn validating_the_repository_s_definitions_stays_within_its_bounds() {
         .expect("git starts");
     assert!(git.success(), "git init succeeds");
     crate::fixes::copy(
-        &crate::fixes::root().join("tastemaker"),
-        &scratch.path().join("tastemaker"),
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/distribution/cargo"),
+        &scratch.path().join("policy"),
     )
-    .expect("the definitions copied");
+    .expect("the fixture copied");
     std::fs::write(
         scratch.path().join("tastemaker.toml"),
         concat!(
             "tastemaker = \"",
             env!("CARGO_PKG_VERSION"),
-            "\"\nworkspace = { name = \"bar\", dependencies = [{ package = \"idiomatic.arch\", path = \"tastemaker\" }] }\n"
+            "\"\nworkspace = { name = \"bar\", dependencies = [{ package = \"idiomatic.arch\", path = \"policy\" }] }\n"
         ),
     )
     .expect("the workspace written");
-    let (cold, cold_peak) = validated(scratch.path()).expect("a cold validation");
-    let (warm, warm_peak) = validated(scratch.path()).expect("a warm validation");
-    let mut missed = Vec::new();
-    if cold > COLD_BOUND {
-        missed.push(format!("cold {cold:?} is over {COLD_BOUND:?}"));
-    }
-    if warm > WARM_BOUND {
-        missed.push(format!("warm {warm:?} is over {WARM_BOUND:?}"));
-    }
-    for (which, peak) in [("cold", cold_peak), ("warm", warm_peak)] {
-        if peak > PEAK_BOUND_KIB {
-            missed.push(format!(
-                "{which} peak {peak} KiB is over {PEAK_BOUND_KIB} KiB"
-            ));
-        }
-    }
-    assert!(missed.is_empty(), "{}", missed.join("; "));
+    validated(scratch.path()).expect("a cold validation");
+    validated(scratch.path()).expect("a warm validation");
 }

@@ -126,6 +126,12 @@ impl SuitePort for SuiteFake {
     ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
         local().accepted_differences(file)
     }
+    fn growth_table(
+        &self,
+        file: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::growth::types::GrowthTable, Error> {
+        local().growth_table(file)
+    }
     fn source_text(&self, file: ArtifactPath<'_>) -> Result<ryo::linter::SourceText, Error> {
         local().source_text(file)
     }
@@ -134,6 +140,12 @@ impl SuitePort for SuiteFake {
     }
     fn total_size(&self, files: ArtifactSet<'_>) -> Result<ArtifactSize, Error> {
         local().total_size(files)
+    }
+    fn directory_size(
+        &self,
+        directory: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::costs::types::StoreSize, Error> {
+        local().directory_size(directory)
     }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         self.artifact_digests
@@ -156,6 +168,13 @@ impl SuitePort for SuiteFake {
     }
     fn fingerprint(&self, _: ArtifactSet<'_>) -> Result<ArtifactDigest, Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
+    }
+    fn settings_directory(
+        &self,
+        ArtifactPath(bench): ArtifactPath<'_>,
+        _: &ryo::linter::RuleId,
+    ) -> Result<std::path::PathBuf, Error> {
+        Ok(bench.to_owned())
     }
     fn rule_ids(&self, _: ArtifactPath<'_>) -> Result<Vec<ryo::linter::RuleId>, Error> {
         Ok(Vec::new())

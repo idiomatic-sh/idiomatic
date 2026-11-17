@@ -1,0 +1,49 @@
+[[cases]]
+name = "required-method"
+files = { "src/lib.rs" = "pub trait T {\n    #[inline]\n    fn f(&self);\n}\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 27 }]
+
+[[cases]]
+name = "arguments"
+files = { "src/lib.rs" = "pub trait T {\n    #[inline(always)]\n    fn f(&self);\n    #[inline(never)]\n    fn g();\n    #[inline]\n    fn h() -> u8;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 35 }, { file = "src/lib.rs", start = 57, end = 73 }, { file = "src/lib.rs", start = 90, end = 99 }]
+
+[[cases]]
+name = "provided-method"
+files = { "src/lib.rs" = "pub trait T {\n    #[inline]\n    fn f(&self) {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "impl-and-free"
+files = { "src/lib.rs" = "pub trait T {\n    fn f(&self);\n}\npub struct S;\nimpl T for S {\n    #[inline]\n    fn f(&self) {}\n}\n#[inline]\npub fn g() {}\n" }
+expected = []
+
+[[cases]]
+name = "among-attributes"
+files = { "src/lib.rs" = "pub trait T {\n    /// Docs.\n    #[must_use]\n    #[inline] #[doc(hidden)]\n    fn f(&self) -> u8;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 48, end = 57 }]
+
+[[cases]]
+name = "extern-block"
+files = { "src/lib.rs" = "unsafe extern \"C\" {\n    pub fn abs(x: i32) -> i32;\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "pub trait T {\n    #[allow(clippy::inline_fn_without_body)]\n    #[inline]\n    fn f(&self);\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::correctness)]\npub trait T {\n    #[inline]\n    fn f(&self);\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::inline_fn_without_body)]\npub trait T {\n    #[inline]\n    fn f(&self);\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::correctness)]\npub trait T {\n    #[warn(clippy::inline_fn_without_body)]\n    #[inline]\n    fn f(&self);\n}\n" }
+expected = [{ file = "src/lib.rs", start = 93, end = 102 }]

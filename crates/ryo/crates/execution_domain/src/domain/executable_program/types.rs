@@ -1,240 +1,230 @@
-//! Dense executable instructions and their real publication boundaries.
-use crate::domain::operator::types::ReaderMultiplicity;
-use crate::domain::source_partitions::types::PartitionRequirement;
-use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{StepId, StepScope};
+//! The types of the `executable_program` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-pub mod absent_regions;
-pub mod absent_roots;
-pub mod demand_program;
 pub mod executable_program;
-pub mod file_rule_demand;
-pub mod instruction;
-pub mod region;
+pub mod logical_build;
+pub mod program_inputs;
 
-/// Distinct physical regions in this compiled program.
-#[derive(Debug, Clone, Copy)]
-pub struct RegionCount(pub usize);
+use crate::domain::coverage::types::RuleIndex;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operation_schema::types::InputShape;
+use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
+use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::observations::types::BoundObservationInput;
+use ryo_values::domain::plan_parts::types::{LiteralText, StepScope};
+use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use std::sync::Arc;
 
-/// A region of the executable program, by its place among the program's regions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct RegionId(pub usize);
-/// An input of an instruction, by its place among the instruction's inputs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct InputId(pub usize);
-/// An instruction of the compiled request, by its logical number.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct LogicalInstruction(pub usize);
-/// Where an instruction's input comes from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum InputSource {
-    /// A relation the language provides.
-    Relation(Relation),
-    /// A relation the host provides to one rule.
-    Hosted {
-        /// The rule the host relation is provided to.
-        rule: RuleIndex,
-        /// The host relation, by its number in the rule.
-        relation: ryo_values::domain::plan_parts::types::HostedNumber,
-    },
-    /// The output of another region.
-    Region(RegionId),
-    /// A request-qualified named observation.
-    Observation(ObservationPlace),
-    /// An explicitly declared, closed observation with no producers.
-    EmptyObservation(ObservationPlace),
-    /// One exact producer of a request-qualified named input.
-    ObservationMember {
-        /// The observation the producer is a member of.
-        slot: ObservationPlace,
-        /// The producer, by its place among the observation's members.
-        member: ProducerMember,
-    },
-}
-/// The request-qualified slot of one named input.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ObservationPlace(pub usize);
-/// One producer of a named input, by its place among the slot's producers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ProducerMember(pub usize);
-/// What the engine does for a demanded input.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DemandAction {
-    /// Admits the input.
-    Admit(InputId),
-}
-/// A self join recognised as an ordered existence: the producer, its number requirement, partition, order, extremum and output.
-#[derive(Clone, Debug)]
-pub struct OrderedExistence {
-    /// The region whose rows the existence reads.
-    pub source: RegionId,
-    /// The number the rows must carry.
-    pub number: crate::domain::self_join_recogniser::types::NumberRequirement,
-    /// The columns the rows are partitioned by.
-    pub partition: Box<[ryo_values::domain::plan_parts::types::ColumnIndex]>,
-    /// The column that orders the rows of a partition.
-    pub order: ryo_values::domain::plan_parts::types::ColumnIndex,
-    /// Which end of the order is kept.
-    pub extremum: crate::domain::self_join_recogniser::types::Extremum,
-    /// The columns the existence outputs.
-    pub output: Box<[ryo_values::domain::plan_parts::types::JoinColumn]>,
-}
+/// What a rule's parameters are bound to, by parameter id.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RuleBindings;
+/// assert!(RuleBindings(&[]).0.is_empty());
+/// ```
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct SourcePartition {
-    pub source: InputSource,
-    pub requirement: PartitionRequirement,
+pub struct RuleBindings<'a>(pub &'a [ParameterBinding]);
+
+/// The schemas of a rule's bound inputs, by binding id.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RuleObservations;
+/// assert!(RuleObservations(&[]).0.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct RuleObservations<'a>(pub &'a [BoundObservationInput]);
+
+/// One rule of a request as the logical program reads it: its compiled plan, shared, never copied, and what it is bound to.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::{RuleBindings, RuleInput, RuleObservations};
+/// use ryo_values::domain::plans::types::Plan;
+/// fn rule(plan: &std::sync::Arc<Plan>) -> RuleInput<'_> {
+///     RuleInput { plan, bindings: RuleBindings(&[]), observations: RuleObservations(&[]) }
+/// }
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct RuleInput<'a> {
+    /// The compiled plan.
+    pub plan: &'a Arc<Plan>,
+    /// What its parameters are bound to.
+    pub bindings: RuleBindings<'a>,
+    /// The schemas of its bound inputs.
+    pub observations: RuleObservations<'a>,
 }
-/// How a region is evaluated. Exactly one per region, decided when the program is compiled.
-#[derive(Clone, Debug, Default)]
-pub enum Route {
-    /// The registered operator of each instruction, in order: the operators' one meaning of its kind.
-    #[default]
-    Generic,
-    /// The ordered-existence replacement of a self-join anti-join select the recogniser resolved: the one
-    /// implementation of that region, through the operators' ordered-existence driver port.
-    OrderedExistence(OrderedExistence),
+
+/// A rule's nodes: the node of each of its steps, in step order, and the node it emits, each with the fault of a step whose
+/// schema the metadata does not hold.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RuleNodes;
+/// use ryo_operators::domain::physical_plan::types::PlanNodeId;
+/// let nodes = RuleNodes { steps: vec![Ok(PlanNodeId(0))], emit: Ok(PlanNodeId(0)), refused: None };
+/// assert_eq!(nodes.emit, Ok(PlanNodeId(0)));
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct RuleNodes {
+    /// The node of each step; a step that reads a step after it has none.
+    pub steps: Vec<Result<PlanNodeId, OperatingError>>,
+    /// The node the rule emits, or the schema fault of it or of a step it reads.
+    pub emit: Result<PlanNodeId, OperatingError>,
+    /// The schema fault of the first step no root reads, in step order: it has no root to answer it, so it stops the rule's
+    /// run, in each file and after the files, before any row.
+    pub refused: Option<OperatingError>,
 }
-/// A route without its payload: what a permit is issued for.
+
+/// How many consumers a node has: node readers, the rules that emit it and the holds that keep it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::Consumers;
+/// assert_eq!(Consumers::default(), Consumers(0));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Consumers(pub u32);
+
+/// A root kind of a program: the text the plans write for it and the nodes that start from the tree nodes of that kind.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RootKind;
+/// use ryo_values::domain::plan_parts::types::LiteralText;
+/// let kind = LiteralText("function_definition".into());
+/// assert!(RootKind { kind: &kind, nodes: &[] }.nodes.is_empty());
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RouteKind {
-    /// The generic evaluation of an instruction.
-    Generic,
-    /// An ordered existence.
-    OrderedExistence,
+pub struct RootKind<'a> {
+    /// The kind's text, as the plans write it.
+    pub kind: &'a LiteralText,
+    /// The nodes that start from it, in node order.
+    pub nodes: &'a [PlanNodeId],
 }
-/// Whether a root of its rule reads an original step.
+
+/// One node of the logical program while it is drafted: the operation, the rule it was first written in, its scope and its
+/// output's columns.
+pub(crate) struct Draft<'p> {
+    /// The operation, borrowed from its rule's plan.
+    pub(crate) operation: &'p Operation,
+    /// The rule that first wrote it.
+    pub(crate) rule: RuleIndex,
+    /// Where it runs.
+    pub(crate) scope: StepScope,
+    /// Its output's columns as checked, or the fault of it or of a node it reads.
+    pub(crate) schema: Result<Vec<CellKind>, OperatingError>,
+    /// The columns its rows answer with as a root: its schema, or, for a refusal deferred to its rows, the layout its empty
+    /// rows keep (the operator contract's `output_layout`).
+    pub(crate) layout: Result<Vec<CellKind>, OperatingError>,
+    /// When its schema's refusal, if any, is answered.
+    pub(crate) timing: SchemaTiming,
+}
+
+/// When a drafted node's schema refusal is answered.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum StepUse {
-    /// A root reads it, directly or through the steps that read it.
+pub(crate) enum SchemaTiming {
+    /// Its schema is as drafted: its columns, or a refusal answered before any row.
+    Stated,
+    /// Its own refusal is its kernel's, at the first row that reaches it: as a root it answers its layout, and a node reading
+    /// it reads no column of it.
+    DeferredToRows,
+    /// Its refusal is answered once the nodes it reads have run, after any refusal of theirs: a step reading a node refuses
+    /// after its inputs, as the interpreter did, and one reading a refusal deferred to its rows reads no column of it.
+    AfterInputs,
+}
+
+/// What a step's inputs read: the node inputs, their columns, the first schema fault among the nodes they read, and the stage
+/// that serves a bound input among them.
+pub(crate) struct DraftInputs<'s> {
+    /// The inputs, in the order the step reads them.
+    pub(crate) list: Vec<PlanInput>,
+    /// Their columns.
+    pub(crate) shapes: Vec<InputShape<'s>>,
+    /// The first schema fault of a node they read.
+    pub(crate) fault: Option<OperatingError>,
+    /// `AfterInputs` when a node they read defers its refusal or answers it after its own inputs; `Stated` otherwise.
+    pub(crate) timing: SchemaTiming,
+}
+
+/// Where a step being drafted runs, the rule it is a step of and that rule's plan: what its inputs are read as.
+#[derive(Clone, Copy)]
+pub(crate) struct StepAt<'p> {
+    /// Where it runs.
+    pub(crate) scope: StepScope,
+    /// The rule.
+    pub(crate) rule: RuleOrdinal,
+    /// The rule's plan.
+    pub(crate) plan: &'p Plan,
+}
+
+/// Where a rule's emitted step runs and where each of its named outputs is made.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::RuleScopes;
+/// use ryo_values::domain::plan_parts::types::StepScope;
+/// let scopes = RuleScopes { emit: StepScope::CrossFile, observations: Vec::new() };
+/// assert_eq!(scopes.emit, StepScope::CrossFile);
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleScopes {
+    /// Where the emitted step runs.
+    pub emit: StepScope,
+    /// Where each named output is made, in output order.
+    pub observations: Vec<StepScope>,
+}
+
+/// Whether a node's rows answer the whole phase after the files, or one occurrence: a node that reads a bound observation
+/// answers the slots its occurrence bound, an antijoin or a difference after the files keeps the rows its occurrence's coverage
+/// vouches for, and a node that reads either answers its occurrence too.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::ObservationReach;
+/// assert_ne!(ObservationReach::Phase, ObservationReach::Occurrence);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ObservationReach {
+    /// Its rows are the same for every occurrence of the phase.
+    Phase,
+    /// Its rows answer one occurrence: its bound observations or its coverage.
+    Occurrence,
+}
+
+/// Whether one of a plan's roots (its emitted step, a frontier entry or a named output) reads a step, through the steps that
+/// read it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::StepUse;
+/// assert_ne!(StepUse::Read, StepUse::Unread);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StepUse {
+    /// A root reads the step.
     Read,
-    /// No root reads it.
+    /// No root reads the step: its fault has no root to answer it.
     Unread,
 }
-/// The address of the compiled regular expression an operator call was prepared with.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RegexIdentity(pub usize);
-/// Whether a row passes the first applicable row gate of an instruction.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RowGate {
-    /// The row is invoked.
-    Admitted,
-    /// The row is skipped before invocation.
-    Withheld,
-}
-/// Where an original step of a rule is in the executable program.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct StepOrigin {
-    /// The rule the step belongs to.
-    pub rule: RuleIndex,
-    /// The step, by its place in the rule's plan.
-    pub step: StepId,
-    /// The instruction the step was compiled to.
-    pub logical: LogicalInstruction,
-    /// Where that instruction is: its region and its place among the region's instructions; `None` when the program has no
-    /// such instruction, which reads as a step that has not run.
-    pub place: Option<StepSite>,
-}
-/// Where one compiled instruction is: its region and its place among that region's instructions.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::types::{InstructionPlace, RegionId, StepSite};
-/// let site = StepSite { region: RegionId(0), instruction: InstructionPlace(2) };
-/// assert_eq!(site.instruction, InstructionPlace(2));
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct StepSite {
-    /// The region the instruction is in.
-    pub region: RegionId,
-    /// The instruction's place among the region's instructions.
-    pub instruction: InstructionPlace,
-}
-/// An instruction of a region, by its place among the region's instructions.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::types::InstructionPlace;
-/// assert_eq!(InstructionPlace(3).0, 3);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct InstructionPlace(pub usize);
-/// One rule's part of the executable program: its root readers and where each of its original steps is.
-#[derive(Debug)]
-pub struct RuleProgram {
-    /// External root-reader obligations, including repeated aliases.
-    pub root_readers: Box<[RegionId]>,
-    /// Where each original step of the rule is, or why it could not be placed.
-    pub original_steps: Box<[Result<StepOrigin, OperatingError>]>,
-    /// Collected semantic root shared only with collected frontier/observation aliases.
-    pub emit: Result<RegionId, OperatingError>,
-    /// Private diagnostic delivery boundary; no ordinary dependency or persisted alias targets it.
-    pub frontier: Box<[Result<InputSource, OperatingError>]>,
-}
 
-/// The program of every rule.
-#[derive(Debug)]
-pub(crate) struct RulePrograms {
-    pub rules: Vec<RuleProgram>,
-    /// The region each plan's named output reads, in the plan's own output order: the lineage pass reads it.
-    pub observed_roots: Vec<Vec<Option<RegionId>>>,
+/// What drafting a step answers of its columns: its schema as checked, the columns its rows answer with as a root, and when
+/// its refusal, if any, is answered.
+pub(crate) struct DraftedColumns {
+    /// Its output's columns as checked, or its refusal.
+    pub(crate) schema: Result<Vec<CellKind>, OperatingError>,
+    /// The columns its rows answer with as a root.
+    pub(crate) layout: Result<Vec<CellKind>, OperatingError>,
+    /// When its refusal is answered.
+    pub(crate) timing: SchemaTiming,
 }
-
-/// The compiler's fusion classification of the whole request graph, indexed by original node.
-#[derive(Debug)]
-pub(crate) struct Fusibilities {
-    pub fusibility: Vec<super::fusion::types::Fusibility>,
-    /// Independent readers of each node's publication, including rule roots.
-    pub readers: Vec<ReaderMultiplicity>,
-    /// The identity that holds each node's publication, when one does.
-    pub held: Vec<Option<super::fusion::types::Barrier>>,
-}
-
-/// Request-compiled file roots: the regions a file may select as external readers.
-#[derive(Debug, Default)]
-pub struct FileReaderGraph {
-    /// Every region a rule names as a root reader.
-    pub roots: std::collections::HashSet<RegionId>,
-}
-/// Initial reader count of every region for one file's selection of external roots.
-#[derive(Debug)]
-pub struct RemainingTable {
-    /// The initial reader count of every region, by region.
-    pub counts: Box<[ReaderMultiplicity]>,
-}
-/// One region as the compiler drafts it, before equivalent regions merge: its instructions `I` in order.
-pub(super) struct DraftRegion<I> {
-    pub phase: StepScope,
-    pub nodes: Vec<LogicalInstruction>,
-    pub instructions: Vec<I>,
-    pub inputs: Vec<crate::domain::file_program::types::NodeInput>,
-    pub needs: Result<Vec<crate::domain::trust::types::RelationRead>, OperatingError>,
-    /// Whether every instruction's answer depends only on its operation and inputs.
-    pub sharing: super::fusion::types::RegionSharing,
-}
-/// Whether two drafted regions compute the same rows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Equivalence {
-    /// Same instructions, same inputs, same phase.
-    Same,
-    /// They differ.
-    Different,
-}
-/// The bucket equivalent regions share: a hash of what their comparison reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(super) struct RegionBucket(pub u64);
-/// What merging equivalent regions kept and how many comparisons it made.
-#[derive(Debug)]
-pub(super) struct RegionMerge {
-    /// The kept regions in order.
-    pub shared: Vec<DraftIndex>,
-    pub comparisons: ComparisonCount,
-}
-/// The place of a drafted region among the drafts of one compile.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(super) struct DraftIndex(pub usize);
-/// How many full comparisons of two regions a merge made.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) struct ComparisonCount(pub usize);

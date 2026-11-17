@@ -2,112 +2,42 @@
 //! the element table, with no syntax tree built. The library's names stop here; what leaves is
 //! the language's own `Kind`.
 //!
-//! The token tree of a call of one of the standard expression macros (`println!`, `assert_eq!`, `vec!`, ...) is read again as the
-//! expressions it holds: the parser gives a token tree no structure, so the arguments are parsed as expressions (the pattern of
-//! `matches!` as a pattern). The file's own tree keeps the token tree as the parser gave it; the expressions are trees added after it
-//! under the macro call (`adopt`), which only the readers that ask for them see. A call that does not parse as the macro's grammar
-//! adds nothing.
+//! The token tree of a macro call is read again as the arguments it holds (`interface.rs` § Macros): the whole of it is parsed as one
+//! parenthesized list of expressions, its delimiters replaced, so every offset stays the file's (an array for `vec!`; an expression, a
+//! pattern and a guard for `matches!`). The arguments are trees added after the file's own, under the call.
 
-use super::constants::{CRLF, LF, MATCHES, VEC};
-use super::schemas::kind_of;
+use super::constants::{ARRAY_ROOTS, LIST_ROOTS, MATCHES, VEC};
 use super::schemas::repaired;
 use super::schemas::step_of;
 use super::types::{
-    ArgumentSpan, Child, Cursor, DecodedString, Expansion, FragmentEntryPoint, HeldMacro,
-    MacroArgument, MacroName, Open, RustText, Step, Stretch, StringLiteral, Triviality,
+    ArgumentGrammar, ArgumentList, Cursor, Expansion, HeldMacro, MacroArgument, MacroName,
+    NodeChildren, Open, RustText, Step, Walker,
 };
-use crate::domain::syntax::service::kind_bits;
+use super::writer::emit;
 use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::{Expanding, SourceText};
-use ra_ap_parser::{LexedStr, StrStep, TopEntryPoint};
+use crate::outbound::syntax::types::{OpaqueMacros, SourceText};
+use ra_ap_parser::{LexedStr, PrefixEntryPoint, TopEntryPoint};
 use ra_ap_syntax::{Edition, SyntaxKind};
-use rustc_literal_escaper::unescape_str;
-use ryo::languages::{self, Count, Offset, Position};
+use ryo::languages::{self, Count, Flag, Offset, Position};
 /// The `ra_ap_syntax` syntax adapter.
 #[derive(Debug)]
 pub(crate) struct SyntaxRaApSyntaxAdapter {
-    /// The macros whose arguments are read again as the expressions they hold.
-    expanding: Expanding<'static>,
+    /// The built-in macros whose arguments are never read again.
+    opaque: OpaqueMacros<'static>,
 }
 
 impl SyntaxRaApSyntaxAdapter {
-    /// The adapter, reading again the arguments of the macros `expanding` names.
-    pub(crate) const fn new(expanding: Expanding<'static>) -> Self {
-        Self { expanding }
-    }
-}
-
-/// The value a string literal stands for, with its escapes resolved; nothing where an escape is wrong. A raw string is its text between
-/// its delimiters, a carriage return and a line feed in it being one line feed.
-fn decoded(literal: StringLiteral<'_>) -> Option<DecodedString> {
-    let literal = literal.0;
-    if let Some(raw) = literal.strip_prefix('r') {
-        let hashes = raw.len() - raw.trim_start_matches('#').len();
-        let inner = raw.get(hashes + 1..raw.len().checked_sub(hashes + 1)?)?;
-        return Some(DecodedString(inner.replace(CRLF, LF)));
-    }
-    let inner = literal.strip_prefix('"')?.strip_suffix('"')?;
-    let mut value = String::with_capacity(inner.len());
-    let mut wrong = false;
-    unescape_str(inner, |_, character| match character {
-        Ok(each) => value.push(each),
-        Err(_) => wrong = true,
-    });
-    (!wrong).then_some(DecodedString(value))
-}
-
-/// Writes `step` into the table at the cursor, which moves past the text of a token.
-fn emit(
-    builder: &mut languages::TableBuilder<'_>,
-    text: RustText<'_>,
-    step: &Step,
-    cursor: &mut Cursor,
-) {
-    match step {
-        Step::Enter(kind) => {
-            cursor.next.0 += 1;
-            languages::enter_node(builder, kind_bits(kind_of(*kind)), cursor.position);
-        }
-        Step::Token(kind, length) => {
-            cursor.next.0 += 1;
-            let end = Offset(
-                cursor
-                    .position
-                    .0
-                    .saturating_add(u32::try_from(length.0).unwrap_or(u32::MAX)),
-            );
-            let (from, to) = (index(cursor.position).0, index(end).0);
-            let value = (*kind == SyntaxKind::STRING)
-                .then(|| {
-                    let written = text.0.get(from..to)?;
-                    decoded(StringLiteral(written))
-                })
-                .flatten();
-            match value {
-                Some(value) => languages::decoded_token(
-                    builder,
-                    kind_bits(kind_of(*kind)),
-                    cursor.position,
-                    end,
-                    languages::NameText(&value.0),
-                ),
-                None => languages::token(builder, kind_bits(kind_of(*kind)), cursor.position, end),
-            }
-            cursor.position = end;
-        }
-        Step::Exit => languages::leave_node(builder, cursor.position),
-        Step::Error(message, at) => {
-            languages::diagnose(builder, languages::ReportText(message), *at, *at);
-        }
+    /// The adapter, reading again the arguments of every macro call but those of the macros `opaque` names.
+    pub(crate) const fn new(opaque: OpaqueMacros<'static>) -> Self {
+        Self { opaque }
     }
 }
 
 impl SyntaxPort for SyntaxRaApSyntaxAdapter {
     fn read(&self, text: SourceText<'_>, builder: &mut languages::TableBuilder<'_>) {
         let repaired = repaired(text);
-        let whole: &str = &repaired.0;
-        let expanding = self.expanding;
-        let lexed = LexedStr::new(Edition::CURRENT, whole);
+        let whole = RustText(&repaired.0);
+        let lexed = LexedStr::new(Edition::CURRENT, whole.0);
         let input = lexed.to_input(Edition::CURRENT);
         let output = TopEntryPoint::SourceFile.parse(&input);
         for (error, message) in lexed.errors() {
@@ -122,267 +52,338 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
         let mut cursor = Cursor {
             position: Offset(0),
             next: Position(0),
+            literal: Flag::Lowered,
         };
-        // The last name written before a `!`, and whether the token tree that follows belongs to a call of an expression macro.
-        let (mut name, mut armed) = (0..0, false);
-        // The nodes open, with the place each has in the table.
-        let mut open: Vec<Open> = Vec::new();
-        let mut held: Option<HeldMacro> = None;
-        let mut expansions: Vec<Expansion> = Vec::new();
+        let mut walker = Walker {
+            opaque: self.opaque,
+            name_from: Offset(0),
+            name_to: Offset(0),
+            armed: Flag::Lowered,
+            open: Vec::new(),
+            held: None,
+            found: Vec::new(),
+            buffer: ArgumentList::default(),
+        };
         // The library answers whether the walk reached the end of the text, which a whole file's walk always does.
         let _: bool = lexed.intersperse_trivia(&output, &mut |step| {
-            let step = step_of(step);
-            if let Some(each) = held.as_mut() {
-                match &step {
-                    Step::Enter(_) => each.depth.0 += 1,
-                    Step::Exit => each.depth.0 -= 1,
-                    Step::Token(..) | Step::Error(..) => {}
-                }
-                each.steps.push(step.clone());
-                if each.depth.0 == 0
-                    && let Some(done) = held.take()
-                {
-                    open.truncate(open.len().saturating_sub(1));
-                    if let Some(arguments) =
-                        expanded(&done.name, RustText(whole), done.start, &done.steps)
-                    {
-                        expansions.push(Expansion {
-                            host: done.host,
-                            arguments,
-                        });
-                    }
-                }
-                emit(builder, RustText(whole), &step, &mut cursor);
-                return;
-            }
-            match &step {
-                Step::Token(SyntaxKind::IDENT, length) => {
-                    let from = index(cursor.position).0;
-                    name = from..from.saturating_add(length.0);
-                    armed = false;
-                }
-                Step::Token(SyntaxKind::BANG, _) => {
-                    armed = whole
-                        .get(name.clone())
-                        .is_some_and(|written| expanding.0.contains(&written));
-                }
-                Step::Token(SyntaxKind::WHITESPACE | SyntaxKind::COMMENT, _) | Step::Exit => {}
-                Step::Enter(SyntaxKind::TOKEN_TREE) if armed => {
-                    armed = false;
-                    held = Some(HeldMacro {
-                        name: MacroName(whole.get(name.clone()).unwrap_or_default().into()),
-                        host: open.last().map_or(Position(0), |each| each.at),
-                        start: cursor.position,
-                        depth: Count(1),
-                        steps: vec![step.clone()],
-                    });
-                    open.push(Open { at: cursor.next });
-                    emit(builder, RustText(whole), &step, &mut cursor);
-                    return;
-                }
-                Step::Enter(_) | Step::Token(..) | Step::Error(..) => armed = false,
-            }
-            match &step {
-                Step::Enter(_) => open.push(Open { at: cursor.next }),
-                Step::Exit => open.truncate(open.len().saturating_sub(1)),
-                Step::Token(..) | Step::Error(..) => {}
-            }
-            emit(builder, RustText(whole), &step, &mut cursor);
+            feed(&mut walker, builder, whole, step_of(step), &mut cursor);
         });
-        // The arguments are added once the file's own tree is whole, each under its call, spanning the text they were read from.
-        for (number, expansion) in expansions.iter().enumerate() {
+        // The arguments are added once the file's own tree is whole, each under its call, spanning the text they were read from; the
+        // calls found in them are added after, under their own calls, until none is left.
+        let mut pending = std::collections::VecDeque::from(std::mem::take(&mut walker.found));
+        let mut number = 0_u32;
+        while let Some(expansion) = pending.pop_front() {
             languages::adopt(builder, expansion.host);
-            let made = languages::ExpansionId(u32::try_from(number).unwrap_or(u32::MAX));
-            for argument in &expansion.arguments {
+            let made = languages::ExpansionId(number);
+            number = number.saturating_add(1);
+            for argument in expansion.arguments {
                 cursor.position = argument.from;
-                for step in &argument.steps {
+                walker.open.clear();
+                walker.armed = Flag::Lowered;
+                walker.held = None;
+                for step in argument.steps {
                     if matches!(step, Step::Enter(_) | Step::Token(..)) {
                         languages::mark_expansion(builder, cursor.next, expansion.host, made);
                     }
-                    emit(builder, RustText(whole), step, &mut cursor);
+                    feed(&mut walker, builder, whole, step, &mut cursor);
                 }
             }
             languages::release(builder);
+            pending.extend(walker.found.drain(..));
         }
     }
 }
 
-// The arguments of a call of a standard expression macro, read again as the expressions (or the pattern) they hold.
-/// Whether the child is white space or a comment.
-pub(super) fn is_trivia(child: &Child) -> Triviality {
-    if matches!(child.kind, SyntaxKind::WHITESPACE | SyntaxKind::COMMENT) {
-        Triviality::Trivia
+/// Writes `step` of a tree of `text` into the table at the cursor, and keeps the walk's account of the macro calls in it: a call's
+/// token tree is held until it is whole, and then its arguments are read, when the call is one whose arguments are code.
+pub(super) fn feed(
+    walker: &mut Walker,
+    builder: &mut languages::TableBuilder<'_>,
+    text: RustText<'_>,
+    step: Step,
+    cursor: &mut Cursor,
+) {
+    if let Some(each) = walker.held.as_mut() {
+        let from = cursor.position;
+        emit(builder, text, &step, cursor);
+        // Its delimiters are its first token and the last element directly under it, when that is a token. An error is no element: the
+        // library reports one that follows the token tree (a missing `;`) before the token tree's exit.
+        match step {
+            Step::Token(kind, _) if each.depth.0 == 1 => {
+                if from == each.start {
+                    each.opening = Some(kind);
+                }
+                each.closing = Some(kind);
+            }
+            Step::Token(..) | Step::Error(..) => {}
+            Step::Enter(_) => {
+                each.depth.0 += 1;
+                each.closing = None;
+            }
+            Step::Exit => each.depth.0 -= 1,
+        }
+        if each.depth.0 == 0
+            && let Some(done) = walker.held.take()
+        {
+            walker.open.truncate(walker.open.len().saturating_sub(1));
+            if let Some(arguments) = called(&done, walker, text, cursor.position)
+                && !arguments.is_empty()
+            {
+                walker.found.push(Expansion {
+                    host: done.host,
+                    arguments,
+                });
+            }
+        }
+        return;
+    }
+    match &step {
+        Step::Token(SyntaxKind::IDENT, length) => {
+            walker.name_from = cursor.position;
+            walker.name_to = offset(Count(index(cursor.position).0.saturating_add(length.0)));
+            walker.armed = Flag::Lowered;
+        }
+        Step::Token(SyntaxKind::BANG, _) => {
+            let call = walker
+                .open
+                .last()
+                .is_some_and(|each| each.kind == SyntaxKind::MACRO_CALL);
+            walker.armed = if call { Flag::Raised } else { Flag::Lowered };
+        }
+        Step::Token(SyntaxKind::WHITESPACE | SyntaxKind::COMMENT, _) | Step::Exit => {}
+        Step::Enter(SyntaxKind::TOKEN_TREE) if walker.armed == Flag::Raised => {
+            walker.armed = Flag::Lowered;
+            let name = text
+                .0
+                .get(index(walker.name_from).0..index(walker.name_to).0);
+            walker.held = Some(HeldMacro {
+                name: MacroName(name.unwrap_or_default().into()),
+                host: walker.open.last().map_or(Position(0), |each| each.at),
+                start: cursor.position,
+                depth: Count(1),
+                opening: None,
+                closing: None,
+            });
+            walker.open.push(Open {
+                at: cursor.next,
+                kind: SyntaxKind::TOKEN_TREE,
+            });
+            emit(builder, text, &step, cursor);
+            return;
+        }
+        Step::Enter(_) | Step::Token(..) | Step::Error(..) => walker.armed = Flag::Lowered,
+    }
+    match &step {
+        Step::Enter(kind) => walker.open.push(Open {
+            at: cursor.next,
+            kind: *kind,
+        }),
+        Step::Exit => walker.open.truncate(walker.open.len().saturating_sub(1)),
+        Step::Token(..) | Step::Error(..) => {}
+    }
+    emit(builder, text, &step, cursor);
+}
+
+/// The arguments of the call whose token tree `done` held, which ends at `end` of `text`; none when the token tree is not closed by the
+/// delimiter that opens it, when the macro's arguments are never code, or when they are not wholly of its grammar.
+fn called(
+    done: &HeldMacro,
+    walker: &mut Walker,
+    text: RustText<'_>,
+    end: Offset,
+) -> Option<Vec<MacroArgument>> {
+    let closed = matches!(
+        (done.opening?, done.closing?),
+        (SyntaxKind::L_PAREN, SyntaxKind::R_PAREN)
+            | (SyntaxKind::L_BRACK, SyntaxKind::R_BRACK)
+            | (SyntaxKind::L_CURLY, SyntaxKind::R_CURLY)
+    );
+    if !closed {
+        return None;
+    }
+    let grammar = grammar_of(&done.name, walker.opaque)?;
+    let written = text.0.get(index(done.start).0..index(end).0)?;
+    arguments(grammar, RustText(written), done.start, &mut walker.buffer)
+}
+
+/// The grammar the arguments of a call of the macro `name` are read by; none for a macro `opaque` names, whose arguments are never code.
+pub(super) fn grammar_of(name: &MacroName, opaque: OpaqueMacros<'_>) -> Option<ArgumentGrammar> {
+    if opaque.0.contains(&&**name) {
+        None
+    } else if **name == *VEC {
+        Some(ArgumentGrammar::Vector)
+    } else if **name == *MATCHES {
+        Some(ArgumentGrammar::Matches)
     } else {
-        Triviality::Significant
+        Some(ArgumentGrammar::Arguments)
     }
 }
 
-/// The direct children of the token tree held in `steps`, between its delimiters, with the offsets from `start`; none when the steps
-/// are not a clean token tree.
-pub(super) fn children_of(steps: &[Step], start: Offset) -> Option<Vec<Child>> {
-    let [
-        Step::Enter(SyntaxKind::TOKEN_TREE),
-        Step::Token(_, open),
-        inside @ ..,
-        Step::Token(_, _),
-        Step::Exit,
-    ] = steps
-    else {
-        return None;
+/// The arguments of a call read by `grammar` from its token tree, `text`, which starts at `start` in the file and opens and closes with
+/// a one-byte delimiter: each argument's start and the steps it parses to, in order. Nothing when the token tree is not wholly of the
+/// grammar, with no error: then the call adds nothing. `buffer` holds the text that is parsed.
+pub(super) fn arguments(
+    grammar: ArgumentGrammar,
+    text: RustText<'_>,
+    start: Offset,
+    buffer: &mut ArgumentList,
+) -> Option<Vec<MacroArgument>> {
+    let inside = text.0.get(1..text.0.len().checked_sub(1)?)?;
+    let (opening, closing, roots) = match grammar {
+        ArgumentGrammar::Arguments => ('(', ')', LIST_ROOTS.as_slice()),
+        ArgumentGrammar::Vector => ('[', ']', ARRAY_ROOTS.as_slice()),
+        ArgumentGrammar::Matches => {
+            return matched(RustText(inside), offset(Count(index(start).0 + 1)));
+        }
     };
-    let mut found = Vec::new();
-    let mut at = index(start).0 + open.0;
-    let mut steps_inside = inside.iter();
-    while let Some(step) = steps_inside.next() {
+    // The delimiters are replaced by those of a tuple (or an array), which keeps every offset the file's.
+    buffer.0.clear();
+    buffer.0.push(opening);
+    buffer.0.push_str(inside);
+    buffer.0.push(closing);
+    let steps = read_as(RustText(&buffer.0), &TopEntryPoint::Expr)?;
+    if !matches!(steps.first(), Some(Step::Enter(root)) if roots.contains(root)) {
+        return None;
+    }
+    let found = children(&steps, start).nodes;
+    Some(match grammar {
+        ArgumentGrammar::Arguments => found.into_iter().map(named_value).collect(),
+        ArgumentGrammar::Vector | ArgumentGrammar::Matches => found,
+    })
+}
+
+/// The value of a named argument, `width = 3`; any other argument as it is.
+fn named_value(argument: MacroArgument) -> MacroArgument {
+    if !matches!(
+        argument.steps.first(),
+        Some(Step::Enter(SyntaxKind::BIN_EXPR))
+    ) {
+        return argument;
+    }
+    let NodeChildren { mut nodes, tokens } = children(&argument.steps, argument.from);
+    // The label is a path of one name: a path expression, its path, segment and name, and the name's token.
+    let named = nodes.first().is_some_and(|label| {
+        let mut tokens = label
+            .steps
+            .iter()
+            .filter(|each| matches!(each, Step::Token(..)));
+        matches!(
+            label.steps.first(),
+            Some(Step::Enter(SyntaxKind::PATH_EXPR))
+        ) && matches!(tokens.next(), Some(Step::Token(SyntaxKind::IDENT, _)))
+            && tokens.next().is_none()
+    });
+    if named && nodes.len() == 2 && tokens == [SyntaxKind::EQ] {
+        nodes.pop().unwrap_or(argument)
+    } else {
+        argument
+    }
+}
+
+/// The direct children of the node whose steps are `steps`, which starts at `from`.
+fn children(steps: &[Step], from: Offset) -> NodeChildren {
+    let mut found = NodeChildren::default();
+    let (mut at, mut depth, mut begun, mut begun_at) = (index(from).0, 0_usize, 0_usize, from);
+    for (place, step) in steps.iter().enumerate() {
         match step {
+            Step::Enter(_) => {
+                depth += 1;
+                if depth == 2 {
+                    (begun, begun_at) = (place, offset(Count(at)));
+                }
+            }
+            Step::Exit => {
+                if depth == 2 {
+                    found.nodes.push(MacroArgument {
+                        from: begun_at,
+                        steps: steps.get(begun..=place).unwrap_or_default().to_vec(),
+                    });
+                }
+                depth = depth.saturating_sub(1);
+            }
             Step::Token(kind, length) => {
-                found.push(Child {
-                    from: offset(Count(at)),
-                    to: offset(Count(at + length.0)),
-                    kind: *kind,
-                });
+                if depth == 1 && !kind.is_trivia() {
+                    found.tokens.push(*kind);
+                }
                 at += length.0;
             }
-            Step::Enter(kind) => {
-                // The child node runs to the exit that closes this enter; a node left open is no clean token tree.
-                let (from, mut depth) = (at, 1_usize);
-                while depth > 0 {
-                    match steps_inside.next()? {
-                        Step::Enter(_) => depth += 1,
-                        Step::Exit => depth -= 1,
-                        Step::Token(_, length) => at += length.0,
-                        Step::Error(..) => return None,
-                    }
-                }
-                found.push(Child {
-                    from: offset(Count(from)),
-                    to: offset(Count(at)),
-                    kind: *kind,
-                });
-            }
-            Step::Exit | Step::Error(..) => return None,
+            Step::Error(..) => {}
         }
     }
-    Some(found)
+    found
 }
 
-/// The steps of `text` read as `reading`, with no error; nothing when it is not all one of them.
-pub(super) fn parsed(text: RustText<'_>, reading: FragmentEntryPoint) -> Option<Vec<Step>> {
+/// The arguments of `matches!` in the text between its delimiters, which starts at `start`: the expression, a comma, the pattern and
+/// perhaps `if` and a guard, a trailing comma allowed; nothing when the text is not all of them.
+fn matched(text: RustText<'_>, start: Offset) -> Option<Vec<MacroArgument>> {
     let lexed = LexedStr::new(Edition::CURRENT, text.0);
     if lexed.errors().next().is_some() {
         return None;
     }
-    let input = lexed.to_input(Edition::CURRENT);
-    let entry = match reading {
-        FragmentEntryPoint::Expression => TopEntryPoint::Expr,
-        FragmentEntryPoint::Pattern => TopEntryPoint::Pattern,
-    };
-    let output = entry.parse(&input);
-    let mut steps = Vec::new();
-    let mut clean = true;
-    // The library answers whether the walk reached the end of the text: what is left over is not part of the one expression.
-    let whole = lexed.intersperse_trivia(&output, &mut |step| {
-        clean &= !matches!(step, StrStep::Error { .. });
-        steps.push(step_of(step));
-    });
-    (clean && whole).then_some(steps)
-}
-
-/// The bytes a stretch of children spans, without the white space at its ends.
-pub(super) fn trimmed(children: &[Child]) -> Option<ArgumentSpan> {
-    let first = children
-        .iter()
-        .find(|each| is_trivia(each) == Triviality::Significant)?;
-    let last = children
-        .iter()
-        .rev()
-        .find(|each| is_trivia(each) == Triviality::Significant)?;
-    Some(ArgumentSpan {
-        from: first.from,
-        to: last.to,
-    })
-}
-
-/// The stretches of the arguments of the macro `name` that are read again, each with what it is read as.
-pub(super) fn stretches(name: &MacroName, children: &[Child]) -> Option<Vec<Stretch>> {
-    let (vec, matches) = (**name == *VEC, **name == *MATCHES);
-    let mut found = Vec::new();
-    let mut place = 0_i32;
-    for argument in children
-        .split(|each| each.kind == SyntaxKind::COMMA || (vec && each.kind == SyntaxKind::SEMICOLON))
+    // How many tokens, white space and comments aside, the expression takes: what is left is the pattern and its guard.
+    let output = PrefixEntryPoint::Expr.parse(&lexed.to_input(Edition::CURRENT));
+    let taken = output.iter().try_fold(0_usize, |taken, step| match step {
+        ra_ap_parser::Step::Token { n_input_tokens, .. } => {
+            Some(taken + usize::from(n_input_tokens))
+        }
+        ra_ap_parser::Step::FloatSplit { .. } => Some(taken + 1),
+        ra_ap_parser::Step::Error { .. } => None,
+        ra_ap_parser::Step::Enter { .. } | ra_ap_parser::Step::Exit => Some(taken),
+    })?;
+    let significant: Vec<usize> = (0..lexed.len())
+        .filter(|each| !lexed.kind(*each).is_trivia())
+        .collect();
+    let expression = significant.get(..taken)?;
+    if expression.is_empty() || lexed.kind(*significant.get(taken)?) != SyntaxKind::COMMA {
+        return None;
+    }
+    let mut rest = significant.get(taken + 1..)?;
+    if let [before @ .., last] = rest
+        && lexed.kind(*last) == SyntaxKind::COMMA
     {
-        let Some(mut span) = trimmed(argument) else {
-            continue;
-        };
-        // A named argument, `width = 3`, is read from its value.
-        if !vec && !matches {
-            let mut words = argument
-                .iter()
-                .filter(|each| is_trivia(each) == Triviality::Significant);
-            if let (Some(label), Some(equals)) = (words.next(), words.next())
-                && label.kind == SyntaxKind::IDENT
-                && equals.kind == SyntaxKind::EQ
-            {
-                let after = argument
-                    .iter()
-                    .position(|each| std::ptr::eq(each, equals))?
-                    + 1;
-                span.from = trimmed(argument.get(after..)?)?.from;
-            }
-        }
-        if matches && place >= 1_i32 {
-            // A pattern, then perhaps `if` and a guard that is an expression.
-            match argument
-                .iter()
-                .position(|each| each.kind == SyntaxKind::IF_KW)
-            {
-                Some(at) => {
-                    found.push(Stretch {
-                        span: trimmed(argument.get(..at)?)?,
-                        reading: FragmentEntryPoint::Pattern,
-                    });
-                    found.push(Stretch {
-                        span: trimmed(argument.get(at + 1..)?)?,
-                        reading: FragmentEntryPoint::Expression,
-                    });
-                }
-                None => found.push(Stretch {
-                    span,
-                    reading: FragmentEntryPoint::Pattern,
-                }),
-            }
-        } else {
-            found.push(Stretch {
-                span,
-                reading: FragmentEntryPoint::Expression,
-            });
-        }
-        place += 1_i32;
+        rest = before;
     }
-    Some(found)
+    let (pattern, guard) = match rest
+        .iter()
+        .position(|each| lexed.kind(*each) == SyntaxKind::IF_KW)
+    {
+        Some(at) => (rest.get(..at)?, Some(rest.get(at + 1..)?)),
+        None => (rest, None),
+    };
+    let mut pieces = vec![
+        (expression, TopEntryPoint::Expr),
+        (pattern, TopEntryPoint::Pattern),
+    ];
+    pieces.extend(guard.map(|guard| (guard, TopEntryPoint::Expr)));
+    pieces
+        .into_iter()
+        .map(|(tokens, entry)| {
+            let (from, to) = (
+                lexed.text_start(*tokens.first()?),
+                lexed.text_range(*tokens.last()?).end,
+            );
+            Some(MacroArgument {
+                from: offset(Count(index(start).0 + from)),
+                steps: read_as(RustText(text.0.get(from..to)?), &entry)?,
+            })
+        })
+        .collect()
 }
 
-/// The arguments of the macro `name` read again, in the token tree held in `steps` that starts at `start` of `text`: each stretch of
-/// text with the steps it parses to; nothing when they are not all expressions (or patterns) of the macro's grammar.
-pub(super) fn expanded(
-    name: &MacroName,
-    text: RustText<'_>,
-    start: Offset,
-    steps: &[Step],
-) -> Option<Vec<MacroArgument>> {
-    let children = children_of(steps, start)?;
-    let mut out = Vec::new();
-    for stretch in stretches(name, &children)? {
-        let ArgumentSpan { from, to } = stretch.span;
-        out.push(MacroArgument {
-            from,
-            steps: parsed(
-                RustText(text.0.get(index(from).0..index(to).0)?),
-                stretch.reading,
-            )?,
-        });
+/// The steps of `text` read as `entry`, with no error; nothing when it is not all one of them.
+fn read_as(text: RustText<'_>, entry: &TopEntryPoint) -> Option<Vec<Step>> {
+    let lexed = LexedStr::new(Edition::CURRENT, text.0);
+    if lexed.errors().next().is_some() {
+        return None;
     }
-    Some(out)
+    let output = entry.parse(&lexed.to_input(Edition::CURRENT));
+    let mut steps = Vec::new();
+    // The library answers whether the walk reached the end of the text: what is left over is not part of the one tree.
+    let whole = lexed.intersperse_trivia(&output, &mut |step| steps.push(step_of(step)));
+    let clean = !steps
+        .iter()
+        .any(|each| matches!(each, Step::Error(..) | Step::Enter(SyntaxKind::ERROR)));
+    (clean && whole).then_some(steps)
 }
 
 /// The text index an offset stands for.

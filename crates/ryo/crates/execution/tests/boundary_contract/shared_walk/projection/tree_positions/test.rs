@@ -20,23 +20,13 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
-    use ryo_execution_runtime::outbound::operators::fixtures::projection_tree_positions::ObservedJoin;
+    use ryo_execution::inbound::use_cases::execution::fixtures::RefusingOperators;
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
-    use std::sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    };
+    use std::sync::Arc;
     for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {
         for (empty, refuse) in [(false, false), (true, false), (false, true)] {
-            let semantics = Arc::new(ObservedJoin {
-                calls: AtomicUsize::new(0),
-                refuse,
-            });
-            let engine = PrepareUseCaseImpl::new(
-                semantics.clone(),
-                Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-                Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
-            );
+            let semantics = Arc::new(RefusingOperators { refuse });
+            let engine = PrepareUseCaseImpl::new(semantics.clone());
             let mut authored = authored_request(1);
             let comparisons = if empty {
                 // Comparing one node cell with itself is a total false predicate.
@@ -122,18 +112,6 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 };
                 assert_eq!(complete(&mut rules, 0).cells, expected);
             }
-            // The native join capability is invoked once per selected left row,
-            // including a row with no RHS match, and stops at its first refusal.
-            let expected_calls = if empty {
-                0
-            } else if refuse {
-                1
-            } else if relation == Relation::SyntaxTree {
-                4
-            } else {
-                3
-            };
-            assert_eq!(semantics.calls.load(Ordering::Relaxed), expected_calls);
             request.finish();
         }
     }
@@ -141,7 +119,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
 #[test]
 fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats() {
     use ryo_values::domain::plan_parts::types::RepeatedRows;
-    let (engine, semantics) = engine();
+    let engine = engine();
     let mut authored = authored_request(3);
     for (plan, columns) in crate::boundary_fixture::fixtures::plans(&mut authored)
         .iter_mut()
@@ -184,7 +162,6 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
             }
         }
     }
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }

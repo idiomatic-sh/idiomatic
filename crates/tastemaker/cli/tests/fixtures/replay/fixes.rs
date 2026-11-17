@@ -66,7 +66,7 @@ pub(crate) struct Fixes {
     pub rows: Vec<Row>,
 }
 
-/// The part of `tm check --format json` the tests read: each finding's rule, path and line, all required.
+/// The part of `tm check --format json` the tests read: each finding's rule, path, line and message, all but the line required.
 #[derive(Debug, serde::Deserialize)]
 pub(crate) struct Report {
     pub findings: Vec<ReportedFinding>,
@@ -78,6 +78,7 @@ pub(crate) struct ReportedFinding {
     pub rule: String,
     pub path: String,
     pub line: Option<i64>,
+    pub message: String,
 }
 
 /// A sample: its name (`<language>/api`), its directory and what its `fixes.toml` says.
@@ -203,7 +204,7 @@ pub(crate) fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
         } else {
             let _: u64 = std::fs::copy(&source, &target)?;
             if entry.file_name() == WORKSPACE_FILE {
-                pinned(&target)?;
+                crate::pinned::pinned(&target)?;
             }
         }
     }
@@ -212,24 +213,6 @@ pub(crate) fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
 
 /// The file a workspace names the version of Tastemaker it needs in.
 pub(crate) const WORKSPACE_FILE: &str = "tastemaker.toml";
-
-/// Sets the `tastemaker` pin of the workspace file `file` to the built `tm`'s version. A workspace in the repository pins the
-/// published `tm` the lint runs; its copy is run by the `tm` under test, which runs only a workspace that pins its own version.
-pub(crate) fn pinned(file: &Path) -> std::io::Result<()> {
-    let text = std::fs::read_to_string(file)?;
-    let written: String = text
-        .split_inclusive('\n')
-        .map(|line| {
-            if line.starts_with("tastemaker = ") {
-                let ending = line.strip_prefix(line.trim_end()).unwrap_or_default();
-                format!("tastemaker = \"{}\"{ending}", env!("CARGO_PKG_VERSION"))
-            } else {
-                line.to_owned()
-            }
-        })
-        .collect();
-    std::fs::write(file, written)
-}
 
 /// A symbolic link of a sample, made again as the link it is, pointing where it pointed: followed, a link to a directory is
 /// no file to copy, and one that points outside the sample would copy what is not the sample's.

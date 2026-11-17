@@ -1,8 +1,7 @@
 //! Physical rows of the zero-width and native representations, through the registry.
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::collections::representations::types::*;
-use crate::domain::table_model::service::{borrowed, kind, registered};
+use crate::domain::table_model::service::{borrowed, registered};
 use crate::domain::table_model::service_test::{check_rows, number, values};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
@@ -10,7 +9,8 @@ use ryo_language::domain::builders::service::{enter_node, leave_node, table_buil
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_relations::domain::relations::service::{node_id, to_bits};
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
+use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     ColumnsView, FileId, KindBits, Offset, Position, Span, Value as Cell,
 };

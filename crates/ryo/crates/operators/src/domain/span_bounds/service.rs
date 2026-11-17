@@ -7,7 +7,10 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Return start followed by end without validating against a particular source.
-pub fn bounds(row: &[Value], column: ColumnIndex) -> Result<[Value; 2], PortableOperatorFault> {
+pub(crate) fn bounds(
+    row: &[Value],
+    column: ColumnIndex,
+) -> Result<[Value; 2], PortableOperatorFault> {
     let value = row
         .get(usize::try_from(column.0).unwrap_or(usize::MAX))
         .copied()
@@ -24,4 +27,9 @@ pub fn bounds(row: &[Value], column: ColumnIndex) -> Result<[Value; 2], Portable
     let start = i64::try_from(start).map_err(|_| PortableOperatorFault::InvalidSpanBounds)?;
     let end = i64::try_from(end).map_err(|_| PortableOperatorFault::InvalidSpanBounds)?;
     Ok([Value::Number(Integer(start)), Value::Number(Integer(end))])
+}
+
+/// The one lowering of a span-bounds: its span column, for the `text_map` kernel.
+pub(crate) fn lower(span: ColumnIndex) -> super::types::SpanBoundsParts {
+    super::types::SpanBoundsParts { span }
 }

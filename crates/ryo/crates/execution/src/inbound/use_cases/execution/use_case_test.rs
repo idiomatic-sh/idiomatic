@@ -82,8 +82,6 @@ mod closure;
 mod closure_partitions;
 
 #[cfg(test)]
-mod graph;
-#[cfg(test)]
 mod span_join;
 
 #[cfg(test)]
@@ -103,9 +101,6 @@ mod axis_graph;
 
 #[cfg(test)]
 mod conformance;
-
-#[cfg(test)]
-mod conformance_driver;
 
 #[cfg(test)]
 mod conformance_emptied;
@@ -144,4 +139,4 @@ mod admission_order_precedence;
 mod errored_rule;
 
 #[cfg(test)]
-mod interpreter;
+mod edge_columns;

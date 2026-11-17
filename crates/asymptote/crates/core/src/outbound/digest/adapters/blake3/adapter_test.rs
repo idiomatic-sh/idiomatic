@@ -3,9 +3,9 @@
 
 use super::adapter::DigestBlake3Adapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::violations::types::SourceText;
 use crate::outbound::digest::fixtures::contract::check;
 use crate::outbound::digest::interface::DigestPort as _;
+use asymptote_values::domain::violations::types::SourceText;
 
 /// An impl whose method has a violation on its signature (line 2) and one in its body (line 3), beside an unrelated
 /// function.

@@ -1,4 +1,3 @@
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
@@ -85,11 +84,9 @@ fn plan(index: usize) -> Plan {
 }
 
 pub(in crate::fixtures) fn engine() -> PrepareUseCaseImpl {
-    PrepareUseCaseImpl::new(
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
-    )
+    PrepareUseCaseImpl::new(Arc::new(
+        ryo_execution::inbound::use_cases::execution::fixtures::operators(),
+    ))
 }
 pub(in crate::fixtures) fn corpus() -> [CorpusInput; 1] {
     [CorpusInput::Available(CorpusEntry {

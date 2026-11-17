@@ -20,6 +20,7 @@ use ryo_benchmark_contracts::domain::requests::constants::{
 };
 use ryo_benchmark_contracts::domain::requests::types::{ParserSelection, RuleLabel};
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -47,24 +48,6 @@ fn repository_relative(repository: &Path, path: &Path) -> PathText {
     )
 }
 
-/// The settings profile directory of a rule: `profiles/<id>` when it holds a profile, else the bench.
-fn settings_directory(
-    suite: &dyn SuitePort,
-    bench: &Path,
-    rule: &ryo::linter::RuleId,
-) -> Result<PathBuf, Error> {
-    let dedicated = bench
-        .join(constants::SETTINGS_PROFILES)
-        .join(rule.to_string());
-    match suite.digest(ArtifactPath(&dedicated.join(PROFILE_MANIFEST))) {
-        Ok(_digest) => Ok(dedicated),
-        Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
-            Ok(bench.to_owned())
-        }
-        Err(error) => Err(error),
-    }
-}
-
 /// What every rule of one registration is staged with.
 struct Bench<'a> {
     suite: &'a dyn SuitePort,
@@ -79,11 +62,56 @@ struct Bench<'a> {
     output: PathBuf,
 }
 
+/// The bench at `bench`, its rules staged under `output`.
+fn open_bench<'a>(
+    suite: &'a dyn SuitePort,
+    inventory: &'a dyn InventoryPort,
+    bench: &Path,
+    output: &Path,
+) -> Result<Bench<'a>, Error> {
+    let root = suite.ensure_directory(ArtifactPath(bench))?;
+    let output = suite.ensure_directory(ArtifactPath(output))?;
+    Ok(Bench {
+        suite,
+        inventory,
+        repository: root
+            .ancestors()
+            .nth(constants::REPOSITORY_DEPTH)
+            .unwrap_or(&root)
+            .to_owned(),
+        profile: suite.profile(ArtifactPath(&root))?,
+        output,
+        root,
+    })
+}
+
+/// Stage one rule of the bench at `bench` under `output` with its own settings profile, as the registration stages it, and
+/// answer the staged directory: its profile, rules, modules and evidence, which a verifier reads as a bench of that one rule.
+///
+/// # Errors
+/// Refuses an unreadable bench or settings profile, a profile pinned to another tool, one that does not select the rule, and
+/// a rule whose definition, modules or evidence cannot be staged.
+pub fn stage_rule_profile(
+    suite: &dyn SuitePort,
+    inventory: &dyn InventoryPort,
+    bench: &Path,
+    rule: &ryo::linter::RuleId,
+    output: &Path,
+) -> Result<PathBuf, Error> {
+    let staged = open_bench(suite, inventory, bench, output)?;
+    let RuleCommand::Registered(Command::CaseVerification { context }) =
+        stage_rule(&staged, rule)?.command
+    else {
+        return Err(Error::Invalid(constants::NOT_STAGED.into()));
+    };
+    Ok(context)
+}
+
 /// Stage one implemented rule and answer its registration.
 fn stage_rule(bench: &Bench<'_>, rule: &ryo::linter::RuleId) -> Result<RegisteredRule, Error> {
     let suite = bench.suite;
     let rules = bench.root.join(crate::domain::suite::constants::RULES);
-    let settings_directory = settings_directory(suite, &bench.root, rule)?;
+    let settings_directory = suite.settings_directory(ArtifactPath(&bench.root), rule)?;
     let settings = suite.profile(ArtifactPath(&settings_directory))?;
     if settings.tool != bench.profile.tool
         || settings.version != bench.profile.version
@@ -256,6 +284,20 @@ fn unregistered(rule: &ryo::linter::RuleId, reason: ReasonText) -> RegisteredRul
     }
 }
 
+/// A default the profile defers under `capability`: nothing is pinned and nothing runs.
+fn deferred(rule: &ryo::linter::RuleId, capability: &CapabilityName) -> RegisteredRule {
+    RegisteredRule {
+        definition: RuleDefinition::Unpinned,
+        modules: BTreeMap::new(),
+        artifacts: BTreeMap::new(),
+        rule_id: RuleName(rule.to_string()),
+        command: RuleCommand::Deferred(capability.clone()),
+        reason: RuleReason::Unstated,
+        cases: Vec::new(),
+        instance: RuleInstance::Undeclared,
+    }
+}
+
 /// A digest as the registration's identity writes it.
 fn identity(value: &Sha256Text) -> CanonicalJson {
     CanonicalJson(render(&Fragment::Text(Label(value.0.clone()))).0)
@@ -274,32 +316,21 @@ pub fn register(
     worker: &Sealed,
     output: &Path,
 ) -> Result<PathBuf, Error> {
-    let root = suite.ensure_directory(ArtifactPath(bench))?;
-    let output = suite.ensure_directory(ArtifactPath(output))?;
-    let staged = Bench {
-        suite,
-        inventory,
-        repository: root
-            .ancestors()
-            .nth(constants::REPOSITORY_DEPTH)
-            .unwrap_or(&root)
-            .to_owned(),
-        profile: suite.profile(ArtifactPath(&root))?,
-        output: output.clone(),
-        root,
-    };
+    let staged = open_bench(suite, inventory, bench, output)?;
+    let output = staged.output.clone();
     let mut rules = Vec::new();
     for rule in &staged.profile.defaults {
         let query = suite.rule_query(
             ArtifactPath(&staged.root.join(crate::domain::suite::constants::RULES)),
             rule,
         )?;
-        rules.push(match query {
-            None => unregistered(
+        rules.push(match (query, staged.profile.deferred.get(rule)) {
+            (None, Some(capability)) => deferred(rule, capability),
+            (None, None) => unregistered(
                 rule,
                 ReasonText(constants::MISSING_IMPLEMENTATION.to_owned()),
             ),
-            Some(_query) => stage_rule(&staged, rule).unwrap_or_else(|error| {
+            (Some(_query), _) => stage_rule(&staged, rule).unwrap_or_else(|error| {
                 unregistered(
                     rule,
                     ReasonText(format!("{}: {error}", constants::RULE_REGISTRATION)),

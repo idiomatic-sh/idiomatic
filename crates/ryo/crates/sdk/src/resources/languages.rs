@@ -17,6 +17,7 @@ pub use macros::link::link;
 /// Open on purpose: a language implements it, and nothing else does.
 pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Parse;
 
+pub use ryo_language::domain::answers::types::SemanticAnswers;
 pub use ryo_language::domain::answers::types::Semantics;
 pub use ryo_language::domain::semantics::errors::SemanticsError;
 pub use ryo_language::domain::semantics::types::{
@@ -95,7 +96,20 @@ pub use ryo_language::domain::elements::service::syntax_acceptance;
 /// Take what a read kept for a semantic session out of the table.
 pub use ryo_language::domain::elements::service::take_semantics;
 
-pub use ryo_language::domain::elements::types::Children;
+/// Say a kind of edge or step in the words of `flow-edge` and `flow-step`.
+pub use ryo_language::domain::flow::service::{flow_edge_word, flow_step_word};
+/// The control flow graphs a language's read keeps of a file: blocks by number, edges, steps and the block of each element.
+pub use ryo_language::domain::flow::types::{
+    BlockNumber, EdgeOrdinal, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowGraph, FlowMemberFact,
+    FlowStepFact, FlowStepKind, StepOrdinal,
+};
+/// Keep a file's control flow graphs in its table through the builder (a builder that discards keeps nothing), and read them back
+/// for the readers of the flow relations.
+pub use ryo_language::domain::flow_table::service::{
+    add_flow_block, add_flow_edge, add_flow_member, add_flow_step, flow_of,
+};
+
+pub use ryo_language::domain::elements::types::children::value::Children;
 
 pub use ryo_relations::domain::relations::constants::TOKEN;
 
@@ -327,17 +341,24 @@ pub use ryo_language::domain::decoded::service::property_at;
 pub use ryo_language::domain::decoded::types::{FloatBits, FloatBuffer};
 pub use ryo_language::domain::elements::service::source_order;
 pub use ryo_language::domain::elements::types::SourceOrder;
-pub use ryo_language::domain::keys::service::{
-    clear_keys, intern_key, key_class_at, push_key_word,
-};
+pub use ryo_language::domain::keys::service::{clear_keys, intern_key, push_key_word};
 pub use ryo_language::domain::keys::types::{KeyState, RetainedKeyIndex, ShapeWord};
+pub use ryo_language::domain::shapes::service::{
+    child_class, clear_shapes, prepare_shapes, push_shape_word, rewrite_shape_words, shape_class_at,
+};
+pub use ryo_language::domain::shapes::types::{
+    KeptShapeWords, ShapeClasses, ShapeExtent, ShapeIndex, ShapeKey, ShapeStep,
+};
 pub use ryo_relations::domain::relations::constants::{IMPLIED, NO_SPAN};
 pub use ryo_relations::domain::relations::service::location;
 pub use ryo_relations::domain::relations::types::PropertyId;
 
 pub use ryo_relations::domain::relations::types::Locatedness;
 
-pub use ryo_language::domain::answers::service::{native_semantic_child, native_semantic_syntax};
+pub use ryo_language::domain::answers::service::{
+    expanded_semantic_child, expanded_semantic_syntax, native_semantic_child,
+    native_semantic_syntax,
+};
 
 pub use ryo_relations::domain::catalog::types::OptionalCapability;
 

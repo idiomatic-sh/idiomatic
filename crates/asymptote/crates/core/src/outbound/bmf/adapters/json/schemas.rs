@@ -4,9 +4,9 @@
 use std::collections::BTreeMap;
 
 use super::constants::{COLON, NEGATIVE, NO_MEASUREMENT, NO_NAME, OUTSIDE, SLASH};
-use crate::domain::operations::types::{BenchmarkName, MeasureName, Number};
-use crate::domain::perf::types::{Measurement, Spread};
 use crate::outbound::bmf::types::Measurements;
+use asymptote_values::domain::operations::types::{BenchmarkName, MeasureName, Number};
+use asymptote_values::domain::perf::types::{Measurement, Spread};
 
 /// One metric as written.
 #[derive(Debug, serde::Deserialize)]

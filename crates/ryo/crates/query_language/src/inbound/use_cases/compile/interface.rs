@@ -2,7 +2,7 @@
 
 use super::errors::CompileError;
 use super::types::CompileReport;
-use ryo_values::domain::plans::types::QueryRequest;
+use ryo_values::domain::query_requests::types::QueryRequest;
 
 /// What `compile` offers its callers.
 pub trait CompileUseCase: Send + Sync {

@@ -61,7 +61,7 @@ impl FileAnalysis {
                                 None => false,
                             }
                             && setting.needs.get(place).is_some_and(|needs| {
-                                needs.reads.iter().any(|read| read.relation == *relation)
+                                needs.reads.iter().any(|read| read.relation() == *relation)
                             })
                     })
                 })

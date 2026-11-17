@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use crate::domain::manifest::types::{HookName, ProductRoot};
 use crate::domain::ratchet::types::Writing;
 use crate::outbound::hooks::interface::HooksPort;
 use crate::outbound::lock::interface::LockPort;
 use crate::outbound::manifest::interface::ManifestPort;
+use asymptote_values::domain::manifest::types::{HookName, ProductRoot};
 
 /// What `init` is asked.
 #[derive(Clone, Debug, PartialEq, Eq)]

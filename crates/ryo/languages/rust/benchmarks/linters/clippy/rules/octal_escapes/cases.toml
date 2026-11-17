@@ -1,0 +1,69 @@
+[[cases]]
+name = "two-digits"
+files = { "src/lib.rs" = "pub const S: &str = \"\\033[1m\";\n" }
+expected = [{ file = "src/lib.rs", start = 21, end = 25 }]
+
+[[cases]]
+name = "one-digit"
+files = { "src/lib.rs" = "pub const S: &str = \"a\\01b\";\n" }
+expected = [{ file = "src/lib.rs", start = 22, end = 25 }]
+
+[[cases]]
+name = "several"
+files = { "src/lib.rs" = "pub const S: &str = \"\\011\\012x\\07\";\n" }
+expected = [{ file = "src/lib.rs", start = 21, end = 25 }, { file = "src/lib.rs", start = 25, end = 29 }, { file = "src/lib.rs", start = 30, end = 33 }]
+
+[[cases]]
+name = "byte-string"
+files = { "src/lib.rs" = "pub const B: &[u8] = b\"\\012\";\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 27 }]
+
+[[cases]]
+name = "not-octal"
+files = { "src/lib.rs" = "pub const A: &str = \"\\0\";\npub const B: &str = \"\\08\";\npub const C: &str = \"\\\\012\";\npub const D: &str = r\"\\012\";\npub const E: char = '\\0';\n" }
+expected = []
+
+[[cases]]
+name = "non-ascii-before"
+files = { "src/lib.rs" = "pub const S: &str = \"é\\012\";\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 27 }]
+
+[[cases]]
+name = "in-macros"
+files = { "src/lib.rs" = "pub fn f() -> String {\n    println!(\"\\012\");\n    assert_eq!(\"a\", \"\\012\");\n    format!(\"{}\", \"\\012\")\n}\n" }
+expected = [{ file = "src/lib.rs", start = 66, end = 70 }, { file = "src/lib.rs", start = 93, end = 97 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::octal_escapes)]\npub const S: &str = \"\\033\";\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub const S: &str = \"\\033\";\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::octal_escapes)]\npub const S: &str = \"\\033\";\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::octal_escapes)]\npub const S: &str = \"\\033\";\n" }
+expected = [{ file = "src/lib.rs", start = 82, end = 86 }]
+
+[[cases]]
+name = "in-attributes"
+files = { "src/lib.rs" = "#[doc = \"\\012\"]\n#[deprecated = \"a\\012\"]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 9, end = 13 }, { file = "src/lib.rs", start = 33, end = 37 }]
+
+[[cases]]
+name = "format-strings"
+files = { "src/lib.rs" = "use std::fmt::Write;\npub fn f(w: &mut String) {\n    writeln!(w, \"\\012\").ok();\n    std::write!(w, \"{}\", \"\\012\").ok();\n    if w.is_empty() {\n        panic!(\"\\012\");\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 104, end = 108 }]
+
+[[cases]]
+name = "in-local-macro"
+files = { "src/lib.rs" = "macro_rules! k {\n    ($e:expr) => {\n        $e\n    };\n    () => {\n        \"\\012\"\n    };\n}\npub fn f() -> &'static str {\n    k!(\"\\033\")\n}\n" }
+expected = [{ file = "src/lib.rs", start = 127, end = 131 }]

@@ -1,5 +1,6 @@
 //! The `visibility` relation of the language: the visibility an item, a field or a variant is written with, as written.
 
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{collapsed, kind_bits};
 use crate::domain::syntax::types::Kind;
@@ -10,7 +11,7 @@ use ryo::languages;
 pub(crate) struct VisibilityItem;
 
 ryo::reads! {
-    VisibilityItem => languages::Visibility |tree, at, symbols| {
+    VisibilityItem => languages::Visibility, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::Visibility)] as kind_bits,
         each (visible(tree, at)) as declaration {
             row {

@@ -118,7 +118,6 @@ fn runs(world: &mut Behavior) {
             Arc::new(query_language),
             Arc::clone(&analysis_memory),
             ryo_core::inbound::use_cases::lint::fixtures::engine::operators(),
-            ryo_core::inbound::use_cases::lint::fixtures::engine::derived(),
             Arc::new(SchedulerFake::default()),
             ryo_core::outbound::scheduler::types::WorkerCount(1),
             Arc::clone(&kept),

@@ -29,32 +29,7 @@ pub fn admit(
     candidate: &Path,
     coverage: &RegisteredCoverage,
 ) -> Result<Vec<PathBuf>, Error> {
-    let expected: std::collections::BTreeSet<_> =
-        tool.defaults.iter().map(ToString::to_string).collect();
-    let actual: std::collections::BTreeSet<_> =
-        loaded.defaults.iter().map(|rule| rule.0.clone()).collect();
-    match coverage {
-        RegisteredCoverage::Full => {
-            if expected != actual || loaded.defaults.len() != expected.len() {
-                return Err(Error::Invalid(
-                    constants::CASE_INVENTORY_DIFFERS_FROM_MEASURED.into(),
-                ));
-            }
-        }
-        RegisteredCoverage::Selected { rules: chosen, .. } => {
-            let selected: std::collections::BTreeSet<_> =
-                chosen.iter().map(ToString::to_string).collect();
-            if selected.is_empty()
-                || selected.len() != chosen.len()
-                || selected != expected
-                || !selected.is_subset(&actual)
-            {
-                return Err(Error::Invalid(
-                    constants::SELECTED_RULES_DIFFER_FROM_MEASURED.into(),
-                ));
-            }
-        }
-    }
+    require_defaults(loaded, tool, coverage)?;
     let RegistrationAuthority::Execution {
         profile,
         reference: reference_pin,
@@ -68,8 +43,15 @@ pub fn admit(
     };
     match coverage {
         RegisteredCoverage::Full => {
+            // A registration with deferred defaults is measured on the profile staging narrows from the registered one in
+            // this process, whose own bytes the certificate seals: the registered profile itself is what must be unchanged.
+            let deferred = loaded
+                .rules
+                .iter()
+                .any(|rule| matches!(rule.command, RuleCommand::Deferred(_)));
+            let manifest = if deferred { profile } else { measured_profile };
             if suite
-                .digest(ArtifactPath(&measured_profile.join(
+                .digest(ArtifactPath(&manifest.join(
                     ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
                 )))?
                 .0
@@ -120,6 +102,64 @@ pub fn admit(
     ])
 }
 
+/// The registered rules certification verifies: those the coverage covers but the deferred ones, which have no query and no
+/// verification command; the registration accounts for them and nothing certifies them.
+pub(crate) fn certified_rules<'a>(
+    coverage: &'a RegisteredCoverage,
+    rules: &'a [RegisteredRule],
+) -> impl Iterator<Item = &'a RegisteredRule> + 'a {
+    crate::domain::suite::service::covered(coverage, rules, |entry| &entry.rule_id)
+        .filter(|entry| !matches!(entry.command, RuleCommand::Deferred(_)))
+}
+
+/// Require the registration's defaults to be the measured profile's: all of them, but those registered as deferred, for full
+/// coverage; the selected ones, each a registered default, for a selection.
+///
+/// # Errors
+/// Refuses defaults that differ from what is measured.
+pub(crate) fn require_defaults(
+    loaded: &Registration,
+    tool: &Tool,
+    coverage: &RegisteredCoverage,
+) -> Result<(), Error> {
+    let expected: std::collections::BTreeSet<_> =
+        tool.defaults.iter().map(ToString::to_string).collect();
+    let actual: std::collections::BTreeSet<_> =
+        loaded.defaults.iter().map(|rule| rule.0.clone()).collect();
+    match coverage {
+        RegisteredCoverage::Full => {
+            // The measured profile holds the registered defaults but those registered as deferred: a deferred default has no
+            // query, so staging leaves it out, and the registration already holds each deferral to its capability.
+            let deferred: std::collections::BTreeSet<_> = loaded
+                .rules
+                .iter()
+                .filter(|rule| matches!(rule.command, RuleCommand::Deferred(_)))
+                .map(|rule| rule.rule_id.0.clone())
+                .collect();
+            let measured: std::collections::BTreeSet<_> =
+                actual.difference(&deferred).cloned().collect();
+            if expected != measured || loaded.defaults.len() != expected.len() + deferred.len() {
+                return Err(Error::Invalid(
+                    constants::CASE_INVENTORY_DIFFERS_FROM_MEASURED.into(),
+                ));
+            }
+        }
+        RegisteredCoverage::Selected { rules: chosen, .. } => {
+            let selected: std::collections::BTreeSet<_> =
+                chosen.iter().map(ToString::to_string).collect();
+            if selected.is_empty()
+                || selected.len() != chosen.len()
+                || selected != expected
+                || !selected.is_subset(&actual)
+            {
+                return Err(Error::Invalid(
+                    constants::SELECTED_RULES_DIFFER_FROM_MEASURED.into(),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
 /// Require one registered rule's tested query and helpers to be the measured ones.
 ///
 /// # Errors

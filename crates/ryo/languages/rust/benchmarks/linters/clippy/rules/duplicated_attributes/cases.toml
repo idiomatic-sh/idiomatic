@@ -1,0 +1,424 @@
+[[cases]]
+name = "word"
+files = { "src/lib.rs" = "#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 10, end = 19 }]
+
+[[cases]]
+name = "lint-lists"
+files = { "src/lib.rs" = "#[allow(dead_code)]\n#[allow(dead_code)]\nfn f() {}\n#[allow(dead_code, unused, dead_code)]\nfn g() {}\n#[allow(clippy::len_zero)]\n#[allow(clippy :: len_zero)]\npub fn h() {}\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 37 }, { file = "src/lib.rs", start = 77, end = 86 }, { file = "src/lib.rs", start = 134, end = 152 }]
+
+[[cases]]
+name = "different-levels"
+files = { "src/lib.rs" = "#[allow(dead_code)]\n#[warn(dead_code)]\n#[allow(unused)]\nfn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "name-values"
+files = { "src/lib.rs" = "#[must_use = \"a\"]\n#[must_use = \"a\"]\npub fn f() -> u8 { 0 }\n#[must_use = \"b\"]\n#[must_use = \"c\"]\npub fn g() -> u8 { 0 }\n#[must_use]\n#[must_use]\npub fn i() -> u8 { 0 }\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 35 }, { file = "src/lib.rs", start = 130, end = 141 }]
+
+[[cases]]
+name = "nested-lists"
+files = { "src/lib.rs" = "#[repr(C, align(8))]\n#[repr(C)]\npub struct S;\n#[repr(align(8))]\n#[repr(align(8))]\npub struct T;\n#[allow(clippy::all)]\n#[allow(clippy::len_zero)]\npub struct U;\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 29 }]
+
+[[cases]]
+name = "skipped-names"
+files = { "src/lib.rs" = "/// a\n/// a\n#[doc = \"b\"]\n#[doc = \"b\"]\n#[doc(alias = \"c\")]\n#[doc(alias = \"c\")]\n#[allow(unused, reason = \"r\")]\n#[allow(dead_code, reason = \"r\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "cfg"
+files = { "src/lib.rs" = "#[cfg(all())]\n#[cfg(all())]\npub fn f() {}\n#[cfg(unix)]\n#[cfg(unix)]\npub fn g() {}\n" }
+expected = []
+
+[[cases]]
+name = "unsafe-attributes"
+files = { "src/lib.rs" = "#[unsafe(no_mangle)]\n#[unsafe(no_mangle)]\npub extern \"C\" fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 21, end = 41 }]
+
+[[cases]]
+name = "other-nodes"
+files = { "src/lib.rs" = "pub struct S {\n    #[allow(dead_code)]\n    #[allow(dead_code)]\n    a: u8,\n}\npub fn f() {\n    #[allow(unused)]\n    #[allow(unused)]\n    let x = 1;\n    let _ = x;\n}\npub enum E {\n    #[allow(dead_code)]\n    #[allow(dead_code)]\n    V,\n}\n" }
+expected = [{ file = "src/lib.rs", start = 51, end = 60 }, { file = "src/lib.rs", start = 122, end = 128 }, { file = "src/lib.rs", start = 212, end = 221 }]
+
+[[cases]]
+name = "inner-and-outer"
+files = { "src/lib.rs" = "#![allow(dead_code)]\n#![allow(dead_code)]\n#[allow(unused)]\npub mod m {\n    #![allow(unused)]\n}\n#[allow(unused)]\npub fn f() {\n    #![allow(unused)]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 30, end = 39 }, { file = "src/lib.rs", start = 84, end = 90 }, { file = "src/lib.rs", start = 138, end = 144 }]
+
+[[cases]]
+name = "separate-items"
+files = { "src/lib.rs" = "#[inline]\npub fn f() {}\n#[inline]\npub fn g() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub mod m {\n    #[inline]\n    #[inline]\n    pub fn f() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 79, end = 88 }]
+
+[[cases]]
+name = "expression-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(group = ArgGroup::new(\"verb\").required(true).multiple(true))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "literal-value"
+files = { "src/lib.rs" = "#[allow(dead_code, dead_code, reason = \"x = y\")]\nfn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 28 }]
+
+[[cases]]
+name = "bare-literal-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a, a, \"x = y\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 20 }]
+
+[[cases]]
+name = "closure-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = |s| s, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "negative-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = -1, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "bool-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(true, true))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "number-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 26, end = 27 }]
+
+[[cases]]
+name = "bool-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = true, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "char-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 'x', a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 29 }]
+
+[[cases]]
+name = "byte-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = b\"x\", a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "c-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = c\"x\", a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "raw-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = r\"x\", a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "range-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1..2, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "first-level-true"
+files = { "src/lib.rs" = "#[rustfmt::skip(true, true)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "first-level-false"
+files = { "src/lib.rs" = "#[rustfmt::skip(false, false)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "second-level-false"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(false, false))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "bare-char-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a, a, '=')]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 20 }]
+
+[[cases]]
+name = "number-value-repeat"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1, v = 2)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 28 }]
+
+[[cases]]
+name = "dotted-number-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1.2.3, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "trailing-dot-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1., a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 28 }]
+
+[[cases]]
+name = "fraction-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1.5, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 29 }]
+
+[[cases]]
+name = "exponent-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = 1e3, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 28, end = 29 }]
+
+[[cases]]
+name = "hash-raw-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = r#\"x\"#, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 32 }]
+
+[[cases]]
+name = "hash-raw-byte-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = br#\"x\"#, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 33 }]
+
+[[cases]]
+name = "hash-raw-c-string-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = cr#\"x\"#, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 32, end = 33 }]
+
+[[cases]]
+name = "hex-escape-char-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = '\\x41', a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 32 }]
+
+[[cases]]
+name = "unicode-escape-char-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = '\\u{41}', a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 33, end = 34 }]
+
+[[cases]]
+name = "byte-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = b'x', a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "false-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = false, a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 30, end = 31 }]
+
+[[cases]]
+name = "bare-string-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(\"x, a, a\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "byte-string-holding-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = b\"x, a, a\", b)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "raw-string-values-differ"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = r\"x\", v = r\"y\")]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "top-raw-string-values-differ"
+files = { "src/lib.rs" = "#[must_use = r\"x\"]\n#[must_use = r\"y\"]\npub fn f() -> u8 { 0 }\n" }
+expected = []
+
+[[cases]]
+name = "top-raw-string-same-value"
+files = { "src/lib.rs" = "#[must_use = \"x\"]\n#[must_use = r\"x\"]\npub fn f() -> u8 { 0 }\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 36 }]
+
+[[cases]]
+name = "bracket-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a[b], a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "self-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(self, self)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 22, end = 26 }]
+
+[[cases]]
+name = "super-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(super, super)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 28 }]
+
+[[cases]]
+name = "crate-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(crate, crate)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 28 }]
+
+[[cases]]
+name = "nested-skipped-names"
+files = { "src/lib.rs" = "#[rustfmt::skip(doc, doc, reason, reason, doc(a, a))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "two-word-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a b, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "word-and-list"
+files = { "src/lib.rs" = "#[rustfmt::skip(a, a(b), a(b))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 28 }]
+
+[[cases]]
+name = "single-colon-item"
+files = { "src/lib.rs" = "#[rustfmt::skip(a:b, a, a)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "reason-mentions-warnings"
+files = { "src/lib.rs" = "#[allow(dead_code, reason = \"a, warnings, b\")]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 57, end = 66 }]
+
+[[cases]]
+name = "reason-names-the-lint"
+files = { "src/lib.rs" = "#[allow(dead_code, reason = \"clippy::duplicated_attributes\")]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 72, end = 81 }]
+
+[[cases]]
+name = "comment-in-lint-list"
+files = { "src/lib.rs" = "#[allow(clippy::duplicated_attributes /* why */)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "path-after-list"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b) c, d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "literal-after-list"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b) \"x\", d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "operator-then-literal"
+files = { "src/lib.rs" = "#[rustfmt::skip(v - 1, d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "path-then-literal"
+files = { "src/lib.rs" = "#[rustfmt::skip(a \"x\", d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "raw-and-plain-string-same-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = \"x\", v = r\"x\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 25, end = 33 }]
+
+[[cases]]
+name = "escaped-string-same-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(v = \"A\", v = \"\\x41\")]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 25, end = 35 }]
+
+[[cases]]
+name = "trailing-path-separator"
+files = { "src/lib.rs" = "#[rustfmt::skip(a::, d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "triple-colon-path"
+files = { "src/lib.rs" = "#[rustfmt::skip(a:::b, d, d)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "leading-path-separator"
+files = { "src/lib.rs" = "#[rustfmt::skip(::a, ::a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 21, end = 24 }]
+
+[[cases]]
+name = "raw-identifier-items"
+files = { "src/lib.rs" = "#[rustfmt::skip(r#a, a)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 21, end = 22 }]
+
+[[cases]]
+name = "top-raw-identifier"
+files = { "src/lib.rs" = "#[r#must_use]\n#[must_use]\npub fn f() -> u8 { 0 }\n" }
+expected = [{ file = "src/lib.rs", start = 14, end = 25 }]
+
+[[cases]]
+name = "nested-raw-and-plain-string-same-value"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(v = \"x\", v = r\"x\"))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 27, end = 35 }]
+
+[[cases]]
+name = "third-level-words"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b(c, c)))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 24 }]
+
+[[cases]]
+name = "third-level-decoded-strings"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b(v = \"x\", v = r\"x\")))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 37 }]
+
+[[cases]]
+name = "third-level-same-chain"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b(c)), a(b(c)))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 29, end = 30 }]
+
+[[cases]]
+name = "third-level-different-chain"
+files = { "src/lib.rs" = "#[rustfmt::skip(a(b(c)), a(d(c)))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "same-name-at-two-depths"
+files = { "src/lib.rs" = "#[rustfmt::skip(c, a(c))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "comment-inside-nested-path"
+files = { "src/lib.rs" = "#[rustfmt::skip(a /* c */ ::b, a::b)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 35 }]
+
+[[cases]]
+name = "space-between-path-colons"
+files = { "src/lib.rs" = "#[rustfmt::skip(a: :b, a::b)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "comment-between-path-colons"
+files = { "src/lib.rs" = "#[rustfmt::skip(a:/* c */:b, a::b)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "line-comment-between-path-colons"
+files = { "src/lib.rs" = "#[rustfmt::skip(a: // c\n:b, a::b)]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "comment-inside-lint-path"
+files = { "src/lib.rs" = "#[allow(clippy:: /* c */ duplicated_attributes)]\n#[inline]\n#[inline]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "comment-inside-top-path"
+files = { "src/lib.rs" = "#[rustfmt /* c */ ::skip]\n#[rustfmt::skip]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 26, end = 42 }]
+
+[[cases]]
+name = "raw-multi-segment-nested"
+files = { "src/lib.rs" = "#[rustfmt::skip(r#a::b, a::b)]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 24, end = 28 }]
+
+[[cases]]
+name = "raw-multi-segment-top"
+files = { "src/lib.rs" = "#[r#rustfmt::skip]\n#[rustfmt::skip]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 35 }]

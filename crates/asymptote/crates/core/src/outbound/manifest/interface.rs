@@ -2,7 +2,7 @@
 
 use super::errors::ManifestError;
 use super::types::{HookTable, Products};
-use crate::domain::manifest::types::{Manifest, ProductRoot};
+use asymptote_values::domain::manifest::types::{Manifest, ProductRoot};
 
 /// What every `manifest` adapter implements.
 pub trait ManifestPort: std::fmt::Debug + Send + Sync {

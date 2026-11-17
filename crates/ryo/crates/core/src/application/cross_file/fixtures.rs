@@ -102,7 +102,8 @@ pub(super) fn world(plan: Plan) -> World {
         vec![plan],
         Arc::new(
             ryo_execution_runtime::outbound::operators::factory::use_case(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+                ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
+                ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(
                     std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
                 ),
             ),
@@ -168,11 +169,7 @@ pub(super) fn world_with_applicability(
         })
         .collect::<Vec<_>>();
     let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
-    let engine = PrepareUseCaseImpl::new(
-        operators,
-        ryo_execution::derived(),
-        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
-    );
+    let engine = PrepareUseCaseImpl::new(operators);
     let program = Arc::new(
         engine
             .prepare(PrepareRequest {
@@ -187,7 +184,7 @@ pub(super) fn world_with_applicability(
                         id: id.clone(),
                         query: QueryBundle {
                             root: QueryDocumentSource {
-                                id: QuerySourceId(id.0.clone()),
+                                id: QuerySourceId(id.0.clone().into()),
                                 text: "".into(),
                             },
                             modules: Default::default(),
@@ -341,51 +338,6 @@ pub(super) fn frontier_rows() -> Vec<(FileId, Table)> {
     vec![row(0, &[1, 1]), row(1, &[2])]
 }
 
-#[derive(Debug, Default)]
-pub(super) struct ProjectCalls {
-    pub(super) reductions: std::sync::atomic::AtomicUsize,
-    pub(super) aggregates: std::sync::atomic::AtomicUsize,
-}
-
-impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ProjectCalls {
-    fn operators(
-        &self,
-        mut call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    > {
-        use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-        use std::sync::atomic::Ordering;
-        #[expect(
-            clippy::wildcard_enum_match_arm,
-            reason = "the audit counts reductions and group emissions; every other operator call passes through unchanged"
-        )]
-        match &mut call {
-            OperatorCall::ReduceCount { .. } => {
-                self.reductions.fetch_add(1, Ordering::SeqCst);
-            }
-            OperatorCall::Evaluate {
-                operation:
-                    ryo_values::domain::plans::types::Operation::GroupCount { .. }
-                    | ryo_values::domain::plans::types::Operation::GroupDigest { .. },
-                driver,
-                ..
-            } => {
-                // One aggregate is formatted for each prepared group.
-                let groups = driver.groups().map_or(0, |groups| groups.0);
-                self.aggregates.fetch_add(groups, Ordering::SeqCst);
-            }
-            _ => {}
-        }
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
-            std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
-        )
-        .operators(call)
-    }
-}
-
 pub(super) fn service() -> CrossFile {
     CrossFile::new(
         std::sync::Arc::new(crate::outbound::corpus::fixtures::fake::CorpusFake::default()),
@@ -397,3 +349,5 @@ pub(super) fn service() -> CrossFile {
 
 #[cfg(test)]
 pub(crate) mod evaluation;
+#[cfg(test)]
+pub(crate) mod project_calls;

@@ -1,0 +1,64 @@
+[[cases]]
+name = "tuple-left-and-right"
+files = { "src/lib.rs" = "pub fn f(t: (u8, u8, u8, u8)) -> u8 {\n    let (a, _, ..) = t;\n    let (.., _, d) = t;\n    let (_, .., _) = t;\n    a + d\n}\n" }
+expected = [{ file = "src/lib.rs", start = 50, end = 53 }, { file = "src/lib.rs", start = 73, end = 76 }, { file = "src/lib.rs", start = 95, end = 98 }, { file = "src/lib.rs", start = 100, end = 103 }]
+
+[[cases]]
+name = "runs-of-wildcards"
+files = { "src/lib.rs" = "pub fn f(t: (u8, u8, u8, u8, u8)) -> u8 {\n    let (a, _, _, ..) = t;\n    let (.., _, _, e) = t;\n    let (_, b, _, .., _) = t;\n    a + e + b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 54, end = 60 }, { file = "src/lib.rs", start = 80, end = 86 }, { file = "src/lib.rs", start = 111, end = 114 }, { file = "src/lib.rs", start = 116, end = 119 }]
+
+[[cases]]
+name = "tuple-structs"
+files = { "src/lib.rs" = "pub struct T(pub u8, pub u8, pub u8);\npub fn f(t: T) -> u8 {\n    let T(a, _, ..) = t;\n    a\n}\npub fn g(v: Option<(u8, u8)>) -> u8 {\n    match v {\n        Some((x, .., _)) => x,\n        None => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 74, end = 77 }, { file = "src/lib.rs", start = 165, end = 168 }]
+
+[[cases]]
+name = "structs"
+files = { "src/lib.rs" = "pub struct S {\n    pub a: u8,\n    pub b: u8,\n    pub c: u8,\n}\npub fn f(s: S) -> u8 {\n    let S { a, b: _, .. } = s;\n    a\n}\npub fn g(s: S) -> u8 {\n    let S { a: _, b: _, .. } = s;\n    let S { c, a: _, b: _ } = s;\n    c\n}\n" }
+expected = [{ file = "src/lib.rs", start = 100, end = 106 }, { file = "src/lib.rs", start = 159, end = 171 }]
+
+[[cases]]
+name = "not-next-to-the-rest"
+files = { "src/lib.rs" = "pub fn f(t: (u8, u8, u8, u8)) -> u8 {\n    let (_, b, ..) = t;\n    let (.., c, _) = t;\n    let (_, _, _, d) = t;\n    let [_, .., _] = [0u8; 3];\n    let (..) = t;\n    b + c + d\n}\n" }
+expected = []
+
+[[cases]]
+name = "spacing-and-trailing-comma"
+files = { "src/lib.rs" = "pub fn f(t: (u8, u8, u8)) -> u8 {\n    let (a,_,..) = t;\n    let (.. , _ ,) = t;\n    let (\n        b,\n        _,\n        ..\n    ) = t;\n    a + b\n}\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 47 }, { file = "src/lib.rs", start = 67, end = 71 }, { file = "src/lib.rs", start = 109, end = 120 }]
+
+[[cases]]
+name = "nested-and-parameters"
+files = { "src/lib.rs" = "pub fn f((a, _, ..): (u8, u8, u8), t: ((u8, u8), u8)) -> u8 {\n    let ((x, ..), _) = t;\n    let ((.., _), y) = t;\n    let c = |(z, _, ..): (u8, u8, u8)| z;\n    a + x + y + c((1, 2, 3))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 13, end = 16 }, { file = "src/lib.rs", start = 100, end = 103 }, { file = "src/lib.rs", start = 131, end = 134 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let (a, _, ..) = (1, 2, 3);\n        assert_eq!(a, 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 66, end = 69 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($t:expr) => {\n        let (a, _, ..) = $t;\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::unneeded_wildcard_pattern)]\npub fn f(t: (u8, u8, u8)) -> u8 {\n    let (a, _, ..) = t;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f(t: (u8, u8, u8)) -> u8 {\n    let (a, _, ..) = t;\n    a\n}\npub fn g(t: (u8, u8, u8)) -> u8 {\n    #[allow(clippy::all)]\n    let (a, _, ..) = t;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::unneeded_wildcard_pattern)]\npub fn f(t: (u8, u8, u8)) -> u8 {\n    let (a, _, ..) = t;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::complexity)]\npub fn f(t: (u8, u8, u8)) -> u8 {\n    #[warn(clippy::unneeded_wildcard_pattern)]\n    let (a, _, ..) = t;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 123, end = 126 }]

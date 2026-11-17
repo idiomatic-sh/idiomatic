@@ -96,8 +96,8 @@ fn transported(
     };
     // The missing operand's own column a join names: through the view on the right.
     let own = |column: ColumnIndex| {
-        if own_side == Side::Right && !view.is_empty() {
-            usize::try_from(column.0).map_or(None, |at| view.get(at).copied())
+        if own_side == Side::Right {
+            ryo_values::domain::plan_parts::service::view_source(view, column)
         } else {
             Some(column)
         }
@@ -220,11 +220,9 @@ pub fn output_coverage(
                 // file as well; a step's key says nothing of where its rows came from.
                 let mut file_keyed = false;
                 for own in own {
-                    let own = if input.ordinal.0 == 1 && !view.is_empty() {
-                        let Ok(at) = usize::try_from(own.0) else {
-                            return Err(OperatingError::NotRun);
-                        };
-                        *view.get(at).ok_or(OperatingError::NotRun)?
+                    let own = if input.ordinal.0 == 1 {
+                        ryo_values::domain::plan_parts::service::view_source(view, *own)
+                            .ok_or(OperatingError::NotRun)?
                     } else {
                         *own
                     };
@@ -321,6 +319,7 @@ pub fn output_coverage(
                     || proven == Proof::Proven
             }
             Operation::OrderedDfs { .. }
+            | Operation::Worklist { .. }
             | Operation::Axis { .. }
             | Operation::Closure { .. }
             | Operation::Cycles { .. } => !output_kinds.iter().copied().any(file_kind),
@@ -375,7 +374,7 @@ pub fn output_coverage(
 /// from that same source. Only a declared file/node partition key certifies
 /// that missing rows cannot change answers in another physical file.
 pub fn ordered_output_coverage(
-    partition: &[ryo_values::domain::plan_parts::types::ColumnIndex],
+    partition: &[ColumnIndex],
     output_kinds: &[ryo_relations::domain::relations::types::CellKind],
     source: &InputCoverage<'_>,
 ) -> CoverageState {

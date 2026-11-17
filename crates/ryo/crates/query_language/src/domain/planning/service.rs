@@ -1,9 +1,9 @@
 //! The `planning` service: a step is added to the plan under construction, and where it runs is
 //! decided: per file, or after the files.
 
-use ryo_relations::domain::relations::service::provenance_of;
+use ryo_relations::domain::catalog::service::scope_of as relation_scope;
+use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::lineage::service::anchor_of;
 use ryo_values::domain::lineage::types::ColumnAnchor;
 
@@ -14,7 +14,6 @@ use crate::domain::resolving::service::{column_of, relation_fields, step_of};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_tokens::types as tokens;
 
 /// The step the next one pushed onto `items` will be.
@@ -150,6 +149,13 @@ pub(crate) fn placed(
             root_keys,
             edge_keys,
             ..
+        }
+        | plans::Operation::Worklist {
+            root,
+            source,
+            root_keys,
+            edge_keys,
+            ..
         } => {
             (keyed_on(first, &[*root], held) == FileOrigin::Held
                 || keyed_on(first, root_keys, held) == FileOrigin::Held)
@@ -205,7 +211,7 @@ pub(crate) fn planned_scope(
 ) -> Option<ryo_values::domain::plan_parts::types::StepScope> {
     match input {
         parts::Input::Relation(relation) => {
-            Some(if provenance_of(relation) == Provenance::Manifests {
+            Some(if relation_scope(relation) == RowScope::Project {
                 ryo_values::domain::plan_parts::types::StepScope::CrossFile
             } else {
                 ryo_values::domain::plan_parts::types::StepScope::PerFile
@@ -223,7 +229,7 @@ pub(crate) fn planned_scope(
 pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput {
     match input {
         parts::Input::Relation(relation) => ScopedInput {
-            scope: if provenance_of(relation) == Provenance::Manifests {
+            scope: if relation_scope(relation) == RowScope::Project {
                 ryo_values::domain::plan_parts::types::StepScope::CrossFile
             } else {
                 ryo_values::domain::plan_parts::types::StepScope::PerFile

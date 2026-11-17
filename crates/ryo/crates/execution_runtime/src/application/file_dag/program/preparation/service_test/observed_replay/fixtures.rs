@@ -131,13 +131,43 @@ pub(super) fn fixture(
             ryo_relations::domain::relations::types::Integer(1),
         )])],
     }];
+    let operators: std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort> =
+        std::sync::Arc::new(crate::outbound::operators::factory::use_case(
+            ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
+            ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(
+                std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+            ),
+        ));
+    let mut sets =
+        ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets::default();
+    let pass = crate::application::file_dag::file_pass::service::pass_program(
+        &crate::application::file_dag::file_pass::types::PassSource {
+            plans: compiled.plans.clone(),
+            bindings: compiled.bindings.clone(),
+            operators,
+            hosted: hosted
+                .iter()
+                .map(|relation| {
+                    relation
+                        .columns
+                        .iter()
+                        .map(|column| ryo_values::domain::hosted::service::kind_of(column.kind))
+                        .collect()
+                })
+                .collect(),
+            ids: rules.iter().map(|rule| rule.id.clone()).collect(),
+        },
+        &mut sets,
+    )
+    .expect("the file pass plans the request");
     crate::application::file_dag::program::preparation::service::prepare(
         compiled,
         &rules,
         &[Digest([0; 16]); 4],
         &hosted,
-        ryo_execution_store::application::file_dag::fixtures::program_derived_port(),
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([9; 16]))),
+        &pass,
+        &mut sets,
     )
     .unwrap()
 }

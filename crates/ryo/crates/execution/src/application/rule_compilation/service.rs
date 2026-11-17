@@ -30,10 +30,9 @@ pub struct CompiledRules {
 }
 
 impl CompiledRules {
-    /// The plans, in the order of the rules.
-    #[must_use]
-    pub fn plans(&self) -> &[ryo_values::domain::plans::types::Plan] {
-        &self.inner.plans
+    /// The plans, in the order of the rules. They are shared with the compilation's cache, never copied out of it.
+    pub fn plans(&self) -> impl ExactSizeIterator<Item = &ryo_values::domain::plans::types::Plan> {
+        self.inner.plans.iter().map(AsRef::as_ref)
     }
     /// What each rule binds its parameters to, in the order of the plan's parameters.
     #[must_use]
@@ -110,7 +109,7 @@ impl RuleCompilation {
             ..
         } = &schedule
         {
-            let mut plans: Vec<Option<ryo_values::domain::plans::types::Plan>> =
+            let mut plans: Vec<Option<Arc<ryo_values::domain::plans::types::Plan>>> =
                 vec![None; rules.len()];
             let mut bindings = vec![None; rules.len()];
             let mut observations = vec![Vec::new(); rules.len()];
@@ -191,7 +190,7 @@ impl RuleCompilation {
         rule: &RuleSpec,
         declared: &[ryo_values::domain::hosted::types::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-    ) -> Result<ryo_values::domain::plans::types::Plan, RuleCompilationError> {
+    ) -> Result<Arc<ryo_values::domain::plans::types::Plan>, RuleCompilationError> {
         if let Some(plan) = self
             .compiled
             .0
@@ -205,7 +204,7 @@ impl RuleCompilation {
                     && cached.observation_bindings == rule.observations
                     && cached.observation_inputs == observations
             })
-            .map(|cached| cached.plan.clone())
+            .map(|cached| Arc::clone(&cached.plan))
         {
             return Ok(plan);
         }
@@ -231,6 +230,7 @@ impl RuleCompilation {
             ));
             kept.parsed = modules;
         }
+        let plan = Arc::new(plan);
         self.cache_plan(rule, declared, observations, &plan);
         Ok(plan)
     }
@@ -259,14 +259,14 @@ impl RuleCompilation {
         rule: &RuleSpec,
         declared: &[ryo_values::domain::hosted::types::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-        plan: &ryo_values::domain::plans::types::Plan,
+        plan: &Arc<ryo_values::domain::plans::types::Plan>,
     ) {
         let cached = CachedPlan {
             query: rule.query.clone(),
             hosted: declared.to_vec(),
             observation_bindings: rule.observations.clone(),
             observation_inputs: observations.to_vec(),
-            plan: plan.clone(),
+            plan: Arc::clone(plan),
         };
         let mut kept = self
             .compiled
@@ -288,7 +288,7 @@ impl RuleCompilation {
 /// Observe completed compilation at its existing caller-controlled phase boundary.
 pub(crate) fn observed(
     rules: &[RuleSpec],
-    plans: &[ryo_values::domain::plans::types::Plan],
+    plans: &[Arc<ryo_values::domain::plans::types::Plan>],
     bindings: &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>],
     hosted: &[HostRelation],
     digest: &dyn DigestPort,

@@ -1,0 +1,79 @@
+[[cases]]
+name = "if-then-if"
+files = { "src/lib.rs" = "pub fn f(b: bool) {\n    if b {} if b {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 32 }]
+
+[[cases]]
+name = "if-then-block"
+files = { "src/lib.rs" = "pub fn f(b: bool) {\n    if b {\n    } {\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 36, end = 37 }]
+
+[[cases]]
+name = "next-line"
+files = { "src/lib.rs" = "pub fn f(b: bool) {\n    if b {}\n    if b {}\n    if b {}\n    {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "after-else"
+files = { "src/lib.rs" = "pub fn f(b: bool) {\n    if b {} else {} if b {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 39, end = 40 }]
+
+[[cases]]
+name = "after-semicolon"
+files = { "src/lib.rs" = "pub fn f(b: bool) {\n    if b {}; if b {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "unsafe-labeled-async-const"
+files = { "src/lib.rs" = "pub fn f(b: bool) {\n    if b {} unsafe {}\n    if b {} 'a: {\n        break 'a;\n    }\n    if b {} let _ = async {};\n    if b {} const {}\n    if b {} loop {\n        break;\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 32 }, { file = "src/lib.rs", start = 53, end = 54 }]
+
+[[cases]]
+name = "comment-between"
+files = { "src/lib.rs" = "pub fn f(b: bool) {\n    if b {} /* c */ if b {}\n    if b {} // c\n    if b {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "no-space"
+files = { "src/lib.rs" = "pub fn f(b: bool) {\n    if b {}if b {}\n    if b {}{}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 31, end = 31 }, { file = "src/lib.rs", start = 50, end = 50 }]
+
+[[cases]]
+name = "tail-expression"
+files = { "src/lib.rs" = "pub fn f(b: bool) -> i32 {\n    if b {} if b { 1 } else { 2 }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 38, end = 39 }]
+
+[[cases]]
+name = "let-first"
+files = { "src/lib.rs" = "pub fn f(b: bool) {\n    let _ = if b { 1 } else { 2 }; if b {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "if-let"
+files = { "src/lib.rs" = "pub fn f(x: Option<i32>) {\n    if let Some(_) = x {} if let None = x {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 52, end = 53 }]
+
+[[cases]]
+name = "in-macros"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($b:expr) => {\n        if $b {} if $b {}\n    };\n}\npub fn f(b: bool) {\n    m!(b);\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::possible_missing_else)]\npub fn f(b: bool) {\n    if b {} if b {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub fn f(b: bool) {\n    if b {} if b {}\n}\n#[allow(clippy::all)]\npub fn g(b: bool) {\n    if b {} if b {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::possible_missing_else)]\npub fn f(b: bool) {\n    if b {} if b {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::possible_missing_else)]\npub fn f(b: bool) {\n    if b {} if b {}\n}\npub fn g(b: bool) {\n    if b {} if b {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 100, end = 101 }]

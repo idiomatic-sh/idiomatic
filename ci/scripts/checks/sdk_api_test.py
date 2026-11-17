@@ -44,7 +44,6 @@ MANIFEST = """[workspace.metadata.api]
 package = "demo-sdk"
 library = "demo"
 nightly = "nightly-2026-08-01"
-baseline-rev = "abc123"
 listing = "api.txt"
 allow = ["demo::old"]
 """
@@ -161,6 +160,15 @@ def test_a_product_that_names_no_api_passes_without_running_anything(tmp_path, m
     assert calls == []
 
 
+def test_a_product_that_pins_only_the_doctest_nightly_names_no_api_and_passes(tmp_path, monkeypatch) -> None:
+    # asymptote-config 0.9.0's `test-doc` reads `nightly` from `[workspace.metadata.api]`; a product with no SDK pins it alone.
+    (tmp_path / "Cargo.toml").write_text('[workspace]\n\n[workspace.metadata.api]\nnightly = "nightly-2026-08-01"\n')
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda argv, **options: calls.append(argv))
+    sdk_api.check(tmp_path)
+    assert calls == []
+
+
 # The manifests of the baseline the last check handed to semver-checks.
 CHECKED: list[str] = []
 
@@ -187,6 +195,8 @@ def run_check(
             (tmp_path / "target/doc/demo.json").write_text(json.dumps(gated_rustdoc))
         if argv[:2] == ["git", "rev-parse"]:
             out = f"{tmp_path}\n"
+        elif argv[:2] == ["git", "tag"]:
+            out = "idiomatic-sh-demo-v0.1.4\nidiomatic-sh-demo-v0.1.3\n"
         elif argv[:2] == ["cargo", "metadata"]:
             out = json.dumps(
                 {
@@ -216,11 +226,11 @@ def run_check(
 def test_it_checks_the_leaks_the_listing_and_the_semver_baseline(tmp_path, monkeypatch) -> None:
     CHECKED.clear()
     calls = run_check(tmp_path, monkeypatch, "pub fn demo::lint()\n", document("lint", "serde"))
-    # The SDK is named by its own manifest, and the baseline is the revision's workspace without its assets, so a fixture crate
+    # The SDK is named by its own manifest, and the baseline is the newest release tag's workspace without its assets, so a fixture crate
     # of the same name in either is no ambiguity.
     assert calls[-1][:7] == ["cargo", "semver-checks", "--manifest-path", str(tmp_path / "crates/demo/sdk/Cargo.toml"), "-p", "demo-sdk", "--baseline-root"]
     assert calls[-1][7].endswith("/tree/crates/demo")
-    assert ["git", "archive", "--format=tar", "-o", calls[-2][4], "abc123", "crates/demo"] == calls[-2]
+    assert ["git", "archive", "--format=tar", "-o", calls[-2][4], "idiomatic-sh-demo-v0.1.4", "crates/demo"] == calls[-2]
     assert CHECKED == ["Cargo.toml"]
     # The rustdoc JSON the leaks are read from lists the `doc(hidden)` items too.
     assert any("rustdoc" in call and "--document-hidden-items" in call for call in calls)
@@ -290,3 +300,39 @@ def test_a_type_a_member_forwards_through_another_members_reexport_is_internal_a
     assert leaks(document("run", "ryo_execution_domain"), [], internal) == ["demo::run -> ryo_execution_domain::types::Thing"]
     assert leaks(document("run", "serde"), [], internal) == []
     assert leaks(document("run", "demo_bench"), [], internal) == []
+
+
+def released(tmp_path: Path, tags: dict[str, str]) -> Path:
+    """A repository with a commit on `main` and a commit on a branch `side` off it, each name of `tags` a tag on the branch its
+    value names, and `main` checked out."""
+    def git(*argv: str) -> None:
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *argv], cwd=tmp_path, check=True, capture_output=True)
+    git("init", "-q", "-b", "main")
+    git("commit", "-q", "--allow-empty", "-m", "main")
+    git("checkout", "-q", "-b", "side")
+    git("commit", "-q", "--allow-empty", "-m", "side")
+    for name, branch in tags.items():
+        git("tag", name, branch)
+    git("checkout", "-q", "main")
+    return tmp_path
+
+
+def test_the_baseline_is_the_newest_released_tag_by_version(tmp_path) -> None:
+    root = released(tmp_path, {f"idiomatic-sh-demo-v{each}": "main" for each in ("0.1.2", "0.1.10", "0.1.4")})
+    assert sdk_api.baseline(root, "demo") == "idiomatic-sh-demo-v0.1.10"
+
+
+def test_a_tag_not_merged_into_head_is_not_the_baseline(tmp_path) -> None:
+    root = released(tmp_path, {"idiomatic-sh-demo-v0.1.4": "main", "idiomatic-sh-demo-v0.1.5": "side"})
+    assert sdk_api.baseline(root, "demo") == "idiomatic-sh-demo-v0.1.4"
+
+
+def test_another_product_s_tag_is_not_the_baseline(tmp_path) -> None:
+    root = released(tmp_path, {"idiomatic-sh-demo-v0.1.4": "main", "idiomatic-sh-other-v0.2.0": "main"})
+    assert sdk_api.baseline(root, "demo") == "idiomatic-sh-demo-v0.1.4"
+
+
+def test_a_product_with_no_release_refuses(tmp_path) -> None:
+    root = released(tmp_path, {"idiomatic-sh-other-v0.2.0": "main"})
+    with pytest.raises(RuntimeError, match="no released tag of demo to compare the SDK with"):
+        sdk_api.baseline(root, "demo")

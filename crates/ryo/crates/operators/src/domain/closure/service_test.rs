@@ -1,65 +1,50 @@
-//! A closure answers its partition's key, the source and each vertex the source reaches, in walk order.
-use super::service::evaluate;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::contract::types::RowScratch;
-use crate::domain::evaluation::fixtures::{FakeDriver, number, written};
+//! The `closure` service's cases, on values alone.
 
-/// Which partitions the engine lends.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    /// One partition with two sources, the second reaching nothing.
-    Reaching,
-    /// Two partitions, each with one source.
-    Partitioned,
-    /// No partition.
-    Empty,
+use super::service::lower;
+use super::types::ReachParts;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+
+/// A scenario: whether what the part answers is what the case states.
+type Input = fn() -> bool;
+type Value = bool;
+type Failure = ();
+
+/// A closure reaches over its source and destination columns within the partition its keys name.
+fn reaches_within_its_keys() -> bool {
+    lower(&[ColumnIndex(3)], ColumnIndex(0), ColumnIndex(1))
+        == ReachParts {
+            keys: vec![ColumnIndex(3)],
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+        }
 }
-type Input = Scenario;
-type Value = std::borrow::Cow<'static, str>;
-type Failure = PortableOperatorFault;
+
+/// A closure with no keys reaches over one partition.
+fn unkeyed_is_one_partition() -> bool {
+    lower(&[], ColumnIndex(1), ColumnIndex(0)).keys.is_empty()
+}
+
+/// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("each_reached_vertex_is_one_row_after_its_key_and_source"),
+        name: CaseName("a_closure_reaches_within_its_keys"),
         word: Word::Succeeds,
-        input: || Scenario::Reaching,
-        expect: Expect::Value(std::borrow::Cow::Borrowed("10 1 3|10 1 4")),
+        input: || reaches_within_its_keys,
+        expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("each_partition_answers_under_its_own_key"),
+        name: CaseName("an_unkeyed_closure_is_one_partition"),
         word: Word::Succeeds,
-        input: || Scenario::Partitioned,
-        expect: Expect::Value(std::borrow::Cow::Borrowed("10 1 3|11 2 5")),
-    },
-    Case {
-        name: CaseName("no_partition_answers_no_row"),
-        word: Word::Succeeds,
-        input: || Scenario::Empty,
-        expect: Expect::Value(std::borrow::Cow::Borrowed("")),
+        input: || unkeyed_is_one_partition,
+        expect: Expect::Value(true),
     },
 ];
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    let mut driver = FakeDriver {
-        reaches: vec![
-            (number(1), vec![number(3), number(4)]),
-            (number(2), vec![number(5)]),
-        ],
-        ..FakeDriver::default()
-    };
-    driver.partitions = match scenario {
-        Scenario::Reaching => vec![(vec![number(10)], vec![number(1), number(6)])],
-        Scenario::Partitioned => vec![
-            (vec![number(10)], vec![number(1)]),
-            (vec![number(11)], vec![number(2)]),
-        ],
-        Scenario::Empty => Vec::new(),
-    };
-    if let Scenario::Partitioned = scenario {
-        driver.reaches[0].1.truncate(1);
-    }
-    evaluate(&mut driver, &mut RowScratch::default())?;
-    Ok(std::borrow::Cow::Owned(written(&driver.emitted)))
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    Ok(input())
 }
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);

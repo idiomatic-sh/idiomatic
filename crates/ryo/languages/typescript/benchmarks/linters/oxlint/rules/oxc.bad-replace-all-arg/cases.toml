@@ -97,3 +97,8 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line bad-replace-all-arg\ns.replaceAll(/a/, \"b\");\n" }
 expected = []
+
+[[cases]]
+name = "computed-escaped-template-and-flags"
+files = { "case.ts" = "s[`repl\\u0061ceAll`](/a/, \"b\");\ns.replaceAll(new RegExp(\"a\", `\\u0069`), \"b\");\n" }
+expected = [{ file = "case.ts", start = 2, end = 19 }, { file = "case.ts", start = 34, end = 44 }]

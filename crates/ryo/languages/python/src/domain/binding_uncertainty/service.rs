@@ -15,7 +15,7 @@ use crate::domain::{
         types::Kind,
     },
 };
-use ryo::languages::{Flag, Position, Symbol, Tree};
+use ryo::languages::{Flag, Position, Tree};
 
 /// Index real mutation identities once, retaining the flat buffer between sources.
 pub(crate) fn prepare(tree: &Tree<'_>, model: &Declarations, index: &mut BindingAnalysisIndex) {

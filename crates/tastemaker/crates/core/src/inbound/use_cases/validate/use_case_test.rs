@@ -4,21 +4,21 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 use super::errors::ValidateError;
 use super::interface::ValidateUseCase;
 use super::types::{Proved, Proving, ValidateRequest};
 use super::use_case::{ValidatePorts, ValidateUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::files::types::{FileText, MachinePath};
-use crate::domain::proofs::types::Proof;
 use crate::inbound::use_cases::check::fixtures::selection;
 use crate::outbound::analysis::fixtures::fake::AnalysisFake;
 use crate::outbound::packages::fixtures::fake::PackagesFake;
 use crate::outbound::repository::fixtures::fake::RepositoryFake;
 use crate::outbound::validate_store::fixtures::fake::ValidateStoreFake as StoreFake;
 use crate::outbound::validate_store::interface::ValidateStorePort;
+use tastemaker_values::domain::files::types::{FileText, MachinePath};
+use tastemaker_values::domain::proofs::types::Proof;
 
 /// A rule with a scenario that expects the marker at line 1, and one that expects nothing.
 const RULE: &str = r#"description = "A marker comment is reported."
@@ -550,10 +550,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             scheduler,
             reporting,
             fixtures: Arc::<RepositoryFake>::clone(&repository),
-            settings: crate::domain::settings::types::Store {
+            settings: tastemaker_values::domain::settings::types::Store {
                 directory: MachinePath("/fake/.tastemaker_cache".into()),
-                build: crate::domain::settings::types::Build("test".into()),
-                writing: crate::domain::writing::types::Writing::Write,
+                build: tastemaker_values::domain::settings::types::Build("test".into()),
+                writing: tastemaker_values::domain::writing::types::Writing::Write,
             },
             repository,
             manifest: Arc::new(crate::outbound::manifest::factory::toml()),
@@ -745,10 +745,10 @@ fn lifecycle_validator_over(
         scheduler,
         reporting,
         fixtures: Arc::<RepositoryFake>::clone(repository),
-        settings: crate::domain::settings::types::Store {
+        settings: tastemaker_values::domain::settings::types::Store {
             directory: MachinePath("/fake/.tastemaker_cache".into()),
-            build: crate::domain::settings::types::Build("test".into()),
-            writing: crate::domain::writing::types::Writing::Write,
+            build: tastemaker_values::domain::settings::types::Build("test".into()),
+            writing: tastemaker_values::domain::writing::types::Writing::Write,
         },
         repository: Arc::<RepositoryFake>::clone(repository),
         manifest: Arc::new(crate::outbound::manifest::factory::toml()),

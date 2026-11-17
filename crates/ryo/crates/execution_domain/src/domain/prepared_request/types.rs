@@ -10,7 +10,7 @@ pub struct Compiled {
     pub observations:
         Vec<Vec<crate::domain::observation_schedule::types::ResolvedObservationBinding>>,
     /// The plans, in the order of the rules.
-    pub plans: Vec<Plan>,
+    pub plans: Vec<std::sync::Arc<Plan>>,
     /// What each rule binds its parameters to, in the order of the plan's parameters.
     pub bindings: Vec<Vec<ParameterBinding>>,
 }

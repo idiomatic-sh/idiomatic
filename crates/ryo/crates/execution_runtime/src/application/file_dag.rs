@@ -1,24 +1,19 @@
-//! Central generation-scoped scheduling, shared graph results and last-use release.
-pub mod derived;
-pub(crate) mod execution;
-#[cfg(test)]
-mod graph_resources;
-pub(crate) mod predicates;
-pub(crate) mod resources;
+//! A request's program prepared once and run over its files: the file pass, the project phase and the publications they
+//! share.
 pub mod service;
+#[cfg(test)]
+mod service_test;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod testing;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
 
-#[cfg(test)]
-mod service_test;
-
-pub(crate) mod executor;
-
-pub mod observations;
-mod ordered_existence;
+pub(crate) mod fact_lookup;
+pub(crate) mod file_pass;
+pub(crate) mod project_pass;
+pub(crate) mod project_source;
+pub(crate) mod publications;
 
 pub mod program;
 

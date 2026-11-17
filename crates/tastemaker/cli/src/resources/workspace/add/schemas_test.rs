@@ -57,10 +57,10 @@ fn subject(line: Input) -> Result<Value, Failure> {
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("add").chain(line))
         .map_err(|_error| Next::Report)?;
     let edge = crate::resources::edge_at(
-        tastemaker_core::domain::files::types::MachinePath("/repo/work space".into()),
-        tastemaker_core::domain::settings::types::Build("test".into()),
+        tastemaker_values::domain::files::types::MachinePath("/repo/work space".into()),
+        tastemaker_values::domain::settings::types::Build("test".into()),
         crate::output::Format::Terminal,
-        tastemaker_core::domain::writing::types::Writing::Write,
+        tastemaker_values::domain::writing::types::Writing::Write,
     );
     let expected = parsed.arguments.at.to_str().expect("text path").to_owned();
     let definition = parsed.arguments.definition.clone();
@@ -73,16 +73,16 @@ fn subject(line: Input) -> Result<Value, Failure> {
     .map_err(|error| error.next())?;
     // `marker` is a rule here, anything else a spec.
     let kind = if definition == "marker" {
-        tastemaker_core::domain::packages::types::DefinitionKind::Rule
+        tastemaker_values::domain::packages::types::DefinitionKind::Rule
     } else {
-        tastemaker_core::domain::packages::types::DefinitionKind::Spec
+        tastemaker_values::domain::packages::types::DefinitionKind::Spec
     };
     let report = tastemaker_core::inbound::use_cases::add::types::AddReport {
-        file: tastemaker_core::domain::paths::types::RepoPath("tastemaker.toml".into()),
+        file: tastemaker_values::domain::paths::types::RepoPath("tastemaker.toml".into()),
         entry: tastemaker_core::inbound::use_cases::add::types::ShownEntry(
             format!("p/{definition}@0.1.0").into(),
         ),
-        reference: tastemaker_core::domain::packages::types::DefinitionName(
+        reference: tastemaker_values::domain::packages::types::DefinitionName(
             definition.clone().into(),
         ),
         kind,

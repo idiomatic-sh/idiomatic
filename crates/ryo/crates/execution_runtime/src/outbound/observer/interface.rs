@@ -4,6 +4,7 @@ use super::types::FedTotals;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::LogicalCounts;
+use ryo_values::domain::runs::types::FileHandover;
 
 /// What the engine reports about its own work, to a caller that asked for it. Nothing the engine answers depends on it.
 ///
@@ -34,4 +35,16 @@ pub trait ObserverPort: Send + Sync {
     ///
     /// The observer lost what it was told.
     fn totals(&self) -> Result<FedTotals, OperatingError>;
+    /// What one file handed the steps after the files of one rule, at the point its frontiers are captured.
+    ///
+    /// # Errors
+    ///
+    /// The observer cannot keep the report: the run that asked for it stops rather than answer a count short.
+    fn handed(&self, handover: FileHandover) -> Result<(), OperatingError>;
+    /// Every handover the observer has been told of, in the order of the files, then of the rules.
+    ///
+    /// # Errors
+    ///
+    /// The observer lost what it was told.
+    fn handovers(&self) -> Result<Vec<FileHandover>, OperatingError>;
 }

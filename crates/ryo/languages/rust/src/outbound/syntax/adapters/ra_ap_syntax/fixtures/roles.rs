@@ -2,9 +2,9 @@
 
 use super::super::adapter::SyntaxRaApSyntaxAdapter;
 use super::super::schemas::kind_of;
-use crate::domain::syntax::constants::EXPANDED_MACROS;
+use crate::domain::syntax::constants::OPAQUE_MACROS;
 use crate::domain::syntax::types::Kind;
-use crate::outbound::syntax::types::Expanding;
+use crate::outbound::syntax::types::OpaqueMacros;
 use ra_ap_syntax::SyntaxKind;
 use ryo::languages::{
     ByteSlice, Elements, Position, Symbols, end_at, kind_at, positions, start_at, text_of,
@@ -132,7 +132,7 @@ pub(in super::super) fn expression_roles(owner: &ra_ap_syntax::SyntaxNode, said:
 /// names is in the role the accessor is called, and the answer lists the ones that are not.
 pub(in super::super) fn roles(source: &'static str) -> String {
     let language = crate::inbound::contracts::parse::contract::ParseContract::new(
-        std::sync::Arc::new(SyntaxRaApSyntaxAdapter::new(Expanding(&EXPANDED_MACROS))),
+        std::sync::Arc::new(SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS))),
         std::sync::Arc::new(crate::outbound::notes::factory::postcard()),
     );
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());

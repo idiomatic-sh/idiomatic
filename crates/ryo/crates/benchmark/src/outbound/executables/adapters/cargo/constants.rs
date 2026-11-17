@@ -18,10 +18,10 @@ pub(super) const ONE_BENCH_EXECUTABLE: &str =
     "expected exactly one bench executable of the bench's package";
 /// The refusal of a reference tool the search path does not hold.
 pub(super) const TOOL_NOT_FOUND: &str = "reference tool not found on the search path";
-/// The refusal of a child whose output was not captured.
-pub(super) const NO_OUTPUT: &str = "the sealed executable's output was not captured";
 /// Owner read, write and execute; group and others read and execute.
 #[cfg(unix)]
 pub(super) const EXECUTABLE_MODE: u32 = 0o755;
+/// The refusal of a child whose output was not captured.
+pub(super) const NO_OUTPUT: &str = "the sealed executable's output was not captured";
 /// The size of one read of a child's output.
 pub(super) const CHUNK: usize = 8192;

@@ -194,7 +194,7 @@ fn parse_field(
 
 /// Parse all conversions and retain their ordered argument consumption summary.
 pub(super) fn parse_percent_string(input: FormatInput<'_>) -> Result<ParsedFormat, Failure> {
-    let mut cursor = self::cursor(input);
+    let mut cursor = cursor(input);
     let mut fields = Vec::new();
     let mut summary = FormatSummary::default();
     while let Some(character) = advance(&mut cursor) {

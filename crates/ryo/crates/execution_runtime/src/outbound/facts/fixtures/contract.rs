@@ -128,6 +128,49 @@ fn packed_words_come_back_as_the_words_kept(facts: &dyn FactsPort) -> Result<Val
     ))
 }
 
+/// Whether a bucket's provenance, read alone, is exactly what `kept` gives besides the words, joined across workers, for a
+/// worker finished on its own and for a bucket nothing kept: 1.
+fn sources_are_what_kept_holds_besides_its_words(
+    facts: &dyn FactsPort,
+) -> Result<Value, FactsError> {
+    use crate::outbound::facts::types::{KeptSources, KeptWordsLength};
+    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage, FrontierMissing};
+    let mut partial = FRONTIER_PROOF.clone();
+    partial.coverage =
+        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)]);
+    let (first, second, alone) = (facts.worker()?, facts.worker()?, facts.worker()?);
+    for (worker, words, file, proof) in [
+        (&first, vec![1, 2], FileId(1), &partial),
+        (&second, vec![3], FileId(0), &*FRONTIER_PROOF),
+        (&alone, vec![4, 5, 6], FileId(2), &*FRONTIER_PROOF),
+    ] {
+        worker.keep(
+            Bucket(3),
+            WordsToKeep {
+                words: &PackedWords(words),
+                file,
+                proof,
+            },
+        )?;
+    }
+    let joined = facts.finish(&mut vec![first, second].into_iter())?;
+    let alone = alone.finished()?;
+    let mut agree = true;
+    for (finish, bucket) in [
+        (&joined, Bucket(3)),
+        (&joined, Bucket(9)),
+        (&alone, Bucket(3)),
+    ] {
+        let kept = finish.kept(bucket)?;
+        agree &= finish.sources(bucket)?
+            == KeptSources {
+                sources: kept.sources,
+                length: KeptWordsLength(kept.words.0.0.len()),
+            };
+    }
+    Ok(usize::from(agree))
+}
+
 /// Byte ranges retain exact per-file coverage through worker joining.
 fn frontier_proofs_follow_their_bytes(facts: &dyn FactsPort) -> Result<Value, FactsError> {
     use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage, FrontierMissing};
@@ -173,11 +216,7 @@ fn frontier_proofs_follow_their_bytes(facts: &dyn FactsPort) -> Result<Value, Fa
 fn resident_rows_survive_other_reads_and_word_flushes(
     facts: &dyn FactsPort,
 ) -> Result<Value, FactsError> {
-    use crate::outbound::facts::types::ResidentStability;
     let mut worker = facts.worker()?;
-    if worker.resident_stability() == ResidentStability::Unstable {
-        return Ok(1);
-    }
     let first = [7, 3, 2, (7_u64 << 32_u32) | 0x0b];
     let second = [1, 1, 2, (1_u64 << 32_u32) | 0x03];
     {
@@ -233,6 +272,12 @@ fn resident_rows_survive_other_reads_and_word_flushes(
 
 /// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_buckets_sources_are_what_kept_holds_besides_its_words"),
+        word: Word::Succeeds,
+        input: || sources_are_what_kept_holds_besides_its_words,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("frontier_proofs_follow_their_bytes_across_workers"),
         word: Word::Succeeds,

@@ -1,6 +1,0 @@
-
-[[cases]]
-name = "cross-PYI003-invalid-slice-upper"
-comparison = "full"
-files = { "case.pyi" = "import sys\nif sys.version_info[:3] == (3, 10, 1):\n    ...\n" }
-expected = [{ end = 48, file = "case.pyi", rule = "PYI003", start = 14 }]

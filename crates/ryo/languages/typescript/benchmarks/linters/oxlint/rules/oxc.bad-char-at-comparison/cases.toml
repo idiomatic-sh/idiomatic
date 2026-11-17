@@ -87,3 +87,18 @@ expected = [{ file = "case.ts", start = 4, end = 15 }]
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line bad-char-at-comparison\nif (s.charAt(0) === \"ab\") {}\n" }
 expected = []
+
+[[cases]]
+name = "computed-template"
+files = { "case.ts" = "if (s[`charAt`](0) === \"ab\") {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 18 }]
+
+[[cases]]
+name = "computed-escaped-template"
+files = { "case.ts" = "if (s[`char\\u0041t`](0) === \"ab\") {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 23 }]
+
+[[cases]]
+name = "computed-escaped-string"
+files = { "case.ts" = "if (s[\"char\\u0041t\"](0) === \"ab\") {}\n" }
+expected = [{ file = "case.ts", start = 4, end = 23 }]

@@ -1,9 +1,11 @@
 //! The types of the `reaching` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::paths::types::RepoPath;
-use crate::domain::placement::errors::PlacementError;
-use crate::domain::scopes::types::ScopeIndex;
-use crate::domain::selectors::types::{GlobIndex, Resolved, ResolvedSelectors, Selectors};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::errors::PlacementError;
+use tastemaker_values::domain::scopes::types::ScopeIndex;
+use tastemaker_values::domain::selectors::types::{
+    GlobIndex, Resolved, ResolvedSelectors, Selectors,
+};
 
 /// A rule entry's `include` and `exclude`: what decides the files the entry reaches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

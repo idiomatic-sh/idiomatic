@@ -1,7 +1,11 @@
 Feature: operate
   @succeeds
-  Scenario: Parity passes only the worker's metrics through
-    Then a parity operation writes exactly what its sealed worker wrote
+  Scenario: A language bench passes when every default passes and writes only the worker's document
+    Then a bench writes exactly the document its sealed worker wrote, as one BMF document
+
+  @refuses
+  Scenario: A bench whose cases fail measures nothing
+    Then a bench whose verification fails runs no corpus
 
   @refuses
   Scenario: An absent reference tool is named before anything is built

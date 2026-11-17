@@ -29,13 +29,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(text: Input) -> Result<Value, Failure> {
     let mut word = String::with_capacity(32);
     let mut output = Vec::new();
-    split(CellText(text), WordScratch(&mut word), &mut |word: &str| {
-        output.push(word.to_owned())
-    });
+    split(
+        CellText(text),
+        WordScratch(&mut word),
+        &mut Collected(&mut output),
+    );
     assert!(word.is_empty());
     Ok(std::borrow::Cow::Owned(output.join("|")))
 }
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// The words split, in order.
+struct Collected<'a>(&'a mut Vec<String>);
+
+impl crate::domain::words::types::WordOutput for Collected<'_> {
+    fn word(&mut self, text: CellText<'_>) {
+        self.0.push(text.0.to_owned());
+    }
 }

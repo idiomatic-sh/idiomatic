@@ -6,7 +6,7 @@
 #[derive(Debug)]
 pub(crate) struct WorkspaceValidateConnections {
     /// Where the project's store is, the build that writes it, and whether it is written.
-    pub store: tastemaker_core::domain::settings::types::Store,
+    pub store: tastemaker_values::domain::settings::types::Store,
     /// How many workers the run's one pool has: one a core of the machine.
     pub workers: tastemaker_core::outbound::scheduler::types::WorkerCount,
 }
@@ -14,23 +14,23 @@ pub(crate) struct WorkspaceValidateConnections {
 /// Opens the stores and returns their clients: the store of the workspace nearest `start`, under `build`, written
 /// unless `writing` says `-n/--dry-run`.
 pub(crate) fn connect(
-    store: &tastemaker_core::domain::files::types::DirectoryName,
-    start: &tastemaker_core::domain::files::types::MachinePath,
-    build: &tastemaker_core::domain::settings::types::Build,
-    writing: tastemaker_core::domain::writing::types::Writing,
+    store: &tastemaker_values::domain::files::types::DirectoryName,
+    start: &tastemaker_values::domain::files::types::MachinePath,
+    build: &tastemaker_values::domain::settings::types::Build,
+    writing: tastemaker_values::domain::writing::types::Writing,
 ) -> WorkspaceValidateConnections {
     let start = std::path::Path::new(&*start.0);
     let workspace = start
         .ancestors()
         .find(|path| {
-            path.join(tastemaker_core::domain::definitions::constants::WORKSPACE_FILE)
+            path.join(tastemaker_values::domain::definitions::constants::WORKSPACE_FILE)
                 .is_file()
         })
         .unwrap_or(start);
     let directory = workspace.join(&*store.0);
     WorkspaceValidateConnections {
-        store: tastemaker_core::domain::settings::types::Store {
-            directory: tastemaker_core::domain::files::types::MachinePath(
+        store: tastemaker_values::domain::settings::types::Store {
+            directory: tastemaker_values::domain::files::types::MachinePath(
                 directory.display().to_string().into(),
             ),
             build: build.clone(),

@@ -1,12 +1,12 @@
 //! The `up` use case's failures.
 
-use crate::domain::operations::errors::OperationsError;
-use crate::domain::selection::types::At;
-use crate::domain::violations::types::Violation;
 use crate::outbound::lock::errors::LockError;
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::matching::errors::MatchingError;
 use crate::outbound::repository::errors::RepositoryError;
+use asymptote_values::domain::operations::errors::OperationsError;
+use asymptote_values::domain::selection::types::At;
+use asymptote_values::domain::violations::types::Violation;
 
 /// Why `up` recorded nothing.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

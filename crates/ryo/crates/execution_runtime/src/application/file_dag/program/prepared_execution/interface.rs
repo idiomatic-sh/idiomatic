@@ -8,7 +8,6 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
-use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::Bucket;
 /// Read-only request metadata; no mutable program, permit or population escapes.
 ///
@@ -21,9 +20,13 @@ use ryo_values::domain::stored_facts::types::Bucket;
 /// }
 /// ```
 pub trait ProgramPreparedExecutionPort {
+    /// The program's rules grouped into the batches in which their observations become ready.
     fn observation_batches(&self) -> RuleBatches<'_>;
+    /// How many rules the program holds.
     fn rule_count(&self) -> RuleTotal;
+    /// The order the program runs its rules in.
     fn rule_order(&self) -> RuleOrder<'_>;
+    /// Which rules the request wants, given which rules govern a file: `governs` answers for each rule.
     fn demanded_rules(&self, governs: impl Fn(RuleIndex) -> Demand) -> Demands;
     /// The rule's emitted root.
     ///
@@ -62,7 +65,9 @@ pub trait ProgramPreparedExecutionPort {
         rule: RuleIndex,
         input: ryo_values::domain::plan_parts::types::InputNumber,
     ) -> Result<FrontierPurpose, OperatingError>;
+    /// Whether the program's rules need a semantic session for the files they run over.
     fn semantic_needed(&self) -> SemanticNeed;
+    /// The readiness layout of the program's named observations, when it has any.
     fn observation_layout(&self) -> ObservationLayout<'_>;
     /// The relations the rule's observations read.
     ///
@@ -90,7 +95,9 @@ pub trait ProgramPreparedExecutionPort {
         rule: RuleIndex,
     ) -> Result<FrontierDependencies<'_>, OperatingError>;
 }
+/// What a prepared program reports of itself: its run metadata and the rules a changed selection makes run again.
 pub trait PreparedReporting {
+    /// The run metadata of each rule, in rule order.
     fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleRunMetadata];
     /// The rules a replay must run again, from the first buckets of a run.
     ///

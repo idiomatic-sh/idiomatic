@@ -1,6 +1,6 @@
 //! The `model` service's cases, on values alone.
 
-use ryo::languages::{Position, Symbol};
+use ryo::languages::{Position, ShapeIndex, Symbol};
 use std::cell::RefCell;
 
 use super::service::redirect_of;
@@ -42,7 +42,7 @@ fn subject((scope, name): Input) -> Value {
             minor: crate::domain::standard_library::types::PythonMinor(15),
         },
         bindings: RefCell::default(),
-        expression_shapes: RefCell::default(),
+        expression_shapes: ShapeIndex::default(),
         constant_keys: RefCell::default(),
         format_parsing: RefCell::default(),
         raw_format: RefCell::default(),

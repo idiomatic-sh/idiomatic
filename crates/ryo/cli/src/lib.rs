@@ -10,13 +10,10 @@
 
 pub mod edge;
 mod languages;
-#[cfg(all(
-    test,
-    feature = "javascript",
-    feature = "typescript",
-    feature = "python",
-    feature = "rust"
-))]
+/// The handles of the languages this build links, as `ryo lint` links them: test support, not public API.
+#[cfg(feature = "fixtures")]
+pub use languages::linked_connections;
+#[cfg(all(test, feature = "typescript", feature = "python", feature = "rust"))]
 mod languages_test;
 pub mod outcome;
 pub mod output;

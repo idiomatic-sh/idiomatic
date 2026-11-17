@@ -1,7 +1,8 @@
 //! The facts fakes the execution use case's `project_phase_axis` boundary scenarios inject.
+use super::fake::sources_of;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
-use crate::outbound::facts::types::{BucketSource, KeptBucket};
+use crate::outbound::facts::types::{BucketSource, KeptBucket, KeptSources};
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -34,5 +35,9 @@ impl FactsFinish for CapturedBuckets {
             words: Arc::new(KeptWords(PackedWords(words))),
             sources,
         })
+    }
+
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        Ok(sources_of(&self.kept(bucket)?))
     }
 }

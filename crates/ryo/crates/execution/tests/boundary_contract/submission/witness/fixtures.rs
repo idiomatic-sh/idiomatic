@@ -2,10 +2,8 @@
 use ryo_execution::inbound::use_cases::execution::interface::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FactsWorker;
-use ryo_execution::inbound::use_cases::execution::interface::FileInput;
 use ryo_execution::inbound::use_cases::execution::interface::FileRules;
 use ryo_execution::inbound::use_cases::execution::interface::FileRunInput;
-use ryo_execution::inbound::use_cases::execution::interface::FileSession;
 use ryo_execution::inbound::use_cases::execution::interface::Install;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationBatches;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationStage;
@@ -99,19 +97,12 @@ impl ProgramRequestExecutionPort for Witness {
     fn finish(self) {
         witness(Method::RequestFinish)
     }
-    fn open_file<'a, 'facts: 'a>(
-        &'a self,
-        _: FileInput<'a, 'facts>,
-        _: &mut Symbols,
-    ) -> Result<FileSession<'a, 'facts>, OperatingError> {
-        unreachable!("the session route is not an entry: a file runs through run_file")
-    }
     fn run_file(
         &self,
         _: FileRunInput<'_>,
         _: &mut Symbols,
         _: CaptureContext<'_>,
-        _: &dyn FactsWorker,
+        _: &mut dyn FactsWorker,
     ) -> FileRules {
         witness(Method::RequestRunFile)
     }

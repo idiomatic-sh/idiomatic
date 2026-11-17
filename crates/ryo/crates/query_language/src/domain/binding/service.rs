@@ -40,7 +40,7 @@ pub(crate) fn bind_arguments(
             return Err(located(
                 source,
                 call.span,
-                trace.to_vec(),
+                trace,
                 format!("argument `{}` is given more than once", argument.name.0),
             ));
         }
@@ -60,7 +60,7 @@ pub(crate) fn bind_arguments(
         return Err(located(
             source,
             call.span,
-            trace.to_vec(),
+            trace,
             format!("fragment has no input or parameter named `{unexpected}`"),
         ));
     }
@@ -70,7 +70,7 @@ pub(crate) fn bind_arguments(
             located(
                 source,
                 call.span,
-                trace.to_vec(),
+                trace,
                 format!("missing relation input `{}`", input.name.0),
             )
         })?;
@@ -82,7 +82,7 @@ pub(crate) fn bind_arguments(
             return Err(located(
                 source,
                 call.span,
-                trace.to_vec(),
+                trace,
                 format!(
                     "relation input `{}` must name a relation or step",
                     input.name.0
@@ -99,7 +99,7 @@ pub(crate) fn bind_arguments(
             located(
                 source,
                 call.span,
-                trace.to_vec(),
+                trace,
                 format!("missing scalar parameter `{}`", parameter.parameter.0),
             )
         })?;
@@ -108,7 +108,7 @@ pub(crate) fn bind_arguments(
             return Err(located(
                 source,
                 call.span,
-                trace.to_vec(),
+                trace,
                 format!(
                     "parameter `{}` has a value of the wrong type",
                     parameter.parameter.0

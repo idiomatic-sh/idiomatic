@@ -6,7 +6,7 @@ use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
 /// A finite already-admitted row view. Reading a cell cannot schedule upstream work.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum BulkRows<'a> {
     /// Rows stored in physical columns.
     Stored(ColumnsView<'a>),

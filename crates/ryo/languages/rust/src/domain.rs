@@ -1,5 +1,6 @@
 //! The rust domain's rules, one module per concept.
 
+pub(crate) mod attribute_paths;
 pub(crate) mod bindings;
 pub(crate) mod conditions;
 pub(crate) mod declarations;
@@ -15,8 +16,10 @@ pub(crate) mod language;
 pub(crate) mod link_state;
 pub(crate) mod links;
 pub(crate) mod manifests;
+pub(crate) mod model;
 pub(crate) mod module_tree;
 pub(crate) mod nodes;
+pub(crate) mod numeric_literals;
 pub(crate) mod package_index;
 pub(crate) mod packages;
 pub(crate) mod paths;
@@ -25,6 +28,8 @@ pub(crate) mod refinements;
 pub(crate) mod relations;
 pub(crate) mod resolutions;
 pub(crate) mod scopes;
+pub(crate) mod shapes;
+pub(crate) mod string_literals;
 pub(crate) mod syntax;
 pub(crate) mod targets;
 pub(crate) mod tokens;

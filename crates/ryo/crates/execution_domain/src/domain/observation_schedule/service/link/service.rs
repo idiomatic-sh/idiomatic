@@ -3,8 +3,9 @@
 
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::observation_schedule::types::{
-    BindingCount, EscapingOutputs, ExportedOutputs, LinkedObservationPlans, PendingStep,
-    ResolvedObservationBinding, ResolvedObservationProducer, UsedInputs, WantedSteps,
+    BindingCount, EscapingOutputs, ExportedOutputs, LinkedObservationPlans, OutputPlaces,
+    PendingStep, Pruned, ResolvedObservationBinding, ResolvedObservationProducer, UsedInputs,
+    WantedSteps,
 };
 use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -35,7 +36,7 @@ use std::collections::BTreeSet;
 /// [`RuleIntentError::InvalidReference`] when a step, output or binding a plan names does not exist, and
 /// [`RuleIntentError::TooManyOutputs`] when a pruned plan has more outputs than a `u32` numbers.
 pub fn link(
-    mut plans: Vec<Plan>,
+    mut plans: Vec<std::sync::Arc<Plan>>,
     bindings: Vec<Vec<ResolvedObservationBinding>>,
 ) -> Result<LinkedObservationPlans, RuleIntentError> {
     if bindings.iter().all(Vec::is_empty) && plans.iter().all(|plan| plan.observations.is_empty()) {
@@ -92,9 +93,18 @@ pub fn link(
         }
     }
     let escapes = cross_file_exports(&plans, &bindings, &wanted)?;
-    let mut output_maps = Vec::with_capacity(plans.len());
+    // A plan pruning keeps whole stays the one the compilation holds; only a pruned plan is new.
+    let mut output_maps: Vec<Option<OutputPlaces>> = Vec::with_capacity(plans.len());
     for (rule, plan) in plans.iter_mut().enumerate() {
-        output_maps.push(prune(plan, &wanted[rule], &exports[rule], &escapes[rule])?);
+        output_maps.push(
+            match prune(plan, &wanted[rule], &exports[rule], &escapes[rule])? {
+                Pruned::Unchanged => None,
+                Pruned::Changed(pruned, places) => {
+                    *plan = std::sync::Arc::new(pruned);
+                    Some(places)
+                }
+            },
+        );
     }
     let mut kept_bindings = Vec::new();
     for (rule, inputs) in bindings.into_iter().enumerate() {
@@ -113,11 +123,16 @@ pub fn link(
                     let Ok(at) = usize::try_from(output.0) else {
                         return Err(RuleIntentError::InvalidReference);
                     };
-                    *output = output_maps
-                        .get(rule.0)
-                        .and_then(|mapping| mapping.get(at))
-                        .and_then(|id| *id)
-                        .ok_or(RuleIntentError::InvalidReference)?;
+                    *output = match output_maps.get(rule.0) {
+                        Some(Some(places)) => places.0.get(at).and_then(|id| *id),
+                        // A plan kept whole keeps each output in its place.
+                        Some(None) => plans
+                            .get(rule.0)
+                            .filter(|plan| at < plan.observations.len())
+                            .map(|_| *output),
+                        None => None,
+                    }
+                    .ok_or(RuleIntentError::InvalidReference)?;
                 }
             }
             kept.push(binding);
@@ -134,7 +149,7 @@ pub fn link(
 pub(super) fn demand_bound_input(
     rule: RuleIndex,
     input: ObservationBindingId,
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     bindings: &[Vec<ResolvedObservationBinding>],
     used: &mut [UsedInputs],
     exports: &mut [ExportedOutputs],
@@ -182,7 +197,7 @@ pub(super) fn demand_bound_input(
 
 /// A per-file producer needs an escape only when an actual cross-file step reads its bound input.
 pub(super) fn cross_file_exports(
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     bindings: &[Vec<ResolvedObservationBinding>],
     wanted: &[WantedSteps],
 ) -> Result<Vec<EscapingOutputs>, RuleIntentError> {
@@ -216,7 +231,7 @@ pub(super) fn cross_file_exports(
 
 /// Mark the per-file outputs that one bound input reads for a cross-file step.
 pub(super) fn mark_escapes(
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     binding: &ResolvedObservationBinding,
     escapes: &mut [EscapingOutputs],
 ) -> Result<(), RuleIntentError> {
@@ -236,13 +251,22 @@ pub(super) fn mark_escapes(
     Ok(())
 }
 
-/// Reindex all step references together, preserving original rule identities and parameter positions.
+/// Reindex all step references together, preserving original rule identities and parameter positions. A plan whose every step
+/// and output is kept, with no output escaping and the frontier it already has, is `Unchanged`: the caller keeps sharing it.
+/// Any other is `Changed`: a new plan holding clones of only the kept steps and outputs, each list exactly as long as it keeps.
 pub(super) fn prune(
-    plan: &mut Plan,
+    plan: &Plan,
     wanted: &WantedSteps,
     exports: &ExportedOutputs,
     escapes: &EscapingOutputs,
-) -> Result<Vec<Option<ObservationIndex>>, RuleIntentError> {
+) -> Result<Pruned, RuleIntentError> {
+    if wanted.0.iter().all(|keep| *keep)
+        && exports.0.iter().all(|keep| *keep)
+        && !escapes.0.iter().any(|escapes| *escapes)
+        && frontier(plan)? == plan.frontier
+    {
+        return Ok(Pruned::Unchanged);
+    }
     let mut step_map = vec![None; plan.steps.len()];
     let mut next = StepId(0);
     for (at, keep) in wanted.0.iter().copied().enumerate() {
@@ -258,11 +282,12 @@ pub(super) fn prune(
             .flatten()
             .ok_or(RuleIntentError::InvalidReference)
     };
-    let mut steps = Vec::new();
-    for (at, mut step) in std::mem::take(&mut plan.steps).into_iter().enumerate() {
+    let mut steps = Vec::with_capacity(wanted.0.iter().filter(|keep| **keep).count());
+    for (at, step) in plan.steps.iter().enumerate() {
         if !wanted.0[at] {
             continue;
         }
+        let mut step = step.clone();
         let mut failure = None;
         each_input(&mut step.operation, &mut |input| {
             if let Input::Step(id) = input {
@@ -277,20 +302,19 @@ pub(super) fn prune(
         }
         steps.push(step);
     }
-    plan.emit.step = remap(plan.emit.step)?;
+    let mut emit = plan.emit.clone();
+    emit.step = remap(plan.emit.step)?;
     let mut output_map = vec![None; plan.observations.len()];
-    let mut observations = Vec::new();
+    let mut observations = Vec::with_capacity(exports.0.iter().filter(|keep| **keep).count());
     let mut extra_frontier = Vec::new();
-    for (at, mut observation) in std::mem::take(&mut plan.observations)
-        .into_iter()
-        .enumerate()
-    {
+    for (at, observation) in plan.observations.iter().enumerate() {
         if !exports.0[at] {
             continue;
         }
         let Input::Step(id) = observation.source else {
             return Err(RuleIntentError::InvalidReference);
         };
+        let mut observation = observation.clone();
         observation.source = Input::Step(remap(id)?);
         if escapes.0[at] {
             extra_frontier.push(observation.source);
@@ -300,15 +324,22 @@ pub(super) fn prune(
         ));
         observations.push(observation);
     }
-    plan.steps = steps;
-    plan.observations = observations;
-    plan.frontier = frontier(plan)?;
+    let mut pruned = Plan {
+        observation_inputs: plan.observation_inputs.clone(),
+        parameters: plan.parameters.clone(),
+        steps,
+        comparison_origins: plan.comparison_origins.clone(),
+        observations,
+        emit,
+        frontier: Vec::new(),
+    };
+    pruned.frontier = frontier(&pruned)?;
     for input in extra_frontier {
-        if !plan.frontier.contains(&input) {
-            plan.frontier.push(input);
+        if !pruned.frontier.contains(&input) {
+            pruned.frontier.push(input);
         }
     }
-    Ok(output_map)
+    Ok(Pruned::Changed(pruned, OutputPlaces(output_map)))
 }
 
 /// The step number after `id`; a plan cannot have more steps than numbers.

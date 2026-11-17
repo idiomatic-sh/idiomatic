@@ -1,13 +1,14 @@
 //! What the `project_budget` use case promises, against the fakes of the ports it calls, from its fixtures.
-//! Real lint routes preserve budget failures and stop later project cohorts.
-use super::fixtures::{BudgetRoute, BudgetScenario, MemoryPressure, ReductionCount, observe};
+//! Real lint routes preserve budget failures and stop later project cohorts: the nodes run after the files, counted at the
+//! operators port, are the first cohort's alone.
+use super::fixtures::{BudgetRoute, BudgetScenario, MemoryPressure, RunCount, observe};
 use crate::{
     cases::{Case, CaseName, Expect, Matched, Word, run, selects},
     inbound::use_cases::lint::errors::LintError,
     outbound::memory::errors::MemoryError,
 };
 type Input = BudgetScenario;
-type Value = ReductionCount;
+type Value = RunCount;
 type Failure = LintError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -51,7 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             route: BudgetRoute::Ordinary,
             pressure: MemoryPressure::Allowed,
         },
-        expect: Expect::Value(ReductionCount(2)),
+        expect: Expect::Value(RunCount(2)),
     },
     Case {
         name: CaseName("named_budget_after_actual_first_cohort"),
@@ -94,15 +95,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             route: BudgetRoute::Named,
             pressure: MemoryPressure::Allowed,
         },
-        expect: Expect::Value(ReductionCount(2)),
+        expect: Expect::Value(RunCount(3)),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     let observed = observe(input);
     if input.pressure != MemoryPressure::Allowed {
+        // The first cohort's nodes after the files, recorded from a run: one ordinary rule's, or the named producer's two.
+        let first_cohort = match input.route {
+            BudgetRoute::Ordinary => RunCount(1),
+            BudgetRoute::Named => RunCount(2),
+        };
         assert_eq!(
-            observed.reductions,
-            ReductionCount(1),
+            observed.runs, first_cohort,
             "the later project cohort must not execute after the first budget or memory error"
         );
     }
@@ -111,7 +116,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         report.unknowns.is_empty(),
         "actual file frontiers and named members must be complete"
     );
-    Ok(observed.reductions)
+    Ok(observed.runs)
 }
 // Engine lease liveness stays private; execution's lifecycle controls prove release.
 #[test]

@@ -1,10 +1,10 @@
 //! The types of the `reporting` concept: plain data, public fields and derives, with no constructor and no inherent
 //! impl.
 
-use crate::domain::applications::types::{Plan, SpannedFinding};
-use crate::domain::findings::types::{Finding, Fingerprint, Reason, Suppression};
-use crate::domain::governance::types::Answers;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::applications::types::{Plan, SpannedFinding};
+use tastemaker_values::domain::findings::types::{Finding, Fingerprint, Reason, Suppression};
+use tastemaker_values::domain::governance::types::Answers;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// What the report is made of: the plan, the lint call's answers, the findings made before it and
 /// the directories the report is limited to.
@@ -65,7 +65,7 @@ pub struct Candidate {
     /// The finding.
     pub finding: Finding,
     /// The source line captured before releasing the file lease.
-    pub line: crate::domain::findings::types::FirstLine,
+    pub line: tastemaker_values::domain::findings::types::FirstLine,
     /// Whether an ignore accepts it.
     pub acceptance: Standing,
 }

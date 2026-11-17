@@ -1,0 +1,36 @@
+[package]
+name = "idiomatic-sh-ryo-rust-clippy-benchmark"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "The clippy linter benchmark of the Ryo Rust provider: its rules, fragments, worker and parity tests"
+autobenches = false
+autotests = false
+
+[dependencies]
+
+[dev-dependencies]
+ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../../.." }
+ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../../../../crates/benchmark_contracts" }
+ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../../../../crates/benchmark", features = ["fixtures"] }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../../../../crates/sdk" }
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+tempfile.workspace = true
+
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "clippy"
+path = "bench.rs"
+harness = false
+
+[[test]]
+name = "clippy"
+path = "tests.rs"

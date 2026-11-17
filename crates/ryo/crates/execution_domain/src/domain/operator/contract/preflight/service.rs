@@ -75,6 +75,7 @@ pub(crate) fn empty_results(operation: &Operation, inputs: &[InputShape<'_>]) ->
         | Operation::Words { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
@@ -106,7 +107,10 @@ pub(crate) fn output_layout(
         }
         Operation::Capture { pattern, .. } => kinds.extend(std::iter::repeat_n(
             CellKind::Symbol,
-            memchr::memchr_iter(b'{', pattern.0.as_bytes()).count(),
+            ryo_operators::domain::capture::service::slot_count(
+                ryo_operators::domain::capture::types::SlotPattern(&pattern.0),
+            )
+            .0,
         )),
         Operation::Rank { .. } => kinds.push(CellKind::Number),
         Operation::Words { .. } | Operation::Replace { .. } => kinds.push(CellKind::Symbol),
@@ -156,6 +160,7 @@ pub(crate) fn output_layout(
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Hosted { .. } => return checked.clone(),
     }

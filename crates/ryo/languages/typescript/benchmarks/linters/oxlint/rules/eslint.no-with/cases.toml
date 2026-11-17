@@ -1,0 +1,101 @@
+[[cases]]
+name = "with-in-js"
+files = { "w.js" = "function f(o){ with (o) { return x; } }\n" }
+expected = [{ file = "w.js", start = 15, end = 19 }]
+
+[[cases]]
+name = "with-in-cjs"
+files = { "w.cjs" = "function f(o){ with (o) { return x; } }\n" }
+expected = [{ file = "w.cjs", start = 15, end = 19 }]
+
+[[cases]]
+name = "with-in-mjs"
+comparison = "full"
+files = { "w.mjs" = "function f(o){ with (o) { return x; } }\n" }
+expected = [{ rule = "invalid-syntax", file = "w.mjs", start = 15, end = 19 }]
+
+[[cases]]
+name = "with-in-ts"
+comparison = "full"
+files = { "w.ts" = "function f(o){ with (o) { return x; } }\n" }
+expected = [{ rule = "invalid-syntax", file = "w.ts", start = 15, end = 19 }]
+
+[[cases]]
+name = "fail-01"
+files = { "case.js" = "with(foo) { bar() }" }
+expected = [{ file = "case.js", start = 0, end = 4 }]
+
+[[cases]]
+name = "fail-01-cjs"
+files = { "case.cjs" = "with(foo) { bar() }" }
+expected = [{ file = "case.cjs", start = 0, end = 4 }]
+
+[[cases]]
+name = "pass-01"
+files = { "case.js" = "foo.bar();" }
+expected = []
+
+[[cases]]
+name = "pass-02"
+files = { "case.js" = "/* with keyword in block comment */ foo();" }
+expected = []
+
+[[cases]]
+name = "pass-03"
+files = { "case.js" = "// with in line comment\nfoo();" }
+expected = []
+
+[[cases]]
+name = "pass-04"
+files = { "case.js" = "var obj = { with: 1 }; obj.with;" }
+expected = []
+
+[[cases]]
+name = "pass-05"
+files = { "case.js" = "obj.with = 1;" }
+expected = []
+
+[[cases]]
+name = "pass-06"
+files = { "case.js" = "class C { with() {} } new C().with();" }
+expected = []
+
+[[cases]]
+name = "pass-07"
+files = { "case.js" = "console.log('with in string');" }
+expected = []
+
+[[cases]]
+name = "pass-08"
+files = { "case.js" = "console.log(`with in template`);" }
+expected = []
+
+[[cases]]
+name = "pass-09"
+files = { "case.js" = "const o = {}; o['with'] = 2;" }
+expected = []
+
+[[cases]]
+name = "pass-10"
+files = { "case.js" = "const p = { ['with']: 3 }; p.with;" }
+expected = []
+
+[[cases]]
+name = "pass-11"
+files = { "case.js" = "const { with: w } = { with: 4 }; w;" }
+expected = []
+
+[[cases]]
+name = "next-line-directive"
+files = { "case.js" = "function f(o) {\n  // eslint-disable-next-line no-with\n  with (o) { return x; }\n}\n" }
+expected = []
+
+[[cases]]
+name = "directive-other-rule"
+files = { "case.js" = "function f(o) {\n  // eslint-disable-next-line no-debugger\n  with (o) { return x; }\n}\n" }
+expected = [{ file = "case.js", start = 60, end = 64 }]
+
+[[cases]]
+name = "import-attributes"
+files = { "case.js" = "import data from \"./d.json\" with { type: \"json\" };\nexport default data;\n" }
+expected = []

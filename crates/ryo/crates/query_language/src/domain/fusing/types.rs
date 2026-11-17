@@ -3,15 +3,6 @@
 pub(crate) mod demand;
 pub(crate) mod pulled_graph;
 
-/// Whether the resident tree lookup can serve a join.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TreeLookup {
-    /// The keys are ones the lookup implements through the view.
-    Supported,
-    /// The join keeps its filter as a separate select.
-    Unsupported,
-}
-
 /// Which step of the plan a closure sits at.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RootStep(pub usize);

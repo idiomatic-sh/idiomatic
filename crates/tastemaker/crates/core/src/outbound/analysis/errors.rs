@@ -1,6 +1,6 @@
 //! The `analysis` port's failures.
 
-use crate::domain::applications::types::LintRuleId;
+use tastemaker_values::domain::applications::types::LintRuleId;
 
 /// Why a lint call failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

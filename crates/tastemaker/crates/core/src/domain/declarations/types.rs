@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::domain::contracts::types::{AttributeText, DeclarationName};
+use tastemaker_values::domain::contracts::types::{AttributeText, DeclarationName};
 
 /// Whether a declaration's annotated type is part of what it declares: a value's is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

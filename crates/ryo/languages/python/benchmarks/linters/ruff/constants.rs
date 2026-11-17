@@ -23,8 +23,6 @@ pub(crate) const END_OPTIONS: &str = "--";
 pub(crate) const SHOW_FILES: &str = "--show-files";
 /// Discovery root relative to the explicit working directory.
 pub(crate) const CURRENT_DIRECTORY: &str = ".";
-/// Pin the reference to one worker for comparable execution.
-pub(crate) const ONE_WORKER: &str = "1";
 /// Refusal preventing an empty explicit selection from becoming directory discovery.
 pub(crate) const EMPTY_INPUT: &str = "empty input list would make Ruff walk the directory";
 /// Refusal for duplicated requested source paths.

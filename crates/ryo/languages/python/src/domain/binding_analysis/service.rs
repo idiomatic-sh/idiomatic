@@ -1,4 +1,5 @@
 //! Execute the language schedule; alternatives never select a last-visited declaration as unique.
+use super::types::{NameChainLimit, NameLoad};
 use crate::domain::{
     binding_observations::service::observe,
     binding_results::types::ReadContext,
@@ -6,7 +7,7 @@ use crate::domain::{
     binding_states::service::{clear as clear_environments, join, open},
     model::types::{
         ArmStart, BindingAction, BindingAnalysisIndex, BindingAnalysisState, BindingBranch,
-        BindingPhaseKind, Declarations,
+        BindingPhaseKind, Declarations, NameEventCount,
     },
 };
 use ryo::languages::{self, Integer, Position, Symbols, Tree};
@@ -29,15 +30,60 @@ pub(crate) fn clear(index: &mut BindingAnalysisIndex) {
 }
 
 /// Build one current-source index. No source positions are used as evaluation timestamps.
-#[expect(
-    clippy::too_many_lines,
-    reason = "this function executes the single deterministic schedule state machine"
-)]
 pub(crate) fn build(
     tree: &Tree<'_>,
     model: &Declarations,
     symbols: &mut Symbols,
     index: &mut BindingAnalysisIndex,
+) {
+    build_within(tree, model, symbols, index, NAME_CHAIN_LIMIT);
+}
+
+/// The most events of one name (its reads included) a file may hold. The ruff bench's `resolve-pointers` fragment follows a pointer
+/// chain of one name through 20 doubling rounds, so a longer chain would resolve to nothing; a file over this limit is
+/// incomplete, and every rule that reads its binding facts answers Unknown for it, never "no finding".
+pub(crate) const NAME_CHAIN_LIMIT: NameChainLimit = NameChainLimit(1 << 20);
+
+/// Whether any one name has more events than `limit` in the index built so far. The counts live in a scratch buffer the
+/// index keeps between files, so counting allocates nothing once the buffer has grown to the file's symbols.
+fn name_load(index: &mut BindingAnalysisIndex, limit: NameChainLimit) -> NameLoad {
+    if index.events.len() <= limit.0 {
+        // No name can hold more events than the file holds in all, so nothing is counted or allocated.
+        return NameLoad::Within;
+    }
+    let mut counts = std::mem::take(&mut index.name_counts);
+    counts.clear();
+    let mut load = NameLoad::Within;
+    for event in &index.events {
+        let Ok(slot) = usize::try_from(event.name.0) else {
+            continue;
+        };
+        if slot >= counts.len() {
+            counts.resize(slot + 1, NameEventCount::default());
+        }
+        if let Some(count) = counts.get_mut(slot) {
+            count.0 += 1;
+            if count.0 > limit.0 {
+                load = NameLoad::Over;
+                break;
+            }
+        }
+    }
+    index.name_counts = counts;
+    load
+}
+
+/// Build one current-source index, incomplete when one name exceeds `limit` events.
+#[expect(
+    clippy::too_many_lines,
+    reason = "this function executes the single deterministic schedule state machine"
+)]
+pub(crate) fn build_within(
+    tree: &Tree<'_>,
+    model: &Declarations,
+    symbols: &mut Symbols,
+    index: &mut BindingAnalysisIndex,
+    limit: NameChainLimit,
 ) {
     clear(index);
     if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete
@@ -141,7 +187,11 @@ pub(crate) fn build(
             }
         }
     }
-    index.state = BindingAnalysisState::Complete;
+    index.state = if name_load(index, limit) == NameLoad::Over {
+        BindingAnalysisState::Incomplete
+    } else {
+        BindingAnalysisState::Complete
+    };
 }
 
 /// Compute once for the current source, preserving request-order independence across all four facts.

@@ -64,7 +64,8 @@ impl ContextPort for ContextFake {
                 &manifest.logical_root,
                 &manifest.source_files,
                 &manifest.auxiliary_files,
-                missing
+                missing,
+                &manifest.links
             )
         ))
     }
@@ -74,7 +75,8 @@ impl ContextPort for ContextFake {
             .source_files
             .keys()
             .chain(manifest.auxiliary_files.keys())
-            .chain(&manifest.missing);
+            .chain(&manifest.missing)
+            .chain(manifest.links.keys());
         if !inside(&manifest.logical_root)
             || !manifest.boundary.is_absolute()
             || actual_root != manifest.boundary.join(&manifest.logical_root)
@@ -108,6 +110,7 @@ impl ContextPort for ContextFake {
             auxiliary_files: BTreeMap::new(),
             source_files: BTreeMap::new(),
             missing: Vec::new(),
+            links: BTreeMap::new(),
         };
         for path in tracked.0 {
             let identity = seal(&ContextBytes(path.as_os_str().as_encoded_bytes().to_vec()));
@@ -138,6 +141,7 @@ impl ContextPort for ContextFake {
                 .collect(),
             source_files: BTreeMap::new(),
             missing: context.missing.clone(),
+            links: BTreeMap::new(),
         };
         for (path, source) in sources {
             let resolved = resolve(&manifest, Path::new(path.0.as_ref()))?;
@@ -155,12 +159,17 @@ impl ContextPort for ContextFake {
         actual_root: &Path,
         dependencies: Vec<ryo::linter::ProjectDependency>,
     ) -> Result<ProjectContextReceipt, Error> {
-        self.validate(manifest, actual_root)?;
         let mut effective = manifest.clone();
         let mut observed = BTreeMap::new();
         for dependency in dependencies {
             let path = PathBuf::from(dependency.path.0.as_ref());
             let declared = resolve(manifest, &path)?;
+            if manifest.links.contains_key(&declared) {
+                return Err(Error::Invalid(format!(
+                    "context dependency names a sealed link: {}",
+                    path.display()
+                )));
+            }
             let sealed = manifest.auxiliary_files.contains_key(&declared)
                 || manifest.source_files.contains_key(&declared);
             let state = match dependency.state {
@@ -200,6 +209,7 @@ impl ContextPort for ContextFake {
         actual_root: &Path,
         observed: &ProjectContextReceipt,
     ) -> Result<(), Error> {
+        self.validate(manifest, actual_root)?;
         let dependencies = observed
             .dependencies
             .iter()
@@ -228,6 +238,70 @@ impl ContextPort for ContextFake {
                 serde_json::Value::String(format!("{receipt:?}")).to_string(),
             ),
         )
+    }
+}
+
+/// Which side of a launch's bracket a [`RefusingContext`] refuses.
+#[derive(Clone, Copy, Debug)]
+pub enum Refused {
+    /// The corpus, before the launch.
+    Seal,
+    /// The receipt, after the launch.
+    Receipt,
+}
+
+/// The fake, refusing the corpus before a launch or the receipt after it; the rest is [`ContextFake`].
+#[derive(Clone, Copy, Debug)]
+pub struct RefusingContext(pub Refused);
+
+impl ContextPort for RefusingContext {
+    fn fingerprint(&self, manifest: &ContextManifest) -> ArtifactDigest {
+        ContextFake.fingerprint(manifest)
+    }
+    fn validate(&self, _manifest: &ContextManifest, _actual_root: &Path) -> Result<(), Error> {
+        match self.0 {
+            Refused::Seal => Err(Error::Invalid("fixture seal refusal".into())),
+            Refused::Receipt => Ok(()),
+        }
+    }
+    fn seal_existing(
+        &self,
+        root: &Path,
+        sources: &[ryo::linter::RelativePath],
+        tracked: CorpusFiles<'_>,
+    ) -> Result<ContextManifest, Error> {
+        ContextFake.seal_existing(root, sources, tracked)
+    }
+    fn materialize(
+        &self,
+        boundary: &Path,
+        context: &CaseContext,
+        sources: &BTreeMap<ryo::linter::RelativePath, ryo::linter::SourceText>,
+    ) -> Result<ContextManifest, Error> {
+        ContextFake.materialize(boundary, context, sources)
+    }
+    fn receipt(
+        &self,
+        manifest: &ContextManifest,
+        actual_root: &Path,
+        dependencies: Vec<ryo::linter::ProjectDependency>,
+    ) -> Result<ProjectContextReceipt, Error> {
+        ContextFake.receipt(manifest, actual_root, dependencies)
+    }
+    fn verify_receipt(
+        &self,
+        _manifest: &ContextManifest,
+        _actual_root: &Path,
+        _observed: &ProjectContextReceipt,
+    ) -> Result<(), Error> {
+        Err(Error::Invalid("fixture receipt refusal".into()))
+    }
+    fn receipt_text(
+        &self,
+        receipt: &ProjectContextReceipt,
+    ) -> Result<ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error>
+    {
+        ContextFake.receipt_text(receipt)
     }
 }
 

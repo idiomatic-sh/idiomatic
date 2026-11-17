@@ -82,3 +82,8 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line bad-match-all-arg\ns.matchAll(/a/);\n" }
 expected = []
+
+[[cases]]
+name = "computed-escaped-template"
+files = { "case.ts" = "s[`m\\u0061tchAll`](/a/);\n" }
+expected = [{ file = "case.ts", start = 2, end = 17 }]

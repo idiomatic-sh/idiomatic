@@ -6,12 +6,12 @@
 use std::collections::BTreeSet;
 
 use super::types::{Block, Placed, SectionDepth, Titled};
-use crate::domain::comments::types::ByteSpan;
-use crate::domain::contracts::constants::{
+use tastemaker_values::domain::comments::types::ByteSpan;
+use tastemaker_values::domain::contracts::constants::{
     ARTICLE, LITERAL_BLOCK, ONE_LINE, PROSE_BLOCK, SECTION, SPACE,
 };
-use crate::domain::contracts::service::{holding, written};
-use crate::domain::contracts::types::{
+use tastemaker_values::domain::contracts::service::{holding, written};
+use tastemaker_values::domain::contracts::types::{
     AttributeText, ComparedText, DataRow, Declaration, DeclarationKind, DeclarationName,
     Decorations, Facts, Holding, RowPlace, Said, TemplateIdentity,
 };

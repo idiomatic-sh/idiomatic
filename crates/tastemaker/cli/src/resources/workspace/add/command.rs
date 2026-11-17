@@ -29,7 +29,7 @@ pub(super) fn answer(
     arguments: AddArguments,
     edge: &crate::edge::Edge,
 ) -> Result<impl crate::output::Encoded, Outcome> {
-    let dry = edge.writing == tastemaker_core::domain::writing::types::Writing::DryRun;
+    let dry = edge.writing == tastemaker_values::domain::writing::types::Writing::DryRun;
     let request =
         super::schemas::request(arguments.definition, arguments.at, arguments.params, edge)
             .map_err(|error| crate::output::fail(&error, Outcome::Error))?;

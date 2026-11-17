@@ -1,8 +1,8 @@
 //! Failures while preparing accepted state.
 
-use crate::domain::operations::errors::OperationsError;
 use crate::outbound::lock::errors::LockError;
 use crate::outbound::repository::errors::RepositoryError;
+use asymptote_values::domain::operations::errors::OperationsError;
 
 /// Why accepted records cannot be prepared.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

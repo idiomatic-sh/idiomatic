@@ -17,7 +17,7 @@ use ryo_relations::domain::relations::service::name;
 use ryo_values::domain::descriptions::types::{
     OperatorName, RelationName, StepCount, ValidateReport,
 };
-use ryo_values::domain::plans::types::QueryRequest;
+use ryo_values::domain::query_requests::types::QueryRequest;
 
 /// `typecheck`, over the syntax and the catalog it calls.
 pub struct TypecheckUseCaseImpl {

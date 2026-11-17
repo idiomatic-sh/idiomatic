@@ -100,7 +100,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::Text(COLUMNS_ASKED_ACROSS_FILES),
-        expect: Expect::Value(Answer::Lowered("project project join*")),
+        expect: Expect::Value(Answer::Lowered("project project project-keyed join*")),
     },
     Case {
         name: CaseName(
@@ -168,6 +168,7 @@ fn operation_name(operation: &Operation) -> &'static str {
         Operation::SourceMatches { .. } => "source-matches",
         Operation::OrderedMatch { .. } => "ordered-match",
         Operation::OrderedDfs { .. } => "ordered-dfs",
+        Operation::Worklist { .. } => "worklist",
         Operation::GroupCount { .. } => "group-count",
         Operation::GroupDigest { .. } => "group-digest",
         Operation::Antijoin { .. } => "antijoin",

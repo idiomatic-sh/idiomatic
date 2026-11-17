@@ -1,142 +1,79 @@
 //! Per-rule root, read and frontier metadata taken from the compiled plans.
-use crate::application::file_dag::program::preparation::types::{
-    ObservationMetadata, RootMetadata, RuleMetadata,
-};
+use crate::application::file_dag::file_pass::service::step_sets;
+use crate::application::file_dag::file_pass::types::PassProgram;
+use crate::application::file_dag::program::preparation::types::{RootPlan, RulePlan};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::{
-    InputSource, executable_program::value::ExecutableProgram,
-};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
-use ryo_execution_domain::domain::trust::types::RelationRead;
-use ryo_values::domain::plan_parts::types::{Input, StepId};
+use ryo_execution_domain::domain::trust::types::read_set::value::ReadSet;
+use ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets;
+use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
+use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::{Operation, Plan};
 
-/// One entry per plan, in rule order.
-pub(crate) fn rules(
-    program: &ExecutableProgram,
-    named: Option<&ObservationMetadata>,
+/// What each plan states, in rule order: its emit, frontiers, named outputs with what each reads on the way (the file pass's
+/// step reads, the one computation of them), its frontiers' purposes and whether it renders.
+///
+/// # Errors
+///
+/// `NotRun` when the purposes or the step reads hold no entry for a rule or a named output's step.
+pub(crate) fn plans(
     plans: &[Plan],
-    observation_frontiers: &[Vec<FrontierPurpose>],
-) -> Result<Vec<RuleMetadata>, OperatingError> {
-    let mut metadata = Vec::with_capacity(plans.len());
-    for (rule, plan) in plans.iter().enumerate() {
-        let rule = RuleIndex(rule);
-        // A rule with an errored origin is refused on its own roots; sibling rules prepare.
-        let refusal = program
-            .rules()
-            .get(rule.0)
-            .and_then(|compiled| {
-                compiled
-                    .original_steps
-                    .iter()
-                    .find_map(|origin| origin.as_ref().err())
-            })
-            .cloned();
-        let reads = ryo_execution_domain::domain::trust::service::physical_reads(plan);
-        let outputs = plan
-            .observations
-            .iter()
-            .map(|output| {
-                Ok(RootMetadata {
-                    source: match &refusal {
-                        Some(error) => Err(error.clone()),
-                        None => source(program, named, rule, output.source),
-                    },
-                    phase: output.scope,
-                    reads: match output.source {
-                        // A refused rule's named output reads nothing: it is refused on its root before any read.
-                        Input::Step(step) => {
-                            match reads.get(step.0 as usize).ok_or(OperatingError::NotRun)? {
-                                Ok(reads) => reads.clone(),
-                                Err(_) if refusal.is_some() => Vec::new(),
-                                Err(error) => return Err(error.clone()),
-                            }
-                        }
-                        Input::Relation(relation) => vec![RelationRead {
-                            relation,
-                            kinds: vec![],
-                        }],
-                        Input::BoundObservation(_) => vec![],
-                    }
-                    .into_boxed_slice(),
-                })
-            })
-            .collect::<Result<Vec<_>, OperatingError>>()?;
-        metadata.push(RuleMetadata {
-            emit: plan.emit.clone(),
-            emit_root: match &refusal {
-                Some(error) => Err(error.clone()),
-                None => program
-                    .rules()
-                    .get(rule.0)
-                    .ok_or(OperatingError::NotRun)?
-                    .emit
-                    .clone(),
-            },
-            frontiers: plan.frontier.clone().into_boxed_slice(),
-            observations: outputs.into_boxed_slice(),
-            observation_frontiers: observation_frontiers
-                .get(rule.0)
-                .ok_or(OperatingError::NotRun)?
-                .clone()
-                .into_boxed_slice(),
-            frontier_dependencies:
-                ryo_execution_domain::domain::observation_schedule::service::link::service::frontier_dependencies(
-                    plan,
-                )
-                .map_err(|error| OperatingError::ObservationIncomplete {
-                    reason: error.to_string(),
-                }),
-            semantic_needed: if plan
-                .steps
+    pass: &PassProgram,
+    sets: &mut ReadSets,
+    purposes: &[Vec<FrontierPurpose>],
+) -> Result<Vec<RulePlan>, OperatingError> {
+    plans
+        .iter()
+        .enumerate()
+        .map(|(rule, plan)| {
+            if pass.reads.get(rule).is_none() {
+                return Err(OperatingError::NotRun);
+            }
+            let roots = plan
+                .observations
                 .iter()
-                .any(|step| matches!(step.operation, Operation::RenderSyntax { .. }))
-            {
-                SemanticNeed::Required
-            } else {
-                SemanticNeed::NotRequired
-            },
-        });
-    }
-    Ok(metadata)
-}
-fn source(
-    program: &ExecutableProgram,
-    observations: Option<&ObservationMetadata>,
-    rule: RuleIndex,
-    source: Input,
-) -> Result<InputSource, OperatingError> {
-    match source {
-        Input::Relation(relation) => Ok(InputSource::Relation(relation)),
-        Input::Step(StepId(step)) => {
-            let origin = program
-                .rules()
-                .get(rule.0)
-                .and_then(|rule| rule.original_steps.get(step as usize))
-                .ok_or(OperatingError::NotRun)?
-                .as_ref()
-                .map_err(Clone::clone)?;
-            program
-                .logical_regions()
-                .get(origin.logical.0)
-                .copied()
-                .map(InputSource::Region)
-                .ok_or(OperatingError::NotRun)
-        }
-        Input::BoundObservation(input) => observations
-            .and_then(|observations| {
-                observations
-                    .slots
+                .map(|output| {
+                    Ok(RootPlan {
+                        phase: output.scope,
+                        reads: match output.source {
+                            Input::Step(step) => step_sets(pass, RuleIndex(rule), step)
+                                .ok_or(OperatingError::NotRun)?
+                                .uses
+                                .clone(),
+                            Input::Relation(relation) => sets.shared(vec![RelationRead::whole(relation)]),
+                            Input::BoundObservation(_) => ReadSet::default(),
+                        },
+                    })
+                })
+                .collect::<Result<Vec<_>, OperatingError>>()?;
+            Ok(RulePlan {
+                emit: plan.emit.clone(),
+                frontiers: plan.frontier.clone().into_boxed_slice(),
+                roots: roots.into_boxed_slice(),
+                observation_frontiers: purposes
+                    .get(rule)
+                    .ok_or(OperatingError::NotRun)?
+                    .clone()
+                    .into_boxed_slice(),
+                frontier_dependencies:
+                    ryo_execution_domain::domain::observation_schedule::service::link::service::frontier_dependencies(
+                        plan,
+                    )
+                    .map_err(|error| OperatingError::ObservationIncomplete {
+                        reason: error.to_string(),
+                    }),
+                semantic_needed: if plan
+                    .steps
                     .iter()
-                    .position(|slot| slot.rule == rule && slot.input == input)
+                    .any(|step| matches!(step.operation, Operation::RenderSyntax { .. }))
+                {
+                    SemanticNeed::Required
+                } else {
+                    SemanticNeed::NotRequired
+                },
             })
-            .map(|slot| {
-                InputSource::Observation(
-                    ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
-                )
-            })
-            .ok_or(OperatingError::NotRun),
-    }
+        })
+        .collect()
 }

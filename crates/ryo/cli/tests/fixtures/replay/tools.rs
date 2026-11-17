@@ -1,5 +1,5 @@
 //! What the replay suites that hold ryo's manifest rows to each ecosystem's own tool share: the rows ryo writes of a project, what a
-//! tool says of it, and the comparison of the two, line by line.
+//! tool says of it, and the comparison of the two, line by line. What only the replay's suites of the other ecosystems ask is `ecosystems`'.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -9,6 +9,29 @@ use std::sync::Arc;
 const MEMBERS: &str =
     "let m = select * from \"workspace-member\"; emit m subject workspace key(workspace, package);";
 
+/// A rule written as Tastemaker writes it, as ryo is asked to run it.
+#[must_use]
+pub(crate) fn rule_from_query(
+    id: &str,
+    query: &str,
+    include: &[String],
+) -> ryo_core::inbound::use_cases::lint::types::Rule {
+    ryo_core::inbound::use_cases::lint::types::Rule {
+        observations: Vec::new(),
+        id: ryo_values::domain::runs::types::RuleId(id.into()),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(
+            ryo_values::domain::plan_parts::types::QueryText(query.into()),
+        ),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
+        parameters: Vec::new(),
+        include: include
+            .iter()
+            .map(|glob| ryo_values::domain::files::types::Glob(glob.as_str().into()))
+            .collect(),
+        exclude: Vec::new(),
+    }
+}
+
 /// What ryo says of the manifests below `root`, read by Rust and `languages`: one line for each finding of the members query and of
 /// `dependencies`, the id of its rule and its key, each column as ryo shows it, joined by commas.
 pub(crate) fn ryo_lines(
@@ -17,8 +40,8 @@ pub(crate) fn ryo_lines(
     dependencies: &str,
 ) -> BTreeSet<String> {
     let rules = vec![
-        crate::rule_from_query("members", MEMBERS, &["**".to_owned()]),
-        crate::rule_from_query("dependencies", dependencies, &["**".to_owned()]),
+        rule_from_query("members", MEMBERS, &["**".to_owned()]),
+        rule_from_query("dependencies", dependencies, &["**".to_owned()]),
     ];
     let (rows, _) = crate::base::lint_report_with_languages(
         root,
@@ -97,32 +120,6 @@ pub(crate) fn tool_result(
     }
 }
 
-/// What `program` prints when it runs `arguments` in `directory`, as `tool_result` runs it with a `HOME` of its own beside `variables`,
-/// so that nothing of the machine's configuration or caches is read.
-///
-/// # Panics
-///
-/// When the tool is not there or fails: a reference that cannot answer has nothing to compare.
-#[cfg(any(
-    feature = "go",
-    feature = "javascript",
-    feature = "typescript",
-    feature = "python"
-))]
-pub(crate) fn tool_output(
-    program: &str,
-    arguments: &[&str],
-    directory: &Path,
-    variables: &[(&str, &str)],
-) -> String {
-    let own = tempfile::tempdir().expect("a directory");
-    let home = own.path().to_string_lossy().into_owned();
-    let mut given = vec![("HOME", home.as_str())];
-    given.extend_from_slice(variables);
-    tool_result(program, arguments, directory, &given)
-        .unwrap_or_else(|said| panic!("`{program} {}` fails: {said}", arguments.join(" ")))
-}
-
 /// The path of `path` relative to `root`, none when it lies outside.
 pub(crate) fn relative(root: &Path, path: &Path) -> Option<String> {
     // Both canonical, as a tool prints its own spelling of a place (Windows' long names where the root has a short one),
@@ -136,27 +133,6 @@ pub(crate) fn relative(root: &Path, path: &Path) -> Option<String> {
             .collect::<Vec<_>>()
             .join("/")
     })
-}
-
-/// The manifest named `name` in the directory `directory` of the repository, the root's own when it is empty.
-#[cfg(any(feature = "javascript", feature = "typescript", feature = "python"))]
-pub(crate) fn manifest_in(directory: &str, name: &str) -> String {
-    if directory.is_empty() {
-        name.to_owned()
-    } else {
-        format!("{directory}/{name}")
-    }
-}
-
-/// The fixture project of the cli's tests named `name`, as the tools see it: its directory with every link resolved.
-#[cfg(any(feature = "javascript", feature = "typescript", feature = "python"))]
-pub(crate) fn fixture(name: &str) -> std::path::PathBuf {
-    std::fs::canonicalize(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/manifests")
-            .join(name),
-    )
-    .expect("the fixture project is there")
 }
 
 /// One line for each line only one side has, naming the side; none when ryo and the tool agree.
@@ -189,41 +165,4 @@ pub(crate) fn text_at<'value>(value: &'value serde_json::Value, key: &str) -> &'
         .get(key)
         .and_then(serde_json::Value::as_str)
         .unwrap_or_default()
-}
-
-/// The entries of the JSON object `value` holds at `key`, none when it is absent.
-#[cfg(any(feature = "javascript", feature = "typescript", feature = "python"))]
-pub(crate) fn entries<'value>(
-    value: &'value serde_json::Value,
-    key: &str,
-) -> Vec<(&'value String, &'value serde_json::Value)> {
-    value
-        .get(key)
-        .and_then(serde_json::Value::as_object)
-        .map(|object| object.iter().collect())
-        .unwrap_or_default()
-}
-
-/// Each language this build links that reads `package.json`, by its name.
-#[cfg(any(feature = "javascript", feature = "typescript"))]
-pub(crate) fn package_json_languages() -> Vec<(
-    &'static str,
-    ryo_core::outbound::language::factory::LanguageConnection,
-)> {
-    vec![
-        #[cfg(feature = "javascript")]
-        (
-            "javascript",
-            ryo_core::outbound::language::factory::LanguageConnection::from(
-                ryo_javascript::linked(),
-            ),
-        ),
-        #[cfg(feature = "typescript")]
-        (
-            "typescript",
-            ryo_core::outbound::language::factory::LanguageConnection::from(
-                ryo_typescript::linked(),
-            ),
-        ),
-    ]
 }

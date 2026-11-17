@@ -70,9 +70,18 @@ impl LanguagePort for Forgetful {
         file: crate::outbound::language::types::FileToRead<'_>,
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut Symbols,
-        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> crate::outbound::language::types::FileReading {
-        self.0.parse(file, table, symbols, out)
+        self.0.parse(file, table, symbols)
+    }
+    fn walk(
+        &self,
+        language: ryo_values::domain::stored_facts::types::LanguageNumber,
+        file: crate::outbound::language::types::FileToRead<'_>,
+        table: &mut ryo_language::domain::elements::types::Elements,
+        symbols: &mut Symbols,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
+    ) {
+        self.0.walk(language, file, table, symbols, out);
     }
     fn project_entries(
         &self,

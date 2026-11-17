@@ -1,8 +1,22 @@
 //! Enumerate path captures without allocating or splitting UTF-8 characters.
 use crate::domain::capture::constants::CROSSING_OPEN;
 use crate::domain::capture::types::{
-    CaptureOutput, CaptureSlots, CaptureSpans, SlotPattern, SlotSubject,
+    CaptureOutput, CaptureSlotCount, CaptureSlots, CaptureSpans, SlotPattern, SlotSubject,
 };
+
+/// How many slots `pattern` has, each a `{name}` or `{*name}`: the columns a capture appends to each row.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::capture::service::slot_count;
+/// use ryo_operators::domain::capture::types::{CaptureSlotCount, SlotPattern};
+/// assert_eq!(slot_count(SlotPattern("src/{crate}/{*rest}")), CaptureSlotCount(2));
+/// ```
+#[must_use]
+pub fn slot_count(pattern: SlotPattern<'_>) -> CaptureSlotCount {
+    CaptureSlotCount(pattern.0.bytes().filter(|byte| *byte == b'{').count())
+}
 
 pub(crate) fn matches(
     pattern: SlotPattern<'_>,
@@ -67,58 +81,13 @@ pub(crate) fn matches(
     }
 }
 
-/// Matches the text of a scheduled row's path against the pattern and emits the row once for each complete
-/// match, with what the slots matched appended; a path that is not text has no row.
-pub(crate) fn evaluate(
-    row: &[ryo_relations::domain::relations::types::Value],
+/// The one lowering of a capture: its path column and slot pattern, for the `text_map` kernel.
+pub(crate) fn lower(
     path: ryo_values::domain::plan_parts::types::ColumnIndex,
-    pattern: SlotPattern<'_>,
-    driver: &mut dyn crate::domain::contract::types::RowDriver,
-    scratch: &mut crate::domain::contract::types::RowScratch,
-) -> Result<(), crate::domain::contract::types::PortableOperatorFault> {
-    let value = ryo_values::domain::rows::service::column_in(row, path)
-        .copied()
-        .ok_or(
-            crate::domain::contract::types::PortableOperatorFault::NoSuchColumn { index: path },
-        )?;
-    let crate::domain::contract::types::RowScratch {
-        row: joined,
-        captured,
-        text,
-        slots,
-        ..
-    } = scratch;
-    text.0.clear();
-    if driver.text(value, text) == crate::domain::contract::types::TextFound::NotText {
-        return Ok(());
+    pattern: &ryo_values::domain::plan_parts::types::CapturePattern,
+) -> super::types::CaptureParts {
+    super::types::CaptureParts {
+        path,
+        pattern: pattern.clone(),
     }
-    let text: &str = text.0.as_str();
-    captured.clear();
-    slots.0.clear();
-    let width = pattern.0.bytes().filter(|byte| *byte == b'{').count();
-    let mut minting = crate::domain::capture::types::SlotMinting {
-        driver: &mut *driver,
-        text: SlotSubject(text),
-        captured: &mut *captured,
-        ways: ryo_relations::domain::relations::types::Count(0),
-    };
-    matches(
-        pattern,
-        SlotSubject(text),
-        SlotSubject(text),
-        CaptureSlots(&mut slots.0),
-        &mut minting,
-    );
-    let ways = minting.ways;
-    for way in 0..ways.0 {
-        joined.clear();
-        joined.extend_from_slice(row);
-        joined.extend_from_slice(
-            captured
-                .get(way * width..(way + 1) * width)
-                .unwrap_or_default(),
-        );
-        driver.emit(joined)?;
-    }
-    Ok(())
 }

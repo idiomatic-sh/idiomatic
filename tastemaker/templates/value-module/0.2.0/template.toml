@@ -1,0 +1,58 @@
+description = "One value's module file: its `value`, and its `value_test` under #[cfg(test)]; `value` as visible as the module needs it."
+why = "The module-declaration file is the Rust rule the value's directory needs: it declares `value.rs`, which holds the value and its hand-written impls, and its test, which a value with behaviour always has. The template names no visibility for `value`: a value module inside a module that is not itself public declares `pub(crate) mod value`, since `pub` there reaches nothing and rustc's `unreachable_pub` reports it, while one under a public module declares `pub mod value`. Each is the module's own to choose, and rustc holds it either way: a narrower one than its readers need does not compile, a wider one than any reader reaches is `unreachable_pub`."
+content = '''
+//! One value with behaviour: its declaration and impls, and its proof.
+
+mod value;
+
+#[cfg(test)]
+mod value_test;
+'''
+
+[given]
+file = 'src/greeting/types/{value}.rs'
+
+[[scenarios]]
+id = 'example'
+scenario = 'Example: nothing is reported.'
+given.files.'src/greeting/types/greeting.rs' = '''
+//! The `Greeting` value.
+
+pub mod value;
+
+#[cfg(test)]
+mod value_test;
+'''
+
+[[scenarios]]
+id = 'missing-value-module'
+scenario = 'Missing value module: it is reported.'
+given.file = 'src/greeting/types/greeting.rs'
+then.findings = [
+  { rule = 'value-module#count', path = 'tastemaker.toml' },
+]
+
+[[scenarios]]
+id = 'no-value'
+scenario = 'The module file does not declare its value.'
+given.files.'src/greeting/types/greeting.rs' = '''
+//! The `Greeting` value.
+
+mod implementation;
+'''
+then.findings = [
+  { rule = 'value-module#template', path = 'src/greeting/types/greeting.rs' },
+  { rule = 'value-module#template', path = 'src/greeting/types/greeting.rs' },
+]
+
+[[scenarios]]
+id = 'crate-visible-value'
+scenario = 'A value module under a module that is not public declares its value `pub(crate)`: nothing is reported.'
+given.files.'src/greeting/types/greeting.rs' = '''
+//! The `Greeting` value, read only inside its crate.
+
+pub(crate) mod value;
+
+#[cfg(test)]
+mod value_test;
+'''

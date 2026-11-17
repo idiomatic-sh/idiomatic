@@ -46,6 +46,7 @@ pub(super) fn expected(operator: QueryOperator) -> Vec<Finding> {
         QueryOperator::SpanBounds => span_bounds::expected(),
         QueryOperator::OrderedMatch => ordered_match::expected(),
         QueryOperator::OrderedDfs => ordered_dfs::expected(),
+        QueryOperator::Worklist => worklist::expected(),
         QueryOperator::Antijoin => antijoin::expected(),
         QueryOperator::Axis => axis::expected(),
         QueryOperator::Capture => capture::expected(),
@@ -182,4 +183,9 @@ mod ordered_match {
 /// The ordered DFS fixture's complete expected visits.
 mod ordered_dfs {
     include!("../../../../../tests/fixtures/operators/ordered_dfs/expected.rs");
+}
+
+/// The findings `tests/fixtures/operators/worklist/expected.rs` states for the `worklist` operator.
+mod worklist {
+    include!("../../../../../tests/fixtures/operators/worklist/expected.rs");
 }

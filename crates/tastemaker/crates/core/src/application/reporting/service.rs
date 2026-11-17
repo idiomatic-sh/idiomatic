@@ -2,32 +2,36 @@
 //! Builds a check report using injected source loading, pattern compilation and fingerprinting.
 
 use super::types::{SourceFile, SourceFiles};
-use crate::domain::files::types::{BorrowedText, FileText, LineStarts, SourceView};
-use crate::domain::findings::types::Report;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, PoisonError};
+use tastemaker_values::domain::files::types::{BorrowedText, FileText, LineStarts, SourceView};
+use tastemaker_values::domain::findings::types::Report;
 
-use crate::domain::applications::service::{located, reusable_paths, source_paths};
-use crate::domain::applications::types::{Compared, Plan, SpannedFinding};
-use crate::domain::comments::service::ignoring;
-use crate::domain::comments::types::Comment;
-use crate::domain::findings::service::{error, settle};
-use crate::domain::findings::types::{Finding, Fingerprint, Identifying, Suppression};
-use crate::domain::governance::service::governed;
-use crate::domain::import_rows::service::imports;
-use crate::domain::imports::service::{by_source, message as import_message, refused, rule_of};
-use crate::domain::imports::types::{
-    AllowItem, ImportPlace, ImportRows, PatternMatch, WrittenPath,
-};
-use crate::domain::module_paths::service::{pattern, prefixes};
-use crate::domain::paths::service::containment;
-use crate::domain::paths::types::{Containment, RepoPath};
 use crate::domain::reporting::service::{fingerprinted, incoming_of, report_of};
 use crate::domain::reporting::types::{
     Candidate, Fingerprinted, Reported, Settled, Sinks, Standing,
 };
-use crate::domain::selectors::types::{PathRest, PathSet, PatternFailure, SetCompiler, SetGlob};
 use rayon::prelude::*;
+use tastemaker_values::domain::applications::service::{located, reusable_paths, source_paths};
+use tastemaker_values::domain::applications::types::{Compared, Plan, SpannedFinding};
+use tastemaker_values::domain::comments::service::ignoring;
+use tastemaker_values::domain::comments::types::Comment;
+use tastemaker_values::domain::findings::service::{error, settle};
+use tastemaker_values::domain::findings::types::{Finding, Fingerprint, Identifying, Suppression};
+use tastemaker_values::domain::governance::service::governed;
+use tastemaker_values::domain::import_rows::service::imports;
+use tastemaker_values::domain::imports::service::{
+    by_source, message as import_message, refused, rule_of,
+};
+use tastemaker_values::domain::imports::types::{
+    AllowItem, ImportPlace, ImportRows, PatternMatch, WrittenPath,
+};
+use tastemaker_values::domain::module_paths::service::{pattern, prefixes};
+use tastemaker_values::domain::paths::service::containment;
+use tastemaker_values::domain::paths::types::{Containment, RepoPath};
+use tastemaker_values::domain::selectors::types::{
+    PathRest, PathSet, PatternFailure, SetCompiler, SetGlob,
+};
 
 /// Renders findings, settles dependent counts, applies ignores and fingerprints the final report.
 /// # Errors
@@ -46,12 +50,13 @@ pub(super) fn report<E>(
         sourced,
     } = settled(reported, read, sets, chaining)?;
     let identifying = tracing::info_span!("identify").entered();
-    let identified = crate::domain::findings::service::identified(all.iter().map(|candidate| {
-        crate::domain::findings::types::PreparedIdentity {
-            finding: &candidate.finding,
-            line: candidate.line.clone(),
-        }
-    }));
+    let identified =
+        tastemaker_values::domain::findings::service::identified(all.iter().map(|candidate| {
+            tastemaker_values::domain::findings::types::PreparedIdentity {
+                finding: &candidate.finding,
+                line: candidate.line.clone(),
+            }
+        }));
     let mut fingerprinted = fingerprinted(all, identified, fingerprint);
     fingerprinted.standing.extend(reused.standing);
     fingerprinted.standing.sort();
@@ -302,18 +307,18 @@ fn unreadable_allows(plan: &Plan, sets: &dyn SetCompiler, whole: &mut Vec<Findin
                     && unreadable.insert((check.identity.0.clone(), item.0.clone()))
                 {
                     whole.push(error(
-                        crate::domain::findings::service::check_id(
+                        tastemaker_values::domain::findings::service::check_id(
                             &check.identity.0,
-                            crate::domain::imports::constants::IMPORTS,
+                            tastemaker_values::domain::imports::constants::IMPORTS,
                         ),
-                        crate::domain::paths::service::join(
+                        tastemaker_values::domain::paths::service::join(
                             &plan.base,
-                            crate::domain::paths::types::PathText(
-                                crate::domain::definitions::constants::WORKSPACE_FILE,
+                            tastemaker_values::domain::paths::types::PathText(
+                                tastemaker_values::domain::definitions::constants::WORKSPACE_FILE,
                             ),
                         )
                         .unwrap_or_default(),
-                        crate::domain::imports::service::unreadable_allow(
+                        tastemaker_values::domain::imports::service::unreadable_allow(
                             &check.identity,
                             item,
                             &failure,

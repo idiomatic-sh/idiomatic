@@ -4,67 +4,22 @@
 //! the plans here are built by hand to show the rewrites still leave it after the files, never making it in each file, where it would
 //! answer other rows. A join on the file is made in each file. Narrowing cuts a per-file input by the nodes or files the other input
 //! holds, never by a span.
-use super::fixtures::{FILE, ID, NAME, SPAN, files, function_columns, functions_kept, rows};
+use super::fixtures::{
+    FILE, ID, NAME, SPAN, after_the_files, column, files, function_columns, functions_kept,
+    gathered, in_each_file, join, rows,
+};
 use ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::{
     narrowed, regrouped, selections_pushed,
 };
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
-use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::{
     ComparisonOrigin, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
 };
-use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
+    plan_parts::types::{ColumnIndex, Input, StepId},
     plans::types::{Operation, PlanStep},
 };
-
-/// A step after the files.
-fn after_the_files(operation: Operation) -> PlanStep {
-    PlanStep {
-        scope: StepScope::CrossFile,
-        operation,
-    }
-}
-
-/// A step made in each file.
-fn in_each_file(operation: Operation) -> PlanStep {
-    PlanStep {
-        scope: StepScope::PerFile,
-        operation,
-    }
-}
-
-fn column(side: Side, at: ColumnIndex) -> JoinColumn {
-    JoinColumn { side, column: at }
-}
-
-fn join(
-    left: StepId,
-    right: StepId,
-    keys: (ColumnIndex, ColumnIndex),
-    output: Vec<JoinColumn>,
-) -> Operation {
-    Operation::Join {
-        left: Input::Step(left),
-        right: Input::Step(right),
-        left_on: vec![keys.0],
-        right_on: vec![keys.1],
-        output,
-        filter: vec![],
-        view: vec![],
-        reach: None,
-    }
-}
-
-/// The distinct values of one column of a per-file step, gathered after the files.
-fn gathered(from: StepId, at: ColumnIndex) -> PlanStep {
-    after_the_files(Operation::Project {
-        from: Input::Step(from),
-        columns: vec![at],
-        distinct: RepeatedRows::Dropped,
-    })
-}
 
 /// The functions named `main`, in each file.
 fn named_main(kept: &[ColumnIndex]) -> PlanStep {
@@ -158,7 +113,7 @@ fn regrouping_a_join_on_spans_alone_leaves_it_after_the_files_and_keeps_the_pair
 }
 
 #[test]
-fn regrouping_a_join_on_the_file_makes_it_in_each_file_with_the_same_rows() {
+fn regrouping_leaves_a_join_on_a_file_neither_input_is_distinct_on_after_the_files() {
     let files = files();
     let (steps, emitted) = chained(ColumnIndex(1));
     let before = rows(steps.clone(), emitted, &files);
@@ -168,9 +123,23 @@ fn regrouping_a_join_on_the_file_makes_it_in_each_file_with_the_same_rows() {
         "a file key pairs functions of one file"
     );
     let (after, after_emitted) = regrouped(steps.clone(), emitted);
+    assert_eq!(
+        after, steps,
+        "every function of a file meets every other on the file: in each file that hands over every pair, so the join stays after the files"
+    );
+    assert_eq!(rows(after, after_emitted, &files), before);
+}
+
+#[test]
+fn regrouping_a_join_on_a_key_of_one_input_makes_it_in_each_file_with_the_same_rows() {
+    let files = files();
+    let (steps, emitted) = chained(ColumnIndex(0));
+    let before = rows(steps.clone(), emitted, &files);
+    assert!(!before.is_empty());
+    let (after, after_emitted) = regrouped(steps.clone(), emitted);
     assert_ne!(
         after, steps,
-        "the file key moves the join of the per-file inputs into each file"
+        "a function's id is a key of the functions, so the join of the per-file inputs moves into each file"
     );
     assert_eq!(rows(after, after_emitted, &files), before);
 }

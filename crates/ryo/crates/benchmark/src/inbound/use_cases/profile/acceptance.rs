@@ -14,10 +14,8 @@ use std::sync::Arc;
 
 /// The profile run of `profile-ryo request.json out`, its worker writing `totals`.
 fn profile(totals: Vec<DumpTotal>) -> Result<ProfileReport, ReportsError> {
-    let tools = ProfileToolsFake {
-        totals,
-        ..ProfileToolsFake::default()
-    };
+    let mut tools = ProfileToolsFake::default();
+    tools.totals = totals;
     ProfileUseCaseImpl::new(Arc::new(ChildrenFake::default()), Arc::new(tools)).profile(
         ProfileRequest {
             worker: "target/worker".into(),

@@ -147,7 +147,6 @@ impl LanguagePort for LanguageFake {
         file: FileToRead<'_>,
         table: &mut Elements,
         symbols: &mut Symbols,
-        out: &mut dyn RowWriter,
     ) -> FileReading {
         let _parses_before = self.parses.fetch_add(1, Ordering::Relaxed);
         if file.path.0.contains(BROKEN) {
@@ -185,6 +184,21 @@ impl LanguagePort for LanguageFake {
             KindBits(0),
             NameText(NODE_KIND),
         );
+        FileReading::Read(LanguageNumber(0))
+    }
+
+    fn walk(
+        &self,
+        language: LanguageNumber,
+        file: FileToRead<'_>,
+        _table: &mut Elements,
+        symbols: &mut Symbols,
+        out: &mut dyn RowWriter,
+    ) {
+        if language.0 != 0 {
+            return;
+        }
+        let end = u32::try_from(file.bytes.0.len()).unwrap_or(u32::MAX);
         let text = String::from_utf8_lossy(&file.bytes.0);
         let name = ryo_language::domain::symbols::service::intern_derived(
             symbols,
@@ -214,7 +228,6 @@ impl LanguagePort for LanguageFake {
                 },
             });
         }
-        FileReading::Read(LanguageNumber(0))
     }
 
     fn project_entries(

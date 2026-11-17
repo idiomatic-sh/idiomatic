@@ -18,6 +18,14 @@ use crate::outbound::analysis::fixtures::fake::AnalysisFake;
 use crate::outbound::packages::fixtures::fake::PackagesFake;
 use crate::outbound::repository::fixtures::fake::RepositoryFake;
 
+mod governed_answers;
+mod handed_rules;
+mod lint_plan;
+mod matched_rules;
+mod named_by_selectors;
+mod placed_files;
+mod reached_files;
+
 /// What a row changes about the fixture.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
@@ -324,8 +332,8 @@ fn lifecycle(scenario: Scenario) -> Option<Result<Value, Failure>> {
             && let Ok(mut texts) = held.files.lock()
         {
             drop(texts.insert(
-                crate::domain::paths::types::RepoPath("src/a/errors.txt".into()),
-                crate::domain::files::types::FileText(
+                tastemaker_values::domain::paths::types::RepoPath("src/a/errors.txt".into()),
+                tastemaker_values::domain::files::types::FileText(
                     "// edited, and longer than the text it replaces\n".into(),
                 ),
             ));
@@ -390,8 +398,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         && let Ok(mut root) = files.files.lock()
     {
         drop(root.insert(
-            crate::domain::paths::types::RepoPath("tastemaker.toml".into()),
-            crate::domain::files::types::FileText(text.into()),
+            tastemaker_values::domain::paths::types::RepoPath("tastemaker.toml".into()),
+            tastemaker_values::domain::files::types::FileText(text.into()),
         ));
     }
     let engine = engine_for(scenario);
@@ -404,7 +412,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let check = use_case(files, engine, &store)?;
     if matches!(scenario, Scenario::Nonexistent) {
         let _checked = check.check(CheckRequest {
-            within: vec![crate::domain::paths::types::RepoPath("nowhere".into())],
+            within: vec![tastemaker_values::domain::paths::types::RepoPath(
+                "nowhere".into(),
+            )],
             ..request(fixing)
         })?;
         return Ok("a check within no file unexpectedly succeeded".to_owned());
@@ -435,8 +445,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(scenario, Scenario::CorruptLock) {
         if let Ok(mut held_files) = held.files.lock() {
             drop(held_files.insert(
-                crate::domain::paths::types::RepoPath("tastemaker.lock".into()),
-                crate::domain::files::types::FileText("not a lock [[".into()),
+                tastemaker_values::domain::paths::types::RepoPath("tastemaker.lock".into()),
+                tastemaker_values::domain::files::types::FileText("not a lock [[".into()),
             ));
         }
         let _rewritten = check.check(request(Fixing::Fix))?;
@@ -455,7 +465,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         .findings
         .iter()
         .map(|finding| {
-            crate::domain::findings::service::printed(&finding.rule)
+            tastemaker_values::domain::findings::service::printed(&finding.rule)
                 .0
                 .to_string()
         })
@@ -506,7 +516,7 @@ fn two_versions(scenario: Scenario) -> Option<Result<Value, Failure>> {
             .map(|finding| {
                 format!(
                     "{} {}",
-                    crate::domain::findings::service::printed(&finding.rule).0,
+                    tastemaker_values::domain::findings::service::printed(&finding.rule).0,
                     finding.path.0
                 )
             })
@@ -539,13 +549,15 @@ fn relocked(
     store: &StoreFake,
 ) -> Result<Value, Failure> {
     let before = kept(store);
-    let lock = crate::domain::paths::types::RepoPath("tastemaker.lock".into());
+    let lock = tastemaker_values::domain::paths::types::RepoPath("tastemaker.lock".into());
     if let Ok(mut files) = held.files.lock()
         && let Some(text) = files.get(&lock).cloned()
     {
         drop(files.insert(
             lock,
-            crate::domain::files::types::FileText(format!("{}# relocked\n", text.0).into()),
+            tastemaker_values::domain::files::types::FileText(
+                format!("{}# relocked\n", text.0).into(),
+            ),
         ));
     }
     let _report = check.check(request(Fixing::Report))?;
@@ -566,8 +578,8 @@ fn added(
     let planned = kept(store);
     if let Ok(mut files) = held.files.lock() {
         drop(files.insert(
-            crate::domain::paths::types::RepoPath("src/c/notes.txt".into()),
-            crate::domain::files::types::FileText("c\n".into()),
+            tastemaker_values::domain::paths::types::RepoPath("src/c/notes.txt".into()),
+            tastemaker_values::domain::files::types::FileText("c\n".into()),
         ));
     }
     let report = check.check(request(Fixing::Report))?;
@@ -592,8 +604,10 @@ fn many(
     for run in 0_u8..12 {
         if let Ok(mut files) = held.files.lock() {
             drop(files.insert(
-                crate::domain::paths::types::RepoPath(format!("src/c/note-{run}.txt").into()),
-                crate::domain::files::types::FileText("c\n".into()),
+                tastemaker_values::domain::paths::types::RepoPath(
+                    format!("src/c/note-{run}.txt").into(),
+                ),
+                tastemaker_values::domain::files::types::FileText("c\n".into()),
             ));
         }
         drop(check.check(request(Fixing::Report))?);
@@ -631,8 +645,8 @@ fn rechecked(
         && let Ok(mut files) = held.files.lock()
     {
         drop(files.insert(
-            crate::domain::paths::types::RepoPath("src/a/errors.txt".into()),
-            crate::domain::files::types::FileText(
+            tastemaker_values::domain::paths::types::RepoPath("src/a/errors.txt".into()),
+            tastemaker_values::domain::files::types::FileText(
                 "// moved, and longer than the text it replaces\n".into(),
             ),
         ));
@@ -643,7 +657,9 @@ fn rechecked(
     };
     use_case(held.clone(), failing, store)?.check(CheckRequest {
         within: if matches!(scenario, Scenario::Rescoped) {
-            vec![crate::domain::paths::types::RepoPath("src/a".into())]
+            vec![tastemaker_values::domain::paths::types::RepoPath(
+                "src/a".into(),
+            )]
         } else {
             Vec::new()
         },

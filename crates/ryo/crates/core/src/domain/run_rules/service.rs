@@ -2,7 +2,6 @@
 
 use crate::domain::workers::types::RunDecisions;
 
-use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{
     Governing, Mask, RuleScope, ScopePlacement,
 };

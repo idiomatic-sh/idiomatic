@@ -1,0 +1,15 @@
+output relation<id: node, file: file>;
+let delete_events = select occurrence as id, name, scope, phase, ordinal, file from "binding-event" where kind = "delete";
+let conditional_domains = select id, file from "semantic-syntax" where kind = "if" or kind = "while" or kind = "match";
+let conditional_deletion_axes = axis(from=delete_events, relation="semantic-child", direction=ancestor, domain=conditional_domains);
+let conditional_deletions = select id, file from conditional_deletion_axes;
+let orelse_roots = select child as id, file from "semantic-child" where field = "orelse";
+let orelse_deletion_axes = axis(from=delete_events, relation="semantic-child", direction=ancestor, domain=orelse_roots);
+let orelse_deletions = select id, file from orelse_deletion_axes;
+let handler_boundaries = select id, file from "semantic-syntax" where kind = "except-handler" or kind = "function-def" or kind = "async-function-def" or kind = "class-def";
+let handlers = select id, file from "semantic-syntax" where kind = "except-handler";
+let nearest_handler_boundaries = axis(from=delete_events, relation="semantic-child", direction=nearest-ancestor, domain=handler_boundaries);
+let handler_deletions = select l.id as id, l.file as file from nearest_handler_boundaries as l join handlers as r on l.related = r.id and l.file = r.file;
+let conditional_delete_effects0 = union(left=conditional_deletions, right=orelse_deletions);
+let conditional_delete_effects = union(left=conditional_delete_effects0, right=handler_deletions);
+return conditional_delete_effects;

@@ -9,43 +9,45 @@ use super::constants::{
     DENY, DIRECTORY_NAME, LEVEL_KEY, LOCK_HEAD, LOCK_VERSION, PLACED_ALONE, SCENARIO_KEY,
     SCENARIO_WORKSPACE, SPEC_DROPPED, UNKNOWN_FIELD, VERSION_KEY, WORKSPACE_NAME,
 };
-use crate::domain::definitions::constants::WORKSPACE_FILE;
-use crate::domain::definitions::types::{
+use crate::outbound::manifest::errors::ManifestError;
+use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
+use tastemaker_values::domain::definitions::constants::WORKSPACE_FILE;
+use tastemaker_values::domain::definitions::types::{
     ColumnName, Diagnostic, Exactness, Exception, QueryText, Role, RuleFile, SpecFile,
     TemplateFile, TemplateText, Why, WorkspaceFile, WorkspaceSection,
 };
-use crate::domain::entries::service::derived;
-use crate::domain::entries::types::{
+use tastemaker_values::domain::entries::service::derived;
+use tastemaker_values::domain::entries::types::{
     Acyclicity, Alias, Amount, Bound, ClosedChoice, Composition, Condition, ConditionName, Count,
     Described, Description, EntryHeader, ImportDefault, ImportPattern, Imports, Ordering,
     ParamDeclaration, ParamDeclarations, ParamName, ParamSource, ParamType, ParamValue,
     ParamValues, RuleEntry, SpecEntry, TemplateEntry, Value, Variables,
 };
-use crate::domain::files::types::FileText;
-use crate::domain::findings::types::{MessageTemplate, WorkspaceName};
-use crate::domain::packages::constants::{
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::findings::types::{MessageTemplate, WorkspaceName};
+use tastemaker_values::domain::packages::constants::{
     PACKAGE_KEY, RULE_WORD, RULES, SPEC_WORD, SPECS, TASTEMAKER_VERSION, TEMPLATE_WORD, TEMPLATES,
 };
-use crate::domain::packages::types::{
+use tastemaker_values::domain::packages::types::{
     DefinitionKind, DefinitionName, Dependency, GitSource, Lock, LockedPackage, LockedRelease,
     Ownership, PackageManifest, PackageName, PackageSource, RepositoryUrl, Revision, SourcePath,
     VersionText,
 };
-use crate::domain::scalars::types::{FlagValue, FloatText, TextValue, ValueKey, WholeValue};
-use crate::domain::scenario_files::types::{
+use tastemaker_values::domain::scalars::types::{
+    FlagValue, FloatText, TextValue, ValueKey, WholeValue,
+};
+use tastemaker_values::domain::scenario_files::types::{
     CountKey, FileKey, ScenarioKeys, ScenarioRoot, Wrapper,
 };
-use crate::domain::scenarios::types::{
+use tastemaker_values::domain::scenarios::types::{
     Expectation, ExpectedFinding, ExpectedLine, ExpectedRule, ExpectedRuleChoice, RuleScenario,
     ScenarioFileText, ScenarioFiles, ScenarioId, ScenarioLine, SpecScenario, TemplateFileChoice,
     TemplateScenario,
 };
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::selectors::types::{
     PartSelector, PathPattern, PlacedBySelector, Recursion, RegexText, Selector, Selectors,
     VariableName,
 };
-use crate::outbound::manifest::errors::ManifestError;
-use crate::outbound::manifest::types::{DefinitionText, EntryDraft};
 
 /// Wraps the reason a text was refused as the manifest's shape error.
 fn shape(reason: impl std::fmt::Display) -> ManifestError {
@@ -139,8 +141,8 @@ pub(super) fn value(written: toml::Value) -> Value {
 
 /// A param value as it reads in a path or a template: text and a float as written, anything else as `toml_edit` writes
 /// the value inline (`[\"a\", \"b\"]`, `{ key = 1 }`).
-pub(super) fn value_text(written: &Value) -> crate::domain::entries::types::ValueText {
-    crate::domain::entries::types::ValueText(match written {
+pub(super) fn value_text(written: &Value) -> tastemaker_values::domain::entries::types::ValueText {
+    tastemaker_values::domain::entries::types::ValueText(match written {
         Value::Text(text) => text.0.to_string(),
         Value::Float(text) => text.0.to_string(),
         Value::Whole(_) | Value::Flag(_) | Value::List(_) | Value::Table(_) => {
@@ -964,9 +966,9 @@ impl From<ExpectedSchema> for ExpectedFinding {
             rule: schema.rule.map_or(ExpectedRuleChoice::Own, |rule| {
                 ExpectedRuleChoice::Named(ExpectedRule(rule.into()))
             }),
-            path: crate::domain::paths::types::RepoPath(schema.path.into()),
+            path: tastemaker_values::domain::paths::types::RepoPath(schema.path.into()),
             line: schema.line.map_or(ExpectedLine::Whole, |line| {
-                ExpectedLine::At(crate::domain::findings::types::Line(line))
+                ExpectedLine::At(tastemaker_values::domain::findings::types::Line(line))
             }),
         }
     }
@@ -1066,7 +1068,7 @@ fn scenario_files(map: BTreeMap<String, String>) -> ScenarioFiles {
         map.into_iter()
             .map(|(path, text)| {
                 (
-                    crate::domain::paths::types::RepoPath(path.into()),
+                    tastemaker_values::domain::paths::types::RepoPath(path.into()),
                     ScenarioFileText(text.into()),
                 )
             })
@@ -1431,7 +1433,7 @@ impl TryFrom<SpecFileSchema> for SpecFile {
                         id: said.id,
                         scenario: said.scenario,
                         verdict: said.verdict,
-                        at: crate::domain::paths::types::RepoPath(
+                        at: tastemaker_values::domain::paths::types::RepoPath(
                             given.at.unwrap_or_default().into(),
                         ),
                         params: scenario_params(given.params)?,
@@ -2219,7 +2221,7 @@ pub(super) fn add_entry(text: &FileText, entry: &EntryDraft) -> Result<FileText,
 /// What `rebased` of the port answers, read or written in TOML.
 pub(super) fn rebased(
     text: &FileText,
-    here: &crate::domain::paths::types::RepoPath,
+    here: &tastemaker_values::domain::paths::types::RepoPath,
 ) -> Result<FileText, ManifestError> {
     let here = &*here.0;
     let mut document = text.0.parse::<toml_edit::DocumentMut>().map_err(shape)?;

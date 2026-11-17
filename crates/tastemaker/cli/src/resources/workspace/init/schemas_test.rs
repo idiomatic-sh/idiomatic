@@ -1,8 +1,8 @@
 //! Reports distinguish planned writes from completed initialization.
 use super::answer;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use tastemaker_core::domain::paths::types::RepoPath;
 use tastemaker_core::inbound::use_cases::init::types::InitReport;
+use tastemaker_values::domain::paths::types::RepoPath;
 type Input = bool;
 type Value = bool;
 type Failure = ();

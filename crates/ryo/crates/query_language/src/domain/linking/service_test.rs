@@ -67,14 +67,15 @@ fn import(module: &str) -> ImportDeclaration {
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let root = QuerySourceId(Box::from("root"));
+    let root = QuerySourceId("root".into());
     match scenario {
-        Scenario::NamedModule => source_id(&root, &import("module"))
-            .map(|id| std::borrow::Cow::Owned(id.0.into_string())),
-        Scenario::BlankModule => {
-            source_id(&root, &import(" ")).map(|id| std::borrow::Cow::Owned(id.0.into_string()))
+        Scenario::NamedModule => {
+            source_id(&root, &import("module")).map(|id| std::borrow::Cow::Owned(id.0.to_string()))
         }
-        Scenario::LocatedRefusal => Err(located(&root, SPAN, Vec::new(), "refused")),
+        Scenario::BlankModule => {
+            source_id(&root, &import(" ")).map(|id| std::borrow::Cow::Owned(id.0.to_string()))
+        }
+        Scenario::LocatedRefusal => Err(located(&root, SPAN, &[], "refused")),
     }
 }
 

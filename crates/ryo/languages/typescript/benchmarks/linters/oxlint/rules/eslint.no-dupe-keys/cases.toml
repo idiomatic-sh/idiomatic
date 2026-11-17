@@ -132,3 +132,8 @@ expected = []
 name = "directive"
 files = { "case.ts" = "x = {\n  // eslint-disable-next-line no-dupe-keys\n  a: 1,\n  a: 2,\n};\n" }
 expected = []
+
+[[cases]]
+name = "computed-escaped-template"
+files = { "case.ts" = "x = {[`\\u0061`]: 1, a: 2};\n" }
+expected = [{ file = "case.ts", start = 6, end = 14 }]

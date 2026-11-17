@@ -4,7 +4,6 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     builders::service::*,
     completion::service::completion,
-    decoded::service::*,
     elements::{service::*, types::*},
     expansions::service::{append_embedded, write_embedded},
     symbols::{
@@ -65,7 +64,7 @@ fn initialized_model_survives_append_and_decoded_tail_without_native_identity_ch
     complete::<Model>(
         completion(&mut elements, &mut symbols, ByteSlice(b"a"), FileId(7)),
         ByteSlice(b"target=v1"),
-        crate::domain::elements::types::CompletionRequirement::PreparedModel,
+        CompletionRequirement::PreparedModel,
         |_, model| model.preparations += 1,
         |c| {
             assert_eq!(
@@ -159,7 +158,7 @@ fn initialization_completion_and_incremental_failure_never_leave_a_prepared_mark
             complete::<Model>(
                 completion(&mut elements, &mut symbols, ByteSlice(b"a"), FileId(0)),
                 ByteSlice(b"v1"),
-                crate::domain::elements::types::CompletionRequirement::PreparedModel,
+                CompletionRequirement::PreparedModel,
                 |_, m| {
                     assert_ne!(failing_phase, 0, "initialization failure");
                     m.preparations += 1;

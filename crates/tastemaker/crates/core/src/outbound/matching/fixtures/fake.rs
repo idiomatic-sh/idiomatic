@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use crate::domain::captures::types::CaptureValue;
-use crate::domain::selectors::types::{
+use crate::outbound::matching::interface::MatchingPort;
+use tastemaker_values::domain::captures::types::CaptureValue;
+use tastemaker_values::domain::selectors::types::{
     Binding, Coverage, GlobIndex, PathRest, PathSet, PathTest, PatternFailure, Spelling,
 };
-use crate::outbound::matching::interface::MatchingPort;
 
 /// What the core's tests stand in for `matching` with: no expression, no character class.
 #[derive(Clone, Copy, Debug, Default)]
@@ -74,7 +74,7 @@ impl PathSet for Each {
 impl MatchingPort for MatchingFake {
     fn compile_set(
         &self,
-        globs: &[crate::domain::selectors::types::SetGlob],
+        globs: &[tastemaker_values::domain::selectors::types::SetGlob],
     ) -> Result<Arc<dyn PathSet>, PatternFailure> {
         let globs = globs.iter().map(|glob| glob.0.clone()).collect::<Vec<_>>();
         if globs.iter().any(|glob| glob.contains(['[', '{', '?'])) {

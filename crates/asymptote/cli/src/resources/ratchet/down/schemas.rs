@@ -1,11 +1,11 @@
 //! The shape of the data this command does not control: its arguments become the service's request, and the service's
 //! report becomes the answer printed. `down` takes no selector, so no conversion of it can be refused.
 
-use asymptote_core::domain::judgement::types::Resolution;
-use asymptote_core::domain::manifest::types::Layout;
 use asymptote_core::domain::ratchet::types::{Compaction, DropReason, Moved, Writing};
 use asymptote_core::inbound::use_cases::down::errors::DownError;
 use asymptote_core::inbound::use_cases::down::types::{DownReport, DownRequest};
+use asymptote_values::domain::judgement::types::Resolution;
+use asymptote_values::domain::manifest::types::Layout;
 
 use crate::outcome::Outcome;
 use crate::output::schemas::{
@@ -13,9 +13,9 @@ use crate::output::schemas::{
 };
 
 /// The status of a record `down` drains.
-const RESOLVED: &str = asymptote_core::domain::judgement::constants::RESOLVED;
+const RESOLVED: &str = asymptote_values::domain::judgement::constants::RESOLVED;
 /// The status of a new in-source ignore `down` records.
-const ACCEPTED: &str = asymptote_core::domain::judgement::constants::ACCEPTED;
+const ACCEPTED: &str = asymptote_values::domain::judgement::constants::ACCEPTED;
 
 /// The service's request for the arguments.
 pub(super) fn request(edge: &crate::edge::Edge) -> DownRequest {
@@ -138,7 +138,7 @@ impl From<&DownReport> for DownReportSchema {
 
 /// The answer printed for the service's report: each record drained or lowered, and the counts.
 fn drained(report: &DownReport) -> DownReportSchema {
-    let reasons = |record: &asymptote_core::domain::operations::types::Record| {
+    let reasons = |record: &asymptote_values::domain::operations::types::Record| {
         record
             .reasons
             .iter()

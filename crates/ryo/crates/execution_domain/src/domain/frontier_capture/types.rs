@@ -1,21 +1,8 @@
 //! The frontier a rule hands over: its packed words and the scope that bounds the capture.
 use crate::domain::operating::errors::OperatingError;
-use ryo_relations::domain::relations::types::Words;
 
-/// Where a captured frontier is kept: the file and worker it is captured in, what is retained of it and the words it is packed into.
-pub struct CaptureScope<'a> {
-    /// The file the frontier is captured in.
-    pub file: ryo_relations::domain::relations::types::FileId,
-    /// Current rule identity validated by the store before warm replay.
-    pub rule_digest: ryo_values::domain::stored_facts::types::Digest,
-    /// The worker capturing it.
-    pub worker: ryo_relations::domain::relations::types::WorkerNumber,
-    /// What is retained of the file's rows.
-    pub retained: crate::domain::finish::types::Retained<'a>,
-    /// The words the frontier is packed into.
-    pub words: &'a mut Words,
-}
 /// The outcome of capturing one frontier input.
+#[derive(Debug)]
 pub struct FrontierCapture {
     /// The frontier input.
     pub input: ryo_values::domain::plan_parts::types::InputNumber,
@@ -23,6 +10,7 @@ pub struct FrontierCapture {
     pub outcome: Result<CapturedFrontier, OperatingError>,
 }
 /// A captured frontier: its input, bucket, proof and packed words.
+#[derive(Debug)]
 pub struct CapturedFrontier {
     /// The frontier input.
     pub input: ryo_values::domain::plan_parts::types::InputNumber,
@@ -32,4 +20,6 @@ pub struct CapturedFrontier {
     pub proof: ryo_values::domain::records::types::FrontierProof,
     /// The frontier's rows, packed.
     pub words: ryo_values::domain::stored_facts::types::PackedWords,
+    /// How many rows the frontier holds: none for a file that hands the input nothing.
+    pub rows: ryo_values::domain::rows::types::RowCount,
 }

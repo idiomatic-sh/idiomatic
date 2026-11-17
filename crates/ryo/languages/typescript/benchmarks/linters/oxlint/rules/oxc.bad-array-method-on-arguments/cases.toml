@@ -82,3 +82,8 @@ expected = [{ file = "case.ts", start = 20, end = 33 }]
 name = "directive"
 files = { "case.ts" = "function f() {\n  // eslint-disable-next-line bad-array-method-on-arguments\n  arguments.map(g);\n}\n" }
 expected = []
+
+[[cases]]
+name = "computed-escaped-template"
+files = { "case.ts" = "function f() { arguments[`sl\\u0069ce`](0); }\n" }
+expected = [{ file = "case.ts", start = 15, end = 38 }]

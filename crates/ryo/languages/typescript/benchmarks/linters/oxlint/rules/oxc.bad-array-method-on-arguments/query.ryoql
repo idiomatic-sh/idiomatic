@@ -19,10 +19,7 @@ let computed_properties = select l.id as id, l.property as property, l.file as f
 let method_names = select file, span from "semantic-syntax" where kind = "identifier-token" and matches(text, "^(?:@@iterator|at|concat|copyWithin|entries|every|fill|filter|find|findIndex|findLast|findLastIndex|flat|flatMap|forEach|groupBy|includes|indexOf|join|keys|lastIndexOf|map|pop|push|reduce|reduceRight|reverse|shift|slice|some|sort|splice|toReversed|toSorted|toSpliced|unshift|values|with)$");
 let static_methods = select l.id as id from static_properties as l join method_names as r on l.file = r.file and l.span = r.span where l.kind = "identifier";
 let string_methods = select l.id as id from computed_properties as l join "string-literal" as r on l.property = r.occurrence where matches(r.value, "^(?:@@iterator|at|concat|copyWithin|entries|every|fill|filter|find|findIndex|findLast|findLastIndex|flat|flatMap|forEach|groupBy|includes|indexOf|join|keys|lastIndexOf|map|pop|push|reduce|reduceRight|reverse|shift|slice|some|sort|splice|toReversed|toSorted|toSpliced|unshift|values|with)$");
-let template_names = select file, span from "semantic-syntax" where kind = "template" and matches(text, "^\x60(?:@@iterator|at|concat|copyWithin|entries|every|fill|filter|find|findIndex|findLast|findLastIndex|flat|flatMap|forEach|groupBy|includes|indexOf|join|keys|lastIndexOf|map|pop|push|reduce|reduceRight|reverse|shift|slice|some|sort|splice|toReversed|toSorted|toSpliced|unshift|values|with)\x60$");
-let template_methods = select l.id as id from computed_properties as l join template_names as r on l.file = r.file and l.span = r.span;
-let named_a = union(left=static_methods, right=string_methods);
-let named = union(left=named_a, right=template_methods);
+let named = union(left=static_methods, right=string_methods);
 let array_members = select l.id as id from on_arguments as l join named as r on l.id = r.id;
 let calls = select id from "semantic-syntax" where kind = "call-expression";
 let call_children = select l.child as id from "semantic-child" as l join calls as r on l.parent = r.id;

@@ -3,14 +3,14 @@
 
 use std::collections::BTreeMap;
 
-use tastemaker_core::domain::captures::service::{pieces, written_piece};
-use tastemaker_core::domain::captures::types::{PatternPiece, Template};
-use tastemaker_core::domain::entries::types::Setting;
-use tastemaker_core::domain::packages::types::DefinitionKind;
-use tastemaker_core::domain::paths::types::RepoPath;
 use tastemaker_core::inbound::use_cases::add::types::{
     AddReport, AddRequest, DefinitionAsked, Novelty,
 };
+use tastemaker_values::domain::captures::service::{pieces, written_piece};
+use tastemaker_values::domain::captures::types::{PatternPiece, Template};
+use tastemaker_values::domain::entries::types::Setting;
+use tastemaker_values::domain::packages::types::DefinitionKind;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Why the arguments were refused.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -132,8 +132,8 @@ pub(super) fn answer(
                 | PatternPiece::Span(name)
                 | PatternPiece::Directory(name) => format!("<{}>", name.0),
                 PatternPiece::Literal(character) => character.0.to_string(),
-                // A wildcard, or a piece a later core adds, is written as the pattern writes it.
-                other => written_piece(other).0,
+                // A wildcard is written as the pattern writes it.
+                other @ (PatternPiece::Star | PatternPiece::Question) => written_piece(other).0,
             })
             .collect();
         rooted(

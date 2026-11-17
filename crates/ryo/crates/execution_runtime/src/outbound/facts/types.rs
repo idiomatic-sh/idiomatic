@@ -1,6 +1,8 @@
 //! The types of the `facts` port: plain data, public fields and derives, with no constructor and
 //! no inherent impl.
 
+pub mod fact_sources;
+
 use ryo_relations::domain::relations::types::{FileId, Relation, Rows};
 
 use ryo_relations::domain::relations::types::FactColumn;
@@ -8,22 +10,15 @@ use ryo_relations::domain::relations::types::FactColumn;
 use ryo_values::domain::stored_facts::types::{KeptWords, PackedWords};
 use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
 
-/// Whether resident fact rows remain unchanged during one file's read/keep phase.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ResidentStability {
-    /// Values, kinds, row order and population survive `rows` of any relation and `keep`,
-    /// until the next `columns_mut` or `release` call.
-    Stable,
-    /// No immutable resident snapshot is promised; callers must build invocation-local indexes.
-    Unstable,
-}
-
 /// One physical file's packed frontier, with the identity and coverage issued
 /// by the owner that captured it. The proof is required even for empty rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WordsToKeep<'a> {
+    /// The packed words of the frontier.
     pub words: &'a PackedWords,
+    /// The file the words were captured from.
     pub file: FileId,
+    /// The identity and coverage the owner issued for the capture.
     pub proof: &'a ryo_values::domain::records::types::FrontierProof,
 }
 
@@ -32,15 +27,19 @@ pub struct WordsToKeep<'a> {
 pub struct KeptWordsStart(pub usize);
 
 /// How many bucket words a source range spans: the bare count inside is named here.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct KeptWordsLength(pub usize);
 
 /// One exact source range inside the concatenated bucket bytes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BucketSource {
+    /// The file the source range was captured from.
     pub file: FileId,
+    /// Where the range begins in the bucket's words.
     pub start: KeptWordsStart,
+    /// How many words the range spans.
     pub length: KeptWordsLength,
+    /// The identity and coverage the owner issued for the range.
     pub proof: ryo_values::domain::records::types::FrontierProof,
 }
 
@@ -52,6 +51,27 @@ pub struct KeptBucket {
     pub words: std::sync::Arc<KeptWords>,
     /// The provenance of each source whose words the bucket holds.
     pub sources: Vec<BucketSource>,
+}
+
+/// What a bucket holds besides its words: the provenance of each source, as `kept` gives it, and how many words they run to.
+/// What a proof reads, so a proof reads no word.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::outbound::facts::types::{KeptSources, KeptWordsLength};
+/// let nothing = KeptSources {
+///     sources: Vec::new(),
+///     length: KeptWordsLength(0),
+/// };
+/// assert!(nothing.sources.is_empty());
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct KeptSources {
+    /// The provenance of each source whose words the bucket holds, as `kept` gives it.
+    pub sources: Vec<BucketSource>,
+    /// How many words the bucket holds.
+    pub length: KeptWordsLength,
 }
 
 /// What the columns the worker's file writes to are made of, generated from the catalog's one list: a field for

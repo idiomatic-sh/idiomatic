@@ -5,14 +5,14 @@ use std::sync::Arc;
 
 use super::constants::{GIT, NOT_UTF8, TASTEMAKER, VERBATIM, WORKSPACE_FILE};
 use super::types::{Kept, RepositoryDiskProject, RepositoryDiskRepository};
-use crate::domain::files::types::{
-    Declarer, DirectoryName, FileText, MachinePath, SkippedDirectories, SkippedDirectory, Stamp,
-};
-use crate::domain::paths::service::normalize;
-use crate::domain::paths::types::{PathText, RepoPath};
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::interface::{FoundRepository, Repository, RepositoryPort};
 use crate::outbound::repository::types::{Marker, Presence, RepoPaths, Walk};
+use tastemaker_values::domain::files::types::{
+    Declarer, DirectoryName, FileText, MachinePath, SkippedDirectories, SkippedDirectory, Stamp,
+};
+use tastemaker_values::domain::paths::service::normalize;
+use tastemaker_values::domain::paths::types::{PathText, RepoPath};
 
 /// The disk repository adapter, and the directory names the linked languages declare skipped, beside the ones Tastemaker always
 /// skips.
@@ -336,7 +336,7 @@ impl Repository for RepositoryDiskRepository {
         })
     }
 
-    fn stamps(&self, paths: &[RepoPath]) -> crate::domain::files::types::Stamps {
+    fn stamps(&self, paths: &[RepoPath]) -> tastemaker_values::domain::files::types::Stamps {
         let found: Vec<Stamp> = {
             paths
                 .iter()
@@ -348,8 +348,8 @@ impl Repository for RepositoryDiskRepository {
                             .map_err(std::io::Error::other)?
                             .as_nanos();
                         Ok(Stamp {
-                            size: crate::domain::files::types::FileSize(meta.len()),
-                            modified: crate::domain::files::types::ModifiedTime(
+                            size: tastemaker_values::domain::files::types::FileSize(meta.len()),
+                            modified: tastemaker_values::domain::files::types::ModifiedTime(
                                 u64::try_from(modified).unwrap_or(u64::MAX),
                             ),
                         })
@@ -359,7 +359,7 @@ impl Repository for RepositoryDiskRepository {
                 })
                 .collect()
         };
-        crate::domain::files::types::Stamps(found)
+        tastemaker_values::domain::files::types::Stamps(found)
     }
 }
 
@@ -392,7 +392,7 @@ impl Repository for RepositoryDiskProject {
         self.repository.remove(path)
     }
 
-    fn stamps(&self, paths: &[RepoPath]) -> crate::domain::files::types::Stamps {
+    fn stamps(&self, paths: &[RepoPath]) -> tastemaker_values::domain::files::types::Stamps {
         self.repository.stamps(paths)
     }
 }

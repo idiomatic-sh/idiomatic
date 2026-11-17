@@ -2,7 +2,6 @@
 use ryo_benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, ExitStatus, PathText, ReasonText, YesNo,
 };
-use sha2::Digest as _;
 
 use super::super::{
     errors::ProcessReceiptsError,
@@ -137,6 +136,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || edited(passing, |d| invocation(d).state = PathText(String::new())),
         expect: Expect::Error(ProcessReceiptsError::RawStateMissing),
+    },
+    Case {
+        name: CaseName(
+            "raw argv running on four threads establishes settings spelled at one worker",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            edited(passing, |d| {
+                let raw = invocation(d);
+                raw.arguments
+                    .extend([ArgumentText("--threads".into()), ArgumentText("4".into())]);
+                raw.normalized_settings
+                    .arguments
+                    .extend([ArgumentText("--threads".into()), ArgumentText("1".into())]);
+            })
+        },
+        expect: Expect::Value(Outcome::Accepted),
     },
     Case {
         name: CaseName("raw argv that does not establish the pinned settings is refused"),

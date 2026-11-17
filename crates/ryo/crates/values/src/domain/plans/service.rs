@@ -1,6 +1,6 @@
 //! The `plans` service: free functions named by verb over a compiled plan, with no IO and no ports.
 
-use super::types::Operation;
+use super::types::{Operation, Plan, RuleReads};
 use crate::domain::plan_parts::types::Input;
 use crate::domain::plan_parts::types::PlanComparison;
 use crate::domain::plan_parts::types::StepId;
@@ -38,6 +38,12 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
             domain,
             ..
         } => (*from, *edges, *domain, 3),
+        Operation::Worklist {
+            from,
+            edges,
+            lattice,
+            ..
+        } => (*from, *edges, *lattice, 3),
         Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => {
             (*edges, *edges, *edges, 1)
         }
@@ -57,6 +63,32 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
 #[must_use]
 pub fn named(inputs: &Inputs) -> &[Input] {
     inputs.list.get(..inputs.used.0).unwrap_or(&inputs.list)
+}
+
+/// The relations `plan`'s steps read, each once, in the order a step first reads it: the one walk of a rule's read set.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plans::service::reads_of;
+/// use ryo_values::domain::plans::types::Plan;
+/// fn reads(plan: &Plan) -> usize {
+///     reads_of(plan).0.len()
+/// }
+/// ```
+#[must_use]
+pub fn reads_of(plan: &Plan) -> RuleReads {
+    let mut reads = Vec::new();
+    for step in &plan.steps {
+        for input in named(&inputs_of(&step.operation)) {
+            if let Input::Relation(relation) = *input
+                && !reads.contains(&relation)
+            {
+                reads.push(relation);
+            }
+        }
+    }
+    RuleReads(reads.into_boxed_slice())
 }
 
 /// Gives `visit` each input the operation reads.
@@ -99,6 +131,16 @@ pub fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) 
             visit(edges);
             visit(domain);
         }
+        Operation::Worklist {
+            from,
+            edges,
+            lattice,
+            ..
+        } => {
+            visit(from);
+            visit(edges);
+            visit(lattice);
+        }
         Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => visit(edges),
         Operation::Rows { .. } | Operation::Hosted { .. } => {}
     }
@@ -124,6 +166,7 @@ pub fn kind_of(operation: &Operation) -> OperationKind {
         Operation::Replace { .. } => OperationKind::Replace,
         Operation::OrderedMatch { .. } => OperationKind::OrderedMatch,
         Operation::OrderedDfs { .. } => OperationKind::OrderedDfs,
+        Operation::Worklist { .. } => OperationKind::Worklist,
         Operation::GroupCount { .. } => OperationKind::GroupCount,
         Operation::GroupDigest { .. } => OperationKind::GroupDigest,
         Operation::Capture { .. } => OperationKind::Capture,
@@ -158,6 +201,7 @@ pub fn comparisons_of(operation: &Operation) -> &[PlanComparison] {
         | Operation::SpanBounds { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }

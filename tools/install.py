@@ -11,8 +11,10 @@ Where a version is declared:
 
 - a Rust tool more than one product runs, or that no product declares, once, in `ROOT_CRATES` below; our own tools are installed at
   the version the root's own file names (`tastemaker = "x.y.z"` in `tastemaker.toml`, `asymptote = "x.y.z"` in `asymptote.toml`), the
-  line the tool checks itself against on every run; `ryo` at the version written beside it below. Each is a published release, pinned
-  apart from its product's workspace version, so a change that bumps a product still installs the release before it.
+  line the tool checks itself against on every run; `ryo` at the version written beside it below. Each is pinned apart from its
+  product's workspace version, so a change that bumps a product still installs the release before it. A tool whose declared version
+  is the version its own crate has in this tree and that crates.io does not hold yet (the change that bumps a product and pins it) is
+  built from that crate (`cargo install --locked --path`), on every run, as its sources may change while its version does not.
 - a Rust tool only one product runs, in that product's `[workspace.metadata.bin]` (its `crates/*/Cargo.toml`):
   `name = { version = "x.y.z", locked = true, bins = [...] }`. A tool is
   declared in one place: one `ROOT_CRATES` holds, or another product's manifest declares, is an error.
@@ -26,7 +28,7 @@ Where a version is declared:
 - `cargo-binstall`, which installs the prebuilt Rust tools, in `BINSTALL` below: its official release archive for this machine, checked
   against the SHA-256 recorded there, never compiled.
 
-A Rust tool is fetched prebuilt with `cargo binstall`, which may not compile it: no tool is compiled. A tool with no prebuilt release for a
+A Rust tool is fetched prebuilt with `cargo binstall`, which may not compile it: no tool is compiled from a registry. A tool with no prebuilt release for a
 machine is named in its `unavailable` (the machine's target) with the reason, and is not installed there: the groups that run it do not run
 on that machine. Any other missing prebuilt fails the install. A tool whose release ships archives cargo-binstall does not find (a gzipped
 executable, or a tar.gz or zip holding it), Rust or not, is in `ARCHIVES`, each archive's SHA-256 recorded. Our own published tools come prebuilt from the GitHub Release of their tag, the installed
@@ -39,6 +41,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import io
+import json
 import os
 import re
 import shutil
@@ -46,6 +49,7 @@ import subprocess
 import sys
 import tarfile
 import tomllib
+import urllib.error
 import urllib.request
 import zipfile
 from dataclasses import dataclass, field
@@ -310,6 +314,56 @@ def install_crate(crate: Crate, host: str) -> str:
     return "prebuilt"
 
 
+# crates.io's sparse index, which names every published version of a crate, one JSON line each.
+INDEX_URL = "https://index.crates.io/{path}"
+
+
+def published(name: str) -> set[str]:
+    """The versions of `name` crates.io holds; none where it holds no such crate."""
+    lowered = name.lower()
+    path = {1: "1/{0}", 2: "2/{0}", 3: "3/{1}/{0}"}.get(len(lowered), "{2}/{3}/{0}").format(lowered, lowered[:1], lowered[:2], lowered[2:4])
+    try:
+        with urllib.request.urlopen(INDEX_URL.format(path=path)) as response:  # noqa: S310 - a fixed https URL
+            lines = response.read().decode().splitlines()
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return set()
+        raise
+    return {json.loads(line)["vers"] for line in lines if line.strip()}
+
+
+def tree_crates(root: Path = ROOT) -> dict[str, tuple[Path, str]]:
+    """Every package of a product's workspace in this tree (`crates/*/Cargo.toml`'s members): name -> (its directory, its version)."""
+    found = {}
+    for workspace in sorted(root.glob("crates/*/Cargo.toml")):
+        manifest = tomllib.loads(workspace.read_text(encoding="utf-8"))["workspace"]
+        version = manifest.get("package", {}).get("version")
+        for member in manifest.get("members", []):
+            for directory in sorted(workspace.parent.glob(member)):
+                if not (directory / "Cargo.toml").is_file():
+                    continue
+                package = tomllib.loads((directory / "Cargo.toml").read_text(encoding="utf-8")).get("package", {})
+                if "name" in package:
+                    own = package.get("version", version)
+                    found[package["name"]] = (directory, version if isinstance(own, dict) else own)
+    return found
+
+
+def unreleased(crate: Crate, tree: dict[str, tuple[Path, str]], released=published) -> Path | None:
+    """The directory of `crate` in this tree where the version declared for it is the one its crate there has and crates.io does not
+    hold it yet: a product this repository pins at its own unreleased version, built from its sources. None for every other tool."""
+    found = tree.get(crate.name)
+    if found is None or found[1] != crate.version or crate.version in released(crate.name):
+        return None
+    return found[0]
+
+
+def install_from_tree(crate: Crate, directory: Path) -> str:
+    """Builds and installs `crate` from its sources at `directory`, its workspace's lock held."""
+    run(["cargo", "install", "--locked", "--force", "--path", str(directory)])
+    return f"built from {directory}"
+
+
 # Our own packages, and the GitHub Release each version is published to: `<package>-v<version>`, one archive per target named in
 # its `SHA256SUMS`.
 OURS = "idiomatic-sh-"
@@ -486,8 +540,11 @@ def main(argv: list[str]) -> int:
     bin_dir = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo")) / "bin"
     if binstall_installed() != BINSTALL["version"]:
         install_binstall(host, bin_dir)
+    tree = tree_crates()
+    built = {crate.name: directory for crate in crates if (directory := unreleased(crate, tree))}
+    how = {crate.name: install_from_tree(crate, built[crate.name]) for crate in crates if crate.name in built}
     installed = installed_crates()
-    how = {crate.name: install_crate(crate, host) for crate in crates if stale_crate(crate, installed)}
+    how |= {crate.name: install_crate(crate, host) for crate in crates if crate.name not in built and stale_crate(crate, installed)}
     how |= {command: install_archive(command, host, bin_dir) for command in ARCHIVES}
     for name, done in how.items():
         print(f"{name}: {done}", flush=True)

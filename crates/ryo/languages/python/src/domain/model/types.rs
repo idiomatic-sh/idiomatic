@@ -10,7 +10,7 @@ use crate::domain::format_syntax::types::{
 use crate::domain::indentation::types::IndentationIndex;
 use crate::domain::read_scratch::types::ReadScratch;
 use crate::domain::terminal_flow::types::TerminalIndex;
-use ryo::languages::{Position, RetainedKeyIndex, ShapeWord, Symbol};
+use ryo::languages::{Position, RetainedKeyIndex, ShapeIndex, Symbol};
 use std::cell::RefCell;
 
 /// Where a scope says a name it assigns is bound instead of in itself.
@@ -57,7 +57,7 @@ pub(crate) struct Declarations {
     /// Configured language target, attached to every recognized source file.
     pub language_target: crate::domain::standard_library::types::TargetVersion,
     /// Lazy canonical expression classes, invalidated between source revisions.
-    pub expression_shapes: RefCell<RetainedKeyIndex<Position, ShapeWord>>,
+    pub expression_shapes: ShapeIndex,
     /// Lazy normalized constant-expression keys, invalidated between source revisions.
     pub constant_keys: RefCell<RetainedKeyIndex<KeyClass, KeyWord>>,
     /// Lazy decoded percent-format parses, invalidated between source revisions.
@@ -352,6 +352,8 @@ pub(crate) struct BindingAnalysisIndex {
     pub uses: Vec<crate::domain::binding_results::types::Usage>,
     /// Replacement and lexical shadow edges.
     pub shadows: Vec<crate::domain::binding_results::types::Shadow>,
+    /// Scratch for the events of each name, indexed by symbol and reused across files.
+    pub name_counts: Vec<NameEventCount>,
 }
 
 /// One real mutation in a static execution phase, indexed without cloning namespaces.
@@ -366,3 +368,7 @@ pub(crate) struct BindingMutation {
     /// Store, deletion, or exception cleanup.
     pub action: BindingAction,
 }
+
+/// How many events one name holds so far in the file being indexed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct NameEventCount(pub usize);

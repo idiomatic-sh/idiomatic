@@ -1,6 +1,5 @@
 //! The authored request of the partition controls: the named producer, the project producer and the consumer join, shaped by the mode.
 use crate::boundary_fixture::fixtures::authored_request;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_relations::domain::relations::types::Integer;

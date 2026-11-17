@@ -1,21 +1,21 @@
 //! What links the files to one another follows an edit of one of them, whatever the store holds.
 
+use crate::unbounded;
 use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;
-#[cfg(all(feature = "json", feature = "javascript"))]
+#[cfg(all(feature = "json", feature = "typescript"))]
 use ryo_sdk::linter::{
     Cache as SdkCache, Corpus, Languages, LintRequest, MemoryBudget, Rule as SdkRule, RuleId,
 };
-#[cfg(all(feature = "json", feature = "javascript"))]
+#[cfg(all(feature = "json", feature = "typescript"))]
 use ryo_sdk::query::RyoQlQuery;
 
 use crate::cache::{sorted, write};
-use crate::counting;
 
 /// The rule that reads how the files link to one another.
 fn linking() -> Vec<Rule> {
-    vec![crate::rule_from_query(
+    vec![crate::tools::rule_from_query(
         "links",
         "let d = select * from \"source-dependency\"; emit d subject source key(target);",
         &["**".to_owned()],
@@ -42,7 +42,7 @@ fn what_links_the_files_follows_an_edit_of_one_whatever_the_store_holds() {
     );
     let rows = |kept| {
         sorted(
-            counting::lint_counting(root.path(), linking(), kept)
+            unbounded::lint_counting(root.path(), linking(), kept)
                 .expect("a run")
                 .rows,
         )
@@ -67,7 +67,7 @@ fn what_links_the_files_follows_an_edit_of_one_whatever_the_store_holds() {
     );
     let after = rows(Arc::clone(&store));
     let oracle = sorted(
-        counting::lint_counting(
+        unbounded::lint_counting(
             root.path(),
             linking(),
             Arc::new(ryo_core::outbound::lint_store::factory::memory()),
@@ -111,7 +111,7 @@ let unpinned = select * from every where exact = "false";
 emit unpinned subject "file" key("span");
 "#;
 
-#[cfg(all(feature = "json", feature = "javascript"))]
+#[cfg(all(feature = "json", feature = "typescript"))]
 #[test]
 fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
     let _beside = crate::beside();
@@ -119,7 +119,7 @@ fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
     let cache = tempfile::tempdir().expect("cache");
     std::fs::write(root.path().join("package.json"), "{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"dependencies\": { \"hono\": \"^4.0.0\" }\n}\n").expect("w");
     std::fs::write(root.path().join("a.js"), "// one\n").expect("w");
-    let languages = Languages(vec![ryo_json::linked(), ryo_javascript::linked()]);
+    let languages = Languages(vec![ryo_json::linked(), ryo_typescript::linked()]);
     let rules = std::collections::BTreeMap::from([
         (
             RuleId::try_from("identity").expect("id"),

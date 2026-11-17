@@ -1,11 +1,11 @@
 //! What the git adapter asks git with.
 
-use crate::domain::git::constants::REV_PARSE_COMMAND;
+use asymptote_values::domain::git::constants::REV_PARSE_COMMAND;
 
 /// The separator of the sections `--format=%x1e` writes.
 pub(super) const RECORD: char = '\u{1e}';
 /// The revision the working tree stands on.
-pub(super) const HEAD: &str = crate::domain::reports::constants::HEAD;
+pub(super) const HEAD: &str = asymptote_values::domain::reports::constants::HEAD;
 /// What peels a revision to its commit, after it.
 pub(super) const PEEL: &str = "^{commit}";
 /// The commit a revision names, quietly.

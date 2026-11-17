@@ -1,0 +1,59 @@
+[[cases]]
+name = "struct-literal"
+files = { "src/lib.rs" = "pub struct P {\n    pub x: u8,\n    pub y: u8,\n}\npub fn f(x: u8, y: u8) -> P {\n    P { x: x, y: y }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 85, end = 89 }, { file = "src/lib.rs", start = 91, end = 95 }]
+
+[[cases]]
+name = "not-redundant"
+files = { "src/lib.rs" = "pub struct P {\n    pub x: u8,\n    pub y: u8,\n}\npub fn f(x: u8, z: u8) -> P {\n    let a = P { x, y: z };\n    let b = P { x: (x), y: self::Z };\n    let c = P { x: x + 1, ..a };\n    let _ = (b, c);\n    P { x: z, y: x }\n}\npub const Z: u8 = 0;\n" }
+expected = []
+
+[[cases]]
+name = "paths-and-generics"
+files = { "src/lib.rs" = "pub struct W<T> {\n    pub value: T,\n    pub default: fn() -> u8,\n}\nfn default() -> u8 {\n    0\n}\npub fn f(value: u8) -> (W<u8>, W<u8>) {\n    (W { value: value, default: default }, W::<u8> { value: value, default: self::default })\n}\npub fn g() -> W<u8> {\n    W { value: default(), default: default::<> }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 145, end = 157 }, { file = "src/lib.rs", start = 159, end = 175 }, { file = "src/lib.rs", start = 189, end = 201 }]
+
+[[cases]]
+name = "raw-identifiers-and-enums"
+files = { "src/lib.rs" = "pub struct K {\n    pub r#type: u8,\n    pub other: u8,\n}\npub enum E {\n    V { r#type: u8 },\n}\npub fn f(r#type: u8, other: u8) -> (K, E) {\n    (K { r#type: r#type, other: r#other }, E::V { r#type: r#type })\n}\n" }
+expected = [{ file = "src/lib.rs", start = 146, end = 160 }, { file = "src/lib.rs", start = 162, end = 176 }, { file = "src/lib.rs", start = 187, end = 201 }]
+
+[[cases]]
+name = "nested-and-spacing"
+files = { "src/lib.rs" = "pub struct I {\n    pub x: u8,\n}\npub struct O {\n    pub i: I,\n    pub x: u8,\n}\npub fn f(x: u8) -> O {\n    let i = I { x : x };\n    O {\n        i: i,\n        x:x,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 117, end = 122 }, { file = "src/lib.rs", start = 142, end = 146 }, { file = "src/lib.rs", start = 156, end = 159 }]
+
+[[cases]]
+name = "in-test-module-and-closures"
+files = { "src/lib.rs" = "pub struct P {\n    pub x: u8,\n}\npub fn f() -> impl Fn(u8) -> P {\n    |x| P { x: x }\n}\n#[cfg(test)]\nmod tests {\n    use super::P;\n    #[test]\n    fn t() {\n        let x = 1;\n        let p = P { x: x };\n        assert_eq!(p.x, 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 77, end = 81 }, { file = "src/lib.rs", start = 193, end = 197 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! m {\n    ($x:ident) => {\n        P { x: x }\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "pub struct P {\n    pub x: u8,\n}\n#[allow(clippy::redundant_field_names)]\npub fn f(x: u8) -> P {\n    P { x: x }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "pub struct P {\n    pub x: u8,\n}\n#[allow(clippy::style)]\npub fn f(x: u8) -> P {\n    P { x: x }\n}\npub fn g(x: u8) -> P {\n    #[allow(clippy::all)]\n    let p = P { x: x };\n    p\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::redundant_field_names)]\npub struct P {\n    pub x: u8,\n}\npub fn f(x: u8) -> P {\n    P { x: x }\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\npub struct P {\n    pub x: u8,\n}\n#[warn(clippy::redundant_field_names)]\npub fn f(x: u8) -> P {\n    P { x: x }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 127, end = 131 }]
+
+[[cases]]
+name = "attribute-on-the-field"
+files = { "src/lib.rs" = "pub struct P {\n    pub x: u8,\n    pub y: u8,\n}\npub fn f(x: u8, y: u8) -> P {\n    P {\n        #[allow(clippy::redundant_field_names)]\n        x: x,\n        #[allow(unused)]\n        y: y,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 141, end = 145 }, { file = "src/lib.rs", start = 180, end = 184 }]

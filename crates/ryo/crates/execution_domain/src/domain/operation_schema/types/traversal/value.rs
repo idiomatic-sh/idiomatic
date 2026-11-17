@@ -6,9 +6,9 @@ use crate::domain::operation_schema::projection::{
 };
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operation_schema::types::bindings::value::BindingShape;
-use crate::domain::table_cells::types::TreeForm;
+use ryo_operators::domain::tree_cells::types::TreeForm;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Side};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Side};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -40,6 +40,7 @@ impl<'a> TraversalShape<'a> {
             OperationKind::Axis => axis_schema(operation, self.inputs, bindings),
             OperationKind::OrderedMatch => ordered_schema(operation, self.inputs),
             OperationKind::OrderedDfs => dfs_schema(operation, self.inputs),
+            OperationKind::Worklist => worklist_schema(operation, self.inputs),
             OperationKind::Select
             | OperationKind::Project
             | OperationKind::Extend
@@ -157,6 +158,72 @@ fn dfs_schema(
     Ok(answer)
 }
 
+/// A worklist's partition, endpoint, order and state columns, without running it: the roots' keys and root, the edges'
+/// source, destination, order and before-state, and the state each followed edge leaves its destination in.
+fn worklist_schema(
+    operation: &Operation,
+    inputs: &[InputShape<'_>],
+) -> Result<Vec<CellKind>, OperatingError> {
+    let Operation::Worklist {
+        root,
+        state,
+        source,
+        destination,
+        order,
+        before,
+        after,
+        lower,
+        upper,
+        root_keys,
+        edge_keys,
+        ..
+    } = operation
+    else {
+        return Err(OperatingError::WrongOperation);
+    };
+    let (roots, edges, lattice) = (
+        schema_input(inputs, InputPlace(0))?,
+        schema_input(inputs, InputPlace(1))?,
+        schema_input(inputs, InputPlace(2))?,
+    );
+    check_columns(roots.kinds, &[*root, *state])?;
+    check_columns(roots.kinds, root_keys)?;
+    check_columns(
+        edges.kinds,
+        &[*source, *destination, *order, *before, *after],
+    )?;
+    check_columns(edges.kinds, edge_keys)?;
+    check_columns(lattice.kinds, &[*lower, *upper])?;
+    let entity = column_in(roots.kinds, *root).ok_or(OperatingError::ShapeMismatch)?;
+    let held = column_in(roots.kinds, *state).ok_or(OperatingError::ShapeMismatch)?;
+    if Some(entity) != column_in(edges.kinds, *source)
+        || Some(entity) != column_in(edges.kinds, *destination)
+        || column_in(edges.kinds, *order) != Some(&CellKind::Number)
+        || [
+            column_in(edges.kinds, *before),
+            column_in(edges.kinds, *after),
+            column_in(lattice.kinds, *lower),
+            column_in(lattice.kinds, *upper),
+        ]
+        .iter()
+        .any(|kind| *kind != Some(held))
+        || root_keys.len() != edge_keys.len()
+        || root_keys.iter().zip(edge_keys).any(|(root_key, edge_key)| {
+            column_in(roots.kinds, *root_key) != column_in(edges.kinds, *edge_key)
+        })
+    {
+        return Err(OperatingError::ShapeMismatch);
+    }
+    let mut answer = projected(roots.kinds, root_keys)?;
+    answer.extend(projected(roots.kinds, &[*root])?);
+    answer.extend(projected(
+        edges.kinds,
+        &[*source, *destination, *order, *before],
+    )?);
+    answer.push(*held);
+    Ok(answer)
+}
+
 /// Preserve native tree projection and computed-edge restrictions using only representation metadata.
 fn axis_schema(
     operation: &Operation,
@@ -164,7 +231,6 @@ fn axis_schema(
     bindings: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::Axis {
-        direction,
         id,
         parent,
         child,
@@ -183,13 +249,14 @@ fn axis_schema(
         schema_input(inputs, InputPlace(2))?,
     );
     check_columns(from.kinds, &[*id])?;
-    let domain_entity = crate::domain::tree_walk::service::entity_of(domain_view, *domain_id);
+    let domain_entity =
+        ryo_values::domain::plan_parts::service::view_source(domain_view, *domain_id);
     let native = edges.tree == Some(TreeForm::Edges)
         && (*parent, *child) == (ColumnIndex(0), ColumnIndex(1))
         && (domain_filter.is_empty() && domain_view.is_empty()
-            || domain.tree == Some(TreeForm::Elements) && domain_entity == ColumnIndex(0));
+            || domain.tree == Some(TreeForm::Elements) && domain_entity == Some(ColumnIndex(0)));
     if native {
-        check_columns(domain.kinds, &[domain_entity])?;
+        check_columns(domain.kinds, domain_entity.as_slice())?;
         BindingShape::new(bindings).predicates(domain_filter, domain.kinds)?;
         if !output.is_empty() {
             return joined(
@@ -203,19 +270,11 @@ fn axis_schema(
                 output,
             );
         }
-    } else {
-        if !domain_filter.is_empty()
-            || !domain_view.is_empty()
-            || !output.is_empty()
-            || matches!(
-                direction,
-                Direction::Deep | Direction::PreviousSibling | Direction::NextSibling
-            )
-        {
-            return Err(OperatingError::WrongOperation);
-        }
-        check_columns(edges.kinds, &[*parent, *child])?;
-        check_columns(domain.kinds, &[*domain_id])?;
+    } else if !output.is_empty() {
+        // Over keyed edges an axis refuses a declared output, a domain filter or view, a tree-only direction and an edge
+        // or domain column past its rows only when a start reads them, after its empty-start and empty-domain gates, as
+        // main's walk did; the walk itself raises those. Its layout is declared here.
+        return joined(from.kinds, domain.kinds, None, output);
     }
     let mut answer = from.kinds.to_vec();
     answer.push(CellKind::Node);

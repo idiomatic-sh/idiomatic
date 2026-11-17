@@ -121,16 +121,8 @@ pub fn anchor_through(
     view: &[ColumnIndex],
     column: ColumnIndex,
 ) -> ColumnAnchor {
-    if view.is_empty() {
-        return anchor_at(lineage, column);
-    }
-    let Ok(at) = usize::try_from(column.0) else {
-        return ColumnAnchor::Elsewhere;
-    };
-    match view.get(at) {
-        Some(own) => anchor_at(lineage, *own),
-        None => ColumnAnchor::Elsewhere,
-    }
+    crate::domain::plan_parts::service::view_source(view, column)
+        .map_or(ColumnAnchor::Elsewhere, |own| anchor_at(lineage, own))
 }
 
 /// Whether the keys of two operands pair a column of each that lies in its row's file, the right keys read through `view`.
@@ -357,6 +349,7 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
         Operation::Join { reach: Some(_), .. }
         | Operation::Axis { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. } => Lineage::Mixed,
         Operation::Hosted { .. } => hosted(kinds),

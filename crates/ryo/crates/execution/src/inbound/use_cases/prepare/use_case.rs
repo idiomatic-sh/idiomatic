@@ -1,31 +1,21 @@
 //! Thin public orchestration over the one private execution owner.
 use super::interface::PrepareUseCase;
-use super::types::{DerivedViews, PlanSource, PrepareRequest};
+use super::types::{PlanSource, PrepareRequest};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use std::sync::Arc;
 
-/// Prepares programs over the operators, derived views and digest it is given.
+/// Prepares programs over the operators it is given.
+#[derive(Debug)]
 pub struct PrepareUseCaseImpl {
     operators: Arc<dyn OperatorsPort>,
-    derived: DerivedViews,
-    digest: Arc<dyn DigestPort>,
 }
 
 impl PrepareUseCaseImpl {
-    /// A use case over the engine's operators, derived views and digest.
-    pub fn new(
-        operators: Arc<dyn OperatorsPort>,
-        derived: DerivedViews,
-        digest: Arc<dyn DigestPort>,
-    ) -> Self {
-        Self {
-            operators,
-            derived,
-            digest,
-        }
+    /// A use case over the engine's operators.
+    pub fn new(operators: Arc<dyn OperatorsPort>) -> Self {
+        Self { operators }
     }
 }
 
@@ -41,14 +31,13 @@ impl PrepareUseCase for PrepareUseCaseImpl {
             }
             PlanSource::Compiled(queries) => queries.inner,
         };
-        self.derived.0.program(
+        ryo_execution_runtime::application::file_dag::service::prepare(
             compiled,
             &request.rules,
             &request.digests,
             &request.hosted,
             request.observations,
             Arc::clone(&self.operators),
-            Arc::clone(&self.digest),
         )
     }
 }

@@ -10,7 +10,7 @@ use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::{
-    service::remapped,
+    service::remapped_comparison,
     types::{ColumnIndex, Input, PlanComparison, RepeatedRows},
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
@@ -62,6 +62,7 @@ pub(super) fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
@@ -91,13 +92,9 @@ pub(super) fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<
         }
     };
     for comparison in comparisons {
-        let map = |column: ColumnIndex| position(&columns, column);
-        chosen.push(PlanComparison {
-            test: comparison.test,
-            left: remapped(&comparison.left, &map)?,
-            right: remapped(&comparison.right, &map)?,
-            origin: comparison.origin,
-        });
+        chosen.push(remapped_comparison(comparison, &|column: ColumnIndex| {
+            position(&columns, column)
+        })?);
     }
     let projection = if matches!(operation, Operation::Select { .. }) && kept.is_empty() {
         columns
@@ -113,7 +110,7 @@ pub(super) fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<
 /// Grouping predicates without origin IDs does not make their owners' error provenance interchangeable.
 pub(crate) fn compiled(
     rules: &[RuleSpec],
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
     digest: &dyn DigestPort,
@@ -183,7 +180,7 @@ pub(crate) fn compiled(
 /// decide whether a repeated shape is semantically interchangeable.
 pub(super) fn subplans(
     rules: &[RuleSpec],
-    plans: &[Plan],
+    plans: &[std::sync::Arc<Plan>],
     bindings: &[Vec<ParameterBinding>],
     hosted: &[HostRelation],
     digest: &dyn DigestPort,

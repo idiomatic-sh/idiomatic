@@ -43,7 +43,6 @@ pub fn command() -> clap::Command {
 /// Parses the command line and runs the command it names, from `start` with `build`, handing `on_signal`, where a
 /// command registers what stops the tools it runs, to the command that runs tools; a panic is reported as an internal
 /// error and ends as one.
-#[must_use]
 pub fn run(
     start: &str,
     build: &str,
@@ -81,7 +80,7 @@ fn run_from(
         Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Error),
     };
     let edge = crate::edge::Edge {
-        start: asymptote_core::domain::manifest::types::ProductRoot(
+        start: asymptote_values::domain::manifest::types::ProductRoot(
             cli.root
                 .map_or_else(
                     || start.to_owned(),
@@ -89,8 +88,8 @@ fn run_from(
                 )
                 .into(),
         ),
-        here: asymptote_core::domain::manifest::types::ProductRoot(start.into()),
-        store: std::path::PathBuf::from(asymptote_core::domain::operations::constants::CACHE),
+        here: asymptote_values::domain::manifest::types::ProductRoot(start.into()),
+        store: std::path::PathBuf::from(asymptote_values::domain::operations::constants::CACHE),
         build: asymptote_core::outbound::check_store::types::Build(build.into()),
         format: cli.output.format(),
         writing: if cli.dry_run.dry_run() {

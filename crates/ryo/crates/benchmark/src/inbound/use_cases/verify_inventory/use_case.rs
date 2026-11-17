@@ -14,6 +14,7 @@ pub struct VerifyInventoryUseCaseImpl {
     receipts: Arc<dyn ReceiptsPort>,
     execution: Arc<dyn ExecutionPort>,
     store: Arc<dyn InventoryPort>,
+    scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
 }
 impl VerifyInventoryUseCaseImpl {
     /// Bind the existing shared execution contract.
@@ -23,12 +24,14 @@ impl VerifyInventoryUseCaseImpl {
         receipts: Arc<dyn ReceiptsPort>,
         execution: Arc<dyn ExecutionPort>,
         store: Arc<dyn InventoryPort>,
+        scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
     ) -> Self {
         Self {
             suite,
             receipts,
             execution,
             store,
+            scheduler,
         }
     }
 }
@@ -53,6 +56,8 @@ impl VerifyInventoryUseCase for VerifyInventoryUseCaseImpl {
             self.execution.as_ref(),
             self.store.as_ref(),
             &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+            self.scheduler.as_ref(),
+            ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount(1),
         )
     }
 }

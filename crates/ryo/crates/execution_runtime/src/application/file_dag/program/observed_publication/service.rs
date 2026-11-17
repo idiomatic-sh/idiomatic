@@ -1,72 +1,41 @@
-//! Validation of admitted protocol handovers; no scheduling or dependency acquisition.
-use crate::application::file_dag::program::admission::{
-    service::AdmittedInput, service::ReadProof,
-};
+//! What an occurrence after the files published of a named output: its rows and how completely they were read, handed to the
+//! stage's install and to the consumers bound to it.
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
+use ryo_values::domain::records::types::ProducerReadiness;
+use ryo_values::domain::rows::types::Table;
+use std::sync::Arc;
 
 impl ObservedPublication {
-    /// The handover of an admitted input: its read proof, root, publication, population and generation.
-    pub(crate) fn from_parts(admitted: AdmittedInput) -> Self {
-        Self {
-            proof: admitted.read_proof(),
-            root: admitted.producer_root(),
-            publication: admitted.held_publication().clone(),
-            population: admitted.admitted_population(),
-            generation: admitted.admitted_generation().clone(),
-        }
-    }
-    /// The population the publication was admitted under.
-    pub(crate) fn population(
-        &self,
-    ) -> ryo_execution_store::application::file_dag::derived::population::service::PopulationId
-    {
-        self.population
-    }
-    /// How completely the publication's rows were read.
-    pub(crate) fn coverage(&self) -> &CoverageState {
-        self.proof.coverage()
-    }
-    /// The admitted input again, over `owner`: its rows admitted under the owner's current generation.
-    pub(crate) fn readmitted(
-        &self,
-        owner: &std::rc::Rc<
-            ryo_execution_store::application::file_dag::relations::service::RelationOwner,
-        >,
-    ) -> Result<AdmittedInput, OperatingError> {
-        let unavailable = |_| Err(OperatingError::NotRead);
-        let rows = owner.rows(&self.publication, &unavailable)?;
-        let admitted = owner.admit(
-            &self.publication,
-            ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&rows),
-        )??;
-        AdmittedInput::from_publication(
-            std::rc::Rc::clone(owner),
-            self.publication.clone(),
-            &admitted,
-            self.root,
-            ReadProof::clone(&self.proof),
-        )
-    }
+    /// Checks that the readiness a transfer states for the publication agrees with how completely its rows were read.
+    ///
+    /// # Errors
+    ///
+    /// `NotRead` for a publication of another stage or of one that ended; `PACKED_READINESS_DISAGREES` when the readiness does
+    /// not agree.
     pub(crate) fn validate_transfer_readiness(
         &self,
-        readiness: &ryo_values::domain::records::types::ProducerReadiness,
+        readiness: &ProducerReadiness,
+        stage: &Arc<()>,
     ) -> Result<(), OperatingError> {
-        self.generation.live()?;
-        match (self.proof.coverage(), readiness) {
-            (
-                CoverageState::Complete,
-                ryo_values::domain::records::types::ProducerReadiness::Complete,
-            ) => Ok(()),
-            (
-                CoverageState::Partial { files, .. },
-                ryo_values::domain::records::types::ProducerReadiness::Unknown(_),
-            ) if !files.is_empty() => Ok(()),
-            (
-                CoverageState::Inapplicable { files },
-                ryo_values::domain::records::types::ProducerReadiness::Unknown(_),
-            ) if !files.is_empty() => Ok(()),
+        // A publication is the stage's that made it: one held past its stage is no publication of the next.
+        if self.stage.upgrade().is_none()
+            || !std::sync::Weak::ptr_eq(&self.stage, &Arc::downgrade(stage))
+        {
+            return Err(OperatingError::NotRead);
+        }
+        match (&self.coverage, readiness) {
+            (CoverageState::Complete, ProducerReadiness::Complete) => Ok(()),
+            (CoverageState::Partial { files, .. }, ProducerReadiness::Unknown(_))
+                if !files.is_empty() =>
+            {
+                Ok(())
+            }
+            (CoverageState::Inapplicable { files }, ProducerReadiness::Unknown(_))
+                if !files.is_empty() =>
+            {
+                Ok(())
+            }
             _ => Err(OperatingError::ObservationIncomplete {
                 reason:
                     crate::application::file_dag::program::constants::PACKED_READINESS_DISAGREES
@@ -76,9 +45,8 @@ impl ObservedPublication {
     }
 }
 
-/// Opaque application handover of the actual admitted population: what was read and how completely, its producer root, the
-/// publication and the population and generation it was admitted under. Packed bytes may accompany it, but never substitute for
-/// this evidence.
+/// Opaque application handover of what an occurrence after the files published of a named output: its rows, in the stage's
+/// symbols, and how completely they were read. Packed bytes may accompany it, but never substitute for it.
 ///
 /// # Examples
 ///
@@ -88,13 +56,12 @@ impl ObservedPublication {
 ///     publication.clone()
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ObservedPublication {
-    pub(crate) proof: ReadProof,
-    pub(crate) root: crate::application::file_dag::program::admission::types::ProducerRoot,
-    pub(crate) publication:
-        ryo_execution_store::application::file_dag::relations::handle::service::Publication,
-    pub(crate) population:
-        ryo_execution_store::application::file_dag::derived::population::service::PopulationId,
-    pub(crate) generation: ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
+    /// The rows.
+    pub(crate) rows: Arc<Table>,
+    /// How completely they were read.
+    pub(crate) coverage: CoverageState,
+    /// The stage that made it, alive while the stage runs.
+    pub(crate) stage: std::sync::Weak<()>,
 }

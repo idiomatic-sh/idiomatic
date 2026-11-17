@@ -130,6 +130,30 @@ pub fn text_of<'a>(
     }
 }
 
+/// The symbol interning would answer for `text` in the file whose bytes are `source`, when it already has one: interning's
+/// read-only lookup, so a reader that compares names by their interned symbols can do so without interning. A text no
+/// symbol of the file holds yet answers none (interning would make it a new symbol, after every one the file has).
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::symbols::service::{find_symbol, intern_derived};
+/// use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+/// use ryo_relations::domain::terms::types::NameText;
+/// let mut symbols = Symbols::default();
+/// let made = intern_derived(&mut symbols, ByteSlice(b""), NameText("left"));
+/// assert_eq!(find_symbol(&symbols, ByteSlice(b""), ByteSlice(b"left")), Some(made));
+/// assert_eq!(find_symbol(&symbols, ByteSlice(b""), ByteSlice(b"right")), None);
+/// ```
+#[must_use]
+pub fn find_symbol(
+    symbols: &Symbols,
+    source: ByteSlice<'_>,
+    text: ByteSlice<'_>,
+) -> Option<Symbol> {
+    find_hashed_in(symbols.as_ref(), source, text, hash_of(text))
+}
+
 /// The hash of the text of the name `symbol` stands for.
 #[must_use]
 pub fn hash_in(symbols: &Symbols, symbol: Symbol) -> Option<TextHash> {
@@ -233,12 +257,6 @@ pub fn intern_derived(symbols: &mut Symbols, source: ByteSlice<'_>, text: NameTe
     derive(symbols.as_mut(), source, text)
 }
 
-/// Reborrows a query's symbols without handing a query operator source-name interning.
-#[must_use]
-pub fn query_reborrow<'a>(symbols: &'a mut QuerySymbols<'_>) -> QuerySymbols<'a> {
-    QuerySymbols(&mut *symbols.0)
-}
-
 /// Adds a value computed by a query, retaining existing source and derived identities.
 ///
 /// ```
@@ -329,19 +347,6 @@ pub fn places_mut(symbols: &mut Symbols) -> &mut Vec<NamePlace> {
 pub fn transport_permit(symbols: &mut Symbols) -> super::types::TransportPermit {
     let symbols: &SymbolsEngine = symbols.as_ref();
     super::types::TransportPermit(std::sync::Arc::clone(&symbols.transport_generation))
-}
-
-/// Whether two engine-issued frame permits name the same live symbol generation.
-/// Comparing permits exposes no place mutation to a query or semantic kernel.
-pub fn same_transport_generation(
-    first: &super::types::TransportPermit,
-    second: &super::types::TransportPermit,
-) -> Generation {
-    if std::sync::Arc::ptr_eq(&first.0, &second.0) {
-        Generation::Same
-    } else {
-        Generation::Different
-    }
 }
 
 /// Check a semantic query borrow against an application-held frame key without

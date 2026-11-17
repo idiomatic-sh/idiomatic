@@ -14,7 +14,7 @@ use ryo_values::domain::plans::types::Plan;
 #[derive(Debug)]
 pub struct LinkedObservationPlans {
     /// The plans, with their observation references remapped.
-    pub plans: Vec<Plan>,
+    pub plans: Vec<std::sync::Arc<Plan>>,
     /// The resolved producer bindings of each rule.
     pub bindings: Vec<Vec<ResolvedObservationBinding>>,
 }
@@ -182,6 +182,21 @@ pub(crate) struct ExportedOutputs(pub Vec<bool>);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct EscapingOutputs(pub Vec<bool>);
 
+/// Where each named output of a plan went when linking pruned it: its new place, or none when it was not kept.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct OutputPlaces(
+    pub Vec<Option<ryo_values::domain::records::types::ObservationIndex>>,
+);
+
+/// What pruning made of one plan: the plan as it was, shared as it is, or a new plan of only the kept steps and outputs.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Pruned {
+    /// Every step and output is kept and the frontier is the one the plan has: the plan is shared, not copied.
+    Unchanged,
+    /// The plan of the kept steps and outputs, each list exactly as long as what it keeps, and where each output went.
+    Changed(Plan, OutputPlaces),
+}
+
 /// The bound inputs of one rule that a kept step reads, by the input's place.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct UsedInputs(pub Vec<bool>);
@@ -193,4 +208,23 @@ pub(crate) struct PendingStep {
     pub rule: crate::domain::coverage::types::RuleIndex,
     /// The step to follow.
     pub step: ryo_values::domain::plan_parts::types::StepId,
+}
+
+/// A producer's named output a consumer reads, retired once the consumer has read it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::observation_schedule::types::ObservationRetirement;
+/// use ryo_values::domain::records::types::ObservationIndex;
+/// let retired = ObservationRetirement { producer: RuleIndex(0), output: ObservationIndex(1) };
+/// assert_eq!(retired.output, ObservationIndex(1));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ObservationRetirement {
+    /// The producing rule.
+    pub producer: crate::domain::coverage::types::RuleIndex,
+    /// The producer's named output.
+    pub output: ryo_values::domain::records::types::ObservationIndex,
 }

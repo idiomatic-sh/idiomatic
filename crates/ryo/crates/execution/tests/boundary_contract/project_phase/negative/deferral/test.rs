@@ -85,7 +85,7 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
 
     let elements = ryo_language::domain::elements::types::Elements::default();
     // No relation is held: the rule's read of Function is refused.
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     let mut rules = run_file(
         &request,
         FileRun::of(
@@ -97,7 +97,7 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
             &elements,
         ),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     assert!(matches!(root(ran(&mut rules, 0)), Err(FileStop::Facts(_))));
     assert_eq!(facts.history(), [Relation::Function]);
@@ -156,7 +156,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let table = source();
     // File capture cannot read the intervening project frontier: the facts hold Function alone.
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut rules = run_file(
@@ -170,7 +170,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
             &elements,
         ),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let RuleAfter::Ran { captures } = ran(&mut rules, 0).after else {
         panic!("the rule runs and captures its frontiers")

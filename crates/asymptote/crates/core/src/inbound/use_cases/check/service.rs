@@ -1,11 +1,11 @@
 //! The `check` use case's own helper: the runs the next report keeps.
 
-use crate::domain::judgement::types::Status;
-use crate::domain::manifest::types::Tool;
-use crate::domain::reports::service::{replaced, retained};
-use crate::domain::reports::types::Scanned;
-use crate::domain::violations::types::ToolId;
 use crate::outbound::check_store::types::KeptReport;
+use asymptote_values::domain::judgement::types::Status;
+use asymptote_values::domain::manifest::types::Tool;
+use asymptote_values::domain::reports::service::{replaced, retained};
+use asymptote_values::domain::reports::types::Scanned;
+use asymptote_values::domain::violations::types::ToolId;
 
 /// The runs the next report keeps: `scanned`, the completed runs of the configured tools not among `selected` that the
 /// report before it held, so a check of some groups forgets nothing of the others, and the completed run a failed

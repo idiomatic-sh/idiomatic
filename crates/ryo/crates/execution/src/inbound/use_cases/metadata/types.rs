@@ -3,7 +3,9 @@
 /// The precise partial source set and the declared number of files it may name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AffectedFiles<'a> {
+    /// For each partial source, the file it names, or `None` when it names no file.
     pub affected: &'a [Option<ryo_relations::domain::relations::types::FileId>],
+    /// How many files the request declares.
     pub file_count: CoverageFileCount,
 }
 
@@ -73,7 +75,7 @@ named!(
 );
 named!(
     /// The relations a plan's observations read.
-    ObservedReads(Vec<ryo_execution_domain::domain::trust::types::RelationRead>)
+    ObservedReads(Vec<ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead>)
 );
 named!(
     /// The unknowns of a project.

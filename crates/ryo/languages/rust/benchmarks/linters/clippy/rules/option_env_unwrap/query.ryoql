@@ -1,0 +1,15 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let methods = select id, file, span from "syntax-tree" where kind = "method-call-expr";
+let method_names = select l.parent as name_ref from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where r.kind = "ident" and (r.text = "unwrap" or r.text = "expect");
+let named = select l.parent as id from "syntax-child" as l join method_names as r on l.child = r.name_ref where l.field = "name-ref";
+let panicking = select l.id as id, l.file as file, l.span as span from methods as l join named as r on l.id = r.id;
+let receivers = select l.parent as id, l.child as receiver from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where l.field = "receiver" and r.kind = "macro-expr";
+let calls = select l.parent as expression, l.child as call from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where r.kind = "macro-call";
+let call_paths = select l.parent as call, r.file as file, r.span as span from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where l.field = "path";
+let names = select file, span from "syntax-tree" where kind = "ident" and text = "option_env";
+let option_env_calls = select l.call as call from call_paths as l join names as r on l.file = r.file and l.span = r.span;
+let option_env_expressions = select l.expression as expression from calls as l join option_env_calls as r on l.call = r.call;
+let unwrapped = select l.id as id from receivers as l join option_env_expressions as r on l.receiver = r.expression;
+let candidates = select l.id as id, l.file as file, l.span as span from panicking as l join unwrapped as r on l.id = r.id;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:option_env_unwrap|correctness|all))\s*(?:,|$)");
+emit violations subject file key(id);

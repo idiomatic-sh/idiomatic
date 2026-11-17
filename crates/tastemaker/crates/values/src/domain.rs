@@ -1,0 +1,40 @@
+//! The values the core and its adapters share, one module per concept: plain data, its constants and the pure
+//! functions that read and write it.
+
+pub mod applications;
+pub mod captures;
+pub mod catalog;
+pub mod closing;
+pub mod comments;
+pub mod contexts;
+pub mod contracts;
+pub mod counting;
+pub mod definitions;
+pub mod digests;
+pub mod entries;
+pub mod explanations;
+pub mod files;
+pub mod findings;
+pub mod governance;
+pub mod import_rows;
+pub mod imports;
+pub mod instance_params;
+pub mod judging;
+pub mod linting;
+pub mod module_paths;
+pub mod packages;
+pub mod paths;
+pub mod placement;
+pub mod proofs;
+pub mod scalars;
+pub mod scenario_entries;
+pub mod scenario_files;
+pub mod scenario_judging;
+pub mod scenarios;
+pub mod scopes;
+pub mod selectors;
+pub mod settings;
+pub mod template_placing;
+pub mod topics;
+pub mod variables;
+pub mod writing;

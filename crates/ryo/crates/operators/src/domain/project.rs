@@ -1,4 +1,5 @@
 //! Pure projection semantics.
-pub mod service;
+pub(crate) mod service;
 #[cfg(test)]
 mod service_test;
+pub(crate) mod types;

@@ -1,42 +1,13 @@
 //! Generation, request and partition identity: what a partition supplies and who it matches.
 use crate::application::file_dag::program::admission::{
-    service::ApplicabilityProof, service::FileGeneration, service::Partition, types::Agreement,
-    types::PartitionSupply, types::RequiredPartitions,
+    service::ApplicabilityProof, types::RequiredPartitions,
 };
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError,
     rule_intent::types::ApplicabilityReason,
 };
-use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
-use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use ryo_relations::domain::relations::types::FileId;
 use std::sync::Arc;
-
-impl FileGeneration {
-    pub(crate) fn matches(
-        &self,
-        expected: &Self,
-        generation: &ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
-    ) -> Agreement {
-        if self.file == expected.file
-            && self.generation.same(&expected.generation).is_ok()
-            && generation.same(&expected.generation).is_ok()
-        {
-            Agreement::Same
-        } else {
-            Agreement::Different
-        }
-    }
-    pub(crate) fn file(&self) -> FileId {
-        self.file
-    }
-    pub(crate) fn from_owner(file: FileId, owner: &RelationOwner) -> Self {
-        Self {
-            file,
-            generation: owner.generation(),
-        }
-    }
-}
 
 impl RequiredPartitions {
     pub(crate) fn from_request(
@@ -115,65 +86,9 @@ impl RequiredPartitions {
     pub(crate) fn refused(&self) -> &[FileId] {
         &self.refused
     }
-    /// The project identity alone, as a shared execution holds it: no rule's evidence.
-    pub(crate) fn identity(&self) -> Self {
-        Self {
-            inapplicable: Box::new([]),
-            refused: Box::new([]),
-            ..self.clone()
-        }
-    }
 }
 
-impl Partition {
-    pub(crate) fn require_supply(&self, required: &Self) -> Result<(), OperatingError> {
-        match self.supplies(required) {
-            PartitionSupply::Supplies => Ok(()),
-            PartitionSupply::Lacks => Err(OperatingError::NotRead),
-        }
-    }
-    pub(crate) fn supplies(&self, required: &Self) -> PartitionSupply {
-        let supplied = match (self, required) {
-            (Self::RequestInvariant, _) => true,
-            (Self::File(actual), Self::File(required)) => {
-                actual.file == required.file && actual.generation.same(&required.generation).is_ok()
-            }
-            (Self::Project(actual), Self::Project(required)) => actual == required,
-            _ => false,
-        };
-        if supplied {
-            PartitionSupply::Supplies
-        } else {
-            PartitionSupply::Lacks
-        }
-    }
-}
-impl RequiredPartitions {
-    /// Whether both name one project identity; the files a rule has no frame for are that rule's
-    /// own evidence and are not compared.
-    pub(crate) fn same_request(&self, other: &Self) -> Agreement {
-        if self == other {
-            Agreement::Same
-        } else {
-            Agreement::Different
-        }
-    }
-}
-
-impl ApplicabilityProof {
-    pub(crate) fn for_file(
-        producer: RuleIndex,
-        file: FileId,
-        reason: ApplicabilityReason,
-        owner: &RelationOwner,
-    ) -> Self {
-        Self {
-            producer,
-            file: FileGeneration::from_owner(file, owner),
-            reason,
-        }
-    }
-}
+impl ApplicabilityProof {}
 
 impl ApplicabilityProof {
     /// The declared producer for this positive applicability result.

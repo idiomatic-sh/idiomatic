@@ -6,7 +6,8 @@ use ryo_benchmark_contracts::domain::reports::types::ProjectContext;
 use ryo_benchmark_contracts::domain::requests::types::{ContextSeal, WorkerRequest};
 use std::collections::BTreeMap;
 
-/// Reuse the production worker preparation boundary before exercising the SDK adapter.
+/// Reuse the production worker preparation boundary before exercising the SDK adapter, bracketed as the
+/// harness brackets the worker: `validate` before load and `verify_receipt` after the receipt.
 pub(super) trait PreparedEngine: EnginePort {
     fn run_prepared(
         &self,
@@ -32,11 +33,9 @@ impl<T: EnginePort + ?Sized> PreparedEngine for T {
         let run = configured.execute()?;
         let mut report = run.report;
         if let ContextSeal::Sealed(manifest) = &prepared.request.context_manifest {
-            report.project_context = ProjectContext::Observed(context.receipt(
-                manifest,
-                &prepared.request.root,
-                run.dependencies,
-            )?);
+            let receipt = context.receipt(manifest, &prepared.request.root, run.dependencies)?;
+            context.verify_receipt(manifest, &prepared.request.root, &receipt)?;
+            report.project_context = ProjectContext::Observed(receipt);
         }
         Ok(report)
     }

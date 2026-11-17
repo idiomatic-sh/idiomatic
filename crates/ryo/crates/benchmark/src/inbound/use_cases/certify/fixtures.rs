@@ -4,9 +4,7 @@
     reason = "fixture setup and fake state are test preconditions; a panic fails the unit or acceptance proof that calls this module"
 )]
 use super::constants;
-use crate::inbound::use_cases::prepare_cases::fixtures::{
-    Contestant, case_document, executable_permissions,
-};
+use crate::inbound::use_cases::prepare_cases::fixtures::{Contestant, Launches, case_document};
 use crate::outbound::linter::interface::LinterPort;
 use ryo_benchmark_contracts::domain::measurements::types::CollectorDigest;
 use ryo_benchmark_contracts::domain::measurements::types::CollectorProfile;
@@ -44,6 +42,10 @@ pub enum Change {
     Executable,
     /// Change the prepared command profile.
     Command,
+    /// The reference's preparation writes into the probe's root, the sealed profile.
+    ProbeWrites,
+    /// The candidate's command launches a program beside the certified binary, whose bytes then change.
+    Launcher,
 }
 /// Execute the public certificate and measurement operations with a controlled mutation.
 ///
@@ -67,12 +69,14 @@ pub fn exercise(
     change: Change,
     constructor: impl FnOnce(
         std::sync::Arc<dyn crate::outbound::suite::interface::SuitePort>,
+        std::sync::Arc<dyn crate::outbound::host::interface::HostPort>,
         std::sync::Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
         std::sync::Arc<dyn crate::outbound::context::interface::ContextPort>,
         std::sync::Arc<dyn LinterPort>,
         std::sync::Arc<dyn LinterPort>,
         std::sync::Arc<dyn crate::outbound::execution::interface::ExecutionPort>,
         std::sync::Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
+        std::sync::Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
     ) -> crate::inbound::use_cases::certify::use_case::CertifyUseCaseImpl,
 ) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, ()> {
     let root = tempfile::tempdir().expect(constants::FIXTURE_PRECONDITION);
@@ -82,8 +86,8 @@ pub fn exercise(
         .expect(constants::FIXTURE_PRECONDITION);
     let executable = root.path().join(constants::FIXTURE_TOOL_FILE);
     let bytes = constants::FIXTURE_TOOL_SCRIPT.as_bytes();
-    std::fs::write(&executable, bytes).expect(constants::FIXTURE_PRECONDITION);
-    executable_permissions(&executable);
+    crate::outbound::execution::fixtures::executable::write(&executable, bytes)
+        .expect(constants::FIXTURE_PRECONDITION);
     std::fs::write(
         directory.join(constants::FIXTURE_PROFILE_FILE),
         format!(
@@ -120,13 +124,24 @@ pub fn exercise(
     )
     .expect(constants::FIXTURE_PRECONDITION);
     let suite = std::sync::Arc::new(crate::outbound::suite::factory::local());
+    let launcher = root.path().join(constants::FIXTURE_LAUNCHER_FILE);
+    crate::outbound::execution::fixtures::executable::write(&launcher, bytes)
+        .expect(constants::FIXTURE_PRECONDITION);
     let reference = std::sync::Arc::new(Contestant {
         executable: executable.clone(),
         arguments: vec![],
+        launches: Launches::Itself,
+        writes_root: matches!(change, Change::ProbeWrites),
     });
     let mut candidate = std::sync::Arc::new(Contestant {
         executable: executable.clone(),
         arguments: vec![],
+        launches: if matches!(change, Change::Launcher) {
+            Launches::Beside(launcher.clone())
+        } else {
+            Launches::Itself
+        },
+        writes_root: false,
     });
     let execution = std::sync::Arc::new(Observations(
         crate::outbound::execution::fixtures::fake::ExecutionFake {
@@ -143,12 +158,14 @@ pub fn exercise(
     ));
     let operation = constructor(
         suite.clone(),
+        std::sync::Arc::new(crate::outbound::host::fixtures::fake::HostFake::default()),
         std::sync::Arc::new(crate::outbound::receipts::fixtures::fake::ReceiptsFake::default()),
         std::sync::Arc::new(crate::outbound::context::factory::local()),
         reference.clone(),
         candidate.clone(),
         execution.clone(),
         std::sync::Arc::new(crate::outbound::inventory::factory::local()),
+        std::sync::Arc::new(crate::outbound::scheduler::factory::threads()),
     );
     let certificate = crate::inbound::use_cases::certify::interface::CertifyUseCase::certify(
         &operation,
@@ -160,8 +177,19 @@ pub fn exercise(
         &root.path().join(constants::FIXTURE_CASE_DIRECTORY),
         BenchmarkCoverage::Accounted,
         &ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile,
-    )
-    .expect(constants::FIXTURE_PRECONDITION);
+    );
+    let certificate = match certificate {
+        Ok(certificate) => certificate,
+        Err(error) => {
+            assert!(
+                matches!(change, Change::ProbeWrites),
+                "{}: {error}",
+                constants::FIXTURE_PRECONDITION
+            );
+            assert_eq!(error.to_string(), constants::PROBE_CHANGED_INPUTS);
+            return Err(());
+        }
+    };
     assert!(
         !certificate.fingerprint().0.is_empty(),
         "{}",
@@ -219,6 +247,8 @@ pub fn exercise(
         }
         Change::Query => Some(rules.join(constants::FIXTURE_QUERY_FILE)),
         Change::Executable => Some(executable),
+        Change::Launcher => Some(launcher),
+        Change::ProbeWrites => None,
         Change::Command => {
             std::sync::Arc::make_mut(&mut candidate)
                 .arguments
@@ -268,7 +298,9 @@ pub fn exercise(
             | Change::CollectorPath
             | Change::Query
             | Change::Executable
-            | Change::Command => {
+            | Change::Command
+            | Change::ProbeWrites
+            | Change::Launcher => {
                 ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Diagnostic
             }
         },
@@ -298,40 +330,14 @@ pub fn exercise(
                 );
             }
             if matches!(change, Change::None | Change::InventoryFull) {
-                use crate::inbound::use_cases::publish::interface::PublishUseCase as _;
-                let full = matches!(change, Change::InventoryFull);
                 assert_eq!(
                     pair.eligibility,
-                    if full {
+                    if matches!(change, Change::InventoryFull) {
                         crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
                     } else {
                         crate::domain::measurements::types::MeasurementEligibility::Diagnostic
                     }
                 );
-                let samples = pair.samples([
-                    ryo_benchmark_contracts::domain::measurements::types::SampleName(
-                        "fixture/reference/cold".into(),
-                    ),
-                    ryo_benchmark_contracts::domain::measurements::types::SampleName(
-                        "fixture/candidate/cold".into(),
-                    ),
-                ]);
-                let publication =
-                    crate::inbound::use_cases::publish::use_case::PublishUseCaseImpl::new(
-                        std::sync::Arc::new(crate::outbound::evidence::factory::bmf(
-                            Box::new(Vec::<u8>::new()),
-                            Box::new(Vec::<u8>::new()),
-                        )),
-                    )
-                    .publish(&samples);
-                if full {
-                    publication.expect("complete measured inventory publishes");
-                } else {
-                    assert_eq!(
-                        publication.err().map(|error| error.to_string()),
-                        Some("diagnostic observations cannot publish benchmark metrics".to_owned())
-                    );
-                }
             }
             Ok(certificate.cases())
         }
@@ -361,7 +367,9 @@ pub fn exercise(
                 | Change::Manifest
                 | Change::Collector
                 | Change::Query
-                | Change::Executable => constants::FIXTURE_EXPECTED_ARTIFACT_REFUSAL,
+                | Change::Executable
+                | Change::ProbeWrites
+                | Change::Launcher => constants::FIXTURE_EXPECTED_ARTIFACT_REFUSAL,
             };
             assert_eq!(
                 error.to_string(),

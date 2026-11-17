@@ -39,3 +39,11 @@ pub fn bounded(timeout: std::time::Duration) -> impl super::interface::Execution
         timeout: Some(timeout),
     }
 }
+
+/// Construct execution that runs each worker request in this process through `worker`, and refuses any other invocation.
+#[must_use]
+pub fn in_process(
+    worker: &dyn super::types::InProcessWorker,
+) -> impl super::interface::ExecutionPort + '_ {
+    super::adapters::in_process::adapter::ExecutionInProcessAdapter::new(worker)
+}

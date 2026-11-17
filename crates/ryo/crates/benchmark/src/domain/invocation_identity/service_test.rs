@@ -1,4 +1,5 @@
-//! Behavioral proof of `invocation_identity`: state, root and separators are normalized, and nothing else.
+//! Behavioral proof of `invocation_identity`: state, root and separators are normalized, the worker count is spelled as one
+//! worker, and nothing else.
 use super::errors::InvocationIdentityError;
 use super::service::{boundaries, normalize, normalize_text};
 use super::types::InvocationText;
@@ -13,6 +14,8 @@ use std::ffi::OsString;
 enum Operation {
     Spelling,
     Invocation,
+    /// The arguments are the invocation's environment, each `KEY=VALUE`.
+    Environment,
 }
 
 /// An invocation spelled against the case's state and root.
@@ -41,14 +44,11 @@ fn non_utf8() -> OsString {
     OsString::from_vec(vec![0xff])
 }
 
-/// Only unix spells an argument in bytes that are no UTF8 text.
+/// An argument no UTF8 text spells: an unpaired surrogate, which Windows paths allow.
 #[cfg(not(unix))]
-#[expect(
-    dead_code,
-    reason = "every scenario that uses it runs on unix only; unix-behind-cfg asks this file for the twin"
-)]
 fn non_utf8() -> OsString {
-    OsString::from("\u{fffd}")
+    use std::os::windows::ffi::OsStringExt as _;
+    OsString::from_wide(&[0xD800])
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -70,7 +70,49 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(Cow::Borrowed("--flag $STATE|$STATE")),
     },
-    #[cfg(unix)]
+    Case {
+        name: CaseName("the worker count is spelled as one worker, every other variable as it is"),
+        word: Word::Succeeds,
+        input: || {
+            asking(
+                Operation::Environment,
+                vec!["RAYON_NUM_THREADS=4".into(), "OTHER=cache".into()],
+                ".",
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed("OTHER=$STATE RAYON_NUM_THREADS=1")),
+    },
+    Case {
+        name: CaseName("cargo's job count is spelled as one worker"),
+        word: Word::Succeeds,
+        input: || {
+            asking(
+                Operation::Environment,
+                vec!["CARGO_BUILD_JOBS=4".into()],
+                ".",
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed("CARGO_BUILD_JOBS=1")),
+    },
+    Case {
+        name: CaseName(
+            "the value after a thread-count flag is spelled as one worker, every other argument as it is",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            asking(
+                Operation::Invocation,
+                vec![
+                    "--threads".into(),
+                    "4".into(),
+                    "--format".into(),
+                    "4".into(),
+                ],
+                ".",
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed("--threads 1 --format 4|$ROOT")),
+    },
     Case {
         name: CaseName("a non UTF8 argument is refused"),
         word: Word::Refuses,
@@ -88,6 +130,32 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 &boundaries(&case),
             );
             Ok(Cow::Owned(spelled.0))
+        }
+        Operation::Environment => {
+            let invocation = Invocation {
+                executable: "tool".into(),
+                arguments: Vec::new(),
+                environment: input
+                    .arguments
+                    .iter()
+                    .filter_map(|pair| {
+                        let (key, value) = pair.to_str()?.split_once('=')?;
+                        Some((key.into(), value.into()))
+                    })
+                    .collect(),
+                directory: input.directory.into(),
+            };
+            let normalized = normalize(&invocation, &case)?;
+            Ok(Cow::Owned(
+                normalized
+                    .environment
+                    .iter()
+                    .map(|(key, value)| {
+                        format!("{}={}", key.to_string_lossy(), value.to_string_lossy())
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            ))
         }
         Operation::Invocation => {
             let invocation = Invocation {

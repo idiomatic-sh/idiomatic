@@ -2,11 +2,10 @@
 //! of it missing or misplaced. Findings about its content (the fixtures and rows the author writes) are the author's work and are not
 //! asked about here.
 
-mod contract;
-
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
+use crate::fixes::root;
 use crate::languages::{
     TEMPLATE, created, given_content, initialized, over_samples, ran, reported,
 };
@@ -32,15 +31,6 @@ const PLACEMENT: [&str; 6] = [
 const PARTS: &str = "language-parts";
 const SAMPLES: &str = "allocation";
 
-/// The repository root: three directories above this crate.
-fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(3)
-        .map(Path::to_path_buf)
-        .unwrap_or_default()
-}
-
 /// Copies a tree, leaving out every `target` directory, each workspace file pinned to the built `tm`.
 fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
@@ -59,7 +49,7 @@ fn copy(from: &Path, to: &Path) -> std::io::Result<()> {
         } else {
             let _: u64 = std::fs::copy(&source, &target)?;
             if name == crate::fixes::WORKSPACE_FILE {
-                crate::fixes::pinned(&target)?;
+                crate::pinned::pinned(&target)?;
             }
         }
     }
@@ -116,26 +106,29 @@ fn misplaced_parts(tastemaker: &str, workspace: &Path) -> Vec<String> {
     // The check reports source findings by its exit code; validation errors are refused above.
     drop(checked(tastemaker, &["check", "--fix"], workspace));
     let printed = checked(tastemaker, &["check", "--format", "json"], workspace);
-    let report: serde_json::Value = serde_json::from_slice(&printed).expect("a report in JSON");
+    let report: crate::fixes::Report =
+        serde_json::from_slice(&printed).expect("a report: findings with a rule, path and message");
     let own = format!("languages/{LANGUAGE}");
     report
-        .get("findings")
-        .and_then(serde_json::Value::as_array)
+        .findings
         .into_iter()
-        .flatten()
+        .filter(|finding| finding.path.contains(&own))
         .filter(|finding| {
-            finding["path"]
-                .as_str()
-                .is_some_and(|path| path.contains(&own))
+            (finding.rule.ends_with(PARTS) && !finding.message.contains(SAMPLES))
+                || PLACEMENT.iter().any(|check| finding.rule.contains(check))
         })
-        .filter(|finding| {
-            let rule = finding["rule"].as_str().unwrap_or_default();
-            let message = finding["message"].as_str().unwrap_or_default();
-            (rule.ends_with(PARTS) && !message.contains(SAMPLES))
-                || PLACEMENT.iter().any(|check| rule.contains(check))
-        })
-        .map(ToString::to_string)
+        .map(|finding| format!("{finding:?}"))
         .collect::<Vec<_>>()
+}
+
+/// A report the scaffold rows read is `tm check`'s whole report: findings, each with its rule, path and message.
+#[test]
+fn a_report_without_its_findings_is_no_report() {
+    let _empty: serde_json::Error = serde_json::from_slice::<crate::fixes::Report>(b"{}")
+        .expect_err("an object without findings is no report");
+    let bare = br#"{"findings": [{"rule": "x#count", "path": "languages/zz"}]}"#;
+    let _bare: serde_json::Error = serde_json::from_slice::<crate::fixes::Report>(bare)
+        .expect_err("a finding without its message is no report");
 }
 
 #[test]
@@ -145,7 +138,12 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
         std::fs::remove_dir_all(&scratch).expect("the previous scene removed");
     }
     let crates = scratch.join("crates");
+    // Every lock first, so the copied ryo tree keeps its own: a version only another product's lock reads is not unread.
+    crate::locks::copy_locks(&root(), &root(), &scratch).expect("the workspace locks copied");
     copy(&root().join("crates/ryo"), &crates.join("ryo")).expect("ryo copied");
+    // The role package the proofs of collection-members and program-implementation-boundary name as `foreign`.
+    let roles = "crates/tastemaker/cli/tests/fixtures/replay/roles";
+    copy(&root().join(roles), &scratch.join(roles)).expect("the role package copied");
     copy(&root().join("tastemaker"), &scratch.join("tastemaker"))
         .expect("the package tastemaker/ copied");
     let workspace = crates.join("ryo");
@@ -179,14 +177,14 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
             "EXTENSION: &str = \".ts\"",
         ),
         ("src/domain/language/service_test.rs", "src/main.ts"),
-        ("benches/performance.rs", "generated.ts"),
+        ("benchmarks/provider/bench.rs", "generated.ts"),
         ("README.md", "`.ts`"),
     ] {
         let body = std::fs::read_to_string(language.join(path)).expect("generated file");
         assert!(body.contains(expected), "{path} lacks {expected}");
     }
 
-    contract::assert_contract(&language);
+    crate::contract::assert_contract(&language);
 
     // The packages the copied workspace's lock names, fetched first: a machine that built only Tastemaker has not downloaded
     // every one of ryo's (`addr2line`, a dependency for another target, among them), and the check itself runs offline.
@@ -251,16 +249,12 @@ specs = [{{ alias = "subject", spec = "idiomatic.arch/collection", include = ["c
     }
     run(Command::new(tastemaker).arg("validate"), directory);
     let printed = checked(tastemaker, &["--json", "check", "--fix"], directory);
-    let report: serde_json::Value = serde_json::from_slice(&printed).expect("check report");
-    let missing = report["findings"]
-        .as_array()
-        .expect("findings")
+    let report: crate::fixes::Report =
+        serde_json::from_slice(&printed).expect("a report: findings with a rule, path and message");
+    let missing = report
+        .findings
         .iter()
-        .filter(|finding| {
-            finding["rule"]
-                .as_str()
-                .is_some_and(|rule| rule.ends_with("#count"))
-        })
+        .filter(|finding| finding.rule.ends_with("#count"))
         .collect::<Vec<_>>();
     assert!(
         missing.is_empty(),

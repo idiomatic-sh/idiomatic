@@ -24,6 +24,14 @@ pub(super) const JSX_EXTENSION: &str = "tsx";
 pub(super) const MODULE_EXTENSION: &str = "mts";
 /// The extension Oxc reads TypeScript that is always `CommonJS` by.
 pub(super) const COMMONJS_EXTENSION: &str = "cts";
+/// The extension Oxc reads plain JavaScript by.
+pub(super) const SCRIPT_EXTENSION: &str = "js";
+/// The extension Oxc reads JavaScript with JSX by.
+pub(super) const SCRIPT_JSX_EXTENSION: &str = "jsx";
+/// The extension Oxc reads JavaScript that is always a module by.
+pub(super) const SCRIPT_MODULE_EXTENSION: &str = "mjs";
+/// The extension Oxc reads JavaScript that is always `CommonJS` by.
+pub(super) const SCRIPT_COMMONJS_EXTENSION: &str = "cjs";
 
 /// The name of ECMAScript's global regular-expression constructor: a string its call takes first is a pattern.
 pub(super) const PATTERN_CONSTRUCTOR: &str = "RegExp";

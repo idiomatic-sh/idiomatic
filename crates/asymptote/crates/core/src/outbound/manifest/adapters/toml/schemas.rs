@@ -4,14 +4,15 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::constants::{BMF, FIX_KEY, HEADER, PRODUCT, RUN_KEY, SARIF, TIMEOUT};
-use crate::domain::captures::service::uncaptured;
-use crate::domain::captures::types::CommandKey;
-use crate::domain::manifest::service::{hook, known_hooks};
-use crate::domain::manifest::types::{
-    Argument, Argv, Fix, Group, Hook, HookWord, Manifest, Member, Output, Pathspec, Pin, Seconds,
-    Tool, Version,
+use asymptote_values::domain::captures::service::uncaptured;
+use asymptote_values::domain::captures::types::CommandKey;
+use asymptote_values::domain::manifest::service::{hook, known_hooks};
+use asymptote_values::domain::manifest::types::{
+    Argument, Argv, Fix, Group, Hook, HookWord, Manifest, Member, Output, Pathspec, Percent, Pin,
+    Seconds, Tool, Version,
 };
-use crate::domain::violations::types::ToolId;
+use asymptote_values::domain::operations::types::MeasureName;
+use asymptote_values::domain::violations::types::ToolId;
 
 /// The file as written.
 #[derive(Debug, serde::Deserialize)]
@@ -54,6 +55,9 @@ struct ToolSchema {
     /// The paths whose contents decide whether an earlier run can be reused.
     #[serde(default)]
     inputs: Option<Vec<String>>,
+    /// How many whole percent over its best each named measure of a `bmf` tool may be before the run fails.
+    #[serde(default, rename = "tolerance-percent")]
+    tolerance_percent: Option<BTreeMap<String, u32>>,
 }
 
 /// Why the file was refused.
@@ -88,6 +92,14 @@ pub(super) enum ManifestSchemaError {
     /// A tool's `timeout-seconds` is zero, so it would be killed before it ran.
     #[error("tool `{0}`: `timeout-seconds` is a positive number of seconds, not 0")]
     NoTimeout(String),
+    /// A tolerance table that names no measure, or one with an empty name.
+    #[error(
+        "tool `{0}`: `tolerance-percent` names each measure and its percent, as `{{ peak-megabytes = 5 }}`"
+    )]
+    ToleranceEmpty(String),
+    /// A tolerance on a tool whose output is not Bencher Metric Format, which has no measure to hold it to.
+    #[error("tool `{0}`: `tolerance-percent` applies to a tool whose `output` is `bmf`")]
+    ToleranceWithoutMeasures(String),
     /// A tool names no group, or an empty one.
     #[error("tool `{0}`: `group` is required: a label of your choosing, such as `lint`")]
     NoGroup(String),
@@ -113,6 +125,75 @@ fn argv(arguments: Vec<String>) -> Argv {
             .map(|argument| Argument(argument.into()))
             .collect(),
     )
+}
+
+/// One tool as written, read as the tool it states, or the reason it states none.
+fn read_tool(tool: ToolSchema) -> Result<Tool, ManifestSchemaError> {
+    if tool.run.is_empty() {
+        return Err(ManifestSchemaError::EmptyRun(tool.id));
+    }
+    let output = match tool.output.as_deref() {
+        None => Output::ExitStatus,
+        Some(SARIF) => Output::Sarif,
+        Some(BMF) => Output::Bmf,
+        Some(other) => {
+            return Err(ManifestSchemaError::Output(
+                tool.id.clone(),
+                other.to_owned(),
+            ));
+        }
+    };
+    if tool.timeout_seconds == Some(0) {
+        return Err(ManifestSchemaError::NoTimeout(tool.id));
+    }
+    if tool.tolerance_percent.is_some() && output != Output::Bmf {
+        return Err(ManifestSchemaError::ToleranceWithoutMeasures(tool.id));
+    }
+    if tool
+        .tolerance_percent
+        .as_ref()
+        .is_some_and(|table| table.is_empty() || table.keys().any(String::is_empty))
+    {
+        return Err(ManifestSchemaError::ToleranceEmpty(tool.id));
+    }
+    let group = match tool.group {
+        Some(word) if !word.is_empty() => Group(word.into()),
+        Some(_) | None => return Err(ManifestSchemaError::NoGroup(tool.id)),
+    };
+    let read = Tool {
+        id: ToolId(tool.id.into()),
+        run: argv(tool.run),
+        fix: tool
+            .fix
+            .filter(|fix| !fix.is_empty())
+            .map_or(Fix::Absent, |fix| Fix::Command(argv(fix))),
+        output,
+        group,
+        timeout: Seconds(tool.timeout_seconds.unwrap_or(TIMEOUT)),
+        inputs: tool
+            .inputs
+            .unwrap_or_else(|| vec![PRODUCT.to_owned()])
+            .into_iter()
+            .map(|input| Pathspec(input.into()))
+            .collect(),
+        tolerance: tool
+            .tolerance_percent
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(measure, percent)| (MeasureName(measure.into()), Percent(percent)))
+            .collect(),
+    };
+    if let Some(found) = uncaptured(&read) {
+        return Err(ManifestSchemaError::Uncaptured {
+            tool: read.id.0.into(),
+            key: match found.key {
+                CommandKey::Run => RUN_KEY,
+                CommandKey::Fix => FIX_KEY,
+            },
+            name: found.name.0.into(),
+        });
+    }
+    Ok(read)
 }
 
 impl TryFrom<ManifestSchema> for Manifest {
@@ -158,55 +239,7 @@ impl TryFrom<ManifestSchema> for Manifest {
             if !seen.insert(tool.id.clone()) {
                 return Err(ManifestSchemaError::Duplicate(tool.id));
             }
-            if tool.run.is_empty() {
-                return Err(ManifestSchemaError::EmptyRun(tool.id));
-            }
-            let output = match tool.output.as_deref() {
-                None => Output::ExitStatus,
-                Some(SARIF) => Output::Sarif,
-                Some(BMF) => Output::Bmf,
-                Some(other) => {
-                    return Err(ManifestSchemaError::Output(
-                        tool.id.clone(),
-                        other.to_owned(),
-                    ));
-                }
-            };
-            if tool.timeout_seconds == Some(0) {
-                return Err(ManifestSchemaError::NoTimeout(tool.id));
-            }
-            let group = match tool.group {
-                Some(word) if !word.is_empty() => Group(word.into()),
-                Some(_) | None => return Err(ManifestSchemaError::NoGroup(tool.id)),
-            };
-            let read = Tool {
-                id: ToolId(tool.id.into()),
-                run: argv(tool.run),
-                fix: tool
-                    .fix
-                    .filter(|fix| !fix.is_empty())
-                    .map_or(Fix::Absent, |fix| Fix::Command(argv(fix))),
-                output,
-                group,
-                timeout: Seconds(tool.timeout_seconds.unwrap_or(TIMEOUT)),
-                inputs: tool
-                    .inputs
-                    .unwrap_or_else(|| vec![PRODUCT.to_owned()])
-                    .into_iter()
-                    .map(|input| Pathspec(input.into()))
-                    .collect(),
-            };
-            if let Some(found) = uncaptured(&read) {
-                return Err(ManifestSchemaError::Uncaptured {
-                    tool: read.id.0.into(),
-                    key: match found.key {
-                        CommandKey::Run => RUN_KEY,
-                        CommandKey::Fix => FIX_KEY,
-                    },
-                    name: found.name.0.into(),
-                });
-            }
-            tools.push(read);
+            tools.push(read_tool(tool)?);
         }
         Ok(Self {
             asymptote: schema.asymptote.map_or(Pin::Unpinned, |version| {
@@ -239,6 +272,9 @@ pub(super) struct WrittenToolSchema {
     timeout: u64,
     /// What it reads.
     inputs: Vec<String>,
+    /// How far over its best a measure may rise, when it may rise.
+    #[serde(rename = "tolerance-percent", skip_serializing_if = "Option::is_none")]
+    tolerance_percent: Option<BTreeMap<String, u32>>,
 }
 
 /// A manifest as it is written: what it pins, its members, its hooks, then its tools.
@@ -306,6 +342,13 @@ impl From<&Manifest> for WrittenSchema {
                         .iter()
                         .map(|input| input.0.to_string())
                         .collect(),
+                    tolerance_percent: Some(
+                        tool.tolerance
+                            .iter()
+                            .map(|(measure, percent)| (measure.0.to_string(), percent.0))
+                            .collect::<BTreeMap<_, _>>(),
+                    )
+                    .filter(|table| !table.is_empty()),
                 })
                 .collect(),
         }

@@ -1,13 +1,9 @@
 import observation_matches from "python/ruff/suppress-matches";
-let lexical = select source, target, file from "token-link" as t where t."link-kind" = "next-token";
-let starts = select source as id from lexical;
-let ends = select target as id from lexical;
-let ids = union(left=starts, right=ends);
-let native = select l.id as id, r.kind as kind, r.text as text, r.file as file, r.span as span from ids as l join "syntax-tree" as r on l.id = r.id;
-let significant = select id, kind, text, file, span from native where kind != "comment" and kind != "nl";
-let backwards = select target as parent, source as child from lexical;
-let following = axis(from=significant, relation=backwards, direction=nearest-ancestor, domain=significant);
-let next_code = select id as source, related as target, file from following;
+import code_tokens from "python/ruff/code-tokens";
+import next_token from "python/ruff/next-token";
+let significant = code_tokens();
+let code_token_ids = select id, file from significant;
+let next_code = next_token(tokens=code_token_ids, domain=code_token_ids);
 let incoming = select target as id from next_code;
 let code_ids = select id from significant;
 let roots = antijoin(left=code_ids, right=incoming, left-on=[id], right-on=[id]);

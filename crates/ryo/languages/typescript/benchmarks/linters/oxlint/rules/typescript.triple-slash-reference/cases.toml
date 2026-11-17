@@ -107,3 +107,9 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line triple-slash-reference\n/// <reference path=\"foo\" />\n" }
 expected = []
+
+[[cases]]
+name = "types-import-equals-template"
+comparison = "full"
+files = { "case.ts" = "/// <reference types=\"foo\" />\nimport foo = require(`foo`);\n" }
+expected = [{ rule = "invalid-syntax", file = "case.ts", start = 51, end = 56 }]

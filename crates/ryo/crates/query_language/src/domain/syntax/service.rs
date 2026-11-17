@@ -15,7 +15,7 @@ use ryo_values::domain::query_syntax::types::{
 use ryo_values::domain::query_tokens::types::{ArgumentName, OperationName};
 
 /// The operations a query can call, besides `select`.
-const SHAPES: [OperationShape; 24] = [
+const SHAPES: [OperationShape; 25] = [
     OperationShape {
         operator: QueryOperator::RenderSyntax,
         inputs: &[ArgumentSlot::From],
@@ -63,6 +63,26 @@ const SHAPES: [OperationShape; 24] = [
             ArgumentSlot::Destination,
             ArgumentSlot::Order,
             ArgumentSlot::Edge,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
+        operator: QueryOperator::Worklist,
+        inputs: &[
+            ArgumentSlot::From,
+            ArgumentSlot::Edges,
+            ArgumentSlot::Lattice,
+        ],
+        required: &[
+            ArgumentSlot::Root,
+            ArgumentSlot::State,
+            ArgumentSlot::Source,
+            ArgumentSlot::Destination,
+            ArgumentSlot::Order,
+            ArgumentSlot::Before,
+            ArgumentSlot::After,
+            ArgumentSlot::Lower,
+            ArgumentSlot::Upper,
             ArgumentSlot::Output,
         ],
     },

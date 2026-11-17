@@ -1,0 +1,9 @@
+import binary_operands from "rust/clippy/binary-operands";
+import eq_expr_value from "rust/clippy/eq-expr-value";
+import lint_attributes from "rust/clippy/lint-attributes";
+let binaries = binary_operands();
+let assignments = select id, left, right, file, span from binaries where op = "=";
+let same = eq_expr_value(pairs=assignments);
+let candidates = select id, file, span from same;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:self_assignment|correctness|all))\s*(?:,|$)");
+emit violations subject file key(id);

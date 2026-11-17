@@ -15,7 +15,7 @@ pub(crate) struct MatchingUseCaseAdapter<Semantics> {
 
 impl<Semantics> MatchingUseCaseAdapter<Semantics> {
     /// The adapter over one use case.
-    pub const fn new(semantics: Semantics) -> Self {
+    pub(crate) const fn new(semantics: Semantics) -> Self {
         Self { semantics }
     }
 }
@@ -41,5 +41,9 @@ where
         each: &mut dyn FnMut(TextSpan, TextSpan) -> std::ops::ControlFlow<()>,
     ) -> Result<std::ops::ControlFlow<()>, MatchingError> {
         self.semantics.visit_regex_captures(regex, text, name, each)
+    }
+
+    fn semantics(&self) -> &dyn MatchingUseCase {
+        &self.semantics
     }
 }

@@ -1,0 +1,8 @@
+input tokens: relation<id: node, file: file>;
+input domain: relation<id: node, file: file>;
+output relation<source: node, target: node, file: file>;
+let lexical = select source, target, file from "token-link" as t where t."link-kind" = "next-token";
+let backwards = select target as parent, source as child from lexical;
+let following = axis(from=tokens, relation=backwards, direction=nearest-ancestor, domain=domain);
+let next = select id as source, related as target, file from following;
+return next;

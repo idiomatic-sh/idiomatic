@@ -30,7 +30,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             6 + (if cfg!(feature = "css") { 1 } else { 0 })
                 + (if cfg!(feature = "go") { 1 } else { 0 })
                 + (if cfg!(feature = "html") { 1 } else { 0 })
-                + (if cfg!(feature = "javascript") { 1 } else { 0 })
                 + (if cfg!(feature = "json") { 1 } else { 0 })
                 + (if cfg!(feature = "markdown") { 1 } else { 0 })
                 + (if cfg!(feature = "python") { 1 } else { 0 })

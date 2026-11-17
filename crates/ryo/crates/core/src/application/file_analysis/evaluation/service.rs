@@ -1,13 +1,16 @@
 //! The rules of one file run in the engine's one call; the worker renders the emitted roots, notes the frontiers it could not
 //! capture, keeps the captured ones it records and adds the counts.
 use super::super::errors::FileAnalysisError;
+use super::super::language_source::service::language_serves;
 use super::super::semantic::service::SemanticState;
 use super::super::service::FileAnalysis;
-use super::super::types::{FileVisit, RuleGate, Worker};
+use super::super::types::{EngineSource, FileRead, FileVisit, LanguageSource, RuleGate, Worker};
+use crate::domain::crossing::types::FrameHanding;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::governs_rule;
 use crate::domain::workers::types::Tables;
+use crate::outbound::language::types::{FileToRead, SourceSelection};
 use ryo_execution::inbound::use_cases::execution::interface::Demand;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
@@ -18,15 +21,18 @@ use ryo_execution::inbound::use_cases::execution::interface::{
 };
 use ryo_execution::inbound::use_cases::execution::interface::{
     CaptureContext, EmittedRoot, FileEnd, FileRunInput, FileStop, FinishedReadiness, KindSupport,
-    RanRule, RuleAfter, SemanticSupport, SourceLanguage,
+    Partiality, RanRule, RuleAfter, SemanticSupport, SourceLanguage,
 };
 use ryo_execution::inbound::use_cases::metadata::interface::{
     FileObservationReadiness, Governing, Message, RuleIndex, Unknown,
 };
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use ryo_execution_runtime::outbound::facts::types::fact_sources::value::{FactSource, FactSources};
 use ryo_language::domain::elements::service::syntax_acceptance;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
+use ryo_relations::domain::relations::service::{all, provenance_of};
 use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_values::domain::runs::types::{RuleApplicability, RuleNumber};
@@ -40,33 +46,80 @@ impl FileAnalysis {
         visit: &FileVisit<'_>,
         file: FileId,
         semantic: &SemanticState,
+        read: FileRead<'_>,
+        handing: FrameHanding,
     ) -> Result<(), FileAnalysisError> {
         let tables = &mut worker.tables;
         let acceptance = syntax_acceptance(&tables.elements);
         let original_mask = tables.mask.clone();
         let skipped = Self::gate_rules(tables, &visit.setting, file, acceptance);
         tables.mask = original_mask;
-        // Publication always sees physical partiality, even when Rows output relaxes evaluation.
-        let physical = tables.partials.clone();
-        let evaluation = if matches!(visit.setting.answering, Answering::Rows(_)) {
-            &[][..]
-        } else {
-            physical.as_slice()
-        };
         let intents = intents_of(tables, visit, &skipped, acceptance);
+        let language = if tables.language.is_some() {
+            SourceLanguage::Recognized
+        } else {
+            SourceLanguage::Unrecognized
+        };
+        // Publication always sees physical partiality, even when Rows output relaxes evaluation.
+        let answering = if matches!(visit.setting.answering, Answering::Rows(_)) {
+            Partiality::Relaxed
+        } else {
+            Partiality::Physical
+        };
+        // The catalog lists the project's relations, then the engine's, last: what a language serves is the catalog before them
+        // and what the engine serves the catalog after the project's, no list per file.
+        let catalog = all();
+        let engine =
+            catalog.partition_point(|relation| provenance_of(*relation) != Provenance::Engine);
+        let serves = language_serves(catalog);
+        let mut refused = None;
+        let mut reader;
+        let mut own = EngineSource {
+            serves: catalog.get(engine..).unwrap_or_default(),
+            asked: read.engine.asked,
+            file,
+            bytes: &tables.bytes,
+            executable: read.engine.executable,
+            failure: read.engine.failure,
+        };
+        let mut others: [&mut dyn FactSource; 1] = [&mut own];
+        // The one place a file's sources are listed: the language that read it, if one did, then the engine's own rows.
+        let sources = match tables.language {
+            Some(number) => {
+                reader = LanguageSource {
+                    language: read.language,
+                    number,
+                    file: FileToRead {
+                        source_language: visit
+                            .setting
+                            .source_language
+                            .map_or(SourceSelection::Recognized, SourceSelection::Named),
+                        path: read.path,
+                        file,
+                        bytes: &tables.bytes,
+                        wanted: visit.setting.wanted,
+                        notes: visit.setting.noted.into(),
+                        roles: visit.setting.roled.into(),
+                    },
+                    tree: &mut tables.elements,
+                    serves,
+                    refused: &mut refused,
+                };
+                FactSources::read(&mut reader, &mut others)?
+            }
+            None => FactSources::unread(&tables.elements, &mut others)?,
+        };
         let ran = visit.setting.services.run_file(
             FileRunInput {
                 file,
-                evaluation,
-                publication: &physical,
                 intents: &intents,
                 source: SourceView(&tables.bytes.0),
-                elements: &tables.elements,
-                language: if tables.language.is_some() {
-                    SourceLanguage::Recognized
-                } else {
-                    SourceLanguage::Unrecognized
-                },
+                sources,
+                active: read.active,
+                said: read.said,
+                recovery: read.recovery,
+                answering,
+                language,
                 semantic: SemanticSupport::Supplied(semantic),
                 kinds: KindSupport::Absent,
                 first: visit.setting.first_bucket,
@@ -78,15 +131,17 @@ impl FileAnalysis {
                 places: &mut tables.places,
                 words: &mut tables.words,
             },
-            worker.facts.as_ref(),
+            worker.facts.as_mut(),
         );
+        // The file's partiality is the run's: its sources settled it before any rule ran.
+        tables.partials = ran.partials;
         for RanRule { rule, emit, after } in ran.rules {
             if let EmittedRoot::Delivered(outcome) = emit {
                 Self::delivered(tables, visit, file, semantic, rule, outcome)?;
             }
             let captures = match after {
                 RuleAfter::Ran { captures } => captures,
-                RuleAfter::Stopped(stop) => return Err(stopped(stop)),
+                RuleAfter::Stopped(stop) => return Err(stopped(stop, &mut refused)),
                 RuleAfter::Unreached => return Err(OperatingError::NotRun.into()),
             };
             for captured in captures {
@@ -106,8 +161,11 @@ impl FileAnalysis {
                         continue;
                     }
                 };
+                // A file no language reads hands a rule no frame the steps after the files need: an empty one is not kept.
+                let empty = handing == FrameHanding::Withheld && capture.rows.0 == 0;
                 if visit.setting.keeping == Keeping::Keeps
                     && *visit.setting.answering == Answering::Findings
+                    && !empty
                 {
                     tables
                         .captured
@@ -125,7 +183,7 @@ impl FileAnalysis {
             FileEnd::Finished(FinishedReadiness::Observed(readiness)) => Some(readiness),
             FileEnd::Finished(FinishedReadiness::Unobserved) => None,
             FileEnd::Unfinished => return Err(OperatingError::NotRun.into()),
-            FileEnd::Refused(stop) => return Err(stopped(stop)),
+            FileEnd::Refused(stop) => return Err(stopped(stop, &mut refused)),
         };
         if let Some(root) = &tables.current_observations {
             tables.observations.push(FileObservationReadiness {
@@ -293,10 +351,13 @@ fn intents_of(
         .collect()
 }
 
-/// The failure a stopped file's run answers: the engine's own, or the worker's facts'.
-fn stopped(stop: FileStop) -> FileAnalysisError {
+/// The failure a stopped file's run answers: the engine's own, the worker's facts', or the refusal the language's source kept.
+fn stopped(stop: FileStop, refused: &mut Option<FileAnalysisError>) -> FileAnalysisError {
     match stop {
         FileStop::Operating(error) => error.into(),
         FileStop::Facts(error) => error.into(),
+        FileStop::Reader => refused
+            .take()
+            .unwrap_or_else(|| OperatingError::NotRun.into()),
     }
 }

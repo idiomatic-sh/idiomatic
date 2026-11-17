@@ -3,11 +3,11 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
-use crate::domain::manifest::types::{Argument, Argv};
 use crate::outbound::tools::interface::ToolsPort;
 use crate::outbound::tools::types::{
     Captured, Completion, Ending, ExitCode, Invocation, StartProblem,
 };
+use asymptote_values::domain::manifest::types::{Argument, Argv};
 
 /// What the core's tests stand in for `tools` with.
 #[derive(Debug, Default)]

@@ -2,3 +2,16 @@
 # Run them with `cargo test --all-features --benches --test '*bdd'`.
 [profile.default]
 default-filter = "not kind(bench) and not binary(/bdd$|^distribution$/)"
+# A test that runs on with no end fails instead of stalling the run: reported slow every two minutes, ended after thirty (the
+# longest test, the cli blocks suite, has taken thirteen).
+slow-timeout = { period = "120s", terminate-after = 15 }
+
+# The operators' tests are each a few seconds: a kernel that does not end (a worklist that never empties its queue) fails
+# within two minutes.
+[[profile.default.overrides]]
+filter = "package(idiomatic-sh-ryo-operators)"
+slow-timeout = { period = "30s", terminate-after = 4 }
+
+# The CI profile (check.yml sets NEXTEST_PROFILE=ci): every test runs, so one red does not hide the rest of a machine's reds.
+[profile.ci]
+fail-fast = false

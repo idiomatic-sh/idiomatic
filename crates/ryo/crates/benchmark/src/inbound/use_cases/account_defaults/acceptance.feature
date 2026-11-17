@@ -6,3 +6,7 @@ Feature: account_defaults
   @refuses
   Scenario: An audit without authored rules is refused
     Then account_defaults refuses an audit that authored nothing
+
+  @refuses
+  Scenario: A default listed as deferred and also authored is refused
+    Then account_defaults refuses a tool whose deferred default eslint.no-with is also authored

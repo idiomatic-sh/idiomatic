@@ -28,14 +28,29 @@ pub trait ExecutablesPort {
     /// # Errors
     /// Refuses an unreadable executable or an unwritable destination.
     fn seal_current(&self, sealed: &Path) -> Result<Sealed, Error>;
-    /// Run a sealed executable, copying its standard output to `output` as it arrives; its errors stream through.
+    /// Run a sealed executable for its verdict alone: its standard output streams to `progress`, and its errors to this
+    /// process's error stream.
     ///
     /// # Errors
-    /// Refuses an executable that cannot start, and a failed copy of its output.
+    /// Refuses an executable that cannot start.
+    fn check_sealed(
+        &self,
+        executable: &Path,
+        arguments: &RunArguments,
+        progress: &mut dyn std::io::Write,
+    ) -> Result<RunVerdict, Error>;
+    /// Run a sealed executable that writes its one document to `document`, and when it succeeds copy that document, and
+    /// nothing else, to `output`. Its standard output streams to `progress` and its errors to this process's error stream,
+    /// so nothing a tool it starts prints can reach `output`.
+    ///
+    /// # Errors
+    /// Refuses an executable that cannot start, a run that succeeded without its document, and a failed copy.
     fn run_sealed(
         &self,
         executable: &Path,
         arguments: &RunArguments,
+        document: &Path,
         output: &mut dyn std::io::Write,
+        progress: &mut dyn std::io::Write,
     ) -> Result<RunVerdict, Error>;
 }

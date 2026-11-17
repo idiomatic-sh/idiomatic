@@ -1,11 +1,12 @@
 //! The facts fakes the execution use case's `project_phase_source_facts` boundary scenarios inject.
+use super::fake::sources_of;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::BucketSource;
 use crate::outbound::facts::types::ColumnsMut;
 use crate::outbound::facts::types::KeptBucket;
-use crate::outbound::facts::types::ResidentStability;
+use crate::outbound::facts::types::KeptSources;
 use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_relations::domain::relations::{
@@ -69,9 +70,6 @@ impl ProjectFacts {
 }
 
 impl FactsWorker for ProjectFacts {
-    fn resident_stability(&self) -> ResidentStability {
-        ResidentStability::Stable
-    }
     fn rows(&self, relation: Relation) -> Result<ColumnsView<'_>, FactsError> {
         assert_eq!(relation, self.relation);
         self.reads.fetch_add(1, Ordering::SeqCst);
@@ -102,6 +100,7 @@ pub struct CapturedFacts {
 impl FactsFinish for CapturedFacts {
     fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
         self.reads.fetch_add(1, Ordering::SeqCst);
+        // The bucket the captures make, every capture of `bucket`'s, one file after another.
         let mut words = vec![];
         let mut sources = vec![];
         for (file, capture) in &self.captures {
@@ -119,10 +118,56 @@ impl FactsFinish for CapturedFacts {
             sources,
         })
     }
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        // A read of the sources is one read: the kept bucket's, of which only the sources are answered.
+        self.kept(bucket).map(|kept| sources_of(&kept))
+    }
 }
 
 fn unsupported() -> FactsError {
     FactsError::Store {
         reason: "immutable project fixture does not write facts".into(),
     }
+}
+
+/// The store's kept frontiers of a run whose every file was skipped: no source of any, every read counted, the read of
+/// `refused` refused.
+pub struct RefusingKept {
+    /// The bucket whose read the store refuses, if any.
+    pub refused: Option<Bucket>,
+    /// How many reads, of its sources or its words, the store answered or refused.
+    pub reads: AtomicUsize,
+}
+
+impl FactsFinish for RefusingKept {
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        let _previous = self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.refused == Some(bucket) {
+            return Err(FactsError::Store {
+                reason: "the kept frontier is unreadable".into(),
+            });
+        }
+        Ok(KeptBucket {
+            words: std::sync::Arc::new(KeptWords(PackedWords(Vec::new()))),
+            sources: Vec::new(),
+        })
+    }
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        let _previous = self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.refused == Some(bucket) {
+            return Err(FactsError::Store {
+                reason: "the kept frontier is unreadable".into(),
+            });
+        }
+        Ok(KeptSources::default())
+    }
+}
+
+/// The bucket of the first entry of the frontier of a rule whose first bucket is `first`.
+#[must_use]
+pub fn first_entry(first: Bucket) -> Bucket {
+    ryo_values::domain::stored_facts::service::frontier_bucket(
+        first,
+        ryo_values::domain::plan_parts::types::InputNumber(0),
+    )
 }

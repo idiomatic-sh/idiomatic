@@ -15,7 +15,7 @@ pub(super) fn answer(
         .map(|report| {
             super::schemas::answer(
                 report,
-                edge.writing == tastemaker_core::domain::writing::types::Writing::DryRun,
+                edge.writing == tastemaker_values::domain::writing::types::Writing::DryRun,
             )
         })
         .map_err(|error| crate::output::fail(&error, Outcome::Error))

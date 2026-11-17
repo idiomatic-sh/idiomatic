@@ -3,6 +3,7 @@ import annotation_origins from "python/ruff/annotation-origins";
 import immutable_annotation from "python/ruff/immutable-annotation";
 import dataclass_decorators from "python/ruff/dataclass-decorators";
 import call_syntax from "python/ruff/calls";
+import latest_before from "python/ruff/latest-before";
 
 let nodes = select id, kind, file from "semantic-syntax";
 let classes = select id, file from nodes where kind = "class-def";
@@ -50,14 +51,25 @@ let base_origins = select l.class as class, r.path as path, l.file as file from 
 let copy_classes = select class, file from base_origins where path = "pydantic.BaseModel" or path = "pydantic.v1.BaseModel" or path = "pydantic.BaseSettings" or path = "pydantic_settings.BaseSettings" or path = "pydantic.BaseConfig" or path = "pydantic.v1.generics.GenericModel" or path = "msgspec.Struct" or path = "sqlmodel.SQLModel";
 let class_definitions = select id as class, name, owner, file from "defines" where kind = "class";
 let base_names = select l.class as child, r.name as name, l.file as file from inherits as l join "identifier" as r on l.base = r.id and l.file = r.file;
-let derived_names = select l.child as child, l.name as name, r.owner as owner, l.file as file from base_names as l join class_definitions as r on l.child = r.class and l.file = r.file;
-let local_bases = select l.child as child, r.class as parent, l.file as file from derived_names as l join class_definitions as r on l.name = r.name and l.owner = r.owner and l.file = r.file;
+let module_nodes = select id, file from "semantic-syntax" where kind = "module";
+let module_events = select l.occurrence as occurrence, l.name as name, l.scope as scope, l.phase as phase, l.ordinal as ordinal, l.file as file from "binding-event" as l join module_nodes as r on l.scope = r.id and l.phase = r.id and l.file = r.file where l.kind = "bind" or l.kind = "delete" or l.kind = "cleanup";
+let module_event_keys = select scope, phase, name, file, ordinal from module_events;
+let base_name_rows = select l.name as name, r.id as scope, r.id as phase, l.file as file from base_names as l join module_nodes as r on l.file = r.file;
+let base_name_groups = group-count(from=base_name_rows, keys=["scope", "phase", "name", "file"], count="uses");
+let base_name_keys = select scope, phase, name, file from base_name_groups;
+let module_end_probes = extend(from=base_name_keys, values={ordinal: 2147483647});
+let latest_module_events = latest_before(events=module_event_keys, probes=module_end_probes);
+let latest_module_bindings = select l.name as name, l.file as file, r.occurrence as occurrence from latest_module_events as l join module_events as r on l.scope = r.scope and l.name = r.name and l.file = r.file and l.event_ordinal = r.ordinal;
+let module_classes = select l.class as class, l.name as name, l.file as file from class_definitions as l join latest_module_bindings as r on l.class = r.occurrence and l.name = r.name and l.file = r.file;
+let local_bases = select l.child as child, r.class as parent, l.file as file from base_names as l join module_classes as r on l.name = r.name and l.file = r.file;
 let local_ancestry = closure(edges=local_bases, source="child", destination="parent", keys=["file"]);
 let inherited_copy_classes = select l.child as class, l.file as file from local_ancestry as l join copy_classes as r on l.parent = r.class and l.file = r.file;
 let all_copy_classes = union(left=copy_classes, right=inherited_copy_classes);
 let copy_statements = select l.statement as statement, l.file as file from assignments as l join all_copy_classes as r on l.class = r.class and l.file = r.file;
 let ctypes_classes = select class, file from base_origins where path = "ctypes.Structure" or path = "ctypes.LittleEndianStructure" or path = "ctypes.BigEndianStructure" or path = "ctypes.Union" or path = "ctypes.LittleEndianUnion" or path = "ctypes.BigEndianUnion";
-let ctypes_fields = select l.statement as statement, l.file as file from named_targets as l join ctypes_classes as r on l.class = r.class and l.file = r.file where l.name = "_fields_";
+let inherited_ctypes_classes = select l.child as class, l.file as file from local_ancestry as l join ctypes_classes as r on l.parent = r.class and l.file = r.file;
+let all_ctypes_classes = union(left=ctypes_classes, right=inherited_ctypes_classes);
+let ctypes_fields = select l.statement as statement, l.file as file from named_targets as l join all_ctypes_classes as r on l.class = r.class and l.file = r.file where l.name = "_fields_";
 let all_exclusions_1 = union(left=annotated_exclusions, right=copy_statements);
 let all_exclusions = union(left=all_exclusions_1, right=ctypes_fields);
 

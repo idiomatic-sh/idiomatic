@@ -3,13 +3,13 @@
 use std::sync::Arc;
 
 use super::errors::CachedReportError;
-use crate::domain::manifest::constants::MANIFEST;
-use crate::domain::renames::types::Head;
-use crate::domain::reports::service::{failures, moved, recorded, unread};
-use crate::domain::reports::types::{FileDigest, Report};
-use crate::domain::violations::types::RepoPath;
 use crate::outbound::check_store::types::{KeptReport, Stored};
 use crate::outbound::sources::interface::SourcesPort;
+use asymptote_values::domain::manifest::constants::MANIFEST;
+use asymptote_values::domain::renames::types::Head;
+use asymptote_values::domain::reports::service::{failures, moved, recorded, unread};
+use asymptote_values::domain::reports::types::{FileDigest, Report};
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// Checks freshness and shares the retained report; never saves or changes accepted state.
 #[derive(Debug)]

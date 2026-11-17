@@ -55,11 +55,7 @@ pub(crate) fn build(
         root,
         ryo_values::domain::files::types::CorpusListing::Walked,
         Vec::new(),
-        {
-            let mut skipped = crate::languages::skipped();
-            skipped.0.push(edge.store.0.clone());
-            skipped
-        },
+        edge.skipped.clone(),
     ));
     let language: Arc<dyn LanguagePort> = Arc::new(crate::languages::linked());
     let digests: Arc<dyn DigestPort> = Arc::new(digest::factory::blake3());
@@ -84,9 +80,7 @@ pub(crate) fn build(
             Arc::new(query_language::factory::use_case(compile, typecheck)),
             memory,
             Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-            )),
-ryo_execution::derived(),
+                ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(), ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
             Arc::new(scheduler::factory::rayon(started)),
             started,
             Arc::new(crate::output::schemas::rows(out, edge.format)),

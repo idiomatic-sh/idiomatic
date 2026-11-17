@@ -69,3 +69,33 @@ name = "other-keyword"
 comparison = "full"
 files = { "case.py" = "int(value[2:], something=2)\n" }
 expected = []
+
+[[cases]]
+name = "slice-start-hex-leading-zero"
+comparison = "full"
+files = { "case.py" = "int(text[0x02:], 2)\n" }
+expected = [{ rule = "FURB166", file = "case.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "base-sixteen-binary"
+comparison = "full"
+files = { "case.py" = "int(text[2:], 0b10000)\n" }
+expected = [{ rule = "FURB166", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "base-sixteen-digit-separator"
+comparison = "full"
+files = { "case.py" = "int(text[2:], 1_6)\n" }
+expected = [{ rule = "FURB166", file = "case.py", start = 0, end = 18 }]
+
+[[cases]]
+name = "base-eight-octal-leading-zero"
+comparison = "full"
+files = { "case.py" = "int(text[2:], 0o010)\n" }
+expected = [{ rule = "FURB166", file = "case.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "base-four-binary-not-flagged"
+comparison = "full"
+files = { "case.py" = "int(text[2:], 0b100)\n" }
+expected = []

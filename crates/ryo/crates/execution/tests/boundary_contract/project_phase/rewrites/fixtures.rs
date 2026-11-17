@@ -32,6 +32,7 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
+use ryo_values::domain::plan_parts::types::{JoinColumn, RepeatedRows, Side};
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -45,14 +46,14 @@ use ryo_values::domain::{
 const SOURCE: &[u8] = b"mainother";
 
 /// The columns of the function relation, in its order.
-pub(super) const ID: ColumnIndex = ColumnIndex(0);
-pub(super) const NAME: ColumnIndex = ColumnIndex(1);
-pub(super) const FILE: ColumnIndex = ColumnIndex(2);
-pub(super) const SPAN: ColumnIndex = ColumnIndex(3);
+pub(crate) const ID: ColumnIndex = ColumnIndex(0);
+pub(crate) const NAME: ColumnIndex = ColumnIndex(1);
+pub(crate) const FILE: ColumnIndex = ColumnIndex(2);
+pub(crate) const SPAN: ColumnIndex = ColumnIndex(3);
 
 /// One function of a file: whether it is named `main`, and where it starts and ends.
 #[derive(Clone, Copy)]
-pub(super) struct Function {
+pub(crate) struct Function {
     pub main: bool,
     pub start: u32,
     pub end: u32,
@@ -60,7 +61,7 @@ pub(super) struct Function {
 
 /// The functions of three files. The first function of the first two files has the same span in both, so a join on spans alone
 /// pairs functions of two files; the third file has no function named `main`.
-pub(super) fn files() -> Vec<Vec<Function>> {
+pub(crate) fn files() -> Vec<Vec<Function>> {
     let function = |main, start, end| Function { main, start, end };
     vec![
         vec![function(true, 0, 4), function(false, 4, 9)],
@@ -70,7 +71,7 @@ pub(super) fn files() -> Vec<Vec<Function>> {
 }
 
 /// The function relation's columns, in place order: the cells `functions` builds follow them.
-pub(super) fn function_columns() -> &'static [CellKind] {
+pub(crate) fn function_columns() -> &'static [CellKind] {
     kinds(Relation::Function)
 }
 
@@ -103,7 +104,7 @@ fn functions(
 }
 
 /// A selection of the function relation's columns, made in each file.
-pub(super) fn functions_kept(kept: &[ColumnIndex]) -> PlanStep {
+pub(crate) fn functions_kept(kept: &[ColumnIndex]) -> PlanStep {
     PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Select {
@@ -128,7 +129,7 @@ fn written(table: &ryo_values::domain::rows::types::Table) -> Vec<String> {
 
 /// The rows a plan of `steps` emitting `emitted` answers over the functions of `files`, run through the owner as a run runs it:
 /// each file's steps in the file, then the steps after the files over what every file captured.
-pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>]) -> Vec<String> {
+pub(crate) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>]) -> Vec<String> {
     let crossing = steps.iter().any(|step| step.scope == StepScope::CrossFile);
     let engine = engine();
     let mut input = authored_request(1);
@@ -169,7 +170,7 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
         let mut symbols = Symbols::default();
         let table = functions(file_id, each, &mut symbols);
         // The facts hold the function relation alone; a read of any other is refused, and the rule with it.
-        let facts = TableFacts::new(&[(Relation::Function, &table)]);
+        let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut rules = run_file_into(
             &request,
@@ -185,7 +186,7 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
                 places: &mut places,
                 words: &mut words,
             },
-            &facts,
+            &mut facts,
         );
         let rule = ran(&mut rules, 0);
         match (rule.emit, rule.after) {
@@ -252,4 +253,53 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
     request.finish();
     answered.sort_unstable();
     answered
+}
+
+/// A step after the files.
+pub(crate) fn after_the_files(operation: Operation) -> PlanStep {
+    PlanStep {
+        scope: StepScope::CrossFile,
+        operation,
+    }
+}
+
+/// A step made in each file.
+pub(crate) fn in_each_file(operation: Operation) -> PlanStep {
+    PlanStep {
+        scope: StepScope::PerFile,
+        operation,
+    }
+}
+
+/// A column of one side of a join.
+pub(crate) fn column(side: Side, at: ColumnIndex) -> JoinColumn {
+    JoinColumn { side, column: at }
+}
+
+/// A join of the steps `left` and `right` on one key each, answering `output`.
+pub(crate) fn join(
+    left: StepId,
+    right: StepId,
+    keys: (ColumnIndex, ColumnIndex),
+    output: Vec<JoinColumn>,
+) -> Operation {
+    Operation::Join {
+        left: Input::Step(left),
+        right: Input::Step(right),
+        left_on: vec![keys.0],
+        right_on: vec![keys.1],
+        output,
+        filter: vec![],
+        view: vec![],
+        reach: None,
+    }
+}
+
+/// The distinct values of one column of a per-file step, gathered after the files.
+pub(crate) fn gathered(from: StepId, at: ColumnIndex) -> PlanStep {
+    after_the_files(Operation::Project {
+        from: Input::Step(from),
+        columns: vec![at],
+        distinct: RepeatedRows::Dropped,
+    })
 }

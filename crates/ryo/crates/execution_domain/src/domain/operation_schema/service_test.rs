@@ -127,9 +127,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Ask::Coverage,
         expect: Expect::Value(Answer::Coverage(Coverage {
-            declared: (26, 26),
-            fixtures: (26, 26, true),
-            features: (26, true),
+            declared: (27, 27),
+            fixtures: (27, 27, true),
+            features: (27, true),
         })),
     },
     Case {

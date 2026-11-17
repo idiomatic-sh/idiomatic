@@ -3,7 +3,7 @@
 /// A fixture's project planned: the plan of its lint calls, and what preparing it found.
 pub(crate) struct ProjectPlan {
     /// The plan of the lint calls.
-    pub plan: crate::domain::applications::types::Plan,
+    pub plan: tastemaker_values::domain::applications::types::Plan,
     /// What preparing it found.
-    pub findings: Vec<crate::domain::findings::types::Finding>,
+    pub findings: Vec<tastemaker_values::domain::findings::types::Finding>,
 }

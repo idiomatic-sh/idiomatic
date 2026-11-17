@@ -34,6 +34,18 @@ pub(crate) enum ArgumentSlot {
     Order,
     /// Edge identity column.
     Edge,
+    /// A root's starting state column.
+    State,
+    /// The state column an edge's source must hold.
+    Before,
+    /// The state column an edge joins into its destination.
+    After,
+    /// The lattice input.
+    Lattice,
+    /// The lower state column of a lattice row.
+    Lower,
+    /// The upper state column of a lattice row.
+    Upper,
     /// Span supplying the start.
     Start,
     /// Span supplying the end.

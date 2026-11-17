@@ -29,11 +29,14 @@ pub(crate) struct CachedPlan {
     /// Typed producer inputs used by this cached query plan.
     pub observation_inputs: Vec<ryo_values::domain::observations::types::BoundObservationInput>,
     /// The plan with every declared observation root retained, never request-pruned.
-    pub plan: Plan,
+    pub plan: std::sync::Arc<Plan>,
 }
 
 /// Retained rule identities and the required semantic layout for named frontier bits.
+#[derive(Debug)]
 pub struct PreparedRuleIdentities {
+    /// The identity of each rule.
     pub rules: Vec<ryo_values::domain::stores::types::StoredRule>,
+    /// The semantic layout of the named frontier bits.
     pub observations: ObservationIdentity,
 }

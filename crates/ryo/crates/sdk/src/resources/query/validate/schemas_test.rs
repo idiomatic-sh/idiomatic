@@ -150,7 +150,7 @@ fn core_module_origin() -> CoreQueryOrigin {
             start: CoreByteOffset(7),
             end: CoreByteOffset(12),
         },
-        trace: Vec::new(),
+        trace: [].into(),
     }
 }
 

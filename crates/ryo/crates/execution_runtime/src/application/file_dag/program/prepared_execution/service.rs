@@ -4,15 +4,13 @@ use crate::application::file_dag::program::prepared_execution::interface::Prepar
 use crate::application::file_dag::program::prepared_execution::interface::ProgramPreparedExecutionPort;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::application::file_dag::program::prepared_execution::types::{
-    Demand, NamedLayout, ObservationContract, ReplayClosure,
+    Demand, ObservationContract, ReplayClosure,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
-use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::{Bucket, Digest};
-use std::sync::Arc;
 impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     fn observation_batches(
         &self,
@@ -98,18 +96,6 @@ impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
         self.parts.inner.frontier_dependencies(rule).map(
             crate::application::file_dag::program::prepared_execution::types::FrontierDependencies,
         )
-    }
-}
-/// The prepared program's matchers, for the execution crate's use-case proofs of lazy matcher compilation.
-#[cfg(any(test, feature = "fixtures"))]
-impl PreparedExecutionProgram {
-    /// The matchers the program prepared, compiled on first use.
-    #[must_use]
-    pub fn matchers(
-        &self,
-    ) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>
-    {
-        self.parts.inner.matchers()
     }
 }
 

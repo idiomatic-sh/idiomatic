@@ -64,7 +64,7 @@ fn stored_prefix(bad_layout: bool) -> Result<Value, Failure> {
             columns: &columns,
         })
     };
-    let facts = fixtures::facts::ReadFacts::new(read);
+    let mut facts = fixtures::facts::ReadFacts::new(read);
     let (engine, prepared) = fixtures::requests::prepared(
         inputs::plan(vec![operation(OperationKind::Project, bad_layout)]),
         vec![],
@@ -77,7 +77,7 @@ fn stored_prefix(bad_layout: bool) -> Result<Value, Failure> {
         b"",
         &Elements::default(),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     observed(
         result,
@@ -136,6 +136,7 @@ const POLICIES: &[(OperationKind, PreflightOrder)] = {
         (FitsRendered, R),
         (SpanBounds, R),
         (OrderedDfs, R),
+        (Worklist, R),
     ]
 };
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -143,7 +144,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("readable_stored_prefix_preserves_schema_precedence_and_actual_rows"),
         word: Word::Succeeds,
         input: || Precedence::StoredPrefix { bad_layout: false },
-        expect: rows(1, &[1], [4, 0]),
+        expect: rows(1, &[1], [1, 0]),
     },
     Case {
         name: CaseName("a_stored_prefix_layout_refusal_commits_no_provider_reread"),

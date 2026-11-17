@@ -3,7 +3,7 @@
 #![cfg(test)]
 use super::{adapter::LinterOxlintAdapter, settings::LinterOxlintSettings};
 use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
+use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run, slashed};
 use ryo_benchmark::outbound::linter::interface::LinterPort as _;
 use ryo_benchmark::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
 use ryo_benchmark_contracts::domain::measurements::types::{
@@ -69,7 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Call::Prepare(&["src/a.ts", "b.tsx"]),
         expect: Expect::Value(Cow::Borrowed(
-            "root: -c state/oxlint.json -A all -D typescript/no-this-alias --format json --threads 1 --disable-nested-config -- src/a.ts b.tsx",
+            "root: -c state/oxlint.json -A all -D typescript/no-this-alias --format json --threads 4 --disable-nested-config -- src/a.ts b.tsx",
         )),
     },
     Case {
@@ -162,6 +162,15 @@ fn request(files: &[&str], state: &std::path::Path) -> RunRequest {
     }
 }
 
+/// A spelling that is a path under `root` as `name` followed by what is under it, `/` between its components, on every platform;
+/// any other spelling as it was.
+fn under(root: &std::path::Path, name: &str, text: &str) -> String {
+    match std::path::Path::new(text).strip_prefix(root) {
+        Ok(rest) => format!("{name}{}", slashed(rest).0),
+        Err(_outside) => text.to_owned(),
+    }
+}
+
 /// Calls the adapter on one input and renders what it answered.
 fn subject(input: Input) -> Result<Value, Failure> {
     let adapter = adapter()?;
@@ -190,11 +199,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 invocation
                     .arguments
                     .iter()
-                    .map(|argument| argument.to_string_lossy())
+                    .map(|argument| under(temporary.path(), "", &argument.to_string_lossy()))
                     .collect::<Vec<_>>()
                     .join(" ")
             )
-            .replace(&format!("{}/", temporary.path().display()), "")
             .into())
         }
         Call::Configuration => {
@@ -227,10 +235,13 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 "{} => {content}",
                 arguments
                     .iter()
-                    .map(|argument| argument.to_string_lossy())
+                    .map(|argument| under(
+                        temporary.path(),
+                        "scratch/",
+                        &argument.to_string_lossy()
+                    ))
                     .collect::<Vec<_>>()
                     .join(" ")
-                    .replace(&*temporary.path().to_string_lossy(), "scratch")
             )
             .into())
         }

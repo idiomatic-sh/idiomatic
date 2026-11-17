@@ -1,0 +1,16 @@
+version = 1
+parents = ["f64f9ba9f12e6ae2eb8e490cce6f50eec15b6d93830be85d73876a7e22508654"]
+
+[[perf]]
+reasons = ["Re-seeded on int-batch (Linux, aarch64): the distribution targets now run their language's external linter (clippy over ruff, oxlint over hono, Ruff over fastapi), a different workload from the records before", "Seeded with the median of five runs of the benchmark on the development machine, each run the median of its rounds; the tolerance is three times the spread of those five medians, rounded up to a multiple of 5, and at least 100% for a workload under 100 ms or 20% above it: the machine is shared, and a workload that short moves by its own rounding."]
+records = [
+  { tool = "performance-distribution", benchmark = "cargo/ruff", measure = "cold-ms", best = 32100.0 },
+  { tool = "performance-distribution", benchmark = "cargo/ruff", measure = "edit-ms", best = 12259.0 },
+  { tool = "performance-distribution", benchmark = "cargo/ruff", measure = "warm-ms", best = 154.0 },
+  { tool = "performance-distribution", benchmark = "npm/hono", measure = "cold-ms", best = 98.0 },
+  { tool = "performance-distribution", benchmark = "npm/hono", measure = "edit-ms", best = 150.0 },
+  { tool = "performance-distribution", benchmark = "npm/hono", measure = "warm-ms", best = 70.0 },
+  { tool = "performance-distribution", benchmark = "pypi/fastapi", measure = "cold-ms", best = 86.0 },
+  { tool = "performance-distribution", benchmark = "pypi/fastapi", measure = "edit-ms", best = 88.0 },
+  { tool = "performance-distribution", benchmark = "pypi/fastapi", measure = "warm-ms", best = 40.0 },
+]

@@ -21,7 +21,8 @@ use crate::domain::rewriting::types::Planned;
 use crate::domain::selecting::service::lower_select;
 use crate::domain::selection_pushing::service::{push_selections, push_selections_roots};
 use crate::domain::syntax::constants::{parameter_kind_named, relation_cell_kind_named};
-use crate::domain::walking::service::{fuse_descents, fuse_neighbours};
+use crate::domain::walking::service::fuse_descents;
+use crate::domain::walking::service::neighbours::service::fuse_neighbours;
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
@@ -194,7 +195,7 @@ pub(crate) fn lower_with_observations(
                     name,
                     source: parts::Input::Step(*step),
                     columns,
-                    scope: crate::domain::resolving::service::step_of(&steps, *step).scope,
+                    scope: step_of(&steps, *step).scope,
                 }
             })
             .collect();

@@ -3,13 +3,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::types::{Accepting, DropReason, Dropped, Lowered, Lowering, Moved};
-use crate::domain::judgement::service::lowered;
-use crate::domain::judgement::types::{Judgement, Resolved};
-use crate::domain::operations::types::{Count, Day, Provenance, Reason, Record};
-use crate::domain::renames::service::changes;
-use crate::domain::renames::types::Carried;
-use crate::domain::violations::service::key;
-use crate::domain::violations::types::{Id, Key, Keyed, Standing, Violation};
+use asymptote_values::domain::judgement::service::lowered;
+use asymptote_values::domain::judgement::types::{Judgement, Resolved};
+use asymptote_values::domain::operations::types::{Count, Day, Provenance, Reason, Record};
+use asymptote_values::domain::renames::service::changes;
+use asymptote_values::domain::renames::types::Carried;
+use asymptote_values::domain::violations::service::key;
+use asymptote_values::domain::violations::types::{Id, Key, Keyed, Standing, Violation};
 
 /// The records accepting `new` with `reason` on `since` at `revision`: one per key, its count what the lock already
 /// accepts under it plus what is new, so the operation's record supersedes the one before. A suppressed finding takes

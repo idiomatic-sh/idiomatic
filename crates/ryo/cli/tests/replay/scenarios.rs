@@ -103,3 +103,9 @@ fn no_hardcoded_paths_finds_what_its_scenarios_state() {
     let _beside = crate::beside();
     rule_fixtures::check("no-hardcoded-paths");
 }
+
+#[test]
+fn crate_dependency_cycles_finds_what_its_scenarios_state() {
+    let _beside = crate::beside();
+    rule_fixtures::check("crate-dependency-cycles");
+}

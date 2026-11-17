@@ -3,7 +3,6 @@ use super::super::super::fixtures;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
-    table_cells::types::{TreeForm, TreeRows},
     table_model::{service::kinds_of, types::Rows},
 };
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
@@ -12,6 +11,7 @@ use ryo_language::domain::{
     elements::types::Elements,
     symbols::types::{ByteSlice, Symbols},
 };
+use ryo_operators::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::{
     service::node_id,
     types::{CellKind, FileId, KindBits, Offset, Position, Relation, Value as Cell},

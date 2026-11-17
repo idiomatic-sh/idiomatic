@@ -2,11 +2,11 @@
 
 use super::adapter::MatchingGlobsetAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::selection::types::{PathMatch, PathPattern};
-use crate::domain::violations::types::RepoPath;
 use crate::outbound::matching::errors::MatchingError;
 use crate::outbound::matching::fixtures::contract::check;
 use crate::outbound::matching::interface::MatchingPort as _;
+use asymptote_values::domain::selection::types::{PathMatch, PathPattern};
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// The pattern asked of, or none for the contract.
 type Input = Option<&'static str>;

@@ -9,7 +9,6 @@ use crate::domain::lowering::types::{
     Builder, Joined, LastStep, PlannedColumn, SearchMatch, ShownColumns, SideColumn, Sourced,
     Uniqueness,
 };
-use crate::domain::planning::service::push;
 use crate::domain::planning::service::pushed;
 use crate::domain::resolving::service::argument_named;
 use crate::domain::resolving::service::bad_argument;
@@ -18,7 +17,6 @@ use crate::domain::syntax::constants::side_named;
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// The join of a select over its source: the step that makes it, the fields it gives, and the columns of either side

@@ -47,6 +47,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
             Operation::Replace { .. }
                 | Operation::OrderedMatch { .. }
                 | Operation::OrderedDfs { .. }
+                | Operation::Worklist { .. }
         )
     }))
 }

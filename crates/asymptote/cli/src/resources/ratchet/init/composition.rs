@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use asymptote_core::domain::manifest::types::ProductRoot;
 use asymptote_core::inbound::use_cases::init::interface::InitUseCase;
+use asymptote_values::domain::manifest::types::ProductRoot;
 
 /// The dependencies the caller supplies: the service the command calls.
 pub(crate) struct RatchetInitParts<S> {

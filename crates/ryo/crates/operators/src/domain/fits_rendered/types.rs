@@ -29,18 +29,17 @@ pub(crate) enum Fit {
     Over,
 }
 
-/// What a fit check reads from its operation: the text columns and the literals between them, the span the
-/// candidate replaces, the widest line and the tab stop.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct RenderedShape<'a> {
+/// What a fit check lowers to: the text columns and literals, the span, the widest line and the tab stop.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct FitsParts {
     /// The columns whose texts the candidate interleaves.
-    pub texts: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
-    /// The literals before, between and after the texts: one more than the texts.
-    pub literals: &'a [ryo_values::domain::plan_parts::types::LiteralText],
-    /// The column of the span the candidate replaces.
-    pub span: ryo_values::domain::plan_parts::types::ColumnIndex,
+    pub(crate) texts: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
+    /// The literals before, between and after the texts.
+    pub(crate) literals: Vec<ryo_values::domain::plan_parts::types::LiteralText>,
+    /// The span the candidate replaces.
+    pub(crate) span: ryo_values::domain::plan_parts::types::ColumnIndex,
     /// The widest permitted line.
-    pub max_line: ryo_values::domain::query_operators::types::MaxLine,
+    pub(crate) max_line: ryo_values::domain::query_operators::types::MaxLine,
     /// The columns between tab stops.
-    pub tab_width: ryo_values::domain::query_operators::types::TabWidth,
+    pub(crate) tab_width: ryo_values::domain::query_operators::types::TabWidth,
 }

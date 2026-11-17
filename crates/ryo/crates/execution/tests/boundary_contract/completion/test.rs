@@ -136,8 +136,9 @@ fn an_empty_publication_keeps_the_partial_coverage_of_its_reads() {
         affected,
         [Some(ryo_relations::domain::relations::types::FileId(0))]
     );
+    // The file pass reads each relation once, read in part or not.
     assert_eq!(
-        reads, 4,
+        reads, 2,
         "the gate settles the antijoin on its empty left input, reading Comment no further"
     );
 }

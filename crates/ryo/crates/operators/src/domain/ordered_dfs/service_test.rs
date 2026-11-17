@@ -1,88 +1,51 @@
-//! Each distinct root is visited once; each edge it reaches is one row with the ordinal of the visit.
-use super::service::evaluate;
-use super::types::DfsShape;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::contract::types::RowScratch;
-use crate::domain::evaluation::fixtures::{FakeDriver, number, written};
-use crate::domain::ordered_dfs::types::OrderedEdge;
-use ryo_relations::domain::relations::types::Integer;
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::RowIndex;
+//! The `ordered_dfs` service's cases, on values alone.
 
-/// Which roots the engine's graph holds.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    /// One root reaching two edges.
-    OneRoot,
-    /// The same root twice in sorted order.
-    RepeatedRoot,
-    /// A root row narrower than its root columns.
-    NarrowRoot,
-}
-type Input = Scenario;
-type Value = std::borrow::Cow<'static, str>;
-type Failure = PortableOperatorFault;
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("each_reached_edge_is_one_row_with_its_ordinal"),
-        word: Word::Succeeds,
-        input: || Scenario::OneRoot,
-        expect: Expect::Value(std::borrow::Cow::Borrowed("1 5 5 6 9 1|1 5 6 7 8 2")),
-    },
-    Case {
-        name: CaseName("a_repeated_root_is_visited_once"),
-        word: Word::Succeeds,
-        input: || Scenario::RepeatedRoot,
-        expect: Expect::Value(std::borrow::Cow::Borrowed("1 5 5 6 9 1|1 5 6 7 8 2")),
-    },
-    Case {
-        name: CaseName("a_root_row_without_its_root_column_is_refused"),
-        word: Word::Refuses,
-        input: || Scenario::NarrowRoot,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
-            index: ColumnIndex(0),
-        }),
-    },
-];
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    let root = vec![number(1), number(5)];
-    let mut driver = FakeDriver {
-        roots: match scenario {
-            Scenario::OneRoot => vec![root],
-            Scenario::RepeatedRoot => vec![root.clone(), root],
-            Scenario::NarrowRoot => vec![Vec::new()],
-        },
-        root_columns: vec![ColumnIndex(0), ColumnIndex(1)],
-        edges: vec![
-            vec![number(5), number(6), number(9)],
-            vec![number(6), number(7), number(8)],
+use super::service::lower;
+use super::types::{DfsParts, DfsShape};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+
+/// A scenario: whether what the part answers is what the case states.
+type Input = fn() -> bool;
+type Value = bool;
+type Failure = ();
+
+/// The edge columns are read as source, destination, order and edge, in that order, and each side keeps its keys.
+fn reads_its_edge_columns_in_order() -> bool {
+    lower(DfsShape {
+        root: ColumnIndex(0),
+        edge_columns: [
+            ColumnIndex(3),
+            ColumnIndex(2),
+            ColumnIndex(1),
+            ColumnIndex(0),
         ],
-        visits: vec![vec![
-            OrderedEdge {
-                edge: RowIndex(0),
-                ordinal: Integer(1),
-            },
-            OrderedEdge {
-                edge: RowIndex(1),
-                ordinal: Integer(2),
-            },
-        ]],
-        ..FakeDriver::default()
-    };
-    let shape = DfsShape {
-        root: ColumnIndex(1),
-        edge_columns: [ColumnIndex(0), ColumnIndex(1), ColumnIndex(2)],
-        root_keys: &[ColumnIndex(0)],
-    };
-    evaluate(shape, &mut driver, &mut RowScratch::default())?;
-    Ok(std::borrow::Cow::Owned(written(&driver.emitted)))
+        root_keys: &[ColumnIndex(1)],
+        edge_keys: &[ColumnIndex(4)],
+    }) == DfsParts {
+        root: ColumnIndex(0),
+        source: ColumnIndex(3),
+        destination: ColumnIndex(2),
+        order: ColumnIndex(1),
+        edge: ColumnIndex(0),
+        root_keys: vec![ColumnIndex(1)],
+        edge_keys: vec![ColumnIndex(4)],
+    }
 }
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("an_ordered_walk_reads_its_edge_columns_in_order"),
+    word: Word::Succeeds,
+    input: || reads_its_edge_columns_in_order,
+    expect: Expect::Value(true),
+}];
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    Ok(input())
+}
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
 }

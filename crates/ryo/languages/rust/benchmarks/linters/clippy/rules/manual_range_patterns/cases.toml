@@ -1,0 +1,74 @@
+[[cases]]
+name = "three-numbers"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> u8 {\n    match x {\n        1 | 2 | 3 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 48, end = 57 }]
+
+[[cases]]
+name = "too-few"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> u8 {\n    match x {\n        1 | 2 => 1,\n        _ => 0,\n    }\n}\npub fn f1(x: i32) -> u8 {\n    match x {\n        1 | 3 | 5 => 1,\n        _ => 0,\n    }\n}\npub fn f2(x: i32) -> u8 {\n    match x {\n        1 | 2 | 4 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "unordered-and-repeated"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> u8 {\n    match x {\n        3 | 1 | 2 => 1,\n        _ => 0,\n    }\n}\npub fn f1(x: i32) -> u8 {\n    match x {\n        2 | 2 | 1 | 3 => 1,\n        _ => 0,\n    }\n}\npub fn f2(x: i32) -> u8 {\n    match x {\n        5 | 4 | 3 | 2 | 1 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 48, end = 57 }, { file = "src/lib.rs", start = 136, end = 149 }, { file = "src/lib.rs", start = 228, end = 245 }]
+
+[[cases]]
+name = "ranges"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> u8 {\n    match x {\n        1..=3 | 4 => 1,\n        _ => 0,\n    }\n}\npub fn f1(x: i32) -> u8 {\n    match x {\n        1..3 | 3 => 1,\n        _ => 0,\n    }\n}\npub fn f2(x: i32) -> u8 {\n    match x {\n        1..3 | 4 => 1,\n        _ => 0,\n    }\n}\npub fn f3(x: i32) -> u8 {\n    match x {\n        1..=3 | 4..=6 => 1,\n        _ => 0,\n    }\n}\npub fn f4(x: i32) -> u8 {\n    match x {\n        1..=3 | 5..=6 => 1,\n        _ => 0,\n    }\n}\npub fn f5(x: i32) -> u8 {\n    match x {\n        1..=5 | 2..=3 => 1,\n        _ => 0,\n    }\n}\npub fn f6(x: i32) -> u8 {\n    match x {\n        1..4 | 4..6 => 1,\n        _ => 0,\n    }\n}\npub fn f7(x: i32) -> u8 {\n    match x {\n        1..4 | 5..6 => 1,\n        _ => 0,\n    }\n}\npub fn f8(x: i32) -> u8 {\n    match x {\n        0..=2 | 4 | 3 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 48, end = 57 }, { file = "src/lib.rs", start = 136, end = 144 }, { file = "src/lib.rs", start = 310, end = 323 }, { file = "src/lib.rs", start = 494, end = 507 }, { file = "src/lib.rs", start = 586, end = 597 }, { file = "src/lib.rs", start = 766, end = 779 }]
+
+[[cases]]
+name = "open-before-closed"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> u8 {\n    match x {\n        1..4 | 4..=6 => 1,\n        _ => 0,\n    }\n}\npub fn f1(x: i32) -> u8 {\n    match x {\n        1..4 | 5..=6 => 1,\n        _ => 0,\n    }\n}\npub fn f2(x: i32) -> u8 {\n    match x {\n        1..=3 | 4..6 => 1,\n        _ => 0,\n    }\n}\npub fn f3(x: i32) -> u8 {\n    match x {\n        1..=3 | 5..6 => 1,\n        _ => 0,\n    }\n}\npub fn f4(x: i32) -> u8 {\n    match x {\n        1..=3 | 4..5 | 5 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 48, end = 60 }, { file = "src/lib.rs", start = 230, end = 242 }, { file = "src/lib.rs", start = 412, end = 428 }]
+
+[[cases]]
+name = "negative-and-hex"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> u8 {\n    match x {\n        -1 | 0 | 1 => 1,\n        _ => 0,\n    }\n}\npub fn f1(x: i32) -> u8 {\n    match x {\n        -3..=-1 | 0 => 1,\n        _ => 0,\n    }\n}\npub fn f2(x: i32) -> u8 {\n    match x {\n        0x1 | 0x2 | 3 => 1,\n        _ => 0,\n    }\n}\npub fn f3(x: i32) -> u8 {\n    match x {\n        -2 | -1 | 1 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 48, end = 58 }, { file = "src/lib.rs", start = 137, end = 148 }, { file = "src/lib.rs", start = 227, end = 240 }]
+
+[[cases]]
+name = "with-other-patterns"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> u8 {\n    match x {\n        1 | 2 | X => 1,\n        _ => 0,\n    }\n}\npub fn f1(x: i32) -> u8 {\n    match x {\n        1 | 2 | 3 | 4.. => 1,\n        _ => 0,\n    }\n}\npub const X: i32 = 3;\n" }
+expected = []
+
+[[cases]]
+name = "leading-pipe-and-nested"
+files = { "src/lib.rs" = "pub fn f0(x: i32) -> u8 {\n    match x {\n        | 1 | 2 | 3 => 1,\n        _ => 0,\n    }\n}\npub fn f1(x: i32) -> u8 {\n    match x {\n        (1 | 2 | 3) => 1,\n        _ => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 48, end = 59 }, { file = "src/lib.rs", start = 139, end = 148 }]
+
+[[cases]]
+name = "chars-and-unsigned"
+files = { "src/lib.rs" = "pub fn f0(x: char) -> u8 {\n    match x {\n        'a' | 'b' | 'c' => 1,\n        _ => 0,\n    }\n}\npub fn g0(x: u8) -> u8 {\n    match x {\n        0 | 1 | 2 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 142, end = 151 }]
+
+[[cases]]
+name = "in-let-and-guard"
+files = { "src/lib.rs" = "pub fn f(o: Option<i32>) -> i32 {\n    if let Some(1 | 2 | 3) = o {\n        return 1;\n    }\n    match o {\n        Some(x) if x > 9 => 2,\n        Some(4 | 5 | 6) => 3,\n        _ => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 50, end = 59 }, { file = "src/lib.rs", start = 149, end = 158 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let x = 2;\n        let y = match x {\n            1 | 2 | 3 => 1,\n            _ => 0,\n        };\n        assert_eq!(y, 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 107, end = 116 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::manual_range_patterns)]\npub fn f0(x: i32) -> u8 {\n    match x {\n        1 | 2 | 3 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub fn f0(x: i32) -> u8 {\n    match x {\n        1 | 2 | 3 => 1,\n        _ => 0,\n    }\n}\n#[allow(clippy::all)]\npub fn g0(x: i32) -> u8 {\n    match x {\n        1 | 2 | 3 => 1,\n        _ => 0,\n    }\n}\n#[expect(warnings)]\npub fn h0(x: i32) -> u8 {\n    match x {\n        1 | 2 | 3 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::manual_range_patterns)]\npub fn f0(x: i32) -> u8 {\n    match x {\n        1 | 2 | 3 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::manual_range_patterns)]\npub fn f0(x: i32) -> u8 {\n    match x {\n        1 | 2 | 3 => 1,\n        _ => 0,\n    }\n}\npub fn g0(x: i32) -> u8 {\n    match x {\n        1 | 2 | 3 => 1,\n        _ => 0,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 110, end = 119 }]

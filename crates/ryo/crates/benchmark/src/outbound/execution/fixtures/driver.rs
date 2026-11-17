@@ -45,20 +45,13 @@ pub(super) fn executable_name(stem: &str) -> String {
     }
 }
 
-/// The known fixture's native bad-image error, not an arbitrary child's numeric status.
-pub(super) fn image_error() -> i32 {
-    if cfg!(windows) { 193 } else { 8 }
-}
-
-#[cfg(unix)]
-/// Configure executable permissions for an independently created launch fixture.
-pub(super) fn make_executable(path: &std::path::Path) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
-}
-#[cfg(not(unix))]
-/// Validate the image fixture exists; there is no Unix execute bit on Windows.
-/// This is never used as proof that a Windows permission test passed.
-pub(super) fn make_executable(path: &std::path::Path) -> std::io::Result<()> {
-    std::fs::metadata(path).map(|_| ())
+/// The native errors that launching the known invalid image answers, not an arbitrary child's numeric status. Windows
+/// answers a file that is no executable image of this machine with one of its image errors: invalid signature (191), image
+/// marked invalid (192), bad format (193) or another machine type (216).
+pub(super) fn image_errors() -> &'static [i32] {
+    if cfg!(windows) {
+        &[191, 192, 193, 216]
+    } else {
+        &[8]
+    }
 }

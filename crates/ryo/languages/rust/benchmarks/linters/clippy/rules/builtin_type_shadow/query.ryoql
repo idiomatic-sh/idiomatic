@@ -1,0 +1,8 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let parameters = select id from "syntax-tree" where kind = "type-param";
+let names = select l.child as id from "syntax-child" as l join parameters as r on l.parent = r.id where l.field = "name";
+let primitives = select id, file, span from "syntax-tree" where kind = "ident" and matches(text, "^(?:r#)?(?:bool|char|str|i8|i16|i32|i64|i128|isize|u8|u16|u32|u64|u128|usize|f16|f32|f64|f128)$");
+let named = select l.parent as name, r.id as id, r.file as file, r.span as span from "syntax-child" as l join primitives as r on l.child = r.id;
+let shadows = select r.id as id, r.file as file, r.span as span from names as l join named as r on l.id = r.name;
+let violations = lint_attributes(candidates=shadows, names="(?:^|,)\s*(?:clippy::(?:builtin_type_shadow|style|all))\s*(?:,|$)");
+emit violations subject file key(id);

@@ -1,6 +1,6 @@
-//! The rows a file hands over are cut to the columns the steps after the files ask, and no further.
+//! The rows a file hands over are cut to the columns the steps after the files ask, and no further, whatever step made them.
 
-use super::service::cut_relations;
+use super::service::{cut_handover, cut_relations};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as Reads, StepId, StepScope};
@@ -13,10 +13,26 @@ enum Scenario {
     OneColumnAsked,
     /// A step after the files asks of every column of a relation.
     EveryColumnAsked,
+    /// A step after the files asks of two of the three columns a join in each file makes.
+    TwoOfAJoinsColumnsAsked,
+    /// A step after the files asks of every column a join in each file makes.
+    EveryColumnOfAJoinAsked,
+    /// The plan of a join asked for its columns 0 and 2, cut.
+    TwoOfAJoinsColumnsPlanned,
+    /// A step after the files asks of the name of a count of functions by file and name made in each file.
+    OneColumnOfAGroupingAsked,
 }
 
-/// Whether the plan came back with a step that cuts the relation.
-type Value = bool;
+/// What the rewrite made of the plan.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    /// Whether the plan came back with a step that cuts its input.
+    Cut(bool),
+    /// The plan that came back and the step it emits, empty when it is the plan expected.
+    Planned(Vec<PlanStep>, StepId),
+}
+
+type Value = Answer;
 type Failure = std::convert::Infallible;
 /// What a row asks of the service.
 type Input = Scenario;
@@ -26,20 +42,102 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_relation_asked_for_one_column_is_cut_to_it"),
         word: Word::Succeeds,
         input: || Scenario::OneColumnAsked,
-        expect: Expect::Value(true),
+        expect: Expect::Value(Answer::Cut(true)),
     },
     Case {
         name: CaseName("a_relation_asked_for_every_column_is_left_as_it_is"),
         word: Word::Succeeds,
         input: || Scenario::EveryColumnAsked,
-        expect: Expect::Value(false),
+        expect: Expect::Value(Answer::Cut(false)),
+    },
+    Case {
+        name: CaseName("a_join_in_each_file_asked_for_fewer_columns_than_it_makes_is_cut_to_them"),
+        word: Word::Succeeds,
+        input: || Scenario::TwoOfAJoinsColumnsAsked,
+        expect: Expect::Value(Answer::Cut(true)),
+    },
+    Case {
+        name: CaseName("a_join_in_each_file_asked_for_every_column_it_makes_is_left_as_it_is"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryColumnOfAJoinAsked,
+        expect: Expect::Value(Answer::Cut(false)),
+    },
+    Case {
+        name: CaseName(
+            "a_join_asked_for_two_of_its_three_columns_hands_over_a_projection_of_them_and_the_step_after_the_files_reads_it_renamed",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::TwoOfAJoinsColumnsPlanned,
+        expect: Expect::Value(Answer::Planned(Vec::new(), StepId(0))),
+    },
+    Case {
+        name: CaseName("a_grouping_in_each_file_asked_for_one_of_its_three_columns_is_cut_to_it"),
+        word: Word::Succeeds,
+        input: || Scenario::OneColumnOfAGroupingAsked,
+        expect: Expect::Value(Answer::Cut(true)),
     },
 ];
+
+/// The functions of each file joined in it with its comments on the file, keeping three columns, and a step after the files that
+/// asks of the columns `asked` of that join.
+fn joined_then_asked(asked: Vec<ColumnIndex>) -> Vec<PlanStep> {
+    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+    let column = |side, place| JoinColumn {
+        side,
+        column: ColumnIndex(place),
+    };
+    let steps = vec![
+        PlanStep {
+            operation: Operation::Join {
+                left: Reads::Relation(Relation::Function),
+                right: Reads::Relation(Relation::Comment),
+                left_on: vec![ColumnIndex(2)],
+                right_on: vec![ColumnIndex(2)],
+                output: vec![
+                    column(Side::Left, 0),
+                    column(Side::Left, 1),
+                    column(Side::Right, 0),
+                ],
+                filter: Vec::new(),
+                view: Vec::new(),
+                reach: None,
+            },
+            scope: StepScope::PerFile,
+        },
+        PlanStep {
+            operation: Operation::Select {
+                from: Reads::Step(StepId(0)),
+                comparisons: Vec::new(),
+                kept: asked,
+            },
+            scope: StepScope::CrossFile,
+        },
+    ];
+    steps
+}
+
+/// Whether the plan of [`joined_then_asked`] came back with a step that cuts the join.
+fn join_asked(asked: Vec<ColumnIndex>) -> Value {
+    let steps = joined_then_asked(asked);
+    Answer::Cut(cut_handover(steps.clone(), StepId(1)).steps.len() > steps.len())
+}
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let kept = match scenario {
         Scenario::OneColumnAsked => vec![ColumnIndex(0)],
         Scenario::EveryColumnAsked => Vec::new(),
+        Scenario::TwoOfAJoinsColumnsAsked => {
+            return Ok(join_asked(vec![ColumnIndex(0), ColumnIndex(2)]));
+        }
+        Scenario::TwoOfAJoinsColumnsPlanned => return Ok(planned()),
+        Scenario::OneColumnOfAGroupingAsked => return Ok(grouping_asked()),
+        Scenario::EveryColumnOfAJoinAsked => {
+            return Ok(join_asked(vec![
+                ColumnIndex(0),
+                ColumnIndex(1),
+                ColumnIndex(2),
+            ]));
+        }
     };
     let steps = vec![PlanStep {
         operation: Operation::Select {
@@ -50,10 +148,64 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         scope: StepScope::CrossFile,
     }];
     let planned = cut_relations(steps.clone(), StepId(0));
-    Ok(planned.steps.len() > steps.len())
+    Ok(Answer::Cut(planned.steps.len() > steps.len()))
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// The plan of the join asked for its columns 0 and 2, cut: the row's value is empty when it is the plan expected, and the plan
+/// that came back when it is not.
+fn planned() -> Value {
+    let steps = joined_then_asked(vec![ColumnIndex(0), ColumnIndex(2)]);
+    let mut expected = steps.clone();
+    expected.truncate(1);
+    expected.push(PlanStep {
+        operation: Operation::Project {
+            from: Reads::Step(StepId(0)),
+            columns: vec![ColumnIndex(0), ColumnIndex(2)],
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
+        },
+        scope: StepScope::PerFile,
+    });
+    expected.push(PlanStep {
+        operation: Operation::Select {
+            from: Reads::Step(StepId(1)),
+            comparisons: Vec::new(),
+            kept: vec![ColumnIndex(0), ColumnIndex(1)],
+        },
+        scope: StepScope::CrossFile,
+    });
+    let planned = cut_handover(steps, StepId(1));
+    if (planned.steps.clone(), planned.emitted) == (expected, StepId(2)) {
+        Answer::Planned(Vec::new(), StepId(0))
+    } else {
+        Answer::Planned(planned.steps, planned.emitted)
+    }
+}
+
+/// A count of the functions of each file by file and name, made in it (file, name, count), and a step after the files that asks of
+/// the names: whether the plan came back with a step that cuts the count.
+fn grouping_asked() -> Value {
+    let steps = vec![
+        PlanStep {
+            operation: Operation::GroupCount {
+                from: Reads::Relation(Relation::Function),
+                keys: vec![ColumnIndex(2), ColumnIndex(1)],
+                distinct: Some(ColumnIndex(0)),
+            },
+            scope: StepScope::PerFile,
+        },
+        PlanStep {
+            operation: Operation::Project {
+                from: Reads::Step(StepId(0)),
+                columns: vec![ColumnIndex(1)],
+                distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+            },
+            scope: StepScope::CrossFile,
+        },
+    ];
+    Answer::Cut(cut_handover(steps.clone(), StepId(1)).steps.len() > steps.len())
 }

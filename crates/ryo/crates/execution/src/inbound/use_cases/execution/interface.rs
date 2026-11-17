@@ -3,26 +3,20 @@ use ryo_values::domain::files::types::CorpusInput;
 
 // The application handles and protocol traits the contract is made of.
 pub use ryo_execution_runtime::application::file_dag::frontiers::errors::FrontiersError;
-pub use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::EmittedRoot;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileEnd;
-pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileFinished;
-#[cfg(any(test, feature = "fixtures"))]
-pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileRules;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileRunInput;
-pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileStop;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FinishedReadiness;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FrontierCaptures;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport;
+pub use ryo_execution_runtime::application::file_dag::program::file_session::types::Partiality;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RanRule;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RuleAfter;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-#[cfg(any(test, feature = "fixtures"))]
-pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ProgramObservationStagePort;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::BatchNumber;
@@ -70,6 +64,7 @@ pub use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
 pub use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
 pub use ryo_execution_domain::domain::operating::errors::OperatingError;
 pub use ryo_execution_domain::domain::operating::types::SemanticLookup;
+pub use ryo_execution_domain::domain::operator::types::LogicalCounts;
 pub use ryo_execution_domain::domain::row_emission::types::RowEmission;
 pub use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 pub use ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason;
@@ -81,7 +76,7 @@ pub use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 pub use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 pub use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 pub use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
-pub use ryo_execution_domain::domain::trust::types::RelationRead;
+pub use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
 
 /// What `execution` offers its callers.
 pub trait ExecutionUseCase {
@@ -96,6 +91,7 @@ pub trait ExecutionUseCase {
 }
 
 /// The observer a request execution tells of the engine's work, when the caller asks for one.
+#[derive(Debug)]
 pub enum Observing<O: ?Sized> {
     /// Tell this observer.
     Observer(std::sync::Arc<O>),

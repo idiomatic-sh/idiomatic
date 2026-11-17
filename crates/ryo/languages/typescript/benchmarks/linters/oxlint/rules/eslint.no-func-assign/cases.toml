@@ -62,3 +62,13 @@ expected = []
 name = "three-overloads"
 files = { "case.ts" = "function f(): void;\nfunction f(x: number): void;\nfunction f(x?: number) {}\nf = 1;\nf = 2;\n" }
 expected = [{ file = "case.ts", start = 75, end = 76 }, { file = "case.ts", start = 75, end = 76 }, { file = "case.ts", start = 75, end = 76 }, { file = "case.ts", start = 82, end = 83 }, { file = "case.ts", start = 82, end = 83 }, { file = "case.ts", start = 82, end = 83 }]
+
+[[cases]]
+name = "js-function-reassigned"
+files = { "case.js" = "function f() {\n  return 0\n}\n\nf = () => 1\n\nexport default f\n\nf = () => 2\n\nexport function update() {\n  f = () => 3\n}\n" }
+expected = [{ file = "case.js", start = 29, end = 30 }, { file = "case.js", start = 60, end = 61 }, { file = "case.js", start = 102, end = 103 }]
+
+[[cases]]
+name = "js-exported-function-reassigned"
+files = { "case.js" = "export function f() {\n  return 0\n}\n\nf = () => 1\n" }
+expected = [{ file = "case.js", start = 36, end = 37 }]

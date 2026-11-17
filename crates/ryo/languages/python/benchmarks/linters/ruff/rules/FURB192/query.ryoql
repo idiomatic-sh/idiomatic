@@ -31,9 +31,7 @@ let reverse_keywords = select call, file, value from named_keyword_values where 
 let unknown_reverse_values = antijoin(left=reverse_keywords, right=boolean_values, left-on=["value","file"], right-on=["id","file"]);
 let known_keywords = antijoin(left=single_sorted_calls, right=invalid_keywords, left-on=["call","file"], right-on=["call","file"]);
 let supported_sorts = antijoin(left=known_keywords, right=unknown_reverse_values, left-on=["call","file"], right-on=["call","file"]);
-let one_tokens = select id, file from "semantic-syntax" where kind = "number" and matches(text, "^(?:1|0[xXoObB][0_]*1)$");
-let numeric_children = select l.parent as id, l.file as file from "semantic-child" as l join one_tokens as r on l.child = r.id and l.file = r.file;
-let ones = select l.id as id, l.file as file from constants as l join numeric_children as r on l.id = r.id and l.file = r.file;
+let ones = select id, file from "numeric-literal" where kind = "integer" and value = "1";
 let unary_nodes = select id, file from nodes where kind = "unary-op";
 let op_edges = select parent, child, file from "semantic-child" where field = "op";
 let unary_ops = select l.id as id, l.file as file, r.child as op from unary_nodes as l join op_edges as r on l.id = r.parent and l.file = r.file;

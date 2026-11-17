@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::compile::errors::CompileError;
 use crate::inbound::use_cases::compile::interface::CompileUseCase as _;
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plans::types::QueryRequest;
+use ryo_values::domain::query_requests::types::QueryRequest;
 
 type Input = fn();
 type Value = ();
@@ -305,6 +305,7 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
         | Operation::SourceMatches { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Words { .. }
         | Operation::Axis { .. }
         | Operation::Closure { .. }

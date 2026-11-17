@@ -102,7 +102,7 @@ impl SyntaxPort for SyntaxWinnowAdapter {
                                 start: ByteOffset(error.offset()),
                                 end: ByteOffset(error.offset()),
                             },
-                            trace: Vec::new(),
+                            trace: [].into(),
                         },
                         message: if said.is_empty() {
                             expectation().to_owned()
@@ -127,7 +127,7 @@ impl SyntaxPort for SyntaxWinnowAdapter {
                     origin: QueryOrigin {
                         source_id: bundle.root.id.clone(),
                         span,
-                        trace: Vec::new(),
+                        trace: [].into(),
                     },
                     message,
                 },

@@ -1,5 +1,5 @@
 use super::program::{corpus, engine, prepared};
-use super::subscriber::{Activation, Sample, Window};
+use super::subscriber::{Activation, RunCost, Sample, Window};
 use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -17,7 +17,7 @@ use ryo_relations::domain::relations::types::{FileId, Words, WorkerNumber};
 use ryo_values::domain::stored_facts::types::Bucket;
 
 /// Only declared relevant intents change; the installed engine and public entry, the one per-file route, stay identical.
-pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
+pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window, RunCost) {
     let engine = engine();
     let prepared = prepared(&engine, total);
     let corpus = corpus();
@@ -31,26 +31,30 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
         };
     }
     // No relation is held: the activation reads no provider, and a demanded rule's read of one is refused, which stops the file.
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     let elements = Elements::default();
     let observed = Activation::default();
     let dispatch = tracing::Dispatch::new(observed.clone());
     // The first actual run warms callsite registration and the allocator's
     // own metadata. The second sees exactly the same real request and intents.
+    let mut cost = RunCost::default();
     for _ in 0..2 {
         tracing::dispatcher::with_default(&dispatch, || {
             let mut symbols = Symbols::default();
             let first = vec![Bucket(0); intents.len()];
             let (mut arena, mut places, mut words) = (Vec::new(), Vec::new(), Words::default());
+            let before = dhat::HeapStats::get();
             let _rules = request.run_file(
                 FileRunInput {
                     language: SourceLanguage::Recognized,
                     file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
                     intents: &intents,
                     source: ryo_values::domain::files::types::SourceView(b""),
-                    elements: &elements,
+                    sources: ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources::unread(&elements, &mut []).expect("a file with no further source"),
+                    active: &[],
+                    said: &[],
+                    recovery: ryo_execution::inbound::use_cases::metadata::interface::Recovery::Whole,
+                    answering: ryo_execution::inbound::use_cases::execution::interface::Partiality::Physical,
                     semantic: ryo_execution::inbound::use_cases::execution::interface::SemanticSupport::Absent,
                     kinds: ryo_execution::inbound::use_cases::execution::interface::KindSupport::Absent,
                     first: &first,
@@ -62,8 +66,13 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
                     places: &mut places,
                     words: &mut words,
                 },
-                &facts,
+                &mut facts,
             );
+            let after = dhat::HeapStats::get();
+            cost = RunCost {
+                blocks: after.total_blocks - before.total_blocks,
+                bytes: after.total_bytes - before.total_bytes,
+            };
         });
     }
     request.finish();
@@ -78,5 +87,6 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
             provider_reads: facts.reads(),
             delivered: 0,
         },
+        cost,
     )
 }

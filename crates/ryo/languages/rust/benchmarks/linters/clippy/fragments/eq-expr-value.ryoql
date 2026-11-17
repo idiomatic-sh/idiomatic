@@ -1,0 +1,9 @@
+import spanless_eq from "rust/clippy/spanless-eq";
+import side_effects from "rust/clippy/side-effects";
+input pairs: relation<id: node, left: node, right: node, file: file, span: span>;
+output relation<id: node, left: node, right: node, file: file, span: span>;
+let equal = spanless_eq(pairs=pairs);
+let lefts = select left as id, file from equal;
+let effectful = side_effects(operands=lefts, kinds="^(?:call-expr|method-call-expr|macro-expr|macro-call|closure-expr|try-expr|await-expr)$");
+let pure = antijoin(left=equal, right=effectful, left-on=["left"], right-on=["id"]);
+return pure;

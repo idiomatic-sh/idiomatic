@@ -131,7 +131,7 @@ fn refused_with_origin(word: &str, source: &str) -> Value {
             start: ByteOffset(12),
             end: ByteOffset(31),
         },
-        trace: Vec::new(),
+        trace: [].into(),
     };
     let mut plan = plan_comparing_kind(
         Test::Equal,
@@ -154,8 +154,8 @@ fn refused_with_origin(word: &str, source: &str) -> Value {
 }
 
 /// The matching semantics the check runs through.
-fn matcher() -> crate::domain::matching::types::PatternMatcher<'static> {
-    crate::domain::matching::types::PatternMatcher(
+fn matcher() -> ryo_operators::domain::patterns::types::PatternMatcher<'static> {
+    ryo_operators::domain::patterns::types::PatternMatcher(
         &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
     )
 }

@@ -1,0 +1,17 @@
+import bindings from "rust/clippy/bindings";
+import lint_attributes from "rust/clippy/lint-attributes";
+let binding_rows = bindings();
+let bare = select id, file, span, name from binding_rows where at = 0;
+let owners = select id from "syntax-tree" where kind = "fn" or kind = "closure-expr";
+let all_lists = select id from "syntax-tree" where kind = "param-list";
+let lists = select l.child as list from "syntax-child" as l join owners as r on l.parent = r.id;
+let owned_lists = select l.list as list from lists as l join all_lists as r on l.list = r.id;
+let params = select l.parent as list, l.child as param, l.ordinal as ordinal from "syntax-child" as l join owned_lists as r on l.parent = r.list where l.field = "params";
+let param_patterns = select l.list as list, l.ordinal as ordinal, r.child as pattern from params as l join "syntax-child" as r on l.param = r.parent where r.field = "pat";
+let named = select l.list as list, l.ordinal as ordinal, r.file as file, r.span as span, r.name as name from param_patterns as l join bare as r on l.pattern = r.id;
+let plain = select list, ordinal, file, span, name from named where matches(name, "^[^_]");
+let underscored = select list, ordinal, name from named where matches(name, "^_");
+let stems = replace(from=underscored, text="name", pattern="^_", replacement="", output="stem");
+let duplicates = select l.list as id, l.file as file, l.span as span from plain as l join stems as r on l.list = r.list and l.name = r.stem where l.ordinal < r.ordinal;
+let violations = lint_attributes(candidates=duplicates, names="(?:^|,)\s*(?:clippy::(?:duplicate_underscore_argument|style|all))\s*(?:,|$)");
+emit violations subject file key(span);

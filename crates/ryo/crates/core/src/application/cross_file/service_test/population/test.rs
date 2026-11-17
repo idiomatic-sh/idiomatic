@@ -1,10 +1,10 @@
 //! Project populations stay separate by rule, payload and reached region.
-use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::evaluation::count_findings;
 use crate::application::cross_file::fixtures::evaluation::evaluate_fixture;
 use crate::application::cross_file::fixtures::frontier_rows;
+use crate::application::cross_file::fixtures::project_calls::ProjectCalls;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use crate::application::cross_file::fixtures::world_with_applicability;
@@ -89,8 +89,8 @@ fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separate()
                 results[rule] = Some(rendered);
             }
             if at >= 1 {
-                seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-                seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+                seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+                seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
             }
         }
         phase.finish().unwrap();
@@ -189,8 +189,8 @@ fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
                 results[rule] = Some(rendered);
             }
             if at >= 1 {
-                seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-                seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+                seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+                seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
             }
         }
         phase.finish().unwrap();
@@ -256,14 +256,8 @@ fn many_distinct_project_populations_allocate_only_reached_region_state()
             result.rendered.as_ref().unwrap().order.len()
         ));
     }
-    seen.push(format!(
-        "{:?}",
-        (calls.reductions.load(Ordering::SeqCst)) == (POPULATIONS)
-    ));
-    seen.push(format!(
-        "{:?}",
-        (calls.aggregates.load(Ordering::SeqCst)) == (POPULATIONS * 2)
-    ));
+    seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+    seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
     phase.finish().unwrap();
     Ok(seen.join("|"))
 }
@@ -292,7 +286,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::OrdinaryPhaseKeepsValidRulePopulationsAndPartialitySeparate,
         expect: Expect::Value(
-            "rule,2,0,-,- rule [5] 0:0:0:0|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|2|3|rule,2,0,-,- rule [5] 0:0:0:0|true|true|2|3|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|true|2|3|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|rule,2,0,-,- rule [5] 0:0:0:0|true|2|3|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|true|2|3|rule,2,0,-,- rule [5] 0:0:0:0|true|true|2|3",
+            "rule,2,0,-,- rule [5] 0:0:0:0|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|3|4|rule,2,0,-,- rule [5] 0:0:0:0|true|true|5|6|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|true|6|8|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|rule,2,0,-,- rule [5] 0:0:0:0|true|3|4|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|true|4|6|rule,2,0,-,- rule [5] 0:0:0:0|true|true|6|8",
         ),
     },
     Case {
@@ -300,14 +294,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::EqualPoliciesDoNotAliasDistinctAdmittedFrontierPayloads,
         expect: Expect::Value(
-            "1|true|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|1|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|2|4|1|true|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|2|4|1|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|1|true|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|2|4|1|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|2|4",
+            "1|true|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|1|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|4|8|1|true|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|6|12|1|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|1|true|true|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|4|8|1|true|true|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|6|12",
         ),
     },
     Case {
         name: CaseName("many_distinct_project_populations_allocate_only_reached_region_state"),
         word: Word::Succeeds,
         input: || Given::ManyDistinctProjectPopulationsAllocateOnlyReachedRegionState,
-        expect: Expect::Value("2|2|2|2|2|2|2|2|true|true"),
+        expect: Expect::Value("2|2|2|2|2|2|2|2|8|16"),
     },
 ];
 

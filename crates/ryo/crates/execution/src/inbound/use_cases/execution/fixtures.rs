@@ -1,12 +1,10 @@
 //! The test support of the `execution` use case: the scenario its tests share.
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_matching::inbound::use_cases::matching::{
     errors::MatchingError, interface::MatchingUseCase, types::RegexSource,
     use_case::MatchingUseCaseImpl,
 };
-use std::sync::Arc;
 
 #[cfg(test)]
 pub(crate) mod facts;
@@ -17,9 +15,10 @@ pub(crate) mod requests;
 #[must_use]
 pub fn operators() -> impl OperatorsPort {
     ryo_execution_runtime::outbound::operators::factory::use_case(
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
-            Arc::new(ryo_operators::outbound::matching::factory::use_case()),
-        ),
+        ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(),
+        ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(std::sync::Arc::new(
+            ryo_operators::outbound::matching::factory::use_case(),
+        )),
     )
 }
 /// The refusal the engine gives a regular expression the matcher cannot compile, in the
@@ -31,11 +30,6 @@ pub fn regex_refusal(pattern: &str) -> Option<OperatingError> {
         .err()?;
     let (MatchingError::InvalidRegex { reason } | MatchingError::BadGlob { reason, .. }) = error;
     Some(OperatingError::InvalidRegex { reason })
-}
-/// The derived capability behind its port, as the edge composes it.
-#[must_use]
-pub fn derived() -> impl DerivedPort {
-    ryo_execution_store::outbound::derived::factory::semantics()
 }
 /// A facts worker holding the rows of each relation given to it, as a language's reader writes them, that refuses a relation it
 /// was not given and counts the reads of its rows: the facts a file runs over through `run_file` in the engine's tests.
@@ -190,12 +184,6 @@ impl TableFacts {
 }
 
 impl ryo_execution_runtime::outbound::facts::interface::FactsWorker for TableFacts {
-    fn resident_stability(
-        &self,
-    ) -> ryo_execution_runtime::outbound::facts::types::ResidentStability {
-        ryo_execution_runtime::outbound::facts::types::ResidentStability::Stable
-    }
-
     fn columns_mut(
         &mut self,
     ) -> Result<
@@ -271,5 +259,86 @@ impl ryo_execution_runtime::outbound::facts::interface::FactsWorker for TableFac
         ryo_execution_runtime::outbound::facts::errors::FactsError,
     > {
         self.kept.finished()
+    }
+}
+
+/// What a file's run is given so that its partiality is `publication`, and its evaluation sees `evaluation`: the parts core says
+/// are read in part, and how evaluation answers. Evaluation sees the physical partiality or none of it.
+///
+/// # Panics
+///
+/// When `evaluation` is neither empty nor `publication`.
+#[must_use]
+pub fn partiality(
+    evaluation: &[crate::inbound::use_cases::execution::interface::Partial],
+    publication: &[crate::inbound::use_cases::execution::interface::Partial],
+) -> (
+    Vec<ryo_values::domain::stored_facts::types::ReadInPart>,
+    crate::inbound::use_cases::execution::interface::Partiality,
+) {
+    use crate::inbound::use_cases::execution::interface::Partiality;
+    use crate::inbound::use_cases::metadata::interface::{Lacking, PartialPlace};
+    use ryo_relations::domain::relations::types::{Missing, RowKind};
+    use ryo_values::domain::stored_facts::types::{PartialAt, PartialScope, ReadInPart};
+    assert!(
+        evaluation.is_empty() || evaluation == publication,
+        "evaluation sees the physical partiality or none of it"
+    );
+    let said = publication
+        .iter()
+        .map(|partial| ReadInPart {
+            relation: partial.relation,
+            cause: partial.cause.clone(),
+            lacking: match &partial.lacking {
+                Lacking::Any => Missing::Any,
+                // A kind named once per case: the leak lasts as long as the test.
+                Lacking::Kind(kind) => Missing::Kind(RowKind(Box::leak(kind.0.clone()))),
+            },
+            at: match partial.at {
+                PartialPlace::File(file) => PartialScope::OneFile(PartialAt(file.0)),
+                PartialPlace::Repository => PartialScope::Repository,
+            },
+        })
+        .collect();
+    let answering = if evaluation.is_empty() {
+        Partiality::Relaxed
+    } else {
+        Partiality::Physical
+    };
+    (said, answering)
+}
+
+/// An operators port that refuses every node it is asked to run, when it is told to refuse.
+#[derive(Clone, Copy, Debug)]
+pub struct RefusingOperators {
+    /// Whether every node is refused.
+    pub refuse: bool,
+}
+impl OperatorsPort for RefusingOperators {
+    fn plan(
+        &self,
+        program: &ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram<'_>,
+    ) -> Result<
+        ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    > {
+        ryo_operators::inbound::use_cases::run::fixtures::planned(program)
+    }
+    fn run(
+        &self,
+        plan: &ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+        node: ryo_operators::domain::physical_plan::types::PlanNodeId,
+        buffers: &mut ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
+        inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
+        resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
+    ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
+        if self.refuse {
+            return Err(
+                ryo_operators::domain::contract::types::PortableOperatorFault::ShapeMismatch,
+            );
+        }
+        ryo_operators::inbound::use_cases::run::fixtures::ran(
+            plan, node, buffers, inputs, resources,
+        )
     }
 }

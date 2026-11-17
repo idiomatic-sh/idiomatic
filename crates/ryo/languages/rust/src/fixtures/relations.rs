@@ -12,6 +12,10 @@ use ryo::languages::contract::{Expected, Unfilled, Unshown};
 mod annotates {
     include!("../../tests/fixtures/relations/annotates/expected.rs");
 }
+/// The rows `attribute_path` read from its fixture's input must give.
+mod attribute_path {
+    include!("../../tests/fixtures/relations/attribute_path/expected.rs");
+}
 /// The rows `assigns` read from its fixture's input must give.
 mod assigns {
     include!("../../tests/fixtures/relations/assigns/expected.rs");
@@ -32,6 +36,10 @@ mod decorates {
 mod defines {
     include!("../../tests/fixtures/relations/defines/expected.rs");
 }
+/// The rows `expression_shape` read from its fixture's input must give.
+mod expression_shape {
+    include!("../../tests/fixtures/relations/expression_shape/expected.rs");
+}
 /// The rows `function` read from its fixture's input must give.
 mod function {
     include!("../../tests/fixtures/relations/function/expected.rs");
@@ -43,6 +51,10 @@ mod inherits {
 /// The rows `mention` read from its fixture's input must give.
 mod mention {
     include!("../../tests/fixtures/relations/mention/expected.rs");
+}
+/// The rows `numeric_literal` read from its fixture's input must give.
+mod numeric_literal {
+    include!("../../tests/fixtures/relations/numeric_literal/expected.rs");
 }
 /// The rows `parameter` read from its fixture's input must give.
 mod parameter {
@@ -99,13 +111,16 @@ pub(super) fn expected() -> Vec<Expected> {
     vec![
         annotates::expected(),
         assigns::expected(),
+        attribute_path::expected(),
         call_argument::expected(),
         comment::expected(),
         decorates::expected(),
         defines::expected(),
+        expression_shape::expected(),
         function::expected(),
         inherits::expected(),
         mention::expected(),
+        numeric_literal::expected(),
         parameter::expected(),
         reference::expected(),
         resolves::expected(),

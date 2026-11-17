@@ -1,19 +1,19 @@
 //! The `visit` service: free functions named by verb that decide what a visit of a file must
 //! build, with no IO and no ports.
 
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::constants::ROLE_COLUMN_NAME;
 use super::errors::VisitError;
 use super::types::{
     BorrowedBytes, EdgeInput, LineCount, Noting, RoleCompared, RoleNamed, RoleRead, Wants,
 };
-use ryo_values::domain::plan_parts::service::each_column;
+use ryo_values::domain::plan_parts::service::{column_place, each_column};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
-use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::service::{inputs_of, named, reads_of};
 use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// The relations the plans read, each once, in the order they are first read.
@@ -24,17 +24,12 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 pub(crate) fn wanted(plans: &[&Plan], catalog: &[Relation]) -> Result<Vec<Relation>, VisitError> {
     let mut wanted: Vec<Relation> = Vec::new();
     for plan in plans {
-        for step in &plan.steps {
-            for input in named(&inputs_of(&step.operation)) {
-                let Input::Relation(relation) = *input else {
-                    continue;
-                };
-                if !catalog.contains(&relation) {
-                    return Err(VisitError::UnknownRelation { relation });
-                }
-                if !wanted.contains(&relation) {
-                    wanted.push(relation);
-                }
+        for relation in reads_of(plan).0 {
+            if !catalog.contains(&relation) {
+                return Err(VisitError::UnknownRelation { relation });
+            }
+            if !wanted.contains(&relation) {
+                wanted.push(relation);
             }
         }
     }
@@ -65,19 +60,7 @@ pub(crate) fn lines_in(bytes: BorrowedBytes<'_>) -> LineCount {
 
 /// The place of the `field` column among the columns of `syntax-child`.
 fn role_column() -> ColumnIndex {
-    let columns = ryo_relations::domain::relations::service::columns(Relation::SyntaxChild);
-    ColumnIndex(
-        u32::try_from(
-            columns
-                .iter()
-                .position(|column| {
-                    ryo_relations::domain::relations::service::column_name(*column).0
-                        == ROLE_COLUMN_NAME
-                })
-                .unwrap_or(usize::MAX),
-        )
-        .unwrap_or(u32::MAX),
-    )
+    column_place(Column::SyntaxChild(SyntaxChildColumn::Field))
 }
 
 /// Whether an input of a step is the edges of the tree.
@@ -198,7 +181,8 @@ fn reads_role(operation: &Operation) -> RoleRead {
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
-        | Operation::OrderedDfs { .. } => named(&inputs_of(operation))
+        | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. } => named(&inputs_of(operation))
             .iter()
             .any(|input| edges(*input) == EdgeInput::Edges),
         Operation::Closure { .. }
@@ -233,8 +217,11 @@ pub(crate) fn roles_of(plans: &[&Plan]) -> RoleRead {
 /// # Errors
 ///
 /// `UnknownRelation` when a plan reads a relation the catalog does not list.
-pub(crate) fn wants(plans: &[Plan], catalog: &[Relation]) -> Result<Wants, VisitError> {
-    let refs: Vec<&Plan> = plans.iter().collect();
+pub(crate) fn wants<P: std::borrow::Borrow<Plan>>(
+    plans: &[P],
+    catalog: &[Relation],
+) -> Result<Wants, VisitError> {
+    let refs: Vec<&Plan> = plans.iter().map(std::borrow::Borrow::borrow).collect();
     let wanted = wanted(&refs, catalog)?;
     let walked = walked(&wanted);
     let noted = if wanted.iter().any(|relation| {

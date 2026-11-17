@@ -87,6 +87,7 @@ fn selected_rule() -> Result<Value, Failure> {
         &selected,
         StagePurpose::Certification,
     )
+    .map(drop)
     .map_err(|_error| ())?;
     let children: Vec<_> = std::fs::read_dir(destination.join(RULES))
         .unwrap()

@@ -2,6 +2,7 @@
 use ryo_values::domain::plan_parts::types::StepScope;
 
 /// Successful row delivery preserves physical uncertainty rather than fabricating an empty table.
+#[derive(Debug)]
 pub enum RowEmission {
     /// No rows were delivered: the compiled root belongs to this later phase.
     Deferred {

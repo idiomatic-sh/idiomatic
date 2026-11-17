@@ -1,0 +1,79 @@
+[[cases]]
+name = "same-blocks"
+files = { "src/lib.rs" = "pub fn f0(a: bool, b: bool, x: u32) -> u32 {\n    if a { x + 1 } else { x + 1 }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 54, end = 63 }]
+
+[[cases]]
+name = "different-blocks"
+files = { "src/lib.rs" = "pub fn f0(a: bool, b: bool, x: u32) -> u32 {\n    if a { x + 1 } else { x + 2 }\n}\npub fn f1(a: bool, b: bool, x: u32) -> u32 {\n    if a { x } else { 0 }\n}\npub fn f2(a: bool, b: bool, x: u32) -> u32 {\n    if a { 1 } else if b { 2 } else { 3 }\n}\n" }
+expected = []
+
+[[cases]]
+name = "statements"
+files = { "src/lib.rs" = "pub fn f0(a: bool, b: bool, x: u32) -> u32 {\n    if a {\n        let y = x * 2;\n        y + 1\n    } else {\n        let y = x * 2;\n        y + 1\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 54, end = 98 }]
+
+[[cases]]
+name = "layout-and-comments"
+files = { "src/lib.rs" = "pub fn f0(a: bool, b: bool, x: u32) -> u32 {\n    if a { x+1 } else {\n        x + 1\n    }\n}\npub fn f1(a: bool, b: bool, x: u32) -> u32 {\n    if a {\n        // one\n        x + 1\n    } else {\n        x + 1\n    }\n}\npub fn f2(a: bool, b: bool, x: u32) -> u32 {\n    if a {\n        x + 1 // one\n    } else {\n        x + 1 // two\n    }\n}\npub fn f3(a: bool, b: bool, x: u32) -> u32 {\n    if a {\n        foo(x);\n        // one\n        x\n    } else {\n        foo(x);\n        x\n    }\n}\npub fn foo(_: u32) {}\n" }
+expected = [{ file = "src/lib.rs", start = 54, end = 61 }, { file = "src/lib.rs", start = 265, end = 293 }]
+
+[[cases]]
+name = "else-if-chains"
+files = { "src/lib.rs" = "pub fn f0(a: bool, b: bool, x: u32) -> u32 {\n    if a { 1 } else if b { 1 } else { 2 }\n}\npub fn f1(a: bool, b: bool, x: u32) -> u32 {\n    if a { 1 } else if b { 2 } else { 2 }\n}\npub fn f2(a: bool, b: bool, x: u32) -> u32 {\n    if a { 1 } else if b { 1 } else { 1 }\n}\npub fn f3(a: bool, b: bool, x: u32) -> u32 {\n    if a { 1 } else if b { 2 } else if x > 3 { 1 } else { 2 }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 54, end = 59 }, { file = "src/lib.rs", start = 159, end = 164 }, { file = "src/lib.rs", start = 232, end = 237 }, { file = "src/lib.rs", start = 248, end = 253 }]
+
+[[cases]]
+name = "chain-without-else"
+files = { "src/lib.rs" = "pub fn f(a: bool, b: bool) {\n    if a {\n        foo();\n    } else if b {\n        foo();\n    }\n}\npub fn foo() {}\n" }
+expected = [{ file = "src/lib.rs", start = 38, end = 60 }]
+
+[[cases]]
+name = "let-conditions"
+files = { "src/lib.rs" = "pub fn f0(a: bool, o: Option<u32>) -> u32 {\n    if let Some(y) = o { y } else { 0 }\n}\npub fn f1(a: bool, o: Option<u32>) -> u32 {\n    if let Some(_) = o { 0 } else { 0 }\n}\npub fn f2(a: bool, o: Option<u32>) -> u32 {\n    if a { 0 } else if let Some(_) = o { 0 } else { 1 }\n}\npub fn f3(a: bool, o: Option<u32>) -> u32 {\n    if let Some(_) = o { 1 } else if a { 0 } else { 0 }\n}\npub fn f4(a: bool, o: Option<u32>) -> u32 {\n    if a && let Some(_) = o { 0 } else { 0 }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 357, end = 362 }]
+
+[[cases]]
+name = "empty-and-unit"
+files = { "src/lib.rs" = "pub fn f0(a: bool, b: bool, x: u32) -> () {\n    if a {} else {}\n}\npub fn f1(a: bool, b: bool, x: u32) -> () {\n    if a {\n    } else {\n        // nothing\n    }\n}\npub fn f2(a: bool, b: bool, x: u32) -> () {\n    if a { foo(1); } else { foo(1); }\n}\npub fn f3(a: bool, b: bool, x: u32) -> () {\n    if a { foo(1) } else { foo(1); }\n}\npub fn foo(_: u32) {}\n" }
+expected = [{ file = "src/lib.rs", start = 53, end = 55 }, { file = "src/lib.rs", start = 214, end = 225 }]
+
+[[cases]]
+name = "number-spellings"
+files = { "src/lib.rs" = "pub fn f0(a: bool, b: bool, x: u32) -> u32 {\n    if a { 16 } else { 0x10 }\n}\npub fn f1(a: bool, b: bool, x: u32) -> u32 {\n    if a { 1_000 } else { 1000 }\n}\npub fn g(a: bool) -> f64 {\n    if a { 1.5 } else { 1.50 }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 54, end = 60 }, { file = "src/lib.rs", start = 131, end = 140 }, { file = "src/lib.rs", start = 193, end = 200 }]
+
+[[cases]]
+name = "calls-and-macros"
+files = { "src/lib.rs" = "pub fn f0(a: bool, b: bool, x: u32) -> u32 {\n    if a { foo(x) } else { foo(x) }\n}\npub fn f1(a: bool, b: bool, x: u32) -> u32 {\n    if a { x.pow(2) } else { x.pow(2) }\n}\npub fn f2(a: bool, b: bool, x: u32) -> u32 {\n    if a { println!(\"{}\", x); x } else { println!(\"{}\", x); x }\n}\npub fn f3(a: bool, b: bool, x: u32) -> u32 {\n    if a { vec![x].len() as u32 } else { vec![x].len() as u32 }\n}\npub fn foo(x: u32) -> u32 {\n    x\n}\n" }
+expected = [{ file = "src/lib.rs", start = 54, end = 64 }, { file = "src/lib.rs", start = 137, end = 149 }, { file = "src/lib.rs", start = 224, end = 248 }, { file = "src/lib.rs", start = 335, end = 359 }]
+
+[[cases]]
+name = "nested-and-statement"
+files = { "src/lib.rs" = "pub fn f(a: bool, b: bool) -> u32 {\n    let mut n = 0;\n    if a {\n        n += 1;\n    } else {\n        n += 1;\n    }\n    let m = if b { if a { 1 } else { 1 } } else { 2 };\n    n + m\n}\n" }
+expected = [{ file = "src/lib.rs", start = 64, end = 87 }, { file = "src/lib.rs", start = 141, end = 146 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let a = true;\n        let x = if a { 1 } else { 1 };\n        assert_eq!(x, 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 93, end = 98 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::if_same_then_else)]\npub fn f0(a: bool, b: bool, x: u32) -> u32 {\n    if a { x + 1 } else { x + 1 }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub fn f(a: bool) -> u32 {\n    if a { 1 } else { 1 }\n}\n#[allow(clippy::all)]\npub fn g(a: bool) -> u32 {\n    if a { 1 } else { 1 }\n}\n#[expect(warnings)]\npub fn h(a: bool) -> u32 {\n    if a { 1 } else { 1 }\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::if_same_then_else)]\npub fn f0(a: bool, b: bool, x: u32) -> u32 {\n    if a { x + 1 } else { x + 1 }\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::if_same_then_else)]\npub fn f(a: bool) -> u32 {\n    if a { 1 } else { 1 }\n}\npub fn g(a: bool) -> u32 {\n    if a { 1 } else { 1 }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 94, end = 99 }]

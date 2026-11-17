@@ -203,7 +203,7 @@ fn qualified(origin: &str, path: Option<&str>, major: u64, minor: u64) -> Result
         |text| intern_derived(&mut symbols, source, NameText(text)),
     );
     let provenance = intern_derived(&mut symbols, source, NameText(origin));
-    Ok(super::qualified_name_valid(
+    Ok(super::super::validators::qualified_name_valid(
         &[
             0,
             u64::from(path.0),
@@ -251,7 +251,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                     leave_node(logical, Offset(1));
                 },
             );
-            Ok(super::embedded_roots_valid(&elements))
+            Ok(super::super::validators::embedded_roots_valid(&elements))
         }
 
         Operation::Shapes(class_file, representative) => {
@@ -277,7 +277,9 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                     ExpressionShapeRow { id: class, ..row },
                 );
             }
-            Ok(super::shape_representatives_valid(&output))
+            Ok(super::super::validators::shape_representatives_valid(
+                &output,
+            ))
         }
 
         Operation::FieldProjection(field) => {
@@ -285,24 +287,38 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 .relations
                 .extend([Relation::SyntaxChild, Relation::SemanticChild]);
             output.words.extend([3, 5, 0, 7, 0, 3, 5, 0, field, 0]);
-            Ok(super::filtered_projection_valid(&output, 7))
+            Ok(super::super::validators::filtered_projection_valid(
+                &output, 7,
+            ))
         }
         Operation::Projection(text) => {
             output
                 .relations
                 .extend([Relation::SyntaxTree, Relation::SemanticSyntax]);
             output.words.extend([3, 5, 7, 0, 1, 3, 5, text, 0, 1]);
-            Ok(super::projection_preserves_native(&output))
+            Ok(super::super::validators::projection_preserves_native(
+                &output,
+            ))
         }
         Operation::SemanticSpan(end) => {
             output.relations.push(Relation::SemanticSyntax);
             output.words.extend([3, 5, 7, 0, end]);
-            Ok(super::semantic_spans_valid(&output, 6, false, |_| false))
+            Ok(super::super::validators::semantic_spans_valid(
+                &output,
+                6,
+                false,
+                |_| false,
+            ))
         }
         Operation::ImpliedSpan(span) => {
             output.relations.push(Relation::SemanticSyntax);
             output.words.extend([3, 5, 7, 0, span]);
-            Ok(super::semantic_spans_valid(&output, 6, false, |id| id == 3))
+            Ok(super::super::validators::semantic_spans_valid(
+                &output,
+                6,
+                false,
+                |id| id == 3,
+            ))
         }
         Operation::Identifier(name, span) => {
             use crate::domain::symbols::{
@@ -319,7 +335,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 || unknown_symbol(UnknownReason(23)),
                 |name| intern_derived(&mut symbols, source, NameText(name)),
             );
-            Ok(super::identifier_valid(
+            Ok(super::super::validators::identifier_valid(
                 &[0, u64::from(name.0), 0, span],
                 &symbols,
                 source,

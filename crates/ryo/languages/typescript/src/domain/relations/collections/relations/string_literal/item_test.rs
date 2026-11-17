@@ -25,6 +25,40 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
+        name: CaseName("a_template_with_no_substitution_is_its_cooked_value"),
+        word: Word::Succeeds,
+        input: || "const x = `str\\u0069ng`;",
+        expect: Expect::Value(Reading {
+            rows: &[&[
+                want_node(10),
+                want_node(0),
+                want_name("string"),
+                want_file("item.ts"),
+                want_span((1, 11), (1, 24)),
+                want_flag(false),
+            ]],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("a_template_with_a_substitution_has_no_row"),
+        word: Word::Succeeds,
+        input: || "const x = `a${b}`;",
+        expect: Expect::Value(Reading {
+            rows: &[],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("a_tagged_template_has_no_row"),
+        word: Word::Succeeds,
+        input: || "const x = tag`a`;",
+        expect: Expect::Value(Reading {
+            rows: &[],
+            causes: &[],
+        }),
+    },
+    Case {
         name: CaseName("an_empty_file_has_no_row"),
         word: Word::Succeeds,
         input: || "",

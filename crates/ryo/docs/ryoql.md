@@ -120,6 +120,7 @@ A side of a comparison is a column, a text in quotes, a number, a `$parameter` o
 | `axis` | `from`, `relation`, `direction`, `domain` | Walks a hierarchy, such as `syntax-child`, and appends the related entity. |
 | `rows` | `from`, `columns` | The rows of a `list<table>` parameter, one for each table. |
 | `ordered-dfs` | `from`, `root`, `edges`, `source`, `destination`, `order`, `edge`, `output`, optional `keys` | Independent ordered depth-first edge visits, with a zero-based ordinal per distinct key/root. |
+| `worklist` | `from`, `root`, `state`, `edges`, `source`, `destination`, `order`, `before`, `after`, `lattice`, `lower`, `upper`, `output`, optional `keys` | A first-in-first-out fixpoint over a declared lattice: from each root, every edge followed in the state its source leaves the queue in, a row each time. |
 | `closure` | `edges`, `source`, `destination`, optional `keys` | Transitively reachable pairs within exact key partitions; keys precede the endpoint columns in output. |
 | `cycles` | `edges`, `source`, `destination` | One row for each entity that can reach itself, with the entity in both columns: two files that import each other give two rows, `a.js` and `b.js`. |
 
@@ -301,3 +302,31 @@ immediately, while seen destinations keep the edge visit without another
 expansion. Walks use iterative cursor frames and reusable adjacency storage.
 Ordinals start at zero per walk and overflow is an execution error. No physical
 row order is promised between walks; use the ordinal column to express policy.
+
+`worklist(from=starts,root="block",state="state",edges=moves,source="source",destination="target",order="place",before="before",after="after",lattice=lattice,lower="lower",upper="upper",keys=["file"],output="reached")`
+computes a dataflow fixpoint. `lattice` declares a finite order: each row says
+`lower` is below `upper`, and the states are every value of those two columns.
+The order must have one least state and a least upper bound (join) for every pair
+of states; a cycle, two least states, or two minimal upper bounds is a
+`NotALattice` error, as is a root or edge state the lattice does not hold. A
+lattice of no rows, with no roots and no edges, answers no rows.
+
+Each partition of `keys` (from the roots and the edges, in argument order) and
+each root in it runs alone. Every entity starts at the least state; the root
+starts at the join of the states its rows give it and is queued. An entity leaves
+the queue in the state it holds then, and its edges whose `before` equals that
+state are followed in ascending numeric `order`: each writes one row and joins
+`after` into the destination, which is queued again only when its state changed.
+Equal orders for one source and before-state are a `DuplicateOrder` error. The
+walk ends when the queue is empty, which a finite lattice guarantees: an entity
+is queued at most once per change, so a run costs its reachable edges times the
+height of the lattice.
+
+Output columns are the keys, root, source, destination, order, before-state, and
+the named state column: the destination's state after the join. An edge followed
+twice, in two pops of its source, writes two rows. Root, source and destination
+agree in kind, as do the state, before, after, lower and upper columns; output
+names must be distinct. Example: with the lattice `unreached < within`,
+`unreached < caught`, `within < both`, `caught < both`, walked edges that keep
+their state and handler edges whose `after` is `caught`, the rows' destinations
+are the blocks a constructor reaches, each with the ways it is reached.

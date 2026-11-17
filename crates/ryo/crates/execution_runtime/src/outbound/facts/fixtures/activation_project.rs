@@ -3,9 +3,8 @@ use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::ColumnsMut;
-use crate::outbound::facts::types::KeptBucket;
-use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
+use crate::outbound::facts::types::{KeptBucket, KeptSources};
 use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -16,12 +15,13 @@ impl FactsFinish for NoFacts {
     fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("an activation rule has no file frontier to fetch")
     }
+
+    fn sources(&self, _: Bucket) -> Result<KeptSources, FactsError> {
+        panic!("an activation rule has no file frontier to fetch")
+    }
 }
 
 impl FactsWorker for NoFacts {
-    fn resident_stability(&self) -> ResidentStability {
-        ResidentStability::Stable
-    }
     fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, FactsError> {
         panic!("an activation rule has no project relation to read")
     }

@@ -278,8 +278,8 @@ fn seen(cells: &[Cell]) -> Cow<'static, [Seen]> {
     cells
         .iter()
         .map(|cell| match cell {
-            Cell::Node(node) if node_file(*node) == FileId(0) => Seen::Node(node_position(*node).0),
-            Cell::Number(number) => Seen::Number(number.0),
+            Cell::Node(node) if node_file(*node) == FileId(0) => Node(node_position(*node).0),
+            Cell::Number(number) => Number(number.0),
             Cell::Node(_)
             | Cell::Symbol(_)
             | Cell::Name(_)

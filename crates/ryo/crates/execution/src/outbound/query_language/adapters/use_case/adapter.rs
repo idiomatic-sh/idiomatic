@@ -5,14 +5,13 @@ use std::sync::Arc;
 
 use ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase;
 use ryo_query_language::inbound::use_cases::typecheck::interface::TypecheckUseCase;
-use ryo_values::domain::plans::types::QueryRequest;
+use ryo_values::domain::query_requests::types::QueryRequest;
 
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_relations::domain::relations::types::{Offset, Span};
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types as hosted;
-use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 
 use super::types::{CompileCalled, TypecheckCalled};

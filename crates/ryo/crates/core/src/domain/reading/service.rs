@@ -88,7 +88,7 @@ pub(crate) fn read_failure_demanded(
             && rule
                 .reads
                 .iter()
-                .any(|read| read.relation == Relation::FilesystemReadFailure)
+                .any(|read| read.relation() == Relation::FilesystemReadFailure)
     });
     if reads {
         ReadFailureDemand::Demanded
@@ -104,10 +104,8 @@ pub(crate) fn failure_partials(
     file: FileId,
     detail: FailureDetail<'_>,
     observed_file: ObservedFile,
-) -> Vec<ryo_values::domain::stored_facts::types::ReadInPart> {
-    use ryo_values::domain::stored_facts::types::{
-        PartialAt, PartialCause, PartialScope, ReadInPart,
-    };
+) -> Vec<ReadInPart> {
+    use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope};
     wanted
         .iter()
         .filter(|relation| {
@@ -153,12 +151,12 @@ pub(crate) fn buckets_of(
     rules: Option<&[PlacedRule]>,
 ) -> Vec<Bucket> {
     let mut buckets = Vec::new();
-    for (place, (rule, start)) in metadata.iter().zip(first).enumerate() {
+    for (place, (run, start)) in metadata.iter().zip(first).enumerate() {
         let rule = PlacedRule(u32::try_from(place).unwrap_or(u32::MAX));
         if rules.is_some_and(|rules| rules.binary_search_by_key(&rule.0, |each| each.0).is_err()) {
             continue;
         }
-        for input in 0..metadata[place].frontier_capture.len() {
+        for input in 0..run.frontier_capture.len() {
             buckets.push(frontier_bucket(*start, InputNumber(input)));
         }
     }
@@ -169,7 +167,7 @@ pub(crate) fn buckets_of(
 
 /// The first bucket of each rule's frontier: the findings have bucket zero.
 #[must_use]
-pub(crate) fn first_buckets(plans: &[Plan]) -> Vec<Bucket> {
+pub(crate) fn first_buckets(plans: &[&Plan]) -> Vec<Bucket> {
     let mut first = Vec::with_capacity(plans.len());
     let mut next = Bucket(1);
     for plan in plans {

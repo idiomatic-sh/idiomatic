@@ -10,7 +10,6 @@ use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_runtime::outbound::operators::fixtures::shared_walk::SemanticCalls;
 use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::{
     completion::fixtures::{completion, name_kind},
@@ -37,17 +36,8 @@ use ryo_values::domain::{
     query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     rows::types::{RowCount, Table},
 };
-use std::sync::Arc;
-pub(crate) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
-    let semantics = Arc::new(SemanticCalls::default());
-    (
-        PrepareUseCaseImpl::new(
-            semantics.clone(),
-            Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-            Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
-        ),
-        semantics,
-    )
+pub(crate) fn engine() -> PrepareUseCaseImpl {
+    crate::boundary_fixture::fixtures::engine()
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Selector {
@@ -145,7 +135,7 @@ pub(crate) fn run(
             ..FileRun::of(intents, elements)
         },
         symbols,
-        &TableFacts::new(&[]),
+        &mut TableFacts::new(&[]),
     )
 }
 /// A rule's diagnostic collected, with no observation and no capture.

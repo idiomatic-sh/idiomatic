@@ -1,9 +1,8 @@
-//! Literal metadata and dynamic patterns are exercised through real prepared file owners; the runtime proves which of them
-//! enter the invocation's local caches.
+//! Literal metadata and dynamic patterns are exercised through real prepared file owners: each file answers the rows its
+//! pattern matches, or the pattern's refusal once a row reaches it.
 use super::super::super::fixtures;
 use super::super::super::fixtures::requests::run_prepared;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_domain::domain::table_texts::types::TextView;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_language::domain::elements::types::Elements;
@@ -20,7 +19,6 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::{service::push_row, types::Table};
 use std::borrow::Cow;
-use std::sync::atomic::Ordering;
 /// How the probed select compares its one text column.
 #[derive(Clone, Copy, Debug)]
 enum Pattern {
@@ -59,12 +57,9 @@ enum Answer {
     InvalidRegex(Cow<'static, str>),
 }
 
-/// The matchers built before any file, whether the shadow's literal matcher is ready, each file's
-/// answer, and the matchers built after.
+/// Each file's answer.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Probed {
-    builds: (usize, usize),
-    shadow_ready: Option<bool>,
     answers: Cow<'static, [Answer]>,
 }
 
@@ -94,11 +89,9 @@ const fn dynamic(pattern: Pattern, text: &'static str, shadow: (Test, &'static s
     }
 }
 
-/// No matcher before and `after` after, whether the shadow is ready, and the answers.
-const fn probed(after: usize, shadow_ready: Option<bool>, answers: &'static [Answer]) -> Probed {
+/// The answers of each file.
+const fn probed(answers: &'static [Answer]) -> Probed {
     Probed {
-        builds: (0, after),
-        shadow_ready,
         answers: Cow::Borrowed(answers),
     }
 }
@@ -194,12 +187,8 @@ fn prepare(
         fixtures::requests::prepared(authored.plan, bindings.to_vec(), authored.hosted)?;
     Ok((engine, program, symbols))
 }
-/// The matchers the program has built.
-fn builds(program: &PreparedExecutionProgram) -> usize {
-    program.matchers().builds.load(Ordering::Relaxed)
-}
 /// A literal regex, glob and replace (which appends one literal replacement cell and keeps its
-/// input), each compiled once across three files.
+/// input), each across three files.
 const LITERALS: &[Probe] = &[
     probe(
         Pattern::Literal(Test::Matches, r"\s+"),
@@ -215,12 +204,12 @@ const LITERALS: &[Probe] = &[
 ];
 /// What each probe shows.
 const LITERAL_LIFETIMES: &[Probed] = &[
-    probed(1, None, &[SPACED, SPACED, SPACED]),
-    probed(1, None, &[LIB, LIB, LIB]),
-    probed(1, None, &[REPLACED, REPLACED, REPLACED]),
+    probed(&[SPACED, SPACED, SPACED]),
+    probed(&[LIB, LIB, LIB]),
+    probed(&[REPLACED, REPLACED, REPLACED]),
 ];
 /// An invalid regex and replace over no row and over a row, and an invalid regex behind a false
-/// earlier predicate: nothing is built until a row reaches it.
+/// earlier predicate: refused only once a row reaches it.
 const INVALIDS: &[Probe] = &[
     probe(Pattern::Literal(Test::Matches, "["), None, 1),
     probe(Pattern::Literal(Test::Matches, "["), Some("actual"), 2),
@@ -230,14 +219,14 @@ const INVALIDS: &[Probe] = &[
 ];
 /// What each probe shows.
 const INVALID_LITERALS: &[Probed] = &[
-    probed(0, None, &[NONE]),
-    probed(1, None, &[UNCLOSED, UNCLOSED]),
-    probed(0, None, &[NONE]),
-    probed(1, None, &[UNCLOSED, UNCLOSED]),
-    probed(0, None, &[NONE]),
+    probed(&[NONE]),
+    probed(&[UNCLOSED, UNCLOSED]),
+    probed(&[NONE]),
+    probed(&[UNCLOSED, UNCLOSED]),
+    probed(&[NONE]),
 ];
 /// Bound, concatenated, row and bound-list patterns beside an undemanded literal of the same bytes:
-/// the literal's matcher is ready and the dynamic pattern never reuses it.
+/// each answers its own pattern's rows.
 const DYNAMICS: &[Probe] = &[
     dynamic(Pattern::Bound("a.*"), "alpha", A_ANY),
     dynamic(Pattern::Bound("b.*"), "alpha", A_ANY),
@@ -249,13 +238,13 @@ const DYNAMICS: &[Probe] = &[
 ];
 /// What each probe shows.
 const DYNAMIC_PATTERNS: &[Probed] = &[
-    probed(1, Some(true), &[ALPHA]),
-    probed(1, Some(true), &[NONE]),
-    probed(1, Some(true), &[ALPHA]),
-    probed(1, Some(true), &[ROW_TEXT]),
-    probed(1, Some(true), &[ALPHA]),
-    probed(1, Some(true), &[NONE]),
-    probed(1, Some(true), &[NONE]),
+    probed(&[ALPHA]),
+    probed(&[NONE]),
+    probed(&[ALPHA]),
+    probed(&[ROW_TEXT]),
+    probed(&[ALPHA]),
+    probed(&[NONE]),
+    probed(&[NONE]),
 ];
 /// Glob, negated glob and one-character glob over `αβ` across two files, and a glob written as a regex.
 const GLOBS: &[Probe] = &[
@@ -266,10 +255,10 @@ const GLOBS: &[Probe] = &[
 ];
 /// What each probe shows.
 const GLOB_FAMILIES: &[Probed] = &[
-    probed(1, None, &[ALPHA_BETA, ALPHA_BETA]),
-    probed(1, None, &[NONE, NONE]),
-    probed(1, None, &[ALPHA_BETA, ALPHA_BETA]),
-    probed(1, None, &[NO_REPEATED]),
+    probed(&[ALPHA_BETA, ALPHA_BETA]),
+    probed(&[NONE, NONE]),
+    probed(&[ALPHA_BETA, ALPHA_BETA]),
+    probed(&[NO_REPEATED]),
 ];
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -356,24 +345,11 @@ fn run_probe(probe: Probe) -> Result<Probed, Failure> {
         Pattern::ShortCircuit | Pattern::Concat(..) | Pattern::Row => vec![],
     };
     let (engine, program, mut symbols) = prepare(probed, probe.text, &bindings, &shadow)?;
-    let before = builds(&program);
-    let matcher = ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher();
-    let matchers = program.matchers();
-    let shadow_ready = probe.shadow.map(|(test, text)| {
-        if test == Test::Matches {
-            matchers
-                .regex(TextView(text), matcher)
-                .and_then(Result::ok)
-                .is_some()
-        } else {
-            matchers.glob(test, TextView(text), matcher).is_some()
-        }
-    });
-    let read = fixtures::TableFacts::new(&[]);
+    let mut read = fixtures::TableFacts::new(&[]);
     let elements = Elements::default();
     let mut answers = Vec::new();
     for _file in 0..probe.files {
-        let answer = run_prepared(&engine, &program, b"", &elements, &mut symbols, &read);
+        let answer = run_prepared(&engine, &program, b"", &elements, &mut symbols, &mut read);
         answers.push(match answer {
             Ok(table) => Answer::Rows(Cow::Owned(
                 table
@@ -389,8 +365,6 @@ fn run_probe(probe: Probe) -> Result<Probed, Failure> {
         });
     }
     Ok(Probed {
-        builds: (before, builds(&program)),
-        shadow_ready,
         answers: Cow::Owned(answers),
     })
 }

@@ -207,3 +207,79 @@ expected = [{ file = "case.ts", start = 6, end = 7 }]
 name = "disabled"
 files = { "case.ts" = "// eslint-disable-next-line no-unused-vars\nconst a = 1;\nconst b = 2; // oxlint-disable-line no-unused-vars\nconst c = 3;\n" }
 expected = [{ file = "case.ts", start = 113, end = 114 }]
+
+[[cases]]
+name = "js-unused-named-import"
+files = { "case.js" = "import { foo } from './non-existent.js'\n" }
+expected = [{ file = "case.js", start = 9, end = 12 }]
+
+[[cases]]
+name = "js-unused-default-import"
+files = { "case.js" = "import jsdom from 'jsdom' // should be redirected to empty module\n" }
+expected = [{ file = "case.js", start = 7, end = 12 }]
+
+[[cases]]
+name = "js-unused-function-in-module"
+files = { "case.js" = "import './a.css'\nfunction shouldBeTreeshaken_0() {\n  return 1\n}\n" }
+expected = [{ file = "case.js", start = 26, end = 46 }]
+
+[[cases]]
+name = "js-unused-trailing-arrow-parameter"
+files = { "case.js" = "app.use('*all', async (req, res, next) => {\n  res.end(req.url)\n})\n" }
+expected = [{ file = "case.js", start = 33, end = 37 }]
+
+[[cases]]
+name = "js-unused-destructured-parameter"
+files = { "case.js" = "export default {\n  AtRule(atRule, { result, Comment }) {\n    return [atRule, result]\n  },\n}\n" }
+expected = [{ file = "case.js", start = 44, end = 51 }]
+
+[[cases]]
+name = "js-unused-handler-parameter"
+files = { "case.js" = "self.onmessage = (event) => {\n  self.postMessage('ok')\n}\n" }
+expected = [{ file = "case.js", start = 18, end = 23 }]
+
+[[cases]]
+name = "js-unused-const-in-module"
+files = { "case.js" = "export const test = 1\nconst ttest = test\nconst view = 'mxd'\n" }
+expected = [{ file = "case.js", start = 28, end = 33 }, { file = "case.js", start = 47, end = 51 }]
+
+[[cases]]
+name = "js-unused-catch-parameter"
+files = { "case.js" = "try {\n  run()\n} catch (e) {}\n" }
+expected = [{ file = "case.js", start = 23, end = 24 }]
+
+[[cases]]
+name = "js-unused-parameter-of-commonjs-export"
+files = { "case.js" = "module.exports = function httpAdapter(config) {\n  return 1\n}\n" }
+expected = [{ file = "case.js", start = 38, end = 44 }]
+
+[[cases]]
+name = "js-unused-required-binding-in-script"
+files = { "case.js" = "const fs = require('node:fs')\nmodule.exports = {}\n" }
+expected = [{ file = "case.js", start = 6, end = 8 }]
+
+[[cases]]
+name = "js-unused-parameter-of-exported-function"
+files = { "case.js" = "export async function render(url) {\n  return ''\n}\n" }
+expected = [{ file = "case.js", start = 29, end = 32 }]
+
+[[cases]]
+name = "js-unused-function-expression-parameter"
+files = { "case.js" = "self.onmessage = function (e) {\n  self.postMessage(1)\n}\n" }
+expected = [{ file = "case.js", start = 27, end = 28 }]
+
+[[cases]]
+name = "mjs-unused-arrow-parameter"
+files = { "case.mjs" = "self.onmessage = (e) => {\n  self.postMessage(1)\n}\n" }
+expected = [{ file = "case.mjs", start = 18, end = 19 }]
+
+[[cases]]
+name = "js-unused-destructured-option-parameters"
+files = { "case.js" = "export default {\n  renderBuiltUrl(filename, { hostId, hostType }) {\n    return filename\n  },\n}\n" }
+expected = [{ file = "case.js", start = 46, end = 52 }, { file = "case.js", start = 54, end = 62 }]
+
+[[cases]]
+name = "js-invalid-code"
+comparison = "full"
+files = { "syntax-error.js" = "invalid code\n" }
+expected = [{ rule = "invalid-syntax", file = "syntax-error.js", start = 7, end = 7 }]

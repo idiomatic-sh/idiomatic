@@ -49,12 +49,12 @@ fn a_second_run_of_a_file_reads_its_own_facts_and_never_a_cached_row() {
     let mut symbols = Symbols::default();
     // The first run reads the provider once for both rules' shared dependency; the second run of the same file reads the facts
     // of its own run, which refuse, and no rule delivers a row of the first.
-    let first = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut first = TableFacts::new(&[(Relation::Function, &table)]);
     let mut rules = run_file(
         &request,
         FileRun::of(&intents, &elements),
         &mut symbols,
-        &first,
+        &mut first,
     );
     for index in [0, 1] {
         let Ok(RootOutcome::Complete(rows)) = root(ran(&mut rules, index)) else {
@@ -63,12 +63,12 @@ fn a_second_run_of_a_file_reads_its_own_facts_and_never_a_cached_row() {
         assert_eq!(rows.cells, [table.cells[0]]);
     }
     assert!(first.reads() > 0);
-    let second = TableFacts::new(&[]);
+    let mut second = TableFacts::new(&[]);
     let mut rules = run_file(
         &request,
         FileRun::of(&intents, &elements),
         &mut symbols,
-        &second,
+        &mut second,
     );
     assert!(
         matches!(root(ran(&mut rules, 0)), Err(FileStop::Facts(_))),
@@ -96,7 +96,7 @@ fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_siblin
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     // No relation is held: rule 0's read of Function is refused. The undemanded sibling's Identifier is never read.
-    let facts = TableFacts::new(&[]);
+    let mut facts = TableFacts::new(&[]);
     let elements = Elements::default();
     let mut symbols = Symbols::default();
     let intents = [
@@ -111,7 +111,7 @@ fn an_unbound_rule_cannot_schedule_an_independent_provider_after_a_failed_siblin
         &request,
         FileRun::of(&intents, &elements),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     assert!(matches!(root(ran(&mut rules, 0)), Err(FileStop::Facts(_))));
     assert!(

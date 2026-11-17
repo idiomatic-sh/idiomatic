@@ -13,17 +13,19 @@ use crate::domain::{
         types::{Operation, Plan},
     },
 };
-use ryo_relations::domain::relations::{service::provenance_of, types::Provenance};
+use ryo_relations::domain::catalog::service::scope_of;
+use ryo_relations::domain::catalog::types::RowScope;
 
+/// The run metadata of each plan, in the plans' order.
 #[must_use]
-pub fn from_plans(plans: &[Plan]) -> Vec<RuleRunMetadata> {
-    plans.iter().map(from_plan).collect()
+pub fn from_plans<P: std::borrow::Borrow<Plan>>(plans: &[P]) -> Vec<RuleRunMetadata> {
+    plans.iter().map(|plan| from_plan(plan.borrow())).collect()
 }
 
 fn from_plan(plan: &Plan) -> RuleRunMetadata {
     RuleRunMetadata {
         reads_project: if plan.frontier.iter().any(|input| {
-            matches!(input, Input::Relation(relation) if provenance_of(*relation) == Provenance::Manifests)
+            matches!(input, Input::Relation(relation) if scope_of(*relation) == RowScope::Project)
         }) {
             ProjectRead::Reads
         } else {

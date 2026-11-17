@@ -10,6 +10,8 @@ use crate::outbound::suite::types::{
     SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::costs::types::StoreSize;
+use ryo_benchmark_contracts::domain::growth::types::GrowthTable;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::Cases;
 use ryo_benchmark_contracts::domain::workloads::types::Tool;
@@ -84,7 +86,7 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         root: ArtifactPath<'_>,
         files: ArtifactSet<'_>,
-    ) -> Result<SourceDigest, crate::outbound::suite::errors::SuiteError> {
+    ) -> Result<SourceDigest, SuiteError> {
         source_digest(root.0, files.0)
     }
 
@@ -92,26 +94,20 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         profile: ArtifactPath<'_>,
         artifacts: &[crate::outbound::suite::types::EvidenceArtifact],
-    ) -> Result<
-        std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>,
-        crate::outbound::suite::errors::SuiteError,
-    > {
+    ) -> Result<std::collections::BTreeMap<std::path::PathBuf, ArtifactBytes>, SuiteError> {
         read(profile.0, artifacts)
     }
     fn case_claims(
         &self,
         ArtifactPath(profile): ArtifactPath<'_>,
         owners: &[ryo::linter::RuleId],
-    ) -> Result<
-        Vec<crate::outbound::suite::types::CaseClaim>,
-        crate::outbound::suite::errors::SuiteError,
-    > {
+    ) -> Result<Vec<crate::outbound::suite::types::CaseClaim>, SuiteError> {
         super::writer::case_claims(profile, owners)
     }
     fn verify_discrepancy_artifacts(
         &self,
         artifacts: crate::outbound::suite::types::CaseArtifacts<'_>,
-    ) -> Result<(), crate::outbound::suite::errors::SuiteError> {
+    ) -> Result<(), SuiteError> {
         verify(artifacts)
     }
     fn scoped_directory(
@@ -157,6 +153,9 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
         super::accepted::schemas::accepted(&std::fs::read(file)?)
     }
+    fn growth_table(&self, ArtifactPath(file): ArtifactPath<'_>) -> Result<GrowthTable, Error> {
+        super::growth::schemas::growth(&std::fs::read_to_string(file)?)
+    }
     fn source_text(
         &self,
         ArtifactPath(file): ArtifactPath<'_>,
@@ -182,19 +181,24 @@ impl SuitePort for SuiteLocalAdapter {
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
         digest(path)
     }
+    fn directory_size(
+        &self,
+        ArtifactPath(directory): ArtifactPath<'_>,
+    ) -> Result<StoreSize, Error> {
+        super::writer::directory_size(directory)
+    }
+    fn settings_directory(
+        &self,
+        ArtifactPath(bench): ArtifactPath<'_>,
+        rule: &ryo::linter::RuleId,
+    ) -> Result<std::path::PathBuf, Error> {
+        super::tool::schemas::settings_directory(bench, rule)
+    }
     fn rule_ids(
         &self,
         ArtifactPath(profile): ArtifactPath<'_>,
     ) -> Result<Vec<ryo::linter::RuleId>, Error> {
-        std::fs::read_dir(profile)?
-            .map(|entry| {
-                let name = entry?
-                    .file_name()
-                    .into_string()
-                    .map_err(|_| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
-                super::rule_cases::schemas::rule(&name)
-            })
-            .collect()
+        super::rule_cases::schemas::ids(profile)
     }
     fn rule_query(
         &self,

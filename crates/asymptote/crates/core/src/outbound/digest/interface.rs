@@ -1,8 +1,8 @@
 //! What the `digest` port asks of the outside, in the core's own vocabulary.
 
 use super::types::{DigestParts, LineFingerprints};
-use crate::domain::reports::types::Digest;
-use crate::domain::violations::types::SourceText;
+use asymptote_values::domain::reports::types::Digest;
+use asymptote_values::domain::violations::types::SourceText;
 
 /// What every `digest` adapter implements.
 pub trait DigestPort: std::fmt::Debug + Send + Sync {

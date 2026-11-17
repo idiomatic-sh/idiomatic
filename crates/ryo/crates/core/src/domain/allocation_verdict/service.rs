@@ -1,15 +1,12 @@
 //! The `allocation_verdict` service: free functions named by verb that set the blocks each file allocated against the parser library's
-//! and say whether they are within what the findings explain.
+//! and answer the most any of them allocated.
 
 use std::collections::BTreeSet;
 
 use ryo_values::domain::files::types::CorpusFile;
 
-use super::constants::{GROWTHS_PER_DOUBLING, ITEM_END, MOST_BEYOND, WARM_UP};
-use super::types::{
-    AllocatedBlocks, AllocationVerdict, Differences, FileCount, InputBytes, JobBlocks, ParserBlocks,
-};
-use crate::domain::corpus_copies::types::CopyCount;
+use super::constants::{ITEM_END, WARM_UP};
+use super::types::{AllocatedBlocks, Differences, InputBytes, JobBlocks, ParserBlocks};
 
 /// The blocks each job allocated beyond the parser library, for the file it read. The first file of each input grows what the worker
 /// keeps for the rows of its relation, and so do the first files of all: neither is judged.
@@ -39,20 +36,7 @@ pub(crate) fn differences(
     Differences(found)
 }
 
-/// Whether the files, `copies` of every input, allocated no more than allowed: a block beyond the parser library for a few files,
-/// logarithmic in their number, for the findings vector that doubles now and then.
-pub(crate) fn verdict(differences: &Differences, copies: CopyCount) -> AllocationVerdict {
-    if differences.0.iter().any(|each| each.0 > MOST_BEYOND) {
-        return AllocationVerdict::BeyondOneBlock;
-    }
-    let grew = differences.0.iter().filter(|each| each.0 > 0).count();
-    let doublings = usize::try_from(copies.0.ilog2()).unwrap_or(usize::MAX);
-    if grew <= GROWTHS_PER_DOUBLING.saturating_mul(doublings) {
-        AllocationVerdict::Within
-    } else {
-        AllocationVerdict::TooManyGrew {
-            grew: FileCount(grew),
-            judged: FileCount(differences.0.len()),
-        }
-    }
+/// The most blocks any judged file allocated beyond the parser library: what the allocation measure holds to its best.
+pub(crate) fn most(differences: &Differences) -> AllocatedBlocks {
+    differences.0.iter().copied().max().unwrap_or_default()
 }

@@ -1,6 +1,6 @@
 //! The types of the `plan_parts` concept: the numbers, text and comparisons a query plan is made of. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_relations::domain::relations::types::{Integer, Relation, Span};
+use ryo_relations::domain::relations::types::{Column, Integer, Relation};
 
 /// The text of a RyoQL query.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -34,10 +34,6 @@ pub enum RepeatedRows {
 /// An input of a plan's frontier, by its place among them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InputNumber(pub usize);
-
-/// An observation binding, by its place among the bindings of a request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BindingPlace(pub usize);
 
 /// A step of the plan, by its place in the plan.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -320,3 +316,84 @@ pub enum StepScope {
     /// On the frontier rows of every file.
     CrossFile,
 }
+
+/// What a lookup into the syntax tree or its edges finds its rows by, as the engine looks the tree up where it is: the relation's
+/// columns its keys read, in order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+/// use ryo_relations::domain::relations::types::{Column, Relation};
+/// use ryo_values::domain::plan_parts::service::tree_lookup_key;
+/// use ryo_values::domain::plan_parts::types::{ColumnIndex, TreeLookupKey};
+/// assert_eq!(
+///     tree_lookup_key(Relation::SyntaxChild, &[ColumnIndex(1)]),
+///     Some(TreeLookupKey::Node(Column::SyntaxChild(SyntaxChildColumn::Child)))
+/// );
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TreeLookupKey {
+    /// A node: the element's id, or one end of an edge, which is this column.
+    Node(Column),
+    /// The element's span.
+    Span,
+    /// The element's file, then its span.
+    FileThenSpan,
+    /// The element's span, then its file.
+    SpanThenFile,
+}
+
+/// The families of comparison a `select` tests with.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::service::family_of;
+/// use ryo_values::domain::plan_parts::types::{Family, Test};
+/// assert_eq!(family_of(Test::StartsWith), Family::Affix);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Family {
+    /// Equal and not equal.
+    Equality,
+    /// Less, greater, and their or-equal.
+    Ordering,
+    /// Numbers written as text.
+    FloatText,
+    /// Exact canonical numeric text and whole numbers.
+    Numeric,
+    /// In and not in.
+    Membership,
+    /// Glob matches.
+    Glob,
+    /// Starts with and ends with.
+    Affix,
+    /// Regular expression searches.
+    Regex,
+}
+
+/// How many columns a row has: a column at or past it is not the row's.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::types::RowWidth;
+/// assert_eq!(RowWidth(3).0, 3);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RowWidth(pub usize);
+
+/// The leading comparisons of a select that no row can make fail with an error: each tests a column the row has against a
+/// text the query wrote, by equality or by affix, so its cell's text alone decides it. The rest of the select's comparisons
+/// follow it in their order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::service::fixed_prefix;
+/// use ryo_values::domain::plan_parts::types::RowWidth;
+/// assert!(fixed_prefix(&[], RowWidth(2)).0.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FixedPrefix<'a>(pub &'a [PlanComparison]);

@@ -112,3 +112,38 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line unicorn/no-invalid-fetch-options\nfetch(url, { body: \"x\" });\n" }
 expected = []
+
+[[cases]]
+name = "escaped-template-method"
+files = { "case.ts" = "fetch(url, { method: `G\\u0045T`, body: \"x\" });\n" }
+expected = []
+
+[[cases]]
+name = "escaped-string-method"
+files = { "case.ts" = "fetch(url, { method: \"G\\u0045T\", body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 33, end = 37 }]
+
+[[cases]]
+name = "constant-template-method"
+files = { "case.ts" = "const m = `GET`;\nfetch(url, { method: m, body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 41, end = 45 }]
+
+[[cases]]
+name = "constant-escaped-template-method"
+files = { "case.ts" = "const m = `G\\u0045T`;\nfetch(url, { method: m, body: \"x\" });\n" }
+expected = []
+
+[[cases]]
+name = "constant-escaped-string-method"
+files = { "case.ts" = "const m = \"G\\u0045T\";\nfetch(url, { method: m, body: \"x\" });\n" }
+expected = [{ file = "case.ts", start = 46, end = 50 }]
+
+[[cases]]
+name = "typed-template-method"
+files = { "case.ts" = "function f(m: `GET`) { fetch(url, { method: m, body: \"x\" }); }\n" }
+expected = [{ file = "case.ts", start = 47, end = 51 }]
+
+[[cases]]
+name = "typed-escaped-template-method"
+files = { "case.ts" = "function f(m: `G\\u0045T`) { fetch(url, { method: m, body: \"x\" }); }\n" }
+expected = [{ file = "case.ts", start = 52, end = 56 }]

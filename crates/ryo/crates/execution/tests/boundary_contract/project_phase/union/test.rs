@@ -1,12 +1,11 @@
-//! One project observation union: its members feed the semantic calls, a refused frontier prevents them, and hosted text joins by spelling.
+//! One project observation union: its members are bound without a restored union, a refused frontier withholds it, and
+//! hosted text joins by spelling.
 use crate::boundary_fixture::fixtures::{authored_request, corpus};
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort;
-use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectObservation;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
@@ -21,7 +20,6 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::operators::fixtures::project_phase_union::UnionSemanticCalls;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
@@ -65,12 +63,9 @@ fn project_hosted_text_joins_named_publication_text_by_spelling() {
 }
 
 fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>) {
-    let union_semantic_calls = Arc::new(UnionSemanticCalls::default());
-    let engine = PrepareUseCaseImpl::new(
-        union_semantic_calls.clone(),
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-        std::sync::Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
-    );
+    let engine = PrepareUseCaseImpl::new(Arc::new(
+        ryo_execution::inbound::use_cases::execution::fixtures::operators(),
+    ));
     let mut authored = authored_request(2);
     let relation = Relation::ModuleIdentity;
     let file_column = kinds(relation)
@@ -334,11 +329,6 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             }
         );
     }
-    assert_eq!(
-        union_semantic_calls.0.load(Ordering::SeqCst),
-        if refused { 0 } else { 2 },
-        "the singleton union schedules its one member as both inputs: two real SetRow Union semantic calls produce one distinct output row; explicit frontier refusal permits none"
-    );
     assert_eq!(
         project.reads.load(Ordering::SeqCst),
         if refused { 0 } else { 1 },

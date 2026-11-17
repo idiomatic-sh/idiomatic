@@ -62,3 +62,8 @@ expected = [{ file = "case.ts", start = 10, end = 11 }]
 name = "merged-with-a-later-interface"
 files = { "case.ts" = "class A {}\ninterface A {}\nA = 1;\n" }
 expected = [{ file = "case.ts", start = 6, end = 7 }]
+
+[[cases]]
+name = "js-default-class-reassigned"
+files = { "case.js" = "export default class C {\n  static f = () => 0\n}\n\nC = class {\n  static f = () => 1\n}\n\nC = class {\n  static f = () => 2\n}\n\nexport function update() {\n  C = class {\n    static f = () => 3\n  }\n}\n" }
+expected = [{ file = "case.js", start = 21, end = 22 }, { file = "case.js", start = 21, end = 22 }, { file = "case.js", start = 21, end = 22 }]

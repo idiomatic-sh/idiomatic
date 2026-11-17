@@ -1,17 +1,17 @@
 //! Pure report settlement and identity construction over already supplied values.
 use super::constants::{DROPPED, EMPTY, SEPARATOR, UNANSWERED, UNREAD};
 use super::types::{Blindness, Candidate, Fingerprinted, IncomingText, Standing};
-use crate::domain::applications::service::readable_shape;
-use crate::domain::applications::types::{Compared, Plan};
-use crate::domain::contracts::types::{Contract, Holding};
-use crate::domain::definitions::types::Exactness;
-use crate::domain::files::types::BorrowedText;
-use crate::domain::findings::constants::{IGNORE, TASTEMAKER, TEMPLATE, UNKNOWN};
-use crate::domain::findings::service::{check_id, error, finding, whole_identity};
-use crate::domain::findings::types::{
+use tastemaker_values::domain::applications::service::readable_shape;
+use tastemaker_values::domain::applications::types::{Compared, Plan};
+use tastemaker_values::domain::contracts::types::{Contract, Holding};
+use tastemaker_values::domain::definitions::types::Exactness;
+use tastemaker_values::domain::files::types::BorrowedText;
+use tastemaker_values::domain::findings::constants::{IGNORE, TASTEMAKER, TEMPLATE, UNKNOWN};
+use tastemaker_values::domain::findings::service::{check_id, error, finding, whole_identity};
+use tastemaker_values::domain::findings::types::{
     Finding, Fingerprint, FirstLine, Help, Identifying, Place, Report, Suppression,
 };
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Completes the workspace report after every finding has its identity.
 #[must_use]
@@ -35,7 +35,7 @@ pub fn report_of(
 /// and, for one placed by a stretch of bytes, the stretch.
 fn incoming_text(
     finding: &Finding,
-    span: Option<&crate::domain::comments::types::ByteSpan>,
+    span: Option<&tastemaker_values::domain::comments::types::ByteSpan>,
 ) -> IncomingText {
     let place = match finding.place {
         Place::Whole => String::new(),
@@ -50,7 +50,7 @@ fn incoming_text(
     });
     IncomingText(
         [
-            &*crate::domain::findings::service::printed(&finding.rule).0,
+            &*tastemaker_values::domain::findings::service::printed(&finding.rule).0,
             &*finding.message.0,
             &place,
             &span,
@@ -70,7 +70,7 @@ fn incoming_text(
 #[must_use]
 pub fn incoming_of(
     findings: &[Finding],
-    spans: &[crate::domain::applications::types::SpannedFinding],
+    spans: &[tastemaker_values::domain::applications::types::SpannedFinding],
     ignoring: &[&RepoPath],
     fingerprint: &dyn Fn(&Identifying) -> Fingerprint,
 ) -> std::collections::BTreeMap<RepoPath, Fingerprint> {
@@ -97,12 +97,12 @@ pub fn incoming_of(
             each.sort();
             let chained = each.iter().fold(Fingerprint(0), |before, text| {
                 fingerprint(&Identifying {
-                    parts: crate::domain::findings::types::IdentityParts([
+                    parts: tastemaker_values::domain::findings::types::IdentityParts([
                         before.0.to_string().into(),
                         text.0.clone(),
                         Box::default(),
                     ]),
-                    ordinal: crate::domain::findings::types::Ordinal(0),
+                    ordinal: tastemaker_values::domain::findings::types::Ordinal(0),
                 })
             });
             (path, chained)
@@ -168,13 +168,13 @@ pub fn prepared_file(
     plan: &Plan,
     path: &RepoPath,
     findings: Vec<Finding>,
-    comments: Option<&Vec<crate::domain::comments::types::Comment>>,
-    view: Option<crate::domain::files::types::SourceView<'_>>,
+    comments: Option<&Vec<tastemaker_values::domain::comments::types::Comment>>,
+    view: Option<tastemaker_values::domain::files::types::SourceView<'_>>,
 ) -> Vec<Candidate> {
-    use crate::domain::comments::service::{code_region, indexed_lines};
-    use crate::domain::findings::types::SourceText;
     use crate::domain::ignores::service::{first_line, suppress};
     use crate::domain::ignores::types::Suppressed;
+    use tastemaker_values::domain::comments::service::{code_region, indexed_lines};
+    use tastemaker_values::domain::findings::types::SourceText;
     let lines = view
         .zip(comments)
         .map(|(view, found)| indexed_lines(view, found));
@@ -285,12 +285,12 @@ pub fn mismatch(
     text: BorrowedText<'_>,
 ) -> Vec<Finding> {
     use crate::domain::blocks::service::{blocks, sequence};
-    use crate::domain::contracts::service::{compare, facts, message};
-    use crate::domain::contracts::types::{ComparedText, DeclarationName, Shape};
     use crate::domain::declarations::service::declarations;
-    use crate::domain::definitions::constants::{VARIABLES_KEY, WORKSPACE_FILE};
     use crate::domain::keyed::service::compare_data;
-    use crate::domain::paths::service::name;
+    use tastemaker_values::domain::contracts::service::{compare, facts, message};
+    use tastemaker_values::domain::contracts::types::{ComparedText, DeclarationName, Shape};
+    use tastemaker_values::domain::definitions::constants::{VARIABLES_KEY, WORKSPACE_FILE};
+    use tastemaker_values::domain::paths::service::name;
     let Compared {
         data,
         unread,

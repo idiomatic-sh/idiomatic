@@ -412,3 +412,8 @@ expected = [{ file = "case.ts", start = 23, end = 24 }]
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line no-constant-condition\nif (1) {}\n" }
 expected = []
+
+[[cases]]
+name = "mjs-if-false"
+files = { "case.mjs" = "import fs from 'node:fs'\n\nif (false) {\n  fs.readFileSync()\n} else {\n  console.log('ok')\n}\n" }
+expected = [{ file = "case.mjs", start = 30, end = 35 }]

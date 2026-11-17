@@ -19,7 +19,7 @@ ryo::reads! {
   Some(index) => {
    each (languages::positions(tree.elements)) as expression {
     require is_token(tree, expression) == Leaf::Node && expression != at;
-    given shape = languages::key_class_at(&index, expression)?;
+    given shape = languages::shape_class_at(&index, expression)?;
     row { id: node(expression), shape: node(shape), file: file, span: span(expression) }
    }
   }

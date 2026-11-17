@@ -5,7 +5,7 @@ use crate::domain::{
     nodes::types::Node,
     standard_library::{
         service::contains,
-        types::{ModulePath, PythonMajor, PythonMinor, StandardLibraryMembership, TargetVersion},
+        types::{ModulePath, StandardLibraryMembership},
     },
     syntax::{service::kind_bits, types::Kind},
 };

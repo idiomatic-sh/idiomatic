@@ -24,7 +24,7 @@ fn diamond_deep_chains_and_duplicate_inputs_wake_only_actual_waiters() {
     }
 }
 fn exercise_readiness_chain(empty: bool) {
-    let (engine, _) = engine();
+    let engine = engine();
     let mut authored = authored_request(3);
     let steps = readiness_chain();
     for (index, plan) in crate::boundary_fixture::fixtures::plans(&mut authored)
@@ -78,7 +78,7 @@ fn exercise_readiness_chain(empty: bool) {
 }
 #[test]
 fn failed_producers_wake_their_roots_without_erasing_independent_output() {
-    let (engine, _) = engine();
+    let engine = engine();
     let mut authored = authored_request(3);
     let mut failing = readiness_chain();
     // The shared pure source is read, and the producer over it fails on a column it does not have.
@@ -118,7 +118,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let functions = source();
-    let read = TableFacts::new(&[(Relation::Function, &functions)]);
+    let mut read = TableFacts::new(&[(Relation::Function, &functions)]);
     let intents = [COLLECTED, COLLECTED, COLLECTED];
     let mut rules = run_file(
         &request,
@@ -128,7 +128,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
             ..FileRun::of(&intents, &elements)
         },
         &mut symbols,
-        &read,
+        &mut read,
     );
     let mut expected = readiness_expected();
     expected.count = RowCount(4);

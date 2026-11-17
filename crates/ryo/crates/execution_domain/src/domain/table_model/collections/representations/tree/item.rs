@@ -25,10 +25,10 @@ impl RepresentationsItem for TreeItem {
             return Err(OperatingError::WrongOperation);
         };
         let relation = match tree.form {
-            crate::domain::table_cells::types::TreeForm::Elements => {
+            ryo_operators::domain::tree_cells::types::TreeForm::Elements => {
                 ryo_relations::domain::relations::types::Relation::SyntaxTree
             }
-            crate::domain::table_cells::types::TreeForm::Edges => {
+            ryo_operators::domain::tree_cells::types::TreeForm::Edges => {
                 ryo_relations::domain::relations::types::Relation::SyntaxChild
             }
         };
@@ -37,7 +37,7 @@ impl RepresentationsItem for TreeItem {
             kind: RepresentationKind::Tree,
             kinds: ryo_relations::domain::relations::service::kinds(relation),
             rows: RowCount(tree.elements.kind.len().saturating_sub(usize::from(
-                tree.form == crate::domain::table_cells::types::TreeForm::Edges,
+                tree.form == ryo_operators::domain::tree_cells::types::TreeForm::Edges,
             ))),
             metadata: Ok(()),
         })
@@ -92,7 +92,7 @@ impl RepresentationsItem for TreeItem {
         let Some(place) = row
             .0
             .checked_add(usize::from(
-                tree.form == crate::domain::table_cells::types::TreeForm::Edges,
+                tree.form == ryo_operators::domain::tree_cells::types::TreeForm::Edges,
             ))
             .and_then(|at| match u32::try_from(at) {
                 Ok(place) => Some(place),
@@ -106,11 +106,11 @@ impl RepresentationsItem for TreeItem {
         }
         let at = ryo_relations::domain::relations::types::Position(place);
         let values = match tree.form {
-            crate::domain::table_cells::types::TreeForm::Elements => {
-                crate::domain::table_cells::service::element_of(&tree, at)
+            ryo_operators::domain::tree_cells::types::TreeForm::Elements => {
+                ryo_operators::domain::tree_cells::service::element_of(&tree, at)
             }
-            crate::domain::table_cells::types::TreeForm::Edges => {
-                crate::domain::table_cells::service::edge_of(&tree, at)
+            ryo_operators::domain::tree_cells::types::TreeForm::Edges => {
+                ryo_operators::domain::tree_cells::service::edge_of(&tree, at)
             }
         };
         decode[..5].copy_from_slice(&values);

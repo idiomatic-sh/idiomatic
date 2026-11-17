@@ -1,0 +1,3 @@
+output relation<file: file>;
+let javascript = select file from "compiler-feature" where feature = "typescript.syntax" and enabled = "false";
+return javascript;

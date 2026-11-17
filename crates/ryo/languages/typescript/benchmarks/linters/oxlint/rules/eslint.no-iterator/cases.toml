@@ -52,3 +52,8 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line no-iterator\nfoo.__iterator__;\n" }
 expected = []
+
+[[cases]]
+name = "computed-escaped"
+files = { "case.ts" = "foo[`__iter\\u0061tor__`] = 1;\nfoo[\"__iter\\u0061tor__\"] = 1;\n" }
+expected = [{ file = "case.ts", start = 0, end = 24 }, { file = "case.ts", start = 30, end = 54 }]

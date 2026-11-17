@@ -1,7 +1,10 @@
 //! Shared benchmark data vocabulary; no benchmark execution or publication authority.
 pub mod artifacts;
 pub mod context;
+pub mod costs;
 pub mod documents;
+pub mod growth;
+pub mod hosts;
 pub mod measurements;
 pub mod process;
 pub mod receipts;

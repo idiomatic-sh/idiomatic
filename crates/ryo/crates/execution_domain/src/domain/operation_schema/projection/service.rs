@@ -24,86 +24,6 @@ pub(crate) fn projected(
         .collect()
 }
 
-/// Carry the schema of an empty first instruction through the compiler's closed
-/// row-continuation family without evaluating predicates or acquiring bindings.
-///
-/// # Errors
-///
-/// [`OperatingError::WrongOperation`] for an operation outside the family (a select that keeps columns, a
-/// projection that drops repeated rows, any other operation), and the projection's refusal of a column the input
-/// lacks.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::operating::errors::OperatingError;
-/// use ryo_execution_domain::domain::operation_schema::projection::service::continuation_kinds;
-/// use ryo_relations::domain::relations::types::CellKind;
-/// use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId};
-/// use ryo_values::domain::plans::types::Operation;
-///
-/// let every_column = Operation::Select {
-///     from: Input::Step(StepId(0)),
-///     comparisons: Vec::new(),
-///     kept: Vec::new(),
-/// };
-/// let input = [CellKind::Node, CellKind::Symbol];
-/// assert_eq!(continuation_kinds(&every_column, &input).unwrap(), input.to_vec());
-///
-/// let second = Operation::Project {
-///     from: Input::Step(StepId(0)),
-///     columns: vec![ColumnIndex(1)],
-///     distinct: RepeatedRows::Kept,
-/// };
-/// assert_eq!(continuation_kinds(&second, &input).unwrap(), vec![CellKind::Symbol]);
-///
-/// let distinct = Operation::Project {
-///     from: Input::Step(StepId(0)),
-///     columns: vec![ColumnIndex(1)],
-///     distinct: RepeatedRows::Dropped,
-/// };
-/// assert!(matches!(continuation_kinds(&distinct, &input), Err(OperatingError::WrongOperation)));
-/// ```
-pub fn continuation_kinds(
-    operation: &Operation,
-    input: &[CellKind],
-) -> Result<Vec<CellKind>, OperatingError> {
-    match operation {
-        Operation::Select { kept, .. } if kept.is_empty() => Ok(input.to_vec()),
-        Operation::Project {
-            columns,
-            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
-            ..
-        } => projected(input, columns),
-        Operation::Select { .. }
-        | Operation::Project { .. }
-        | Operation::Extend { .. }
-        | Operation::Join { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Replace { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::Words { .. }
-        | Operation::Axis { .. }
-        | Operation::Closure { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. } => Err(OperatingError::WrongOperation),
-    }
-}
-
 /// Read one input's metadata in the same input order as execution.
 pub(crate) fn schema_input<'a>(
     inputs: &[InputShape<'a>],
@@ -128,15 +48,18 @@ pub(crate) fn joined(
         .iter()
         .map(|column| {
             let (kinds, source) = match column.side {
-                Side::Left => (left, column.column),
+                Side::Left => (left, Some(column.column)),
                 Side::Right => (right, right_column(view, column.column)),
             };
-            column_in(kinds, source).copied().ok_or_else(|| {
-                RowsError::NoSuchColumn {
-                    index: column.column.0,
-                }
-                .into()
-            })
+            source
+                .and_then(|source| column_in(kinds, source))
+                .copied()
+                .ok_or_else(|| {
+                    RowsError::NoSuchColumn {
+                        index: column.column.0,
+                    }
+                    .into()
+                })
         })
         .collect()
 }
@@ -145,7 +68,7 @@ pub(crate) fn joined(
 /// input or a reach join, whose right columns are the closure's own.
 pub(crate) fn right_view<'a>(
     view: &'a [ColumnIndex],
-    tree: Option<crate::domain::table_cells::types::TreeForm>,
+    tree: Option<ryo_operators::domain::tree_cells::types::TreeForm>,
     reach: Option<&ryo_values::domain::plan_parts::types::ReachLookup>,
 ) -> Option<&'a [ColumnIndex]> {
     if reach.is_some() {
@@ -156,61 +79,13 @@ pub(crate) fn right_view<'a>(
 }
 
 /// The right input column a join's right column names, through its view when it has one.
-pub(crate) fn right_column(view: Option<&[ColumnIndex]>, column: ColumnIndex) -> ColumnIndex {
-    view.map_or(column, |view| {
-        crate::domain::table_cells::service::source_column(view, column)
+pub(crate) fn right_column(
+    view: Option<&[ColumnIndex]>,
+    column: ColumnIndex,
+) -> Option<ColumnIndex> {
+    view.map_or(Some(column), |view| {
+        ryo_values::domain::plan_parts::service::view_source(view, column)
     })
-}
-
-/// The native tree form a step's output keeps: a select that filters and drops nothing, and a projection that keeps
-/// every column in place, read their input's tree; any other step computes its rows.
-pub(crate) fn tree_output(
-    operation: &Operation,
-    input: Option<InputShape<'_>>,
-) -> Option<crate::domain::table_cells::types::TreeForm> {
-    match operation {
-        Operation::Select {
-            comparisons, kept, ..
-        } if comparisons.is_empty() && kept.is_empty() => input.and_then(|input| input.tree),
-        Operation::Project {
-            columns, distinct, ..
-        } if *distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Kept
-            && input.is_some_and(|input| {
-                columns.len() == input.kinds.len()
-                    && columns.iter().enumerate().all(|(at, column)| {
-                        usize::try_from(column.0).is_ok_and(|place| place == at)
-                    })
-            }) =>
-        {
-            input.and_then(|input| input.tree)
-        }
-        Operation::Select { .. }
-        | Operation::Project { .. }
-        | Operation::Extend { .. }
-        | Operation::Join { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Replace { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::Words { .. }
-        | Operation::Axis { .. }
-        | Operation::Closure { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. } => None,
-    }
 }
 
 /// Where each column of an operation's answer comes from, from where each column of its inputs comes from: the one
@@ -292,7 +167,8 @@ pub(crate) fn output_origins<T: Copy>(
                     Side::Right if reach.is_some() => None,
                     Side::Right => side(
                         OriginSide::Right,
-                        pick(input(InputPlace(1)), right_column(view, column.column)),
+                        right_column(view, column.column)
+                            .and_then(|source| pick(input(InputPlace(1)), source)),
                     ),
                 })
                 .collect();
@@ -308,6 +184,7 @@ pub(crate) fn output_origins<T: Copy>(
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }

@@ -1,0 +1,74 @@
+[[cases]]
+name = "local"
+files = { "src/lib.rs" = "pub fn f(mut a: u32) -> u32 {\n    a = a;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 34, end = 39 }]
+
+[[cases]]
+name = "distinct"
+files = { "src/lib.rs" = "pub fn f(mut a: u32, b: u32) -> u32 {\n    a = b;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "field-and-index"
+files = { "src/lib.rs" = "pub struct S {\n    pub x: u32,\n    pub v: [u32; 2],\n}\npub fn f(s: &mut S, i: usize) {\n    s.x = s.x;\n    s.v[i] = s.v[i];\n    s.v[0] = s.v[1];\n}\n" }
+expected = [{ file = "src/lib.rs", start = 90, end = 99 }, { file = "src/lib.rs", start = 105, end = 120 }]
+
+[[cases]]
+name = "deref-and-parens"
+files = { "src/lib.rs" = "pub fn f(p: &mut u32, mut a: u32) -> u32 {\n    *p = *p;\n    a = (a);\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 47, end = 54 }, { file = "src/lib.rs", start = 60, end = 67 }]
+
+[[cases]]
+name = "whitespace-and-comments"
+files = { "src/lib.rs" = "pub struct S {\n    pub x: u32,\n}\npub fn f(s: &mut S) {\n    s . x = s.x /* same */;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 59, end = 70 }]
+
+[[cases]]
+name = "tuple-field"
+files = { "src/lib.rs" = "pub fn f(t: &mut (u32, u32)) {\n    t.0 = t.0;\n    t.1 = t.0;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 35, end = 44 }]
+
+[[cases]]
+name = "call-in-place"
+files = { "src/lib.rs" = "pub fn g(v: &mut [u32]) -> &mut [u32] {\n    v\n}\npub fn f(v: &mut [u32], i: usize) {\n    v[i.min(1)] = v[i.min(1)];\n    g(v)[0] = g(v)[0];\n}\n" }
+expected = []
+
+[[cases]]
+name = "compound-is-not-assignment"
+files = { "src/lib.rs" = "pub fn f(mut a: u32) -> u32 {\n    a += a;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "number-spellings"
+files = { "src/lib.rs" = "pub fn f(v: &mut [u32; 20]) {\n    v[0x10] = v[16];\n    v[1] = v[1_u8 as usize];\n}\n" }
+expected = [{ file = "src/lib.rs", start = 34, end = 49 }]
+
+[[cases]]
+name = "in-closure-and-test-module"
+files = { "src/lib.rs" = "pub fn f(mut a: u32) -> u32 {\n    let mut g = || a = a;\n    g();\n    a\n}\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let mut b = 1;\n        b = b;\n        assert_eq!(b, 1);\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 49, end = 54 }, { file = "src/lib.rs", start = 154, end = 159 }]
+
+[[cases]]
+name = "in-macro-argument"
+files = { "src/lib.rs" = "pub fn f(mut a: u32) -> u32 {\n    println!(\"{:?}\", a = a);\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "pub fn f(mut a: u32) -> u32 {\n    #[allow(clippy::self_assignment)]\n    {\n        a = a;\n    }\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::correctness)]\npub fn f(mut a: u32) -> u32 {\n    a = a;\n    a\n}\n#[allow(clippy::all)]\npub fn g(mut a: u32) -> u32 {\n    a = a;\n    a\n}\n#[expect(warnings)]\npub fn h(mut a: u32) -> u32 {\n    a = a;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::self_assignment)]\npub fn f(mut a: u32) -> u32 {\n    a = a;\n    a\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::self_assignment)]\npub fn f(mut a: u32) -> u32 {\n    a = a;\n    a\n}\npub fn g(mut a: u32) -> u32 {\n    a = a;\n    a\n}\n" }
+expected = [{ file = "src/lib.rs", start = 90, end = 95 }]

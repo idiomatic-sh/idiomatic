@@ -3,9 +3,8 @@ use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::ColumnsMut;
-use crate::outbound::facts::types::KeptBucket;
-use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
+use crate::outbound::facts::types::{KeptBucket, KeptSources};
 use ryo_values::domain::stored_facts::types::Bucket;
 
 /// No compiled rule in these programs has a file frontier or a project relation.
@@ -15,12 +14,13 @@ impl FactsFinish for NoFacts {
     fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
         panic!("a submission control has no file frontier to fetch")
     }
+
+    fn sources(&self, _: Bucket) -> Result<KeptSources, FactsError> {
+        panic!("a submission control has no file frontier to fetch")
+    }
 }
 
 impl FactsWorker for NoFacts {
-    fn resident_stability(&self) -> ResidentStability {
-        ResidentStability::Stable
-    }
     fn rows(
         &self,
         _: ryo_relations::domain::relations::types::Relation,
@@ -46,6 +46,10 @@ pub struct NoFileFrontiers;
 
 impl FactsFinish for NoFileFrontiers {
     fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
+        panic!("this compiled rule has no file frontier to fetch")
+    }
+
+    fn sources(&self, _: Bucket) -> Result<KeptSources, FactsError> {
         panic!("this compiled rule has no file frontier to fetch")
     }
 }

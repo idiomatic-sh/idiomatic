@@ -15,12 +15,15 @@ pub struct ExecutionFake {
     pub status: i32,
     /// Calls actually received, shared with the test observer.
     pub history: std::sync::Arc<std::sync::Mutex<Vec<Invocation>>>,
+    /// The resources every run reports: its wall time only, unless a test collects them.
+    pub resources: ResourceObservation,
 }
 impl Default for ExecutionFake {
     fn default() -> Self {
         Self {
             status: 7,
             history: std::sync::Arc::default(),
+            resources: ResourceObservation::WallOnly,
         }
     }
 }
@@ -54,7 +57,13 @@ impl ExecutionPort for ExecutionFake {
         if invocation.executable.file_stem().is_some_and(|name| {
             name == "invalid-format" || cfg!(windows) && name == "missing-interpreter"
         }) {
-            return Err(std::io::Error::from_raw_os_error(super::driver::image_error()).into());
+            return Err(std::io::Error::from_raw_os_error(
+                super::driver::image_errors()
+                    .first()
+                    .copied()
+                    .unwrap_or_default(),
+            )
+            .into());
         }
         let large = invocation
             .arguments
@@ -108,7 +117,7 @@ impl ExecutionPort for ExecutionFake {
                 b"issue".to_vec()
             }),
             wall: Duration::ZERO,
-            resources: ResourceObservation::WallOnly,
+            resources: self.resources,
         })
     }
 }

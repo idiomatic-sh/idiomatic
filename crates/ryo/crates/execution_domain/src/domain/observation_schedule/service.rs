@@ -1,6 +1,7 @@
 //! The request-level observation schedule: the declared dependency edges between rules, the schemas their bound inputs
 //! resolve to, and the plans linked beneath them. No providers or operators run here.
 
+pub mod frontiers;
 pub mod link;
 
 use super::types::{
@@ -11,10 +12,7 @@ use crate::domain::coverage::types::RuleIndex;
 use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::domain::observations::types::{BoundObservationInput, ObservationProducer};
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plan_parts::types::{Input, ObservationBindingId, StepId};
-use ryo_values::domain::plans::service::{each_input, inputs_of, named};
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::{BTreeMap, BTreeSet};
@@ -66,7 +64,7 @@ pub fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, RuleIntentError> {
                                 rule: id.0.to_string(),
                             });
                         }
-                        needs[consumer].insert(producer);
+                        let _: bool = needs[consumer].insert(producer);
                     }
                     ObservationProducer::NoQuery { rule: id } if index.contains_key(id) => {
                         return Err(RuleIntentError::ExecutableNoQuery {

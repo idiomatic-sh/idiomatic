@@ -13,6 +13,8 @@ enum Scenario {
     AccountedInventory,
     DiagnosticSubset,
     AccountedWithoutAuthoredRules,
+    /// The tool defers a second default, which the audit finds unauthored.
+    AccountedWithDeferral,
 }
 type Input = Scenario;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,6 +38,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Admitted::Benchmark(1)),
     },
     Case {
+        name: CaseName(
+            "an accounted run is held to the declared inventory but its deferred defaults",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::AccountedWithDeferral,
+        expect: Expect::Value(Admitted::Benchmark(1)),
+    },
+    Case {
         name: CaseName("a diagnostic run is held to nothing"),
         word: Word::Succeeds,
         input: || Scenario::DiagnosticSubset,
@@ -51,12 +61,26 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let (scope, authored) = match scenario {
-        Scenario::AccountedInventory => (BenchmarkCoverage::Accounted, true),
+        Scenario::AccountedInventory | Scenario::AccountedWithDeferral => {
+            (BenchmarkCoverage::Accounted, true)
+        }
         Scenario::DiagnosticSubset => (BenchmarkCoverage::Interim, true),
         Scenario::AccountedWithoutAuthoredRules => (BenchmarkCoverage::Accounted, false),
     };
-    let tool = tool();
-    let audit = crate::inbound::use_cases::audit::fixtures::audited(authored);
+    let mut tool = tool();
+    let mut audit = crate::inbound::use_cases::audit::fixtures::audited(authored);
+    if let Scenario::AccountedWithDeferral = scenario {
+        let later =
+            ryo::linter::RuleId::try_from("later").map_err(|_invalid| Refusal::Unexpected)?;
+        tool.defaults.push(later.clone());
+        let _previous = tool.deferred.insert(
+            later.clone(),
+            ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
+                "a capability".into(),
+            ),
+        );
+        audit.missing.push(later);
+    }
     AdmitMeasurementUseCaseImpl::new()
         .admit_measurement(&MeasurementAdmission {
             scope,

@@ -2,13 +2,13 @@
 
 use super::adapter::PackagesPathAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::packages::types::{
-    Dependency, GitSource, PackageName, PackageRoot, PackageSource, SourcePath,
-};
 use crate::outbound::packages::errors::PackagesError;
 use crate::outbound::packages::fixtures::contract::check;
 use crate::outbound::packages::interface::PackagesPort as _;
 use crate::outbound::packages::types::HeldFiles;
+use tastemaker_values::domain::packages::types::{
+    Dependency, GitSource, PackageName, PackageRoot, PackageSource, SourcePath,
+};
 
 /// What a row asks of a temporary package directory.
 #[derive(Clone, Debug)]
@@ -67,10 +67,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             Scenario::Locate(
                 PackageSource::Git(GitSource {
-                    url: crate::domain::packages::types::RepositoryUrl(
+                    url: tastemaker_values::domain::packages::types::RepositoryUrl(
                         "https://example.invalid/p".into(),
                     ),
-                    revision: crate::domain::packages::types::Revision("1".into()),
+                    revision: tastemaker_values::domain::packages::types::Revision("1".into()),
                 }),
                 "",
             )

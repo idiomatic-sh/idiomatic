@@ -39,7 +39,7 @@ fn lint(files: &[(&str, &str)]) -> (Pairs, Pairs) {
         ("counts", COUNTS),
     ]
     .iter()
-    .map(|(id, query)| crate::rule_from_query(id, query, &["**".to_owned()]))
+    .map(|(id, query)| crate::tools::rule_from_query(id, query, &["**".to_owned()]))
     .collect();
     let (rows, report) = base::lint_report(
         root.path(),
@@ -148,7 +148,7 @@ fn lint_in(
         ("counts", COUNTS),
     ]
     .iter()
-    .map(|(id, query)| crate::rule_from_query(id, query, &["**".to_owned()]))
+    .map(|(id, query)| crate::tools::rule_from_query(id, query, &["**".to_owned()]))
     .collect();
     let (mut rows, report) = base::lint_report(
         root,
@@ -217,12 +217,12 @@ fn the_unknown_reasons_of_the_linked_languages_are_numbered_apart() {
 /// Optional semantic facts are unavailable from Rust, rather than a known empty set.
 const OPTIONAL_CAPABILITY_RULES: [(&str, &str); 20] = [
     (
-        "shape-positive",
-        "let rows = select * from \"expression-shape\"; emit rows subject file key(span);",
+        "type-positive",
+        "let rows = select * from \"expression-type\"; emit rows subject file key(span);",
     ),
     (
-        "shape-negative",
-        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"expression-shape\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
+        "type-negative",
+        "let variables = select * from \"defines\" where kind = \"variable\"; let absent = antijoin(left=variables, right=\"expression-type\", left-on=[\"file\"], right-on=[\"file\"]); emit absent subject file key(span);",
     ),
     (
         "identifier-positive",
@@ -307,7 +307,7 @@ fn unadvertised_semantics_are_unknown_and_never_prove_absence_cold_or_warm() {
         let rules = OPTIONAL_CAPABILITY_RULES
             .iter()
             .chain(std::iter::once(&("witness", SELECTS)))
-            .map(|(id, query)| crate::rule_from_query(id, query, &["**".to_owned()]))
+            .map(|(id, query)| crate::tools::rule_from_query(id, query, &["**".to_owned()]))
             .collect();
         let (rows, report) = base::lint_report(
             root.path(),

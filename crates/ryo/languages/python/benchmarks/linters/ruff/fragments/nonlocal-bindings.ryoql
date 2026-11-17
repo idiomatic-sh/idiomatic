@@ -1,4 +1,5 @@
 import annotation_context from "python/ruff/annotation-evaluation-context";
+import latest_before from "python/ruff/latest-before";
 import type_scope_events from "python/ruff/checker-type-scope-events";
 input events: relation<occurrence: node, name: symbol, scope: node, ordinal: number, kind: symbol, file: file>;
 output relation<declaration: node, name: symbol, scope: node, binding: node, target_scope: node, kind: symbol, file: file>;
@@ -18,7 +19,9 @@ let raw_primary = select occurrence, name, scope, ordinal, kind, file from event
 let parameters = select id, name, file from "defines" where refinement = "type-var" or refinement = "type-var-tuple" or refinement = "param-spec";
 let primary_values = antijoin(left=raw_primary, right=parameters, left-on=["occurrence", "file"], right-on=["id", "file"]);
 let annotation_prior = union(left=primary_values, right=annotation_events);
-let delayed_annotation_ids = select l.occurrence as occurrence, l.file as file from annotation_events as l join annotation_prior as r on l.scope = r.scope and l.name = r.name and l.file = r.file where r.ordinal < l.ordinal;
+let annotation_prior_stream = select scope, name, file, ordinal, occurrence from annotation_prior;
+let annotation_prior_pairs = ordered-match(left=annotation_prior_stream, right=annotation_prior_stream, left-on=[scope,name,file], right-on=[scope,name,file], left-order="ordinal", right-order="ordinal", output={later:[right,occurrence], later_order:[right,ordinal], file:[right,file]});
+let delayed_annotation_ids = select l.occurrence as occurrence, l.file as file from annotation_events as l join annotation_prior_pairs as r on l.occurrence = r.later and l.ordinal = r.later_order and l.file = r.file;
 let real_annotations = antijoin(left=annotation_events, right=delayed_annotation_ids, left-on=["occurrence", "file"], right-on=["occurrence", "file"]);
 let primary = union(left=primary_values, right=real_annotations);
 let parameter_owners = axis(from=parameters, relation="semantic-child", direction=nearest-ancestor, domain=generics);
@@ -65,7 +68,10 @@ let seeded = union(left=seeded_values, right=seeded_parameters);
 let valid_declarations = select l.id as occurrence, l.name as name, l.scope as scope, l.ordinal as ordinal, l.file as file from declarations as l join seeded as r on l.id = r.declaration and l.file = r.file;
 let valid_nonlocals0 = extend(from=valid_declarations, values={kind: "nonlocal"});
 let valid_nonlocals = select occurrence, name, scope, ordinal, kind, file from valid_nonlocals0;
-let nonlocal_delayed_annotations = select l.occurrence as occurrence, l.file as file from real_annotations as l join valid_nonlocals as r on l.scope = r.scope and l.name = r.name and l.file = r.file where r.ordinal < l.ordinal;
+let nonlocal_probe_rows = select scope, scope as phase, name, file, ordinal from real_annotations;
+let nonlocal_event_rows = select scope, scope as phase, name, file, ordinal from valid_nonlocals;
+let nonlocal_annotation_hits = latest_before(events=nonlocal_event_rows, probes=nonlocal_probe_rows);
+let nonlocal_delayed_annotations = select l.occurrence as occurrence, l.file as file from real_annotations as l join nonlocal_annotation_hits as r on l.scope = r.scope and l.name = r.name and l.file = r.file and l.ordinal = r.point;
 let final_annotations = antijoin(left=real_annotations, right=nonlocal_delayed_annotations, left-on=["occurrence", "file"], right-on=["occurrence", "file"]);
 let final_primary = union(left=primary_values, right=final_annotations);
 let value_events = union(left=final_primary, right=valid_nonlocals);

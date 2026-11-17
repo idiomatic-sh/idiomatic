@@ -1,15 +1,22 @@
 //! Request-graph dependencies: the producers a rule may read, their schemas and the plans linked beneath them.
 use std::borrow::Cow;
 
-use super::fixtures::{binding, bound_input, export, exporting, observing, plan, rule};
+use super::fixtures::{binding, bound_input, column, export, exporting, observing, plan, rule};
 use super::service::link::{service::following, service::link};
 use super::service::{schedule, schemas};
-use super::types::{ResolvedObservationBinding, RuleSchedule};
+use super::types::{ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule};
+use crate::domain::coverage::types::RuleIndex;
 use crate::domain::rule_intent::errors::RuleIntentError;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::observations::types::ObservationProducer;
-use ryo_values::domain::plan_parts::types::{ObservationBindingId, StepId};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::observations::types::{
+    ObservationName, ObservationProducer, PlanObservation,
+};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, Input as PlanInput, ObservationBindingId, RepeatedRows, StepId, StepScope,
+};
+use ryo_values::domain::plans::types::{Operation, Plan, PlanStep};
+use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::selects;
@@ -24,6 +31,19 @@ enum Ask {
     Following(StepId),
     /// The plans linked beneath their bindings.
     Link(Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>),
+    /// Whether each plan linked beneath its bindings is the plan given, shared, or a new one.
+    Shared(Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>),
+    /// The steps the first plan linked beneath its bindings keeps, and the room its step list holds.
+    Pruned(Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>),
+}
+
+/// Whether a linked plan is the plan it was given.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Kept {
+    /// The plan given, shared.
+    Shared,
+    /// A new plan.
+    New,
 }
 
 /// What the request graph answers.
@@ -42,6 +62,10 @@ enum Answer {
     Next(StepId),
     /// The plans were linked.
     Linked,
+    /// Whether each linked plan is the one given.
+    Plans(Cow<'static, [Kept]>),
+    /// The steps a linked plan keeps, and the room its step list holds.
+    Steps { kept: usize, room: usize },
 }
 
 type Input = Ask;
@@ -159,6 +183,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Ask::Following(StepId(u32::MAX)),
         expect: Expect::Error(RuleIntentError::TooManyOutputs),
     },
+    Case {
+        name: CaseName("a_plan_linking_prunes_nothing_from_stays_shared"),
+        word: Word::Succeeds,
+        input: || {
+            let (plans, bindings) = demanded();
+            Ask::Shared(plans, bindings)
+        },
+        expect: Expect::Value(Answer::Plans(Cow::Borrowed(&[Kept::Shared, Kept::Shared]))),
+    },
+    Case {
+        name: CaseName("a_pruned_plan_holds_only_its_kept_steps"),
+        word: Word::Succeeds,
+        input: || {
+            let (plans, bindings) = undemanded();
+            Ask::Pruned(plans, bindings)
+        },
+        expect: Expect::Value(Answer::Steps { kept: 2, room: 2 }),
+    },
 ];
 fn subject(ask: Input) -> Result<Value, Failure> {
     Ok(match ask {
@@ -176,8 +218,91 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             schemas(&rules[1], &rules, &compiled).map(|_| Answer::Prepared)?
         }
         Ask::Following(step) => Answer::Next(following(step)?),
-        Ask::Link(plans, bindings) => link(plans, bindings).map(|_| Answer::Linked)?,
+        Ask::Link(plans, bindings) => link(
+            plans.into_iter().map(std::sync::Arc::new).collect(),
+            bindings,
+        )
+        .map(|_| Answer::Linked)?,
+        Ask::Shared(plans, bindings) => {
+            let given: Vec<_> = plans.into_iter().map(std::sync::Arc::new).collect();
+            let linked = link(given.clone(), bindings)?;
+            Answer::Plans(
+                given
+                    .iter()
+                    .zip(&linked.plans)
+                    .map(|(given, linked)| {
+                        if std::sync::Arc::ptr_eq(given, linked) {
+                            Kept::Shared
+                        } else {
+                            Kept::New
+                        }
+                    })
+                    .collect(),
+            )
+        }
+        Ask::Pruned(plans, bindings) => {
+            let linked = link(
+                plans.into_iter().map(std::sync::Arc::new).collect(),
+                bindings,
+            )?;
+            let first = linked
+                .plans
+                .first()
+                .ok_or(RuleIntentError::InvalidReference)?;
+            Answer::Steps {
+                kept: first.steps.len(),
+                room: first.steps.capacity(),
+            }
+        }
     })
+}
+
+/// A producer whose every step is kept, exporting its first step, and a consumer that reads the export in one step: linking
+/// prunes nothing from either.
+fn demanded() -> (Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>) {
+    let mut consumer = plan();
+    consumer.observation_inputs = vec![bound_input("rows")];
+    consumer.steps = vec![PlanStep {
+        scope: StepScope::PerFile,
+        operation: Operation::Project {
+            from: PlanInput::BoundObservation(ObservationBindingId(0)),
+            columns: vec![ColumnIndex(0)],
+            distinct: RepeatedRows::Kept,
+        },
+    }];
+    consumer.emit.step = StepId(0);
+    let bound = ResolvedObservationBinding {
+        input: ObservationBindingId(0),
+        schema: bound_input("rows"),
+        producers: vec![ResolvedObservationProducer::Output {
+            rule: RuleIndex(0),
+            output: ObservationIndex(0),
+        }],
+    };
+    (
+        vec![exporting(vec![column()]), consumer],
+        vec![vec![], vec![bound]],
+    )
+}
+
+/// A plan with a named output no rule reads, whose step nothing else reads: linking keeps only the emitted steps.
+fn undemanded() -> (Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>) {
+    let mut unread = plan();
+    unread.steps.push(PlanStep {
+        scope: StepScope::PerFile,
+        operation: Operation::Select {
+            from: PlanInput::Relation(Relation::Function),
+            comparisons: vec![],
+            kept: vec![],
+        },
+    });
+    unread.observations.push(PlanObservation {
+        name: ObservationName("unread".into()),
+        source: PlanInput::Step(StepId(2)),
+        columns: vec![column()],
+        scope: StepScope::PerFile,
+    });
+    (vec![unread], vec![vec![]])
 }
 
 /// A plan that emits a step it does not have, linked beneath one binding.

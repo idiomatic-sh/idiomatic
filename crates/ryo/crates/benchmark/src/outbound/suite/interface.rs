@@ -14,7 +14,7 @@ pub trait ScopedDirectory: Send + Sync {
     fn path(&self) -> &std::path::Path;
 }
 /// Read external suite artifacts and audit their authored default coverage.
-pub trait SuitePort {
+pub trait SuitePort: Send + Sync {
     /// Reverify declared physical observations before each contestant prepares its input.
     ///
     /// # Errors
@@ -52,6 +52,17 @@ pub trait SuitePort {
     ///
     /// Returns an error for unreadable, malformed, or inconsistent profile artifacts.
     fn profile(&self, directory: ArtifactPath<'_>) -> Result<Tool, Error>;
+    /// The directory holding the settings profile of one rule: `profiles/<id>` below the bench when it holds a profile, else
+    /// the bench itself.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the dedicated profile's manifest exists but cannot be read.
+    fn settings_directory(
+        &self,
+        bench: ArtifactPath<'_>,
+        rule: &ryo::linter::RuleId,
+    ) -> Result<std::path::PathBuf, Error>;
     /// Decode the shared language project manifest below its artifact directory.
     ///
     /// # Errors
@@ -151,6 +162,14 @@ pub trait SuitePort {
         &self,
         file: ArtifactPath<'_>,
     ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error>;
+    /// A language's growth table, as its `growth.toml` writes it.
+    ///
+    /// # Errors
+    /// Refuses a missing file, a malformed table, an invalid rule name, or a table that grows nothing.
+    fn growth_table(
+        &self,
+        file: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::growth::types::GrowthTable, Error>;
     /// The UTF-8 text of one source file.
     ///
     /// # Errors
@@ -166,6 +185,14 @@ pub trait SuitePort {
     /// # Errors
     /// Refuses a file that cannot be inspected.
     fn total_size(&self, files: ArtifactSet<'_>) -> Result<ArtifactSize, Error>;
+    /// The bytes and the count of every file below a directory, links not followed: the store a run left there.
+    ///
+    /// # Errors
+    /// Refuses a directory or an entry that cannot be inspected.
+    fn directory_size(
+        &self,
+        directory: ArtifactPath<'_>,
+    ) -> Result<ryo_benchmark_contracts::domain::costs::types::StoreSize, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     ///
     /// # Errors

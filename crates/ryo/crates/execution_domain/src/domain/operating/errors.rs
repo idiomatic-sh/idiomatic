@@ -30,9 +30,16 @@ pub enum OperatingError {
         /// The application's or provider's exact reason.
         reason: String,
     },
-    /// Ordered DFS cannot distinguish two outgoing edges of one partition/source.
-    #[error("ordered-dfs requires unique order values within each partition and source")]
+    /// An ordered walk cannot distinguish two outgoing edges of one partition and source.
+    #[error(
+        "ordered-dfs and worklist require unique order values within each partition and source (and before-state)"
+    )]
     DuplicateDfsOrder,
+    /// The lattice rows of a `worklist` make no lattice, or a root or edge names a state they do not hold.
+    #[error(
+        "worklist requires lattice rows with no cycle, one least state and one least upper bound for every two states, holding every root and edge state"
+    )]
+    NotALattice,
     /// A visit ordinal cannot be represented as an engine integer.
     #[error("ordered-dfs visit ordinal overflow")]
     DfsOrdinalOverflow,
@@ -60,6 +67,12 @@ pub enum OperatingError {
     /// A step reads a step that has not run.
     #[error("a step reads a step that has not run")]
     NotRun,
+    /// An occurrence after the files reads the handover of a rule whose last declared occurrence already ran: the phase
+    /// released it, so its count of the rule's occurrences fell short.
+    #[error(
+        "an occurrence reads a rule's handover after the rule's last declared occurrence released it"
+    )]
+    HandoverReleased,
     /// A step reads a relation nobody read.
     #[error("a step reads a relation that was not read")]
     NotRead,
@@ -84,4 +97,26 @@ pub enum OperatingError {
     /// A step reads a column its input lacks.
     #[error(transparent)]
     Table(#[from] RowsError),
+}
+
+impl From<ryo_operators::domain::comparing::errors::ComparingError> for OperatingError {
+    fn from(fault: ryo_operators::domain::comparing::errors::ComparingError) -> Self {
+        use ryo_operators::domain::comparing::errors::ComparingError as Fault;
+        match fault {
+            Fault::WrongTest => Self::WrongTest,
+            Fault::Unbound => Self::Unbound,
+            Fault::WrongBinding => Self::WrongBinding,
+            Fault::InvalidRegex { reason } => Self::InvalidRegex { reason },
+            Fault::Rows(error) => Self::Table(error),
+        }
+    }
+}
+
+impl From<ryo_operators::domain::patterns::errors::PatternsError> for OperatingError {
+    fn from(fault: ryo_operators::domain::patterns::errors::PatternsError) -> Self {
+        use ryo_operators::domain::patterns::errors::PatternsError as Fault;
+        match fault {
+            Fault::InvalidRegex { reason } => Self::InvalidRegex { reason },
+        }
+    }
 }

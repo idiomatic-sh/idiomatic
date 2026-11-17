@@ -30,7 +30,7 @@ pub(super) fn answer(
     arguments: ScaffoldArguments,
     edge: &crate::edge::Edge,
 ) -> Result<impl crate::output::Encoded, Outcome> {
-    let dry = edge.writing == tastemaker_core::domain::writing::types::Writing::DryRun;
+    let dry = edge.writing == tastemaker_values::domain::writing::types::Writing::DryRun;
     let request = super::schemas::request(arguments.entry, arguments.at, arguments.set, edge)
         .map_err(|error| crate::output::fail(&error, Outcome::Failure))?;
     super::composition::build(&edge.store)

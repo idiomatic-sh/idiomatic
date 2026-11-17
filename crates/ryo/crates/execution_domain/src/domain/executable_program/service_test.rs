@@ -1,391 +1,177 @@
-//! A region the recogniser did not resolve keeps its registered operators, equivalent drafted regions merge as the linear scan
-//! would in linear cost, and demand compilation preserves declared order.
-use super::fixtures::{Cost, Merge, axis, merge_beside_the_linear_scan, merge_cost};
-use super::{
-    service::ordered_existence,
-    types::{DemandAction, Route, RouteKind, RowGate, demand_program::value::DemandProgram},
-};
-use crate::domain::{
-    operation_schema::types::InputShape, operator::contract::service::prepare_for,
-    operator::contract::types::DemandOrder,
-};
-use ryo_relations::domain::relations::types::{CellKind, Relation};
-use ryo_values::domain::query_operators::types::OperationKind;
-use ryo_values::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::{
-        plan_parts::types::{ColumnIndex, Input as PlanInput, StepScope},
-        plans::types::Operation,
-    },
-};
+//! Seam D: a request's rules merged into one logical program, and the planned program each rule is served from.
+
+use super::fixtures::{Request, rules_of};
+use super::service::scopes::service::observation_reach;
+use super::service::{assemble, consumers, logical, roots, rule};
+use super::types::program_inputs::value::ProgramInputs;
+use super::types::{RuleBindings, RuleInput, RuleObservations};
+use crate::domain::coverage::types::RuleIndex;
+use ryo_operators::domain::physical_plan::types::PlanNodeId;
+use ryo_operators::inbound::use_cases::plan::interface::PlanUseCase as _;
+use ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::LiteralText;
 use std::borrow::Cow;
-/// What a case asks.
-#[derive(Clone, Copy, Debug)]
-enum Asked {
-    /// The demand program of an axis contract whose demand order is replaced by this order, over this
-    /// many inputs.
-    Demand(DemandOrder, usize),
-    /// The region merge of 40 rules in 7 variants, beside the linear scan it replaced.
-    MergeBesideLinearScan,
-    /// The comparisons of the region merge of 50, 100, 200 and 400 rules.
-    MergeCost,
-    /// The route of a region the recogniser did not resolve.
-    UnresolvedRegion,
-    /// The row gate of a replace over a symbol column, for a name with no text.
-    NameWithoutText,
-    /// The place of every original step of three rules, beside the logical lookup.
-    StepOrigins,
-}
 
-/// The demand order the axis contract prepared, and the inputs the compiled program admits, in order.
-#[derive(Debug, PartialEq)]
-struct Demand {
-    prepared: DemandOrder,
-    admits: Cow<'static, [usize]>,
-}
-
-/// The route an unresolved region gets, and whether it has an ordered existence.
-#[derive(Debug, PartialEq)]
-struct Unresolved {
-    route: RouteKind,
-    ordered_existence: bool,
-}
-
-/// The original steps of the rules, how many have a place, and how many places name what the lookup finds.
-#[derive(Debug, PartialEq)]
-struct Origins {
-    steps: usize,
-    placed: usize,
-    as_looked_up: usize,
-}
-
-/// What a case answers.
-#[derive(Debug, PartialEq)]
-enum Answer {
-    Demand(Demand),
-    Merge(Merge),
-    Cost(Cost),
-    Unresolved(Unresolved),
-    Gate(RowGate),
-    Origins(Origins),
-}
-
-type Input = Asked;
-type Value = Answer;
-type Failure = crate::domain::operating::errors::OperatingError;
-
-const fn demand(admits: &'static [usize]) -> Answer {
-    Answer::Demand(Demand {
-        prepared: DemandOrder::LeftThenRight,
-        admits: Cow::Borrowed(admits),
-    })
-}
+type Input = Request;
+type Value = Cow<'static, str>;
+type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("no_inputs"),
+        name: CaseName("equal_steps_over_equal_inputs_are_one_node"),
         word: Word::Succeeds,
-        input: || Asked::Demand(DemandOrder::None, 0),
-        expect: Expect::Value(demand(&[])),
+        input: || Request::EqualSteps,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 1; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); consumers [2]; inputs [[Relation(Function)]]; reach [Phase]; roots word []; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("unary"),
+        name: CaseName("same_step_in_file_and_project_scope_stays_apart"),
         word: Word::Succeeds,
-        input: || Asked::Demand(DemandOrder::Unary, 1),
-        expect: Expect::Value(demand(&[0])),
+        input: || Request::FileAndProjectScope,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [1, 1]; inputs [[Relation(Function)], [Relation(Function)]]; reach [Phase, Phase]; roots word []; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("empty_ordered"),
+        name: CaseName("equal_steps_with_different_parameter_values_stay_apart"),
         word: Word::Succeeds,
-        input: || Asked::Demand(DemandOrder::LeftThenRight, 0),
-        expect: Expect::Value(demand(&[])),
+        input: || Request::DifferentParameterValues,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [1, 1]; inputs [[Relation(Function)], [Relation(Function)]]; reach [Phase, Phase]; roots word []; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("one_ordered"),
+        name: CaseName("a_bound_input_reads_its_rule_s_place"),
         word: Word::Succeeds,
-        input: || Asked::Demand(DemandOrder::LeftThenRight, 1),
-        expect: Expect::Value(demand(&[0])),
+        input: || Request::BoundInput,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 1; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); consumers [1]; inputs [[Observation(BoundObservationPlace { rule: RuleOrdinal(0), input: ObservationBindingId(0) })]]; reach [Occurrence]; roots word []; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("two_ordered"),
+        name: CaseName("a_schema_fault_is_the_emit_before_any_row"),
         word: Word::Succeeds,
-        input: || Asked::Demand(DemandOrder::LeftThenRight, 2),
-        expect: Expect::Value(demand(&[0, 1])),
+        input: || Request::SchemaFault,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 1; rule 0: steps [Err(Table(NoSuchColumn { index: 99 }))] emit Err(Table(NoSuchColumn { index: 99 })); consumers [0]; inputs [[Relation(Function)]]; reach [Phase]; roots word []; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("three_ordered"),
+        name: CaseName("root_kinds_stop_at_the_infallible_prefix"),
         word: Word::Succeeds,
-        input: || Asked::Demand(DemandOrder::LeftThenRight, 3),
-        expect: Expect::Value(demand(&[0, 1, 2])),
+        input: || Request::RootKinds,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [1, 1]; inputs [[Relation(SyntaxTree)], [Relation(SyntaxTree)]]; reach [Phase, Phase]; roots word [PlanNodeId(0)]; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("merge_matches_the_linear_scan"),
+        name: CaseName("two_rules_frontier_entries_stay_apart"),
         word: Word::Succeeds,
-        input: || Asked::MergeBesideLinearScan,
-        expect: Expect::Value(Answer::Merge(Merge {
-            kept: 25,
-            kept_as_the_scan: true,
-            drafts: 80,
-            drafts_left: 30,
-            drafts_left_as_the_scan: true,
-            mapping_as_the_scan: true,
-            representatives_as_the_scan: true,
-            readers_as_the_scan: true,
-        })),
+        input: || Request::TwoRulesFrontiers,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 3; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); rule 1: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(2))] emit Ok(PlanNodeId(2)); consumers [2, 1, 1]; inputs [[Relation(Function)], [Frontier(FrontierPlace { rule: RuleOrdinal(0), input: InputNumber(0) })], [Frontier(FrontierPlace { rule: RuleOrdinal(1), input: InputNumber(0) })]]; reach [Phase, Phase, Phase]; roots word []; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("regions_merge_cost_is_linear_in_rule_count"),
+        name: CaseName("observation_inputs_of_two_rules_stay_apart"),
         word: Word::Succeeds,
-        input: || Asked::MergeCost,
-        expect: Expect::Value(Answer::Cost(Cost {
-            comparisons: Cow::Borrowed(&[48, 98, 198, 398]),
-            linear: true,
-        })),
+        input: || Request::TwoRulesObservations,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0))] emit Ok(PlanNodeId(0)); rule 1: steps [Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [1, 1]; inputs [[Observation(BoundObservationPlace { rule: RuleOrdinal(0), input: ObservationBindingId(0) })], [Observation(BoundObservationPlace { rule: RuleOrdinal(1), input: ObservationBindingId(0) })]]; reach [Occurrence, Occurrence]; roots word []; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("a_name_without_text_is_refused_by_the_replace_text_gate"),
-        word: Word::Refuses,
-        input: || Asked::NameWithoutText,
-        expect: Expect::Error(crate::domain::operating::errors::OperatingError::ShapeMismatch),
+        name: CaseName("a_node_reading_an_observation_is_occurrence_bound"),
+        word: Word::Succeeds,
+        input: || Request::ObservationReach,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 4; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3))] emit Ok(PlanNodeId(3)); consumers [1, 1, 0, 1]; inputs [[Relation(Function)], [Observation(BoundObservationPlace { rule: RuleOrdinal(0), input: ObservationBindingId(0) })], [Node(PlanNodeId(1))], [Frontier(FrontierPlace { rule: RuleOrdinal(0), input: InputNumber(1) })]]; reach [Phase, Occurrence, Occurrence, Phase]; roots word []; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("step_origin_place_equals_the_logical_lookup"),
+        name: CaseName("consumers_count_readers_emits_and_holds"),
         word: Word::Succeeds,
-        input: || Asked::StepOrigins,
-        expect: Expect::Value(Answer::Origins(Origins {
-            steps: 6,
-            placed: 6,
-            as_looked_up: 6,
-        })),
+        input: || Request::SharedReads,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 2; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1))] emit Ok(PlanNodeId(1)); consumers [2, 1]; inputs [[Relation(Function)], [Node(PlanNodeId(0))]]; reach [Phase, Phase]; roots word []; roots other [];",
+        )),
     },
     Case {
-        name: CaseName("an_unresolved_region_keeps_its_registered_operators"),
+        name: CaseName("a_fragment_two_rules_read_at_different_steps_is_one_node_each"),
         word: Word::Succeeds,
-        input: || Asked::UnresolvedRegion,
-        expect: Expect::Value(Answer::Unresolved(Unresolved {
-            route: RouteKind::Generic,
-            ordered_existence: false,
-        })),
+        input: || Request::SharedFragment,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 8; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4))] emit Ok(PlanNodeId(4)); rule 1: steps [Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(5)), Ok(PlanNodeId(6)), Ok(PlanNodeId(7))] emit Ok(PlanNodeId(7)); consumers [1, 1, 1, 2, 1, 1, 1, 1]; inputs [[Relation(Function)], [Node(PlanNodeId(0))], [Relation(Function)], [Node(PlanNodeId(2))], [Node(PlanNodeId(1)), Node(PlanNodeId(3))], [Relation(Function)], [Node(PlanNodeId(5))], [Node(PlanNodeId(6)), Node(PlanNodeId(3))]]; reach [Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase]; roots word []; roots other [];",
+        )),
+    },
+    Case {
+        name: CaseName("six_rules_reading_one_fragment_after_their_own_steps_share_its_nodes"),
+        word: Word::Succeeds,
+        input: || Request::SharedFragmentAfterOwnSteps,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 37; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(6))] emit Ok(PlanNodeId(6)); rule 1: steps [Ok(PlanNodeId(7)), Ok(PlanNodeId(8)), Ok(PlanNodeId(9)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(10))] emit Ok(PlanNodeId(10)); rule 2: steps [Ok(PlanNodeId(11)), Ok(PlanNodeId(12)), Ok(PlanNodeId(13)), Ok(PlanNodeId(14)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(15))] emit Ok(PlanNodeId(15)); rule 3: steps [Ok(PlanNodeId(16)), Ok(PlanNodeId(17)), Ok(PlanNodeId(18)), Ok(PlanNodeId(19)), Ok(PlanNodeId(20)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(21))] emit Ok(PlanNodeId(21)); rule 4: steps [Ok(PlanNodeId(22)), Ok(PlanNodeId(23)), Ok(PlanNodeId(24)), Ok(PlanNodeId(25)), Ok(PlanNodeId(26)), Ok(PlanNodeId(27)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(28))] emit Ok(PlanNodeId(28)); rule 5: steps [Ok(PlanNodeId(29)), Ok(PlanNodeId(30)), Ok(PlanNodeId(31)), Ok(PlanNodeId(32)), Ok(PlanNodeId(33)), Ok(PlanNodeId(34)), Ok(PlanNodeId(35)), Ok(PlanNodeId(2)), Ok(PlanNodeId(3)), Ok(PlanNodeId(4)), Ok(PlanNodeId(5)), Ok(PlanNodeId(36))] emit Ok(PlanNodeId(36)); consumers [1, 1, 1, 2, 1, 6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]; inputs [[Relation(Function)], [Node(PlanNodeId(0))], [Relation(Function)], [Node(PlanNodeId(2))], [Node(PlanNodeId(3))], [Node(PlanNodeId(3)), Node(PlanNodeId(4))], [Node(PlanNodeId(1)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(7))], [Node(PlanNodeId(8))], [Node(PlanNodeId(9)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(11))], [Node(PlanNodeId(12))], [Node(PlanNodeId(13))], [Node(PlanNodeId(14)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(16))], [Node(PlanNodeId(17))], [Node(PlanNodeId(18))], [Node(PlanNodeId(19))], [Node(PlanNodeId(20)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(22))], [Node(PlanNodeId(23))], [Node(PlanNodeId(24))], [Node(PlanNodeId(25))], [Node(PlanNodeId(26))], [Node(PlanNodeId(27)), Node(PlanNodeId(5))], [Relation(Function)], [Node(PlanNodeId(29))], [Node(PlanNodeId(30))], [Node(PlanNodeId(31))], [Node(PlanNodeId(32))], [Node(PlanNodeId(33))], [Node(PlanNodeId(34))], [Node(PlanNodeId(35)), Node(PlanNodeId(5))]]; reach [Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase, Phase]; roots word []; roots other [];",
+        )),
+    },
+    Case {
+        name: CaseName("steps_reading_the_same_nodes_in_another_order_or_count_stay_apart"),
+        word: Word::Succeeds,
+        input: || Request::InputOrder,
+        expect: Expect::Value(Cow::Borrowed(
+            "nodes 6; rule 0: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(2))] emit Ok(PlanNodeId(2)); rule 1: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(3))] emit Ok(PlanNodeId(3)); rule 2: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(4))] emit Ok(PlanNodeId(4)); rule 3: steps [Ok(PlanNodeId(0)), Ok(PlanNodeId(1)), Ok(PlanNodeId(5))] emit Ok(PlanNodeId(5)); consumers [5, 3, 1, 1, 1, 1]; inputs [[Relation(Function)], [Relation(Function)], [Node(PlanNodeId(0)), Node(PlanNodeId(1))], [Node(PlanNodeId(1)), Node(PlanNodeId(0))], [Node(PlanNodeId(0)), Node(PlanNodeId(1))], [Node(PlanNodeId(0)), Node(PlanNodeId(0))]]; reach [Phase, Phase, Phase, Phase, Phase, Phase]; roots word []; roots other [];",
+        )),
     },
 ];
-fn subject(asked: Input) -> Result<Value, Failure> {
-    match asked {
-        Asked::Demand(order, count) => demand_program(order, count).map(Answer::Demand),
-        Asked::MergeBesideLinearScan => Ok(Answer::Merge(merge_beside_the_linear_scan())),
-        Asked::MergeCost => Ok(Answer::Cost(merge_cost())),
-        Asked::NameWithoutText => a_name_without_text().map(Answer::Gate),
-        Asked::StepOrigins => step_origins().map(Answer::Origins),
-        Asked::UnresolvedRegion => {
-            let route = Route::default();
-            Ok(Answer::Unresolved(Unresolved {
-                route: match route {
-                    Route::Generic => RouteKind::Generic,
-                    Route::OrderedExistence(_) => RouteKind::OrderedExistence,
-                },
-                ordered_existence: ordered_existence(&route).is_some(),
-            }))
-        }
-    }
-}
-fn demand_program(order: DemandOrder, count: usize) -> Result<Demand, Failure> {
-    let operation = axis(0);
-    let inputs = [
-        InputShape {
-            kinds: &[CellKind::Node],
-            tree: None,
-        },
-        InputShape {
-            kinds: &[CellKind::Node, CellKind::Node],
-            tree: None,
-        },
-        InputShape {
-            kinds: &[CellKind::Node],
-            tree: None,
-        },
-    ];
-    let mut contract = prepare_for(
-        OperationKind::Axis,
-        &operation,
-        &inputs,
-        &[],
-        StepScope::PerFile,
-    )?;
-    let prepared = contract.semantics.demand;
-    contract.semantics.demand = order;
-    let program = DemandProgram::compiled(
-        contract.semantics,
-        ryo_values::domain::plan_parts::types::InputCount(count),
-    );
-    let admits = program
-        .actions()
+
+/// What the planned program says of each rule and node: the nodes, each rule's step nodes and emit, whether it is served, the
+/// consumers and the root kinds of the two kind texts the cases write.
+fn subject(request: Input) -> Result<Value, Failure> {
+    let written = rules_of(request);
+    let rules: Vec<RuleInput<'_>> = written
         .iter()
-        .map(|action| match action {
-            DemandAction::Admit(input) => input.0,
+        .map(|(plan, bindings)| RuleInput {
+            plan,
+            bindings: RuleBindings(bindings),
+            observations: RuleObservations(&plan.observation_inputs),
         })
         .collect();
-    Ok(Demand { prepared, admits })
+    let mut inputs = ProgramInputs::default();
+    let build = logical(&rules, &mut inputs).map_err(|_| ())?;
+    let planned = PlanUseCaseImpl.plan(build.program()).map_err(|_| ())?;
+    let program = assemble(build, planned);
+    let nodes = inputs.lists.len();
+    let mut said = format!("nodes {nodes};");
+    for at in 0..rules.len() {
+        let nodes = rule(&program, RuleIndex(at)).map_err(|_| ())?;
+        said.push_str(&format!(
+            " rule {at}: steps {:?} emit {:?};",
+            nodes.steps, nodes.emit
+        ));
+    }
+    let counts: Vec<u32> = (0..nodes)
+        .map(|node| {
+            consumers(&program, PlanNodeId(u32::try_from(node).unwrap_or(0))).map(|count| count.0)
+        })
+        .collect::<Result<_, _>>()
+        .map_err(|_| ())?;
+    said.push_str(&format!(" consumers {counts:?};"));
+    said.push_str(&format!(" inputs {:?};", inputs.lists));
+    let reach: Vec<_> = (0..nodes)
+        .map(|node| observation_reach(&program, PlanNodeId(u32::try_from(node).unwrap_or(0))))
+        .collect::<Result<_, _>>()
+        .map_err(|_| ())?;
+    said.push_str(&format!(" reach {reach:?};"));
+    for kind in ["word", "other"] {
+        said.push_str(&format!(
+            " roots {kind} {:?};",
+            roots(&program, &LiteralText(kind.into()))
+        ));
+    }
+    Ok(Cow::Owned(said))
 }
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
-}
-
-/// The boundary the Replace declaration rests on: a name that left its file and has no text fails the text gate, so only
-/// a path where no such name can arrive may declare Replace over a Symbol column infallible.
-fn a_name_without_text() -> Result<RowGate, Failure> {
-    let kinds = [CellKind::Symbol];
-    let contract = prepare_for(
-        OperationKind::Replace,
-        &Operation::Replace {
-            from: PlanInput::Relation(Relation::Comment),
-            text: ColumnIndex(0),
-            pattern: ryo_values::domain::plan_parts::types::LiteralText("a".into()),
-            replacement: ryo_values::domain::plan_parts::types::LiteralText("b".into()),
-        },
-        &[InputShape {
-            kinds: &kinds,
-            tree: None,
-        }],
-        &[],
-        StepScope::PerFile,
-    )?;
-    let symbols = ryo_language::domain::symbols::types::Symbols::default();
-    let texts = crate::domain::table_texts::types::Texts {
-        symbols: &symbols,
-        source: ryo_values::domain::files::types::SourceView(&[]),
-        paths: &[],
-        arenas: &[],
-    };
-    let row = [ryo_relations::domain::relations::types::Value::Name(
-        ryo_relations::domain::relations::types::Name {
-            hash: ryo_relations::domain::relations::types::TextHash(7),
-            place: ryo_relations::domain::relations::types::PlaceNumber(0),
-        },
-    )];
-    crate::domain::executable_program::kernel::service::row_admissible(&contract, &row, &texts)
-}
-
-/// Each original step's place, filled when the rule programs are built, still names the instruction today's lookup finds on the
-/// finished program: its logical instruction's region, and the instruction's place there.
-fn step_origins() -> Result<Origins, Failure> {
-    use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
-    use ryo_values::domain::{
-        plan_parts::types::{Input, StepId},
-        plans::types::{Emit, Plan, PlanStep},
-        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-        rule_requests::types::{RuleParameters, RuleSpec},
-        runs::types::{RuleApplicability, RuleId},
-    };
-    let step = |operation| PlanStep {
-        operation,
-        scope: StepScope::PerFile,
-    };
-    let select = |from| {
-        step(Operation::Select {
-            from,
-            comparisons: vec![],
-            kept: vec![],
-        })
-    };
-    let plan = |steps: Vec<PlanStep>| Plan {
-        observation_inputs: vec![],
-        observations: vec![],
-        parameters: vec![],
-        comparison_origins: vec![],
-        frontier: vec![],
-        emit: Emit {
-            step: StepId(u32::try_from(steps.len() - 1).unwrap_or(0)),
-            subject: ColumnIndex(0),
-            key: vec![],
-            headings: vec![],
-        },
-        steps,
-    };
-    let plans = [
-        plan(vec![
-            select(PlanInput::Relation(Relation::Function)),
-            select(Input::Step(StepId(0))),
-        ]),
-        plan(vec![
-            select(PlanInput::Relation(Relation::Function)),
-            select(Input::Step(StepId(0))),
-            select(Input::Step(StepId(1))),
-        ]),
-        plan(vec![select(PlanInput::Relation(Relation::Comment))]),
-    ];
-    let rules = (0..plans.len())
-        .map(|rule| RuleSpec {
-            id: RuleId(format!("rule-{rule}").into()),
-            query: QueryBundle {
-                root: QueryDocumentSource {
-                    id: QuerySourceId(format!("rule-{rule}").into()),
-                    text: "".into(),
-                },
-                modules: Default::default(),
-            },
-            applicability: RuleApplicability::Always,
-            given: vec![],
-            observations: vec![],
-            spelled: RuleParameters("".into()),
-            include: vec![],
-            exclude: vec![],
-        })
-        .collect::<Vec<_>>();
-    let bindings = vec![vec![]; plans.len()];
-    let operators = crate::domain::file_program::service::operators::service::prepare(
-        &plans,
-        &bindings,
-        &[],
-        &ryo_relations::domain::relations::service::kinds,
-        &mut |_| Ok(()),
-    )?;
-    let borrowed = plans.iter().map(Ok).collect::<Vec<_>>();
-    let partitions = SourcePartitions::new(
-        &rules,
-        &borrowed,
-        &bindings,
-        &[],
-        &vec![vec![]; plans.len()],
-    )?;
-    let graph = crate::domain::file_program::service::compile_prepared(&plans, &operators);
-    let program = super::service::compile(
-        &plans,
-        graph,
-        &partitions,
-        &operators,
-        crate::domain::matching::types::PatternMatcher(
-            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-        ),
-    )?;
-    let mut origins = Origins {
-        steps: 0,
-        placed: 0,
-        as_looked_up: 0,
-    };
-    for rule in program.rules() {
-        for origin in rule.original_steps.iter().flatten() {
-            let lookup = program
-                .logical_regions()
-                .get(origin.logical.0)
-                .and_then(|region| {
-                    program.regions().get(region.0).and_then(|code| {
-                        code.instructions()
-                            .iter()
-                            .position(|instruction| instruction.logical() == origin.logical)
-                            .map(|at| super::types::StepSite {
-                                region: *region,
-                                instruction: super::types::InstructionPlace(at),
-                            })
-                    })
-                });
-            origins.steps += 1;
-            origins.placed += usize::from(origin.place.is_some());
-            origins.as_looked_up += usize::from(origin.place.is_some() && origin.place == lookup);
-        }
-    }
-    Ok(origins)
 }

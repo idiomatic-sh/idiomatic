@@ -37,25 +37,8 @@ def test_style_failure_has_its_own_mandatory_quality_group(product):
     assert quality["group"] == "clippy"
     assert "cargo clippy" in " ".join(quality["run"])
     workflow = (ROOT / ".github/workflows/check.yml").read_text()
-    assert "{ runner: ubuntu-26.04, group: clippy }" in workflow
-
-
-@pytest.mark.parametrize("status", [0, 101])
-def test_rust_memory_guard_retains_actual_output_and_exit(tmp_path, status):
-    data = tomllib.loads((ROOT / "asymptote.toml").read_text())
-    command = next(item for item in data["tools"] if item["id"] == "ryo-rust-peak")["run"]
-    fake = f'cargo() {{ printf "%s\\n" "$*" > cargo-calls; printf "peak stdout\\n"; printf "peak stderr\\n" >&2; return {status}; }}; '
-    result = subprocess.run([*command[:2], fake + command[2]], cwd=tmp_path, capture_output=True, text=True)
-    assert result.returncode == status
-    assert (tmp_path / "cargo-calls").read_text().strip() == (
-        "nextest run --manifest-path crates/ryo/Cargo.toml --package idiomatic-sh-ryo --locked -E test(/^peak::/)"
-    )
-    output = tmp_path / "target/benchmarks/speed"
-    assert (output / "ryo-rust-peak.stdout.log").read_text() == result.stdout == "peak stdout\n"
-    assert (output / "ryo-rust-peak.stderr.log").read_text() == result.stderr == "peak stderr\n"
-    assert (output / "ryo-rust-peak.status").read_text() == f"{status}\n"
-    workflow = (ROOT / ".github/workflows/check.yml").read_text()
-    assert "if: always() && steps.speed_check.outcome != 'skipped'" in workflow
+    # The clippy group runs on every pull request, in the Linux job's one asymptote call.
+    assert "--groups lint,clippy," in workflow
 
 
 def test_ci_tests_runs_the_workspace_templates_pytest_line():

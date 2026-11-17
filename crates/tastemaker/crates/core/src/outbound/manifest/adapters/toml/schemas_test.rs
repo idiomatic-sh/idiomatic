@@ -8,18 +8,18 @@ use super::{
     SelectorSchema, SpecFileSchema, TemplateFileSchema, ThenSchema,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::entries::types::{Count, ParamName, Value as EntryValue};
-use crate::domain::packages::types::{DefinitionKind, DefinitionName, PackageName};
-use crate::domain::scalars::types::TextValue;
-use crate::domain::scenario_files::types::{
+use tastemaker_values::domain::entries::types::{Count, ParamName, Value as EntryValue};
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName, PackageName};
+use tastemaker_values::domain::scalars::types::TextValue;
+use tastemaker_values::domain::scenario_files::types::{
     CountKey, FileKey, ScenarioKeys, ScenarioRoot, Wrapper,
 };
-use crate::domain::selectors::types::{
+use tastemaker_values::domain::selectors::types::{
     PartSelector, PathPattern, PlacedBySelector, Recursion, RegexText, Selector, Selectors,
     VariableName,
 };
-use crate::domain::topics::service::{keys, topic};
-use crate::domain::topics::types::{Necessity, TopicBody, TopicName};
+use tastemaker_values::domain::topics::service::{keys, topic};
+use tastemaker_values::domain::topics::types::{Necessity, TopicBody, TopicName};
 
 /// A TOML value, as `value = …` writes it, and what it is read as.
 type Input = (&'static str, Reading);
@@ -349,7 +349,7 @@ fn subject((text, reading): Input) -> Result<Value, Failure> {
             format!("{:?}", Count::from(holder.value))
         }
         Reading::LockShape => {
-            use crate::domain::packages::types::{
+            use tastemaker_values::domain::packages::types::{
                 Lock, LockedPackage, LockedRelease, PackageSource, SourcePath, VersionText,
             };
             let lock = Lock {
@@ -503,8 +503,8 @@ fn wrapper_text() -> String {
 /// The workspace written for a shared rule's scenario, as text: every selector form and a param.
 fn root_text() -> String {
     super::scenario_root(&ScenarioRoot {
-        path: &crate::domain::packages::types::PackageRoot("/packages/p".into()),
-        placed: &crate::domain::packages::types::PlacedDefinition {
+        path: &tastemaker_values::domain::packages::types::PackageRoot("/packages/p".into()),
+        placed: &tastemaker_values::domain::packages::types::PlacedDefinition {
             kind: DefinitionKind::Rule,
             package: PackageName("p".into()),
             name: DefinitionName("r".into()),

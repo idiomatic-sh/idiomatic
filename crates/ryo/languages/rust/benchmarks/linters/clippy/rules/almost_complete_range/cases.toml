@@ -1,0 +1,64 @@
+[[cases]]
+name = "chars"
+files = { "src/lib.rs" = "pub fn f() -> std::ops::Range<char> {\n    'a'..'z'\n}\n" }
+expected = [{ file = "src/lib.rs", start = 42, end = 50 }]
+
+[[cases]]
+name = "bytes-and-digits"
+files = { "src/lib.rs" = "pub fn f() -> (std::ops::Range<u8>, std::ops::Range<char>, std::ops::Range<u8>) {\n    (b'A'..b'Z', '0'..'9', b'a'..b'z')\n}\n" }
+expected = [{ file = "src/lib.rs", start = 87, end = 97 }, { file = "src/lib.rs", start = 99, end = 107 }, { file = "src/lib.rs", start = 109, end = 119 }]
+
+[[cases]]
+name = "complete-or-other-bounds"
+files = { "src/lib.rs" = "pub fn f() -> (std::ops::RangeInclusive<char>, std::ops::Range<char>, std::ops::Range<char>, std::ops::RangeFrom<char>, std::ops::Range<u8>) {\n    ('a'..='z', 'a'..'y', 'A'..'z', 'a'.., b'0'..b'8')\n}\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-bounds"
+files = { "src/lib.rs" = "pub fn f() -> std::ops::Range<char> {\n    ('a')..(('z'))\n}\n" }
+expected = [{ file = "src/lib.rs", start = 42, end = 56 }]
+
+[[cases]]
+name = "escaped-bounds"
+files = { "src/lib.rs" = "pub fn f() -> (std::ops::Range<char>, std::ops::Range<u8>, std::ops::Range<char>) {\n    ('\\x61'..'\\u{7a}', b'\\x30'..b'9', '\\u{0_06_1}'..'\\x7A')\n}\n" }
+expected = [{ file = "src/lib.rs", start = 89, end = 105 }, { file = "src/lib.rs", start = 107, end = 120 }, { file = "src/lib.rs", start = 122, end = 142 }]
+
+[[cases]]
+name = "pattern"
+files = { "src/lib.rs" = "pub fn f(c: char, b: u8) -> bool {\n    let x = match c {\n        'a'..'z' => true,\n        'A'..='Z' => true,\n        _ => false,\n    };\n    let y = b == b'0';\n    if let 'A'..'Z' = c { return x; }\n    x || y\n}\n" }
+expected = [{ file = "src/lib.rs", start = 65, end = 73 }, { file = "src/lib.rs", start = 171, end = 179 }]
+
+[[cases]]
+name = "unicode-before"
+files = { "src/lib.rs" = "pub const S: &str = \"é\";\npub fn f() -> std::ops::Range<char> {\n    'a'..'z'\n}\n" }
+expected = [{ file = "src/lib.rs", start = 68, end = 76 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {\n        let n = ('a'..'z').count();\n        assert_eq!(n, 25);\n        let r = 'a'..'z';\n        assert!(r.contains(&'b'));\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 67, end = 75 }, { file = "src/lib.rs", start = 129, end = 137 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! r {\n    () => {\n        'a'..'z'\n    };\n}\npub fn f() -> char {\n    'a'\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::almost_complete_range)]\npub fn f() -> std::ops::Range<char> {\n    'a'..'z'\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::suspicious)]\npub fn f() -> std::ops::Range<char> {\n    'a'..'z'\n}\n#[expect(clippy::all)]\npub fn g() -> std::ops::Range<char> {\n    'a'..'z'\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::almost_complete_range)]\npub fn f() -> std::ops::Range<char> {\n    'a'..'z'\n}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::suspicious)]\n#[warn(clippy::almost_complete_range)]\npub fn f() -> std::ops::Range<char> {\n    'a'..'z'\n}\n" }
+expected = [{ file = "src/lib.rs", start = 111, end = 119 }]

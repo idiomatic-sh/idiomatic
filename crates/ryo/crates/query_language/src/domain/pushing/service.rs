@@ -6,25 +6,34 @@ use super::types::FilterStep;
 use super::types::FilteredElements;
 use super::types::KeptColumns;
 use super::types::Pushed;
-use crate::domain::fusing::service::source_column;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::service::remapped;
+use crate::domain::selection_pushing::service::insert_before;
+use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+use ryo_relations::domain::relations::service::columns;
+use ryo_relations::domain::relations::types::{Column, Relation};
+use ryo_values::domain::plan_parts::service::view_source;
+use ryo_values::domain::plan_parts::service::{
+    column_place, fixed_prefix, remapped_comparison, rides_the_walk,
+};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
-use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::PlanComparison;
+use ryo_values::domain::plan_parts::types::RowWidth;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
 /// The steps with each lookup into a join of the edges of the tree with a filter of its elements made before the join:
 /// asking the edges and the elements for the children of a few nodes does not need the children of every node.
-/// `Join(left, Join(edges, elements))` keyed on the parent of the edges becomes `Join(Join(left, edges), elements)`.
+/// `Join(left, Join(edges, elements))` keyed on the parent of the edges becomes `Join(Join(left, edges), elements)`. The
+/// comparisons of the elements on the way ride the walk of the second join while none can fail (`rides_the_walk`); the rest
+/// filter its answer after it, and when the answer does not hold a column they test the lookup stays as it is. That filter
+/// runs a comparison that may fail only on the elements the left reaches, never on more than the join it replaces ran it on:
+/// the push can remove a fault, never add one.
 #[must_use]
 pub(crate) fn push_lookups(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
     let steps = push_lookups_roots(steps, std::slice::from_mut(&mut emitted));
@@ -35,59 +44,56 @@ pub(crate) fn push_lookups(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned
 pub(crate) fn push_lookups_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     let mut place = 0;
     while place < steps.len() {
-        if let Some(Pushed { below, above }) = pushed(&steps, StepIndex(place)) {
-            // The first of the two joins takes the place of the one it was made from, and the rest follow it.
-            let first = StepId(u32::try_from(place).unwrap_or(u32::MAX));
-            for step in &mut steps {
-                each_input(&mut step.operation, &mut |input| {
-                    if let Input::Step(id) = input
-                        && id.0 >= first.0
-                    {
-                        id.0 += 1;
-                    }
-                });
-            }
-            for root in roots.iter_mut() {
-                if root.0 >= first.0 {
-                    root.0 += 1;
-                }
-            }
-            #[expect(
-                clippy::indexing_slicing,
-                reason = "`place` is below the steps' length, checked by the loop; the inputs were already renumbered, so stopping here would leave a wrong plan"
-            )]
-            let step = &mut steps[place];
-            step.operation = above_with(above, first);
-            let scope = step.scope;
-            steps.insert(
-                place,
-                PlanStep {
-                    operation: below,
-                    scope,
-                },
-            );
-            place += 1;
+        if let Some(Pushed {
+            below,
+            above,
+            residual,
+        }) = pushed(&steps, StepIndex(place))
+            && let Some(scope) = steps.get(place).map(|step| step.scope)
+        {
+            // The first of the two joins takes the place of the one it was made from, the second and any filter of its
+            // answer follow it, and the last of them is what the readers of the one it was made from read.
+            let step = |operation| PlanStep { operation, scope };
+            let (before, last) = match residual {
+                Some(residual) => (vec![step(below), step(above)], step(residual)),
+                None => (vec![step(below)], step(above)),
+            };
+            let added = before.len();
+            insert_before(&mut steps, roots, StepIndex(place), before, last);
+            place += added;
         }
         place += 1;
     }
     steps
 }
 
-/// The second join, reading the first at `first`.
-fn above_with(mut operation: Operation, first: StepId) -> Operation {
-    if let Operation::Join { left, .. } = &mut operation {
-        *left = Input::Step(first);
-    }
-    operation
+/// The comparisons `rest`, of the elements' columns, as comparisons of the columns of `answer`, the second join's answer
+/// through `view`: none when the answer does not hold a column one of them tests.
+fn over_the_answer(
+    rest: &[PlanComparison],
+    answer: &[JoinColumn],
+    view: &[ColumnIndex],
+) -> Option<Vec<PlanComparison>> {
+    let answered = |column: ColumnIndex| -> Option<ColumnIndex> {
+        let place = answer.iter().position(|each| {
+            each.side == Side::Right && view_source(view, each.column) == Some(column)
+        })?;
+        match u32::try_from(place) {
+            Ok(at) => Some(ColumnIndex(at)),
+            // A place past every column number names no column.
+            Err(_past_every_column) => None,
+        }
+    };
+    rest.iter()
+        .map(|comparison| remapped_comparison(comparison, &answered))
+        .collect()
 }
 
 /// A column of what the select at `from` of the chain reads, as a column of the join of edges and elements.
 fn inward(chain: &[FilterStep<'_>], column: ColumnIndex, from: FilterDepth) -> Option<ColumnIndex> {
     let mut column = column;
     for FilterStep { kept, .. } in chain.iter().skip(from.0) {
-        if !kept.is_empty() {
-            column = *kept.get(usize::try_from(column.0).unwrap_or(usize::MAX))?;
-        }
+        column = view_source(kept, column)?;
     }
     Some(column)
 }
@@ -104,26 +110,22 @@ fn element_comparisons(
     } = elements;
     let mut filters: Vec<PlanComparison> = element_filter.to_vec();
     for (depth, FilterStep { comparisons, .. }) in chain.iter().enumerate() {
+        let element_side = |column: ColumnIndex| -> Option<ColumnIndex> {
+            let wanted = made_output
+                .get(
+                    usize::try_from(inward(chain, column, FilterDepth(depth + 1))?.0)
+                        .unwrap_or(usize::MAX),
+                )
+                .copied()?;
+            // A column past the elements' view is one the view does not make: the filter, and the push, decline.
+            if wanted.side == Side::Right {
+                view_source(element_view, wanted.column)
+            } else {
+                None
+            }
+        };
         for comparison in *comparisons {
-            let element_side = |operand: &Operand| -> Option<Operand> {
-                remapped(operand, &|column| {
-                    let wanted = made_output
-                        .get(
-                            usize::try_from(inward(chain, column, FilterDepth(depth + 1))?.0)
-                                .unwrap_or(usize::MAX),
-                        )
-                        .copied()?;
-                    (wanted.side == Side::Right).then(|| {
-                        source_column(element_view, wanted.column).unwrap_or(wanted.column)
-                    })
-                })
-            };
-            filters.push(PlanComparison {
-                test: comparison.test,
-                left: element_side(&comparison.left)?,
-                right: element_side(&comparison.right)?,
-                origin: comparison.origin,
-            });
+            filters.push(remapped_comparison(comparison, &element_side)?);
         }
     }
     Some(filters)
@@ -136,7 +138,8 @@ fn kept_columns(
     made_column: &dyn Fn(ColumnIndex) -> Option<JoinColumn>,
 ) -> Option<KeptColumns> {
     let mut kept_left: Vec<ColumnIndex> = Vec::new();
-    let mut kept_edge: Vec<ColumnIndex> = vec![ColumnIndex(1)];
+    let mut kept_edge: Vec<ColumnIndex> =
+        vec![column_place(Column::SyntaxChild(SyntaxChildColumn::Child))];
     for column in output {
         match column.side {
             Side::Left => {
@@ -205,7 +208,8 @@ fn answer_columns(
 }
 
 /// The two joins that the join at `place` is made of, when it is a lookup into a join of edges and elements by the
-/// parent of the edges, perhaps filtered on the way by comparisons of the elements.
+/// parent of the edges, perhaps filtered on the way by comparisons of the elements; each reads the steps it follows as
+/// they will be numbered once the first takes `place`.
 fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
     let Operation::Join {
         left,
@@ -227,6 +231,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
     let ([lookup], [asked]) = (left_on.as_slice(), right_on.as_slice()) else {
         return None;
     };
+    // The first of the two joins takes `place`; the second and the filter of its answer follow it.
+    let first = StepId(u32::try_from(place.0).unwrap_or(u32::MAX));
     // The filters between the join and the join of edges and elements: outermost first.
     let mut chain: Vec<FilterStep<'_>> = Vec::new();
     let mut at = *read;
@@ -263,7 +269,9 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
     let ([child], [element_key]) = (edge_on.as_slice(), element_on.as_slice()) else {
         return None;
     };
-    if *child != ColumnIndex(1) || source_column(element_view, *element_key) != Some(ColumnIndex(0))
+    if *child != column_place(Column::SyntaxChild(SyntaxChildColumn::Child))
+        || view_source(element_view, *element_key)
+            != Some(column_place(Column::SyntaxTree(SyntaxTreeColumn::Id)))
     {
         return None;
     }
@@ -272,7 +280,7 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
             .get(usize::try_from(inward(&chain, column, FilterDepth(0))?.0).unwrap_or(usize::MAX))
             .copied()
     };
-    let filters = element_comparisons(
+    let folded = element_comparisons(
         &chain,
         made_output,
         FilteredElements {
@@ -280,11 +288,19 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
             filter: element_filter,
         },
     )?;
+    // The comparisons no element can fail ride the walk of the second join; the rest filter its answer.
+    let walked = fixed_prefix(&folded, RowWidth(columns(Relation::SyntaxTree).len()))
+        .0
+        .len();
+    let (filters, rest) = folded.split_at(walked);
+    if rides_the_walk(Relation::SyntaxTree, element_on, element_view, filters).is_none() {
+        return None;
+    }
     // The key is the parent of the edge the made rows were found by.
     if made_column(*asked)?
         != (JoinColumn {
             side: Side::Left,
-            column: ColumnIndex(0),
+            column: column_place(Column::SyntaxChild(SyntaxChildColumn::Parent)),
         })
     {
         return None;
@@ -300,18 +316,33 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
     let at_edge = |column: ColumnIndex| index_among(&kept_edge, column, width);
     let below = edge_lookup(*left, *lookup, &kept_left, &kept_edge);
     let answer = answer_columns(output, &made_column, &at_left, &at_edge)?;
+    let residual = if rest.is_empty() {
+        None
+    } else {
+        Some(Operation::Select {
+            from: Input::Step(StepId(first.0 + 1)),
+            comparisons: over_the_answer(rest, &answer, element_view)?,
+            kept: Vec::new(),
+        })
+    };
     let above = Operation::Join {
-        left: Input::Step(StepId(0)),
+        left: Input::Step(first),
         right: Input::Relation(Relation::SyntaxTree),
-        left_on: vec![at_edge(ColumnIndex(1))?],
+        left_on: vec![at_edge(column_place(Column::SyntaxChild(
+            SyntaxChildColumn::Child,
+        )))?],
         right_on: vec![*element_key],
         output: answer,
-        filter: filters,
+        filter: filters.to_vec(),
         view: element_view.clone(),
 
         reach: None,
     };
-    Some(Pushed { below, above })
+    Some(Pushed {
+        below,
+        above,
+        residual,
+    })
 }
 
 /// The first of the two joins: the rows of `left` met with their edges by `lookup`, keeping the columns of the left and of the edges
@@ -326,7 +357,7 @@ fn edge_lookup(
         left,
         right: Input::Relation(Relation::SyntaxChild),
         left_on: vec![lookup],
-        right_on: vec![ColumnIndex(0)],
+        right_on: vec![column_place(Column::SyntaxChild(SyntaxChildColumn::Parent))],
         output: kept_left
             .iter()
             .map(|column| JoinColumn {

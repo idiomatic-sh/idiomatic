@@ -15,7 +15,9 @@ use ryo_relations::domain::relations::types::Relation;
 
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
-use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
+use crate::outbound::facts::types::{
+    BucketSource, ColumnsMut, KeptBucket, KeptSources, KeptWordsLength, WordsToKeep,
+};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -80,10 +82,6 @@ struct FakeWorker {
 }
 
 impl FactsWorker for FakeWorker {
-    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
-        crate::outbound::facts::types::ResidentStability::Stable
-    }
-
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         counted(&self.calls, self.fails)?;
         Ok(self
@@ -121,7 +119,7 @@ impl FactsWorker for FakeWorker {
         kept.sources.push(BucketSource {
             file: words.file,
             start: crate::outbound::facts::types::KeptWordsStart(start),
-            length: crate::outbound::facts::types::KeptWordsLength(words.words.0.len()),
+            length: KeptWordsLength(words.words.0.len()),
             proof: words.proof.clone(),
         });
         Ok(())
@@ -153,6 +151,22 @@ impl FactsFinish for FakeFinish {
     fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
         Ok(self.kept.get(&bucket).cloned().unwrap_or_default())
     }
+
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        Ok(self
+            .kept
+            .get(&bucket)
+            .map_or_else(KeptSources::default, sources_of))
+    }
+}
+
+/// What a fake's bucket holds besides its words, as the port's `sources` answers it: the provenance of `kept` and its length.
+#[must_use]
+pub fn sources_of(kept: &KeptBucket) -> KeptSources {
+    KeptSources {
+        sources: kept.sources.clone(),
+        length: KeptWordsLength(kept.words.0.0.len()),
+    }
 }
 
 /// The finished words of every worker, one worker after another: a bucket's words are each worker's in turn.
@@ -177,6 +191,24 @@ impl FactsFinish for Joined {
                 }));
         }
         Ok(words)
+    }
+
+    /// Each worker's provenance one worker after another, each start moved past the words of the workers before: as `kept`
+    /// gives it, without a word read.
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        let mut joined = KeptSources::default();
+        for part in &self.parts {
+            let each = part.sources(bucket)?;
+            let offset = joined.length.0;
+            joined
+                .sources
+                .extend(each.sources.into_iter().map(|mut source| {
+                    source.start.0 += offset;
+                    source
+                }));
+            joined.length.0 += each.length.0;
+        }
+        Ok(joined)
     }
 }
 

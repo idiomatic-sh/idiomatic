@@ -1,8 +1,6 @@
 //! Certification of a measure invocation: what it names, what it stages, which contestant it builds and what it reports.
 use super::constants;
-use super::constants::{
-    CANONICAL_BENCHMARK_REQUIRES_EXPLI, CASE_INVENTORY, REGISTERED_CASE_RESULTS,
-};
+use super::constants::{CANONICAL_BENCHMARK_REQUIRES_EXPLI, REGISTERED_CASE_RESULTS};
 use super::locations;
 use ryo_benchmark::domain::command_line::types::{BenchmarkArgument, Selection};
 use ryo_benchmark::domain::suite::types::audit::value::Audit;
@@ -12,6 +10,7 @@ use ryo_benchmark::inbound::use_cases::stage_suite::{
 use ryo_benchmark::outbound::suite::interface::SuitePort;
 use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactText};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::constants::CASE_INVENTORY_ARGUMENT;
 use ryo_benchmark_contracts::domain::requests::types::{
     BenchmarkCoverage, CertificationCases, RegisteredCoverage,
 };
@@ -67,7 +66,7 @@ fn registered_cases(
     suite_source: &Arc<dyn SuitePort>,
 ) -> Result<CertificationCases, Error> {
     let input = inventory
-        .and_then(|s| s.0.strip_prefix(CASE_INVENTORY))
+        .and_then(|s| s.0.strip_prefix(CASE_INVENTORY_ARGUMENT))
         .filter(|s| !s.is_empty())
         .ok_or_else(|| Error::Invalid(CANONICAL_BENCHMARK_REQUIRES_EXPLI.into()))?;
     Ok(CertificationCases::Registered {
@@ -79,11 +78,13 @@ fn registered_cases(
     })
 }
 
-/// The directories one certification stages: its scratch root, the suite profile and the frozen workload.
+/// The directories one certification stages: its scratch root, the suite profile and the frozen workload, with the
+/// profile it staged: the one both contestants of the authored rules run with.
 pub(super) struct StagedSuite {
     pub(super) scratch: PathBuf,
     pub(super) profile: PathBuf,
     pub(super) workload: PathBuf,
+    pub(super) tool: Tool,
 }
 
 // Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
@@ -100,7 +101,7 @@ pub(super) fn stage(
         )?
         .0;
     let profile = scratch.join(constants::PROFILE_DIRECTORY);
-    StageSuiteUseCaseImpl::new(suite_source.as_ref()).stage_suite(
+    let tool = StageSuiteUseCaseImpl::new(suite_source.as_ref()).stage_suite(
         &locations::directory(),
         &profile,
         authored,
@@ -115,18 +116,19 @@ pub(super) fn stage(
         scratch,
         profile,
         workload,
+        tool,
     })
 }
 
-/// The Ryo contestant: this executable bound to the staged rules and to the settings the reference tool declares.
+/// The Ryo contestant: this executable bound to the staged rules and to the settings of the profile staged with them.
 pub(super) fn candidate_linter(
-    tool: &Tool,
+    staged: &StagedSuite,
     executable: PathBuf,
-    rules: PathBuf,
 ) -> Arc<dyn ryo_benchmark::outbound::linter::interface::LinterPort> {
+    let tool = &staged.tool;
     Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
         executable,
-        rules,
+        staged.profile.join(constants::RULES_DIRECTORY),
         tool.query_modules.clone(),
         tool.rule_applicability.clone(),
         tool.parser_configuration.clone(),

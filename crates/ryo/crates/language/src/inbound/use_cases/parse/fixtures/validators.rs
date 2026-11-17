@@ -1,23 +1,11 @@
 //! What a contract checks of the rows and trees a language wrote: each check answers whether they are well formed.
 
-use super::super::errors::ParseError;
-use super::super::service::{absence, build, read as read_file};
-use super::super::types::ParseEngine;
-use super::super::types::{ParseRequest, Recognition, SourceFile};
 use super::collect::Collect;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
-use crate::domain::files::types::SourcePath;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
-use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
-use ryo_relations::domain::relations::service::{all, columns, is_declaring, provenance_of};
-use ryo_relations::domain::relations::types::Provenance;
-use ryo_relations::domain::relations::types::{
-    Bits, FileId, Missing, Relation, RelationDeclaring, Rows,
-};
+use ryo_relations::domain::relations::types::{FileId, Relation};
 
 /// Without embedded expressions, projection must not add, omit, or alter native syntax.
 pub(super) fn projection_preserves_native(out: &Collect) -> bool {
@@ -40,6 +28,30 @@ pub(super) fn projection_preserves_native(out: &Collect) -> bool {
         original.sort();
         projected.sort();
         original == projected
+    })
+}
+
+/// With embedded expressions or macro expansions, projection keeps every native row and edge, and adds only the trees read again:
+/// every semantic row that is not a native one is of an element the language added (`added` answers for its node id), a syntax row
+/// by its `id` and an edge by its `child`.
+pub(super) fn projection_extends_native(out: &Collect, added: impl Fn(u64) -> bool) -> bool {
+    [
+        (Relation::SyntaxTree, Relation::SemanticSyntax, 0),
+        (Relation::SyntaxChild, Relation::SemanticChild, 1),
+    ]
+    .into_iter()
+    .all(|(native, semantic, element)| {
+        let rows_of = |wanted| -> std::collections::BTreeSet<_> {
+            out.rows()
+                .into_iter()
+                .filter_map(|(relation, row)| (relation == wanted).then_some(row))
+                .collect()
+        };
+        let (native, projected) = (rows_of(native), rows_of(semantic));
+        native.is_subset(&projected)
+            && projected
+                .difference(&native)
+                .all(|row| row.get(element).is_some_and(|id| added(*id)))
     })
 }
 
@@ -193,3 +205,85 @@ pub(super) fn embedded_roots_valid(elements: &Elements) -> bool {
             && parent_at(elements, embedded.root) == embedded.host
     })
 }
+
+/// Whether the control-flow rows of a file read as file 0 hold together: every row is of file 0; the blocks are numbered from
+/// zero in the order written, with flags that are 0 or 1; every edge, step and member names a block the file has; every step and
+/// member names an element `node` accepts; every edge and step kind is a word of its relation, as `word` reads the cell; and the
+/// edges leaving a block are numbered from zero.
+pub(super) fn flow_valid(
+    rows: &[(Relation, Vec<u64>)],
+    node: impl Fn(u64) -> bool,
+    word: impl Fn(Relation, u64) -> bool,
+) -> bool {
+    let mut blocks = 0_u64;
+    for (relation, row) in rows {
+        if *relation != Relation::FlowBlock {
+            continue;
+        }
+        let [block, reachable, live, implicit_return, file] = row.as_slice() else {
+            return false;
+        };
+        if *block != blocks || *reachable > 1 || *live > 1 || *implicit_return > 1 || *file != 0 {
+            return false;
+        }
+        blocks += 1;
+    }
+    // Each source's edges are numbered 0, 1, ... by their place among the edges leaving it.
+    let mut ordinals: Vec<(u64, u64)> = rows
+        .iter()
+        .filter(|(relation, _)| *relation == Relation::FlowEdge)
+        .filter_map(|(_, row)| Some((*row.first()?, *row.get(3)?)))
+        .collect();
+    ordinals.sort_unstable();
+    let numbered = ordinals.iter().enumerate().all(|(at, (source, ordinal))| {
+        let first = ordinals.partition_point(|(other, _)| other < source);
+        u64::try_from(at - first).is_ok_and(|place| place == *ordinal)
+    });
+    numbered
+        && rows.iter().all(|(relation, row)| {
+            if *relation == Relation::FlowEdge {
+                return matches!(row.as_slice(), [source, target, kind, _, 0]
+                if *source < blocks && *target < blocks && word(*relation, *kind));
+            }
+            if *relation == Relation::FlowStep {
+                return matches!(row.as_slice(), [block, _, kind, at, 0]
+                if *block < blocks && word(*relation, *kind) && node(*at));
+            }
+            if *relation == Relation::FlowMember {
+                return matches!(row.as_slice(), [at, block, 0] if *block < blocks && node(*at));
+            }
+            true
+        })
+}
+
+/// Whether an empty file's rows of the flow relation `relation` are its module's own graph: one member, the module's root element
+/// `root`; at least one block; and edges only out of the block the root is in.
+pub(super) fn empty_module_flow(
+    rows: &[(Relation, Vec<u64>)],
+    relation: Relation,
+    root: u64,
+) -> bool {
+    let members: Vec<&[u64]> = rows
+        .iter()
+        .filter(|(each, _)| *each == Relation::FlowMember)
+        .map(|(_, row)| row.as_slice())
+        .collect();
+    let [[node, entry, _]] = members.as_slice() else {
+        return false;
+    };
+    if *node != root {
+        return false;
+    }
+    let mut kept = rows.iter().filter(|(each, _)| *each == relation);
+    if relation == Relation::FlowBlock {
+        return kept.next().is_some();
+    }
+    if relation == Relation::FlowEdge {
+        return kept.all(|(_, row)| row.first() == Some(entry));
+    }
+    relation == Relation::FlowMember
+}
+
+#[cfg(test)]
+#[path = "validators_test.rs"]
+mod tests;

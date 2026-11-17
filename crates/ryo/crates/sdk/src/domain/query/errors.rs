@@ -30,17 +30,17 @@ impl QueryOrigin {
         origin: ryo_values::domain::query_tokens::types::QueryOrigin,
     ) -> Self {
         Self {
-            source_id: origin.source_id.0.into(),
+            source_id: origin.source_id.0.to_string(),
             span: QuerySpan {
                 start: super::types::ByteOffset(origin.span.start.0),
                 end: super::types::ByteOffset(origin.span.end.0),
             },
             trace: origin
                 .trace
-                .into_iter()
+                .iter()
                 .map(|site| QueryTraceSite {
-                    source_id: site.source_id.0.into(),
-                    target_id: site.target_id.0.into(),
+                    source_id: site.source_id.0.to_string(),
+                    target_id: site.target_id.0.to_string(),
                     span: QuerySpan {
                         start: super::types::ByteOffset(site.span.start.0),
                         end: super::types::ByteOffset(site.span.end.0),
@@ -76,7 +76,9 @@ impl QueryBundleError {
         match error {
             Internal::BlankSourceId => Self::BlankSourceId,
             Internal::BlankRootText => Self::BlankRootText,
-            Internal::DuplicateSourceId { id } => Self::DuplicateSourceId { id: id.0.into() },
+            Internal::DuplicateSourceId { id } => Self::DuplicateSourceId {
+                id: id.0.to_string(),
+            },
         }
     }
 }

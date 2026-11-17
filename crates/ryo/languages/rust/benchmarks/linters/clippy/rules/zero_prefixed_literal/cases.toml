@@ -1,0 +1,104 @@
+[[cases]]
+name = "leading-zero"
+files = { "src/lib.rs" = "pub const X: u32 = 0123;\n" }
+expected = [{ file = "src/lib.rs", start = 19, end = 23 }]
+
+[[cases]]
+name = "plain"
+files = { "src/lib.rs" = "pub const X: u32 = 123;\n" }
+expected = []
+
+[[cases]]
+name = "zero-alone"
+files = { "src/lib.rs" = "pub const X: u32 = 0;\npub const Y: u32 = 00;\npub const Z: u8 = 0_u8;\n" }
+expected = []
+
+[[cases]]
+name = "suffixed-and-separated"
+files = { "src/lib.rs" = "pub const X: u8 = 01u8;\npub const Y: u32 = 0_1;\npub const Z: u32 = 0_900_i32 as u32;\n" }
+expected = [{ file = "src/lib.rs", start = 18, end = 22 }, { file = "src/lib.rs", start = 43, end = 46 }, { file = "src/lib.rs", start = 67, end = 76 }]
+
+[[cases]]
+name = "radix-prefixes"
+files = { "src/lib.rs" = "pub const X: u32 = 0x0123;\npub const Y: u32 = 0o0123;\npub const Z: u32 = 0b0101;\n" }
+expected = []
+
+[[cases]]
+name = "float"
+files = { "src/lib.rs" = "pub const X: f64 = 01.5;\npub const Y: f32 = 01f32;\n" }
+expected = []
+
+[[cases]]
+name = "negated"
+files = { "src/lib.rs" = "pub const X: i32 = -0123;\n" }
+expected = [{ file = "src/lib.rs", start = 20, end = 24 }]
+
+[[cases]]
+name = "unicode-before"
+files = { "src/lib.rs" = "pub const S: &str = \"é\";\npub const X: u32 = 0123;\n" }
+expected = [{ file = "src/lib.rs", start = 45, end = 49 }]
+
+[[cases]]
+name = "in-pattern"
+files = { "src/lib.rs" = "pub fn f(x: u32) -> bool {\n    matches!(x, 0123)\n}\npub fn g(x: u32) -> bool {\n    match x {\n        07 => true,\n        _ => false,\n    }\n}\n" }
+expected = [{ file = "src/lib.rs", start = 43, end = 47 }, { file = "src/lib.rs", start = 100, end = 102 }]
+
+[[cases]]
+name = "in-array-length-and-macro"
+files = { "src/lib.rs" = "pub fn f() -> usize {\n    let a = [0u8; 010];\n    let v = vec![0123];\n    println!(\"{}\", 0123);\n    a.len() + v.len()\n}\n" }
+expected = [{ file = "src/lib.rs", start = 40, end = 43 }, { file = "src/lib.rs", start = 63, end = 67 }, { file = "src/lib.rs", start = 89, end = 93 }]
+
+[[cases]]
+name = "in-test-module"
+files = { "src/lib.rs" = "#[cfg(test)]\nmod tests {\n    const X: u32 = 0123;\n}\n" }
+expected = [{ file = "src/lib.rs", start = 44, end = 48 }]
+
+[[cases]]
+name = "in-other-module"
+files = { "src/lib.rs" = "mod a;\npub use a::X;\n", "src/a.rs" = "pub const X: u32 = 0123;\n" }
+expected = [{ file = "src/a.rs", start = 19, end = 23 }]
+
+[[cases]]
+name = "tuple-field-and-attribute"
+files = { "src/lib.rs" = "#[repr(align(08))]\npub struct S(u8, u8);\npub fn f(s: S) -> u8 {\n    s.0\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::zero_prefixed_literal)]\npub const X: u32 = 0123;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::complexity)]\npub const X: u32 = 0123;\n#[allow(clippy::all)]\npub const Y: u32 = 0123;\n#[expect(warnings)]\npub const Z: u32 = 0123;\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::zero_prefixed_literal)]\npub const X: u32 = 0123;\npub mod m {\n    #![allow(clippy::all)]\n    pub const Y: u32 = 0123;\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-on-statement"
+files = { "src/lib.rs" = "pub fn f() -> u32 {\n    #[allow(clippy::zero_prefixed_literal)]\n    let x = 0123;\n    let y = 0123;\n    x + y\n}\n" }
+expected = [{ file = "src/lib.rs", start = 94, end = 98 }]
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::all)]\n#[warn(clippy::zero_prefixed_literal)]\npub const X: u32 = 0123;\npub const Y: u32 = 0123;\n" }
+expected = [{ file = "src/lib.rs", start = 81, end = 85 }]
+
+[[cases]]
+name = "allow-other-lint"
+files = { "src/lib.rs" = "#[allow(clippy::mixed_case_hex_literals, dead_code)]\npub const X: u32 = 0123;\n" }
+expected = [{ file = "src/lib.rs", start = 72, end = 76 }]
+
+[[cases]]
+name = "in-uncalled-macro"
+files = { "src/lib.rs" = "macro_rules! k {\n    () => {\n        0123\n    };\n}\n" }
+expected = []
+
+[[cases]]
+name = "in-local-macro-argument"
+files = { "src/lib.rs" = "macro_rules! k {\n    ($e:expr) => {\n        $e\n    };\n}\npub fn f() -> u32 {\n    k!(0456)\n}\n" }
+expected = [{ file = "src/lib.rs", start = 83, end = 87 }]

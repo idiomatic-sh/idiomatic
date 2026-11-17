@@ -39,13 +39,9 @@ fn subject((pattern, text): Input) -> Result<Value, Failure> {
         SlotSubject(text),
         SlotSubject(text),
         CaptureSlots(&mut slots),
-        &mut |slots: &[std::ops::Range<usize>]| {
-            output.push(
-                slots
-                    .iter()
-                    .map(|range| text[range.clone()].to_owned())
-                    .collect(),
-            )
+        &mut Collected {
+            text,
+            output: &mut output,
         },
     );
     assert!(slots.is_empty());
@@ -60,4 +56,24 @@ fn subject((pattern, text): Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// The slots of each complete match, as the texts they span.
+struct Collected<'a> {
+    /// The text matched against.
+    text: &'a str,
+    /// Each match's slot texts, in order.
+    output: &'a mut Vec<Vec<String>>,
+}
+
+impl crate::domain::capture::types::CaptureOutput for Collected<'_> {
+    fn captures(&mut self, ranges: crate::domain::capture::types::CaptureSpans<'_>) {
+        self.output.push(
+            ranges
+                .0
+                .iter()
+                .map(|range| self.text.get(range.clone()).unwrap_or_default().to_owned())
+                .collect(),
+        );
+    }
 }

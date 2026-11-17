@@ -33,11 +33,11 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 ///
 /// When the implementation breaks the contract.
 pub fn check(adapter: &impl ValidateStorePort) {
-    use crate::domain::digests::types::Digest;
-    use crate::domain::files::types::Stamp;
-    use crate::domain::packages::types::{DefinitionKind, DefinitionName, Ownership};
-    use crate::domain::packages::types::{PackageName, Release, VersionText};
-    use crate::domain::proofs::types::ProvenVersion;
+    use tastemaker_values::domain::digests::types::Digest;
+    use tastemaker_values::domain::files::types::Stamp;
+    use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName, Ownership};
+    use tastemaker_values::domain::packages::types::{PackageName, Release, VersionText};
+    use tastemaker_values::domain::proofs::types::ProvenVersion;
     let release = |package: &str, kind, name: &str| Release {
         package: PackageName(package.into()),
         kind,
@@ -50,8 +50,8 @@ pub fn check(adapter: &impl ValidateStorePort) {
         ProvenVersion {
             release: release("p", DefinitionKind::Rule, "a"),
             stamp: Stamp {
-                size: crate::domain::files::types::FileSize(10),
-                modified: crate::domain::files::types::ModifiedTime(1),
+                size: tastemaker_values::domain::files::types::FileSize(10),
+                modified: tastemaker_values::domain::files::types::ModifiedTime(1),
             },
             digest: Digest("va".into()),
             uses: Vec::new(),
@@ -59,8 +59,8 @@ pub fn check(adapter: &impl ValidateStorePort) {
         ProvenVersion {
             release: release("p", DefinitionKind::Spec, "s"),
             stamp: Stamp {
-                size: crate::domain::files::types::FileSize(20),
-                modified: crate::domain::files::types::ModifiedTime(2),
+                size: tastemaker_values::domain::files::types::FileSize(20),
+                modified: tastemaker_values::domain::files::types::ModifiedTime(2),
             },
             digest: Digest("vs".into()),
             uses: vec![

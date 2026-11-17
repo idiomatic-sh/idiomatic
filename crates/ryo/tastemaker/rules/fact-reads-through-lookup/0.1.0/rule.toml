@@ -1,0 +1,92 @@
+description = "The file pass and the fact lookup read a file's relations only as they are asked for: a file under the placement names none of the `forbidden` targets, which name a relation by its variant, the facts worker or a provider's adapter or factory."
+why = "A file's facts are opened once, by the caller of the pass, and read through the one lookup it hands down: the pass asks for what its plans name and never reaches the worker, a provider or a relation it chose itself, so a second way of reading a file's rows cannot grow inside it. A relation written as its variant (`Relation::BindingRead`) is a read the plans did not ask for; naming the facts worker is a read around the lookup; a provider's adapter or factory is a provider the request did not compose. Found from the paths the files write in imports and in code, the provider's `static-import` and `reference` relations, matched against the `forbidden` globs as written. Not seen: a relation reached through a value computed at run time; a reviewer reads those against the plan. The placement leaves out tests and fixtures."
+
+query = '''
+param forbidden: set<string>;
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let named = select * from mentions where glob_any(target, $forbidden);
+let found = project(from=named, columns=["file", "span"]);
+emit found subject "file" key("span");
+'''
+
+[params.forbidden]
+type = "set<string>"
+description = "The targets a file under the placement may not name, each a glob as written in code: `*Relation::*` for a relation by its variant, `*FactsWorker` for the facts worker, `crate::outbound::*::adapters::*` and `crate::outbound::*::factory::*` for a provider's adapter or factory."
+
+[diagnostic]
+primary = "span"
+message = "names what this file reads only through the fact lookup it is handed"
+help = "Read the relation through the lookup the caller opened (`fact_lookup`'s `opened`), as the plan asks for it: take the lookup as an argument rather than the facts worker, name relations through the plan rather than by variant, and leave providers to the edge that composes them. An ignore is never the fix."
+
+[given]
+include = ['src/application/file_dag/file_pass/**']
+params = { forbidden = ['*Relation::*', '*FactsWorker', '{,::}crate::outbound::*::adapters', '{,::}crate::outbound::*::adapters::*', '{,::}crate::outbound::*::factory', '{,::}crate::outbound::*::factory::*'] }
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = '''
+//! Module.
+
+pub mod application;
+'''
+
+[[scenarios]]
+id = 'pass-reads-through-the-lookup'
+scenario = "A pass that reads the relations its plan names through the lookup it is handed."
+given.files.'src/application/file_dag/file_pass/service.rs' = '''
+use crate::application::file_dag::fact_lookup::service::FactLookup;
+use ryo_relations::domain::relations::types::Relation;
+
+pub(crate) fn rows(lookup: &FactLookup<'_, '_>, relation: Relation) -> usize {
+    lookup.rows(relation).len()
+}
+'''
+
+[[scenarios]]
+id = 'pass-names-a-relation-variant'
+scenario = "A pass that reads a relation by its variant."
+given.files.'src/application/file_dag/file_pass/service.rs' = '''
+use crate::application::file_dag::fact_lookup::service::FactLookup;
+use ryo_relations::domain::relations::types::Relation;
+
+pub(crate) fn bindings(lookup: &FactLookup<'_, '_>) -> usize {
+    lookup.rows(Relation::BindingRead).len()
+}
+'''
+then.findings = [
+  { path = 'src/application/file_dag/file_pass/service.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'pass-names-the-facts-worker'
+scenario = "A pass that takes the facts worker and opens the file itself."
+given.files.'src/application/file_dag/file_pass/service.rs' = '''
+use crate::outbound::facts::interface::FactsWorker;
+
+pub(crate) fn run(facts: &mut dyn FactsWorker) {
+    drop(facts);
+}
+'''
+then.findings = [
+  { path = 'src/application/file_dag/file_pass/service.rs', line = 1 },
+  { path = 'src/application/file_dag/file_pass/service.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'pass-names-a-provider-factory'
+scenario = "A pass that composes a facts adapter through its factory."
+given.files.'src/application/file_dag/file_pass/service.rs' = '''
+use crate::outbound::facts::factory::memory;
+
+pub(crate) fn worker() {
+    drop(memory());
+}
+'''
+then.findings = [
+  { path = 'src/application/file_dag/file_pass/service.rs', line = 1 },
+]

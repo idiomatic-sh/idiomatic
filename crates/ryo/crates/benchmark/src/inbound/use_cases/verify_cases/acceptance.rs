@@ -23,7 +23,18 @@ fn verify(
     let context = ryo_benchmark::outbound::context::factory::local();
     let receipts = ryo_benchmark::outbound::receipts::fixtures::fake::ReceiptsFake::default();
     VerifyCasesUseCaseImpl::new(
-        suite, &receipts, &context, reference, candidate, execution, &inventory,
+        suite,
+        &ryo_benchmark::outbound::host::fixtures::fake::HostFake::default(),
+        &receipts,
+        &context,
+        reference,
+        candidate,
+        ryo_benchmark::inbound::use_cases::verify_cases::types::Executions {
+            reference: execution,
+            candidate: execution,
+        },
+        &inventory,
+        &ryo_benchmark::outbound::evidence::fixtures::fake::EvidenceFake,
     )
     .verify_cases(
         rules,

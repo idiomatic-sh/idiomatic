@@ -19,9 +19,9 @@ name = "ryo"
 path = "src/main.rs"
 
 [dependencies]
-ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../crates/execution", version = "0.1.4" }
-ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../crates/execution_runtime", version = "0.1.4" }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../crates/relations", version = "0.1.4" }
+ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../crates/execution", version = "0.2.0" }
+ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../crates/execution_runtime", version = "0.2.0" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../crates/relations", version = "0.2.0" }
 anstream.workspace = true
 clap.workspace = true
 indicatif.workspace = true
@@ -31,21 +31,20 @@ tracing.workspace = true
 tracing-chrome.workspace = true
 tracing-subscriber.workspace = true
 thiserror.workspace = true
-ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", version = "0.1.4" }
-ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../crates/operators", version = "0.1.4" }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../crates/language", version = "0.1.4" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../crates/values", version = "0.1.4" }
-ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../crates/query_language", version = "0.1.4" }
-ryo_css = { package = "idiomatic-sh-ryo-css", path = "../languages/css", optional = true, version = "0.1.4" }
-ryo_go = { package = "idiomatic-sh-ryo-go", path = "../languages/go", optional = true, version = "0.1.4" }
-ryo_html = { package = "idiomatic-sh-ryo-html", path = "../languages/html", optional = true, version = "0.1.4" }
-ryo_javascript = { package = "idiomatic-sh-ryo-javascript", path = "../languages/javascript", optional = true, version = "0.1.4" }
-ryo_json = { package = "idiomatic-sh-ryo-json", path = "../languages/json", optional = true, version = "0.1.4" }
-ryo_markdown = { package = "idiomatic-sh-ryo-markdown", path = "../languages/markdown", optional = true, version = "0.1.4" }
-ryo_python = { package = "idiomatic-sh-ryo-python", path = "../languages/python", optional = true, version = "0.1.4" }
-ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../languages/rust", optional = true, version = "0.1.4" }
-ryo_toml = { package = "idiomatic-sh-ryo-toml", path = "../languages/toml", optional = true, version = "0.1.4" }
-ryo_typescript = { package = "idiomatic-sh-ryo-typescript", path = "../languages/typescript", optional = true, version = "0.1.4" }
+ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", version = "0.2.0" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../crates/operators", version = "0.2.0" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../crates/language", version = "0.2.0" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../crates/values", version = "0.2.0" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../crates/query_language", version = "0.2.0" }
+ryo_css = { package = "idiomatic-sh-ryo-css", path = "../languages/css", optional = true, version = "0.2.0" }
+ryo_go = { package = "idiomatic-sh-ryo-go", path = "../languages/go", optional = true, version = "0.2.0" }
+ryo_html = { package = "idiomatic-sh-ryo-html", path = "../languages/html", optional = true, version = "0.2.0" }
+ryo_json = { package = "idiomatic-sh-ryo-json", path = "../languages/json", optional = true, version = "0.2.0" }
+ryo_markdown = { package = "idiomatic-sh-ryo-markdown", path = "../languages/markdown", optional = true, version = "0.2.0" }
+ryo_python = { package = "idiomatic-sh-ryo-python", path = "../languages/python", optional = true, version = "0.2.0" }
+ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../languages/rust", optional = true, version = "0.2.0" }
+ryo_toml = { package = "idiomatic-sh-ryo-toml", path = "../languages/toml", optional = true, version = "0.2.0" }
+ryo_typescript = { package = "idiomatic-sh-ryo-typescript", path = "../languages/typescript", optional = true, version = "0.2.0" }
 
 [target.'cfg(all(not(target_os = "windows"), not(target_os = "openbsd"), not(target_os = "aix"), not(target_os = "android"), any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "riscv64")))'.dependencies]
 tikv-jemallocator.workspace = true
@@ -58,10 +57,10 @@ sha2.workspace = true
 ignore.workspace = true
 sysinfo.workspace = true
 ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk" }
-# The crate itself with the language its tests and benches read, so the tests read that language whatever the defaults.
-idiomatic-sh-ryo = { path = ".", features = ["rust"] }
+# The crate itself with the language its tests and benches read, so the tests read that language whatever the defaults, and
+# with `fixtures`, so the replay links the languages the command links (`linked_connections`).
+idiomatic-sh-ryo = { path = ".", features = ["rust", "fixtures"] }
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../crates/core", features = ["fixtures"] }
-dhat.workspace = true
 toml.workspace = true
 # The language with its fixtures, which the call-count test reads.
 ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../languages/rust", features = ["fixtures"] }
@@ -71,15 +70,6 @@ trycmd.workspace = true
 tempfile.workspace = true
 snapbox.workspace = true
 shlex = "=2.0.1"
-
-[[test]]
-name = "blocks"
-harness = false
-
-[[bench]]
-name = "lint"
-path = "benches/lint.rs"
-harness = false
 
 [[bench]]
 name = "commands"
@@ -91,7 +81,7 @@ harness = false
 # Every language is a default: a plain `cargo install` reads all of them, and a registry's build or a check names its own set with `--no-default-features --features ...`.
 [features]
 distribution = []
-default = ["css", "go", "html", "javascript", "json", "markdown", "python", "rust", "toml", "typescript"]
+default = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = []
 # A diagnostic build: `--timings=phases` prints the outer phases of a command and when each began and ended (Linux).
@@ -99,7 +89,6 @@ phase-diagnostic = []
 css = ["dep:ryo_css"]
 go = ["dep:ryo_go"]
 html = ["dep:ryo_html"]
-javascript = ["dep:ryo_javascript"]
 json = ["dep:ryo_json"]
 markdown = ["dep:ryo_markdown"]
 python = ["dep:ryo_python"]

@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use super::errors::RepositoryError;
 use super::types::{Presence, RepoPaths, Walk};
-use crate::domain::files::types::{FileText, MachinePath, SkippedDirectories, Stamps};
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::files::types::{FileText, MachinePath, SkippedDirectories, Stamps};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// What every `repository` adapter implements.
 pub trait RepositoryPort: Send + Sync {

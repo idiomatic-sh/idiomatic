@@ -1,12 +1,11 @@
-//! Naming preserves each original certified observation and contestant order.
+//! A pair keeps each certified observation, in contestant order, and its eligibility.
 use super::value::Pair;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::measurements::types::Measurement;
 use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-use ryo_benchmark_contracts::domain::measurements::types::SampleName;
 
 const CASES: &[Case<(), [u128; 2], ()>] = &[Case {
-    name: CaseName("naming preserves both observations"),
+    name: CaseName("the pair keeps both observations and its eligibility"),
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value([3, 7]),
@@ -48,13 +47,13 @@ fn succeeds() {
         };
         assert_eq!(pair.reference().wall.as_millis(), 3);
         assert_eq!(pair.candidate().wall.as_millis(), 7);
-        let [reference, candidate] =
-            pair.samples([SampleName(String::new()), SampleName(String::new())]);
-        assert!(reference.name().0.is_empty());
-        assert!(candidate.name().0.is_empty());
+        assert_eq!(
+            pair.eligibility(),
+            crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
+        );
         Ok([
-            reference.measurement().wall.as_millis(),
-            candidate.measurement().wall.as_millis(),
+            pair.reference().wall.as_millis(),
+            pair.candidate().wall.as_millis(),
         ])
     });
 }

@@ -1,10 +1,6 @@
 //! Runner command and artifact protocol.
 /// Refuse profiling without an explicit trace path.
 pub(crate) const MISSING_TRACE: &str = "expected explicit trace output path";
-/// Complete profile fixture-verification command.
-pub(crate) const VERIFY_CASES: &str = "verify-cases";
-/// Check authored fixtures with the pinned reference only; never runs a candidate.
-pub(crate) const VERIFY_REFERENCE_CASES: &str = "verify-reference-cases";
 /// Required argument or refusal for the oxlint executable.
 pub(crate) const EXPECTED_OXLINT: &str = "expected oxlint executable";
 /// Stable command, artifact or observation identity for profile directory.
@@ -36,36 +32,16 @@ pub(crate) const TYPESCRIPT: &str = "typescript";
 pub(crate) const PROJECTS_DIRECTORY: &str = "projects";
 /// Stable command, artifact or observation identity for valid source profile.
 pub(crate) const VALID_SOURCE_PROFILE: &str = "pinned-reference-valid-typescript";
-/// Stable command, artifact or observation identity for full source profile.
-pub(crate) const FULL_SOURCE_PROFILE: &str = "all-typescript-sources";
-/// Stable command, artifact or observation identity for reference name.
-pub(crate) const REFERENCE_NAME: &str = "oxlint";
 /// Stable command, artifact or observation identity for audit.
 pub(crate) const AUDIT: &str = "audit";
-/// Stable command, artifact or observation identity for verify tool.
-pub(crate) const VERIFY_TOOL: &str = "verify-tool";
-/// The command comparing the configured rules over a staged request, rule by rule.
-pub(crate) const PARITY: &str = "parity";
-/// Refusal of a parity command line that is not its two paths.
-pub(crate) const PARITY_ARGUMENTS: &str = "expected parity <oxlint> <output>";
-/// The state directory of one project's parity, below its output.
-pub(crate) const PARITY_STATE: &str = "state";
-/// One project's per-rule parity document, below its output.
-pub(crate) const PER_RULE: &str = "per-rule.json";
-/// Where a project's accepted differences are, relative to this bench.
-pub(crate) const EVIDENCE_DIRECTORY: &str = "profiles/evidence";
-/// The suffix of a project's accepted-differences file, after the project's name.
-pub(crate) const ACCEPTED_SUFFIX: &str = "-accepted-differences.json";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
-pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | parity <oxlint> <output> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <dir> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
+pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <dir> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
 /// This benchmark package's root, where its rules and fragments are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
 /// Text `unsupported worker command`.
 pub(crate) const UNSUPPORTED_WORKER_COMMAND: &str = "unsupported worker command";
-/// Text `--case-inventory=`.
-pub(crate) const CASE_INVENTORY: &str = "--case-inventory=";
 /// Text `canonical benchmark requires explicit...`.
 pub(crate) const CANONICAL_BENCHMARK_REQUIRES_EXPLI: &str =
     "canonical benchmark requires explicit registered --case-inventory=PATH";
@@ -95,8 +71,31 @@ const MTS_EXTENSION: &str = ".mts";
 const CTS_EXTENSION: &str = ".cts";
 /// TypeScript JSX source suffix.
 const TSX_EXTENSION: &str = ".tsx";
-/// The suffixes of the sources the matched input profile admits: TypeScript only, the one language the worker links.
-pub(crate) const SOURCE_SUFFIXES: [&str; 4] =
-    [TS_EXTENSION, MTS_EXTENSION, CTS_EXTENSION, TSX_EXTENSION];
+/// JavaScript source suffix.
+const JS_EXTENSION: &str = ".js";
+/// JavaScript JSX source suffix.
+const JSX_EXTENSION: &str = ".jsx";
+/// JavaScript ES module source suffix.
+const MJS_EXTENSION: &str = ".mjs";
+/// JavaScript CommonJS module source suffix.
+const CJS_EXTENSION: &str = ".cjs";
+/// The suffixes of the sources the matched input profile admits: TypeScript's and JavaScript's, both of which the one language the
+/// worker links reads.
+pub(crate) const SOURCE_SUFFIXES: [&str; 8] = [
+    TS_EXTENSION,
+    MTS_EXTENSION,
+    CTS_EXTENSION,
+    TSX_EXTENSION,
+    JS_EXTENSION,
+    JSX_EXTENSION,
+    MJS_EXTENSION,
+    CJS_EXTENSION,
+];
 /// Stable command, artifact or observation identity for rules directory.
 pub(crate) const RULES_DIRECTORY: &str = "rules";
+/// Refusal of a measure without the file its document is written to.
+pub(crate) const EXPECTED_DOCUMENT: &str = "expected --document=<file>";
+/// Refusal of a measure without the verification's directory.
+pub(crate) const EXPECTED_VERIFICATION: &str = "expected --verification=<inventory directory>";
+/// The language's growth table, from this linter's bench: `languages/<lang>/benchmarks/growth.toml`.
+pub(crate) const GROWTH_TABLE: &str = "../../growth.toml";

@@ -12,7 +12,9 @@ use super::constants::{RETAINED_COLUMN_WORDS, SCHEMAS};
 use super::types::FactsRefusalText;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
-use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
+use crate::outbound::facts::types::{
+    BucketSource, ColumnsMut, KeptBucket, KeptSources, KeptWordsLength, WordsToKeep,
+};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -43,10 +45,6 @@ struct MemoryWorker {
 }
 
 impl FactsWorker for MemoryWorker {
-    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
-        crate::outbound::facts::types::ResidentStability::Stable
-    }
-
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         Ok(self
             .tables
@@ -85,7 +83,7 @@ impl FactsWorker for MemoryWorker {
         kept.sources.push(BucketSource {
             file: words.file,
             start: crate::outbound::facts::types::KeptWordsStart(start),
-            length: crate::outbound::facts::types::KeptWordsLength(words.words.0.len()),
+            length: KeptWordsLength(words.words.0.len()),
             proof: words.proof.clone(),
         });
         Ok(())
@@ -123,6 +121,17 @@ impl FactsFinish for MemoryFinish {
             .kept
             .get(&bucket)
             .map_or_else(KeptBucket::default, Clone::clone))
+    }
+
+    /// The worker's own provenance of the bucket and its length, its words left where they are.
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        Ok(self
+            .kept
+            .get(&bucket)
+            .map_or_else(KeptSources::default, |kept| KeptSources {
+                sources: kept.sources.clone(),
+                length: KeptWordsLength(kept.words.0.0.len()),
+            }))
     }
 }
 
@@ -163,6 +172,24 @@ impl FactsFinish for Joined {
             )),
             sources,
         })
+    }
+
+    /// Each worker's provenance one worker after another, each start moved past the words of the workers before: as `kept`
+    /// gives it, without a word read.
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        let mut joined = KeptSources::default();
+        for part in &self.parts {
+            let each = part.sources(bucket)?;
+            let offset = joined.length.0;
+            joined
+                .sources
+                .extend(each.sources.into_iter().map(|mut source| {
+                    source.start.0 += offset;
+                    source
+                }));
+            joined.length.0 += each.length.0;
+        }
+        Ok(joined)
     }
 }
 

@@ -34,17 +34,24 @@ pub struct ProjectEntryObservation {
 /// Entry kinds available to a Given project's namespace lookup.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProjectEntryState {
+    /// A file.
     File,
+    /// A directory.
     Directory,
+    /// Something that is neither a file nor a directory.
     Other,
+    /// Nothing exists at the path.
     Missing,
+    /// The host did not say what exists at the path.
     Unknown,
 }
 
 /// Explicit Given inventory and its absence authority; no disk probing is implied.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct GivenProjectInventory {
+    /// The entries the host observed.
     pub entries: Vec<ProjectEntryObservation>,
+    /// How much of the search scope the entries cover.
     pub completeness: ProjectInventoryCompleteness,
 }
 

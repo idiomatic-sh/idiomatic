@@ -60,11 +60,11 @@ fn subject(line: Input) -> Result<Value, Failure> {
     }
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("down").chain(line))
         .map_err(|error| error.kind())?;
-    let root = asymptote_core::domain::manifest::types::ProductRoot("/repo".into());
+    let root = asymptote_values::domain::manifest::types::ProductRoot("/repo".into());
     let edge = crate::edge::Edge {
         here: root.clone(),
         start: root,
-        store: std::path::PathBuf::from(asymptote_core::domain::operations::constants::CACHE),
+        store: std::path::PathBuf::from(asymptote_values::domain::operations::constants::CACHE),
         build: asymptote_core::outbound::check_store::types::Build("test".into()),
         format: crate::output::Format::Terminal,
         writing: if parsed.dry_run.dry_run() {
@@ -85,18 +85,18 @@ fn subject(line: Input) -> Result<Value, Failure> {
 
 /// The JSON `down` answers with for one perf record dropped.
 fn perf_json() -> String {
-    use asymptote_core::domain::operations::types::{
+    use asymptote_core::domain::ratchet::types::{Compaction, Writing};
+    use asymptote_values::domain::operations::types::{
         BenchmarkName, MeasureName, Number, PerfKey, PerfRecord, Reason,
     };
-    use asymptote_core::domain::ratchet::types::{Compaction, Writing};
     let report = asymptote_core::inbound::use_cases::down::types::DownReport {
-        root: asymptote_core::domain::manifest::types::ProductRoot("/repo".into()),
+        root: asymptote_values::domain::manifest::types::ProductRoot("/repo".into()),
         dropped: Vec::new(),
         lowered: Vec::new(),
         recorded: Vec::new(),
         perf: vec![PerfRecord {
             key: PerfKey {
-                tool: asymptote_core::domain::violations::types::ToolId("bench".into()),
+                tool: asymptote_values::domain::violations::types::ToolId("bench".into()),
                 benchmark: BenchmarkName("check".into()),
                 measure: MeasureName("wall-ms".into()),
             },

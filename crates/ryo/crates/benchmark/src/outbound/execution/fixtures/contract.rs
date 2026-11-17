@@ -190,6 +190,20 @@ fn missing() -> Invocation {
         directory: PathBuf::from("."),
     }
 }
+/// The promise every execution keeps, whether or not it launches children: `child`, an invocation that is no worker
+/// request, compiles no rule ahead.
+///
+/// # Panics
+///
+/// Panics when the implementation breaks it.
+pub fn check_with(adapter: &impl ExecutionPort, child: &Invocation) {
+    assert!(
+        adapter
+            .compile(child)
+            .is_none_or(|compiled| compiled.is_ok_and(|times| times.is_empty())),
+        "an invocation that is no worker request compiles no rule"
+    );
+}
 /// Run the shared observations against the supplied implementation.
 ///
 /// # Panics
@@ -200,6 +214,7 @@ fn missing() -> Invocation {
     reason = "fixture setup failures must fail the contract test"
 )]
 pub fn check(adapter: &impl ExecutionPort) {
+    check_with(adapter, &invocation());
     let subject = |input| {
         let profile = adapter.profile();
         let mode = adapter.exit_observation();
@@ -231,16 +246,12 @@ pub fn check(adapter: &impl ExecutionPort) {
                     } else {
                         "missing-interpreter"
                     }));
-                std::fs::write(
-                    &path,
-                    if format {
-                        "not executable image bytes"
-                    } else {
-                        "#!/ryo-benchmark-missing-interpreter\n"
-                    },
-                )
-                .expect("executable fixture");
-                super::driver::make_executable(&path).expect("executable permission fixture");
+                let contents = if format {
+                    "not executable image bytes"
+                } else {
+                    "#!/ryo-benchmark-missing-interpreter\n"
+                };
+                super::executable::write(&path, contents.as_bytes()).expect("executable fixture");
                 call.executable = path;
             }
             Operation::Signaled => {
@@ -266,7 +277,10 @@ pub fn check(adapter: &impl ExecutionPort) {
 
         let output = adapter.run(call).map_err(|error| match error {
             Error::Io(error)
-                if invalid_image && error.raw_os_error() == Some(super::driver::image_error()) =>
+                if invalid_image
+                    && error
+                        .raw_os_error()
+                        .is_some_and(|code| super::driver::image_errors().contains(&code)) =>
             {
                 Failure::ExecutableFormat
             }

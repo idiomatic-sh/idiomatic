@@ -4,8 +4,10 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use crate::domain::files::types::{DirectoryName, FileText, MachinePath, SkippedDirectory};
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::files::types::{
+    DirectoryName, FileText, MachinePath, SkippedDirectory,
+};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// The trees an adapter holds, by the scratch directory each is, each behind a lock of its own: the scenarios checked at
 /// once never wait on one another.

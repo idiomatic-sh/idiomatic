@@ -1,11 +1,8 @@
 //! The memory fakes of the `budget` group's scenarios.
 
-use crate::application::cross_file::fixtures::ProjectCalls;
+use crate::application::cross_file::fixtures::project_calls::ProjectCalls;
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::memory::interface::MemoryPort;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::domain::runs::types::MemoryBytes;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -16,10 +13,29 @@ pub(super) struct GrowingMemory {
 }
 
 impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for GrowingMemory {
-    fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        let answer = self.actual.operators(call);
-        self.resident.store(200, Ordering::SeqCst);
-        answer
+    fn plan(
+        &self,
+        program: &ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram<'_>,
+    ) -> Result<
+        ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    > {
+        ryo_operators::inbound::use_cases::run::fixtures::planned(program)
+    }
+    fn run(
+        &self,
+        plan: &ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+        node: ryo_operators::domain::physical_plan::types::PlanNodeId,
+        buffers: &mut ryo_operators::domain::physical_plan::types::file_buffers::value::FileBuffers,
+        inputs: &dyn ryo_operators::domain::physical_plan::types::PlanInputs,
+        resources: &mut dyn ryo_operators::domain::physical_plan::types::Resources,
+    ) -> Result<(), ryo_operators::domain::contract::types::PortableOperatorFault> {
+        let ran = self.actual.run(plan, node, buffers, inputs, resources);
+        // Work after the files grows what is resident.
+        if self.actual.runs.load(Ordering::SeqCst) > 0 {
+            self.resident.store(200, Ordering::SeqCst);
+        }
+        ran
     }
 }
 

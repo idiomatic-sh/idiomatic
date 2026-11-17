@@ -5,5 +5,9 @@ pub const MISSING: &str = "missing";
 pub const SOURCE: &str = "source";
 /// The digest section that lists the auxiliary files a case supplies.
 pub const AUXILIARY: &str = "auxiliary";
+/// The entry tag of a sealed symbolic link in the digest.
+pub const LINK: &str = "link";
 /// The tag the content seal of a listed project context starts with.
 pub const LISTED_DISK_CONTEXT: &str = "listed-disk-context";
+/// The separator of the platform-independent form of a sealed path.
+pub const PORTABLE_SEPARATOR: &str = "/";

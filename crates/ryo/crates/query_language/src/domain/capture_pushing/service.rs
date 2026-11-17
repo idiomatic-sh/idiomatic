@@ -3,7 +3,7 @@
 use super::types::MovedComparisons;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
-use crate::domain::walking::service::width_of;
+use crate::domain::widths::service::width_of;
 use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::service::each_column;
 use ryo_values::domain::plan_parts::types::Input;

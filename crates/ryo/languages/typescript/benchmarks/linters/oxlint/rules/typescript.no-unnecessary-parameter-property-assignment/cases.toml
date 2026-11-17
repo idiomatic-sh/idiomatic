@@ -77,3 +77,8 @@ expected = []
 name = "disabled"
 files = { "case.ts" = "class A {\n  constructor(public x: number, public y: number) {\n    // eslint-disable-next-line no-unnecessary-parameter-property-assignment\n    this.x = x;\n    this.y = y; // oxlint-disable-line typescript/no-unnecessary-parameter-property-assignment\n    this.x = x;\n  }\n}\n" }
 expected = [{ file = "case.ts", start = 254, end = 264 }]
+
+[[cases]]
+name = "computed-template"
+files = { "case.ts" = "class A {\n  constructor(readonly x: number) {\n    this[`x`] = x;\n  }\n}\n" }
+expected = []

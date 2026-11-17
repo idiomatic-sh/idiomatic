@@ -4,18 +4,18 @@ use std::collections::BTreeMap;
 
 use super::service::{begin, next};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::definitions::types::{LoadedWorkspace, WorkspaceSection};
-use crate::domain::entries::types::{
+use tastemaker_values::domain::definitions::types::{LoadedWorkspace, WorkspaceSection};
+use tastemaker_values::domain::entries::types::{
     Acyclicity, Alias, Amount, Composition, Described, EntryHeader, Ordering, ParamValues,
     RuleEntry,
 };
-use crate::domain::findings::types::WorkspaceName;
-use crate::domain::packages::types::{
+use tastemaker_values::domain::findings::types::WorkspaceName;
+use tastemaker_values::domain::packages::types::{
     DefinitionName, Ownership, PackageManifest, PackageName, PackageRoot, Reach, ResolvedPackage,
     SourcePath, VersionText,
 };
-use crate::domain::paths::types::RepoPath;
-use crate::domain::selectors::types::Selectors;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::selectors::types::Selectors;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]
@@ -53,7 +53,9 @@ fn workspace(package: &str) -> LoadedWorkspace {
         PackageName("p".into()),
         ResolvedPackage {
             directory: PackageRoot("/p".into()),
-            pin: crate::domain::packages::types::PackageSource::Path(SourcePath("p".into())),
+            pin: tastemaker_values::domain::packages::types::PackageSource::Path(SourcePath(
+                "p".into(),
+            )),
             manifest: PackageManifest {
                 name: PackageName("p".into()),
                 dependencies: Vec::new(),

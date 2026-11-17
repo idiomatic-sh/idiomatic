@@ -1,0 +1,21 @@
+version = 1
+parents = ["efa1a035dd5e6e412b2fb6d1386a6d7d31d8580789cd4a561745054f96751b61"]
+
+removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/cli#outdated", path = "tastemaker.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "a23b539cc4b26ac5" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "21b695c83b84f319" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "68c50fa2afe8db4a" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "4678cb75ef69e9e4" },
+  { tool = "tastemaker", rule = "idiomatic.arch/crate(crate-core)#outdated", path = "tastemaker.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "dc2e09e77fa087c5" },
+  { tool = "tastemaker", rule = "idiomatic.arch/crate(cli-crate)#outdated", path = "tastemaker.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "903fd18a06722477" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "a26d268568ed1c6a" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "8366cfcb8d1fc130" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "34e8caae78d054b0" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "803d79872a164e25" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "e06d285ccd5a1975" },
+  { tool = "tastemaker", rule = "idiomatic.arch/layer-matrix", path = "crates/core/src/outbound/analysis/fixtures/fake.rs", level = "error", fingerprint = "b491e300d5f49ee4" },
+  { tool = "tastemaker", rule = "idiomatic.arch/distribution#outdated", path = "tastemaker.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
+]

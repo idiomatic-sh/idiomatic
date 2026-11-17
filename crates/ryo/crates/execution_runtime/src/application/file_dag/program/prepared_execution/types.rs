@@ -9,7 +9,7 @@ use std::sync::Arc;
 /// runtime's own build refuses it. The same lint holds `RequestExecution::open_project`, whose return type is crate-private.
 ///
 /// ```compile_fail,E0603
-/// use ryo_execution_runtime::application::file_dag::execution::service::CommonOperatorEngine;
+/// use ryo_execution_runtime::application::file_dag::project_pass::service::run_batch;
 /// ```
 /// The program compiler (`compile`) lives in `ryo_execution_domain`; `idiomatic.arch/library-surface` keeps it, the store
 /// and the runtime's application from every crate outside the engine crates.
@@ -23,15 +23,18 @@ use std::sync::Arc;
 pub struct PreparedExecutionProgram {
     pub(crate) parts: ProgramParts,
 }
+impl std::fmt::Debug for PreparedExecutionProgram {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
 /// The members of a prepared program, reachable only inside the runtime.
 pub(crate) struct ProgramParts {
-    pub(crate) kernels:
-        Arc<dyn crate::application::file_dag::executor::service::PrimitiveExecutor + Send>,
-    pub(crate) derived: crate::application::file_dag::derived::program::service::ProgramDerived,
     pub(crate) inner:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
-    /// What names the content of packed words, for every request of the program.
-    pub(crate) digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    /// The program the file pass runs every file of the program's requests through, planned once.
+    pub(crate) pass: Arc<crate::application::file_dag::file_pass::types::PassProgram>,
 }
 /// Whether a rule is wanted by the request, directly or through a named observation.
 ///
@@ -43,7 +46,9 @@ pub(crate) struct ProgramParts {
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Demand {
+    /// The request wants the rule.
     Demanded,
+    /// The request does not want the rule.
     Undemanded,
 }
 /// Whether a rule declares or consumes named observations.
@@ -56,7 +61,9 @@ pub enum Demand {
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObservationContract {
+    /// The rule declares or binds an observation.
     Declared,
+    /// The rule neither declares nor binds an observation.
     Absent,
 }
 /// The readiness layout of the named observations and the frontiers that feed them.
@@ -75,8 +82,11 @@ pub enum ObservationContract {
 /// let named = NamedLayout { layout: ObservationReadinessLayout(Digest([0; 16])), frontiers: &frontiers };
 /// assert_eq!(named.frontiers.len(), 1);
 /// ```
+#[derive(Debug)]
 pub struct NamedLayout<'a> {
+    /// The layout of the readiness the named observations are recorded in.
     pub layout: ObservationReadinessLayout,
+    /// The frontier roots the observations are read from.
     pub frontiers: &'a [ObservedFrontierRoot],
 }
 /// The rules a changed selection reaches and the producer frontiers they read.
@@ -92,7 +102,9 @@ pub struct NamedLayout<'a> {
 /// ```
 #[derive(Debug, PartialEq)]
 pub struct ReplayClosure {
+    /// How much of the earlier run is reused.
     pub reuse: Reuse,
+    /// The frontier buckets the replay reads.
     pub buckets: Vec<Bucket>,
 }
 
@@ -136,11 +148,14 @@ pub struct RuleBatches<'a>(
 pub struct Demands(pub Vec<Demand>);
 
 /// The named layout of the program's observations, when it declares any.
+#[derive(Debug)]
 pub struct ObservationLayout<'a>(pub Option<NamedLayout<'a>>);
 
 /// The relations a rule's observation reads.
 #[derive(Clone, Debug, Default)]
-pub struct RelationReads(pub Vec<ryo_execution_domain::domain::trust::types::RelationRead>);
+pub struct RelationReads(
+    pub Vec<ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead>,
+);
 
 /// The observation bindings each frontier input of a rule depends on, by input.
 #[derive(Clone, Copy, Debug)]
@@ -192,7 +207,8 @@ impl<'a> std::ops::Deref for ObservationLayout<'a> {
 }
 
 impl std::ops::Deref for RelationReads {
-    type Target = Vec<ryo_execution_domain::domain::trust::types::RelationRead>;
+    type Target =
+        Vec<ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -205,16 +221,21 @@ impl std::ops::DerefMut for RelationReads {
 }
 
 impl IntoIterator for RelationReads {
-    type Item = ryo_execution_domain::domain::trust::types::RelationRead;
-    type IntoIter = std::vec::IntoIter<ryo_execution_domain::domain::trust::types::RelationRead>;
+    type Item = ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
+    type IntoIter = std::vec::IntoIter<
+        ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead,
+    >;
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
 impl<'a> IntoIterator for &'a RelationReads {
-    type Item = &'a ryo_execution_domain::domain::trust::types::RelationRead;
-    type IntoIter = std::slice::Iter<'a, ryo_execution_domain::domain::trust::types::RelationRead>;
+    type Item = &'a ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
+    type IntoIter = std::slice::Iter<
+        'a,
+        ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead,
+    >;
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
     }

@@ -134,12 +134,6 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
             .ok_or_else(|| LintError::PathNotText {
                 path: request.root.clone(),
             })?;
-        let globs = |globs: Vec<Glob>| {
-            globs
-                .into_iter()
-                .map(|glob| CoreGlob(glob.as_ref().into()))
-                .collect::<Vec<_>>()
-        };
         Ok(Self {
             source_language: request.source_language.into_engine(),
             session: Session {
@@ -158,35 +152,49 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                 .collect(),
             hosted: host_relations(request.hosted)?,
             answer: ryo_values::domain::runs::types::AnswerShape::Findings,
-            rules: request
-                .rules
-                .into_iter()
-                .map(|(id, rule)| CoreRule {
-                    observations: observation_bindings(rule.observations),
-                    id: ryo_values::domain::runs::types::RuleId(id.as_ref().into()),
-                    query: rule.query.into_bundle(),
-                    applicability: match rule.applicability {
-                        RuleApplicability::Always => {
-                            ryo_values::domain::runs::types::RuleApplicability::Always
-                        }
-                        RuleApplicability::AcceptedSyntax => {
-                            ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax
-                        }
-                    },
-                    parameters: rule
-                        .parameters
-                        .into_iter()
-                        .map(|(name, value)| RuleParameter {
-                            name: ParameterName(name.0),
-                            value: value.into_engine(),
-                        })
-                        .collect(),
-                    include: globs(rule.include),
-                    exclude: globs(rule.exclude),
-                })
-                .collect(),
+            rules: core_rules(request.rules),
         })
     }
+}
+
+/// The core's rules for the caller's, each under the id its findings carry.
+pub(super) fn core_rules(
+    rules: std::collections::BTreeMap<RuleId, super::types::Rule>,
+) -> Vec<CoreRule> {
+    rules
+        .into_iter()
+        .map(|(id, rule)| CoreRule {
+            observations: observation_bindings(rule.observations),
+            id: ryo_values::domain::runs::types::RuleId(id.as_ref().into()),
+            query: rule.query.into_bundle(),
+            applicability: match rule.applicability {
+                RuleApplicability::Always => {
+                    ryo_values::domain::runs::types::RuleApplicability::Always
+                }
+                RuleApplicability::AcceptedSyntax => {
+                    ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax
+                }
+            },
+            parameters: rule
+                .parameters
+                .into_iter()
+                .map(|(name, value)| RuleParameter {
+                    name: ParameterName(name.0),
+                    value: value.into_engine(),
+                })
+                .collect(),
+            include: core_globs(rule.include),
+            exclude: core_globs(rule.exclude),
+        })
+        .collect()
+}
+
+/// The core's globs for the caller's.
+fn core_globs(globs: Vec<Glob>) -> Vec<CoreGlob> {
+    globs
+        .into_iter()
+        .map(|glob| CoreGlob(glob.as_ref().into()))
+        .collect()
 }
 
 impl TryFrom<LintReportSchema> for LintReport {
@@ -243,7 +251,7 @@ pub(super) fn request(request: LintRequest) -> Result<CoreRequest, LintError> {
 }
 
 /// The relations the host declared as the core takes them, each row checked against the columns its relation declared.
-fn host_relations(relations: Vec<HostRelation>) -> Result<Vec<CoreHost>, LintError> {
+pub(super) fn host_relations(relations: Vec<HostRelation>) -> Result<Vec<CoreHost>, LintError> {
     let mut seen: Vec<HostRelationName> = Vec::new();
     let mut hosted = Vec::with_capacity(relations.len());
     for relation in relations {

@@ -4,12 +4,12 @@
 
 use super::adapter::LockTomlAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::operations::service::fold;
-use crate::domain::operations::types::{Operation, OperationId, OperationText};
 use crate::outbound::lock::errors::LockError;
 use crate::outbound::lock::fixtures::contract::check;
 use crate::outbound::lock::interface::LockPort as _;
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::operations::service::fold;
+use asymptote_values::domain::operations::types::{Operation, OperationId, OperationText};
 
 /// Two operations of ryo's lock, copied unchanged.
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/lock");

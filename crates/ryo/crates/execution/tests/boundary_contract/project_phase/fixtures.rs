@@ -141,7 +141,7 @@ pub(crate) fn mixed_plan(relation: Relation) -> ryo_values::domain::plans::types
 /// other rule undemanded.
 pub(crate) fn captured_in_file_0_of(
     request: &ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
-    facts: &TableFacts,
+    facts: &mut TableFacts,
     symbols: &mut Symbols,
 ) -> Vec<(
     FileId,
@@ -176,7 +176,7 @@ pub(crate) fn captured_in_file_0(
     symbols: &mut Symbols,
 ) -> Vec<ryo_execution::inbound::use_cases::execution::interface::CapturedFrontier> {
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let facts = TableFacts::new(
+    let mut facts = TableFacts::new(
         &rows
             .iter()
             .map(|(relation, table)| (*relation, table))
@@ -194,7 +194,7 @@ pub(crate) fn captured_in_file_0(
             ..FileRun::of(&intents, &elements)
         },
         symbols,
-        &facts,
+        &mut facts,
     ))
     .into_iter()
     .map(|capture| capture.outcome.expect("a kept frontier"))

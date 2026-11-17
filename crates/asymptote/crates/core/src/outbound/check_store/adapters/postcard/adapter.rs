@@ -49,8 +49,10 @@ impl CheckStorePort for CheckStorePostcardAdapter {
     fn load(&self) -> Stored {
         std::fs::read(&self.settings.file)
             .ok() // ignore: idiomatic.arch/no-ok-on-result - a store that cannot be read is no store: the run finds nothing kept and writes it anew
-            .and_then(|bytes| read(&bytes, &self.settings.build))
-            .unwrap_or_default()
+            .map_or_else(Stored::default, |bytes| {
+                // Bytes that are no store of this build are a cold miss whatever the reason: the run writes the store anew.
+                read(&bytes, &self.settings.build).unwrap_or_default()
+            })
     }
 
     fn keep(&self, stored: &Stored) -> Result<(), CheckStoreError> {

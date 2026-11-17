@@ -11,4 +11,3 @@
 repository = "https://github.com/fastapi/fastapi"
 revision = "40e33e492dbf4af6172997f4e3238a32e56cbe26"
 directory = "."
-dependencies = [{ source = "crates/tastemaker/cli/tests/fixtures/distribution/pypi", destination = ".policy" }, { source = "tastemaker/benchmarks", destination = ".benchmarks" }, { source = "crates/tastemaker/distribution/registries/pypi/targets/fastapi/configuration.toml", destination = "tastemaker.toml" }]

@@ -9,7 +9,10 @@ use ryo_values::domain::{
 
 /// The root rule 0 of `input` delivered in file 0 run through `run_file` with its diagnostic collected over `facts`, or what
 /// stopped it.
-pub(super) fn evaluate(input: PrepareRequest, facts: &TableFacts) -> Result<RootOutcome, FileStop> {
+pub(super) fn evaluate(
+    input: PrepareRequest,
+    facts: &mut TableFacts,
+) -> Result<RootOutcome, FileStop> {
     let engine = engine();
     let prepared = engine
         .prepare(input)
@@ -90,4 +93,177 @@ pub(super) fn failed_column(outcome: Result<RootOutcome, FileStop>) -> Option<u3
     } else {
         None
     }
+}
+
+/// How a step's answer shows in the row-by-row cases.
+pub(super) fn described(outcome: Result<RootOutcome, FileStop>) -> String {
+    match outcome {
+        Ok(RootOutcome::Complete(table)) => format!("complete {:?} {:?}", table.kinds, table.count),
+        Ok(RootOutcome::Partial { table, .. }) => format!("partial {:?}", table.kinds),
+        Ok(RootOutcome::Skipped(_)) => "skipped".into(),
+        Ok(RootOutcome::Unknown(error)) => format!("unknown {error:?}"),
+        Ok(RootOutcome::Failed(error)) => format!("failed {error:?}"),
+        Ok(RootOutcome::NoQuery) => "noquery".into(),
+        Ok(RootOutcome::Deferred { .. }) => "deferred".into(),
+        Err(_) => "filestop".into(),
+    }
+}
+
+/// Each operator that reads its operands row by row, over a column past its input or of the wrong kind (or a sound one, as a
+/// control), by name.
+pub(super) fn row_by_row_steps() -> Vec<(&'static str, Operation)> {
+    use ryo_values::domain::plan_parts::types::{CapturePattern, LiteralText, ParameterId};
+    use ryo_values::domain::query_operators::types::{LineOutput, MaxLine, TabWidth, TextOutput};
+    let from = Input::Step(StepId(0));
+    let text = |written: &str| LiteralText(written.into());
+    let matches = |span: u32| Operation::SourceMatches {
+        from,
+        span: ColumnIndex(span),
+        base_line: None,
+        pattern: text("x"),
+        capture: None,
+        capture_text: TextOutput::Omitted,
+        capture_line: LineOutput::Omitted,
+    };
+    let render = |node: u32| Operation::RenderSyntax {
+        from,
+        node: ColumnIndex(node),
+        context: ryo_language::domain::semantics::types::RenderContext::PositionalArgument,
+    };
+    let fits = |texts: u32, span: u32| Operation::FitsRendered {
+        from,
+        texts: vec![ColumnIndex(texts)],
+        literals: vec![],
+        span: ColumnIndex(span),
+        max_line: MaxLine(80),
+        tab_width: TabWidth(4),
+    };
+    let capture = |path: u32| Operation::Capture {
+        from,
+        path: ColumnIndex(path),
+        pattern: CapturePattern("{x}".into()),
+    };
+    let replace = |column: u32, pattern: &str| Operation::Replace {
+        from,
+        text: ColumnIndex(column),
+        pattern: text(pattern),
+        replacement: text("b"),
+    };
+    vec![
+        ("capture-col99", capture(99)),
+        ("capture-num", capture(1)),
+        (
+            "rank-col99",
+            Operation::Rank {
+                from,
+                column: ColumnIndex(99),
+                sets: ParameterId(0),
+            },
+        ),
+        (
+            "words-col99",
+            Operation::Words {
+                from,
+                text: ColumnIndex(99),
+            },
+        ),
+        (
+            "words-num",
+            Operation::Words {
+                from,
+                text: ColumnIndex(1),
+            },
+        ),
+        ("replace-col99", replace(99, "a")),
+        ("replace-num", replace(1, "a")),
+        ("replace-badre", replace(0, "(")),
+        (
+            "spanbetween-col99",
+            Operation::SpanBetween {
+                from,
+                start: ColumnIndex(99),
+                end: ColumnIndex(0),
+            },
+        ),
+        (
+            "spanbetween-text",
+            Operation::SpanBetween {
+                from,
+                start: ColumnIndex(0),
+                end: ColumnIndex(0),
+            },
+        ),
+        ("sourcematches-col99", matches(99)),
+        ("sourcematches-text", matches(0)),
+        ("render-col99", render(99)),
+        ("render-text", render(0)),
+        ("fits-col99", fits(99, 1)),
+        ("fits-spantext", fits(0, 0)),
+        (
+            "spanbounds-col99",
+            Operation::SpanBounds {
+                from,
+                span: ColumnIndex(99),
+            },
+        ),
+        (
+            "spanbounds-text",
+            Operation::SpanBounds {
+                from,
+                span: ColumnIndex(0),
+            },
+        ),
+    ]
+}
+
+/// A projection of step 1's `columns`.
+pub(super) fn project(columns: &[u32]) -> Operation {
+    Operation::Project {
+        from: Input::Step(StepId(1)),
+        columns: columns.iter().copied().map(ColumnIndex).collect(),
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
+    }
+}
+
+/// What rule 0 answers, collected, over the hosted `text(value: Text, n: Number)` with one row or none, `operation` over it,
+/// and `reader` of `operation` after it, when there is one, emitted.
+pub(super) fn row_by_row(
+    operation: Operation,
+    populated: bool,
+    reader: Option<Operation>,
+) -> String {
+    use ryo_values::domain::plan_parts::types::HostedNumber;
+    let mut input = authored_request(1);
+    input.hosted = vec![HostRelation {
+        name: HostName("text".into()),
+        columns: vec![
+            HostColumn {
+                name: HostColumnName("value".into()),
+                kind: HostKind::Text,
+            },
+            HostColumn {
+                name: HostColumnName("n".into()),
+                kind: HostKind::Number,
+            },
+        ],
+        rows: if populated {
+            vec![HostRow(vec![
+                HostCell::Text("x".into()),
+                HostCell::Number(Integer(1)),
+            ])]
+        } else {
+            vec![]
+        },
+    }];
+    let mut steps = vec![
+        step(Operation::Hosted {
+            relation: HostedNumber(0),
+        }),
+        step(operation),
+    ];
+    steps.extend(reader.map(step));
+    let emitted = StepId(u32::try_from(steps.len() - 1).expect("a few steps"));
+    boundary_fixture::fixtures::plans(&mut input)[0].steps = steps;
+    boundary_fixture::fixtures::plans(&mut input)[0].emit.step = emitted;
+    described(evaluate(input, &mut TableFacts::new(&[])))
 }

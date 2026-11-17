@@ -36,7 +36,7 @@ impl PreparedProgram {
         again: Reuse,
         first: &[ryo_values::domain::stored_facts::types::Bucket],
     ) -> Result<ReplayClosure, OperatingError> {
-        let Some(named) = &self.observations else {
+        let Some(named) = &self.observed else {
             return Ok(ReplayClosure {
                 reuse: again,
                 buckets: vec![],
@@ -56,8 +56,8 @@ impl PreparedProgram {
             reach.mark(RuleIndex(selected.0 as usize))?;
         }
         while let Some(rule) = reach.queue.pop_front() {
-            for output in named.consumers.get(rule.0).ok_or(OperatingError::NotRun)? {
-                for &consumer in output {
+            for output in named.outputs.get(rule.0).ok_or(OperatingError::NotRun)? {
+                for &consumer in &output.consumers {
                     reach.mark(consumer)?;
                 }
             }
@@ -65,19 +65,21 @@ impl PreparedProgram {
         }
         let mut buckets = std::collections::BTreeSet::new();
         for root in named.frontiers.iter() {
-            let consumers = named
-                .consumers
+            let consumers = &named
+                .outputs
                 .get(root.producer.0)
                 .and_then(|outputs| outputs.get(root.output.0 as usize))
-                .ok_or(OperatingError::NotRun)?;
+                .ok_or(OperatingError::NotRun)?
+                .consumers;
             if consumers
                 .iter()
                 .any(|consumer| reach.needed[consumer.0] == Visit::Reached)
             {
-                buckets.insert(ryo_values::domain::stored_facts::service::frontier_bucket(
-                    *first.get(root.producer.0).ok_or(OperatingError::NotRun)?,
-                    root.frontier,
-                ));
+                let _: bool =
+                    buckets.insert(ryo_values::domain::stored_facts::service::frontier_bucket(
+                        *first.get(root.producer.0).ok_or(OperatingError::NotRun)?,
+                        root.frontier,
+                    ));
             }
         }
         let selected = reach
@@ -109,8 +111,8 @@ impl PreparedProgram {
                     continue;
                 };
                 let root = self
-                    .rule_metadata(*rule)?
-                    .observations
+                    .rule_plan(*rule)?
+                    .roots
                     .get(output.0 as usize)
                     .ok_or(OperatingError::NotRun)?;
                 if root.phase == StepScope::CrossFile {

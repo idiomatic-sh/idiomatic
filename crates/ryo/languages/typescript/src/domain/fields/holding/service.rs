@@ -4,9 +4,9 @@ use super::super::constants::{
     ARROW, AS, COLON, DOT, EQUALS, EXTENDS, FROM, IN, OPEN_PARENTHESIS, SEMICOLON,
 };
 use super::super::placing::service::{
-    by_kind, by_marker, count_before, kinded, marked, nth, place, sharing,
+    by_kind, by_marker, count_before, kinded, marked, nth, place, placed_nth, sharing,
 };
-use super::super::types::{Field, Lastness, Ordinal, Sharing, Standing};
+use super::super::types::{Field, FirstMarkers, Lastness, Sharing};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::types::Kind;
@@ -14,12 +14,7 @@ use ryo::languages::{self, Position, Tree};
 
 /// The role of a child of a property: the default of a shorthand pattern (`{ a = 1 }`) is its value and the name beside it its key,
 /// though the wider default comes first; any other child is the key, then the value.
-pub(in super::super) fn property(
-    tree: &Tree<'_>,
-    at: Position,
-    child: Kind,
-    ordinal: Ordinal,
-) -> Field {
+pub(in super::super) fn property(tree: &Tree<'_>, at: Position, child: Kind) -> Field {
     let defaulted = languages::children(tree.elements, parent(tree, at))
         .any(|each| kind(tree, each) == Kind::Node(Node::AssignmentPattern));
     if child == Kind::Node(Node::AssignmentPattern) {
@@ -27,16 +22,16 @@ pub(in super::super) fn property(
     } else if defaulted {
         Field::Key
     } else {
-        nth(&[Field::Key, Field::Value], ordinal)
+        placed_nth(tree, at, &[Field::Key, Field::Value])
     }
 }
 
 /// The role of a child of an export specifier: `export { a }` holds one name in both properties, the two nodes of one range, which
 /// TypeScript-ESTree orders `exported` first; `export { a as b }` writes the local name first.
-pub(in super::super) fn export_specifier(tree: &Tree<'_>, at: Position, ordinal: Ordinal) -> Field {
+pub(in super::super) fn export_specifier(tree: &Tree<'_>, at: Position) -> Field {
     match sharing(tree, at) {
-        Sharing::Shared => nth(&[Field::Exported, Field::Local], ordinal),
-        Sharing::Apart => nth(&[Field::Local, Field::Exported], ordinal),
+        Sharing::Shared => placed_nth(tree, at, &[Field::Exported, Field::Local]),
+        Sharing::Apart => placed_nth(tree, at, &[Field::Local, Field::Exported]),
     }
 }
 
@@ -45,8 +40,13 @@ pub(in super::super) fn export_specifier(tree: &Tree<'_>, at: Position, ordinal:
     clippy::too_many_lines,
     reason = "one arm for each kind of TypeScript-ESTree node: the table of the properties is the proof, and splitting it would split it"
 )]
-pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child: Kind) -> Field {
-    let Standing { ordinal, lastness } = place(tree, at);
+pub(in super::super) fn held(
+    tree: &Tree<'_>,
+    at: Position,
+    holder: Node,
+    child: Kind,
+    first: &FirstMarkers,
+) -> Field {
     match holder {
         Node::Program
         | Node::BlockStatement
@@ -76,7 +76,13 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
             &[kinded(Node::SwitchCase, Field::Cases)],
             Field::Discriminant,
         ),
-        Node::SwitchCase => by_marker(tree, at, &[marked(COLON, Field::Consequent)], Field::Test),
+        Node::SwitchCase => by_marker(
+            tree,
+            at,
+            &[marked(COLON, Field::Consequent)],
+            Field::Test,
+            first,
+        ),
         Node::ImportDeclaration => by_kind(
             child,
             &[
@@ -93,12 +99,24 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 kinded(Node::ExportSpecifier, Field::Specifiers),
                 kinded(Node::ImportAttribute, Field::Attributes),
             ],
-            by_marker(tree, at, &[marked(FROM, Field::Source)], Field::Declaration),
+            by_marker(
+                tree,
+                at,
+                &[marked(FROM, Field::Source)],
+                Field::Declaration,
+                first,
+            ),
         ),
         Node::ExportAllDeclaration => by_kind(
             child,
             &[kinded(Node::ImportAttribute, Field::Attributes)],
-            by_marker(tree, at, &[marked(FROM, Field::Source)], Field::Exported),
+            by_marker(
+                tree,
+                at,
+                &[marked(FROM, Field::Source)],
+                Field::Exported,
+                first,
+            ),
         ),
         Node::ExportDefaultDeclaration => Field::Declaration,
         Node::ChainExpression
@@ -141,56 +159,62 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
         | Node::BinaryExpression
         | Node::LogicalExpression
         | Node::AssignmentPattern
-        | Node::TSQualifiedName => nth(&[Field::Left, Field::Right], ordinal),
-        Node::ConditionalExpression | Node::IfStatement => {
-            nth(&[Field::Test, Field::Consequent, Field::Alternate], ordinal)
-        }
+        | Node::TSQualifiedName => placed_nth(tree, at, &[Field::Left, Field::Right]),
+        Node::ConditionalExpression | Node::IfStatement => placed_nth(
+            tree,
+            at,
+            &[Field::Test, Field::Consequent, Field::Alternate],
+        ),
         Node::MemberExpression | Node::JSXMemberExpression => {
-            nth(&[Field::Object, Field::Property], ordinal)
+            placed_nth(tree, at, &[Field::Object, Field::Property])
         }
-        Node::WhileStatement => nth(&[Field::Test, Field::Body], ordinal),
-        Node::DoWhileStatement => nth(&[Field::Body, Field::Test], ordinal),
-        Node::WithStatement => nth(&[Field::Object, Field::Body], ordinal),
-        Node::LabeledStatement => nth(&[Field::Label, Field::Body], ordinal),
+        Node::WhileStatement => placed_nth(tree, at, &[Field::Test, Field::Body]),
+        Node::DoWhileStatement => placed_nth(tree, at, &[Field::Body, Field::Test]),
+        Node::WithStatement => placed_nth(tree, at, &[Field::Object, Field::Body]),
+        Node::LabeledStatement => placed_nth(tree, at, &[Field::Label, Field::Body]),
         Node::ForInStatement | Node::ForOfStatement => {
-            nth(&[Field::Left, Field::Right, Field::Body], ordinal)
+            placed_nth(tree, at, &[Field::Left, Field::Right, Field::Body])
         }
-        Node::ImportSpecifier => nth(&[Field::Imported, Field::Local], ordinal),
-        Node::ExportSpecifier => export_specifier(tree, at, ordinal),
-        Node::Property => property(tree, at, child, ordinal),
+        Node::ImportSpecifier => placed_nth(tree, at, &[Field::Imported, Field::Local]),
+        Node::ExportSpecifier => export_specifier(tree, at),
+        Node::Property => property(tree, at, child),
         Node::ImportAttribute
         | Node::PropertyDefinition
         | Node::AccessorProperty
         | Node::TSAbstractPropertyDefinition
-        | Node::TSAbstractAccessorProperty => nth(&[Field::Key, Field::Value], ordinal),
-        Node::JSXAttribute => nth(&[Field::Name, Field::Value], ordinal),
-        Node::JSXNamespacedName => nth(&[Field::Namespace, Field::Name], ordinal),
-        Node::ImportExpression => nth(&[Field::Source, Field::Options], ordinal),
-        Node::VariableDeclarator => nth(&[Field::Id, Field::Init], ordinal),
-        Node::TSEnumMember => nth(&[Field::Id, Field::Initializer], ordinal),
-        Node::TSImportEqualsDeclaration => nth(&[Field::Id, Field::ModuleReference], ordinal),
-        Node::TSIndexedAccessType => nth(&[Field::ObjectType, Field::IndexType], ordinal),
-        Node::TSNamedTupleMember => nth(&[Field::Label, Field::ElementType], ordinal),
-        Node::TSConditionalType => nth(
+        | Node::TSAbstractAccessorProperty => placed_nth(tree, at, &[Field::Key, Field::Value]),
+        Node::JSXAttribute => placed_nth(tree, at, &[Field::Name, Field::Value]),
+        Node::JSXNamespacedName => placed_nth(tree, at, &[Field::Namespace, Field::Name]),
+        Node::ImportExpression => placed_nth(tree, at, &[Field::Source, Field::Options]),
+        Node::VariableDeclarator => placed_nth(tree, at, &[Field::Id, Field::Init]),
+        Node::TSEnumMember => placed_nth(tree, at, &[Field::Id, Field::Initializer]),
+        Node::TSImportEqualsDeclaration => {
+            placed_nth(tree, at, &[Field::Id, Field::ModuleReference])
+        }
+        Node::TSIndexedAccessType => placed_nth(tree, at, &[Field::ObjectType, Field::IndexType]),
+        Node::TSNamedTupleMember => placed_nth(tree, at, &[Field::Label, Field::ElementType]),
+        Node::TSConditionalType => placed_nth(
+            tree,
+            at,
             &[
                 Field::CheckType,
                 Field::ExtendsType,
                 Field::TrueType,
                 Field::FalseType,
             ],
-            ordinal,
         ),
         Node::TSAsExpression | Node::TSSatisfiesExpression => {
-            nth(&[Field::Expression, Field::TypeAnnotation], ordinal)
+            placed_nth(tree, at, &[Field::Expression, Field::TypeAnnotation])
         }
-        Node::TSTypeAssertion => nth(&[Field::TypeAnnotation, Field::Expression], ordinal),
-        Node::TSTypeAliasDeclaration => nth(&[Field::Id, Field::TypeAnnotation], ordinal),
+        Node::TSTypeAssertion => placed_nth(tree, at, &[Field::TypeAnnotation, Field::Expression]),
+        Node::TSTypeAliasDeclaration => placed_nth(tree, at, &[Field::Id, Field::TypeAnnotation]),
         Node::CallExpression | Node::NewExpression => {
-            nth(&[Field::Callee, Field::Arguments], ordinal)
+            placed_nth(tree, at, &[Field::Callee, Field::Arguments])
         }
-        Node::TaggedTemplateExpression => nth(&[Field::Tag, Field::Quasi], ordinal),
+        Node::TaggedTemplateExpression => placed_nth(tree, at, &[Field::Tag, Field::Quasi]),
         // A method's function is its last node: what comes before is its key.
-        Node::MethodDefinition | Node::TSAbstractMethodDefinition => match lastness {
+        Node::MethodDefinition | Node::TSAbstractMethodDefinition => match place(tree, at).lastness
+        {
             Lastness::Last => Field::Value,
             Lastness::NotLast => Field::Key,
         },
@@ -210,20 +234,24 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
         Node::TryStatement => by_kind(
             child,
             &[kinded(Node::CatchClause, Field::Handler)],
-            nth(&[Field::Block, Field::Finalizer], ordinal),
+            placed_nth(tree, at, &[Field::Block, Field::Finalizer]),
         ),
         // A `for` writes each of its three clauses only when it has one: the semicolons before a clause say which it is; its body is
         // its last node.
-        Node::ForStatement => match lastness {
+        Node::ForStatement => match place(tree, at).lastness {
             Lastness::Last => Field::Body,
             Lastness::NotLast => nth(
                 &[Field::Init, Field::Test, Field::Update],
                 count_before(tree, at, SEMICOLON),
             ),
         },
-        Node::ArrowFunctionExpression => {
-            by_marker(tree, at, &[marked(ARROW, Field::Body)], Field::Params)
-        }
+        Node::ArrowFunctionExpression => by_marker(
+            tree,
+            at,
+            &[marked(ARROW, Field::Body)],
+            Field::Params,
+            first,
+        ),
         Node::FunctionDeclaration
         | Node::FunctionExpression
         | Node::TSDeclareFunction
@@ -235,6 +263,7 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 at,
                 &[marked(OPEN_PARENTHESIS, Field::Params)],
                 Field::Id,
+                first,
             ),
         ),
         Node::TSMethodSignature => by_marker(
@@ -242,6 +271,7 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
             at,
             &[marked(OPEN_PARENTHESIS, Field::Params)],
             Field::Key,
+            first,
         ),
         Node::TSCallSignatureDeclaration
         | Node::TSConstructSignatureDeclaration
@@ -255,7 +285,13 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 kinded(Node::ClassBody, Field::Body),
                 kinded(Node::TSClassImplements, Field::Implements),
             ],
-            by_marker(tree, at, &[marked(EXTENDS, Field::SuperClass)], Field::Id),
+            by_marker(
+                tree,
+                at,
+                &[marked(EXTENDS, Field::SuperClass)],
+                Field::Id,
+                first,
+            ),
         ),
         Node::TSInterfaceDeclaration => by_kind(
             child,
@@ -268,7 +304,13 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
         Node::TSImportType => by_kind(
             child,
             &[kinded(Node::ObjectExpression, Field::Options)],
-            by_marker(tree, at, &[marked(DOT, Field::Qualifier)], Field::Source),
+            by_marker(
+                tree,
+                at,
+                &[marked(DOT, Field::Qualifier)],
+                Field::Source,
+                first,
+            ),
         ),
         Node::TSMappedType => by_marker(
             tree,
@@ -279,6 +321,7 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 marked(IN, Field::Constraint),
             ],
             Field::Key,
+            first,
         ),
         Node::TSTypeParameter => by_marker(
             tree,
@@ -288,6 +331,7 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
                 marked(EXTENDS, Field::Constraint),
             ],
             Field::Name,
+            first,
         ),
         Node::JSXElement => by_kind(
             child,
@@ -305,8 +349,8 @@ pub(in super::super) fn held(tree: &Tree<'_>, at: Position, holder: Node, child:
             ],
             Field::Children,
         ),
-        Node::JSXOpeningElement => nth(&[Field::Name, Field::Attributes], ordinal),
-        Node::MetaProperty => nth(&[Field::Meta, Field::Property], ordinal),
+        Node::JSXOpeningElement => placed_nth(tree, at, &[Field::Name, Field::Attributes]),
+        Node::MetaProperty => placed_nth(tree, at, &[Field::Meta, Field::Property]),
         // Nodes with no child node a property holds besides the decorators and annotations `aside` settles.
         Node::Identifier
         | Node::PrivateIdentifier

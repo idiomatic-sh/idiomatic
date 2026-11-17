@@ -30,7 +30,8 @@ thiserror.workspace = true
 toml.workspace = true
 toml_edit.workspace = true
 tracing.workspace = true
-ryo = { package = "idiomatic-sh-ryo-sdk", version = "0.1.4" }
+ryo = { package = "idiomatic-sh-ryo-sdk", version = "0.2.0" }
+tastemaker_values = { package = "idiomatic-sh-tastemaker-values", path = "../values", version = "0.1.3" }
 
 [dev-dependencies]
 cargo_metadata.workspace = true
@@ -39,6 +40,8 @@ divan.workspace = true
 tokio.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-tastemaker-core = { path = ".", features = ["fixtures"] }
+# The values with their fixtures: the core's tests build their subjects with them.
+tastemaker_values = { package = "idiomatic-sh-tastemaker-values", path = "../values", features = ["fixtures"] }
 
 [[test]]
 name = "bdd"

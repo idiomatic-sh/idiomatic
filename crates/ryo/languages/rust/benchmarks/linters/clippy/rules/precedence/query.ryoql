@@ -1,0 +1,12 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let binaries = select id, file, span from "syntax-tree" where kind = "bin-expr";
+let edges = select l.parent as parent, l.child as child, l.field as field, l.file as file from "syntax-child" as l join binaries as r on l.parent = r.id where l.field = "op" or l.field = "lhs" or l.field = "rhs";
+let operators = select l.parent as id, r.text as operator, l.file as file from edges as l join "syntax-tree" as r on l.child = r.id where l.field = "op";
+let bits = select id, file from operators where operator = "<<" or operator = ">>" or operator = "&" or operator = "|" or operator = "^";
+let arithmetic = select id, file from operators where operator = "+" or operator = "-" or operator = "*" or operator = "/" or operator = "%";
+let arithmetic_sides = select l.parent as id, l.file as file from edges as l join arithmetic as r on l.child = r.id where l.field = "lhs" or l.field = "rhs";
+let mixed = select l.id as id, l.file as file from bits as l join arithmetic_sides as r on l.id = r.id;
+let located = select l.id as id, l.file as file, l.span as span from binaries as l join mixed as r on l.id = r.id;
+let candidates = project(from=located, columns=["id", "file", "span"]);
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:precedence|complexity|all))\s*(?:,|$)");
+emit violations subject file key(span);

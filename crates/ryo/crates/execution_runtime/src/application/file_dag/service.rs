@@ -1,40 +1,78 @@
-//! Prepare every operation once for one request, shared by all file workers: the domain prepares each operator and
-//! the store's request views bind its derived views.
-use ryo_execution_domain::domain::file_program::types::RequestOperators;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_relations::domain::relations::{
-    service::kinds,
-    types::{CellKind, Relation},
+//! The `file_dag` operation: a request's program prepared once over the engine's operators, for every file of the request.
+use crate::application::file_dag::program::prepared_execution::types::{
+    PreparedExecutionProgram, ProgramParts,
 };
+use crate::outbound::operators::interface::OperatorsPort;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rule_requests::types::RuleSpec;
+use ryo_values::domain::stored_facts::types::Digest;
+use std::sync::Arc;
 
-/// Prepares every operation of the request once, against the catalog's relation schemas, shared by all file workers.
-pub(crate) fn prepare(
-    plans: &[Plan],
-    bindings: &[Vec<ParameterBinding>],
+/// The program of a request prepared over the engine's operators: the file pass's program, planned once, and what each
+/// rule's plan states.
+///
+/// # Errors
+///
+/// The refusal of preparing the request's program: rules and digests that do not pair, a plan the operators cannot plan,
+/// and an incomplete named observation request.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
+/// use ryo_execution_runtime::application::file_dag::service::prepare;
+/// use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+/// use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
+/// use std::sync::Arc;
+/// fn prepared(
+///     compiled: Compiled,
+///     operators: Arc<dyn OperatorsPort>,
+/// ) -> Result<PreparedExecutionProgram, OperatingError> {
+///     prepare(compiled, &[], &[], &[], ObservationIdentity::Independent, operators)
+/// }
+/// ```
+pub fn prepare(
+    compiled: Compiled,
+    rules: &[RuleSpec],
+    digests: &[Digest],
     hosted: &[HostRelation],
-    semantic: impl Into<crate::application::file_dag::derived::program::service::ProgramDerived>,
-) -> Result<RequestOperators, OperatingError> {
-    prepare_with_schemas(plans, bindings, hosted, &kinds, semantic)
-}
-/// Prepares every operation of the request once, against the schemas `relation_kinds` answers.
-pub(crate) fn prepare_with_schemas<'s>(
-    plans: &[Plan],
-    bindings: &[Vec<ParameterBinding>],
-    hosted: &[HostRelation],
-    relation_kinds: &dyn Fn(Relation) -> &'s [CellKind],
-    semantic: impl Into<crate::application::file_dag::derived::program::service::ProgramDerived>,
-) -> Result<RequestOperators, OperatingError> {
-    let semantic: crate::application::file_dag::derived::program::service::ProgramDerived =
-        semantic.into();
-    let mut views = semantic.request_views();
-    ryo_execution_domain::domain::file_program::service::operators::service::prepare(
-        plans,
-        bindings,
-        hosted,
-        relation_kinds,
-        &mut |contract| views.bind(contract),
-    )
+    identity: ObservationIdentity,
+    operators: Arc<dyn OperatorsPort>,
+) -> Result<PreparedExecutionProgram, OperatingError> {
+    // Every file runs through the file pass, over the compiled plans the compilation shares: its program is planned here, once,
+    // with each rule's stage, so a rule no stage serves yet is refused where it would run. One store of read sets serves the
+    // program and its metadata: a set two steps or roots rest on, in one rule or two, is held once; the store goes when they are built.
+    let mut sets =
+        ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets::default();
+    let pass = crate::application::file_dag::file_pass::service::pass_program(
+        &crate::application::file_dag::file_pass::types::PassSource {
+            plans: compiled.plans.clone(),
+            bindings: compiled.bindings.clone(),
+            operators: Arc::clone(&operators),
+            hosted: hosted
+                .iter()
+                .map(|relation| {
+                    relation
+                        .columns
+                        .iter()
+                        .map(|column| ryo_values::domain::hosted::service::kind_of(column.kind))
+                        .collect()
+                })
+                .collect(),
+            ids: rules.iter().map(|rule| rule.id.clone()).collect(),
+        },
+        &mut sets,
+    )?;
+    let inner = crate::application::file_dag::program::preparation::service::prepare(
+        compiled, rules, digests, hosted, identity, &pass, &mut sets,
+    )?;
+    Ok(PreparedExecutionProgram {
+        parts: ProgramParts {
+            inner,
+            pass: Arc::new(pass),
+        },
+    })
 }

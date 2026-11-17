@@ -21,7 +21,7 @@ pub fn ryo(
 pub fn ryo_kept(
     languages: ryo::linter::Languages,
     settings: super::types::AnalysisSettings,
-    store: &crate::domain::settings::types::Store,
+    store: &tastemaker_values::domain::settings::types::Store,
 ) -> impl crate::outbound::analysis::interface::AnalysisPort + use<> {
     super::adapters::ryo::adapter::AnalysisRyoAdapter::kept(languages, settings, store)
 }

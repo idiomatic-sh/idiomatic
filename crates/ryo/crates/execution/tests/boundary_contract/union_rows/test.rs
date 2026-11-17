@@ -15,7 +15,7 @@ fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
         let corpus = corpus();
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None.into());
         let elements = ryo_language::domain::elements::types::Elements::default();
-        let facts = TableFacts::new(&[]);
+        let mut facts = TableFacts::new(&[]);
         let mut symbols = Symbols::default();
         let intents = [FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
@@ -26,7 +26,7 @@ fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
             &request,
             FileRun::of(&intents, &elements),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         let Ok(RootOutcome::Complete(table)) = root(ran(&mut rules, 0)) else {
             panic!("complete Union output")
@@ -92,7 +92,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
         };
         // The right side, SemanticChild, is never held, so a read of it is refused; the left, Function, is refused too when
         // `left_refuses`, and else holds no row.
-        let facts = if left_refuses {
+        let mut facts = if left_refuses {
             TableFacts::new(&[])
         } else {
             TableFacts::new(&[(Relation::Function, &empty)])
@@ -109,7 +109,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                 &elements,
             ),
             &mut symbols,
-            &facts,
+            &mut facts,
         );
         assert!(
             matches!(root(ran(&mut rules, 0)), Err(FileStop::Facts(_))),

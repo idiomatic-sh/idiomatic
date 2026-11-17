@@ -1,0 +1,6 @@
+version = 1
+parents = ["07406b87c9c76d3f2146f629c0bf2d6dd6eea303c04a2a980cf6fe2f505bb634"]
+
+removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/distribution#outdated", path = "tastemaker.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
+]

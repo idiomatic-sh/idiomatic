@@ -21,7 +21,6 @@ use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareReque
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::outbound::query_language::errors::QueryLanguageError;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
-use ryo_execution_runtime::outbound::operators::fixtures::suite::ReductionAudit;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},
@@ -44,12 +43,9 @@ use boundary_fixture::fixtures::{
 
 #[test]
 fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
-    let semantics = Arc::new(ReductionAudit::default());
-    let engine = PrepareUseCaseImpl::new(
-        semantics.clone(),
-        Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::derived()).into(),
-        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
-    );
+    let engine = PrepareUseCaseImpl::new(Arc::new(
+        ryo_execution::inbound::use_cases::execution::fixtures::operators(),
+    ));
     let mut input = authored_request(1);
     boundary_fixture::fixtures::plans(&mut input)[0]
         .steps
@@ -66,7 +62,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
     let table = source();
-    let facts = TableFacts::new(&[(Relation::Function, &table)]);
+    let mut facts = TableFacts::new(&[(Relation::Function, &table)]);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut rules = run_file(
@@ -80,25 +76,13 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
             &elements,
         ),
         &mut symbols,
-        &facts,
+        &mut facts,
     );
     let Ok(RootOutcome::Complete(table)) = root(ran(&mut rules, 0)) else {
         panic!("complete count")
     };
     assert_eq!(table.count, RowCount(1));
     assert_eq!(table.cells, [Value::Number(Integer(1))]);
-    assert_eq!(
-        semantics
-            .reductions
-            .load(std::sync::atomic::Ordering::Relaxed),
-        1
-    );
-    assert_eq!(
-        semantics
-            .emissions
-            .load(std::sync::atomic::Ordering::Relaxed),
-        1
-    );
     assert!(matches!(rules.end, FileEnd::Finished(_)), "finish count");
     request.finish();
 }
@@ -137,4 +121,5 @@ mod file_run;
 
 mod combined;
 mod compiled_rules;
-mod interpreter;
+#[cfg(test)]
+mod refusal_order;

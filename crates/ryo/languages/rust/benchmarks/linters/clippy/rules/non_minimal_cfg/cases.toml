@@ -1,0 +1,59 @@
+[[cases]]
+name = "single-condition"
+files = { "src/lib.rs" = "#[cfg(all(windows))]\npub fn f() {}\n#[cfg(any(unix))]\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 6, end = 18 }, { file = "src/lib.rs", start = 41, end = 50 }]
+
+[[cases]]
+name = "nested"
+files = { "src/lib.rs" = "#[cfg(all(any(unix), all(not(windows))))]\npub fn f() {}\n#[cfg(any(unix, all(any(test))))]\npub fn g() {}\n" }
+expected = [{ file = "src/lib.rs", start = 10, end = 19 }, { file = "src/lib.rs", start = 21, end = 38 }, { file = "src/lib.rs", start = 72, end = 86 }, { file = "src/lib.rs", start = 76, end = 85 }]
+
+[[cases]]
+name = "empty"
+files = { "src/lib.rs" = "#[cfg(all())]\npub fn f() {}\n#[cfg(any())]\npub fn g() {}\n#[cfg(all( ))]\npub fn h() {}\n" }
+expected = [{ file = "src/lib.rs", start = 6, end = 11 }, { file = "src/lib.rs", start = 62, end = 68 }]
+
+[[cases]]
+name = "minimal"
+files = { "src/lib.rs" = "#[cfg(all(unix, test))]\npub fn f() {}\n#[cfg(any(unix, windows))]\npub fn g() {}\n#[cfg(unix)]\npub fn h() {}\n" }
+expected = []
+
+[[cases]]
+name = "under-not"
+files = { "src/lib.rs" = "#[cfg(not(any(windows)))]\npub fn f() {}\n#[cfg(not(all(unix)))]\npub fn g() {}\n" }
+expected = []
+
+[[cases]]
+name = "cfg-attr-and-macro"
+files = { "src/lib.rs" = "#[cfg_attr(all(unix), derive(Debug))]\npub struct S;\npub fn f() -> bool {\n    cfg!(all(unix))\n}\n" }
+expected = []
+
+[[cases]]
+name = "statements-and-configured-out"
+files = { "src/lib.rs" = "pub fn f() {\n    #[cfg(all(unix))]\n    let _x = 1;\n}\n#[cfg(any())]\nmod hidden {\n    #[cfg(any(test))]\n    fn g() {}\n}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 32 }, { file = "src/lib.rs", start = 90, end = 99 }]
+
+[[cases]]
+name = "inner"
+files = { "src/lib.rs" = "pub mod m {\n    #![cfg(all(unix))]\n}\n" }
+expected = [{ file = "src/lib.rs", start = 23, end = 32 }]
+
+[[cases]]
+name = "allowed-by-name"
+files = { "src/lib.rs" = "#[allow(clippy::non_minimal_cfg)]\n#[cfg(all(unix))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-by-group"
+files = { "src/lib.rs" = "#[allow(clippy::style)]\npub mod m {\n    #[cfg(all(unix))]\n    pub fn f() {}\n}\n" }
+expected = []
+
+[[cases]]
+name = "allowed-inner"
+files = { "src/lib.rs" = "#![allow(clippy::non_minimal_cfg)]\n#[cfg(all(unix))]\npub fn f() {}\n" }
+expected = []
+
+[[cases]]
+name = "warn-reenables"
+files = { "src/lib.rs" = "#![allow(clippy::style)]\n#[warn(clippy::non_minimal_cfg)]\n#[cfg(all(unix))]\npub fn f() {}\n" }
+expected = [{ file = "src/lib.rs", start = 64, end = 73 }]

@@ -1,12 +1,13 @@
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
+import source_string_tokens from "python/ruff/source-string-tokens";
 let module_roots = select id, file, span from "semantic-syntax" where kind = "module";
 let modules = extend(from=module_roots, values={base_line: 1});
 let lines = source-matches(from=modules, span="span", base-line="base_line", pattern="(?m)^[ \t]*\t[ \t]*", output="indentation", line-output="line");
 let indents = select id, file, indentation as span, line from lines;
 let positions = span-bounds(from=indents, span="span", start-output="begin", end-output="finish");
-let strings = select id, file, span from "syntax-tree" where kind = "string" or kind = "fstring-middle" or kind = "tstring-middle";
+let strings = source_string_tokens();
 let string_positions = span-bounds(from=strings, span="span", start-output="begin", end-output="finish");
 let quoted = select l.id as id, l.file as file, l.span as span from positions as l join string_positions as r on l.file = r.file where l.begin >= r.begin and l.finish <= r.finish;
 let candidates = antijoin(left=indents, right=quoted, left-on=[id, file, span], right-on=[id, file, span]);

@@ -1,6 +1,5 @@
 //! The lint counting what it asks of the language, over any root: what the suites that measure a run share.
 
-use super::base::{Pending, recordings, rule_of};
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
 use std::path::Path;
 use std::sync::Arc;
@@ -64,12 +63,22 @@ impl language::interface::LanguagePort for Counting {
         file: language::types::FileToRead<'_>,
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> language::types::FileReading {
         let _before = self
             .reads
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.language.parse(file, table, symbols, out)
+        self.language.parse(file, table, symbols)
+    }
+
+    fn walk(
+        &self,
+        language: ryo_values::domain::stored_facts::types::LanguageNumber,
+        file: language::types::FileToRead<'_>,
+        table: &mut ryo_language::domain::elements::types::Elements,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
+    ) {
+        self.language.walk(language, file, table, symbols, out);
     }
 
     fn project_entries(
@@ -105,19 +114,6 @@ pub(crate) struct Counted {
     pub projects: usize,
 }
 
-/// Lints `root` with `rules`, keeping what it found in `lint_store`, and counts the files the language read.
-///
-/// # Errors
-///
-/// What the lint refuses, as text.
-pub(crate) fn lint_counting(
-    root: &Path,
-    rules: Vec<Rule>,
-    lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
-) -> Result<Counted, String> {
-    lint_with_workers(root, rules, lint_store, 0)
-}
-
 /// Lints `root` with `rules` on `workers` workers (none: as many as the machine has), keeping what it found in `lint_store`, and counts.
 ///
 /// # Errors
@@ -134,9 +130,14 @@ pub(crate) fn lint_with_workers(
         rules,
         lint_store,
         workers,
+        None,
         |counted, _output, _report| counted,
     )
 }
+
+/// The observer a lint counts its own work with: the rows each step is fed and what each file hands the steps after the files.
+pub(crate) type Counter =
+    fn() -> Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>;
 
 /// Lints `root` with `rules` on `workers` workers, keeping what it found in `lint_store`, and gives `observe` what the run counted with its
 /// complete emitted output and report: each test keeps what it reads of them.
@@ -149,6 +150,7 @@ pub(crate) fn lint_observing<T>(
     rules: Vec<Rule>,
     lint_store: Arc<dyn ryo_core::outbound::lint_store::interface::LintStorePort>,
     workers: usize,
+    work: Option<Counter>,
     observe: impl FnOnce(
         Counted,
         row_sink::types::Collected,
@@ -169,7 +171,8 @@ pub(crate) fn lint_observing<T>(
                 RootPath(root.to_string_lossy().into()),
                 ryo_values::domain::files::types::CorpusListing::Walked,
                 Vec::new(),
-                corpus::types::SkippedDirectories(vec![".ryo_cache".into()]),
+                // The directories `ryo` itself skips: the languages' own and the store's.
+                super::base::command_edge(root).skipped,
             ));
         let analysis_language: Arc<dyn language::interface::LanguagePort> = Arc::new(Counting {
             // The replay's languages, the same the pending check asks.
@@ -217,15 +220,18 @@ pub(crate) fn lint_observing<T>(
             )),
             Arc::clone(&analysis_memory),
             Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
-                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-            )),
-            ryo_execution::derived(),
+                ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl::new(), ryo_operators::inbound::use_cases::run::use_case::RunUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())))),
             Arc::new(scheduler::factory::rayon(started)),
             started,
             Arc::clone(&kept),
             Arc::clone(&analysis_digest),
             lint_store,
         )
+    };
+    // The rows each step is fed and what each file hands over are counted when the caller asks, and only then.
+    let use_case = match work {
+        Some(counter) => use_case.counting(counter),
+        None => use_case,
     };
     let request = LintRequest {
         source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
@@ -263,17 +269,4 @@ pub(crate) fn lint_observing<T>(
         projects: projects.load(std::sync::atomic::Ordering::Relaxed),
     };
     Ok(observe(counted, output, report))
-}
-
-/// The rules of the recordings that run today, by name: what the bench measures over ruff.
-///
-/// # Panics
-///
-/// When the recordings cannot be read.
-pub(crate) fn runnable() -> Vec<(String, Rule)> {
-    recordings()
-        .iter()
-        .filter(|each| each.pending == Pending::Missing)
-        .map(|each| (each.name.clone(), rule_of(each)))
-        .collect()
 }

@@ -6,10 +6,8 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::tools::{
-    differences, entries, fixture, json, manifest_in, package_json_languages, ryo_lines, text_at,
-    tool_output,
-};
+use crate::ecosystems::{entries, fixture, manifest_in, package_json_languages, tool_output};
+use crate::tools::{differences, json, ryo_lines, text_at};
 
 /// The query of the dependencies the check compares: every column npm's listing says.
 const DEPENDENCIES: &str = "let d = select * from \"package-dependency\"; emit d subject source key(source, package, kind, requirement, target);";

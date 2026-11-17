@@ -2,24 +2,26 @@
 use std::sync::Arc;
 
 /// One request's execution, opened only by `begin`: its fields are sealed to the engine, so no
-/// caller outside it reads or replaces the prepared program, the services, the frontier cache or
-/// the digest port.
+/// caller outside it reads or replaces the prepared program, the services or the planned program.
 ///
 /// ```compile_fail,E0451
 /// use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
-/// fn digest(execution: RequestExecution) {
-///     let RequestExecution { digest, .. } = execution;
+/// fn pass(execution: RequestExecution) {
+///     let RequestExecution { pass, .. } = execution;
 /// }
 /// ```
 pub struct RequestExecution {
     pub(crate) program:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
-    pub(crate) services:
-        Arc<crate::application::file_dag::program::facade_runtime::service::ProgramServices>,
-    /// Prepared frontiers of this request, one acquisition per population.
-    pub(crate) frontiers: crate::application::file_dag::frontiers::cache::service::FrontierCache,
-    /// The prepared program's digest port, handed to each publication scope.
-    pub(crate) digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    pub(crate) services: Arc<ProgramServices>,
+    /// The program the file pass runs, planned when the program was prepared.
+    pub(crate) pass: Arc<crate::application::file_dag::file_pass::types::PassProgram>,
+}
+impl std::fmt::Debug for RequestExecution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
 }
 
 /// The arenas the cross-file observations publish their stored facts into, kept by the caller across requests.
@@ -37,4 +39,13 @@ impl std::ops::DerefMut for ObservationArenas {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+
+/// The services one request's execution shares: the request's files and the observer.
+pub(crate) struct ProgramServices {
+    /// The request's files.
+    pub request:
+        Arc<crate::application::file_dag::program::request_identity::service::RequestIdentity>,
+    /// The observer the request's caller asked to be told of the engine's work, if any.
+    pub observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
 }

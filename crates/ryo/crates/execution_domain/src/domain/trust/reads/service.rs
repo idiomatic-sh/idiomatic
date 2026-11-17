@@ -1,9 +1,11 @@
 //! The `reads` service: free functions named by verb over the domain's types, with no IO and no ports.
 
-use super::super::types::{AbsenceInputs, ReadIndex, RelationRead, StepReads};
+use super::super::types::relation_read::value::RelationRead;
+use super::super::types::{AbsenceInputs, ReadIndex, StepReads};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::service::{columns, kind_column};
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::service::column_place;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, Operand};
 use ryo_values::domain::plans::service::{comparisons_of, inputs_of, kind_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
@@ -110,6 +112,7 @@ pub(super) fn step_reads(
         | OperationKind::Replace
         | OperationKind::OrderedMatch
         | OperationKind::OrderedDfs
+        | OperationKind::Worklist
         | OperationKind::GroupDigest
         | OperationKind::Capture
         | OperationKind::Rank
@@ -136,11 +139,7 @@ pub(super) fn step_reads(
 
 /// The place of the `kind` column of a relation, when it has one.
 pub(crate) fn kind_column_place(relation: Relation) -> Option<ColumnIndex> {
-    let kind = kind_column(relation)?;
-    columns(relation)
-        .into_iter()
-        .position(|column| column == kind)
-        .map(|place| ColumnIndex(u32::try_from(place).unwrap_or(u32::MAX)))
+    kind_column(relation).map(column_place)
 }
 
 /// Provenance of the initial columns read directly from a declared relation.
@@ -148,10 +147,7 @@ pub(super) fn relation_reads(relation: Relation) -> StepReads {
     let kind = kind_column_place(relation);
     let width = columns(relation).len();
     StepReads {
-        uses: vec![RelationRead {
-            relation,
-            kinds: Vec::new(),
-        }],
+        uses: vec![RelationRead::whole(relation)],
         provenance: (0..width)
             .map(|place| {
                 kind.filter(|column| usize::try_from(column.0) == Ok(place))

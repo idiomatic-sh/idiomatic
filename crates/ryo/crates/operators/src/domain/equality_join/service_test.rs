@@ -1,253 +1,120 @@
-//! Ordered Join meaning: bag order, view mapping, refusal order and the prefix a downstream refusal keeps.
-use super::errors::EqualityJoinError;
-use super::service::join_row;
-use super::types::{Advance, JoinCells, JoinDriver, JoinRow};
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::contract::types::PortableOperatorFault;
-use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
+//! The `equality_join` service's cases, on values alone.
 
-#[derive(Clone, Copy)]
-enum Scenario {
-    JoinedRows,
-    MissingLeftKey,
-    EmptyMatches,
-    FirstOutputFault,
-    DownstreamInterruption,
-    ColumnarLeft,
-}
-type Input = Scenario;
-type Value = std::borrow::Cow<'static, [Cell]>;
-type Failure = PortableOperatorFault;
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("joined_rows_preserve_bag_order_duplicate_columns_and_view_mapping"),
-        word: Word::Succeeds,
-        input: || Scenario::JoinedRows,
-        expect: Expect::Value(std::borrow::Cow::Borrowed(&[
-            Cell::Number(Integer(1)),
-            Cell::Number(Integer(9)),
-            Cell::Number(Integer(1)),
-            Cell::Number(Integer(2)),
-            Cell::Number(Integer(9)),
-            Cell::Number(Integer(2)),
-            Cell::Number(Integer(1)),
-            Cell::Number(Integer(9)),
-            Cell::Number(Integer(1)),
-        ])),
-    },
-    Case {
-        name: CaseName("empty_matches_do_not_access_invalid_output_columns"),
-        word: Word::Succeeds,
-        input: || Scenario::EmptyMatches,
-        expect: Expect::Value(std::borrow::Cow::Borrowed(&[])),
-    },
-    Case {
-        name: CaseName("columnar_left_decodes_only_demanded_key_and_projection_cells"),
-        word: Word::Succeeds,
-        input: || Scenario::ColumnarLeft,
-        expect: Expect::Value(std::borrow::Cow::Borrowed(&[
-            Cell::Number(Integer(8)),
-            Cell::Number(Integer(8)),
-            Cell::Number(Integer(8)),
-        ])),
-    },
-    Case {
-        name: CaseName("missing_left_key_is_refused_before_candidate_access"),
-        word: Word::Refuses,
-        input: || Scenario::MissingLeftKey,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
-            index: ryo_values::domain::plan_parts::types::ColumnIndex(3),
-        }),
-    },
-    Case {
-        name: CaseName("first_output_fault_stops_before_any_delivery"),
-        word: Word::Refuses,
-        input: || Scenario::FirstOutputFault,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
-            index: ryo_values::domain::plan_parts::types::ColumnIndex(99),
-        }),
-    },
-    Case {
-        name: CaseName("downstream_interruption_preserves_delivered_prefix_and_stops_scanning"),
-        word: Word::Fails,
-        input: || Scenario::DownstreamInterruption,
-        expect: Expect::Error(PortableOperatorFault::Interrupted),
-    },
-];
-fn number(value: i64) -> Cell {
-    Cell::Number(Integer(value))
-}
-struct Driver {
-    rows: Vec<Vec<Cell>>,
-    at: usize,
-    next_calls: usize,
-    reads: std::cell::Cell<usize>,
-    outputs: Vec<Vec<Cell>>,
-    interrupt: Option<usize>,
-    stopped: bool,
-}
-impl JoinDriver for Driver {
-    fn next(&mut self, key: &[Cell]) -> Result<Advance, EqualityJoinError> {
-        if self.stopped {
-            return Err(EqualityJoinError::Interrupted);
-        }
-        assert_eq!(key, &[number(7)]);
-        self.next_calls += 1;
-        self.at += 1;
-        Ok(Advance::from(self.at <= self.rows.len()))
-    }
-    fn right_cell(&self, column: ColumnIndex) -> Option<Cell> {
-        self.reads.set(self.reads.get() + 1);
-        self.rows
-            .get(self.at - 1)?
-            .get(usize::try_from(column.0).unwrap_or(usize::MAX))
-            .copied()
-    }
-    fn emit(&mut self, row: &[Cell]) -> Result<(), EqualityJoinError> {
-        if self.stopped {
-            return Err(EqualityJoinError::Interrupted);
-        }
-        if self.interrupt == Some(self.outputs.len()) {
-            self.stopped = true;
-            return Err(EqualityJoinError::Interrupted);
-        }
-        self.outputs.push(row.to_vec());
-        Ok(())
-    }
-}
-fn driver() -> Driver {
-    Driver {
-        rows: vec![
-            vec![number(7), number(1)],
-            vec![number(7), number(2)],
-            vec![number(7), number(1)],
-        ],
-        at: 0,
-        next_calls: 0,
-        reads: std::cell::Cell::new(0),
-        outputs: vec![],
-        interrupt: None,
-        stopped: false,
-    }
-}
-struct Columns {
-    reads: std::cell::RefCell<Vec<u32>>,
-}
-impl JoinCells for Columns {
-    fn cell(&self, column: ColumnIndex) -> Option<Cell> {
-        self.reads.borrow_mut().push(column.0);
-        match column.0 {
-            0 => Some(number(7)),
-            999 => Some(number(8)),
-            _ => None,
-        }
-    }
-}
-fn join(
-    left: &[Cell],
-    left_on: &[ColumnIndex],
-    output: &[JoinColumn],
-    view: &[ColumnIndex],
-    driver: &mut Driver,
-) -> Result<(), PortableOperatorFault> {
-    join_row(
-        JoinRow::Values(left),
-        left_on,
-        output,
-        view,
-        driver,
-        &mut vec![number(99)],
-        &mut vec![number(88)],
-    )
-}
-fn right(column: u32) -> JoinColumn {
-    JoinColumn {
-        side: Side::Right,
-        column: ColumnIndex(column),
-    }
-}
-fn flattened(driver: Driver) -> Value {
-    std::borrow::Cow::Owned(driver.outputs.into_iter().flatten().collect())
-}
-fn subject(input: Input) -> Result<Value, Failure> {
-    let mut d = driver();
-    match input {
-        Scenario::JoinedRows => {
-            let columns = [
-                right(0),
+use super::service::{lower, seeded};
+use super::types::{EmptyRight, Existence, JoinShape, ProbeKey, ProbeMode};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, RepeatedRows, Side};
+
+/// A scenario: whether what the part answers is what the case states.
+type Input = fn() -> bool;
+type Value = bool;
+type Failure = ();
+
+/// A join through a view keys and answers each right column where the right rows hold it.
+fn places_right_columns_through_the_view() -> bool {
+    let output = [
+        JoinColumn {
+            side: Side::Left,
+            column: ColumnIndex(0),
+        },
+        JoinColumn {
+            side: Side::Right,
+            column: ColumnIndex(1),
+        },
+    ];
+    let probe = lower(
+        JoinShape {
+            left_on: &[ColumnIndex(0)],
+            right_on: &[ColumnIndex(0)],
+            output: &output,
+            view: &[ColumnIndex(2), ColumnIndex(5)],
+            reach: None,
+        },
+        &[],
+        &[],
+    );
+    probe.mode == ProbeMode::Inner
+        && probe.key
+            == ProbeKey::Columns {
+                left: vec![ColumnIndex(0)],
+                right: vec![ColumnIndex(2)],
+            }
+        && probe.output
+            == [
                 JoinColumn {
                     side: Side::Left,
-                    column: ColumnIndex(1),
+                    column: ColumnIndex(0),
                 },
-                right(0),
-            ];
-            join(
-                &[number(7), number(9)],
-                &[ColumnIndex(0)],
-                &columns,
-                &[ColumnIndex(1)],
-                &mut d,
-            )?;
-            assert_eq!(d.reads.get(), 6);
-        }
-        Scenario::MissingLeftKey => {
-            let result = join(&[], &[ColumnIndex(3)], &[], &[], &mut d);
-            assert_eq!(d.next_calls, 0);
-            result?;
-        }
-        Scenario::EmptyMatches => {
-            d.rows.clear();
-            join(&[number(7)], &[ColumnIndex(0)], &[right(99)], &[], &mut d)?;
-            assert_eq!(d.reads.get(), 0);
-        }
-        Scenario::FirstOutputFault => {
-            let result = join(&[number(7)], &[ColumnIndex(0)], &[right(99)], &[], &mut d);
-            assert!(d.outputs.is_empty());
-            assert_eq!(d.next_calls, 1);
-            result?;
-        }
-        Scenario::DownstreamInterruption => {
-            d.interrupt = Some(1);
-            let result = join(&[number(7)], &[ColumnIndex(0)], &[right(1)], &[], &mut d);
-            assert_eq!(d.outputs, vec![vec![number(1)]]);
-            assert_eq!(d.next_calls, 2);
-            assert!(
-                matches!(d.emit(&[]), Err(EqualityJoinError::Interrupted)),
-                "an interrupted driver keeps refusing"
-            );
-            result?;
-        }
-        Scenario::ColumnarLeft => {
-            let columns = Columns {
-                reads: std::cell::RefCell::new(vec![]),
-            };
-            join_row(
-                JoinRow::Columns(&columns),
-                &[ColumnIndex(0)],
-                &[JoinColumn {
-                    side: Side::Left,
-                    column: ColumnIndex(999),
-                }],
-                &[],
-                &mut d,
-                &mut vec![],
-                &mut vec![],
-            )?;
-            assert_eq!(*columns.reads.borrow(), vec![0, 999, 999, 999]);
-        }
-    }
-    Ok(flattened(d))
+                JoinColumn {
+                    side: Side::Right,
+                    column: ColumnIndex(5),
+                },
+            ]
+        && probe.existence == Existence::Every
+        && probe.repeated == RepeatedRows::Kept
+        && probe.empty_right == EmptyRight::KeyRead
 }
+
+/// A column past the view is where it is.
+fn a_column_past_the_view_stays() -> bool {
+    let probe = lower(
+        JoinShape {
+            left_on: &[ColumnIndex(1)],
+            right_on: &[ColumnIndex(3)],
+            output: &[],
+            view: &[ColumnIndex(2)],
+            reach: None,
+        },
+        &[],
+        &[],
+    );
+    probe.key
+        == ProbeKey::Columns {
+            left: vec![ColumnIndex(1)],
+            right: vec![ColumnIndex(3)],
+        }
+}
+
+/// A join over no closure seeds no reached columns, and probes as the plain join does.
+fn unseeded_join_probes_as_the_join() -> bool {
+    let shape = JoinShape {
+        left_on: &[ColumnIndex(0)],
+        right_on: &[ColumnIndex(1)],
+        output: &[],
+        view: &[],
+        reach: None,
+    };
+    let join = seeded(shape, &[], &[]);
+    join.columns.is_empty() && join.probe == lower(shape, &[], &[])
+}
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_join_places_right_columns_through_its_view"),
+        word: Word::Succeeds,
+        input: || places_right_columns_through_the_view,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_column_past_the_view_is_where_it_is"),
+        word: Word::Succeeds,
+        input: || a_column_past_the_view_stays,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("a_join_over_no_closure_probes_as_the_join"),
+        word: Word::Succeeds,
+        input: || unseeded_join_probes_as_the_join,
+        expect: Expect::Value(true),
+    },
+];
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    Ok(input())
+}
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
-}
-#[test]
-fn fails() {
-    run(CASES, Word::Fails, subject);
 }

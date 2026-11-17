@@ -1,5 +1,6 @@
 //! The `syntax_tree` relation of the language: every node and every token, whitespace and comments included.
 
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::syntax::service::{kind_symbol, token_text};
 use ryo::languages;
 
@@ -7,7 +8,7 @@ use ryo::languages;
 pub(crate) struct SyntaxTreeItem;
 
 ryo::reads! {
-    SyntaxTreeItem => languages::SyntaxTree |tree, at, symbols| {
+    SyntaxTreeItem => languages::SyntaxTree, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: every,
         row {
             id: node(at),

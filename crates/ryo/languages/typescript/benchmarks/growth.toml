@@ -1,0 +1,39 @@
+# TypeScript's growth table: how the control-flow rules grow with a derived constructor.
+#
+# Each rule is linted alone over one derived constructor of 1,000, 2,000 and 4,000 statements after its `super()`: a branch
+# reading `this`, a loop that may break, and a try block whose handler and finalizer each call, in turn. Two shapes per rule,
+# 1,000 to 2,000 and 2,000 to 4,000 statements; the shared growth service holds each to the one CPU limit and to Ruff's floor
+# and memory bound. A rule whose work, or whose reading, is quadratic in the constructor grows four times.
+#
+# A shape is `<rule>/<frame>/<operation>/<whole size>`. A segment's line `i` is `lines[i % len]` with `{i}` replaced by `i`,
+# written `fixed + per-size * size` times, each line indented by the frame's indent. Profiles are relative to the linter's bench.
+file = "case.ts"
+sizes = [2000, 4000]
+
+[[rules]]
+rule = "eslint.constructor-super"
+profile = "."
+
+[[rules]]
+rule = "eslint.no-this-before-super"
+profile = "."
+
+[[rules]]
+rule = "eslint.no-unreachable"
+profile = "."
+
+[frames.constructor]
+head = "class A extends B {\n  constructor() {\n    super();\n"
+indent = "    "
+tail = "  }\n}\n"
+
+[[operations]]
+name = "control-flow"
+frames = ["constructor"]
+segments = [
+  { lines = [
+    "if (a{i}) { this.x{i} = 1; } else { g(); }\n",
+    "while (a{i}) { if (b()) { break; } g(); }\n",
+    "try { f(); } catch (e) { g(); } finally { h(); }\n",
+  ], fixed = 0, per-size = 1 },
+]

@@ -3,7 +3,7 @@ use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{Integer, Value as Cell};
+use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{

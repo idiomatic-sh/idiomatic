@@ -1,12 +1,12 @@
 //! The shape of the data this command does not control: its arguments become the service's request, and the service's
 //! report becomes the answer printed. Each refusal of a conversion is a `<Name>SchemaError`.
 
-use tastemaker_core::domain::files::types::MachinePath;
-use tastemaker_core::domain::packages::service::{kind_of, kind_word};
-use tastemaker_core::domain::packages::types::{DefinitionKind, DefinitionName};
 use tastemaker_core::inbound::use_cases::create::types::{
     CreateReport, CreateRequest, Destination, Extension, ScenarioExtension,
 };
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::service::{kind_of, kind_word};
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
 
 /// The one value a skeleton reads from `--set`: the extension its scenario files end in.
 const EXTENSION: &str = "extension";
@@ -44,8 +44,8 @@ struct CreateArgumentsSchema<'a> {
     set: Vec<String>,
     /// Where the command runs, and how.
     edge: &'a crate::edge::Edge,
-    /// The languages this build links, which say whether they read a file of the extension named.
-    languages: &'a ryo::linter::Languages,
+    /// Whether a language this build links reads a scenario file ending in the extension named.
+    reads: &'a dyn Fn(&str) -> bool,
 }
 
 impl TryFrom<CreateArgumentsSchema<'_>> for CreateRequest {
@@ -55,7 +55,7 @@ impl TryFrom<CreateArgumentsSchema<'_>> for CreateRequest {
         let edge = schema.edge;
         let refused = || CreateSchemaError::Definition(schema.definition.clone());
         let (kind, name) = schema.definition.split_once('/').ok_or_else(refused)?;
-        let kind = kind_of(tastemaker_core::domain::packages::types::KindWord(kind))
+        let kind = kind_of(tastemaker_values::domain::packages::types::KindWord(kind))
             .ok_or_else(refused)?;
         if name.is_empty() || name.contains('/') {
             return Err(refused());
@@ -79,8 +79,7 @@ impl TryFrom<CreateArgumentsSchema<'_>> for CreateRequest {
             }
             let value = value.trim_start_matches('.');
             // A scenario file ends in the extension named: one no linked language reads would never be read.
-            let scenario = ryo::linter::RelativePath(format!("scenario.{value}").into());
-            if schema.languages.reads(&scenario) == ryo::languages::Recognition::Declines {
+            if !(schema.reads)(value) {
                 return Err(CreateSchemaError::Extension(value.to_owned()));
             }
             extension = Extension::Named(ScenarioExtension(value.into()));
@@ -112,20 +111,20 @@ impl TryFrom<CreateArgumentsSchema<'_>> for CreateRequest {
 /// # Errors
 ///
 /// `Definition` when it is not `<kind>/<name>`; `Name` when the name is not kebab-case; `Setting` for a `--set` with no value; `Unread` for a `--set` of a
-/// name no skeleton reads; `Extension` for an `extension` no language of `languages` reads.
+/// name no skeleton reads; `Extension` for an `extension` whose scenario files no linked language `reads`.
 pub(super) fn request(
     definition: String,
     package: Option<std::path::PathBuf>,
     set: Vec<String>,
     edge: &crate::edge::Edge,
-    languages: &ryo::linter::Languages,
+    reads: &dyn Fn(&str) -> bool,
 ) -> Result<CreateRequest, CreateSchemaError> {
     CreateArgumentsSchema {
         definition,
         package,
         set,
         edge,
-        languages,
+        reads,
     }
     .try_into()
 }
@@ -164,7 +163,7 @@ pub(super) fn answer(report: &CreateReport, dry_run: bool, start: &MachinePath) 
                 .components()
                 .map(|part| part.as_os_str().to_string_lossy())
                 .collect::<Vec<_>>()
-                .join(tastemaker_core::domain::applications::constants::PATH_SEPARATOR)
+                .join(tastemaker_values::domain::applications::constants::PATH_SEPARATOR)
         },
     );
     let word = kind_word(report.kind).0;

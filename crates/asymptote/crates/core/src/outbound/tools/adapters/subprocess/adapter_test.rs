@@ -4,10 +4,10 @@
 use super::adapter::ToolsSubprocessAdapter;
 use super::connection::ToolsConnection;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::manifest::types::{Argument, Argv, ProductRoot, Seconds};
 use crate::outbound::tools::fixtures::contract::check;
 use crate::outbound::tools::interface::ToolsPort as _;
 use crate::outbound::tools::types::{Ending, Invocation};
+use asymptote_values::domain::manifest::types::{Argument, Argv, ProductRoot, Seconds};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

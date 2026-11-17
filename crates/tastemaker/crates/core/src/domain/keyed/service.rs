@@ -6,13 +6,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::constants::{ASIDE, ELEMENT_CLOSE, ELEMENT_OPEN};
 use super::types::{Depth, Renaming, TableMember};
-use crate::domain::contracts::constants::{KEY, KEY_PATH_SEPARATOR, SCALARS, TABLES};
-use crate::domain::contracts::service::compare;
-use crate::domain::contracts::types::{
+use tastemaker_values::domain::contracts::constants::{KEY, KEY_PATH_SEPARATOR, SCALARS, TABLES};
+use tastemaker_values::domain::contracts::service::compare;
+use tastemaker_values::domain::contracts::types::{
     AttributeText, DataRow, Declaration, DeclarationKind, DeclarationName, Decorations, Facts,
     Holding, Mismatch, RowNode,
 };
-use crate::domain::definitions::types::Exactness;
+use tastemaker_values::domain::definitions::types::Exactness;
 
 /// The rows of `rows`, by their node.
 fn by_node<'r>(rows: &[&'r DataRow]) -> BTreeMap<&'r RowNode, &'r DataRow> {
@@ -192,6 +192,38 @@ fn whole(declarations: &mut Vec<Declaration>, table: &DeclarationName) {
     });
 }
 
+/// The depth of the deepest of the tables of both lists.
+fn deepest(one: &[DeclarationName], two: &[DeclarationName]) -> Depth {
+    one.iter().chain(two).map(depth).max().unwrap_or_default()
+}
+
+/// Gives each of `made` and `made_tables` the name `moves` say it takes.
+fn rename(made: &mut [Declaration], made_tables: &mut [DeclarationName], moves: &[Renaming]) {
+    for declaration in made {
+        if let Some(name) = moved(&declaration.name, moves) {
+            declaration.name = name;
+        }
+    }
+    for table in made_tables {
+        if let Some(name) = moved(table, moves) {
+            *table = name;
+        }
+    }
+}
+
+/// A value within an entry of the instance's table is the instance's: only the entry's name is held exactly.
+fn keep_instance_values(mismatches: &mut Vec<Mismatch>, table: &DeclarationName) {
+    let prefix = format!("{}{KEY_PATH_SEPARATOR}", table.0);
+    mismatches.retain(|mismatch| match mismatch {
+        Mismatch::Extra(declaration) => !declaration
+            .name
+            .0
+            .strip_prefix(&*prefix)
+            .is_some_and(|within| within.contains(KEY_PATH_SEPARATOR)),
+        Mismatch::Missing(_) => true,
+    });
+}
+
 /// How a data document's declarations `found` differ from its template's `expected`, each table of a sequence judged
 /// whole, depth by depth: a template's table is met by the first of the file's tables in the same sequence that holds
 /// every declaration of it, wherever it is placed; one no table of the file holds is the table left standing that makes
@@ -211,12 +243,7 @@ pub(crate) fn compare_data(
     let mut made = data_declarations(found);
     let wanted_tables = tables(expected);
     let mut made_tables = tables(found);
-    let deepest = wanted_tables
-        .iter()
-        .chain(&made_tables)
-        .map(depth)
-        .max()
-        .unwrap_or_default();
+    let deepest = deepest(&wanted_tables, &made_tables);
     let mut gone: Vec<DeclarationName> = Vec::new();
     for level in 0..=deepest.0 {
         let level = Depth(level);
@@ -297,30 +324,12 @@ pub(crate) fn compare_data(
                 });
             }
         }
-        for declaration in &mut made {
-            if let Some(name) = moved(&declaration.name, &moves) {
-                declaration.name = name;
-            }
-        }
-        for table in &mut made_tables {
-            if let Some(name) = moved(table, &moves) {
-                *table = name;
-            }
-        }
+        rename(&mut made, &mut made_tables, &moves);
     }
     in_order(&wanted, &mut made);
     let mut mismatches = compare(&wanted, &made, exact);
     if let Some(table) = instance_values {
-        // A value within an entry of the instance's table is the instance's: only the entry's name is held exactly.
-        let prefix = format!("{}{KEY_PATH_SEPARATOR}", table.0);
-        mismatches.retain(|mismatch| match mismatch {
-            Mismatch::Extra(declaration) => !declaration
-                .name
-                .0
-                .strip_prefix(&*prefix)
-                .is_some_and(|within| within.contains(KEY_PATH_SEPARATOR)),
-            Mismatch::Missing(_) => true,
-        });
+        keep_instance_values(&mut mismatches, table);
     }
     mismatches
 }

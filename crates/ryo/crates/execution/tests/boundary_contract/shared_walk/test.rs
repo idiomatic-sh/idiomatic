@@ -11,7 +11,7 @@ use ryo_relations::domain::relations::types::FileId;
 
 #[test]
 fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(&engine, &[Selector::Kind("word"), Selector::Kind("other")]);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
@@ -27,18 +27,13 @@ fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
     assert_eq!(words, expected(FileId(0), &elements, &[1, 3]));
     let other = complete(&mut rules, 1);
     assert_eq!(other, expected(FileId(0), &elements, &[2]));
-    assert_eq!(
-        semantics.selects(),
-        0,
-        "neither native class rescans through ordinary Select dispatch"
-    );
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 
 #[test]
 fn inactive_file_has_zero_shared_walk_work() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(&engine, &[Selector::Kind("word"), Selector::BadRegex]);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
@@ -51,14 +46,13 @@ fn inactive_file_has_zero_shared_walk_work() {
         &mut symbols,
     );
     assert!(rules.rules.is_empty());
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 
 #[test]
 fn skipping_all_demanded_rules_does_not_start_the_walk() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
@@ -71,14 +65,13 @@ fn skipping_all_demanded_rules_does_not_start_the_walk() {
         &mut symbols,
     );
     assert!(rules.rules.is_empty());
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
 
 #[test]
 fn equal_predicates_with_different_parameters_have_independent_native_results() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(
         &engine,
         &[Selector::Parameter("a"), Selector::Parameter("c")],
@@ -101,7 +94,6 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
         complete(&mut rules, 0),
         expected(FileId(0), &elements, &[1])
     );
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
@@ -110,7 +102,7 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
 /// faulty rule answers its own error.
 #[test]
 fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(&engine, &[Selector::Kind("other"), Selector::BadRegex]);
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None.into());
@@ -127,13 +119,12 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
         expected(FileId(0), &elements, &[2])
     );
     assert_eq!(failed(&mut rules, 1), Some(regex_error("[")));
-    assert_eq!(semantics.selects(), 0);
     request.finish();
 }
 
 #[test]
 fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let program = prepared(
         &engine,
         &[Selector::Parameter("a"), Selector::Parameter("c")],
@@ -165,7 +156,6 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
         );
         assert!(matches!(rules.end, FileEnd::Finished(_)));
     }
-    assert_eq!(semantics.selects(), 0);
     request.finish();
 }
 

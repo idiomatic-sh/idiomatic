@@ -1,12 +1,13 @@
 //! What every `syntax` adapter must pass: the elements it makes of a source, compared in full with elements written by hand.
 
+use super::arguments::{ARGUMENTS, Added, added_by};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::constants::EXPANDED_MACROS;
+use crate::domain::syntax::constants::OPAQUE_MACROS;
 use crate::domain::syntax::service::kind_of;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
-use crate::outbound::syntax::types::{Expanding, SourceText};
+use crate::outbound::syntax::types::{OpaqueMacros, SourceText};
 use ryo::languages::{
     ByteSlice, ElementOrigin, Elements, Position, Symbols, decoded_at, end_at, end_of, kind_at,
     origin_at, start_at, table_builder,
@@ -56,16 +57,19 @@ pub(crate) enum Decoding {
     Decoded(&'static str),
 }
 
-/// Which macros the adapter is told to read again.
+/// Which macros the adapter is told are opaque: their arguments are never read again.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Told {
-    /// The standard macros whose arguments are expressions.
-    Standard,
-    /// None.
-    Nothing,
+    /// The language's built-in macros whose arguments are never code.
+    Language,
+    /// The macro the row calls, `println!`.
+    Called,
 }
 
-/// What a row of the contract is given: Rust source text, and which macros are read again.
+/// The macro the rows told `Called` call.
+const CALLED: [&str; 1] = ["println"];
+
+/// What a row of the contract is given: Rust source text, and which macros are opaque.
 type Input = (&'static str, Told);
 /// Every element of the table, in order, with where it comes from.
 type Value = &'static [Made];
@@ -107,7 +111,7 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_function_gives_its_elements_in_order"),
         word: Word::Succeeds,
-        input: || ("fn main() {}", Told::Standard),
+        input: || ("fn main() {}", Told::Language),
         expect: Expect::Value(&[
             own(Kind::Node(Node::SourceFile), "fn main() {}"),
             own(Kind::Node(Node::Fn), "fn main() {}"),
@@ -128,13 +132,13 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_empty_file_gives_only_its_root"),
         word: Word::Succeeds,
-        input: || ("", Told::Standard),
+        input: || ("", Told::Language),
         expect: Expect::Value(&[own(Kind::Node(Node::SourceFile), "")]),
     },
     Case {
         name: CaseName("the_arguments_of_a_standard_macro_are_added_under_its_call"),
         word: Word::Succeeds,
-        input: || ("fn f() { println!(\"{}\", a); }", Told::Standard),
+        input: || ("fn f() { println!(\"{}\", a); }", Told::Language),
         expect: Expect::Value(&[
             own(
                 Kind::Node(Node::SourceFile),
@@ -185,9 +189,9 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
         ]),
     },
     Case {
-        name: CaseName("a_macro_the_adapter_is_not_told_to_read_again_adds_nothing"),
+        name: CaseName("a_macro_the_adapter_is_told_is_opaque_adds_nothing"),
         word: Word::Succeeds,
-        input: || ("println!(\"{}\", a);", Told::Nothing),
+        input: || ("println!(\"{}\", a);", Told::Called),
         expect: Expect::Value(&[
             own(Kind::Node(Node::SourceFile), "println!(\"{}\", a);"),
             own(Kind::Node(Node::MacroCall), "println!(\"{}\", a);"),
@@ -249,12 +253,12 @@ pub(crate) const LITERALS: &[Case<&'static str, &'static [Decoding], Failure>] =
     },
 ];
 
-/// The macros an adapter built as `told` reads again.
+/// The macros an adapter built as `told` does not read again.
 #[must_use]
-pub(crate) const fn expanding(told: Told) -> Expanding<'static> {
+pub(crate) const fn opaque(told: Told) -> OpaqueMacros<'static> {
     match told {
-        Told::Standard => Expanding(&EXPANDED_MACROS),
-        Told::Nothing => Expanding(&[]),
+        Told::Language => OpaqueMacros(&OPAQUE_MACROS),
+        Told::Called => OpaqueMacros(&CALLED),
     }
 }
 
@@ -299,23 +303,28 @@ fn positions_of(elements: &Elements, source: &str) -> Vec<Made> {
         .collect()
 }
 
-/// Runs the contract's rows against one implementation, built by `adapter` for the macros it is told to read again: an adapter that
+/// Runs the contract's rows against one implementation, built by `adapter` for the macros it is told are opaque: an adapter that
 /// reads source text.
 ///
 /// # Panics
 ///
 /// When the implementation breaks the contract.
-pub(crate) fn check<P>(adapter: impl Fn(Expanding<'static>) -> P)
+pub(crate) fn check<P>(adapter: impl Fn(OpaqueMacros<'static>) -> P)
 where
     P: SyntaxPort,
 {
     run(CASES, Word::Succeeds, |(source, told)| {
-        let made = made_by(&adapter(expanding(told)), source);
+        let made = made_by(&adapter(opaque(told)), source);
         let leaked: &'static [Made] = Box::leak(made.into_boxed_slice());
         Ok(leaked)
     });
+    run(ARGUMENTS, Word::Succeeds, |source| {
+        let added = added_by(&adapter(opaque(Told::Language)), source);
+        let leaked: &'static [Added] = Box::leak(added.into_boxed_slice());
+        Ok(leaked)
+    });
     run(LITERALS, Word::Succeeds, |source| {
-        let values: Vec<Decoding> = made_by(&adapter(expanding(Told::Nothing)), source)
+        let values: Vec<Decoding> = made_by(&adapter(opaque(Told::Called)), source)
             .into_iter()
             .filter(|made| made.element.kind == Kind::Token(Token::String))
             .map(|made| made.value)

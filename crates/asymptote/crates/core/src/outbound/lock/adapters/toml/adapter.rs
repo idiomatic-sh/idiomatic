@@ -10,13 +10,13 @@ use super::constants::ORDINARY_MODE;
 use super::constants::{CRLF, DIRECTORY, EXTENSION, ID_BYTES, LF, SUPPRESSED, TEMPORARY, UNNAMED};
 use super::schemas::{is_hex, parse, render};
 use super::settings::LockTomlSettings;
-use crate::domain::manifest::types::{Pathspec, ProductRoot};
-use crate::domain::operations::types::{Operation, OperationId, OperationText};
-use crate::domain::violations::service::word;
-use crate::domain::violations::types::{Id, Key, Standing};
 use crate::outbound::lock::errors::LockError;
 use crate::outbound::lock::interface::LockPort;
 use crate::outbound::lock::types::{Listing, Operations};
+use asymptote_values::domain::manifest::types::{Pathspec, ProductRoot};
+use asymptote_values::domain::operations::types::{Operation, OperationId, OperationText};
+use asymptote_values::domain::violations::service::word;
+use asymptote_values::domain::violations::types::{Id, Key, Standing};
 
 /// A temporary file that, renamed into place, is readable as any file `std::fs::write` makes: its mode is
 /// `ORDINARY_MODE` less the umask, not the private `0o600` a temporary file starts with.

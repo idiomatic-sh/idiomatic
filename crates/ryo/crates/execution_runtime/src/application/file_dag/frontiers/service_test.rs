@@ -1,204 +1,95 @@
-//! Packed frontiers decode once per equal words, shape and symbol generation, and each root reads its own input.
-use crate::application::file_dag::frontiers::decodes::service::FrontierDecodes;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{Input as PlanInput, StepId};
+//! What the files handed over, read through `held_frontier` and `handed_coverage`: a held entry lends its rows and coverage, a
+//! withheld one its token, and `reason` answers a token with the refusal `withheld` recorded for it.
+use super::service::{handed_coverage, held_frontier, reason, withheld};
+use super::types::{FrontierRows, HandedOver, Withholdings};
+use ryo_execution_domain::domain::completion::types::CoverageState;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_operators::domain::contract::types::WithheldInput;
+use ryo_operators::domain::physical_plan::types::frontier_place::value::FrontierPlace;
+use ryo_operators::domain::physical_plan::types::held_rows::value::HeldRows;
+use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::plan_parts::types::InputNumber;
+use ryo_values::domain::rows::types::Table;
 use std::borrow::Cow;
-use std::sync::Arc;
 
-mod cut_refusal;
-mod required_files;
-
-/// The stored words of a one-column table of numbers, in an allocation of their own.
-fn number_words(numbers: &[i64]) -> Arc<ryo_values::domain::stored_facts::types::KeptWords> {
-    let table = ryo_values::domain::rows::types::Table {
-        kinds: vec![ryo_relations::domain::relations::types::CellKind::Number],
-        cells: numbers
-            .iter()
-            .map(|number| {
-                ryo_relations::domain::relations::types::Value::Number(
-                    ryo_relations::domain::relations::types::Integer(*number),
-                )
-            })
-            .collect(),
-        count: ryo_values::domain::rows::types::RowCount(numbers.len()),
-    };
-    let mut words = ryo_relations::domain::relations::types::Words::default();
-    ryo_values::domain::table_words::service::encode_table(&table, &[], &mut words);
-    Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
-        ryo_values::domain::table_words::service::pack(
-            ryo_values::domain::table_words::types::WordSlice(&words.0),
-        ),
-    ))
-}
-
-fn packed(
-    input: PlanInput,
-    words: Arc<ryo_values::domain::stored_facts::types::KeptWords>,
-) -> super::types::PackedFrontier {
-    super::types::PackedFrontier {
-        input,
-        words,
-        mode: ryo_values::domain::table_words::types::DecodeMode::Permissive,
-        coverage: ryo_execution_domain::domain::completion::types::CoverageState::Complete,
-    }
-}
-
-/// One packed frontier handed to the decodes: the input it is packed for, its numbers, and the
-/// symbol generation (an index into the run's symbol tables) it is admitted in.
+/// The frontier entry read: a held one, one withheld for a missing producer, and one past the handover.
 #[derive(Clone, Copy, Debug)]
-struct Admission {
-    input: PlanInput,
-    numbers: &'static [i64],
-    generation: usize,
+enum Entry {
+    /// Entry 0, held.
+    Held,
+    /// Entry 1, withheld after a first withheld input.
+    Withheld,
+    /// Entry 2, which the files did not hand over.
+    Past,
 }
 
-/// What the decodes answered over the admissions.
-#[derive(Debug, PartialEq)]
-struct Decoded {
-    /// The decode count after each admission.
-    counts: Cow<'static, [usize]>,
-    /// The input each admission answered, `None` when it answered none.
-    inputs: Cow<'static, [Option<PlanInput>]>,
-    /// Whether the first two admissions decoded to the very same rows.
-    shared_rows: bool,
-    /// Whether the first admission's packed words were released once it was admitted.
-    first_words_released: bool,
-}
-
-const fn admission(input: PlanInput, numbers: &'static [i64], generation: usize) -> Admission {
-    Admission {
-        input,
-        numbers,
-        generation,
-    }
-}
-
-const FUNCTION: PlanInput = PlanInput::Relation(Relation::Function);
-const IDENTIFIER: PlanInput = PlanInput::Relation(Relation::Identifier);
-const STEP: PlanInput = PlanInput::Step(StepId(0));
-
-type Input = &'static [Admission];
-type Value = Decoded;
-type Failure = String;
+type Input = Entry;
+/// What the read answered, as text.
+type Value = Cow<'static, str>;
+type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("content_equal_words_are_decoded_once_and_relabelled_for_each_root"),
+        name: CaseName("a_held_entry_lends_its_rows_and_coverage"),
         word: Word::Succeeds,
-        input: || {
-            const {
-                &[
-                    admission(FUNCTION, &[1, 2], 0),
-                    admission(IDENTIFIER, &[1, 2], 0),
-                ]
-            }
-        },
-        expect: Expect::Value(Decoded {
-            counts: Cow::Borrowed(&[1, 1]),
-            inputs: Cow::Borrowed(&[Some(FUNCTION), Some(IDENTIFIER)]),
-            shared_rows: true,
-            first_words_released: true,
-        }),
+        input: || Entry::Held,
+        expect: Expect::Value(Cow::Borrowed(
+            "held RowCount(0); Some(Complete); unknown token NotRun",
+        )),
     },
     Case {
-        name: CaseName("other_words_another_shape_or_another_symbol_generation_decode_again"),
+        name: CaseName("a_withheld_entry_answers_the_refusal_recorded_for_its_token"),
         word: Word::Succeeds,
-        input: || {
-            const {
-                &[
-                    admission(FUNCTION, &[1, 2], 0),
-                    admission(FUNCTION, &[3], 0),
-                    admission(STEP, &[1, 2], 0),
-                    admission(FUNCTION, &[1, 2], 1),
-                ]
-            }
-        },
-        expect: Expect::Value(Decoded {
-            counts: Cow::Borrowed(&[1, 2, 3, 4]),
-            inputs: Cow::Borrowed(&[Some(FUNCTION), Some(FUNCTION), Some(STEP), Some(FUNCTION)]),
-            shared_rows: false,
-            first_words_released: true,
-        }),
+        input: || Entry::Withheld,
+        expect: Expect::Value(Cow::Borrowed(
+            "withheld WithheldInput(1) ObservationIncomplete { reason: \"a producer feeding this retained frontier is unavailable\" } (first WithheldInput(0)); None; unknown token NotRun",
+        )),
     },
     Case {
-        name: CaseName(
-            "a_decode_releases_its_packed_words_and_an_equal_second_root_decodes_nothing",
-        ),
+        name: CaseName("an_entry_past_the_handover_is_withheld_with_no_recorded_refusal"),
         word: Word::Succeeds,
-        input: || {
-            const {
-                &[
-                    admission(IDENTIFIER, &[1, 2], 0),
-                    admission(FUNCTION, &[1, 2], 0),
-                ]
-            }
-        },
-        expect: Expect::Value(Decoded {
-            counts: Cow::Borrowed(&[1, 1]),
-            inputs: Cow::Borrowed(&[Some(IDENTIFIER), Some(FUNCTION)]),
-            shared_rows: true,
-            first_words_released: true,
-        }),
+        input: || Entry::Past,
+        expect: Expect::Value(Cow::Borrowed(
+            "withheld WithheldInput(4294967295) NotRun (first WithheldInput(0)); None; unknown token NotRun",
+        )),
     },
 ];
 
-/// Admits each packed frontier in turn and reports the decodes' answers.
-fn subject(admissions: Input) -> Result<Value, Failure> {
-    let decodes = FrontierDecodes::new(Arc::new(
-        crate::outbound::digest::fixtures::fake::DigestFake,
-    ));
-    let generations = admissions
-        .iter()
-        .map(|each| each.generation)
-        .max()
-        .map_or(0, |last| last + 1);
-    let mut symbols: Vec<Symbols> = (0..generations).map(|_| Symbols::default()).collect();
-    let mut counts = Vec::new();
-    let mut inputs = Vec::new();
-    let mut tables = Vec::new();
-    let mut first_words = None;
-    for each in admissions {
-        let words = number_words(each.numbers);
-        if first_words.is_none() {
-            first_words = Some(Arc::downgrade(&words));
-        }
-        let admitted = decodes.admit(
-            packed(each.input, words),
-            &mut symbols[each.generation],
-            super::service::admit,
-        );
-        counts.push(decodes.count().0);
-        inputs.push(input_of(&admitted));
-        tables.push(match admitted {
-            Ok(super::types::FrontierInput::Decoded { frontier, .. }) => Some(frontier.table),
-            _ => None,
-        });
-    }
-    let shared_rows =
-        matches!(tables.as_slice(), [Some(one), Some(two), ..] if Arc::ptr_eq(one, two));
-    Ok(Decoded {
-        counts: counts.into(),
-        inputs: inputs.into(),
-        shared_rows,
-        first_words_released: first_words.is_some_and(|held| held.upgrade().is_none()),
-    })
-}
-
-/// The input an admitted frontier answers.
-fn input_of(
-    admitted: &Result<
-        super::types::FrontierInput,
-        ryo_execution_domain::domain::frontiers::types::RefusedFrontier,
-    >,
-) -> Option<PlanInput> {
-    match admitted {
-        Ok(super::types::FrontierInput::Decoded { frontier, .. }) => Some(frontier.input),
-        Ok(super::types::FrontierInput::Compact { input, .. }) => Some(*input),
-        Ok(super::types::FrontierInput::Packed(packed)) => Some(packed.input),
-        Err(refused) => Some(refused.input),
-    }
+fn subject(entry: Input) -> Result<Value, Failure> {
+    let mut withholdings = Withholdings::default();
+    let first = withheld(&mut withholdings, OperatingError::NotRead);
+    let second = withheld(
+        &mut withholdings,
+        OperatingError::ObservationIncomplete {
+            reason: "a producer feeding this retained frontier is unavailable".into(),
+        },
+    );
+    let handed = HandedOver(vec![
+        FrontierRows::Held {
+            table: std::sync::Arc::new(Table::default()),
+            coverage: CoverageState::Complete,
+        },
+        FrontierRows::Withheld(second),
+    ]);
+    let at = match entry {
+        Entry::Held => 0,
+        Entry::Withheld => 1,
+        Entry::Past => 2,
+    };
+    let place = FrontierPlace::of(RuleOrdinal(0), InputNumber(at));
+    let read = match held_frontier(&handed, place) {
+        HeldRows::Held(table) => format!("held {:?}", table.count),
+        HeldRows::Withheld(token) => format!(
+            "withheld {token:?} {:?} (first {first:?})",
+            reason(&withholdings, token)
+        ),
+    };
+    let coverage = handed_coverage(&handed, InputNumber(at));
+    let unknown = reason(&withholdings, WithheldInput(u32::MAX));
+    Ok(Cow::Owned(format!(
+        "{read}; {coverage:?}; unknown token {unknown:?}"
+    )))
 }
 
 #[test]

@@ -62,6 +62,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 QueryOperator::Replace,
                 QueryOperator::OrderedMatch,
                 QueryOperator::OrderedDfs,
+                QueryOperator::Worklist,
                 QueryOperator::Select,
                 QueryOperator::Project,
                 QueryOperator::Extend,
@@ -80,7 +81,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 QueryOperator::Closure,
                 QueryOperator::Cycles,
             ]),
-            described: 25,
+            described: 26,
             incomplete: 0,
             unknown_relations: 0,
         }),
@@ -196,7 +197,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let plan = plan(Relation::SyntaxTree, Some("fn"));
             let vocabularies = vocabularies();
             let refusal = metadata.kind_refusal(&plan, &vocabularies, &MatchingUseCaseImpl);
-            let plans = [plan.clone()];
+            let plans = [&plan];
             let unknown = metadata.first_unknown(
                 &plans,
                 (&[Vec::new()][..]).into(),
@@ -212,7 +213,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         Asked::UnknownKind => {
             let plan = plan(Relation::SyntaxTree, Some("ghost"));
             let vocabularies = vocabularies();
-            let plans = [plan.clone()];
+            let plans = [&plan];
             let unknown = metadata.first_unknown(
                 &plans,
                 (&[Vec::new()][..]).into(),
@@ -309,7 +310,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let unknowns = metadata.project_unknowns(&partials, &named, &[needs.clone()], &rules);
             let message = metadata.unknown_message(&partial, CoverageScope::File(&named[0]));
             Ok(Expected::Trust {
-                reads: Cow::Owned(needs.reads.iter().map(|read| read.relation).collect()),
+                reads: Cow::Owned(needs.reads.iter().map(|read| read.relation()).collect()),
                 observed: metadata.observed_reads(&plan).len(),
                 bearing: metadata.matters(&needs.reads[0], &partial),
                 blocking: metadata.blocked(&needs.reads, &partials),

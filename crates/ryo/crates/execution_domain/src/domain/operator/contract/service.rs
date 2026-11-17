@@ -7,6 +7,40 @@ use crate::domain::operator::contract::presence::{
 };
 use ryo_values::domain::query_operators::types::OperationKind;
 
+/// The input `operation` builds into an index of keys before it reads a row, if any: the set an intersection, a difference or
+/// an anti-join tests each left row against. The operation reads it as a resource, so it is fed none of its rows.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::service::indexed_input;
+/// use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepId};
+/// use ryo_values::domain::plans::types::Operation;
+/// let (left, right) = (Input::Step(StepId(0)), Input::Step(StepId(1)));
+/// assert_eq!(indexed_input(&Operation::Difference { left, right }), Some(InputNumber(1)));
+/// assert_eq!(indexed_input(&Operation::Union { left, right }), None);
+/// ```
+#[must_use]
+pub fn indexed_input(
+    operation: &ryo_values::domain::plans::types::Operation,
+) -> Option<ryo_values::domain::plan_parts::types::InputNumber> {
+    use super::resources::types::ResourceProgram;
+    match super::resources::service::prepare(operation) {
+        ResourceProgram::Index { input, .. } => Some(input),
+        ResourceProgram::None
+        | ResourceProgram::Appended(_)
+        | ResourceProgram::Rank(_)
+        | ResourceProgram::Join(_)
+        | ResourceProgram::Count { .. }
+        | ResourceProgram::Digest { .. }
+        | ResourceProgram::Closure { .. }
+        | ResourceProgram::Cycles { .. }
+        | ResourceProgram::Ordered { .. }
+        | ResourceProgram::Dfs(_)
+        | ResourceProgram::Axis(_) => None,
+    }
+}
+
 /// One semantic input and dependency contract, independent of output delivery.
 pub fn semantics(kind: OperationKind) -> OperationSemantics {
     use OperationKind::*;
@@ -98,6 +132,13 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
             Effects::DerivedText,
             3,
         ),
+        // An edge, a lattice row or a root more can change the queue, and so which rows the trace holds.
+        Worklist => (
+            DemandOrder::LeftThenRight,
+            ResourceNeeds::OrderedAdjacency,
+            Effects::Pure,
+            7,
+        ),
         Rows | Hosted => (
             DemandOrder::None,
             ResourceNeeds::None,
@@ -125,9 +166,8 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
     };
     let shape = match kind {
         Rows | Hosted => InputMode::RequestSource,
-        GroupCount | GroupDigest | OrderedMatch | Closure | Cycles | OrderedDfs | RenderSyntax => {
-            InputMode::Views
-        }
+        GroupCount | GroupDigest | OrderedMatch | Closure | Cycles | OrderedDfs | Worklist
+        | RenderSyntax => InputMode::Views,
         Replace | Select | Project | Extend | Join | Union | Intersection | Difference
         | Antijoin | Capture | Rank | Words | Axis | SpanBetween | SourceMatches | FitsRendered
         | SpanBounds => InputMode::Row {
@@ -188,7 +228,7 @@ fn presence(kind: OperationKind) -> PresenceMask {
         // The right input only removes rows.
         Antijoin | Difference => PresenceMask::AllOf(InputMask(1)),
         // The walk starts from the rows of the first input.
-        Axis | OrderedDfs => PresenceMask::AllOf(InputMask(1)),
+        Axis | OrderedDfs | Worklist => PresenceMask::AllOf(InputMask(1)),
         // No edge, no pair.
         Closure | Cycles => PresenceMask::AllOf(InputMask(1)),
         Rows | Hosted => PresenceMask::Always,
@@ -238,6 +278,8 @@ fn failure(
         Operation::OrderedMatch { .. } | Operation::OrderedDfs { .. } => {
             RowFailure::OnRows(InputMask(3))
         }
+        // Any root, edge or lattice row can name a state the lattice does not hold.
+        Operation::Worklist { .. } => RowFailure::OnRows(InputMask(7)),
         Operation::Select { comparisons, .. } => comparison_failure(comparisons, InputMask(1)),
         Operation::Join { filter, .. } => comparison_failure(filter, InputMask(2)),
         Operation::Axis { domain_filter, .. } => comparison_failure(domain_filter, InputMask(4)),
@@ -320,6 +362,7 @@ pub(crate) fn prepare_for(
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
@@ -371,6 +414,7 @@ pub(crate) fn prepare_for(
         | Operation::Words { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
@@ -404,7 +448,6 @@ pub(crate) fn prepare_for(
     } else {
         resources.clone()
     };
-    let workspace = super::workspace::service::prepare(operation, inputs, &output_kinds);
     Ok(OperatorContract {
         derived: Default::default(),
         kind: expected,
@@ -414,7 +457,6 @@ pub(crate) fn prepare_for(
         schema,
         output_kinds,
         absence_inputs,
-        workspace,
         resources,
         empty_results: super::preflight::service::empty_results(operation, inputs),
         source_gate,

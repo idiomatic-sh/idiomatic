@@ -13,16 +13,8 @@ pub(super) const RETAINED_CACHE_CONDITION: &str = "retained-tool-cache";
 pub(super) const EDITED_CACHE_CONDITION: &str = "edited-tool-cache";
 /// Separator in human-readable excluded-path observations.
 pub(super) const PATH_SEPARATOR: &str = ", ";
-/// Separator between explicit per-rule finding counts.
-pub(super) const FINDING_SEPARATOR: &str = ", ";
-/// Increment for one diagnostic occurrence.
-pub(super) const ONE_FINDING: usize = 1;
-/// Stable observation label for reference-first execution.
-pub(super) const REFERENCE_FIRST: &str = "ReferenceFirst";
-/// Stable observation label for candidate-first execution.
-pub(super) const CANDIDATE_FIRST: &str = "CandidateFirst";
 /// How many ordered trials one project is measured in, alternating which contestant runs first.
-pub(super) const TRIALS: usize = 6;
+pub(super) const TRIALS: usize = 3;
 /// The comparison of the reference's cold and retained-cache reports.
 pub(super) const REFERENCE_RETAINED: &str = "reference retained-cache";
 /// The comparison of the candidate's cold and retained-cache reports.
@@ -34,3 +26,11 @@ pub(super) const CANDIDATE_EDITED: &str = "candidate edited retained vs fresh";
 /// An explicit cohort is measured only within the rules its certificate covers.
 pub(super) const COHORT_OUTSIDE_CERTIFICATE: &str =
     "measured cohort names a rule the certificate does not cover";
+/// Refusal of a project with no source left to lint after the suffix filter and the Valid profile.
+pub(super) const NO_SOURCE: &str = "no source left to lint after discovery and the valid profile";
+/// The directory the growth scenes are written under, below the run's cache.
+pub(super) const SCENES_DIRECTORY: &str = "scenes";
+/// Refusal of a pair whose certification does not permit publishing its costs.
+pub(super) const NOT_COMPLETE: &str = "only a complete inventory's costs are published";
+/// Refusal of a growth lint that did not complete.
+pub(super) const GROWTH_INCOMPLETE: &str = "a growth lint did not complete";

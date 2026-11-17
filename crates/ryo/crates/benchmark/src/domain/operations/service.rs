@@ -1,32 +1,28 @@
 //! The verbs of the operations, the directory each writes and the worker command each runs.
 use super::constants::{
-    BENCH_COMPONENTS, BENCHMARK, BENCHMARKS, CASE_INVENTORY, COLLECTOR, LANGUAGES, LINTERS,
-    NOT_A_BENCH_DIRECTORY, PARITY, REGISTRATION, STATE, VERIFY_INVENTORY,
+    BENCH, BENCH_COMPONENTS, BENCHMARK, BENCHMARKS, COLLECTOR, DOCUMENT, INVENTORY, LANGUAGES,
+    LINTERS, NOT_A_BENCH_DIRECTORY, REGISTRATION, STATE,
 };
 use super::types::{BenchDirectory, BenchOperation, OperationLayout, OperationVerb};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::constants::MEASURE_ACCOUNTED_VALID;
+use ryo_benchmark_contracts::domain::requests::constants::{
+    CASE_INVENTORY_ARGUMENT, DOCUMENT_ARGUMENT, MEASURE_ACCOUNTED_VALID, VERIFICATION_ARGUMENT,
+};
 use std::ffi::OsString;
 use std::path::{Component, Path};
 
 /// The operation a collector verb names.
 #[must_use]
 pub fn operation(verb: OperationVerb<'_>) -> Option<BenchOperation> {
-    [
-        BenchOperation::Correctness,
-        BenchOperation::Measure,
-        BenchOperation::Parity,
-    ]
-    .into_iter()
-    .find(|operation| verb_of(*operation).0 == verb.0)
+    [BenchOperation::Bench]
+        .into_iter()
+        .find(|operation| verb_of(*operation).0 == verb.0)
 }
 
 /// The collector verb of an operation.
 pub(crate) fn verb_of(operation: BenchOperation) -> OperationVerb<'static> {
     OperationVerb(match operation {
-        BenchOperation::Correctness => VERIFY_INVENTORY,
-        BenchOperation::Measure => MEASURE_ACCOUNTED_VALID,
-        BenchOperation::Parity => PARITY,
+        BenchOperation::Bench => BENCH,
     })
 }
 
@@ -70,25 +66,35 @@ pub fn layout(
     }
 }
 
-/// The arguments the sealed worker of a bench runs an operation with; the correctness operation runs no worker.
+/// The file the worker writes the bench's one document to: `<layout>/document.bmf`.
+pub(crate) fn document(layout: &OperationLayout) -> std::path::PathBuf {
+    layout.root.join(DOCUMENT)
+}
+
+/// The arguments the sealed worker of a bench runs its corpus with: `measure-valid`, certified against the registration,
+/// reading the times the verification left and writing the bench's one document to `document`.
 pub(crate) fn worker_arguments(
     operation: BenchOperation,
     layout: &OperationLayout,
     tool: &Path,
 ) -> Vec<OsString> {
     match operation {
-        BenchOperation::Correctness => Vec::new(),
-        BenchOperation::Measure => {
-            let mut inventory = OsString::from(CASE_INVENTORY);
+        BenchOperation::Bench => {
+            let mut inventory = OsString::from(CASE_INVENTORY_ARGUMENT);
             inventory.push(layout.root.join(REGISTRATION));
+            let mut verification = OsString::from(VERIFICATION_ARGUMENT);
+            verification.push(layout.root.join(INVENTORY));
+            let mut written = OsString::from(DOCUMENT_ARGUMENT);
+            written.push(document(layout));
             vec![
                 MEASURE_ACCOUNTED_VALID.into(),
                 tool.into(),
                 layout.root.join(STATE).into(),
                 layout.root.join(COLLECTOR).into(),
                 inventory,
+                verification,
+                written,
             ]
         }
-        BenchOperation::Parity => vec![PARITY.into(), tool.into(), layout.root.clone().into()],
     }
 }

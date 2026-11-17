@@ -1,7 +1,7 @@
 //! Builds the lock adapters, one function each. A factory builds nothing else, chooses nothing, and is called only by
 //! an edge.
 
-use crate::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::manifest::types::ProductRoot;
 
 /// The TOML adapter over the lock of the product at `root`: one file per operation under `.asymptote/operations`.
 #[must_use]

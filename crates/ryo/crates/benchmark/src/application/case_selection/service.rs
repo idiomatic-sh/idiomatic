@@ -11,13 +11,9 @@ pub fn select(mut cases: Vec<PreparedCase>, selection: CaseSelection) -> ShardSe
     cases.sort_by(|left, right| (&left.rule, &left.name).cmp(&(&right.rule, &right.name)));
     let global_count = cases.len();
     let assigned = match selection.shard {
-        ryo_benchmark_contracts::domain::requests::types::ShardPartition::Shard(shard) => cases
-            .into_iter()
-            .enumerate()
-            .filter_map(|(index, case)| {
-                (index % shard.count().0 == shard.index().0).then_some(case)
-            })
-            .collect::<Vec<_>>(),
+        ryo_benchmark_contracts::domain::requests::types::ShardPartition::Shard(shard) => {
+            shard.select(cases).collect::<Vec<_>>()
+        }
         ryo_benchmark_contracts::domain::requests::types::ShardPartition::All => cases,
     };
     ShardSelection {

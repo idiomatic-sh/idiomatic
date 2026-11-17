@@ -1,0 +1,18 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let selves = select file, span from "syntax-tree" where kind = "self-kw";
+let paths = select id, file, span from "syntax-tree" where kind = "path";
+let self_paths = select l.id as id from paths as l join selves as r on l.file = r.file and l.span = r.span;
+let restrictions = select id from "syntax-tree" where kind = "visibility" or kind = "visibility-inner";
+let restricted = select l.parent as id from "syntax-child" as l join self_paths as r on l.child = r.id;
+let restricting = select l.id as id from restricted as l join restrictions as r on l.id = r.id;
+let visibilities = select id, file, span from "syntax-tree" where kind = "visibility";
+let owners = axis(from=restricting, relation="syntax-child", direction=nearest-ancestor, domain=visibilities);
+let inner_visibilities = select r.id as id, r.file as file, r.span as span from owners as l join visibilities as r on l.related = r.id;
+let direct_visibilities = select r.id as id, r.file as file, r.span as span from restricting as l join visibilities as r on l.id = r.id;
+let self_visibilities = union(left=inner_visibilities, right=direct_visibilities);
+let containers = select id from "syntax-tree" where kind = "source-file" or kind = "item-list" or kind = "stmt-list";
+let item_children = select l.child as item from "syntax-child" as l join containers as r on l.parent = r.id;
+let item_visibilities = select l.child as id from "syntax-child" as l join item_children as r on l.parent = r.item;
+let needless = select l.id as id, l.file as file, l.span as span from self_visibilities as l join item_visibilities as r on l.id = r.id;
+let violations = lint_attributes(candidates=needless, names="(?:^|,)\s*(?:clippy::(?:needless_pub_self|style|all))\s*(?:,|$)");
+emit violations subject file key(id);

@@ -5,10 +5,10 @@
 use super::adapter::ManifestTomlAdapter;
 use super::constants::FILE;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::manifest::types::{Group, Hook, HookName, Manifest, ProductRoot};
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::fixtures::contract::check;
 use crate::outbound::manifest::interface::ManifestPort as _;
+use asymptote_values::domain::manifest::types::{Group, Hook, HookName, Manifest, ProductRoot};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

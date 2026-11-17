@@ -1,10 +1,10 @@
 //! Ordinary project rules share one preparation and refuse another generation.
-use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::evaluation::count_findings;
 use crate::application::cross_file::fixtures::evaluation::evaluate_fixture;
 use crate::application::cross_file::fixtures::fed_steps;
 use crate::application::cross_file::fixtures::frontier_rows;
+use crate::application::cross_file::fixtures::project_calls::ProjectCalls;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -61,8 +61,8 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
             if rule == 0 {
                 first_rendered = Some(rendered);
             }
-            seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-            seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+            seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+            seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         }
         // A changed physical coverage declaration cannot consume a cached publication.
         let changed = [Covered {
@@ -85,8 +85,8 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
         seen.push(format!("{:?}", matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(
                 &rules.ids[1], &OperatingError::WrongOperation,
             ))));
-        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         phase.finish().unwrap();
 
         rules.request =
@@ -102,8 +102,8 @@ fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
         )
         .unwrap();
         seen.push(format!("{:?}", (result.rendered) == (first_rendered)));
-        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
-        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.runs.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.rows.load(Ordering::SeqCst)));
         phase.finish().unwrap();
     }
     Ok(seen.join("|"))
@@ -128,7 +128,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     word: Word::Succeeds,
     input: || Given::OrdinaryProjectRulesShareOnePreparationAndRejectAnotherGeneration,
     expect: Expect::Value(
-        "2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|1|2|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|1|2|true|1|2|true|2|4|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|1|2|2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|1|2|true|1|2|true|2|4",
+        "2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|1|2|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|2|4|true|2|4|true|3|6|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|1|2|2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|2|4|true|2|4|true|3|6",
     ),
 }];
 

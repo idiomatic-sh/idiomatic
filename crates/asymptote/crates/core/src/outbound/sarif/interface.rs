@@ -2,8 +2,8 @@
 
 use super::errors::SarifError;
 use super::types::{Read, SarifText};
-use crate::domain::judgement::types::{Judgement, Run};
-use crate::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::judgement::types::{Judgement, Run};
+use asymptote_values::domain::manifest::types::ProductRoot;
 
 /// What every `sarif` adapter implements.
 pub trait SarifPort: std::fmt::Debug + Send + Sync {

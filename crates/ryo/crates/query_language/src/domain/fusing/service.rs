@@ -1,15 +1,13 @@
 //! The `fusing` service: free functions named by verb over the filters and lookups of a plan that are read where they are found, instead of being made into tables first.
 
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+use ryo_relations::domain::relations::types::{Column, Relation};
 
-use super::types::TreeLookup;
 use crate::domain::rewriting::types::StepIndex;
-use ryo_values::domain::plan_parts::service::remapped;
-use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::service::{
+    column_place, remapped_comparison, rides_the_walk, view_source,
+};
 use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plan_parts::types::Operand;
-use ryo_values::domain::plan_parts::types::PlanComparison;
-use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
@@ -19,18 +17,6 @@ pub(crate) fn fuse_keyed_reaches(
     protected: &[ryo_values::domain::plan_parts::types::StepId],
 ) -> Vec<PlanStep> {
     super::types::demand::value::DemandClosure::new(&steps, protected).rewrite()
-}
-
-/// The column of a step's input that the column `column` of its output is: the same one when the
-/// step keeps every column, else the one it keeps there.
-#[must_use]
-pub(crate) fn source_column(kept: &[ColumnIndex], column: ColumnIndex) -> Option<ColumnIndex> {
-    if kept.is_empty() {
-        Some(column)
-    } else {
-        kept.get(usize::try_from(column.0).unwrap_or(usize::MAX))
-            .copied()
-    }
 }
 
 /// `consumer` as one step with `producer`, when both only filter and cut columns: the comparisons of
@@ -52,21 +38,17 @@ fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
     else {
         return None;
     };
-    let remap = |operand: &Operand| remapped(operand, &|column| source_column(cut, column));
     let mut comparisons = first.clone();
     for comparison in second {
-        comparisons.push(PlanComparison {
-            test: comparison.test,
-            left: remap(&comparison.left)?,
-            right: remap(&comparison.right)?,
-            origin: comparison.origin,
-        });
+        comparisons.push(remapped_comparison(comparison, &|column| {
+            view_source(cut, column)
+        })?);
     }
     let kept = if last.is_empty() {
         cut.clone()
     } else {
         last.iter()
-            .map(|column| source_column(cut, *column))
+            .map(|column| view_source(cut, *column))
             .collect::<Option<Vec<_>>>()?
     };
     Some(Operation::Select {
@@ -77,8 +59,9 @@ fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
 }
 
 /// The join at `place` with the right input read where its keys say, when that input is a filter of the
-/// elements or of the edges of the syntax tree and the join asks for them by what finds them in the tree
-/// (an element's id, an edge's parent or child): they are not made into a table.
+/// elements or of the edges of the syntax tree that rides the walk (`rides_the_walk`): the join asks for them by a node
+/// (an element's id, an edge's parent or child) and every comparison of the filter is one no row can fail. They are not
+/// made into a table. Any other filter stays a step of its own, the join's right input.
 fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     let Operation::Join {
         left,
@@ -106,7 +89,7 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     if producer.scope != steps.get(place.0)?.scope
         || !no_filter.is_empty()
         || !no_view.is_empty()
-        || tree_lookup_supported(*relation, right_on, kept) == TreeLookup::Unsupported
+        || rides_the_walk(*relation, right_on, kept, comparisons).is_none()
     {
         return None;
     }
@@ -121,35 +104,6 @@ fn fuse_join(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
 
         reach: None,
     })
-}
-
-/// Whether the resident tree lookup implements these ordered keys through this view.
-/// Other joins must keep their filter as a separate select for the generic executor.
-fn tree_lookup_supported(
-    relation: Relation,
-    keys: &[ColumnIndex],
-    view: &[ColumnIndex],
-) -> TreeLookup {
-    let supported = match keys {
-        [key] => source_column(view, *key).is_some_and(|column| {
-            if relation == Relation::SyntaxTree {
-                matches!(column, ColumnIndex(0 | 4))
-            } else {
-                relation == Relation::SyntaxChild && matches!(column, ColumnIndex(0 | 1))
-            }
-        }),
-        [file, stretch] if relation == Relation::SyntaxTree => matches!(
-            (source_column(view, *file), source_column(view, *stretch)),
-            (Some(ColumnIndex(3)), Some(ColumnIndex(4)))
-                | (Some(ColumnIndex(4)), Some(ColumnIndex(3)))
-        ),
-        _ => false,
-    };
-    if supported {
-        TreeLookup::Supported
-    } else {
-        TreeLookup::Unsupported
-    }
 }
 
 /// The axis at `place` answering among the rows of a filter of the elements of the syntax tree, with that
@@ -185,7 +139,8 @@ fn fuse_axis(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
         || !no_filter.is_empty()
         || !no_view.is_empty()
         || !no_output.is_empty()
-        || source_column(kept, *domain_id) != Some(ColumnIndex(0))
+        || view_source(kept, *domain_id)
+            != Some(column_place(Column::SyntaxTree(SyntaxTreeColumn::Id)))
     {
         return None;
     }
@@ -204,90 +159,14 @@ fn fuse_axis(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
     })
 }
 
-/// The filter at `place` over the rows of a join of the syntax tree, made the join's own: the join keeps only the rows that
-/// the filter would have kept, when the filter asks only of columns of the tree.
-fn fuse_join_filter(steps: &[PlanStep], place: StepIndex) -> Option<Operation> {
-    let Operation::Select {
-        from: Input::Step(read),
-        comparisons,
-        kept,
-    } = &steps.get(place.0)?.operation
-    else {
-        return None;
-    };
-    let producer = steps.get(usize::try_from(read.0).unwrap_or(usize::MAX))?;
-    let Operation::Join {
-        left,
-        right: right @ Input::Relation(Relation::SyntaxTree | Relation::SyntaxChild),
-        left_on,
-        right_on,
-        output,
-        filter,
-        view,
-
-        reach: None,
-    } = &producer.operation
-    else {
-        return None;
-    };
-    let Input::Relation(relation) = right else {
-        return None;
-    };
-    if producer.scope != steps.get(place.0)?.scope
-        || tree_lookup_supported(*relation, right_on, view) == TreeLookup::Unsupported
-    {
-        return None;
-    }
-    // A column of the join's answer is a column of the tree when it comes from the right.
-    let in_tree = |column: ColumnIndex| -> Option<ColumnIndex> {
-        let answered = output.get(usize::try_from(column.0).unwrap_or(usize::MAX))?;
-        (answered.side == Side::Right)
-            .then(|| source_column(view, answered.column))
-            .flatten()
-    };
-    let remap = |operand: &Operand| remapped(operand, &in_tree);
-    let mut merged = filter.clone();
-    for comparison in comparisons {
-        merged.push(PlanComparison {
-            test: comparison.test,
-            left: remap(&comparison.left)?,
-            right: remap(&comparison.right)?,
-            origin: comparison.origin,
-        });
-    }
-    let answer = if kept.is_empty() {
-        output.clone()
-    } else {
-        kept.iter()
-            .map(|column| {
-                output
-                    .get(usize::try_from(column.0).unwrap_or(usize::MAX))
-                    .copied()
-            })
-            .collect::<Option<Vec<_>>>()?
-    };
-    Some(Operation::Join {
-        left: *left,
-        right: *right,
-        left_on: left_on.clone(),
-        right_on: right_on.clone(),
-        output: answer,
-        filter: merged,
-        view: view.clone(),
-
-        reach: None,
-    })
-}
-
 /// The steps with each filter of the rows another filter kept made one filter of what the first reads,
 /// so the rows between them are never built. The step it was fused from stays for any other reader;
 /// the pruning of unused steps drops it when there is none.
 #[must_use]
 pub(crate) fn fuse_selects(mut steps: Vec<PlanStep>) -> Vec<PlanStep> {
     for place in 0..steps.len() {
-        if let Some(fused) = fuse_join(&steps, StepIndex(place))
-            .or_else(|| fuse_axis(&steps, StepIndex(place)))
-            .or_else(|| fuse_join_filter(&steps, StepIndex(place)))
+        if let Some(fused) =
+            fuse_join(&steps, StepIndex(place)).or_else(|| fuse_axis(&steps, StepIndex(place)))
         {
             if let Some(step) = steps.get_mut(place) {
                 step.operation = fused;

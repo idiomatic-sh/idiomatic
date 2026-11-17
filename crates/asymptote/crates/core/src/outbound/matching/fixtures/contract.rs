@@ -3,10 +3,10 @@
 // Error locations are contractual; diagnostic wording belongs to each implementation.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::selection::types::{PathMatch, PathPattern};
-use crate::domain::violations::types::RepoPath;
 use crate::outbound::matching::errors::MatchingError;
 use crate::outbound::matching::interface::MatchingPort;
+use asymptote_values::domain::selection::types::{PathMatch, PathPattern};
+use asymptote_values::domain::violations::types::RepoPath;
 
 /// The patterns and the path.
 type Input = (&'static [&'static str], &'static str);

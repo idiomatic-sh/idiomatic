@@ -21,7 +21,7 @@ node positions.
 
 All 304 candidate/reference case pairs passed raw exact on sealed worker
 `e0092188f1af6786f4981680a7129445f33117050343388ba9cb69016891266a`.
-The [target-version supplement](../../results/full-inventory-current/up035-up036-target-supplement/README.md)
+The target-version supplement
 binds the final query, full cases, profiles, transitive helpers, worker, and
 collector to all eight targets. The initial grammar failure is retained in its
 immutable archive; it is not counted as passing evidence.

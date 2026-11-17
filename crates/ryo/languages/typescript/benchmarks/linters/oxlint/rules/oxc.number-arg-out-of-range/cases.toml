@@ -117,3 +117,8 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line number-arg-out-of-range\nx.toString(1);\n" }
 expected = []
+
+[[cases]]
+name = "escaped-template-name"
+files = { "case.ts" = "x[`toStr\\u0069ng`](40);\n" }
+expected = [{ file = "case.ts", start = 0, end = 22 }]

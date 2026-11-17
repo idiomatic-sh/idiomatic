@@ -23,7 +23,7 @@ pub struct QueryView<'a>(pub &'a str);
 
 /// Stable logical identity of one source in a query bundle.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct QuerySourceId(pub Box<str>);
+pub struct QuerySourceId(pub Arc<str>);
 
 /// One exact source in a query bundle, with its logical identity retained for diagnostics.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -36,7 +36,7 @@ pub struct QueryDocumentSource {
 
 /// The exact text of one query source, shared by snapshots without copying.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct QuerySourceText(pub std::sync::Arc<str>);
+pub struct QuerySourceText(pub Arc<str>);
 
 impl std::ops::Deref for QuerySourceText {
     type Target = str;
@@ -64,15 +64,15 @@ impl From<Box<str>> for QuerySourceText {
     }
 }
 
-impl From<std::sync::Arc<str>> for QuerySourceText {
-    fn from(text: std::sync::Arc<str>) -> Self {
+impl From<Arc<str>> for QuerySourceText {
+    fn from(text: Arc<str>) -> Self {
         Self(text)
     }
 }
 
 /// Validated immutable module sources, shared by every query that names them.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ModuleCatalog(pub std::sync::Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>);
+pub struct ModuleCatalog(pub Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>);
 
 /// The in-memory root and immutable named module sources for one query.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -80,7 +80,7 @@ pub struct QueryBundle {
     /// The entry document compiled for this query.
     pub root: QueryDocumentSource,
     /// Explicitly registered immutable modules, shared by root queries and cache snapshots.
-    pub modules: std::sync::Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
+    pub modules: Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
 }
 
 impl From<QueryText> for QueryBundle {
@@ -225,8 +225,8 @@ pub struct QueryOrigin {
     pub source_id: QuerySourceId,
     /// The original byte span in that document.
     pub span: QuerySpan,
-    /// Import and call sites from the root to this source.
-    pub trace: Vec<QueryTraceSite>,
+    /// Import and call sites from the root to this source, shared by every origin reached through them.
+    pub trace: Arc<[QueryTraceSite]>,
 }
 
 /// One source boundary crossed while linking a fragment.

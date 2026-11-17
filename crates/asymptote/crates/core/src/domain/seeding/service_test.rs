@@ -3,10 +3,14 @@
 
 use super::service::seeding;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::operations::types::Reason;
-use crate::domain::operations::types::{BenchmarkName, MeasureName, Number, PerfKey, PerfRecord};
-use crate::domain::perf::types::{Measured, Spread};
-use crate::domain::violations::types::ToolId;
+use asymptote_values::domain::manifest::types::Percent;
+use asymptote_values::domain::operations::types::Reason;
+use asymptote_values::domain::operations::types::{
+    BenchmarkName, MeasureName, Number, PerfKey, PerfRecord,
+};
+use asymptote_values::domain::perf::types::{Measured, Spread, ToleranceKey};
+use asymptote_values::domain::violations::types::ToolId;
+use std::collections::BTreeMap;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]
@@ -27,6 +31,10 @@ enum Question {
     LeaveOtherTool,
     /// A tool that is named, among others.
     NamedTool,
+    /// A median over the best by less than the measure's tolerance.
+    LeaveWithinTolerance,
+    /// A median over the best by more than the measure's tolerance.
+    RaiseBeyondTolerance,
 }
 
 type Input = Question;
@@ -66,8 +74,29 @@ fn spread(tool: &str, value: f64, lower: Spread, upper: Spread) -> Measured {
 
 /// What `up` writes, `tool/measure best reasons`, joined.
 fn written(values: &[Measured], records: &[PerfRecord], tools: &[&str]) -> String {
+    written_allowing(values, records, tools, &BTreeMap::new())
+}
+
+/// `bench`'s `wall-ms` allowed 5% over its best.
+fn five_percent() -> BTreeMap<ToleranceKey, Percent> {
+    BTreeMap::from([(
+        ToleranceKey {
+            tool: ToolId("bench".into()),
+            measure: MeasureName("wall-ms".into()),
+        },
+        Percent(5),
+    )])
+}
+
+/// What `up` writes when `allowed` is the tolerance the manifest states.
+fn written_allowing(
+    values: &[Measured],
+    records: &[PerfRecord],
+    tools: &[&str],
+    allowed: &BTreeMap<ToleranceKey, Percent>,
+) -> String {
     let tools: Vec<ToolId> = tools.iter().map(|tool| ToolId((*tool).into())).collect();
-    seeding(values, records, &tools, &Reason("why".into()))
+    seeding(values, records, &tools, allowed, &Reason("why".into()))
         .iter()
         .map(|record| {
             format!(
@@ -140,6 +169,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Question::NamedTool,
         expect: Expect::Value(std::borrow::Cow::Borrowed("bench/wall-ms best 120 why")),
     },
+    Case {
+        name: CaseName("a_median_a_check_holds_within_its_tolerance_is_not_raised"),
+        word: Word::Succeeds,
+        input: || Question::LeaveWithinTolerance,
+        expect: Expect::Value(std::borrow::Cow::Borrowed("")),
+    },
+    Case {
+        name: CaseName("a_median_over_the_best_by_more_than_its_tolerance_raises_it"),
+        word: Word::Succeeds,
+        input: || Question::RaiseBeyondTolerance,
+        expect: Expect::Value(std::borrow::Cow::Borrowed(
+            "bench/wall-ms best 106 seeded,why",
+        )),
+    },
 ];
 
 #[expect(
@@ -177,6 +220,18 @@ fn subject(question: Input) -> Result<Value, Failure> {
             &[measured("bench", 120.0), measured("other", 120.0)],
             &[],
             &["bench"],
+        ),
+        Question::LeaveWithinTolerance => written_allowing(
+            &[measured("bench", 104.0)],
+            &[record()],
+            &[],
+            &five_percent(),
+        ),
+        Question::RaiseBeyondTolerance => written_allowing(
+            &[measured("bench", 106.0)],
+            &[record()],
+            &[],
+            &five_percent(),
         ),
     };
     Ok(std::borrow::Cow::Owned(text))

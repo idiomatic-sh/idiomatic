@@ -4,6 +4,7 @@
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::terms::types::Vocabulary;
 
+use super::constants::DIGEST_OWNER;
 use crate::domain::lowering::constants::{Added, added};
 use crate::domain::lowering::types::{
     Builder, PairFiltering, PlannedColumn, SameSetsJoin, SameSetsPush, Uniqueness, Widened,
@@ -13,7 +14,6 @@ use crate::domain::resolving::service::{column_of, step_of};
 use crate::domain::rewriting::types::SameSets;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Says the pairs whose two functions have equal sets of texts as a comparison of digests: each
@@ -46,7 +46,7 @@ pub(crate) fn push_same_sets(
             left: parts::Input::Step(idiom.pairs),
             right: parts::Input::Step(digest),
             left_on: vec![idiom.function],
-            right_on: vec![parts::ColumnIndex(0)],
+            right_on: vec![DIGEST_OWNER],
             output,
             filter: Vec::new(),
             view: Vec::new(),
@@ -72,7 +72,7 @@ pub(crate) fn push_same_sets(
             left: parts::Input::Step(first),
             right: parts::Input::Step(digest),
             left_on: vec![idiom.other],
-            right_on: vec![parts::ColumnIndex(0)],
+            right_on: vec![DIGEST_OWNER],
             output: both_output,
             filter: Vec::new(),
             view: Vec::new(),
@@ -156,7 +156,7 @@ pub(crate) fn push_same_sets_joined(
             left: parts::Input::Step(left),
             right: parts::Input::Step(digest),
             left_on: vec![first],
-            right_on: vec![parts::ColumnIndex(0)],
+            right_on: vec![DIGEST_OWNER],
             output: columns,
             filter: Vec::new(),
             view: Vec::new(),

@@ -15,7 +15,9 @@ use super::types::{
 };
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
-use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
+use crate::outbound::facts::types::{
+    BucketSource, ColumnsMut, KeptBucket, KeptSources, KeptWordsLength, WordsToKeep,
+};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords, PackedWords};
 
@@ -154,10 +156,6 @@ fn read_exact_at(
 }
 
 impl FactsWorker for SpillWorker {
-    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
-        crate::outbound::facts::types::ResidentStability::Stable
-    }
-
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
         Ok(self
             .tables
@@ -274,7 +272,7 @@ impl FactsFinish for SpillFinish {
                 sources.push(BucketSource {
                     file: stretch.file,
                     start: crate::outbound::facts::types::KeptWordsStart(start),
-                    length: crate::outbound::facts::types::KeptWordsLength(length),
+                    length: KeptWordsLength(length),
                     proof: stretch.proof.clone(),
                 });
             }
@@ -283,6 +281,27 @@ impl FactsFinish for SpillFinish {
             words: Arc::new(KeptWords(PackedWords(words))),
             sources,
         })
+    }
+
+    /// The bucket's stretches, each start where `kept` would place its words: nothing is read from the spill file.
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        let mut kept = KeptSources::default();
+        for stretch in self
+            .spilled
+            .iter()
+            .filter_map(|spill| spill.stretches.get(&bucket))
+            .flatten()
+        {
+            let length = usize::try_from(stretch.length.0).unwrap_or(usize::MAX);
+            kept.sources.push(BucketSource {
+                file: stretch.file,
+                start: crate::outbound::facts::types::KeptWordsStart(kept.length.0),
+                length: KeptWordsLength(length),
+                proof: stretch.proof.clone(),
+            });
+            kept.length.0 = kept.length.0.saturating_add(length);
+        }
+        Ok(kept)
     }
 }
 
@@ -321,6 +340,24 @@ impl FactsFinish for Joined {
             words: Arc::new(KeptWords(PackedWords(words))),
             sources,
         })
+    }
+
+    /// Each worker's provenance one worker after another, each start moved past the words of the workers before: as `kept`
+    /// gives it, without a word read.
+    fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
+        let mut joined = KeptSources::default();
+        for part in &self.parts {
+            let each = part.sources(bucket)?;
+            let offset = joined.length.0;
+            joined
+                .sources
+                .extend(each.sources.into_iter().map(|mut source| {
+                    source.start.0 += offset;
+                    source
+                }));
+            joined.length.0 += each.length.0;
+        }
+        Ok(joined)
     }
 }
 

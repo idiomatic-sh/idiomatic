@@ -1,0 +1,16 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let parens = select id, file, span from "syntax-tree" where kind = "paren-expr";
+let commented = select l.parent as id, l.file as file from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where r.kind = "comment" or r.kind = "comma";
+let wrapped = select l.parent as id, l.file as file from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where l.field = "expr" and (r.kind = "paren-expr" or r.kind = "tuple-expr");
+let nested = select l.id as id, l.file as file, l.span as span from parens as l join wrapped as r on l.id = r.id;
+let bare_nested = antijoin(left=nested, right=commented, left-on=["id"], right-on=["id"]);
+let lists = select id, file from "syntax-tree" where kind = "arg-list";
+let bare_lists = antijoin(left=lists, right=commented, left-on=["id"], right-on=["id"]);
+let arguments = select l.parent as list, l.child as id, l.file as file from "syntax-child" as l join bare_lists as r on l.parent = r.id where l.field = "args";
+let counted = group-count(from=arguments, keys=["list", "file"], count="arguments");
+let single = select list, file from counted where arguments = 1;
+let lone = select l.id as id, l.file as file from arguments as l join single as r on l.list = r.list;
+let paren_arguments = select l.id as id, l.file as file, r.span as span from lone as l join parens as r on l.id = r.id;
+let candidates = union(left=bare_nested, right=paren_arguments);
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:double_parens|complexity|all))\s*(?:,|$)");
+emit violations subject file key(span);

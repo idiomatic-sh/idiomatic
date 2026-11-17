@@ -98,7 +98,7 @@ fn origin_of(span: tokens::QuerySpan) -> tokens::QueryOrigin {
     tokens::QueryOrigin {
         source_id: tokens::QuerySourceId("module".into()),
         span,
-        trace: vec![],
+        trace: [].into(),
     }
 }
 fn a_refusal_of_an_expanded_fragment_names_its_origin() {

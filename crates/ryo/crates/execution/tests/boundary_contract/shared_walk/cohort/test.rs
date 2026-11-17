@@ -19,7 +19,7 @@ use ryo_values::domain::{
 #[test]
 fn only_admitted_classes_allocate_scratch_and_result_slots() {
     for declarations in [1, 257] {
-        let (engine, semantics) = engine();
+        let engine = engine();
         let mut authored = authored_request(declarations);
         let (plans, bindings) = crate::boundary_fixture::fixtures::authored_parts(&mut authored);
         for (index, plan) in plans.iter_mut().enumerate() {
@@ -71,7 +71,6 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
                 complete(&mut rules, 0),
                 expected(FileId(0), &elements, &[1, 3])
             );
-            assert_eq!(semantics.selects(), 0);
             assert!(matches!(rules.end, FileEnd::Finished(_)));
         }
         request.finish();
@@ -80,7 +79,7 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
 
 #[test]
 fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let mut authored = authored_request(1);
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
@@ -127,13 +126,12 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
         &mut symbols,
     );
     assert_eq!(failed(&mut rules, 0), Some(regex_error("[")));
-    assert_eq!(semantics.selects(), 0);
     request.finish();
 }
 
 #[test]
 fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
-    let (engine, semantics) = engine();
+    let engine = engine();
     let mut authored = authored_request(2);
     for plan in crate::boundary_fixture::fixtures::plans(&mut authored) {
         plan.steps = vec![
@@ -185,7 +183,6 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
             expected(FileId(0), &elements, &[1, 3, 2])
         );
     }
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
@@ -194,7 +191,7 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
 fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
     use ryo_values::domain::plan_parts::types::ColumnIndex;
     const RULES: usize = 413;
-    let (engine, semantics) = engine();
+    let engine = engine();
     let mut authored = authored_request(RULES);
     let (plans, bindings) = crate::boundary_fixture::fixtures::authored_parts(&mut authored);
     for (index, plan) in plans.iter_mut().enumerate() {
@@ -234,7 +231,6 @@ fn full_rule_count_shares_source_decoding_and_ordered_predicate_prefixes() {
         assert_eq!(actual.count.0, 2);
         assert_eq!(actual.kinds.len(), 1);
     }
-    assert_eq!(semantics.selects(), 0);
     assert!(matches!(rules.end, FileEnd::Finished(_)));
     request.finish();
 }
@@ -245,7 +241,7 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
         plan_parts::types::{ParameterId, ParameterName},
         query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     };
-    let (engine, semantics) = engine();
+    let engine = engine();
     let mut authored = authored_request(3);
     let (plans, bindings) = crate::boundary_fixture::fixtures::authored_parts(&mut authored);
     for (index, plan) in plans.iter_mut().enumerate() {
@@ -300,6 +296,5 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
     // The rule whose bound regex is invalid answers its own first error; the file stops at it.
     assert_eq!(failed(&mut rules, 2), Some(regex_error("[")));
     // Kind tests share across all classes, while only the two equal bound regexes share.
-    assert_eq!(semantics.selects(), 0);
     request.finish();
 }

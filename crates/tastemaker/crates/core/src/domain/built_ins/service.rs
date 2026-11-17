@@ -5,31 +5,31 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::types::Comparison;
-use crate::domain::applications::constants::{
-    COMMENTS, COMMENTS_QUERY, CONDITION_PREFIX, DECLARATIONS, EVERYTHING,
-};
-use crate::domain::applications::service::{loaded, parameters, rule_params};
-use crate::domain::applications::types::{
-    GlobText, LintRuleId, Nameable, Plan, PlannedRule, Purpose,
-};
-use crate::domain::contracts::constants::RENDERED;
-use crate::domain::contracts::service::data_query;
-use crate::domain::contracts::types::{Contract, Syntax};
-use crate::domain::definitions::types::{Exactness, LoadedWorkspace, QueryText};
-use crate::domain::entries::service::{identity, rule_release};
-use crate::domain::entries::types::RuleEntry;
 use crate::domain::globs::service::{compress, literal};
 use crate::domain::globs::types::FileCounts;
-use crate::domain::imports::types::Relation;
-use crate::domain::packages::types::DefinitionKind;
-use crate::domain::paths::service::{beneath, relative};
-use crate::domain::paths::types::RepoPath;
-use crate::domain::placement::errors::PlacementError;
-use crate::domain::placement::types::Placement;
-use crate::domain::scopes::service::composition_of;
-use crate::domain::scopes::types::{Identity, Scope, ScopeIndex};
-use crate::domain::selectors::service::{covering, resolve};
-use crate::domain::selectors::types::{Coverage, PatternCompiler, SelectionContext};
+use tastemaker_values::domain::applications::constants::{
+    COMMENTS, COMMENTS_QUERY, CONDITION_PREFIX, DECLARATIONS, EVERYTHING,
+};
+use tastemaker_values::domain::applications::service::{loaded, parameters, rule_params};
+use tastemaker_values::domain::applications::types::{
+    GlobText, LintRuleId, Nameable, Plan, PlannedRule, Purpose,
+};
+use tastemaker_values::domain::contracts::constants::RENDERED;
+use tastemaker_values::domain::contracts::service::data_query;
+use tastemaker_values::domain::contracts::types::{Contract, Syntax};
+use tastemaker_values::domain::definitions::types::{Exactness, LoadedWorkspace, QueryText};
+use tastemaker_values::domain::entries::service::{identity, rule_release};
+use tastemaker_values::domain::entries::types::RuleEntry;
+use tastemaker_values::domain::imports::types::Relation;
+use tastemaker_values::domain::packages::types::DefinitionKind;
+use tastemaker_values::domain::paths::service::{beneath, relative};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::errors::PlacementError;
+use tastemaker_values::domain::placement::types::Placement;
+use tastemaker_values::domain::scopes::service::composition_of;
+use tastemaker_values::domain::scopes::types::{Identity, Scope, ScopeIndex};
+use tastemaker_values::domain::selectors::service::{covering, resolve};
+use tastemaker_values::domain::selectors::types::{Coverage, PatternCompiler, SelectionContext};
 
 /// The files a rule entry reaches in one scope: the governed files of the scope's directory, those in its nested
 /// instances included, that its `include` covers and its `exclude` does not.
@@ -133,7 +133,7 @@ pub fn conditions(
 /// The built-in rules that read the imports, when an entry of a scope has an `imports`: one for each import relation,
 /// over every file the check reads.
 pub fn imports(plan: &mut Plan, workspace: &LoadedWorkspace, placement: &Placement) {
-    plan.imports = crate::domain::imports::service::checks(workspace, placement);
+    plan.imports = tastemaker_values::domain::imports::service::checks(workspace, placement);
     if plan.imports.is_empty() {
         return;
     }
@@ -145,13 +145,16 @@ pub fn imports(plan: &mut Plan, workspace: &LoadedWorkspace, placement: &Placeme
         Relation::Scopes,
     ] {
         let id = LintRuleId(
-            format!("{}-{relation:?}", crate::domain::imports::constants::RULE)
-                .to_lowercase()
-                .into(),
+            format!(
+                "{}-{relation:?}",
+                tastemaker_values::domain::imports::constants::RULE
+            )
+            .to_lowercase()
+            .into(),
         );
         plan.rules.push(PlannedRule {
             id: id.clone(),
-            query: crate::domain::import_rows::service::query(relation),
+            query: tastemaker_values::domain::import_rows::service::query(relation),
             parameters: BTreeMap::new(),
             include: vec![GlobText(EVERYTHING.into())],
             exclude: Vec::new(),

@@ -1,0 +1,6 @@
+import lint_attributes from "rust/clippy/lint-attributes";
+let attributes = select id, file, span from "syntax-tree" where kind = "attr";
+let skips = source-matches(from=attributes, span="span", pattern="\A#\s*\[\s*cfg_attr\s*\(\s*rustfmt\s*,\s*(?:rustfmt_skip|(?:[A-Za-z_][A-Za-z0-9_]*\s*::\s*)*skip)\s*,?\s*\)\s*\]\z", output="found");
+let candidates = select id, file, span from skips;
+let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:deprecated_cfg_attr|complexity|all))\s*(?:,|$)");
+emit violations subject file key(span);

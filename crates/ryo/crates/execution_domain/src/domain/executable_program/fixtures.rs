@@ -1,287 +1,372 @@
-//! The drafted regions the merge cases compare: an axis region per rule and node, its contract, and the linear scan the
-//! merge replaced.
-use super::{
-    fusion::types::RegionSharing,
-    merge::service::merge_equivalent,
-    types::{
-        DraftIndex, DraftRegion, LogicalInstruction, RegionMerge,
-        demand_program::value::DemandProgram, instruction::value::Instruction,
-    },
-};
-use crate::domain::file_program::types::{NodeInput, ProgramNodeId};
-use crate::domain::operator::types::ReaderMultiplicity;
-use crate::domain::source_partitions::types::PartitionRequirement;
-use crate::domain::{
-    operation_schema::types::InputShape, operator::contract::service::prepare_for,
-};
+//! The requests the seam D cases plan: rules written as their steps, what their parameters are bound to and the bound
+//! observations they read.
+
 use ryo_relations::domain::relations::types::{CellKind, Relation};
-use ryo_values::domain::query_operators::types::OperationKind;
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, StepScope},
-    plans::types::Operation,
+use ryo_values::domain::observations::types::{
+    BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
-use std::borrow::Cow;
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, ObservationBindingId, Operand,
+    ParameterId, PlanComparison, QueryLiteral, StepId, StepScope, Test,
+};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
-pub(super) fn axis(id: u32) -> Operation {
-    Operation::Axis {
-        from: PlanInput::Relation(Relation::Function),
-        edges: PlanInput::Relation(Relation::SyntaxChild),
-        domain: PlanInput::Relation(Relation::SyntaxTree),
-        direction: Direction::Child,
-        id: ColumnIndex(id),
-        parent: ColumnIndex(0),
-        child: ColumnIndex(1),
-        domain_id: ColumnIndex(0),
-        domain_filter: vec![],
-        domain_view: vec![],
-        output: vec![],
+/// A request of rules, each written as its steps and what its parameter is bound to.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Request {
+    /// Two rules with the same select of a relation, bound alike.
+    EqualSteps,
+    /// The same select, once on each file and once after the files.
+    FileAndProjectScope,
+    /// The same select comparing with a parameter, bound to two values.
+    DifferentParameterValues,
+    /// A rule that reads a bound input in each file.
+    BoundInput,
+    /// A select of a column its relation does not have.
+    SchemaFault,
+    /// Two selects of the tree by kind, one behind a comparison that may fail.
+    RootKinds,
+    /// A select read by a project, both kept by the rule's frontier.
+    SharedReads,
+    /// Two rules with the same select in each file, each projecting it after the files from its frontier.
+    TwoRulesFrontiers,
+    /// Two rules with the same select after the files of a bound observation fed after the files.
+    TwoRulesObservations,
+    /// A select after the files of a bound observation, a projection of it, and a projection of a frontier entry.
+    ObservationReach,
+    /// Two rules shaped like B008 and B006, each reading one shared two-step fragment: the first after its own two steps, the
+    /// second before them.
+    SharedFragment,
+    /// Six rules, each reading one shared four-step fragment after a different number of its own steps.
+    SharedFragmentAfterOwnSteps,
+    /// Four rules with the same two selects: the difference of the first and the second, the difference of the second and the
+    /// first, the union of the first and the second, and the union of the first with itself.
+    InputOrder,
+}
+
+/// A comparison of a column with an operand.
+fn compared(test: Test, column: u32, right: Operand) -> PlanComparison {
+    PlanComparison {
+        test,
+        left: Operand::Column(ColumnIndex(column)),
+        right,
+        origin: ComparisonOrigin::Unrecorded,
     }
 }
-pub(super) fn contract() -> Arc<crate::domain::operator::contract::types::OperatorContract> {
-    let inputs = [
-        InputShape {
-            kinds: &[CellKind::Node],
-            tree: None,
+
+/// A written text.
+fn text(written: &str) -> Operand {
+    Operand::Literal(QueryLiteral::Text(LiteralText(written.into())))
+}
+
+/// A select of `from` by `comparisons`, keeping every column.
+fn select(from: StepInput, comparisons: Vec<PlanComparison>) -> Operation {
+    Operation::Select {
+        from,
+        comparisons,
+        kept: Vec::new(),
+    }
+}
+
+/// A plan of `steps` that emits its last step and hands `frontier` to the steps after the files.
+fn plan(steps: Vec<PlanStep>, frontier: Vec<StepInput>) -> Arc<Plan> {
+    bound_plan(steps, frontier, Vec::new())
+}
+
+/// A plan of `steps` with `observation_inputs`, that emits its last step and hands `frontier` to the steps after the files.
+fn bound_plan(
+    steps: Vec<PlanStep>,
+    frontier: Vec<StepInput>,
+    observation_inputs: Vec<BoundObservationInput>,
+) -> Arc<Plan> {
+    Arc::new(Plan {
+        observation_inputs,
+        parameters: Vec::new(),
+        comparison_origins: Vec::new(),
+        observations: Vec::new(),
+        frontier,
+        emit: Emit {
+            step: StepId(u32::try_from(steps.len().saturating_sub(1)).unwrap_or(0)),
+            subject: ColumnIndex(0),
+            key: Vec::new(),
+            headings: Vec::new(),
         },
-        InputShape {
-            kinds: &[CellKind::Node, CellKind::Node],
-            tree: None,
-        },
-        InputShape {
-            kinds: &[CellKind::Node],
-            tree: None,
-        },
-    ];
-    Arc::new(
-        prepare_for(
-            OperationKind::Axis,
-            &axis(0),
-            &inputs,
-            &[],
-            StepScope::PerFile,
+        steps,
+    })
+}
+
+/// A step on each file.
+fn per_file(operation: Operation) -> PlanStep {
+    PlanStep {
+        operation,
+        scope: StepScope::PerFile,
+    }
+}
+
+/// A step after the files.
+fn after_files(operation: Operation) -> PlanStep {
+    PlanStep {
+        operation,
+        scope: StepScope::CrossFile,
+    }
+}
+
+/// A bound observation of one file column, fed after the files.
+fn fed_after() -> BoundObservationInput {
+    BoundObservationInput {
+        name: ObservationBindingName("files".into()),
+        columns: vec![ObservationColumn {
+            name: ObservationColumnName("file".into()),
+            kind: CellKind::File,
+        }],
+        scope: StepScope::CrossFile,
+    }
+}
+
+/// A projection of `from`'s first column, each row once.
+fn first_column(from: StepInput) -> Operation {
+    Operation::Project {
+        from,
+        columns: vec![ColumnIndex(0)],
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+    }
+}
+
+/// The steps of a fragment several rules read, written from step `at` of a rule: a select of the comments' stand-in, a
+/// projection of it, a select of that projection, and the union of the two.
+fn fragment(at: u32) -> Vec<PlanStep> {
+    vec![
+        per_file(select(
+            StepInput::Relation(Relation::Function),
+            vec![compared(Test::Equal, 1, text("noqa"))],
+        )),
+        per_file(first_column(StepInput::Step(StepId(at)))),
+        per_file(select(StepInput::Step(StepId(at + 1)), Vec::new())),
+        per_file(Operation::Union {
+            left: StepInput::Step(StepId(at + 1)),
+            right: StepInput::Step(StepId(at + 2)),
+        }),
+    ]
+}
+
+/// A rule's own steps from step `at`: a select of the functions named `name`, then `projections` projections, each of the step
+/// before it.
+fn own_steps(at: u32, name: &str, projections: u32) -> Vec<PlanStep> {
+    std::iter::once(per_file(select(
+        StepInput::Relation(Relation::Function),
+        vec![compared(Test::Equal, 1, text(name))],
+    )))
+    .chain(
+        (at..at + projections)
+            .map(|before| per_file(first_column(StepInput::Step(StepId(before))))),
+    )
+    .collect()
+}
+
+/// The union of a rule's steps `left` and `right`.
+fn union_of(left: u32, right: u32) -> PlanStep {
+    per_file(Operation::Union {
+        left: StepInput::Step(StepId(left)),
+        right: StepInput::Step(StepId(right)),
+    })
+}
+
+/// The difference of a rule's steps `left` and `right`.
+fn difference_of(left: u32, right: u32) -> PlanStep {
+    per_file(Operation::Difference {
+        left: StepInput::Step(StepId(left)),
+        right: StepInput::Step(StepId(right)),
+    })
+}
+
+/// The rules of `request`, each with what its parameter is bound to.
+pub(super) fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding>)> {
+    let named = || {
+        select(
+            StepInput::Relation(Relation::Function),
+            vec![compared(Test::Equal, 1, text("a"))],
         )
-        .expect("the axis contract prepares"),
-    )
-}
-pub(super) struct Draft {
-    pub(super) id: u32,
-    pub(super) partition: PartitionRequirement,
-    pub(super) phase: StepScope,
-    pub(super) sharing: RegionSharing,
-    pub(super) input: NodeInput,
-}
-pub(super) fn region(
-    contract: &Arc<crate::domain::operator::contract::types::OperatorContract>,
-    node: usize,
-    spec: &Draft,
-) -> DraftRegion<Instruction> {
-    DraftRegion {
-        phase: spec.phase,
-        nodes: vec![LogicalInstruction(node)],
-        instructions: vec![Instruction::new(
-            LogicalInstruction(node),
-            crate::domain::coverage::types::RuleIndex(node),
-            axis(spec.id),
-            Arc::clone(contract),
-            DemandProgram::compiled(
-                contract.semantics,
-                ryo_values::domain::plan_parts::types::InputCount(1),
+    };
+    let unbound = Vec::new;
+    match request {
+        Request::EqualSteps => vec![
+            (plan(vec![per_file(named())], Vec::new()), unbound()),
+            (plan(vec![per_file(named())], Vec::new()), unbound()),
+        ],
+        Request::FileAndProjectScope => vec![
+            (plan(vec![per_file(named())], Vec::new()), unbound()),
+            (
+                plan(
+                    vec![PlanStep {
+                        operation: named(),
+                        scope: StepScope::CrossFile,
+                    }],
+                    Vec::new(),
+                ),
+                unbound(),
             ),
-            spec.partition,
+        ],
+        Request::DifferentParameterValues => {
+            let parameter = || {
+                select(
+                    StepInput::Relation(Relation::Function),
+                    vec![compared(Test::Equal, 1, Operand::Parameter(ParameterId(0)))],
+                )
+            };
+            let bound = |value: &str| vec![ParameterBinding::Text(LiteralText(value.into()))];
+            vec![
+                (plan(vec![per_file(parameter())], Vec::new()), bound("a")),
+                (plan(vec![per_file(parameter())], Vec::new()), bound("c")),
+            ]
+        }
+        Request::BoundInput => vec![(
+            plan(
+                vec![per_file(select(
+                    StepInput::BoundObservation(ObservationBindingId(0)),
+                    Vec::new(),
+                ))],
+                Vec::new(),
+            ),
+            unbound(),
         )],
-        inputs: vec![spec.input],
-        needs: Ok(Vec::new()),
-        sharing: spec.sharing,
-    }
-}
-/// One leaf region and one region reading it per rule; `variant` picks what the rule's regions
-/// repeat (base), nearly repeat (one field differs) or never repeat.
-pub(super) fn spec(rule: usize, variant: usize, leaf: bool) -> Draft {
-    let node = rule * 2;
-    let base = Draft {
-        id: 0,
-        partition: PartitionRequirement::InputLineage,
-        phase: StepScope::PerFile,
-        sharing: RegionSharing::Shareable,
-        input: if leaf {
-            NodeInput::Relation(Relation::Function)
-        } else {
-            NodeInput::Node(ProgramNodeId(node))
-        },
-    };
-    match variant {
-        0 | 1 => base,
-        2 => Draft {
-            id: u32::try_from(rule + 1).expect("small"),
-            ..base
-        },
-        3 => Draft {
-            partition: PartitionRequirement::CurrentFile,
-            ..base
-        },
-        4 => Draft {
-            phase: StepScope::CrossFile,
-            ..base
-        },
-        5 if leaf => Draft {
-            input: NodeInput::Relation(Relation::SyntaxChild),
-            ..base
-        },
-        _ if leaf => Draft {
-            sharing: RegionSharing::RuleScoped,
-            ..base
-        },
-        _ => base,
-    }
-}
-pub(super) struct State {
-    pub(super) drafts: Vec<Option<DraftRegion<Instruction>>>,
-    pub(super) mapping: Vec<DraftIndex>,
-    pub(super) representative: Vec<LogicalInstruction>,
-    pub(super) readers: Vec<ReaderMultiplicity>,
-}
-pub(super) fn state(rules: usize, variant: impl Fn(usize) -> usize) -> State {
-    let contract = contract();
-    let mut drafts = Vec::new();
-    for rule in 0..rules {
-        let variant = variant(rule);
-        drafts.push(Some(region(
-            &contract,
-            rule * 2,
-            &spec(rule, variant, true),
-        )));
-        drafts.push(Some(region(
-            &contract,
-            rule * 2 + 1,
-            &spec(rule, variant, false),
-        )));
-    }
-    let count = drafts.len();
-    State {
-        drafts,
-        mapping: (0..count).map(DraftIndex).collect(),
-        representative: (0..count).map(LogicalInstruction).collect(),
-        readers: vec![ReaderMultiplicity(1); count],
-    }
-}
-/// The linear scan the merge replaced: every earlier kept region compared in full.
-pub(super) fn reference(state: &mut State) -> Vec<DraftIndex> {
-    let canonical = |draft: &DraftRegion<Instruction>, mapping: &[DraftIndex]| -> Vec<NodeInput> {
-        draft
-            .inputs
-            .iter()
-            .map(|input| match input {
-                NodeInput::Node(child) => NodeInput::Node(ProgramNodeId(mapping[child.0].0)),
-                other => *other,
+        Request::SchemaFault => vec![(
+            plan(
+                vec![per_file(select(
+                    StepInput::Relation(Relation::Function),
+                    vec![compared(Test::Equal, 99, text("a"))],
+                ))],
+                Vec::new(),
+            ),
+            unbound(),
+        )],
+        Request::RootKinds => vec![
+            (
+                plan(
+                    vec![per_file(select(
+                        StepInput::Relation(Relation::SyntaxTree),
+                        vec![compared(Test::Equal, 1, text("word"))],
+                    ))],
+                    Vec::new(),
+                ),
+                unbound(),
+            ),
+            (
+                plan(
+                    vec![per_file(select(
+                        StepInput::Relation(Relation::SyntaxTree),
+                        vec![
+                            compared(Test::Matches, 2, text("[")),
+                            compared(Test::Equal, 1, text("other")),
+                        ],
+                    ))],
+                    Vec::new(),
+                ),
+                unbound(),
+            ),
+        ],
+        Request::TwoRulesFrontiers => (0..2)
+            .map(|_| {
+                (
+                    plan(
+                        vec![
+                            per_file(named()),
+                            after_files(first_column(StepInput::Step(StepId(0)))),
+                        ],
+                        vec![StepInput::Step(StepId(0))],
+                    ),
+                    unbound(),
+                )
             })
-            .collect()
-    };
-    let equivalent = |left: &DraftRegion<Instruction>,
-                      right: &DraftRegion<Instruction>,
-                      mapping: &[DraftIndex]| {
-        left.phase == right.phase
-            && left.instructions.len() == right.instructions.len()
-            && left
-                .instructions
-                .iter()
-                .zip(&right.instructions)
-                .all(|(a, b)| a.operation() == b.operation() && a.partition() == b.partition())
-            && canonical(left, mapping) == canonical(right, mapping)
-    };
-    let mut shared: Vec<DraftIndex> = Vec::new();
-    for at in 0..state.drafts.len() {
-        let Some(draft) = state.drafts[at].as_ref() else {
-            continue;
-        };
-        if draft.sharing == RegionSharing::RuleScoped {
-            continue;
+            .collect(),
+        Request::TwoRulesObservations => (0..2)
+            .map(|_| {
+                let bound = StepInput::BoundObservation(ObservationBindingId(0));
+                (
+                    bound_plan(
+                        vec![after_files(select(bound, Vec::new()))],
+                        vec![bound],
+                        vec![fed_after()],
+                    ),
+                    unbound(),
+                )
+            })
+            .collect(),
+        Request::ObservationReach => {
+            let bound = StepInput::BoundObservation(ObservationBindingId(0));
+            vec![(
+                bound_plan(
+                    vec![
+                        per_file(named()),
+                        after_files(select(bound, Vec::new())),
+                        after_files(first_column(StepInput::Step(StepId(1)))),
+                        after_files(first_column(StepInput::Step(StepId(0)))),
+                    ],
+                    vec![bound, StepInput::Step(StepId(0))],
+                    vec![fed_after()],
+                ),
+                unbound(),
+            )]
         }
-        let twin = shared.iter().copied().find(|DraftIndex(earlier)| {
-            state.drafts[*earlier]
-                .as_ref()
-                .is_some_and(|earlier| equivalent(earlier, draft, &state.mapping))
-        });
-        let Some(DraftIndex(twin)) = twin else {
-            shared.push(DraftIndex(at));
-            continue;
-        };
-        let Some(merged) = state.drafts[at].take() else {
-            continue;
-        };
-        if let Some(kept) = state.drafts[twin].as_ref() {
-            for (node, served) in merged.nodes.iter().zip(&kept.nodes) {
-                state.representative[node.0] = *served;
-            }
+        Request::SharedFragment => {
+            // B008-shaped: its own select and projection (steps 0-1), then the fragment's select and projection (steps 2-3).
+            let first: Vec<PlanStep> = own_steps(0, "b008", 1)
+                .into_iter()
+                .chain(fragment(2).into_iter().take(2))
+                .chain(std::iter::once(union_of(1, 3)))
+                .collect();
+            // B006-shaped: the fragment's select and projection (steps 0-1), then its own select and projection (steps 2-3).
+            let second: Vec<PlanStep> = fragment(0)
+                .into_iter()
+                .take(2)
+                .chain(own_steps(2, "b006", 1))
+                .chain(std::iter::once(union_of(3, 1)))
+                .collect();
+            vec![
+                (plan(first, Vec::new()), unbound()),
+                (plan(second, Vec::new()), unbound()),
+            ]
         }
-        for node in &merged.nodes {
-            state.mapping[node.0] = DraftIndex(twin);
-        }
-        for input in &merged.inputs {
-            if let NodeInput::Node(child) = input {
-                let DraftIndex(producer) = state.mapping[child.0];
-                state.readers[producer].0 = state.readers[producer].0.saturating_sub(1);
-            }
-        }
-        state.readers[twin].0 += state.readers[at].0;
-    }
-    shared
-}
-pub(super) fn merged(state: &mut State) -> RegionMerge {
-    merge_equivalent(
-        &mut state.drafts,
-        &mut state.mapping,
-        &mut state.representative,
-        &mut state.readers,
-    )
-}
-
-/// The region merge beside the linear scan: the kept regions of each, the drafts, the drafts left,
-/// and whether its mapping, representatives and readers equal the scan's.
-#[derive(Debug, PartialEq)]
-pub(super) struct Merge {
-    pub(super) kept: usize,
-    pub(super) kept_as_the_scan: bool,
-    pub(super) drafts: usize,
-    pub(super) drafts_left: usize,
-    pub(super) drafts_left_as_the_scan: bool,
-    pub(super) mapping_as_the_scan: bool,
-    pub(super) representatives_as_the_scan: bool,
-    pub(super) readers_as_the_scan: bool,
-}
-
-/// The comparisons at each rule count, and whether each is under three times the one before plus 16.
-#[derive(Debug, PartialEq)]
-pub(super) struct Cost {
-    pub(super) comparisons: Cow<'static, [usize]>,
-    pub(super) linear: bool,
-}
-pub(super) fn merge_beside_the_linear_scan() -> Merge {
-    let mixed = |rule: usize| rule % 7;
-    let mut fast = state(40, mixed);
-    let mut slow = state(40, mixed);
-    let shared = merged(&mut fast).shared;
-    let live = |state: &State| state.drafts.iter().map(Option::is_some).collect::<Vec<_>>();
-    Merge {
-        kept: shared.len(),
-        kept_as_the_scan: shared == reference(&mut slow),
-        drafts: fast.drafts.len(),
-        drafts_left: fast.drafts.iter().flatten().count(),
-        drafts_left_as_the_scan: live(&fast) == live(&slow),
-        mapping_as_the_scan: fast.mapping == slow.mapping,
-        representatives_as_the_scan: fast.representative == slow.representative,
-        readers_as_the_scan: fast.readers == slow.readers,
-    }
-}
-fn comparisons(rules: usize) -> usize {
-    // Even rules repeat rule 0; odd rules are distinct from every other rule.
-    let mut state = state(rules, |rule| if rule % 2 == 0 { 0 } else { 2 });
-    merged(&mut state).comparisons.0
-}
-pub(super) fn merge_cost() -> Cost {
-    let counts: Vec<usize> = [50, 100, 200, 400].into_iter().map(comparisons).collect();
-    Cost {
-        linear: counts.windows(2).all(|pair| pair[1] < 3 * pair[0] + 16),
-        comparisons: Cow::Owned(counts),
+        Request::SharedFragmentAfterOwnSteps => (1..=6u32)
+            .map(|own| {
+                let steps: Vec<PlanStep> = own_steps(0, &format!("rule{own}"), own)
+                    .into_iter()
+                    .chain(fragment(own + 1))
+                    .chain(std::iter::once(union_of(own, own + 4)))
+                    .collect();
+                (plan(steps, Vec::new()), unbound())
+            })
+            .collect(),
+        Request::InputOrder => [
+            difference_of(0, 1),
+            difference_of(1, 0),
+            union_of(0, 1),
+            union_of(0, 0),
+        ]
+        .into_iter()
+        .map(|last| {
+            let steps: Vec<PlanStep> = own_steps(0, "a", 0)
+                .into_iter()
+                .chain(own_steps(1, "b", 0))
+                .chain(std::iter::once(last))
+                .collect();
+            (plan(steps, Vec::new()), unbound())
+        })
+        .collect(),
+        Request::SharedReads => vec![(
+            plan(
+                vec![
+                    per_file(named()),
+                    per_file(Operation::Project {
+                        from: StepInput::Step(StepId(0)),
+                        columns: vec![ColumnIndex(0)],
+                        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+                    }),
+                ],
+                vec![StepInput::Step(StepId(0))],
+            ),
+            unbound(),
+        )],
     }
 }

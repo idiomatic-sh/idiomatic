@@ -8,9 +8,6 @@ use super::types::{Against, CheckPorts, CheckRequest, Fixing};
 use super::use_case::CheckUseCaseImpl;
 use crate::application::accepted_state::service::AcceptedState;
 use crate::application::cached_report::service::CachedReport;
-use crate::domain::manifest::types::{Argument, Argv, Fix, Group, Groups, ProductRoot};
-use crate::domain::operations::types::PerfRecord;
-use crate::domain::violations::types::{RepoPath, ToolId};
 use crate::outbound::bmf::fixtures::fake::BmfFake;
 use crate::outbound::check_store::fixtures::fake::CheckStoreFake;
 use crate::outbound::clock::fixtures::fake::ClockFake;
@@ -23,6 +20,9 @@ use crate::outbound::sarif::fixtures::fake::{SarifFake, ignored, reading, result
 use crate::outbound::sources::fixtures::fake::SourcesFake;
 use crate::outbound::tools::fixtures::fake::ToolsFake;
 use crate::outbound::tools::types::{Captured, Completion, Ending};
+use asymptote_values::domain::manifest::types::{Argument, Argv, Fix, Group, Groups, ProductRoot};
+use asymptote_values::domain::operations::types::PerfRecord;
+use asymptote_values::domain::violations::types::{RepoPath, ToolId};
 
 /// The product's root.
 pub const ROOT: &str = "/repo/p";
@@ -198,11 +198,11 @@ pub fn down(scenario: &Scenario) -> crate::inbound::use_cases::down::use_case::D
 /// The request of `up` with `selectors` and the reason `why`.
 #[must_use]
 pub fn up_request(
-    selectors: crate::domain::selection::types::Selectors,
+    selectors: asymptote_values::domain::selection::types::Selectors,
 ) -> crate::inbound::use_cases::up::types::UpRequest {
     crate::inbound::use_cases::up::types::UpRequest {
         start: ProductRoot(ROOT.into()),
-        reason: crate::domain::operations::types::Reason("why".into()),
+        reason: asymptote_values::domain::operations::types::Reason("why".into()),
         selectors,
         writing: crate::domain::ratchet::types::Writing::Write,
     }
@@ -218,7 +218,7 @@ pub fn down_request() -> crate::inbound::use_cases::down::types::DownRequest {
 }
 
 /// The product the group and perf scenarios check, on disk: `lint` (SARIF, nothing found), `bench` (Bencher Metric
-/// Format, group `perf`) and `unit` (group `test`, exiting `unit_exit`), in a git repository, so its inputs are listed.
+/// Format, group `perf`, `wall-ms` allowed 5% over its best) and `unit` (group `test`, exiting `unit_exit`), in a git repository, so its inputs are listed.
 ///
 /// # Errors
 ///
@@ -234,7 +234,7 @@ pub fn measured_product(bench: &str, unit_exit: i32) -> std::io::Result<tempfile
     std::fs::write(
         root.join("asymptote.toml"),
         format!(
-            "[[tools]]\nid=\"lint\"\nrun=[\"sh\",\"-c\",\"cat lint.sarif\"]\ngroup=\"lint\"\noutput=\"sarif\"\n\n[[tools]]\nid=\"bench\"\nrun=[\"sh\",\"-c\",\"cat bench.json\"]\ngroup=\"perf\"\noutput=\"bmf\"\n\n[[tools]]\nid=\"unit\"\nrun=[\"sh\",\"-c\",\"exit {unit_exit}\"]\ngroup=\"test\"\n"
+            "[[tools]]\nid=\"lint\"\nrun=[\"sh\",\"-c\",\"cat lint.sarif\"]\ngroup=\"lint\"\noutput=\"sarif\"\n\n[[tools]]\nid=\"bench\"\nrun=[\"sh\",\"-c\",\"cat bench.json\"]\ngroup=\"perf\"\noutput=\"bmf\"\ntolerance-percent={{wall-ms=5}}\n\n[[tools]]\nid=\"unit\"\nrun=[\"sh\",\"-c\",\"exit {unit_exit}\"]\ngroup=\"test\"\n"
         ),
     )?;
     for arguments in [["init", "-q"], ["add", "-A"]] {
@@ -259,7 +259,9 @@ pub fn measured_product(bench: &str, unit_exit: i32) -> std::io::Result<tempfile
 /// A perf record of tool `bench`, benchmark `c`, at `measure`: best `best`.
 #[must_use]
 pub fn perf_record(measure: &str, best: f64) -> PerfRecord {
-    use crate::domain::operations::types::{BenchmarkName, MeasureName, Number, PerfKey};
+    use asymptote_values::domain::operations::types::{
+        BenchmarkName, MeasureName, Number, PerfKey,
+    };
     PerfRecord {
         key: PerfKey {
             tool: ToolId("bench".into()),
@@ -267,7 +269,9 @@ pub fn perf_record(measure: &str, best: f64) -> PerfRecord {
             measure: MeasureName(measure.into()),
         },
         best: Number(best),
-        reasons: vec![crate::domain::operations::types::Reason("seeded".into())],
+        reasons: vec![asymptote_values::domain::operations::types::Reason(
+            "seeded".into(),
+        )],
     }
 }
 
@@ -280,8 +284,8 @@ pub fn seed_lock(
     root: &std::path::Path,
     records: Vec<PerfRecord>,
 ) -> Result<(), crate::outbound::lock::errors::LockError> {
-    use crate::domain::operations::types::Operation;
     use crate::outbound::lock::interface::LockPort as _;
+    use asymptote_values::domain::operations::types::Operation;
     // The new operation's id is not needed: a scenario reads the lock back from disk.
     crate::outbound::lock::factory::toml(ProductRoot(root.display().to_string().into())).append(
         &Operation {
@@ -309,7 +313,7 @@ pub fn lock_state(
         crate::outbound::lock::factory::toml(ProductRoot(root.display().to_string().into()))
             .read()?
             .0;
-    let folded = crate::domain::operations::service::fold(&operations)?;
+    let folded = asymptote_values::domain::operations::service::fold(&operations)?;
     let best = folded
         .perf
         .iter()
@@ -369,6 +373,9 @@ pub fn scene(input: &str) -> Result<Scene, String> {
         "regressed" | "raise" => against_held("120"),
         "improved" => against_held("70"),
         "held" => against_held("100"),
+        // Over its best of 100 by less than, and by more than, the 5% the product's `asymptote.toml` states for `wall-ms`.
+        "tolerated" => against_held("104"),
+        "beyond-tolerance" => against_held("106"),
         "resolved" => Scene {
             records: vec![perf_record("wall-ms", 100.0), perf_record("cpu-ms", 100.0)],
             ..base(r#"{"c": {"cpu-ms": {"value": 100}}}"#.to_owned())
@@ -426,8 +433,8 @@ pub fn scene(input: &str) -> Result<Scene, String> {
 pub fn after_a_commit(scenario: Scenario) -> Scenario {
     Scenario {
         repository: Arc::new(RepositoryFake {
-            head: crate::domain::renames::types::Head::Commit(
-                crate::domain::operations::types::Revision("another-head".into()),
+            head: asymptote_values::domain::renames::types::Head::Commit(
+                asymptote_values::domain::operations::types::Revision("another-head".into()),
             ),
             files: vec![RepoPath("src/a.rs".into())],
             ..RepositoryFake::default()
@@ -456,7 +463,7 @@ pub fn reading_a_range() -> Scenario {
 /// printing the log of [`scenario`].
 #[must_use]
 pub fn two_tools() -> Scenario {
-    use crate::domain::manifest::types::Pathspec;
+    use asymptote_values::domain::manifest::types::Pathspec;
     let mut fake = ManifestFake::of(ROOT, &["lint", "docs"]);
     for tool in &mut fake.manifest.tools {
         tool.inputs = vec![Pathspec(
@@ -493,7 +500,7 @@ pub fn two_tools() -> Scenario {
 /// The product with a perf tool `bench` beside `lint`: its median of `wall-ms` is 70.
 #[must_use]
 pub fn improving() -> Scenario {
-    use crate::domain::manifest::types::{Output, Pathspec, Seconds, Tool};
+    use asymptote_values::domain::manifest::types::{Output, Pathspec, Seconds, Tool};
     let mut fake = ManifestFake::of(ROOT, &["lint"]);
     fake.manifest.tools.push(Tool {
         id: ToolId("bench".into()),
@@ -502,6 +509,7 @@ pub fn improving() -> Scenario {
         output: Output::Bmf,
         group: Group("perf".into()),
         timeout: Seconds(60),
+        tolerance: std::collections::BTreeMap::new(),
         inputs: vec![Pathspec(".".into())],
     });
     Scenario {
@@ -532,9 +540,9 @@ pub fn improved(
     against: Against,
     scenario: &Scenario,
 ) -> Result<String, crate::inbound::use_cases::check::errors::CheckError> {
-    use crate::domain::operations::types::Operation;
     use crate::inbound::use_cases::check::interface::CheckUseCase as _;
     use crate::outbound::lock::interface::LockPort as _;
+    use asymptote_values::domain::operations::types::Operation;
     scenario.lock.append(&Operation {
         parents: Vec::new(),
         covers: Vec::new(),

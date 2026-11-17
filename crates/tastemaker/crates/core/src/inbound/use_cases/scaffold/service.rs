@@ -2,17 +2,17 @@
 
 use super::errors::ScaffoldError;
 use super::types::{ScaffoldRequest, Workspace};
-use crate::domain::captures::types::{CaptureName, CaptureValue, Captures, Template};
-use crate::domain::definitions::types::LoadedWorkspace;
-use crate::domain::entries::service::{identity, reference, release};
-use crate::domain::entries::types::{Count, EntryHeader, EntryIdentity};
-use crate::domain::packages::service::release_id;
-use crate::domain::packages::types::{DefinitionKind, DefinitionName};
-use crate::domain::paths::service::join;
-use crate::domain::paths::types::{PathText, RepoPath};
-use crate::domain::placement::types::Placement;
 use crate::domain::scaffolding::types::{Reads, Staging};
-use crate::domain::scopes::service::composition_of;
+use tastemaker_values::domain::captures::types::{CaptureName, CaptureValue, Captures, Template};
+use tastemaker_values::domain::definitions::types::LoadedWorkspace;
+use tastemaker_values::domain::entries::service::{identity, reference, release};
+use tastemaker_values::domain::entries::types::{Count, EntryHeader, EntryIdentity};
+use tastemaker_values::domain::packages::service::release_id;
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
+use tastemaker_values::domain::paths::service::join;
+use tastemaker_values::domain::paths::types::{PathText, RepoPath};
+use tastemaker_values::domain::placement::types::Placement;
+use tastemaker_values::domain::scopes::service::composition_of;
 
 /// Turns a manifest failure into the error that names `file`.
 pub(super) fn manifest_error(
@@ -58,10 +58,11 @@ pub(super) fn condition_parameters(
             if !needed {
                 continue;
             }
-            let release = crate::domain::entries::service::rule_release(&condition.entry);
+            let release =
+                tastemaker_values::domain::entries::service::rule_release(&condition.entry);
             if let Some(rule) = loaded.rules.get(&release) {
                 let mut problems = Vec::new();
-                if crate::domain::applications::service::rule_params(
+                if tastemaker_values::domain::applications::service::rule_params(
                     &mut problems,
                     scope,
                     &condition.entry,
@@ -121,16 +122,16 @@ pub(super) fn unset(values: &mut Captures, more: Captures) {
 /// The first capture `at` leaves unresolved: `--at` names one instance's directory, so a capture left in it is no
 /// directory, and writing it would make one named for the capture.
 pub(super) fn capture_left(at: Template<'_>) -> Option<CaptureName> {
-    crate::domain::captures::service::pieces(at)
+    tastemaker_values::domain::captures::service::pieces(at)
         .into_iter()
         .find_map(|piece| match piece {
-            crate::domain::captures::types::PatternPiece::Capture(name)
-            | crate::domain::captures::types::PatternPiece::Span(name)
-            | crate::domain::captures::types::PatternPiece::Directory(name) => {
+            tastemaker_values::domain::captures::types::PatternPiece::Capture(name)
+            | tastemaker_values::domain::captures::types::PatternPiece::Span(name)
+            | tastemaker_values::domain::captures::types::PatternPiece::Directory(name) => {
                 Some(CaptureName(name.0.into()))
             }
-            crate::domain::captures::types::PatternPiece::Literal(_)
-            | crate::domain::captures::types::PatternPiece::Star
-            | crate::domain::captures::types::PatternPiece::Question => None,
+            tastemaker_values::domain::captures::types::PatternPiece::Literal(_)
+            | tastemaker_values::domain::captures::types::PatternPiece::Star
+            | tastemaker_values::domain::captures::types::PatternPiece::Question => None,
         })
 }

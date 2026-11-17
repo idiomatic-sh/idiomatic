@@ -5,6 +5,8 @@ pub mod command_line;
 pub(crate) mod corpus_discrepancy;
 pub mod diagnostics;
 pub(crate) mod discrepancy;
+pub mod growth;
+pub(crate) mod host_applicability;
 pub mod input_metadata;
 pub(crate) mod inventory_comparison;
 pub(crate) mod inventory_receipts;

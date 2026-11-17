@@ -1,0 +1,178 @@
+//! The `flow_table` service's cases: a graph kept through a file's builder and read back, numbered from zero, discarded by a builder
+//! that discards, and not seen by the next file.
+
+use super::service::{add_flow_block, add_flow_edge, add_flow_member, add_flow_step, flow_of};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::builders::service::{discarding_builder, table_builder};
+use crate::domain::elements::types::{Elements, TableBuilder};
+use crate::domain::flow::types::{
+    BlockNumber, EdgeOrdinal, FlowBlockFact, FlowEdgeFact, FlowEdgeKind, FlowMemberFact,
+    FlowStepFact, FlowStepKind, StepOrdinal,
+};
+use crate::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{Flag, Position};
+
+/// A scenario: what a row asks of the service.
+type Input = fn() -> usize;
+/// What a scenario answers: a count.
+type Value = usize;
+type Failure = ();
+
+/// A block whose three marks are `reachable`, `live` and `implicit_return`.
+fn block(reachable: Flag, live: Flag, implicit_return: Flag) -> FlowBlockFact {
+    FlowBlockFact {
+        reachable,
+        live,
+        implicit_return,
+    }
+}
+
+/// The edges a graph is written with, in order: every field differs between the two.
+const EDGES: [FlowEdgeFact; 2] = [
+    FlowEdgeFact {
+        source: BlockNumber(0),
+        target: BlockNumber(2),
+        kind: FlowEdgeKind::Jump,
+        ordinal: EdgeOrdinal(0),
+    },
+    FlowEdgeFact {
+        source: BlockNumber(2),
+        target: BlockNumber(1),
+        kind: FlowEdgeKind::Backedge,
+        ordinal: EdgeOrdinal(1),
+    },
+];
+
+/// The steps a graph is written with, in order: every field differs between the two.
+const STEPS: [FlowStepFact; 2] = [
+    FlowStepFact {
+        block: BlockNumber(1),
+        ordinal: StepOrdinal(1),
+        kind: FlowStepKind::Statement,
+        node: Position(0),
+    },
+    FlowStepFact {
+        block: BlockNumber(2),
+        ordinal: StepOrdinal(0),
+        kind: FlowStepKind::ReturnUndefined,
+        node: Position(3),
+    },
+];
+
+/// The members a graph is written with, in order: every field differs between the two.
+const MEMBERS: [FlowMemberFact; 2] = [
+    FlowMemberFact {
+        node: Position(3),
+        block: BlockNumber(2),
+    },
+    FlowMemberFact {
+        node: Position(0),
+        block: BlockNumber(1),
+    },
+];
+
+/// Writes a graph of three blocks, then [`EDGES`], [`STEPS`] and [`MEMBERS`] through `builder`, and answers the numbers the blocks
+/// were given.
+fn written_graph(builder: &mut TableBuilder<'_>) -> [BlockNumber; 3] {
+    let numbers = [
+        add_flow_block(builder, block(Flag::Raised, Flag::Raised, Flag::Lowered)),
+        add_flow_block(builder, block(Flag::Lowered, Flag::Lowered, Flag::Lowered)),
+        add_flow_block(builder, block(Flag::Raised, Flag::Lowered, Flag::Raised)),
+    ];
+    for edge in EDGES {
+        add_flow_edge(builder, edge);
+    }
+    for step in STEPS {
+        add_flow_step(builder, step);
+    }
+    for member in MEMBERS {
+        add_flow_member(builder, member);
+    }
+    numbers
+}
+
+/// Three blocks written in turn: 1 when they are numbered 0, 1 and 2 and the graph keeps every fact as given, in order: each
+/// block's marks, each edge's ends and kind, each step's block, place, kind and element, and each member's element and block.
+fn blocks_are_numbered_from_zero_in_the_order_given() -> usize {
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
+    let numbers = written_graph(&mut builder);
+    let graph = flow_of(&elements);
+    usize::from(
+        numbers == [BlockNumber(0), BlockNumber(1), BlockNumber(2)]
+            && graph.blocks
+                == [
+                    block(Flag::Raised, Flag::Raised, Flag::Lowered),
+                    block(Flag::Lowered, Flag::Lowered, Flag::Lowered),
+                    block(Flag::Raised, Flag::Lowered, Flag::Raised),
+                ]
+            && graph.edges == EDGES
+            && graph.steps == STEPS
+            && graph.members == MEMBERS,
+    )
+}
+
+/// A graph written through a builder that discards: 1 when the table keeps no block, edge, step or member of it.
+fn a_discarding_builder_keeps_no_graph() -> usize {
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder = discarding_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
+    let _: [BlockNumber; 3] = written_graph(&mut builder);
+    let graph = flow_of(&elements);
+    usize::from(
+        graph.blocks.is_empty()
+            && graph.edges.is_empty()
+            && graph.steps.is_empty()
+            && graph.members.is_empty(),
+    )
+}
+
+/// A file's graph, then a second file's table built with one block: 1 when the second file sees its block alone, numbered 0.
+fn the_next_file_sees_none_of_the_last_files_graph() -> usize {
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
+    let _: [BlockNumber; 3] = written_graph(&mut builder);
+    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"y"));
+    let number = add_flow_block(
+        &mut builder,
+        block(Flag::Lowered, Flag::Raised, Flag::Lowered),
+    );
+    let graph = flow_of(&elements);
+    usize::from(
+        number == BlockNumber(0)
+            && graph.blocks == [block(Flag::Lowered, Flag::Raised, Flag::Lowered)]
+            && graph.edges.is_empty()
+            && graph.steps.is_empty()
+            && graph.members.is_empty(),
+    )
+}
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("blocks_are_numbered_from_zero_in_the_order_given"),
+        word: Word::Succeeds,
+        input: || blocks_are_numbered_from_zero_in_the_order_given,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_discarding_builder_keeps_no_graph"),
+        word: Word::Succeeds,
+        input: || a_discarding_builder_keeps_no_graph,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("the_next_file_sees_none_of_the_last_files_graph"),
+        word: Word::Succeeds,
+        input: || the_next_file_sees_none_of_the_last_files_graph,
+        expect: Expect::Value(1),
+    },
+];
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    Ok(scenario())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

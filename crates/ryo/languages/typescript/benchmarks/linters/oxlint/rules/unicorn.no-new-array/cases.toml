@@ -62,3 +62,8 @@ expected = []
 name = "directive"
 files = { "case.ts" = "// eslint-disable-next-line no-new-array\nconst a = new Array(1);\n" }
 expected = []
+
+[[cases]]
+name = "js-new-array-filled"
+files = { "case.js" = "const arr = new Array(100000).fill(Math.random())\nexport default arr\n" }
+expected = [{ file = "case.js", start = 12, end = 29 }]
