@@ -90,7 +90,7 @@ Declared linter configuration is resolved, checked against the request and count
 
 ### source_validity
 
-A corpus run covers the sources the pinned reference parses: measure-valid and parity drop each source the reference reports under its invalid-syntax rule, and say which.
+A corpus run covers the sources the pinned reference parses: a corpus measurement drops each source the reference reports under its invalid-syntax rule, and says which.
 
 ### suite
 

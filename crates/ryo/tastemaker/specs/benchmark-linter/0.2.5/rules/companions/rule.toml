@@ -1,5 +1,5 @@
 description = "Canonical benchmark assets are paired and linter composition delegates execution policy."
-why = "Active rules have one query.ryoql and independent cases.toml; historical profiles preserve evidence and are not active inputs. Cargo entry/composition roles may wire the shared inbound runner and local linter adapter, but explicit Rust loops, external execution/timing/filesystem capabilities and trait implementations do not belong there; the one exception is `composition/worker.rs`, which implements the shared harness's in-process worker over the linter's engine (its trait implementations only, never a loop or a capability). This AST/import boundary does not resolve aliases through arbitrary reexports, macro expansion, closures hiding iteration, or runtime behavior; two independent provider registrations must exercise the same shared execution/status loop in its semantic contract."
+why = "Active rules have one query.ryoql and independent cases.toml; historical profiles preserve evidence and are not active inputs. Cargo entry/composition roles may wire the shared inbound runner and local linter adapter, but explicit Rust loops, external execution/timing/filesystem capabilities and trait implementations do not belong there. This AST/import boundary does not resolve aliases through arbitrary reexports, macro expansion, closures hiding iteration, or runtime behavior; two independent provider registrations must exercise the same shared execution/status loop in its semantic contract."
 query = '''
 let files = project(from="filesystem.file", columns=["path"]);
 let active-files = select * from files where not glob_any(path, "{profiles/**,**/profiles/**}");
@@ -37,9 +37,7 @@ let loops = select file as path from role-nodes where glob_any(kind, "{for-expr,
 let impls = select * from role-nodes where kind = "impl";
 let for-tokens = select id from tokens where kind = "for-kw";
 let trait-impl-ids = select e.parent as id from "syntax-child" as e join for-tokens as t on e.child = t.id;
-let all-trait-impls = select i.file as path from impls as i join trait-impl-ids as t on i.id = t.id;
-let worker-impls = select * from all-trait-impls where glob_any(path, "{composition/worker.rs,**/composition/worker.rs}");
-let trait-impls = antijoin(left=all-trait-impls, right=worker-impls, left-on=["path"], right-on=["path"]);
+let trait-impls = select i.file as path from impls as i join trait-impl-ids as t on i.id = t.id;
 let capability-imports = select file, target from "static-import" where glob_any(target, "{std::fs,std::fs::*,std::thread,std::thread::*,std::time,std::time::*,std::process::Command,std::process::Command::*,ryo_core,ryo_core::*,ryo_benchmark::application,ryo_benchmark::application::*}");
 let capability-calls = select file, target from "static-call" where glob_any(target, "{std::fs::*,std::thread::*,std::time::*,std::process::Command::*,ryo_core::*,ryo_benchmark::application::*}");
 let capabilities = union(left=capability-imports, right=capability-calls);
@@ -134,9 +132,3 @@ id = 'historical-snapshot-is-not-active-cases'
 scenario = 'A frozen case snapshot is not mistaken for an active unimplemented rule.'
 given.files.'linters/tool/profiles/previous/inputs/rules/F001/candidate.ryoql' = ''
 given.files.'linters/tool/profiles/previous/inputs/rules/F001/cases.toml' = ''
-
-[[scenarios]]
-id = 'in-process-worker-implements-the-shared-trait'
-scenario = 'The in-process worker of a linter implements the shared harness trait in its own composition file.'
-given.files.'linters/tool/composition/worker.rs' = 'impl ryo_benchmark::outbound::execution::types::InProcessWorker for Worker {}'
-then.findings = []

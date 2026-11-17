@@ -1,9 +1,5 @@
 # benchmark-linter
 
-## 0.2.6
-
-Places `composition/worker.rs`, the linter's in-process worker, and lets `companions` read trait implementations there: it implements the shared harness's `InProcessWorker` (PM ruling on ryo-b1gq.66: one in-process execution adapter, each language bench implements the worker trait). Loops and capabilities stay refused in it. Nothing else changes.
-
 ## 0.2.5
 
 The spec's reason says what the shared application publishes: PASS, FAIL and DEFERRED, where a default the profile defers under a named capability, with no authored query, is DEFERRED and runs nothing, and a run passes when no row is FAIL. It said PASS/FAIL. This joins the 0.2.4 below with the reason change a 0.2.4 made beside it (both unreleased); nothing else changes.

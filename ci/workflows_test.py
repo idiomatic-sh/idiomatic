@@ -693,6 +693,47 @@ def test_a_job_that_releases_with_anything_but_gh_is_refused() -> None:
     ]
 
 
+def test_a_green_check_on_main_releases_the_products_whose_version_its_commit_changes_without_checking_again() -> None:
+    """The check's run on main passed its `gate` on the tree, so the release it starts tags and releases each product whose version
+    the commit changes, and only those, each product's publish in a concurrency group of its own; a hand run checks its product
+    first. A red, cancelled or pull request run starts no tag."""
+    workflow = yaml.safe_load(read(DIRECTORY / "release.yml"))
+    on = workflow["on" if "on" in workflow else True]
+    assert on["workflow_run"] == WORKFLOW_RUN and "push" not in on and set(on["workflow_dispatch"]["inputs"]) == {"product", "publish"}
+    jobs = workflow["jobs"]
+    assert "concurrency" not in workflow
+    tag = jobs["tag"]
+    assert tag["if"] == (
+        "github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'"
+    )
+    assert tag["permissions"] == {"contents": "write"}
+    # Every job that reads the tree reads the commit the check ran on, not the branch's newest.
+    for name in ("tag", "build", "publish"):
+        (checkout,) = [step for step in jobs[name]["steps"] if step.get("uses", "").startswith("actions/checkout@")]
+        assert checkout["with"]["ref"] == "${{ github.event.workflow_run.head_sha || github.sha }}", name
+    assert [step["run"] for step in tag["steps"] if "run" in step] == ["uv run ci/tag/command.py --push"]
+    assert tag["outputs"]["products"] == "${{ steps.tag.outputs.products }}"
+    assert jobs["check"]["if"] == "github.event_name == 'workflow_dispatch'"
+    assert jobs["build"]["needs"] == ["tag", "check"]
+    assert jobs["build"]["if"].startswith("${{ !cancelled() && !failure() && ")
+    assert "needs.tag.result == 'success' && needs.tag.outputs.products != '[]'" in jobs["build"]["if"]
+    publish = jobs["publish"]
+    assert publish["if"] == "${{ !cancelled() && needs.build.result == 'success' }}"
+    assert publish["concurrency"] == {"group": "release-${{ matrix.product }}", "cancel-in-progress": False}
+    # One publish at a time, in the `tag` job's order: ryo's crates are on crates.io before tastemaker's publish starts.
+    assert publish["strategy"]["max-parallel"] == 1
+    assert PRODUCTS.index("ryo") < PRODUCTS.index("tastemaker")
+    # Each build row's artifact is named for its product, and a publish downloads its product's alone, a directory per target.
+    (upload,) = [step for step in jobs["build"]["steps"] if step["uses"].startswith("actions/upload-artifact@")]
+    assert upload["with"]["name"] == "${{ matrix.product }}-${{ matrix.platform.target }}"
+    (download,) = [step for step in publish["steps"] if step.get("uses", "").startswith("actions/download-artifact@")]
+    assert download["with"] == {"pattern": "${{ matrix.product }}-*", "merge-multiple": True, "path": "dist"}
+    # A hand run checks its product with the linter benches' one group, `bench`, on Linux x86, and no retired bench group.
+    rows = jobs["check"]["strategy"]["matrix"]["include"]
+    assert {"runner": "ubuntu-26.04", "group": "bench"} in rows
+    assert not [row for row in rows if row["group"].startswith("bench-")]
+
+
 # The groups a pull request runs for each product on Linux x86, in one asymptote call so that its tools share one build.
 LINUX_GROUPS = ("lint", "clippy", "check", "release-tests", "release-coverage", "memory")
 EVERY_PRODUCT = "${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[\"{0}\"]', inputs.product) || '" + "[" + ",".join(
@@ -769,6 +810,12 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
     here = {("ubuntu-26.04", group) for group in LINUX_GROUPS} | {
         (row["runner"], group) for row in check["strategy"]["matrix"]["check"] for group in row["groups"].split(",")
     }
+    # The linter benches run in a job of their own, `bench`, the release's `bench` row.
+    bench = jobs["bench"]
+    assert [step["run"] for step in bench["steps"] if "asymptote check" in step.get("run", "")] == [
+        "asymptote check --root crates/ryo --groups bench"
+    ]
+    here |= {(bench["runs-on"], "bench")}
     assert here == {(row["runner"], row["group"]) for row in release if row.get("root") != "."}
     assert [row for row in release if row.get("root") == "."] == [{"runner": "ubuntu-26.04", "group": "repository", "root": "."}]
     rows = check["strategy"]["matrix"]["check"]
@@ -921,7 +968,7 @@ def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
         # build another profile or workspace and keep a key of their own.
         assert cache["shared-key"] == ("${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}" if shared else f"ubuntu-26.04-{name}-ryo")
         keys.add(cache["shared-key"])
-    assert len(keys) == 4
+    assert len(keys) == 3
     duplicate_target = deepcopy(cache)
     duplicate_target["workspaces"] += "\ncrates/asymptote -> ../../target"
     assert not one_workspace(duplicate_target, "crates/ryo")
@@ -1201,9 +1248,6 @@ RUN_TIME_READS = {
     "crates/ryo": [
         # cli/tests/replay/rule_fixtures.rs:40,49 reads the root's Tastemaker package.
         "tastemaker",
-        # distribution/target_test.rs:99 installs crates/tastemaker/cli; cli/tests/fixtures/replay/targets/*/pin.toml copy
-        # crates/tastemaker/distribution/registries/cargo/targets/*/tastemaker.lock.
-        "crates/tastemaker",
     ],
     # cli/tests/replay/check.rs:325-356 checks a `git archive` of the repository's HEAD, and benchmark_fixture.rs:35-46 copies
     # every tastemaker.lock of the repository: tastemaker's tests read the whole tree.
@@ -1386,8 +1430,8 @@ def test_a_tool_that_misses_what_it_runs_or_reads_is_named() -> None:
     assert "test-language: crates/ryo/cli" in missing and "test-language: crates/ryo/crates/execution" in missing
     assert "test-language: crates/ryo/languages/python" in missing
     distribution = tools["test-distribution"]
-    unread = unnamed_inputs(ryo, tools=[{**distribution, "inputs": [each for each in distribution["inputs"] if each != "../tastemaker"]}])
-    assert unread == ["test-distribution: crates/tastemaker"]
+    unread = unnamed_inputs(ryo, tools=[{**distribution, "inputs": [each for each in distribution["inputs"] if each != "../../tastemaker"]}])
+    assert unread == ["test-distribution: tastemaker"]
     clippy = tools["cargo-clippy"]
     helper = "../../ci/scripts/checks/cargo_diagnostics.py"
     unrun = unnamed_inputs(ryo, tools=[{**clippy, "inputs": [each for each in clippy["inputs"] if each != helper]}])

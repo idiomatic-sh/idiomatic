@@ -10,9 +10,6 @@
 //! ```compile_fail,E0432
 //! use ryo_benchmark_contracts::domain::workloads::types::Certificate;
 //! ```
-//! ```compile_fail,E0432
-//! use ryo_benchmark_contracts::domain::measurements::types::BenchmarkSample;
-//! ```
 //! Transport encodings belong to the benchmark's outbound schemas.
 //! ```compile_fail,E0277
 //! use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
