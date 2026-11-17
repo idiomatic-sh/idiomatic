@@ -41,6 +41,9 @@ pub(super) enum Request {
     SharedFragment,
     /// Six rules, each reading one shared four-step fragment after a different number of its own steps.
     SharedFragmentAfterOwnSteps,
+    /// Four rules with the same two selects: the difference of the first and the second, the difference of the second and the
+    /// first, the union of the first and the second, and the union of the first with itself.
+    InputOrder,
 }
 
 /// A comparison of a column with an operand.
@@ -165,6 +168,14 @@ fn own_steps(at: u32, name: &str, projections: u32) -> Vec<PlanStep> {
 /// The union of a rule's steps `left` and `right`.
 fn union_of(left: u32, right: u32) -> PlanStep {
     per_file(Operation::Union {
+        left: StepInput::Step(StepId(left)),
+        right: StepInput::Step(StepId(right)),
+    })
+}
+
+/// The difference of a rule's steps `left` and `right`.
+fn difference_of(left: u32, right: u32) -> PlanStep {
+    per_file(Operation::Difference {
         left: StepInput::Step(StepId(left)),
         right: StepInput::Step(StepId(right)),
     })
@@ -327,6 +338,22 @@ pub(super) fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding
                 (plan(steps, Vec::new()), unbound())
             })
             .collect(),
+        Request::InputOrder => [
+            difference_of(0, 1),
+            difference_of(1, 0),
+            union_of(0, 1),
+            union_of(0, 0),
+        ]
+        .into_iter()
+        .map(|last| {
+            let steps: Vec<PlanStep> = own_steps(0, "a", 0)
+                .into_iter()
+                .chain(own_steps(1, "b", 0))
+                .chain(std::iter::once(last))
+                .collect();
+            (plan(steps, Vec::new()), unbound())
+        })
+        .collect(),
         Request::SharedReads => vec![(
             plan(
                 vec![
