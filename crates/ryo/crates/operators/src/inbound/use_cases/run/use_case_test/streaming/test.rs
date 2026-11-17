@@ -3,18 +3,22 @@
 //! growing with the names the capture mints, and every chunk within its cell bound.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
-use crate::domain::physical_plan::fixtures::over_nodes;
+use crate::domain::physical_plan::fixtures::{Step, defines_rows, over_defines, over_nodes};
 use crate::domain::physical_plan::types::file_buffers::value::ChunkMeter;
 use crate::domain::physical_plan::types::stream_scratch::value::STREAM_CHUNK_CELLS;
 use crate::domain::physical_plan::types::{NodeRows, PlanNodeId};
 use crate::inbound::use_cases::run::fixtures::stream_programs::{
-    against, faulting, select_of, span, split_names,
+    against, faulting, one_row_past_the_bound, select_of, span, split_names,
 };
-use crate::inbound::use_cases::run::fixtures::streams::{Program, agrees, ran_after, ran_program};
+use crate::inbound::use_cases::run::fixtures::streams::{
+    Program, Steps, agrees, ran_after, ran_program, ran_steps,
+};
+use ryo_relations::domain::relations::types::{Integer, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, RepeatedRows, StepId, Test,
 };
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::types::Table;
 use std::borrow::Cow;
 
 /// What a case runs.
@@ -26,6 +30,9 @@ enum Scenario {
     NamesMintedAcrossChunks,
     ExpandingCapture,
     EngineRanTheMiddle,
+    ShortRowsProjected,
+    ShortRowsFiltered,
+    OneRowPastTheBound,
 }
 
 /// What a case observed of the program run as planned, against its held twin.
@@ -46,6 +53,13 @@ enum Observation {
         formed: u32,
         within: bool,
     },
+    /// How many rows the planned run answered, and its fault; none when it answered rows.
+    Rows {
+        rows: usize,
+        fault: Cow<'static, str>,
+    },
+    /// Whether the two runs answered the same, and the most rows the planned run handed from a stage to its reader at once.
+    Handed { same: bool, handed: usize },
     /// Whether the two runs answered the same, how many node tables the planned run formed, and whether the middle node
     /// the engine ran first holds rows after its reader ran.
     Started {
@@ -119,11 +133,83 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             middle: Cow::Borrowed("absent"),
         }),
     },
+    Case {
+        name: CaseName("a_relations_short_rows_are_each_read_on_their_own"),
+        word: Word::Succeeds,
+        input: || Scenario::ShortRowsProjected,
+        expect: Expect::Value(Observation::Rows {
+            rows: 2,
+            fault: Cow::Borrowed(""),
+        }),
+    },
+    Case {
+        name: CaseName("a_filter_refuses_a_relations_short_row"),
+        word: Word::Succeeds,
+        input: || Scenario::ShortRowsFiltered,
+        expect: Expect::Value(Observation::Rows {
+            rows: 0,
+            fault: Cow::Borrowed("ShapeMismatch"),
+        }),
+    },
+    Case {
+        name: CaseName("one_left_rows_answers_are_handed_on_in_one_chunk"),
+        word: Word::Succeeds,
+        input: || Scenario::OneRowPastTheBound,
+        expect: Expect::Value(Observation::Handed {
+            same: true,
+            handed: 20_001,
+        }),
+    },
 ];
 
-/// The program each scenario runs.
-fn program(scenario: Scenario) -> Program {
-    match scenario {
+/// Two Defines rows of six cells, the relation's columns lent with its seven kinds but only six columns: each row is read
+/// on its own, never past its own cells into the next row's.
+fn short_rows() -> Vec<(Relation, Table)> {
+    let full = defines_rows(&[
+        (Cell::Number(Integer(1)), span(0, 1)),
+        (Cell::Number(Integer(2)), span(0, 1)),
+    ]);
+    let width = full.kinds.len();
+    Vec::from([(
+        Relation::Defines,
+        Table {
+            kinds: full.kinds.iter().copied().take(width - 1).collect(),
+            cells: full
+                .cells
+                .chunks(width)
+                .flat_map(|row| row.iter().copied().take(width - 1))
+                .collect(),
+            count: full.count,
+        },
+    )])
+}
+
+/// Runs `step` over the short rows, emitting it: the rows it answered and its fault.
+fn over_short_rows(step: Step) -> Result<Value, Failure> {
+    let ran = ran_steps(
+        &Steps {
+            steps: &[step],
+            emit: PlanNodeId(0),
+            first: &[],
+        },
+        false,
+        &[],
+        &|_| short_rows(),
+    )?;
+    Ok(Observation::Rows {
+        rows: ran.answer.as_ref().map_or(0, Vec::len),
+        fault: Cow::Owned(
+            ran.answer
+                .err()
+                .map(|fault| format!("{fault:?}"))
+                .unwrap_or_default(),
+        ),
+    })
+}
+
+/// The program each scenario runs; none for those that read short rows or hand a probe's answers on.
+fn program(scenario: Scenario) -> Option<Program> {
+    Some(match scenario {
         Scenario::CaptureIntoFilter => Program {
             steps: vec![
                 split_names(),
@@ -211,11 +297,49 @@ fn program(scenario: Scenario) -> Program {
                 texts: vec![name, "x".into()],
             }
         }
+        Scenario::ShortRowsProjected
+        | Scenario::ShortRowsFiltered
+        | Scenario::OneRowPastTheBound => {
+            return None;
+        }
+    })
+}
+
+/// What a scenario with no program observes: the short rows read, or a probe's answers handed on.
+fn unprogrammed(scenario: Scenario) -> Result<Value, Failure> {
+    match scenario {
+        Scenario::ShortRowsProjected => over_short_rows(over_defines(Operation::Project {
+            from: StepInput::Relation(Relation::Defines),
+            columns: vec![ColumnIndex(0)],
+            distinct: RepeatedRows::Kept,
+        })),
+        Scenario::ShortRowsFiltered => over_short_rows(over_defines(Operation::Select {
+            from: StepInput::Relation(Relation::Defines),
+            comparisons: vec![against(Test::Equal, 0, "a")],
+            kept: Vec::new(),
+        })),
+        Scenario::OneRowPastTheBound => {
+            let program = one_row_past_the_bound();
+            let streamed = ran_program(&program, false)?;
+            let twin = ran_program(&program, true)?;
+            Ok(Observation::Handed {
+                same: agrees(&streamed, &twin),
+                handed: streamed.buffers.chains.handed.0,
+            })
+        }
+        Scenario::CaptureIntoFilter
+        | Scenario::FilterFaultFirst
+        | Scenario::MapFaultFirst
+        | Scenario::NamesMintedAcrossChunks
+        | Scenario::ExpandingCapture
+        | Scenario::EngineRanTheMiddle => Err(PortableOperatorFault::WrongOperation),
     }
 }
 
 fn subject(scenario: Scenario) -> Result<Value, Failure> {
-    let program = program(scenario);
+    let Some(program) = program(scenario) else {
+        return unprogrammed(scenario);
+    };
     if let Scenario::EngineRanTheMiddle = scenario {
         let streamed = ran_after(&program, false, &[PlanNodeId(1)])?;
         let twin = ran_after(&program, true, &[PlanNodeId(1)])?;
@@ -247,7 +371,10 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
                     .unwrap_or_default(),
             ),
         },
-        Scenario::EngineRanTheMiddle => return Err(PortableOperatorFault::WrongOperation),
+        Scenario::EngineRanTheMiddle
+        | Scenario::ShortRowsProjected
+        | Scenario::ShortRowsFiltered
+        | Scenario::OneRowPastTheBound => return Err(PortableOperatorFault::WrongOperation),
         Scenario::ExpandingCapture => Observation::Bounded {
             same,
             formed: streamed.formed,

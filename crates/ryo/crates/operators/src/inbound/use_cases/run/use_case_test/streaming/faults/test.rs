@@ -9,7 +9,9 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::fixtures::{Step, over_defines, over_nodes};
 use crate::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use crate::inbound::use_cases::run::fixtures::cases::compared;
-use crate::inbound::use_cases::run::fixtures::stream_programs::{faulting, span};
+use crate::inbound::use_cases::run::fixtures::stream_programs::{
+    faulting, probe_before_a_stopped_filter, span,
+};
 use crate::inbound::use_cases::run::fixtures::streams::{Outcome, Program, agrees, ran_program};
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
@@ -30,11 +32,18 @@ enum Scenario {
     FilterMidChunk,
     ProbeHardFaultMidChunk,
     StoppedStageFeed,
+    ProbeReadsOnAfterAStoppedFilter,
 }
 
 /// What a case observed.
 #[derive(Debug, PartialEq, Eq)]
 enum Observation {
+    /// Whether the two runs answered the same, and the rows the emit held before its fault, as planned and in the twin.
+    Held {
+        same: bool,
+        planned: usize,
+        twin: usize,
+    },
     /// Whether the two runs answered the same, and the planned run's fault.
     Faulted {
         same: bool,
@@ -110,11 +119,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_fault_mid_chunk_keeps_the_rows_before_it"),
         word: Word::Succeeds,
         input: || Scenario::FilterMidChunk,
-        expect: Expect::Value(Observation::Faulted {
+        expect: Expect::Value(Observation::Held {
             same: true,
-            fault: Cow::Borrowed(
-                "Pattern(InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" })",
-            ),
+            planned: 700,
+            twin: 700,
+        }),
+    },
+    Case {
+        name: CaseName("a_running_probe_reads_on_after_a_later_filter_faults_mid_chunk"),
+        word: Word::Succeeds,
+        input: || Scenario::ProbeReadsOnAfterAStoppedFilter,
+        expect: Expect::Value(Observation::Fed {
+            planned: 14_040,
+            twin: 14_040,
         }),
     },
     Case {
@@ -301,17 +318,33 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         Scenario::FilterMidChunk => faulting(1_024, usize::MAX, 700),
         Scenario::ProbeHardFaultMidChunk => probe_after_a_stopped_stage(),
         Scenario::StoppedStageFeed => stopped_before_the_tail(),
+        Scenario::ProbeReadsOnAfterAStoppedFilter => probe_before_a_stopped_filter(),
     };
     let planned = ran_program(&program, false)?;
     let twin = ran_program(&program, true)?;
-    if let Scenario::FaultingTailFeed | Scenario::StoppedStageFeed = scenario {
+    if let Scenario::FilterMidChunk = scenario {
+        return Ok(Observation::Held {
+            same: agrees(&planned, &twin),
+            planned: planned.held,
+            twin: twin.held,
+        });
+    }
+    // The node whose feed a feed case reads: the stopped filter after the running probe, or the tail.
+    let fed_node = match scenario {
+        Scenario::ProbeReadsOnAfterAStoppedFilter => Some(PlanNodeId(2)),
+        Scenario::FaultingTailFeed | Scenario::StoppedStageFeed => Some(PlanNodeId(1)),
+        Scenario::FilterBeforeTheMapAcrossChunks
+        | Scenario::MapBeforeTheFilterAcrossChunks
+        | Scenario::FilterPastTheBoundaryBeforeTheMap
+        | Scenario::ProbeBeforeALaterPreparation
+        | Scenario::LaterRightAfterAPreparationFault
+        | Scenario::FilterMidChunk
+        | Scenario::ProbeHardFaultMidChunk => None,
+    };
+    if let Some(node) = fed_node {
         let fed =
             |buffers: &crate::domain::physical_plan::types::file_buffers::value::FileBuffers| {
-                buffers
-                    .fed(PlanNodeId(1))
-                    .0
-                    .first()
-                    .map_or(0, |rows| rows.0)
+                buffers.fed(node).0.first().map_or(0, |rows| rows.0)
             };
         return Ok(Observation::Fed {
             planned: fed(&planned.buffers),

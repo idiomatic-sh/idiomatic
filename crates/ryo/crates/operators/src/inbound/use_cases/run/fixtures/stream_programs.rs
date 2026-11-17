@@ -332,3 +332,56 @@ pub(crate) fn probe_of_a_held_node(mode: ProbeMode, rows: usize) -> Program {
     };
     paired(vec![held, every_define(), probe], rows)
 }
+
+/// 7,020 Defines rows paired by name, rows 5,000 and 5,001 named `[`. A select of every row (node 0); an inner join of it
+/// with Defines on the name, every left column answered, two answers a row (node 1); a select of the join's rows whose name
+/// matches itself (node 2), which faults on the answers of row 5,000, in the middle of a chunk the running probe handed on;
+/// and an extension of it (node 3). The probe, before the stopped filter, reads on: it is fed every left row, and the
+/// filter every answer the probe writes. (A probe's hard fault arrives only at its first left row, from its index build,
+/// so a running probe cannot raise one after a later stage stopped.)
+pub(crate) fn probe_before_a_stopped_filter() -> Program {
+    let rows = 7_020;
+    let mut names: Vec<String> = (0..rows / 2).map(|at| format!("n{at}")).collect();
+    names.push("[".into());
+    let defines = (
+        StepInput::Relation(Relation::Defines),
+        PlanInput::Relation(Relation::Defines),
+    );
+    let every = over_defines(Operation::Select {
+        from: defines.0,
+        comparisons: Vec::new(),
+        kept: Vec::new(),
+    });
+    let probe = join(
+        (StepInput::Step(StepId(0)), PlanInput::Node(PlanNodeId(0))),
+        defines,
+        left_columns(),
+        Vec::new(),
+    );
+    Program {
+        steps: vec![
+            every,
+            probe,
+            select_of(1, vec![self_matching(3)]),
+            over_nodes(
+                Operation::Extend {
+                    from: StepInput::Step(StepId(2)),
+                    values: vec![Operand::Literal(QueryLiteral::Number(Integer(1)))],
+                },
+                &[2],
+            ),
+        ],
+        emit: PlanNodeId(3),
+        rows: (0..rows)
+            .map(|at| {
+                let name = if at / 2 == 2_500 {
+                    "[".to_owned()
+                } else {
+                    format!("n{}", at / 2)
+                };
+                (name, span(0, 1))
+            })
+            .collect(),
+        texts: names,
+    }
+}

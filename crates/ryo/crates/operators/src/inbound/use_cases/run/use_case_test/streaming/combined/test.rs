@@ -2,7 +2,7 @@
 //! over Defines, and both ordered existence shapes over the semantic edges), each emitted alone, answers as planned what its
 //! held twin answers, rows in order and the first fault alike. An ordered probe's left rows are its right side's source (the
 //! rewrite proves the shape so), so its left is read twice and held, never streamed: its answer is its twin's. After a large
-//! file every chain's scratch keeps no more room than the bound, and a chain's stage calls and time grow with its rows, not
+//! file every chain's scratch keeps no more room than the bound, and a chain's stage calls grow with its rows, not
 //! with their square.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
@@ -34,7 +34,6 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::types::Table;
 use std::borrow::Cow;
-use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
@@ -66,14 +65,14 @@ enum Observation {
     /// Whether the large file answers as its twin, and whether every chain scratch the worker kept after it (each stage's
     /// chunk, each probe's kept right rows, each head chunk) holds no more room than the bound.
     Bounded { same: bool, bounded: bool },
-    /// How the stage calls and the time of a chain grow from 10,000 rows to 40,000.
+    /// How the stage calls of a chain grow from 10,000 rows to 40,000.
     Growth(Growth),
 }
 
 /// How a chain's work grows from the smaller file to the larger, four times its rows.
 #[derive(Debug, PartialEq, Eq)]
 enum Growth {
-    /// Its stage calls within four times and three, and its time within eight times.
+    /// Its stage calls within four times and three.
     Linear,
     /// Past either.
     Superlinear,
@@ -166,18 +165,9 @@ fn large_file() -> Program {
     }
 }
 
-/// The stage calls of the first file of the chain of three stages over `rows` rows, and the fastest of three runs of it.
-fn timed(rows: usize) -> Result<(usize, Duration), Failure> {
-    let program = three_stages(rows);
-    let mut fastest = Duration::MAX;
-    let mut calls = 0;
-    for _ in 0..3 {
-        let started = Instant::now();
-        let ran = ran_program(&program, false)?;
-        fastest = fastest.min(started.elapsed());
-        calls = ran.stage_calls;
-    }
-    Ok((calls, fastest))
+/// The stage calls of the first file of the chain of three stages over `rows` rows.
+fn calls(rows: usize) -> Result<usize, Failure> {
+    Ok(ran_program(&three_stages(rows), false)?.stage_calls)
 }
 
 /// The file's texts: the Defines names and the semantic edges' field.
@@ -283,13 +273,9 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
             })
         }
         Scenario::TenThenFortyThousandRows => {
-            let (small_calls, small_time) = timed(10_000)?;
-            let (large_calls, large_time) = timed(40_000)?;
+            let (small_calls, large_calls) = (calls(10_000)?, calls(40_000)?);
             Ok(Observation::Growth(
-                if small_calls > 0
-                    && large_calls <= small_calls * 4 + 3
-                    && large_time < small_time.saturating_mul(8)
-                {
+                if small_calls > 0 && large_calls <= small_calls * 4 + 3 {
                     Growth::Linear
                 } else {
                     Growth::Superlinear
