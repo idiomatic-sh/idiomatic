@@ -159,11 +159,9 @@ pub(super) const FRESH_ROW_COUNT_OVERFLOWS: &str = "fresh row count overflows";
 pub(super) const OLD_BUCKET_SEEK_UNDERFLOWS: &str = "old bucket seek underflows";
 
 /// The text "old row seek underflows".
-#[cfg(unix)]
 pub(super) const OLD_ROW_SEEK_UNDERFLOWS: &str = "old row seek underflows";
 
 /// The text "old row position overflows".
-#[cfg(unix)]
 pub(super) const OLD_ROW_POSITION_OVERFLOWS: &str = "old row position overflows";
 
 /// The text "copy size overflows".

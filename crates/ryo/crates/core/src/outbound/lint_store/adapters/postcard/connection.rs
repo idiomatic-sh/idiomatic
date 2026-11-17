@@ -7,9 +7,7 @@ use crate::outbound::lint_store::adapters::postcard::constants::MISSING_SPOOL_RE
 use crate::outbound::lint_store::adapters::postcard::constants::MISSING_SPOOL_WRITER;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_SEEK_EXCEEDS_ITS_SECTION;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_BUCKET_SEEK_UNDERFLOWS;
-#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_POSITION_OVERFLOWS;
-#[cfg(unix)]
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_SEEK_UNDERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::STAGED_OFFSET_OVERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::STAGED_PAYLOAD_EXCEEDS_ADDRESSABLE_MEMORY;
