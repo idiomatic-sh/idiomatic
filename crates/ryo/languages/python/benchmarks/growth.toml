@@ -7,7 +7,9 @@
 # shape to the one CPU limit and to Ruff's floor and memory bound. A rule that joins every read to every binding, pairs every
 # effect with every other, or tests every handler against every read grows 3.5 to 8 times per doubling and holds gigabytes.
 # ISC004 grows over implicitly concatenated strings in collections (`collection-strings`): a rule that meets each string with
-# every earlier token of its file, not only the token before it, grows the same way.
+# every earlier token of its file, not only the token before it, grows the same way. FA100 grows over annotated names under
+# `from __future__ import annotations` (`future-annotated`): a rule that joins every root of its file to a per-file set holding
+# one row per expression, on the file alone, grows as their product.
 #
 # A shape is `<rule>/<frame>/<operation>/<whole size>`. A segment's line `i` is `lines[i % len]` with `{i}` replaced by `i`,
 # written `fixed + per-size * size` times, each line indented by the frame's indent. Profiles are relative to the linter's bench.
@@ -33,6 +35,10 @@ profile = "profiles/F821"
 [[rules]]
 rule = "ISC004"
 profile = "profiles/ISC004"
+
+[[rules]]
+rule = "FA100"
+profile = "profiles/FA100"
 
 [frames.module]
 head = ""
@@ -308,4 +314,12 @@ name = "collection-strings"
 frames = ["module", "function"]
 segments = [
   { lines = ["v{i} = [\"a\" \"b\", (\"c\" \"d\"), \"e\"]\n", "w{i} = (\"a\" \"b\"), (\n    \"c\" \"d\"), \"e\" \"f\"\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "future-annotated"
+frames = ["module"]
+segments = [
+  { lines = ["from __future__ import annotations\n"], fixed = 1, per-size = 0 },
+  { lines = ["x{i}: list[int] = []\n"], fixed = 0, per-size = 1 },
 ]
