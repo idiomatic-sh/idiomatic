@@ -1,6 +1,7 @@
 //! The types of the `physical_plan` concept: the plain data that crosses the operators' seam and the two traits the engine
 //! implements for a run. The plan's and the buffers' own fields stay private to operators.
 
+pub mod activity;
 pub mod bound_observation_place;
 pub mod candidates;
 pub(crate) mod consumers_done;
@@ -23,6 +24,7 @@ pub(crate) mod walk_scratch;
 
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::table_texts::types::Texts;
+use activity::value::Activity;
 use bound_observation_place::value::BoundObservationPlace;
 use candidates::value::Candidates;
 use fact_rows::value::FactRows;
@@ -134,6 +136,8 @@ pub trait PlanInputs {
     fn observation(&self, place: BoundObservationPlace) -> HeldRows<'_>;
     /// The host's rows of a declared relation, or the token of why they are withheld.
     fn hosted(&self, relation: HostedNumber) -> HeldRows<'_>;
+    /// Whether a node runs in the open file, asked before the runner reads any of its inputs.
+    fn activity(&self, node: PlanNodeId) -> Activity<'_>;
 }
 
 /// What a kernel borrows from the engine besides rows: the complete inventory.

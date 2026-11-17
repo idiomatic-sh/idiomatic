@@ -2,12 +2,13 @@
 //! it and the operators' physical plan.
 
 use crate::domain::coverage::types::RuleIndex;
+use crate::domain::executable_program::activation::service::plan_of;
+use crate::domain::executable_program::activation::types::ActivationPlan;
 use crate::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use crate::domain::executable_program::types::logical_build::value::LogicalBuild;
 use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, DraftedColumns, RootKind, RuleInput, RuleNodes, RuleScopes,
-    StepAt,
+    Consumers, Draft, DraftInputs, DraftedColumns, RuleInput, RuleNodes, RuleScopes, StepAt,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::service::schema_of;
@@ -202,6 +203,7 @@ pub fn logical<'p>(
     let reads = inputs_by_node(&inputs.lists);
     let deferred = deferred_layouts(&drafts);
     let reach = observation_reaches(&drafts, &inputs.lists);
+    let activation = plan_of(&drafts, &inputs.lists, &roots);
     Ok(LogicalBuild {
         program,
         rules: nodes,
@@ -213,6 +215,7 @@ pub fn logical<'p>(
         deferred,
         scopes,
         reach,
+        activation,
     })
 }
 
@@ -239,6 +242,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         deferred,
         scopes,
         reach,
+        activation,
         ..
     } = build;
     ExecutableProgram {
@@ -252,6 +256,7 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         deferred,
         scopes,
         reach,
+        activation,
     }
 }
 
@@ -268,23 +273,6 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
 #[must_use]
 pub fn roots<'a>(program: &'a ExecutableProgram, kind: &LiteralText) -> &'a [PlanNodeId] {
     program.roots.get(kind).map_or(&[], Vec::as_slice)
-}
-
-/// Each kind text the plans write for a root kind, with the nodes that start from the tree nodes of that kind; in no order.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, root_kinds};
-/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
-/// assert_eq!(root_kinds(&program).count(), 0);
-/// ```
-pub fn root_kinds(program: &ExecutableProgram) -> impl Iterator<Item = RootKind<'_>> {
-    program
-        .roots
-        .iter()
-        .map(|(kind, nodes)| RootKind { kind, nodes })
 }
 
 /// The nodes of `rule`.
@@ -369,4 +357,19 @@ pub fn engine_uses(
 #[must_use]
 pub fn physical(program: &ExecutableProgram) -> &PhysicalPlan {
     &program.plan
+}
+
+/// What each node of the program needs to be active in a file: the plan a file's triggers are read against.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::service::{activation, assemble, logical};
+/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
+/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
+/// assert!(activation(&program).nodes.is_empty());
+/// ```
+#[must_use]
+pub fn activation(program: &ExecutableProgram) -> &ActivationPlan {
+    &program.activation
 }

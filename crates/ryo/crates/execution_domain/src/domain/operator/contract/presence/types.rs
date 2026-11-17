@@ -44,7 +44,7 @@ pub enum RowFailure {
     /// A row of an input the mask names can make it fail.
     OnRows(InputMask),
     /// A row of the first input can make it fail unless the span column it searches is located, a span the file's
-    /// provider admitted or a match inside one, and its literal pattern compiled with its capture when the request was
-    /// prepared. The presence fold decides which.
+    /// provider admitted or a match inside one, and its literal pattern compiled with its capture at its first use.
+    /// Activation reads it as a failure on the first input's rows.
     UnlessLocated(ryo_values::domain::plan_parts::types::ColumnIndex),
 }
