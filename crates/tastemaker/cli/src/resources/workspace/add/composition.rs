@@ -21,7 +21,7 @@ where
 
 /// Selects the production service.
 pub(crate) fn build(
-    store: &tastemaker_core::domain::files::types::DirectoryName,
+    store: &tastemaker_values::domain::files::types::DirectoryName,
 ) -> impl AddUseCase {
     use tastemaker_core::inbound::use_cases::add::use_case::AddUseCaseImpl;
     use tastemaker_core::outbound::{manifest, matching, packages, repository};

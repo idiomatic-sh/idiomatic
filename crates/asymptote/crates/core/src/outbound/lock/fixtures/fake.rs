@@ -3,12 +3,12 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
-use crate::domain::manifest::types::Pathspec;
-use crate::domain::operations::types::{Operation, OperationId, OperationText};
-use crate::domain::violations::types::{Id, Key, Standing};
 use crate::outbound::lock::errors::LockError;
 use crate::outbound::lock::interface::LockPort;
 use crate::outbound::lock::types::{Listing, Operations};
+use asymptote_values::domain::manifest::types::Pathspec;
+use asymptote_values::domain::operations::types::{Operation, OperationId, OperationText};
+use asymptote_values::domain::violations::types::{Id, Key, Standing};
 
 /// What the core's tests stand in for `lock` with.
 #[derive(Debug, Default)]

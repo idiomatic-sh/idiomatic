@@ -3,11 +3,11 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use crate::domain::files::types::{FileText, MachinePath};
-use crate::domain::paths::types::RepoPath;
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::interface::Repository;
 use crate::outbound::repository::types::{Presence, RepoPaths, Walk};
+use tastemaker_values::domain::files::types::{FileText, MachinePath};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// A scratch directory of the fake, bound to its root: its files are forgotten when it is dropped.
 #[derive(Debug)]
@@ -49,7 +49,7 @@ impl Repository for ProjectFake {
         self.repository.remove(path)
     }
 
-    fn stamps(&self, paths: &[RepoPath]) -> crate::domain::files::types::Stamps {
+    fn stamps(&self, paths: &[RepoPath]) -> tastemaker_values::domain::files::types::Stamps {
         self.repository.stamps(paths)
     }
 }

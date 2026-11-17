@@ -5,12 +5,12 @@ use super::adapter::ValidateStorePostcardAdapter;
 use super::constants::{FILE, GITIGNORE, UNWRITTEN};
 use super::types::Unwritten;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::files::types::MachinePath;
-use crate::domain::settings::types::{Build, Store};
-use crate::domain::writing::types::Writing;
 use crate::outbound::validate_store::errors::ValidateStoreError;
 use crate::outbound::validate_store::fixtures::contract::check;
 use crate::outbound::validate_store::interface::ValidateStorePort as _;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::settings::types::{Build, Store};
+use tastemaker_values::domain::writing::types::Writing;
 
 /// What is done to the store.
 #[derive(Clone, Copy, Debug)]
@@ -181,12 +181,12 @@ fn sets_held(slots: &Unwritten) -> usize {
 
 /// Under `-n/--dry-run` the adapter writes nothing, and reads back what it was asked to keep.
 fn dry_run_remembers(store: &std::path::Path) -> Result<Value, Failure> {
-    use crate::domain::digests::types::Digest;
-    use crate::domain::files::types::{FileSize, ModifiedTime, Stamp};
-    use crate::domain::packages::types::{
+    use tastemaker_values::domain::digests::types::Digest;
+    use tastemaker_values::domain::files::types::{FileSize, ModifiedTime, Stamp};
+    use tastemaker_values::domain::packages::types::{
         DefinitionKind, DefinitionName, Ownership, PackageName, Release, VersionText,
     };
-    use crate::domain::proofs::types::ProvenVersion;
+    use tastemaker_values::domain::proofs::types::ProvenVersion;
     let row = ProvenVersion {
         release: Release {
             package: PackageName("p".into()),

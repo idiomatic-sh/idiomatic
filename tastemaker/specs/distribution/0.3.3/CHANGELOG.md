@@ -1,6 +1,6 @@
 # distribution 0.3.3
 
-The distribution bench takes memory: `-- --memory` runs the cargo registry's targets alone and reports `cold-peak-kib` (the peak of the cold check) and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` (`tm validate` over the target's definitions, cold and again warm). `bench-measure` runs one measured run through `timed`, holds a check to its expected findings and a validation to exit 0, and gives a run four logical CPUs (`WORKERS = 4`) in place of ten, so the command runs the same workers on a runner and on a larger machine. Everything else is as in 0.3.2.
+The distribution bench takes memory: `-- --memory` runs the cargo registry's targets alone and reports `cold-peak-kib` (the peak of the cold check) and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` (`tm validate` over the target's definitions, cold and again warm). `bench-measure` runs one measured run through `timed`, holds a check to its expected findings and a validation to exit 0, and gives a run four logical CPUs (`WORKERS = 4`) in place of ten, so the command runs the same workers on a runner and on a larger machine. Everything else is as in 0.3.2. Edited in place: `bench-main` writes its check of the cold peak and its document line as rustfmt writes them at the repository's width, so a product's `cargo fmt` and the verbatim template agree.
 
 # distribution 0.3.2
 

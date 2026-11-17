@@ -2,6 +2,7 @@
 
 pub(crate) mod adapter;
 mod constants;
+pub(crate) mod errors;
 mod schemas;
 pub(crate) mod settings;
 

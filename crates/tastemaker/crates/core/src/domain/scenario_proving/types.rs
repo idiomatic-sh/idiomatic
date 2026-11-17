@@ -1,9 +1,11 @@
 //! The types of the `scenario_proving` concept: plain data, public fields and derives, with no constructor and no
 //! inherent impl.
 
-use crate::domain::proofs::types::FoundOwn;
-use crate::domain::scenario_files::types::ScenarioEntry;
-use crate::domain::scenarios::types::{ExpectedFinding, ExpectedRule, ScenarioFiles, ScenarioId};
+use tastemaker_values::domain::proofs::types::FoundOwn;
+use tastemaker_values::domain::scenario_files::types::ScenarioEntry;
+use tastemaker_values::domain::scenarios::types::{
+    ExpectedFinding, ExpectedRule, ScenarioFiles, ScenarioId,
+};
 
 /// One scenario of a spec or a template, as the project it is checked as.
 pub(crate) struct ProjectScenario<'a> {

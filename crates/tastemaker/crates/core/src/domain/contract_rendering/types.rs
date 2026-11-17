@@ -1,11 +1,11 @@
 //! The types of the `contract_rendering` concept: plain data, public fields and derives, with no constructor and no
 //! inherent impl.
 
-use crate::domain::contexts::types::RenderContext;
-use crate::domain::contracts::types::TemplateIdentity;
-use crate::domain::definitions::types::{Exactness, TemplateText};
-use crate::domain::findings::types::Finding;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::contexts::types::RenderContext;
+use tastemaker_values::domain::contracts::types::TemplateIdentity;
+use tastemaker_values::domain::definitions::types::{Exactness, TemplateText};
+use tastemaker_values::domain::findings::types::Finding;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// A placed file's template content, with the context its placement gives it: what the template engine renders.
 #[derive(Clone, Debug)]
@@ -38,7 +38,7 @@ pub enum Requested {
 #[derive(Clone, Debug)]
 pub enum Rendered {
     /// The contract the file is compared against.
-    Contract(crate::domain::contracts::types::Contract),
+    Contract(tastemaker_values::domain::contracts::types::Contract),
     /// The content rendered to nothing: it asks nothing of the file.
     Nothing,
     /// The content did not render.

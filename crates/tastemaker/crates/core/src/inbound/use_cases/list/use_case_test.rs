@@ -7,9 +7,9 @@ use super::interface::ListUseCase as _;
 use super::types::{Kinds, ListRequest};
 use super::use_case::ListUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::files::types::MachinePath;
-use crate::domain::packages::types::DefinitionKind;
 use crate::inbound::use_cases::check::fixtures::{Workspace, package, repository_of, selection};
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::DefinitionKind;
 
 /// The package a row's workspace depends on.
 #[derive(Clone, Copy, Debug)]

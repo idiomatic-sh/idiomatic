@@ -2,9 +2,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::domain::applications::types::ParamSet;
-use crate::domain::packages::types::Release;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::applications::types::ParamSet;
+use tastemaker_values::domain::packages::types::Release;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// A release with one set of params: what reaches files.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

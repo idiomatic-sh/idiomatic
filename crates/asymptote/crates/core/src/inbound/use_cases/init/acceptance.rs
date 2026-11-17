@@ -5,11 +5,11 @@ use cucumber::{given, then, when};
 
 use crate::Behavior;
 
-use asymptote_core::domain::manifest::types::ProductRoot;
 use asymptote_core::domain::ratchet::types::Writing;
 use asymptote_core::inbound::use_cases::init::interface::InitUseCase as _;
 use asymptote_core::inbound::use_cases::init::types::{InitPorts, InitRequest};
 use asymptote_core::inbound::use_cases::init::use_case::InitUseCaseImpl;
+use asymptote_values::domain::manifest::types::ProductRoot;
 
 /// Names the scene the next `init` step runs.
 #[given(expr = "the init input {string}")]
@@ -140,7 +140,7 @@ fn runs(world: &mut Behavior) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         Writing::Write
     };
-    let names = |names: &[asymptote_core::domain::manifest::types::HookName]| {
+    let names = |names: &[asymptote_values::domain::manifest::types::HookName]| {
         if names.is_empty() {
             "-".to_owned()
         } else {

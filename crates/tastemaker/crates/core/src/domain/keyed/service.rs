@@ -6,13 +6,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::constants::{ASIDE, ELEMENT_CLOSE, ELEMENT_OPEN};
 use super::types::{Depth, Renaming, TableMember};
-use crate::domain::contracts::constants::{KEY, KEY_PATH_SEPARATOR, SCALARS, TABLES};
-use crate::domain::contracts::service::compare;
-use crate::domain::contracts::types::{
+use tastemaker_values::domain::contracts::constants::{KEY, KEY_PATH_SEPARATOR, SCALARS, TABLES};
+use tastemaker_values::domain::contracts::service::compare;
+use tastemaker_values::domain::contracts::types::{
     AttributeText, DataRow, Declaration, DeclarationKind, DeclarationName, Decorations, Facts,
     Holding, Mismatch, RowNode,
 };
-use crate::domain::definitions::types::Exactness;
+use tastemaker_values::domain::definitions::types::Exactness;
 
 /// The rows of `rows`, by their node.
 fn by_node<'r>(rows: &[&'r DataRow]) -> BTreeMap<&'r RowNode, &'r DataRow> {

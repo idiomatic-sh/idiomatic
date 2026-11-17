@@ -5,10 +5,10 @@ use std::sync::Arc;
 
 use asymptote_core::application::accepted_state::service::AcceptedState;
 use asymptote_core::application::cached_report::service::CachedReport;
-use asymptote_core::domain::manifest::service::reach;
-use asymptote_core::domain::manifest::types::{ProductRoot, Reach};
 use asymptote_core::inbound::use_cases::down::interface::DownUseCase;
 use asymptote_core::outbound::manifest::errors::ManifestError;
+use asymptote_values::domain::manifest::service::reach;
+use asymptote_values::domain::manifest::types::{ProductRoot, Reach};
 
 /// The dependencies the caller supplies: the service the command calls.
 pub(crate) struct RatchetDownParts<S> {

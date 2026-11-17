@@ -18,11 +18,11 @@ use super::connection::ToolsConnection;
 use super::constants::{EMPTY, MAX_OUTPUT, POLL, REMOVED, SET};
 #[cfg(windows)]
 use super::constants::{EXTENSIONS, PATH};
-use crate::domain::manifest::types::Argument;
 use crate::outbound::tools::interface::ToolsPort;
 use crate::outbound::tools::types::{
     Captured, Completion, Ending, ExitCode, GroupId, Invocation, StartProblem,
 };
+use asymptote_values::domain::manifest::types::Argument;
 
 /// The subprocess tools adapter.
 #[derive(Debug)]

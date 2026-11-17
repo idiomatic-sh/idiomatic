@@ -3,13 +3,13 @@
 // Error locations are contractual; diagnostic wording belongs to each implementation.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::files::types::{FileText, Stamp};
-use crate::domain::packages::types::{
-    Dependency, PackageName, PackageRoot, PackageSource, SourcePath, VersionText,
-};
 use crate::outbound::packages::errors::PackagesError;
 use crate::outbound::packages::interface::PackagesPort;
 use crate::outbound::packages::types::{HeldFiles, PackageFile, PackagedFile};
+use tastemaker_values::domain::files::types::{FileText, Stamp};
+use tastemaker_values::domain::packages::types::{
+    Dependency, PackageName, PackageRoot, PackageSource, SourcePath, VersionText,
+};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

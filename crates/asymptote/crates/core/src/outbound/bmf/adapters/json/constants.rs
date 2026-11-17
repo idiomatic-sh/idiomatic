@@ -1,7 +1,7 @@
 //! The words Bencher Metric Format uses, and what is said of a text it does not hold.
 
 /// Why no output is no measurement.
-pub(super) const NOTHING: &str = crate::domain::judgement::constants::NOTHING;
+pub(super) const NOTHING: &str = asymptote_values::domain::judgement::constants::NOTHING;
 /// Why a number that is negative or not finite is no measurement.
 pub(super) const NEGATIVE: &str = "a value and its bounds are numbers of zero or more";
 /// Why a spread that does not hold its value is no measurement.

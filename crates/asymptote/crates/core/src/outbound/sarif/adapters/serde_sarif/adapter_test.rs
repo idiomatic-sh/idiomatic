@@ -4,12 +4,12 @@
 
 use super::adapter::SarifSerdeSarifAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::judgement::types::Inventory;
-use crate::domain::violations::types::{Fingerprinted, Level, Place, Suppression};
 use crate::outbound::sarif::errors::SarifError;
 use crate::outbound::sarif::fixtures::contract::check;
 use crate::outbound::sarif::interface::SarifPort as _;
 use crate::outbound::sarif::types::SarifText;
+use asymptote_values::domain::judgement::types::Inventory;
+use asymptote_values::domain::violations::types::{Fingerprinted, Level, Place, Suppression};
 
 /// Tastemaker's `check --format sarif` over ryo: two results, a suppressed one and one with no region.
 const TASTEMAKER: &str = include_str!("../../../../../tests/fixtures/sarif/tastemaker.sarif");

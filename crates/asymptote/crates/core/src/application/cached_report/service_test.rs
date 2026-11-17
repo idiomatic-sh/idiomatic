@@ -3,13 +3,13 @@
 use super::errors::CachedReportError;
 use super::service::CachedReport;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::judgement::types::Failure as ToolFailure;
-use crate::domain::operations::types::Revision;
-use crate::domain::renames::types::Head;
-use crate::domain::reports::types::{Digest, FileRecord, Recorded, Report};
-use crate::domain::violations::types::{RepoPath, ToolId};
 use crate::outbound::check_store::types::{KeptReport, Stored};
 use crate::outbound::sources::fixtures::fake::SourcesFake;
+use asymptote_values::domain::judgement::types::Failure as ToolFailure;
+use asymptote_values::domain::operations::types::Revision;
+use asymptote_values::domain::renames::types::Head;
+use asymptote_values::domain::reports::types::{Digest, FileRecord, Recorded, Report};
+use asymptote_values::domain::violations::types::{RepoPath, ToolId};
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
@@ -107,10 +107,10 @@ fn subject(scene: Input) -> Result<Value, Failure> {
     let report = Arc::new(Report {
         head: Head::Detached,
         scanned: if matches!(scene, Scene::ToolFailed) {
-            vec![crate::domain::reports::service::failed(
+            vec![asymptote_values::domain::reports::service::failed(
                 &ToolId("lint".into()),
                 ToolFailure::Signalled {
-                    stderr: crate::domain::judgement::types::Tail::default(),
+                    stderr: asymptote_values::domain::judgement::types::Tail::default(),
                 },
             )]
         } else {

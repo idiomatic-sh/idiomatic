@@ -1,7 +1,7 @@
 //! The types of the `blocks` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::comments::types::ByteSpan;
-use crate::domain::contracts::types::{DataRow, WrittenValue};
+use tastemaker_values::domain::comments::types::ByteSpan;
+use tastemaker_values::domain::contracts::types::{DataRow, WrittenValue};
 
 /// A section of a document and where its title is written.
 #[derive(Clone, Copy, Debug)]

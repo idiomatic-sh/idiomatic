@@ -1,0 +1,27 @@
+[package]
+name = "idiomatic-sh-asymptote-values"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Shared value types for Asymptote"
+keywords = ["sarif", "lint", "ratchet", "baseline", "ci"]
+categories = ["development-tools"]
+autobenches = false
+
+[lib]
+name = "asymptote_values"
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+
+[features]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
+fixtures = []
+
+[lints]
+workspace = true

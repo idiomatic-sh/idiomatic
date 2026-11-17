@@ -4,14 +4,14 @@
 use super::errors::InitError;
 use super::interface::InitUseCase;
 use super::types::{Configuration, InitPorts, InitReport, InitRequest};
-use crate::domain::hooks::service::{ownership, script};
-use crate::domain::hooks::types::Ownership;
-use crate::domain::manifest::constants::{DEFAULT_GROUP, DEFAULT_HOOK, HOOKS};
-use crate::domain::manifest::types::{Group, Hook, HookName, Manifest};
-use crate::domain::operations::types::Operation;
 use crate::domain::ratchet::types::Writing;
 use crate::outbound::hooks::types::Installed;
 use crate::outbound::manifest::errors::ManifestError;
+use asymptote_values::domain::hooks::service::{ownership, script};
+use asymptote_values::domain::hooks::types::Ownership;
+use asymptote_values::domain::manifest::constants::{DEFAULT_GROUP, DEFAULT_HOOK, HOOKS};
+use asymptote_values::domain::manifest::types::{Group, Hook, HookName, Manifest};
+use asymptote_values::domain::operations::types::Operation;
 
 /// `init`, over the ports the edge injects.
 #[derive(Debug)]

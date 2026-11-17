@@ -3,15 +3,17 @@
 
 use super::errors::ManifestError;
 use super::types::{DefinitionText, EntryDraft};
-use crate::domain::definitions::types::{
+use tastemaker_values::domain::definitions::types::{
     Definition, RuleFile, SpecFile, TemplateFile, WorkspaceFile,
 };
-use crate::domain::files::types::FileText;
-use crate::domain::packages::types::{DefinitionKind, Lock, PackageManifest};
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::packages::types::{DefinitionKind, Lock, PackageManifest};
 
-/// What every `manifest` adapter implements; as a [`ValueWriter`](crate::domain::entries::types::ValueWriter) it writes a
+/// What every `manifest` adapter implements; as a [`ValueWriter`](tastemaker_values::domain::entries::types::ValueWriter) it writes a
 /// param value as a path or a template reads it: text as written, anything else as the format writes it.
-pub trait ManifestPort: Send + Sync + crate::domain::entries::types::ValueWriter {
+pub trait ManifestPort:
+    Send + Sync + tastemaker_values::domain::entries::types::ValueWriter
+{
     /// A `tastemaker.toml`, root or local.
     ///
     /// # Errors
@@ -85,20 +87,20 @@ pub trait ManifestPort: Send + Sync + crate::domain::entries::types::ValueWriter
     fn rebased(
         &self,
         file: &FileText,
-        here: &crate::domain::paths::types::RepoPath,
+        here: &tastemaker_values::domain::paths::types::RepoPath,
     ) -> Result<FileText, ManifestError>;
 
     /// The root `tastemaker.toml` a scenario without its own is placed by: the whole project, open, depending on the
     /// definition's package, with one entry naming the definition and holding the scenario's keys.
     fn scenario_root(
         &self,
-        root: &crate::domain::scenario_files::types::ScenarioRoot<'_>,
+        root: &tastemaker_values::domain::scenario_files::types::ScenarioRoot<'_>,
     ) -> DefinitionText;
 
     /// The `spec.toml` of the wrapper an owned definition is proved through: one entry placing it by its name with the
     /// scenario's keys, open among the scenario's other files.
     fn scenario_wrapper(
         &self,
-        wrapper: &crate::domain::scenario_files::types::Wrapper<'_>,
+        wrapper: &tastemaker_values::domain::scenario_files::types::Wrapper<'_>,
     ) -> DefinitionText;
 }

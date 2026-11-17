@@ -137,16 +137,16 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
     if scratch.exists() {
         std::fs::remove_dir_all(&scratch).expect("the previous scene removed");
     }
-    // The workspace, the package it is placed by, the fixture package two of its scenarios read, and every lock.
-    for part in [
-        "crates/ryo",
-        "tastemaker",
-        "crates/tastemaker/cli/tests/fixtures/replay",
-    ] {
-        copy(&root().join(part), &scratch.join(part)).expect("a part of the repository copied");
-    }
-    crate::benchmark_fixture::copy_locks(&scratch).expect("every lock of the repository copied");
-    let workspace = scratch.join("crates/ryo");
+    let crates = scratch.join("crates");
+    // Every lock first, so the copied ryo tree keeps its own: a version only another product's lock reads is not unread.
+    crate::locks::copy_locks(&root(), &root(), &scratch).expect("the workspace locks copied");
+    copy(&root().join("crates/ryo"), &crates.join("ryo")).expect("ryo copied");
+    // The role package the proofs of collection-members and program-implementation-boundary name as `foreign`.
+    let roles = "crates/tastemaker/cli/tests/fixtures/replay/roles";
+    copy(&root().join(roles), &scratch.join(roles)).expect("the role package copied");
+    copy(&root().join("tastemaker"), &scratch.join("tastemaker"))
+        .expect("the package tastemaker/ copied");
+    let workspace = crates.join("ryo");
     run(Command::new("git").arg("init").arg("-q"), &scratch);
     let tastemaker = env!("CARGO_BIN_EXE_tm");
     run(
@@ -184,10 +184,7 @@ fn a_fresh_language_compiles_and_lacks_no_part() {
         assert!(body.contains(expected), "{path} lacks {expected}");
     }
 
-    let contract =
-        std::fs::read_to_string(language.join("src/inbound/contracts/parse/contract.rs"))
-            .expect("the generated parse contract");
-    crate::scaffold_contract::assert_contract(&contract);
+    crate::contract::assert_contract(&language);
 
     // The packages the copied workspace's lock names, fetched first: a machine that built only Tastemaker has not downloaded
     // every one of ryo's (`addr2line`, a dependency for another target, among them), and the check itself runs offline.

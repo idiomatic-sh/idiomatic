@@ -43,6 +43,8 @@ fn process_child(bencher: divan::Bencher<'_, '_>) {
 /// Measure the isolated collector boundary using its actual built executable.
 fn timed_child(bencher: divan::Bencher<'_, '_>) {
     use sha2::{Digest as _, Sha256};
+    // Cargo builds the package's binaries for its benches and names each one's path: never a guess from where this
+    // bench's own executable lies, which differs between Cargo's build layouts.
     let executable = std::path::PathBuf::from(env!("CARGO_BIN_EXE_ryo-benchmark-collector"));
     let digest =
         ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(format!(

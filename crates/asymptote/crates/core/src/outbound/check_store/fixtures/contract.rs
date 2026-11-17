@@ -1,9 +1,9 @@
 //! What every `check_store` adapter must pass: what is kept is loaded back, and what is kept again replaces it.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::reports::types::{Moment, Recorded};
 use crate::outbound::check_store::interface::CheckStorePort;
 use crate::outbound::check_store::types::Stored;
+use asymptote_values::domain::reports::types::{Moment, Recorded};
 
 /// How many times the store is kept before it is loaded.
 type Input = u128;

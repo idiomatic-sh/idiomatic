@@ -5,11 +5,11 @@
 // Error locations are contractual; diagnostic wording belongs to each implementation.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::files::types::{FileText, MachinePath, Stamp};
-use crate::domain::paths::types::RepoPath;
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::interface::RepositoryPort;
 use crate::outbound::repository::types::Presence;
+use tastemaker_values::domain::files::types::{FileText, MachinePath, Stamp};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

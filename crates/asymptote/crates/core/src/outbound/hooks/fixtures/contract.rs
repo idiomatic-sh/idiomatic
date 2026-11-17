@@ -2,11 +2,11 @@
 //! and one removed is absent again.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::hooks::types::ScriptText;
-use crate::domain::manifest::types::{HookName, ProductRoot};
 use crate::outbound::hooks::errors::HooksError;
 use crate::outbound::hooks::interface::HooksPort;
 use crate::outbound::hooks::types::Installed;
+use asymptote_values::domain::hooks::types::ScriptText;
+use asymptote_values::domain::manifest::types::{HookName, ProductRoot};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

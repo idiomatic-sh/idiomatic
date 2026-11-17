@@ -5,17 +5,17 @@ use std::collections::BTreeSet;
 
 use super::service::{apply, ignores, read};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::comments::service::{comment, lines};
-use crate::domain::comments::types::{
-    ByteSpan, Comment, CommentKind, CommentText, Documentation, LineIndex,
-};
-use crate::domain::findings::service::{finding, spanning};
-use crate::domain::findings::types::RuleId;
-use crate::domain::findings::types::{ByteOffset, SourceText};
-use crate::domain::findings::types::{Help, Place};
 use crate::domain::ignores::types::Covered;
 use crate::domain::ignores::types::Sifted;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::comments::service::{comment, lines};
+use tastemaker_values::domain::comments::types::{
+    ByteSpan, Comment, CommentKind, CommentText, Documentation, LineIndex,
+};
+use tastemaker_values::domain::findings::service::{finding, spanning};
+use tastemaker_values::domain::findings::types::RuleId;
+use tastemaker_values::domain::findings::types::{ByteOffset, SourceText};
+use tastemaker_values::domain::findings::types::{Help, Place};
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// A file's text, and the line of the one finding of `p/r` in it (0 for the whole file).
 type Input = (&'static str, u32);
@@ -276,7 +276,7 @@ fn subject((text, line): Input) -> Result<Value, Failure> {
         .map_or(Place::Whole, Place::At)
     };
     let found = vec![finding(
-        crate::domain::findings::service::of_rule(RuleId("p/r".into())),
+        tastemaker_values::domain::findings::service::of_rule(RuleId("p/r".into())),
         RepoPath("f.toml".into()),
         place,
         "m".to_owned(),

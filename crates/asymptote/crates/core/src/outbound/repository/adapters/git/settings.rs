@@ -1,8 +1,8 @@
 //! What the git repository adapter is configured with.
 
-use crate::domain::manifest::types::ProductRoot;
 use crate::outbound::repository::errors::RepositoryError;
 use crate::outbound::repository::types::Worktree;
+use asymptote_values::domain::manifest::types::ProductRoot;
 
 /// The git repository adapter's settings: the values and parts its
 /// composition chooses.

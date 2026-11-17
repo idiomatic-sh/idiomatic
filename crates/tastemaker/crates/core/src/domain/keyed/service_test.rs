@@ -3,12 +3,12 @@
 
 use super::service::{compare_data, data_declarations};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::contracts::service::facts;
-use crate::domain::contracts::types::{
+use crate::domain::declarations::service::arguments;
+use tastemaker_values::domain::contracts::service::facts;
+use tastemaker_values::domain::contracts::types::{
     DataRow, DeclarationName, PartText, RowKey, RowNode, RowPlace, Syntax, SyntaxKind, WrittenValue,
 };
-use crate::domain::declarations::service::arguments;
-use crate::domain::definitions::types::Exactness;
+use tastemaker_values::domain::definitions::types::Exactness;
 
 /// What a row asks.
 #[derive(Clone, Copy, Debug)]

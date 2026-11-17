@@ -7,9 +7,9 @@
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Edge {
     /// Where the project is looked for: this directory, then its ancestors.
-    pub start: asymptote_core::domain::manifest::types::ProductRoot,
+    pub start: asymptote_values::domain::manifest::types::ProductRoot,
     /// The directory the command line was started in, before any `--root` replaced `start`.
-    pub here: asymptote_core::domain::manifest::types::ProductRoot,
+    pub here: asymptote_values::domain::manifest::types::ProductRoot,
     /// The directory beneath a project's root where the store is kept.
     pub store: std::path::PathBuf,
     /// The build that runs.

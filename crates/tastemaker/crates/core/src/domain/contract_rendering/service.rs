@@ -6,22 +6,22 @@ use std::hash::BuildHasher as _;
 use rayon::prelude::*;
 
 use super::types::{ContractRequest, Rendered, Requested};
-use crate::domain::contexts::service::context;
-use crate::domain::contexts::types::ContextRequest;
-use crate::domain::contracts::constants::RENDERED;
-use crate::domain::contracts::types::{Contract, RenderedContent, TemplateIdentity};
-use crate::domain::definitions::service::content;
-use crate::domain::definitions::types::{Exactness, LoadedWorkspace};
-use crate::domain::entries::service::{identity, template_release};
-use crate::domain::files::types::FileText;
-use crate::domain::findings::constants::{TEMPLATE, UNKNOWN};
-use crate::domain::findings::service::{check_id, error};
-use crate::domain::findings::types::Finding;
-use crate::domain::imports::constants::WORKSPACE_FILE;
-use crate::domain::packages::types::DefinitionKind;
-use crate::domain::paths::types::RepoPath;
-use crate::domain::placement::types::Placement;
-use crate::domain::scopes::service::composition_of;
+use tastemaker_values::domain::contexts::service::context;
+use tastemaker_values::domain::contexts::types::ContextRequest;
+use tastemaker_values::domain::contracts::constants::RENDERED;
+use tastemaker_values::domain::contracts::types::{Contract, RenderedContent, TemplateIdentity};
+use tastemaker_values::domain::definitions::service::content;
+use tastemaker_values::domain::definitions::types::{Exactness, LoadedWorkspace};
+use tastemaker_values::domain::entries::service::{identity, template_release};
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::findings::constants::{TEMPLATE, UNKNOWN};
+use tastemaker_values::domain::findings::service::{check_id, error};
+use tastemaker_values::domain::findings::types::Finding;
+use tastemaker_values::domain::imports::constants::WORKSPACE_FILE;
+use tastemaker_values::domain::packages::types::DefinitionKind;
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::placement::types::Placement;
+use tastemaker_values::domain::scopes::service::composition_of;
 
 /// The `#template` error of the template `identity` that does not render at `file`.
 fn unrendered(
@@ -58,7 +58,7 @@ fn unplaced(file: &RepoPath) -> Finding {
 pub fn requests(
     workspace: &LoadedWorkspace,
     placement: &Placement,
-    written: &dyn crate::domain::entries::types::ValueWriter,
+    written: &dyn tastemaker_values::domain::entries::types::ValueWriter,
 ) -> Vec<Requested> {
     let placed = placement
         .placed

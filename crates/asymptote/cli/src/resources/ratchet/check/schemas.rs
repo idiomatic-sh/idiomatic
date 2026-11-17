@@ -4,24 +4,24 @@
 //! sorted by path and line, then the summary; JSON of the same fields; or the SARIF log the service wrote. Each
 //! refusal of a conversion is a `<Name>SchemaError`.
 
-use asymptote_core::domain::judgement::constants::ACCEPTED;
+use asymptote_values::domain::judgement::constants::ACCEPTED;
 
 /// The status of a record some of whose violations no longer occur.
-const RESOLVED: &str = asymptote_core::domain::judgement::constants::RESOLVED;
-use asymptote_core::domain::judgement::types::{
-    Failure, Judgement as Judged, StaleReason, Status, Verdict,
-};
-use asymptote_core::domain::manifest::service::{groups, hooked, mapped};
-use asymptote_core::domain::manifest::types::{Group, Groups, HookWord, Layout};
-use asymptote_core::domain::operations::types::Revision;
-use asymptote_core::domain::operations::types::{BenchmarkName, MeasureName, PerfKey};
-use asymptote_core::domain::perf::types::{PerfOutcome, Rewriting};
-use asymptote_core::domain::violations::types::{Justification, Standing, Suppression, ToolId};
+const RESOLVED: &str = asymptote_values::domain::judgement::constants::RESOLVED;
 use asymptote_core::inbound::use_cases::check::errors::CheckError;
 use asymptote_core::inbound::use_cases::check::types::{
     Against, CheckReport, CheckRequest, Fixing, Reuse,
 };
 use asymptote_core::outbound::manifest::types::HookTable;
+use asymptote_values::domain::judgement::types::{
+    Failure, Judgement as Judged, StaleReason, Status, Verdict,
+};
+use asymptote_values::domain::manifest::service::{groups, hooked, mapped};
+use asymptote_values::domain::manifest::types::{Group, Groups, HookWord, Layout};
+use asymptote_values::domain::operations::types::Revision;
+use asymptote_values::domain::operations::types::{BenchmarkName, MeasureName, PerfKey};
+use asymptote_values::domain::perf::types::{PerfOutcome, Rewriting};
+use asymptote_values::domain::violations::types::{Justification, Standing, Suppression, ToolId};
 
 use crate::outcome::Outcome;
 use crate::output::Format;
@@ -288,9 +288,9 @@ pub(super) enum FailureOutputSchema {
     },
 }
 
-impl From<&asymptote_core::domain::reports::types::FailureOutput> for FailureOutputSchema {
-    fn from(output: &asymptote_core::domain::reports::types::FailureOutput) -> Self {
-        use asymptote_core::domain::reports::types::{FailureOutput, Stamped};
+impl From<&asymptote_values::domain::reports::types::FailureOutput> for FailureOutputSchema {
+    fn from(output: &asymptote_values::domain::reports::types::FailureOutput) -> Self {
+        use asymptote_values::domain::reports::types::{FailureOutput, Stamped};
         match output {
             FailureOutput::Unavailable => Self::Unavailable,
             FailureOutput::Captured {

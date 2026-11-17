@@ -26,7 +26,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_perf_tool_with_a_tolerance_is_read"),
         word: Word::Succeeds,
         input: || "[[tools]]\nid = \"bench\"\nrun = [\"bench\"]\ngroup = \"perf\"\noutput = \"bmf\"\ntolerance-percent = { peak-megabytes = 5, store-bytes = 1 }\n",
-        expect: Expect::Value(std::borrow::Cow::Borrowed("bench:Bmf:perf:1:tolerance peak-megabytes=5,store-bytes=1")),
+        expect: Expect::Value(std::borrow::Cow::Borrowed(
+            "bench:Bmf:perf:1:tolerance peak-megabytes=5,store-bytes=1",
+        )),
     },
     Case {
         name: CaseName("a_tolerance_on_a_tool_that_is_not_a_perf_tool_is_refused"),
@@ -45,7 +47,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "[[tools]]\nid = \"b\"\nrun = [\"b\"]\ngroup = \"perf\"\noutput = \"bmf\"\ntolerance-percent = {}\n",
         expect: Expect::Refusal(|actual| {
-            if actual.starts_with("tool `b`: `tolerance-percent` names each measure and its percent") {
+            if actual
+                .starts_with("tool `b`: `tolerance-percent` names each measure and its percent")
+            {
                 crate::cases::Selection::Matches
             } else {
                 crate::cases::Selection::Differs

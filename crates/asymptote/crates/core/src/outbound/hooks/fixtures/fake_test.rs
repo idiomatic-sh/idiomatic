@@ -2,9 +2,9 @@
 
 use super::super::contract::check;
 use super::{HooksFake, Reliability};
-use crate::domain::manifest::types::{HookName, ProductRoot};
 use crate::outbound::hooks::errors::HooksError;
 use crate::outbound::hooks::interface::HooksPort as _;
+use asymptote_values::domain::manifest::types::{HookName, ProductRoot};
 
 #[test]
 fn succeeds() {

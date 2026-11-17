@@ -19,10 +19,14 @@ version_group = "asymptote"
 git_tag_name = "idiomatic-sh-asymptote-v{{ version }}"
 changelog_update = true
 changelog_path = "CHANGELOG.md"
-changelog_include = ["idiomatic-sh-asymptote-core"]
+changelog_include = ["idiomatic-sh-asymptote-core", "idiomatic-sh-asymptote-values"]
 
 [[package]]
 name = "idiomatic-sh-asymptote-core"
+version_group = "asymptote"
+
+[[package]]
+name = "idiomatic-sh-asymptote-values"
 version_group = "asymptote"
 
 # release-plz's own entry with a section per commit type, in this order: the number in each group's comment sorts it and is

@@ -27,7 +27,7 @@ where
 /// languages this build links, the first keeping its cache in the workspace's unless under `-n/--dry-run`, the postcard store of
 /// `build`, blake3, globset and minijinja; and `validate` over the same adapters, wired as `validate` wires it.
 pub(crate) fn build(
-    store: &tastemaker_core::domain::files::types::DirectoryName,
+    store: &tastemaker_values::domain::files::types::DirectoryName,
     connections: &super::connections::WorkspaceCheckConnections,
 ) -> (impl CheckUseCase + use<>, impl ValidateUseCase + use<>) {
     use tastemaker_core::inbound::use_cases::check::use_case::{CheckPorts, CheckUseCaseImpl};

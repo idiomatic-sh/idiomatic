@@ -1,8 +1,8 @@
 //! What the schemas of this output print: a violation of a run and a record of the lock, each as the one row every
 //! command prints, as JSON reads it, and where a row is as a compiler prints it.
 
-use asymptote_core::domain::operations::types::{Count, Day, Provenance, Reason, Record};
-use asymptote_core::domain::violations::types::{
+use asymptote_values::domain::operations::types::{Count, Day, Provenance, Reason, Record};
+use asymptote_values::domain::violations::types::{
     ColumnNumber, Fingerprint, Fingerprinted, Id, Key, Level, LineNumber, MessageText, Place,
     RepoPath, RuleId, Standing, Suppression, ToolId, Violation,
 };

@@ -96,7 +96,12 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
-    let (_, _, check_peak) = measure(command, &project, scratch.path(), &target.join("findings.toml"))?;
+    let (_, _, check_peak) = measure(
+        command,
+        &project,
+        scratch.path(),
+        &target.join("findings.toml"),
+    )?;
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
@@ -266,7 +271,11 @@ fn main() -> ExitCode {
             }
         }
     }
-    if let Err(error) = writeln!(std::io::stdout().lock(), "{}", document(&kept.borrow(), memory)) {
+    if let Err(error) = writeln!(
+        std::io::stdout().lock(),
+        "{}",
+        document(&kept.borrow(), memory)
+    ) {
         failed.push(format!("the document cannot be printed: {error}"));
     }
     if failed.is_empty() {

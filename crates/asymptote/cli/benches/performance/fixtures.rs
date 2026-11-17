@@ -61,13 +61,13 @@ pub(crate) fn repository() -> Result<tempfile::TempDir, Box<dyn std::error::Erro
 
 /// The edge of a command run in `directory`, quietly: `-q`, which prints no answer.
 pub(crate) fn edge(directory: &tempfile::TempDir) -> asymptote_cli::edge::Edge {
-    let root = asymptote_core::domain::manifest::types::ProductRoot(
+    let root = asymptote_values::domain::manifest::types::ProductRoot(
         directory.path().display().to_string().into(),
     );
     asymptote_cli::edge::Edge {
         here: root.clone(),
         start: root,
-        store: std::path::PathBuf::from(asymptote_core::domain::operations::constants::CACHE),
+        store: std::path::PathBuf::from(asymptote_values::domain::operations::constants::CACHE),
         build: asymptote_core::outbound::check_store::types::Build("bench".into()),
         format: asymptote_cli::output::Format::Quiet,
         writing: asymptote_core::domain::ratchet::types::Writing::Write,

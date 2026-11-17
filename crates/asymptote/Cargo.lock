@@ -870,12 +870,13 @@ checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 
 [[package]]
 name = "idiomatic-sh-asymptote"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anstream 1.0.0",
  "clap",
  "cpu-time",
  "idiomatic-sh-asymptote-core",
+ "idiomatic-sh-asymptote-values",
  "ignore",
  "indicatif",
  "mimalloc",
@@ -898,13 +899,14 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-asymptote-core"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "blake3",
  "cargo_metadata",
  "cucumber",
  "globset",
  "idiomatic-sh-asymptote-core",
+ "idiomatic-sh-asymptote-values",
  "jiff",
  "nix",
  "percent-encoding",
@@ -917,6 +919,13 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "idiomatic-sh-asymptote-values"
+version = "0.1.3"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]

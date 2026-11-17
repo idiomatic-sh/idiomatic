@@ -1,6 +1,6 @@
 //! The types of the `packages` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::packages::types::{PackageRoot, PackageSource, SourcePath};
+use tastemaker_values::domain::packages::types::{PackageRoot, PackageSource, SourcePath};
 
 /// A package found: its directory on the machine, and its source as the lock pins it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,19 +29,19 @@ pub struct PackagedFile {
 /// The files of a package the run made and the port holds in memory, each by its path in the package.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct HeldFiles(
-    pub std::collections::BTreeMap<PackageFile, crate::domain::files::types::FileText>,
+    pub std::collections::BTreeMap<PackageFile, tastemaker_values::domain::files::types::FileText>,
 );
 
 /// The versions of a definition a package holds.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Versions(pub Vec<crate::domain::packages::types::VersionText>);
+pub struct Versions(pub Vec<tastemaker_values::domain::packages::types::VersionText>);
 
 /// Files of a package, beneath a directory of it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PackageFiles(pub Vec<PackageFile>);
 
 impl std::ops::Deref for Versions {
-    type Target = [crate::domain::packages::types::VersionText];
+    type Target = [tastemaker_values::domain::packages::types::VersionText];
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -49,8 +49,8 @@ impl std::ops::Deref for Versions {
 }
 
 impl IntoIterator for Versions {
-    type Item = crate::domain::packages::types::VersionText;
-    type IntoIter = std::vec::IntoIter<crate::domain::packages::types::VersionText>;
+    type Item = tastemaker_values::domain::packages::types::VersionText;
+    type IntoIter = std::vec::IntoIter<tastemaker_values::domain::packages::types::VersionText>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -58,8 +58,8 @@ impl IntoIterator for Versions {
 }
 
 impl<'a> IntoIterator for &'a Versions {
-    type Item = &'a crate::domain::packages::types::VersionText;
-    type IntoIter = std::slice::Iter<'a, crate::domain::packages::types::VersionText>;
+    type Item = &'a tastemaker_values::domain::packages::types::VersionText;
+    type IntoIter = std::slice::Iter<'a, tastemaker_values::domain::packages::types::VersionText>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()

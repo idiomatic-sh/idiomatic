@@ -1,11 +1,11 @@
 //! The types of the `up` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::operations::types::PerfRecord;
-use crate::domain::operations::types::{Reason, Record};
 use crate::domain::ratchet::types::{Compaction, Writing};
-use crate::domain::selection::types::Selectors;
-use crate::domain::violations::types::Violation;
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::operations::types::PerfRecord;
+use asymptote_values::domain::operations::types::{Reason, Record};
+use asymptote_values::domain::selection::types::Selectors;
+use asymptote_values::domain::violations::types::Violation;
 
 /// What `up` is asked.
 #[derive(Clone, Debug, PartialEq, Eq)]

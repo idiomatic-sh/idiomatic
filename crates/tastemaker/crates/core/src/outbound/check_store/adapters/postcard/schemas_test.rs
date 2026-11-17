@@ -24,12 +24,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 fn subject(written: Input) -> Value {
-    use crate::domain::findings::types::{Finding, Fingerprint, Help, MessageText, Place, RuleId};
+    use tastemaker_values::domain::findings::types::{
+        Finding, Fingerprint, Help, MessageText, Place, RuleId,
+    };
     let Written::OneRuleTwice = written;
-    let rule = crate::domain::findings::service::of_rule(RuleId("p/a".into()));
+    let rule = tastemaker_values::domain::findings::service::of_rule(RuleId("p/a".into()));
     let answer = Checked {
         findings: vec![Finding {
-            path: crate::domain::paths::types::RepoPath("src/a.rs".into()),
+            path: tastemaker_values::domain::paths::types::RepoPath("src/a.rs".into()),
             place: Place::Whole,
             rule: rule.clone(),
             message: MessageText("a marker".into()),
@@ -39,7 +41,10 @@ fn subject(written: Input) -> Value {
         evaluated: [rule].into(),
         ..Checked::default()
     };
-    let kept = StoreSchema::with(&crate::domain::settings::types::Build("b".into()), &answer);
+    let kept = StoreSchema::with(
+        &tastemaker_values::domain::settings::types::Build("b".into()),
+        &answer,
+    );
     (kept.strings.len(), kept.checked() == Some(answer))
 }
 

@@ -27,7 +27,7 @@ pub(super) const NESTED_HOOKS: &str = "it declares `hooks`, and only the workspa
 /// Why a hook that maps a group no tool declares is refused.
 pub(super) const UNDECLARED: &str = "no tool of the workspace is in the group";
 /// What joins the words of a reason.
-pub(super) const SPACE: &str = crate::domain::hooks::constants::SPACE;
+pub(super) const SPACE: &str = asymptote_values::domain::hooks::constants::SPACE;
 /// What a refusal of two tools of one id starts with, before the id.
 pub(super) const TWICE: &str = "two tools are named `";
 /// What it ends with, after the id.

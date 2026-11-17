@@ -3,8 +3,8 @@
 //! schemas fill it, and add beside it (flattened) only what that command alone says. At a workspace root, `check`,
 //! `up` and `down` print each product's answer the one way: in a `members` list, each line prefixed with its path.
 
-use asymptote_core::domain::operations::types::Record;
-use asymptote_core::domain::violations::types::{Fingerprinted, Level, Place, Violation};
+use asymptote_values::domain::operations::types::Record;
+use asymptote_values::domain::violations::types::{Fingerprinted, Level, Place, Violation};
 
 /// One violation, or one record of the lock, as every command prints it.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
@@ -38,13 +38,15 @@ pub(crate) struct ViolationSchema {
 
 /// The word a level is printed as.
 pub(crate) fn level(level: Level) -> String {
-    asymptote_core::domain::violations::service::word(level)
+    asymptote_values::domain::violations::service::word(level)
         .0
         .to_owned()
 }
 
 /// A fingerprint as it is printed: sixteen hexadecimal digits.
-pub(crate) fn fingerprint(print: asymptote_core::domain::violations::types::Fingerprint) -> String {
+pub(crate) fn fingerprint(
+    print: asymptote_values::domain::violations::types::Fingerprint,
+) -> String {
     format!("{:016x}", print.0)
 }
 

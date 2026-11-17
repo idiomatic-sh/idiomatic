@@ -14,16 +14,16 @@ use super::constants::{
     ACCEPTED, END_COLUMN, END_LINE, FILE_SCHEME, INFORMATION, LINE_HASH, PRODUCT_ROOT, SCHEMA,
     START_COLUMN, START_LINE, VERSION,
 };
-use crate::domain::judgement::types::{Inventory, Judgement, Run as Judged};
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::violations::constants::WHOLE_FILE;
-use crate::domain::violations::service::normalize;
-use crate::domain::violations::types::{
+use crate::outbound::sarif::errors::SarifError;
+use crate::outbound::sarif::types::{Bound, Coordinate, End, Read, Reported, SarifText, Uri};
+use asymptote_values::domain::judgement::types::{Inventory, Judgement, Run as Judged};
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::violations::constants::WHOLE_FILE;
+use asymptote_values::domain::violations::service::normalize;
+use asymptote_values::domain::violations::types::{
     ColumnNumber, Fingerprint, Fingerprinted, Justification, Level, LineNumber, MessageText, Place,
     RepoPath, RuleId, Standing, Suppression, Violation,
 };
-use crate::outbound::sarif::errors::SarifError;
-use crate::outbound::sarif::types::{Bound, Coordinate, End, Read, Reported, SarifText, Uri};
 
 /// A log as the tool wrote it, offered to the conversion.
 pub(super) struct LogSchema(pub Sarif);

@@ -1,7 +1,7 @@
 //! The types of the `carrying` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::applications::types::{Carried, GlobText, HandedRule, ParamSet};
-use crate::domain::packages::types::Release;
+use tastemaker_values::domain::applications::types::{Carried, GlobText, HandedRule, ParamSet};
+use tastemaker_values::domain::packages::types::Release;
 
 /// Whether two applications of a release can reach one file, so one entry's `exclude` could take what another includes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

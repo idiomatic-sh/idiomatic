@@ -1,13 +1,13 @@
 //! The shape of the data this command does not control: its arguments become the service's request, and the service's
 //! report becomes the answer printed. Each refusal of a conversion is a `<Name>SchemaError`.
 
-use tastemaker_core::domain::packages::constants::{TEMPLATE_WORD, TEMPLATES};
-use tastemaker_core::domain::packages::types::DefinitionKind;
 use tastemaker_core::inbound::use_cases::list::types::{
     Kinds, ListReport, ListRequest, ListedKind, SearchTerm,
 };
+use tastemaker_values::domain::packages::constants::{TEMPLATE_WORD, TEMPLATES};
+use tastemaker_values::domain::packages::types::DefinitionKind;
 
-use tastemaker_core::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD};
+use tastemaker_values::domain::topics::constants::{OPERATOR_WORD, RELATION_WORD};
 
 /// Why the arguments were refused.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -123,7 +123,7 @@ pub(super) fn answer(report: ListReport) -> AnswerSchema {
             .map(|listed| ListedSchema {
                 kind: match listed.kind {
                     ListedKind::Definition(kind) => {
-                        tastemaker_core::domain::packages::service::kind_word(kind)
+                        tastemaker_values::domain::packages::service::kind_word(kind)
                             .0
                             .to_owned()
                     }

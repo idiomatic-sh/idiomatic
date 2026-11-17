@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 
 use super::service::{compress, counted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

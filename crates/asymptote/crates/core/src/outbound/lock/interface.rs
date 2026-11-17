@@ -2,9 +2,9 @@
 
 use super::errors::LockError;
 use super::types::{Listing, Operations};
-use crate::domain::manifest::types::Pathspec;
-use crate::domain::operations::types::{Operation, OperationId, OperationText};
-use crate::domain::violations::types::{Id, Key};
+use asymptote_values::domain::manifest::types::Pathspec;
+use asymptote_values::domain::operations::types::{Operation, OperationId, OperationText};
+use asymptote_values::domain::violations::types::{Id, Key};
 
 /// What every `lock` adapter implements, over the lock of the product it is bound to.
 pub trait LockPort: std::fmt::Debug + Send + Sync {

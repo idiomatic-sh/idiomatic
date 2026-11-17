@@ -9,15 +9,15 @@ use super::constants::{LATE_NOTE, NO_RULE};
 use super::types::{
     BadIgnore, Covered, Covering, Ignore, ReadIgnores, Sifted, Suppressed, Usage, Written,
 };
-use crate::domain::comments::constants::MARKER;
-use crate::domain::comments::service::{code_before, holds_code, line_of, shown_line};
-use crate::domain::comments::types::{
+use tastemaker_values::domain::comments::constants::MARKER;
+use tastemaker_values::domain::comments::service::{code_before, holds_code, line_of, shown_line};
+use tastemaker_values::domain::comments::types::{
     ByteSpan, Comment, CommentBody, CommentKind, LineCode, LineIndex, SourceLines,
 };
-use crate::domain::findings::constants::{IGNORE, TASTEMAKER};
-use crate::domain::findings::service::{check_id, error, spanning};
-use crate::domain::findings::types::SourceText;
-use crate::domain::findings::types::{
+use tastemaker_values::domain::findings::constants::{IGNORE, TASTEMAKER};
+use tastemaker_values::domain::findings::service::{check_id, error, spanning};
+use tastemaker_values::domain::findings::types::SourceText;
+use tastemaker_values::domain::findings::types::{
     Finding, MessageText, Place, Reason, Region, RuleId, Suppression,
 };
 
@@ -201,9 +201,9 @@ pub fn apply(
             Place::At(region) => Some(region),
             Place::Line(line) => Some(Region {
                 start_line: line,
-                start_column: crate::domain::findings::types::Column(1),
+                start_column: tastemaker_values::domain::findings::types::Column(1),
                 end_line: line,
-                end_column: crate::domain::findings::types::Column(1),
+                end_column: tastemaker_values::domain::findings::types::Column(1),
             }),
             Place::Whole => None,
         };
@@ -212,7 +212,7 @@ pub fn apply(
         }
         let first = region.map(|region| shown_line(lines, text, region));
         match found.iter_mut().find(|ignore| {
-            finding.rule.check == crate::domain::findings::types::CheckChoice::Rule
+            finding.rule.check == tastemaker_values::domain::findings::types::CheckChoice::Rule
                 && ignore.rule == finding.rule.rule
                 && covers(ignore.reach, first) == Covering::Covers
         }) {
@@ -256,7 +256,7 @@ pub(crate) fn place_of(text: SourceText<'_>, at: ByteSpan) -> Place {
 #[must_use]
 pub fn suppress(
     findings: Vec<Finding>,
-    path: &crate::domain::paths::types::RepoPath,
+    path: &tastemaker_values::domain::paths::types::RepoPath,
     text: SourceText<'_>,
     comments: &[Comment],
     lines: &SourceLines,
@@ -285,9 +285,9 @@ pub fn suppress(
 #[must_use]
 pub fn first_line(
     finding: &Finding,
-    text: Option<crate::domain::files::types::SourceView<'_>>,
+    text: Option<tastemaker_values::domain::files::types::SourceView<'_>>,
     lines: Option<&SourceLines>,
-) -> Option<crate::domain::findings::types::FirstLine> {
+) -> Option<tastemaker_values::domain::findings::types::FirstLine> {
     let Place::At(region) = finding.place else {
         return None;
     };
@@ -302,5 +302,5 @@ pub fn first_line(
         .get(usize::try_from(*start).unwrap_or(usize::MAX)..)?
         .lines()
         .next()
-        .map(|first| crate::domain::findings::types::FirstLine(first.to_owned()))
+        .map(|first| tastemaker_values::domain::findings::types::FirstLine(first.to_owned()))
 }

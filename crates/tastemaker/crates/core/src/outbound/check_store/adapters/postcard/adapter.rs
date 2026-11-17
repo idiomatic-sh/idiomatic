@@ -8,11 +8,11 @@ use std::path::PathBuf;
 use super::constants::ORDINARY_MODE;
 use super::constants::{FILE, GITIGNORE, GITIGNORE_TEXT, TAG, TAG_TEXT};
 use super::schemas::{bytes, checked};
-use crate::domain::settings::types::Store;
-use crate::domain::writing::types::Writing;
 use crate::outbound::check_store::errors::CheckStoreError;
 use crate::outbound::check_store::interface::CheckStorePort;
 use crate::outbound::check_store::types::Checked;
+use tastemaker_values::domain::settings::types::Store;
+use tastemaker_values::domain::writing::types::Writing;
 
 /// A temporary file that, renamed into place, is readable as any file `std::fs::write` makes: its mode is
 /// `ORDINARY_MODE` less the umask, not the private `0o600` a temporary file starts with.

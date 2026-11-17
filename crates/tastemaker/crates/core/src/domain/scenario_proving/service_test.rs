@@ -2,13 +2,13 @@
 
 use super::service::{covered, entry_head, explained, subject_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::definitions::types::Why;
-use crate::domain::entries::types::Description;
-use crate::domain::packages::types::{
+use tastemaker_values::domain::definitions::types::Why;
+use tastemaker_values::domain::entries::types::Description;
+use tastemaker_values::domain::packages::types::{
     DefinitionKind, DefinitionName, Ownership, PackageName, Release, VersionText,
 };
-use crate::domain::proofs::types::{DefinitionLabel, JudgedScenario};
-use crate::domain::scenarios::types::{Expectation, ScenarioId};
+use tastemaker_values::domain::proofs::types::{DefinitionLabel, JudgedScenario};
+use tastemaker_values::domain::scenarios::types::{Expectation, ScenarioId};
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]

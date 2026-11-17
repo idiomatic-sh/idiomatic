@@ -3,15 +3,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::types::{StringBody, TopKind};
-use crate::domain::captures::service::escaped;
-use crate::domain::captures::types::{CaptureName, PlainText};
-use crate::domain::definitions::constants::{ASYMPTOTE_DIRECTORY, ASYMPTOTE_FILE, WORKSPACE_FILE};
-use crate::domain::files::types::FileText;
-use crate::domain::packages::constants::{
+use tastemaker_values::domain::captures::service::escaped;
+use tastemaker_values::domain::captures::types::{CaptureName, PlainText};
+use tastemaker_values::domain::definitions::constants::{
+    ASYMPTOTE_DIRECTORY, ASYMPTOTE_FILE, WORKSPACE_FILE,
+};
+use tastemaker_values::domain::files::types::FileText;
+use tastemaker_values::domain::packages::constants::{
     INIT_CAPTURE, INIT_CAPTURE_FALLBACK, INIT_CAPTURE_JOIN, INIT_DIRECTORY_ENTRY, INIT_ENTRIES,
     INIT_FILE_ENTRY, INIT_PATH, INIT_UNICODE_ESCAPE, INIT_WORKSPACE, INITIAL_FILES,
 };
-use crate::domain::paths::types::{PathText, RepoPath};
+use tastemaker_values::domain::paths::types::{PathText, RepoPath};
 
 /// The closed workspace file `init` writes for a project holding `files`: one `unchecked` entry per path at its top, a
 /// directory's with a capture name of its own, so nothing the project already holds is a `#closed` finding and anything

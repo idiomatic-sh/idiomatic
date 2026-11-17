@@ -1,9 +1,9 @@
 //! The types of the `create` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::files::types::MachinePath;
-use crate::domain::packages::types::{DefinitionKind, DefinitionName};
-use crate::domain::paths::types::RepoPath;
-use crate::domain::writing::types::Writing;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::packages::types::{DefinitionKind, DefinitionName};
+use tastemaker_values::domain::paths::types::RepoPath;
+use tastemaker_values::domain::writing::types::Writing;
 
 /// Which package a definition is created in.
 #[derive(Clone, Debug, PartialEq, Eq)]

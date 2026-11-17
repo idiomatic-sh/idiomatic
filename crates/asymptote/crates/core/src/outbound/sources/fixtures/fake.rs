@@ -4,12 +4,12 @@ use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::domain::reports::types::{
-    Digest, FileDigest, FileDigests, FileStat, FileState, Moment, Size, Stats,
-};
-use crate::domain::violations::types::{Located, RepoPath, SourceText};
 use crate::outbound::sources::errors::SourcesError;
 use crate::outbound::sources::interface::SourcesPort;
+use asymptote_values::domain::reports::types::{
+    Digest, FileDigest, FileDigests, FileStat, FileState, Moment, Size, Stats,
+};
+use asymptote_values::domain::violations::types::{Located, RepoPath, SourceText};
 
 /// What the core's tests stand in for `sources` with.
 #[derive(Debug, Default)]

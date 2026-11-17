@@ -2,26 +2,26 @@
 //! What the schemas of `check` accept and refuse, and the lines its answer prints: the request its arguments become,
 //! the perf lines, and what a workspace prints.
 
-use asymptote_core::domain::judgement::types::{
-    Code, Failure as RunFailure, Inventory, Run, Status, Tail, Verdict,
-};
-use asymptote_core::domain::manifest::types::{Group, ProductRoot};
-use asymptote_core::domain::operations::types::{
-    BenchmarkName, Count, MeasureName, Number, PerfKey, PerfRecord, Reason,
-};
-use asymptote_core::domain::perf::types::{
-    Improvement, PerfOutcome, Regression, Rewriting, Unseeded,
-};
-use asymptote_core::domain::violations::types::ToolId;
 use asymptote_core::inbound::use_cases::check::errors::CheckError;
 use asymptote_core::inbound::use_cases::check::types::{
     Against, CheckReport, CheckRequest, FailedFix, Reuse, ToolRun,
 };
+use asymptote_values::domain::judgement::types::{
+    Code, Failure as RunFailure, Inventory, Run, Status, Tail, Verdict,
+};
+use asymptote_values::domain::manifest::types::{Group, ProductRoot};
+use asymptote_values::domain::operations::types::{
+    BenchmarkName, Count, MeasureName, Number, PerfKey, PerfRecord, Reason,
+};
+use asymptote_values::domain::perf::types::{
+    Improvement, PerfOutcome, Regression, Rewriting, Unseeded,
+};
+use asymptote_values::domain::violations::types::ToolId;
 
 use super::super::command::CheckArguments;
 use super::{PerfSchema, answered};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use asymptote_core::domain::manifest::types::Layout;
+use asymptote_values::domain::manifest::types::Layout;
 
 /// Which question is asked.
 #[derive(Clone, Debug)]
@@ -394,7 +394,7 @@ fn report(verdict: Verdict) -> CheckReport {
     CheckReport {
         root: ProductRoot("/p".into()),
         runs: Vec::new(),
-        outcome: asymptote_core::domain::judgement::types::Judgement::default(),
+        outcome: asymptote_values::domain::judgement::types::Judgement::default(),
         verdict,
         against: Against::Lock,
         perf: PerfOutcome::default(),
@@ -404,9 +404,9 @@ fn report(verdict: Verdict) -> CheckReport {
 
 /// The JSON lists of a run with a new suppressed violation, a resolved record and an unjudged one.
 fn judged() -> Result<String, String> {
-    use asymptote_core::domain::judgement::types::{Resolution, Resolved, Stale, StaleReason};
-    use asymptote_core::domain::operations::types::{Day, Provenance, Record};
-    use asymptote_core::domain::violations::types::{
+    use asymptote_values::domain::judgement::types::{Resolution, Resolved, Stale, StaleReason};
+    use asymptote_values::domain::operations::types::{Day, Provenance, Record};
+    use asymptote_values::domain::violations::types::{
         Fingerprint, Fingerprinted, Id, Justification, Key, Level, LineNumber, MessageText, Place,
         RepoPath, RuleId, Standing, Suppression, Violation,
     };
@@ -466,13 +466,13 @@ fn said(layout: Layout) -> String {
     let mut checked = report(Verdict::Undetermined);
     checked.failed_fixes.push(FailedFix {
         tool: ToolId("lint".into()),
-        failure: asymptote_core::domain::judgement::types::Failure::Exited {
+        failure: asymptote_values::domain::judgement::types::Failure::Exited {
             code: Code(2),
             stderr: Tail("cannot fix".into()),
         },
     });
     checked.runs.push(ToolRun {
-        failure_output: asymptote_core::domain::reports::types::FailureOutput::Unavailable,
+        failure_output: asymptote_values::domain::reports::types::FailureOutput::Unavailable,
         run: Run {
             tool: ToolId("bench".into()),
             status: Status::Failed(RunFailure::Exited {
@@ -505,7 +505,7 @@ fn requested(
     let edge = crate::edge::Edge {
         start: ProductRoot("/repo".into()),
         here: ProductRoot("/repo".into()),
-        store: std::path::PathBuf::from(asymptote_core::domain::operations::constants::CACHE),
+        store: std::path::PathBuf::from(asymptote_values::domain::operations::constants::CACHE),
         build: asymptote_core::outbound::check_store::types::Build("test".into()),
         format: crate::output::Format::Terminal,
         writing,
@@ -522,7 +522,7 @@ fn requested(
 /// Answers the row's question, or says why the schemas refused it.
 /// JSON exposes full streams and the exact process status, including empty observed stderr.
 fn failure_json() -> Result<String, Failure> {
-    use asymptote_core::domain::reports::types::{DiagnosticText, FailureOutput, Stamped};
+    use asymptote_values::domain::reports::types::{DiagnosticText, FailureOutput, Stamped};
     let mut checked = report(Verdict::Undetermined);
     checked.runs.push(ToolRun {
         run: Run {
@@ -601,7 +601,7 @@ fn subject(question: Input) -> Result<Value, Failure> {
             if failed {
                 checked.failed_fixes.push(FailedFix {
                     tool: ToolId("lint".into()),
-                    failure: asymptote_core::domain::judgement::types::Failure::Exited {
+                    failure: asymptote_values::domain::judgement::types::Failure::Exited {
                         code: Code(2),
                         stderr: Tail("cannot fix\nthe second line".into()),
                     },

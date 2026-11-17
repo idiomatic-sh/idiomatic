@@ -3,13 +3,13 @@
 
 use super::service::declarations;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::comments::types::ByteSpan;
-use crate::domain::contracts::service::{compare, facts, shown};
-use crate::domain::contracts::types::{
+use tastemaker_values::domain::comments::types::ByteSpan;
+use tastemaker_values::domain::contracts::service::{compare, facts, shown};
+use tastemaker_values::domain::contracts::types::{
     DataRow, RowKey, RowNode, RowPlace, Syntax, SyntaxKind, WrittenValue,
 };
-use crate::domain::definitions::types::Exactness;
-use crate::domain::findings::types::ByteOffset;
+use tastemaker_values::domain::definitions::types::Exactness;
+use tastemaker_values::domain::findings::types::ByteOffset;
 
 /// What a row asks.
 #[derive(Clone, Copy, Debug)]

@@ -9,16 +9,18 @@ use super::constants::{
     NOT_TEXT, SPACE, TWICE, TWICE_END, UNBOUND, UNBOUND_INPUTS, UNDECLARED,
 };
 use super::schemas::{manifest, written};
-use crate::domain::captures::service::{bind, captured, instance, pieces, substitute, unbound};
-use crate::domain::captures::types::{Captures, Written};
-use crate::domain::inputs::constants::SEPARATOR;
-use crate::domain::manifest::service::{pinned, repeated};
-use crate::domain::manifest::types::{
-    Group, Manifest, Member, Pathspec, Pin, ProductRoot, Satisfaction, Tool, Version,
-};
 use crate::outbound::manifest::errors::ManifestError;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::manifest::types::{HookTable, Products};
+use asymptote_values::domain::captures::service::{
+    bind, captured, instance, pieces, substitute, unbound,
+};
+use asymptote_values::domain::captures::types::{Captures, Written};
+use asymptote_values::domain::inputs::constants::SEPARATOR;
+use asymptote_values::domain::manifest::service::{pinned, repeated};
+use asymptote_values::domain::manifest::types::{
+    Group, Manifest, Member, Pathspec, Pin, ProductRoot, Satisfaction, Tool, Version,
+};
 
 /// The TOML manifest adapter.
 #[derive(Debug)]

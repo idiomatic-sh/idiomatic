@@ -78,8 +78,8 @@ pub fn repository_for(workspace: Workspace, problem: Problem) -> RepositoryFake 
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(
-                crate::domain::paths::types::RepoPath("tastemaker.lock".into()),
-                crate::domain::files::types::FileText(LOCKED.into()),
+                tastemaker_values::domain::paths::types::RepoPath("tastemaker.lock".into()),
+                tastemaker_values::domain::files::types::FileText(LOCKED.into()),
             ),
     );
     if problem == Problem::InRepository {
@@ -89,24 +89,26 @@ pub fn repository_for(workspace: Workspace, problem: Problem) -> RepositoryFake 
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         for (path, text) in PACKAGE_FILES {
             drop(files.insert(
-                crate::domain::paths::types::RepoPath(format!("p/{path}").into()),
-                crate::domain::files::types::FileText((*text).into()),
+                tastemaker_values::domain::paths::types::RepoPath(format!("p/{path}").into()),
+                tastemaker_values::domain::files::types::FileText((*text).into()),
             ));
         }
     }
     if problem == Problem::LockUnreadable {
-        let _: bool = repository
-            .read_failures
-            .insert(crate::domain::paths::types::RepoPath(
-                "tastemaker.lock".into(),
-            ));
+        let _: bool =
+            repository
+                .read_failures
+                .insert(tastemaker_values::domain::paths::types::RepoPath(
+                    "tastemaker.lock".into(),
+                ));
     }
     if problem == Problem::LockWrite {
-        let _: bool = repository
-            .write_failures
-            .insert(crate::domain::paths::types::RepoPath(
-                "tastemaker.lock".into(),
-            ));
+        let _: bool =
+            repository
+                .write_failures
+                .insert(tastemaker_values::domain::paths::types::RepoPath(
+                    "tastemaker.lock".into(),
+                ));
     }
     repository
 }
@@ -116,8 +118,8 @@ pub fn repository_for(workspace: Workspace, problem: Problem) -> RepositoryFake 
 #[must_use]
 pub fn removed(
     after: &std::collections::BTreeMap<
-        crate::domain::paths::types::RepoPath,
-        crate::domain::files::types::FileText,
+        tastemaker_values::domain::paths::types::RepoPath,
+        tastemaker_values::domain::files::types::FileText,
     >,
 ) -> Option<String> {
     let left = after

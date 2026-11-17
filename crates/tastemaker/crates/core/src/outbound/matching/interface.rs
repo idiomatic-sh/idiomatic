@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use crate::domain::selectors::types::{PathSet, PathTest, PatternFailure, Spelling};
+use tastemaker_values::domain::selectors::types::{PathSet, PathTest, PatternFailure, Spelling};
 
 /// What every `matching` adapter implements.
 pub trait MatchingPort: Send + Sync {
@@ -22,6 +22,6 @@ pub trait MatchingPort: Send + Sync {
     /// A failure naming why a glob does not compile.
     fn compile_set(
         &self,
-        globs: &[crate::domain::selectors::types::SetGlob],
+        globs: &[tastemaker_values::domain::selectors::types::SetGlob],
     ) -> Result<Arc<dyn PathSet>, PatternFailure>;
 }

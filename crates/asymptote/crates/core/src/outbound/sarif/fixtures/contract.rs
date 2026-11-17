@@ -1,15 +1,15 @@
 //! What every `sarif` adapter must pass: what it writes, it reads back as the same results, and no output is no log.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::judgement::types::{Inventory, Judgement, Run, Status};
-use crate::domain::manifest::types::ProductRoot;
-use crate::domain::violations::types::{
-    ColumnNumber, Fingerprint, Fingerprinted, Justification, Level, LineNumber, MessageText, Place,
-    RepoPath, RuleId, Suppression, ToolId, Violation,
-};
 use crate::outbound::sarif::errors::SarifError;
 use crate::outbound::sarif::interface::SarifPort;
 use crate::outbound::sarif::types::SarifText;
+use asymptote_values::domain::judgement::types::{Inventory, Judgement, Run, Status};
+use asymptote_values::domain::manifest::types::ProductRoot;
+use asymptote_values::domain::violations::types::{
+    ColumnNumber, Fingerprint, Fingerprinted, Justification, Level, LineNumber, MessageText, Place,
+    RepoPath, RuleId, Suppression, ToolId, Violation,
+};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

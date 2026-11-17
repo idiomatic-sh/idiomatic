@@ -3,14 +3,16 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::captures::types::{CaptureName, CaptureValue, Captures};
-use crate::domain::definitions::types::{Exactness, TemplateFile, TemplateText, Why};
-use crate::domain::entries::types::{
+use tastemaker_values::domain::captures::types::{CaptureName, CaptureValue, Captures};
+use tastemaker_values::domain::definitions::types::{Exactness, TemplateFile, TemplateText, Why};
+use tastemaker_values::domain::entries::types::{
     Alias, Count, Described, Description, EntryHeader, Imports, ParamDeclaration,
     ParamDeclarations, ParamName, ParamSource, ParamType, ParamValues, TemplateEntry,
 };
-use crate::domain::packages::types::{DefinitionName, Ownership, PackageName, VersionText};
-use crate::domain::selectors::types::{PathPattern, Selectors};
+use tastemaker_values::domain::packages::types::{
+    DefinitionName, Ownership, PackageName, VersionText,
+};
+use tastemaker_values::domain::selectors::types::{PathPattern, Selectors};
 
 /// Captures of the pairs given.
 #[must_use]

@@ -15,15 +15,18 @@
 # branch, since a pull request a workflow opens starts no workflow. Each job is a machine, the toolchains (every sample's among
 # them: a sample whose toolchain is missing fails its test), `tools/install.py`, which installs every tool the checks run at the
 # version declared for it, prebuilt, and one `asymptote check` call. The `gate` job waits for every other and fails when one
-# failed or was cancelled; on a pull request the jobs that run on main alone (`check`, `python-release`) are skipped, which passes. `gate` is the one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by
+# failed or was cancelled; on a pull request the jobs that run on main alone (`check`, `python-release`) are skipped, which passes.
+# A draft pull request runs no CI: every job is skipped until it is ready for review. `gate` is the one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by
 # process (no repository rule enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote
 # init` installs, which runs the products' `lint` groups and the root's `repository` group.
 name: check
 on:
-  # `edited` too: an edited title starts a run, so the pull-request job checks the title the pull request now has.
+  # `edited` too: an edited title starts a run, so the pull-request job checks the title the pull request now has. A draft runs
+  # nothing (every job, `gate` among them, is skipped while the pull request is a draft), and `ready_for_review` starts the run
+  # the draft skipped. Never `pull_request_target`, which runs a fork's code with the repository's secrets.
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
   # A merge to main: its run saves the stores every pull request to main restores.
   push:
     branches: [main]
@@ -48,6 +51,7 @@ concurrency:
 jobs:
   # The repository root's own groups, which no product has, so the root's tools alone.
   root:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -129,6 +133,7 @@ jobs:
   # the run. The event is no file of the repository,
   # and no stamp holds it, so this job keeps no asymptote store: it checks the live event every time.
   pull-request:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -186,6 +191,7 @@ jobs:
   # a run on main seeds the Rust cache and the stores a pull request restores.
   check-linux:
     name: check-linux (${{ matrix.product }})
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
       fail-fast: false
       matrix:
@@ -389,7 +395,7 @@ jobs:
   # main-only jobs, on a pull request).
   gate:
     needs: [root, pull-request, check-linux, check, python-release, bench]
-    if: always()
+    if: always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     runs-on: ubuntu-26.04
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
@@ -477,6 +483,7 @@ jobs:
     # every bench tool runs in full on every run. The job's limit is above the bench tools' timeouts, so asymptote reports a
     # timeout before the runner cancels the job.
     name: bench
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     timeout-minutes: 390
     env:

@@ -7,17 +7,17 @@ use std::process::Command;
 
 use super::adapter::HooksGitAdapter;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-#[cfg(unix)]
-use crate::domain::hooks::service::ownership;
-use crate::domain::hooks::service::script as script_of;
-#[cfg(unix)]
-use crate::domain::hooks::types::Ownership;
-use crate::domain::hooks::types::ScriptText;
-use crate::domain::manifest::types::{HookName, ProductRoot};
 use crate::outbound::hooks::errors::HooksError;
 use crate::outbound::hooks::fixtures::contract::check;
 use crate::outbound::hooks::interface::HooksPort as _;
 use crate::outbound::hooks::types::Installed;
+#[cfg(unix)]
+use asymptote_values::domain::hooks::service::ownership;
+use asymptote_values::domain::hooks::service::script as script_of;
+#[cfg(unix)]
+use asymptote_values::domain::hooks::types::Ownership;
+use asymptote_values::domain::hooks::types::ScriptText;
+use asymptote_values::domain::manifest::types::{HookName, ProductRoot};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]

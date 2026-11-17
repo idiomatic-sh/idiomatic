@@ -1,8 +1,8 @@
 //! The types of the `explain` use case: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::explanations::types::Section;
-use crate::domain::files::types::MachinePath;
-use crate::domain::paths::types::RepoPath;
+use tastemaker_values::domain::explanations::types::Section;
+use tastemaker_values::domain::files::types::MachinePath;
+use tastemaker_values::domain::paths::types::RepoPath;
 
 /// What `explain` is asked about: a path on disk, else `<kind>/<name>`, else a topic; nothing for the whole workspace.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -43,5 +43,5 @@ pub struct Opened {
     /// Where the workspace was found.
     pub found: std::sync::Arc<dyn crate::outbound::repository::interface::FoundRepository>,
     /// The workspace, read.
-    pub workspace: crate::domain::definitions::types::LoadedWorkspace,
+    pub workspace: tastemaker_values::domain::definitions::types::LoadedWorkspace,
 }

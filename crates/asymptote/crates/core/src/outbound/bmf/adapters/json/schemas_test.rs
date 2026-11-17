@@ -135,12 +135,15 @@ fn subject(text: Input) -> Result<Value, Failure> {
             read.0
                 .iter()
                 .map(|each| {
-                    let bound = |spread: &crate::domain::perf::types::Spread| match spread {
-                        crate::domain::perf::types::Spread::Given(number) => {
-                            format!("Some({:?})", number.0)
-                        }
-                        crate::domain::perf::types::Spread::Absent => "None".to_owned(),
-                    };
+                    let bound =
+                        |spread: &asymptote_values::domain::perf::types::Spread| match spread {
+                            asymptote_values::domain::perf::types::Spread::Given(number) => {
+                                format!("Some({:?})", number.0)
+                            }
+                            asymptote_values::domain::perf::types::Spread::Absent => {
+                                "None".to_owned()
+                            }
+                        };
                     format!(
                         "{}/{}={}[{},{}]",
                         each.benchmark.0,

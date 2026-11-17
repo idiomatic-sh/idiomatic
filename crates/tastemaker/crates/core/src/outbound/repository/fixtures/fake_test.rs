@@ -7,6 +7,6 @@ use super::RepositoryFake;
 fn succeeds() {
     check(
         &RepositoryFake::of(&[]),
-        &crate::domain::files::types::MachinePath("/fake".into()),
+        &tastemaker_values::domain::files::types::MachinePath("/fake".into()),
     );
 }

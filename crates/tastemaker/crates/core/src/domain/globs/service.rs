@@ -4,10 +4,10 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use super::types::{FileCount, FileCounts, Holder, HolderPath, Within};
-use crate::domain::applications::constants::{EVERYTHING, PATH_SEPARATOR};
-use crate::domain::applications::types::GlobText;
-use crate::domain::paths::service::relative;
-use crate::domain::paths::types::{Relative, RepoPath};
+use tastemaker_values::domain::applications::constants::{EVERYTHING, PATH_SEPARATOR};
+use tastemaker_values::domain::applications::types::GlobText;
+use tastemaker_values::domain::paths::service::relative;
+use tastemaker_values::domain::paths::types::{Relative, RepoPath};
 
 /// `path` as a glob that matches it alone.
 #[must_use]

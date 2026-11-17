@@ -1,18 +1,20 @@
 // ignore: idiomatic.arch/file-length - the check fixture builds one coherent workspace and its injected port set; its package, repository and analysis builders describe the same fixture and splitting them would obscure which ports a case receives.
 //! The test data of the `check` use case: a workspace of one package, held by the fakes of its ports.
 
+pub mod applications;
+
 use std::sync::Arc;
 
 use super::types::{CheckRequest, Fixing};
 use super::use_case::{CheckPorts, CheckUseCaseImpl};
 use crate::cases::Selection;
-use crate::domain::files::types::MachinePath;
 use crate::outbound::analysis::fixtures::fake::AnalysisFake;
 use crate::outbound::check_store::fixtures::fake::CheckStoreFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
 use crate::outbound::packages::fixtures::fake::PackagesFake;
 use crate::outbound::repository::fixtures::fake::RepositoryFake;
 use crate::outbound::validate_store::fixtures::fake::ValidateStoreFake;
+use tastemaker_values::domain::files::types::MachinePath;
 
 /// The package's manifest.
 pub const PACKAGE: &str = "name = \"p\"\n";
@@ -300,10 +302,10 @@ fn scheduled_use_case(
         scheduler: Arc::clone(scheduler),
         reporting: validation_reporting,
         fixtures: Arc::clone(&validation_repository),
-        settings: crate::domain::settings::types::Store {
+        settings: tastemaker_values::domain::settings::types::Store {
             directory: MachinePath("/fake/.tastemaker_cache".into()),
-            build: crate::domain::settings::types::Build("fixtures".into()),
-            writing: crate::domain::writing::types::Writing::Write,
+            build: tastemaker_values::domain::settings::types::Build("fixtures".into()),
+            writing: tastemaker_values::domain::writing::types::Writing::Write,
         },
         repository: validation_repository,
         manifest: Arc::new(crate::outbound::manifest::factory::toml()),
@@ -360,8 +362,8 @@ pub fn repository_of(workspace: Workspace) -> RepositoryFake {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .insert(
-                    crate::domain::paths::types::RepoPath("tastemaker.toml".into()),
-                    crate::domain::files::types::FileText(BROKEN_WORKSPACE.into()),
+                    tastemaker_values::domain::paths::types::RepoPath("tastemaker.toml".into()),
+                    tastemaker_values::domain::files::types::FileText(BROKEN_WORKSPACE.into()),
                 ),
         );
     }
@@ -388,7 +390,7 @@ pub fn request(fixing: Fixing) -> CheckRequest {
         start: MachinePath("/fake".into()),
         within: Vec::new(),
         fixing,
-        writing: crate::domain::writing::types::Writing::Write,
+        writing: tastemaker_values::domain::writing::types::Writing::Write,
     }
 }
 
@@ -402,8 +404,8 @@ pub fn member_workspace(files: &RepositoryFake) -> String {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(
-                crate::domain::paths::types::RepoPath("src/a/tastemaker.toml".into()),
-                crate::domain::files::types::FileText(WORKSPACE.into()),
+                tastemaker_values::domain::paths::types::RepoPath("src/a/tastemaker.toml".into()),
+                tastemaker_values::domain::files::types::FileText(WORKSPACE.into()),
             ),
     );
     WORKSPACE.replace("name = \"w\",", "name = \"w\", members = [\"src/a\"],")
@@ -526,8 +528,8 @@ fn parallel_input() -> (RepositoryFake, AnalysisFake) {
     for index in 0_u16..130 {
         let path = format!("src/generated/errors_{index}.rs");
         drop(sources.insert(
-            crate::domain::paths::types::RepoPath(path.clone().into()),
-            crate::domain::files::types::FileText("extra\r\n".into()),
+            tastemaker_values::domain::paths::types::RepoPath(path.clone().into()),
+            tastemaker_values::domain::files::types::FileText("extra\r\n".into()),
         ));
         rows.push((path.into(), "0..6".into()));
     }
@@ -597,7 +599,7 @@ fn mixed_proofs_agree(
             serial_error,
             Err(super::errors::CheckError::Proof {
                 subject: subject.clone(),
-                reason: crate::domain::proofs::constants::UNPROVEN.into(),
+                reason: tastemaker_values::domain::proofs::constants::UNPROVEN.into(),
             }),
             "a proof no longer held must identify its original version"
         );
@@ -606,4 +608,12 @@ fn mixed_proofs_agree(
             "mixed proof outcomes settle identically"
         );
     }
+}
+
+/// What `finding` is of, as a report prints it: the rule, or `entry#check`.
+#[must_use]
+pub fn printed_rule(
+    finding: &tastemaker_values::domain::findings::types::Finding,
+) -> tastemaker_values::domain::findings::types::RuleText {
+    tastemaker_values::domain::findings::service::printed(&finding.rule)
 }

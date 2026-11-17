@@ -2,10 +2,10 @@
 
 use super::service::{accepting, lowering};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::judgement::types::{Judgement, Resolution, Resolved};
-use crate::domain::operations::types::{Count, Day, Provenance, Reason, Record};
-use crate::domain::renames::types::Carried;
-use crate::domain::violations::types::{
+use asymptote_values::domain::judgement::types::{Judgement, Resolution, Resolved};
+use asymptote_values::domain::operations::types::{Count, Day, Provenance, Reason, Record};
+use asymptote_values::domain::renames::types::Carried;
+use asymptote_values::domain::violations::types::{
     Fingerprint, Fingerprinted, Id, Key, Level, LineNumber, MessageText, Place, RepoPath, RuleId,
     Standing, Suppression, ToolId, Violation,
 };

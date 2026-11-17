@@ -1,6 +1,6 @@
 //! The types of the `digest` port: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::violations::types::Fingerprint;
+use asymptote_values::domain::violations::types::Fingerprint;
 
 /// The fingerprint of each line of a file, the first line first; a file ending in a newline has one more, empty,
 /// line after it, so a whole-file violation anchored at line one always has one.
