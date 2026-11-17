@@ -11,6 +11,8 @@ pub(crate) enum GrowthError {
     Superlinear {
         /// The node that causes the growth.
         node: crate::domain::physical_plan::types::PlanNodeId,
+        /// Its kind.
+        kind: crate::domain::physical_plan::types::node_counters::value::NodeKind,
         /// Its growth.
         growth: crate::domain::growth::types::Growth,
         /// The degree in rows of its output or its work.

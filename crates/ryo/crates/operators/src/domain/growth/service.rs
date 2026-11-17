@@ -1,10 +1,6 @@
 //! The `growth` service: the fan a join's proven keys answer, and the one algebra that composes a plan's declarations into
 //! bounds.
-use super::types::Fan;
-#[cfg(test)]
-use super::types::Growth;
-#[cfg(test)]
-use super::types::{Bound, Degree, NodeBound};
+use super::types::{Bound, Degree, Fan, Growth, NodeBound};
 use ryo_values::domain::plan_parts::types::KeyFan;
 
 /// The fan a join's proven keys answer for each left row: the one mapping a probe and a band join read.
@@ -19,7 +15,6 @@ pub(crate) const fn fan_of(key: KeyFan) -> Fan {
 }
 
 /// `rows^1`: the bound of a relation's rows.
-#[cfg(test)]
 pub(crate) const ROWS: Bound = Bound {
     rows: Degree(1),
     depth: Degree(0),
@@ -27,7 +22,6 @@ pub(crate) const ROWS: Bound = Bound {
 };
 
 /// The larger of two bounds, degree by degree.
-#[cfg(test)]
 fn larger(a: Bound, b: Bound) -> Bound {
     Bound {
         rows: a.rows.max(b.rows),
@@ -37,7 +31,6 @@ fn larger(a: Bound, b: Bound) -> Bound {
 }
 
 /// The product of two bounds: their degrees added.
-#[cfg(test)]
 fn times(a: Bound, b: Bound) -> Bound {
     Bound {
         rows: Degree(a.rows.0.saturating_add(b.rows.0)),
@@ -49,7 +42,6 @@ fn times(a: Bound, b: Bound) -> Bound {
 /// The bound of a node of `growth` over inputs bounded by `inputs`, in the order it reads them; a node that reads no node (a
 /// scan, a lookup) reads the partition's rows. The one algebra: work is the inputs and the output together, the log of a sort not
 /// counted.
-#[cfg(test)]
 pub(crate) fn composed(growth: Growth, inputs: &[Bound]) -> NodeBound {
     let first = inputs.first().copied().unwrap_or(ROWS);
     let second = inputs.get(1).copied().unwrap_or(first);

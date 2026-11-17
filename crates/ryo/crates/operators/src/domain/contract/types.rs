@@ -21,11 +21,25 @@ pub struct SourceByteLength(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RenderRefusal(pub u32);
 
+/// The node of a plan a plan check refused, by its number in the plan.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::contract::types::RefusedNode;
+/// assert_eq!(RefusedNode(2).0, 2);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RefusedNode(pub u32);
+
 /// One portable semantic fault vocabulary for every borrowed operator call.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PortableOperatorFault {
     /// An input the engine withheld: it answers the fault with its own reason, found by the token.
     Withheld(WithheldInput),
+    /// The plan's growth check refused a node whose rows grow faster than the rows of every input it reads, as a product of
+    /// the rows of one file with themselves, which the query did not declare with `all-pairs join`.
+    Superlinear(RefusedNode),
     /// The engine stopped candidate acquisition or downstream delivery.
     Interrupted,
     /// The declared input column is absent.

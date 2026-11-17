@@ -43,6 +43,9 @@ pub fn portable_fault(
             OperatingError::NotRun
         }
         PortableOperatorFault::WrongTest => OperatingError::WrongTest,
+        PortableOperatorFault::Superlinear(refused) => {
+            OperatingError::Superlinear { node: refused.0 }
+        }
         PortableOperatorFault::Pattern(
             ryo_matching::inbound::use_cases::matching::errors::MatchingError::InvalidRegex {
                 reason,

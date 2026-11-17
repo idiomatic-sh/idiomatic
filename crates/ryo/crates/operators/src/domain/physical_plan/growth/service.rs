@@ -51,6 +51,7 @@ pub(crate) fn checked(nodes: &[PhysicalNode]) -> Result<Vec<NodeBound>, GrowthEr
         if live && !declared && degree > Degree(1) && degree > widest {
             return Err(GrowthError::Superlinear {
                 node: id,
+                kind: node.lowering.kind(),
                 growth,
                 degree,
             });

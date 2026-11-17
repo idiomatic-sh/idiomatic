@@ -88,13 +88,11 @@ pub enum Fan {
 }
 
 /// A degree of a size variable in a bound: `rows^2` has the rows degree 2.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct Degree(pub(crate) u8);
 
 /// A bound as a monomial `rows^a · depth^b · repeats^c`: the rows of the partition, the depth of a walk, and how often a shared
 /// key repeats.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub(crate) struct Bound {
     /// The degree in rows.
@@ -106,7 +104,6 @@ pub(crate) struct Bound {
 }
 
 /// What a node writes, and the work it does to write it, each as a bound.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub(crate) struct NodeBound {
     /// The rows it writes.

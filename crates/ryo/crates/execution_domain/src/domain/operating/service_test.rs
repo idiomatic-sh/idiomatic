@@ -1,12 +1,13 @@
 //! Comparison-family classification and project text identity are pure operating contracts.
 use super::{errors::OperatingError, service::minted, types::AfterTheFiles};
-use crate::domain::operating::service::derived_fault;
+use crate::domain::operating::service::{derived_fault, portable_fault};
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_language::domain::symbols::{
     service::{hash_in, intern_derived, place_of},
     types::{ByteSlice, Symbols},
 };
 use ryo_operators::domain::comparing::{service::family_of, types::Family};
+use ryo_operators::domain::contract::types::{PortableOperatorFault, RefusedNode};
 use ryo_relations::domain::{
     relations::types::{CROSS_FILE, Origin, Value as Cell},
     terms::types::NameText,
@@ -25,6 +26,8 @@ enum Ask {
     Mint(&'static str, AfterTheFiles),
     /// The refusal a derived fault becomes.
     Fault(DerivedFault),
+    /// The refusal the plan's growth check becomes, for the node numbered.
+    Superlinear(u32),
 }
 
 /// What a minted cell is.
@@ -87,6 +90,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Ask::Fault(DerivedFault::DuplicateDfsOrder),
         expect: Expect::Error(OperatingError::DuplicateDfsOrder),
     },
+    Case {
+        name: CaseName("a_node_the_growth_check_refused_is_refused_naming_it"),
+        word: Word::Refuses,
+        input: || Ask::Superlinear(2),
+        expect: Expect::Error(OperatingError::Superlinear { node: 2 }),
+    },
 ];
 fn minted_of(text: &'static str, after: AfterTheFiles) -> Minted {
     use ryo_operators::domain::table_texts::types::{Datum, TextView, Texts};
@@ -125,6 +134,9 @@ fn minted_of(text: &'static str, after: AfterTheFiles) -> Minted {
 fn subject(ask: Input) -> Result<Value, Failure> {
     match ask {
         Ask::Fault(fault) => Err(derived_fault(fault)),
+        Ask::Superlinear(node) => Err(portable_fault(PortableOperatorFault::Superlinear(
+            RefusedNode(node),
+        ))),
         Ask::Family(test) => Ok(Answer::Family(family_of(test))),
         Ask::Mint(text, after) => Ok(Answer::Minted(minted_of(text, after))),
     }
