@@ -332,7 +332,7 @@ def problems(workflow: dict) -> list[str]:
             if not CHECK.fullmatch(run) and not captured_check(run):
                 found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
         else:
-            steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP]
+            steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP and step != DRAFT_REFUSAL]
             runs = [re.sub(r"\$\{\{.*?\}\}", "value", step["run"].strip()) for step in steps]
             runs = [each for each in runs if each not in SETUP]
             if seeds(job) and all(SEED.fullmatch(each) for each in runs):
@@ -533,38 +533,62 @@ def test_a_pull_request_to_main_starts_only_the_check() -> None:
 
 
 def draft_problems(name: str, workflow: dict) -> list[str]:
-    """The jobs of a workflow a pull request starts that run while the pull request is a draft: each job's condition is `READY`,
-    `READY` and a further condition, `NOT_ON_A_PULL_REQUEST` (a job no pull request runs), or, for a job that waits for the
-    others whatever they did, `always()` and `READY`."""
+    """What lets a workflow a pull request starts check a draft, or pass one: a job but the verdict that runs while the pull
+    request is a draft (each one's condition is `READY`, `READY` and a further condition, or `NOT_ON_A_PULL_REQUEST`, a job no pull
+    request runs), and a verdict that a draft skips, which GitHub counts as passing, or that runs on a draft without first
+    failing it (`DRAFT_REFUSAL`)."""
     if "pull_request" not in triggers(workflow):
         return []
-    skipping = {READY, NOT_ON_A_PULL_REQUEST, GATE_CONDITION}
-    return [
-        f"{name} runs {job_name} on a draft pull request"
-        for job_name, job in workflow["jobs"].items()
-        if job.get("if") not in skipping and not str(job.get("if", "")).startswith(f"({READY}) && ")
-    ]
+    skipping = {READY, NOT_ON_A_PULL_REQUEST}
+    found = []
+    for job_name, job in workflow["jobs"].items():
+        condition = job.get("if")
+        if job_name == VERDICT:
+            if condition != GATE_CONDITION:
+                found.append(f"{name} skips {job_name} on a draft pull request, which GitHub counts as a pass")
+            elif job.get("steps", [None])[0] != DRAFT_REFUSAL:
+                found.append(f"{name} runs {job_name} on a draft pull request without failing it first")
+        elif condition not in skipping and not str(condition or "").startswith(f"({READY}) && "):
+            found.append(f"{name} runs {job_name} on a draft pull request")
+    return found
 
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
-def test_every_job_a_pull_request_starts_skips_a_draft(path: Path) -> None:
-    """A draft pull request runs no CI: every job of a workflow a pull request starts, `gate` among them, is skipped."""
+def test_every_job_a_pull_request_starts_skips_a_draft_and_the_gate_fails_it(path: Path) -> None:
+    """A draft pull request runs no check: every job of a workflow a pull request starts is skipped but `gate`, which runs and
+    fails, so a draft never shows a passing gate."""
     assert draft_problems(path.name, yaml.safe_load(read(path))) == []
 
 
 def test_a_job_a_pull_request_starts_that_does_not_skip_a_draft_is_refused() -> None:
-    """A draft pull request runs no CI: a job without `READY`, or whose condition `READY` does not bound, runs on a draft."""
+    """A draft pull request runs no check: a job without `READY`, or whose condition `READY` does not bound, runs on a draft."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     assert draft_problems("check.yml", workflow) == []
     unguarded = deepcopy(workflow)
     unguarded["jobs"]["check-linux"].pop("if")
     widened = deepcopy(workflow)
     widened["jobs"]["bench"]["if"] = f"{READY} && inputs.product == 'ryo'"
-    always = deepcopy(workflow)
-    always["jobs"]["gate"]["if"] = "always()"
     assert draft_problems("check.yml", unguarded) == ["check.yml runs check-linux on a draft pull request"]
     assert draft_problems("check.yml", widened) == ["check.yml runs bench on a draft pull request"]
-    assert draft_problems("check.yml", always) == ["check.yml runs gate on a draft pull request"]
+
+
+def test_a_gate_a_draft_skips_or_passes_is_refused() -> None:
+    """GitHub counts a skipped required check as passing, so the gate runs on a draft and fails it first: the shape #49 merged on,
+    a gate that a draft skips, is refused, and so is a gate that runs on a draft without its refusal."""
+    workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
+    assert workflow["jobs"][VERDICT]["steps"][0] == DRAFT_REFUSAL
+    skipped = deepcopy(workflow)
+    skipped["jobs"][VERDICT]["if"] = f"always() && ({READY})"
+    skipped["jobs"][VERDICT]["steps"].pop(0)
+    assert draft_problems("check.yml", skipped) == ["check.yml skips gate on a draft pull request, which GitHub counts as a pass"]
+    assert "gate must wait for ['root', 'pull-request', 'check-linux', 'check', 'python-release', 'bench'], whatever their results, a draft's too" in gate_problems(skipped)
+    unrefused = deepcopy(workflow)
+    unrefused["jobs"][VERDICT]["steps"].pop(0)
+    assert draft_problems("check.yml", unrefused) == ["check.yml runs gate on a draft pull request without failing it first"]
+    # The refusal fails only a draft, so a pull request that is ready for review reaches the verdict.
+    loosened = deepcopy(workflow)
+    loosened["jobs"][VERDICT]["steps"][0]["if"] = "github.event_name == 'pull_request'"
+    assert draft_problems("check.yml", loosened) == ["check.yml runs gate on a draft pull request without failing it first"]
     # A workflow no pull request starts has no draft to skip.
     assert draft_problems("release.yml", yaml.safe_load(read(DIRECTORY / "release.yml"))) == []
 
@@ -799,8 +823,22 @@ CONDITIONS = {
     "check": NOT_ON_A_PULL_REQUEST,
     "python-release": NOT_ON_A_PULL_REQUEST,
 }
-GATE_CONDITION = f"always() && ({READY})"
-ALLOWED_SKIPS = "${{ github.event_name == 'pull_request' && 'check,python-release' || '' }}"
+# The verdict runs on every event, a draft pull request's too: GitHub counts a skipped required check as passing.
+VERDICT = "gate"
+GATE_CONDITION = "always()"
+# Its first step fails a draft, which runs no check, with a message that says so; nothing else runs it.
+DRAFT_REFUSAL = {
+    "name": "A draft pull request has no verdict",
+    "if": "github.event_name == 'pull_request' && github.event.pull_request.draft",
+    "run": 'echo "::error title=Draft pull request::A draft pull request runs no check, so it has no verdict: mark it ready for review,'
+    ' which runs the checks."\nexit 1\n',
+}
+# A job may be skipped only where its own condition skips it: on a pull request, the ones that run on main alone.
+ALLOWED_SKIPS = (
+    "${{ github.event_name == 'pull_request' && '"
+    + ",".join(name for name, condition in CONDITIONS.items() if condition == NOT_ON_A_PULL_REQUEST)
+    + "' || '' }}"
+)
 
 
 def gate_problems(workflow: dict) -> list[str]:
@@ -821,9 +859,9 @@ def gate_problems(workflow: dict) -> list[str]:
         found.append("a merge to main must never cancel the run seeding the stores")
     gate = jobs.get("gate", {})
     if gate.get("if") != GATE_CONDITION or needs(gate) != GATED:
-        found.append(f"gate must wait for {GATED}, whatever their results")
+        found.append(f"gate must wait for {GATED}, whatever their results, a draft's too")
     steps = gate.get("steps", [{}])
-    if len(steps) != 1 or steps[0].get("with") != {"jobs": "${{ toJSON(needs) }}", "allowed-skips": ALLOWED_SKIPS}:
+    if len(steps) != 2 or steps[0] != DRAFT_REFUSAL or steps[1].get("with") != {"jobs": "${{ toJSON(needs) }}", "allowed-skips": ALLOWED_SKIPS}:
         found.append("gate may let only the jobs that run on main alone skip, and only where they do not run")
     return found
 
@@ -832,7 +870,7 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
     """A pull request to main and a push to main check every product, and a hand run the one product it names: each one's whole
     check fan-out, the rows release.yml checks a hand run with but the root row, which the `root` job runs. Asymptote's stores,
     not a paths filter, decide what runs. One `gate` job fails when a job failed or was cancelled and passes when each succeeded,
-    or was skipped when only the main-only jobs were, on a pull request."""
+    or was skipped when only the main-only jobs were, on a pull request; it fails a draft, which runs nothing else."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     on = workflow["on" if "on" in workflow else True]
     assert set(on) == {"pull_request", "push", "workflow_dispatch"}
@@ -919,8 +957,8 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
             for index, step in enumerate(each["steps"])
             if "uses" in step and not step["uses"].startswith(UPLOAD) and index not in stored | saved_tools
         ] == [step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step]
-    (deciding,) = jobs["gate"]["steps"]
-    assert deciding["uses"].startswith("re-actors/")
+    (refusing, deciding) = jobs["gate"]["steps"]
+    assert refusing == DRAFT_REFUSAL and deciding["uses"].startswith("re-actors/")
 
 
 @pytest.mark.parametrize(
@@ -942,7 +980,7 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
         ),
         pytest.param(lambda workflow: workflow["jobs"]["gate"]["needs"].remove("bench"), id="gate-drops-bench"),
         pytest.param(
-            lambda workflow: workflow["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "bench"}),
+            lambda workflow: workflow["jobs"]["gate"]["steps"][1]["with"].update({"allowed-skips": "bench"}),
             id="bench-skippable",
         ),
     ],
@@ -1009,7 +1047,7 @@ def test_python_release_guard_cannot_be_orphaned_by_product_selection() -> None:
 def bench_required(workflow: dict) -> bool:
     """The gate waits for bench and never lets it skip."""
     gate = workflow["jobs"]["gate"]
-    return "bench" in needs(gate) and "bench" not in re.split(r"[\s,']+", gate["steps"][0]["with"]["allowed-skips"])
+    return "bench" in needs(gate) and "bench" not in re.split(r"[\s,']+", gate["steps"][-1]["with"]["allowed-skips"])
 
 
 def test_bench_is_required_by_the_gate() -> None:
@@ -1018,7 +1056,7 @@ def test_bench_is_required_by_the_gate() -> None:
     dropped = deepcopy(workflow)
     dropped["jobs"]["gate"]["needs"].remove("bench")
     skippable = deepcopy(workflow)
-    skippable["jobs"]["gate"]["steps"][0]["with"]["allowed-skips"] += ", bench"
+    skippable["jobs"]["gate"]["steps"][-1]["with"]["allowed-skips"] += ", bench"
     assert not bench_required(dropped) and not bench_required(skippable)
 
 
