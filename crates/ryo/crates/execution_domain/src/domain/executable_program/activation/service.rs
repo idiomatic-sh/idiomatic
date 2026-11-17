@@ -153,23 +153,9 @@ fn input_state(
     })
 }
 
-/// Whether the inputs `mask` names can have rows, each in operand order: an input the mask names past the node's inputs is
-/// read as having them.
-fn masked_rows<'s>(
-    states: &'s [NodeState],
-    mask: InputMask,
-) -> impl Iterator<Item = TriggerPresence> + 's {
-    (0..8_usize)
-        .filter(move |place| mask.0 & (1 << place) != 0)
-        .map(|place| match states.get(place) {
-            Some(state) => state.rows,
-            // An input the operation names and the node does not read cannot be shown empty.
-            None => TriggerPresence::Present,
-        })
-}
-
-/// An operation's state from its inputs': its rows as its presence mask declares, and a row error when an input carries one
-/// or a fallible input can have rows.
+/// An operation's state from its inputs', in one pass with no allocation: its rows as its presence mask declares, and a row
+/// error when an input carries one or a fallible input can have rows. An input a mask names past the node's inputs cannot be
+/// shown empty, so it is read as having rows.
 fn composed(
     rows: PresenceMask,
     fallible: InputMask,
@@ -177,30 +163,36 @@ fn composed(
     triggers: &Triggers,
     earlier: &[NodeState],
 ) -> Result<NodeState, OperatingError> {
-    let states = from
-        .iter()
-        .map(|source| input_state(*source, triggers, earlier))
-        .collect::<Result<Vec<NodeState>, OperatingError>>()?;
-    let present = |held: TriggerPresence| held == TriggerPresence::Present;
+    let mut with_rows = u8::MAX
+        .checked_shl(u32::try_from(from.len()).unwrap_or(u32::MAX))
+        .unwrap_or(0);
+    let mut carried = TriggerPresence::Absent;
+    for (place, source) in from.iter().enumerate() {
+        let state = input_state(*source, triggers, earlier)?;
+        if state.rows == TriggerPresence::Present
+            && let Some(bit) = 1_u8.checked_shl(u32::try_from(place).unwrap_or(u32::MAX))
+        {
+            with_rows |= bit;
+        }
+        if state.faults == TriggerPresence::Present {
+            carried = TriggerPresence::Present;
+        }
+    }
     let has_rows = match rows {
-        PresenceMask::AllOf(mask) => masked_rows(&states, mask).all(present),
-        PresenceMask::AnyOf(mask) => masked_rows(&states, mask).any(present),
+        PresenceMask::AllOf(mask) => mask.0 & !with_rows == 0,
+        PresenceMask::AnyOf(mask) => mask.0 & with_rows != 0,
         PresenceMask::Always => true,
     };
-    let carried = states
-        .iter()
-        .any(|state| state.faults == TriggerPresence::Present);
-    let raised = masked_rows(&states, fallible).any(present);
     Ok(NodeState {
         rows: if has_rows {
             TriggerPresence::Present
         } else {
             TriggerPresence::Absent
         },
-        faults: if carried || raised {
+        faults: if fallible.0 & with_rows != 0 {
             TriggerPresence::Present
         } else {
-            TriggerPresence::Absent
+            carried
         },
     })
 }

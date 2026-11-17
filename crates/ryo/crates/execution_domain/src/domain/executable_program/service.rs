@@ -8,8 +8,7 @@ use crate::domain::executable_program::types::executable_program::value::Executa
 use crate::domain::executable_program::types::logical_build::value::LogicalBuild;
 use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::executable_program::types::{
-    Consumers, Draft, DraftInputs, DraftedColumns, RootKind, RuleInput, RuleNodes, RuleScopes,
-    StepAt,
+    Consumers, Draft, DraftInputs, DraftedColumns, RuleInput, RuleNodes, RuleScopes, StepAt,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::service::schema_of;
@@ -274,23 +273,6 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
 #[must_use]
 pub fn roots<'a>(program: &'a ExecutableProgram, kind: &LiteralText) -> &'a [PlanNodeId] {
     program.roots.get(kind).map_or(&[], Vec::as_slice)
-}
-
-/// Each kind text the plans write for a root kind, with the nodes that start from the tree nodes of that kind; in no order.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::service::{assemble, logical, root_kinds};
-/// use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-/// let program = assemble(logical(&[], &mut ProgramInputs::default()).unwrap(), Default::default());
-/// assert_eq!(root_kinds(&program).count(), 0);
-/// ```
-pub fn root_kinds(program: &ExecutableProgram) -> impl Iterator<Item = RootKind<'_>> {
-    program
-        .roots
-        .iter()
-        .map(|(kind, nodes)| RootKind { kind, nodes })
 }
 
 /// The nodes of `rule`.
