@@ -235,15 +235,11 @@ fn presence(kind: OperationKind) -> PresenceMask {
     }
 }
 
-/// Which inputs' rows can make a prepared operation fail, read by the program's activation: every fault its kernel can
-/// raise that its schema does not check first. Replace can fail on any row of its input: its literal pattern is compiled at
-/// its first use, at a row, and one refused by its syntax or the size limit fails there, whatever its text column holds. Rank
-/// reads its sets parameter at its first row, where a binding of another shape fails. An anti-join's right keys are not
-/// checked by its schema: a key past the right rows fails where either side's rows are indexed. A join's view is not checked
-/// either: a view column past its rows fails at its rows. An axis checks its edge and domain columns and its direction (an
-/// indexed walk has no deep or sibling direction) at its first start row. A per-file SourceMatches over a span column, with
-/// no base line and no row error, fails only on its span or its pattern: it declares `UnlessLocated`, which activation reads
-/// as failing on its first input. `conformance_faults` holds each declaration to the faults its kernel raises.
+/// Which inputs' rows can make a prepared operation fail on their values, read by the program's activation. Replace can
+/// fail on any row of its input: its literal pattern is compiled at its first use, at a row, and one refused by its syntax
+/// or the size limit fails there, whatever its text column holds. A per-file SourceMatches over a span column, with no base
+/// line and no row error, fails only on its span or its pattern: it declares `UnlessLocated`, which activation reads as
+/// failing on its first input.
 pub(crate) fn failure(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
@@ -255,8 +251,7 @@ pub(crate) fn failure(
     let per_file = scope == ryo_values::domain::plan_parts::types::StepScope::PerFile;
     let kinds = inputs.first().map_or(&[][..], |input| input.kinds);
     match operation {
-        Operation::Replace { .. } | Operation::Rank { .. } => RowFailure::OnRows(InputMask(1)),
-        Operation::Antijoin { .. } => RowFailure::OnRows(InputMask(3)),
+        Operation::Replace { .. } => RowFailure::OnRows(InputMask(1)),
         Operation::SourceMatches {
             span,
             base_line: None,
@@ -277,26 +272,19 @@ pub(crate) fn failure(
         }
         // Any root, edge or lattice row can name a state the lattice does not hold.
         Operation::Worklist { .. } => RowFailure::OnRows(InputMask(7)),
-        Operation::Select { comparisons, .. } => {
-            on_rows(comparison_failure(comparisons, InputMask(1)))
-        }
-        Operation::Join { filter, view, .. } => {
-            let viewed = if view.is_empty() { 0 } else { 3 };
-            on_rows(InputMask(
-                comparison_failure(filter, InputMask(2)).0 | viewed,
-            ))
-        }
-        Operation::Axis { domain_filter, .. } => on_rows(InputMask(
-            comparison_failure(domain_filter, InputMask(4)).0 | 1,
-        )),
+        Operation::Select { comparisons, .. } => comparison_failure(comparisons, InputMask(1)),
+        Operation::Join { filter, .. } => comparison_failure(filter, InputMask(2)),
+        Operation::Axis { domain_filter, .. } => comparison_failure(domain_filter, InputMask(4)),
         Operation::Project { .. }
         | Operation::Extend { .. }
+        | Operation::Antijoin { .. }
         | Operation::Difference { .. }
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::GroupCount { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
+        | Operation::Rank { .. }
         | Operation::Words { .. }
         | Operation::Closure { .. }
         | Operation::Cycles { .. }
@@ -310,20 +298,15 @@ pub(crate) fn failure(
 fn comparison_failure(
     comparisons: &[ryo_values::domain::plan_parts::types::PlanComparison],
     input: InputMask,
-) -> InputMask {
+) -> RowFailure {
     use ryo_values::domain::plan_parts::types::Test;
     let fallible = comparisons
         .iter()
         .any(|comparison| comparison.test == Test::Matches);
-    if fallible { input } else { InputMask(0) }
-}
-
-/// A failure on the rows of the inputs `mask` names, or none when it names none.
-const fn on_rows(mask: InputMask) -> RowFailure {
-    if mask.0 == 0 {
-        RowFailure::Never
+    if fallible {
+        RowFailure::OnRows(input)
     } else {
-        RowFailure::OnRows(mask)
+        RowFailure::Never
     }
 }
 

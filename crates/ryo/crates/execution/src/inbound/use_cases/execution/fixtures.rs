@@ -57,17 +57,6 @@ pub struct TableFacts {
     kept: Box<dyn ryo_execution_runtime::outbound::facts::interface::FactsWorker>,
     /// Whether keeping words is refused, as a store that fails refuses it.
     refuses_keep: bool,
-    /// What a second read of a relation's rows in the file answers.
-    second_read: SecondRead,
-}
-
-/// What a facts worker answers to a second read of one relation's rows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum SecondRead {
-    /// The rows, as the first read.
-    Answered,
-    /// A store failure: the worker reads each relation once.
-    Refused,
 }
 
 impl std::fmt::Debug for TableFacts {
@@ -77,7 +66,6 @@ impl std::fmt::Debug for TableFacts {
             .field("held", &self.held)
             .field("history", &self.history)
             .field("refuses_keep", &self.refuses_keep)
-            .field("second_read", &self.second_read)
             .finish_non_exhaustive()
     }
 }
@@ -140,7 +128,6 @@ impl TableFacts {
                 .open_worker()
                 .expect("the facts fake opens a worker"),
             refuses_keep: false,
-            second_read: SecondRead::Answered,
         }
     }
 
@@ -157,31 +144,6 @@ impl TableFacts {
     pub fn refusing_keep(self) -> Self {
         Self {
             refuses_keep: true,
-            ..self
-        }
-    }
-
-    /// The same facts, whose store fails a second read of a relation's rows: a run that reads each relation once answers as
-    /// it does over `new`'s facts, and one that reads a relation again meets the failure.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
-    /// use ryo_execution::inbound::use_cases::execution::interface::FactsWorker;
-    /// use ryo_relations::domain::relations::types::Relation;
-    /// let table = ryo_values::domain::rows::types::Table {
-    ///     kinds: ryo_relations::domain::relations::fixtures::kinds(Relation::Function).to_vec(),
-    ///     ..Default::default()
-    /// };
-    /// let facts = TableFacts::new(&[(Relation::Function, &table)]).reading_once();
-    /// assert!(facts.rows(Relation::Function).is_ok());
-    /// assert!(facts.rows(Relation::Function).is_err());
-    /// ```
-    #[must_use]
-    pub fn reading_once(self) -> Self {
-        Self {
-            second_read: SecondRead::Refused,
             ..self
         }
     }
@@ -238,21 +200,14 @@ impl ryo_execution_runtime::outbound::facts::interface::FactsWorker for TableFac
         ryo_relations::domain::relations::types::ColumnsView<'_>,
         ryo_execution_runtime::outbound::facts::errors::FactsError,
     > {
-        let mut history = self.history.lock().map_err(|_| {
-            ryo_execution_runtime::outbound::facts::errors::FactsError::Store {
-                reason: "the reads were poisoned".into(),
-            }
-        })?;
-        let again = history.contains(&relation);
-        history.push(relation);
-        drop(history);
-        if again && self.second_read == SecondRead::Refused {
-            return Err(
-                ryo_execution_runtime::outbound::facts::errors::FactsError::Store {
-                    reason: format!("{relation:?} was read again"),
+        self.history
+            .lock()
+            .map_err(
+                |_| ryo_execution_runtime::outbound::facts::errors::FactsError::Store {
+                    reason: "the reads were poisoned".into(),
                 },
-            );
-        }
+            )?
+            .push(relation);
         self.held
             .iter()
             .find(|(each, _)| *each == relation)

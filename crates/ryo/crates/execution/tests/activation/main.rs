@@ -3,7 +3,7 @@
 mod fixtures;
 use fixtures::file::measure;
 use fixtures::gated::{Operators, file_rules, warm_cost};
-use fixtures::plans::{self, Given};
+use fixtures::plans;
 use fixtures::project::measure_project;
 use fixtures::subscriber::{Access, Sample, Window, project_cost_matches, same_cost};
 use ryo_execution::inbound::use_cases::execution::interface::{
@@ -27,7 +27,7 @@ enum Input {
     /// A rule whose root kind the file lacks, with a step after its root, against the root alone.
     RootAbsent,
     /// A program run with the composed operators and with every node active.
-    Gated(fn() -> PrepareRequest, fn() -> Given),
+    Gated(fn() -> PrepareRequest),
 }
 /// What a case compared, in counters (exact) and allocation relations (allocation sizes are the allocator's).
 #[derive(Debug, PartialEq, Eq)]
@@ -52,7 +52,7 @@ enum Answer {
     /// Whether the small whole run allocated, and whether the one beside dormant rules allocated exactly as much.
     RunSame { allocates: bool, same: bool },
     /// Whether the gated and the all-active run's rules and file end are the same, written out, and what the gated run's
-    /// rules came to with the relations it read, which are the ungated engine's reads.
+    /// rules came to.
     Gated {
         same: bool,
         rules: Cow<'static, str>,
@@ -79,12 +79,12 @@ fn subject(input: Input) -> Result<Value, OperatingError> {
                 same: alone.blocks == joined.blocks,
             }
         }
-        Input::Gated(program, given) => {
-            let (gated, reads) = file_rules(program(), Operators::Gated, &given());
-            let (all, _) = file_rules(program(), Operators::AllActive, &given());
+        Input::Gated(program) => {
+            let gated = file_rules(program(), Operators::Gated);
+            let all = file_rules(program(), Operators::AllActive);
             Answer::Gated {
                 same: format!("{gated:?}") == format!("{all:?}"),
-                rules: Cow::Owned(format!("{}; reads {reads:?}", came_to(&gated))),
+                rules: Cow::Owned(came_to(&gated)),
             }
         }
         Input::RunSelector | Input::RunEmpty => {
@@ -239,119 +239,42 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
     Case {
         name: CaseName("gated_and_all_active_runs_answer_the_same_antijoin_of_an_absent_kind"),
         word: Word::Succeeds,
-        input: || Input::Gated(plans::antijoin_of_an_absent_kind, plans::no_facts),
-        expect: Expect::Value((windows(&[]), gated("rule 0 complete 1; finished; reads []"))),
+        input: || Input::Gated(plans::antijoin_of_an_absent_kind),
+        expect: Expect::Value((windows(&[]), gated("rule 0 complete 1; finished"))),
     },
     Case {
         name: CaseName("gated_and_all_active_runs_answer_the_same_union_with_an_absent_kind"),
         word: Word::Succeeds,
-        input: || Input::Gated(plans::union_with_an_absent_kind, plans::no_facts),
-        expect: Expect::Value((windows(&[]), gated("rule 0 complete 1; finished; reads []"))),
+        input: || Input::Gated(plans::union_with_an_absent_kind),
+        expect: Expect::Value((windows(&[]), gated("rule 0 complete 1; finished"))),
     },
     Case {
         name: CaseName("gated_and_all_active_runs_answer_the_same_shared_stage_one_branch_absent"),
         word: Word::Succeeds,
-        input: || Input::Gated(plans::shared_stage_one_branch_absent, plans::no_facts),
+        input: || Input::Gated(plans::shared_stage_one_branch_absent),
         expect: Expect::Value((
             windows(&[]),
-            gated("rule 0 complete 2; rule 1 complete 0; finished; reads []"),
+            gated("rule 0 complete 2; rule 1 complete 0; finished"),
         )),
     },
     Case {
         name: CaseName("gated_and_all_active_runs_answer_the_same_refused_literal_pattern"),
         word: Word::Succeeds,
-        input: || {
-            Input::Gated(
-                plans::refused_literal_pattern_joined_with_an_absent_kind,
-                plans::no_facts,
-            )
-        },
+        input: || Input::Gated(plans::refused_literal_pattern_joined_with_an_absent_kind),
         expect: Expect::Value((
             windows(&[]),
             gated(
-                "rule 0 failed InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" }; unfinished; reads []",
+                "rule 0 failed InvalidRegex { reason: \"regex parse error:\\n    [\\n    ^\\nerror: unclosed character class\" }; unfinished",
             ),
         )),
     },
     Case {
         name: CaseName("gated_and_all_active_runs_answer_the_same_observer_of_a_dormant_producer"),
         word: Word::Succeeds,
-        input: || Input::Gated(plans::observer_of_two_producers_one_absent, plans::no_facts),
+        input: || Input::Gated(plans::observer_of_two_producers_one_absent),
         expect: Expect::Value((
             windows(&[]),
-            gated("rule 0 complete 2; rule 1 complete 0; rule 2 complete 2; finished; reads []"),
-        )),
-    },
-    Case {
-        name: CaseName(
-            "gated_and_all_active_runs_answer_the_same_functions_joined_with_an_absent_kind",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            Input::Gated(
-                plans::functions_joined_with_an_absent_kind,
-                plans::two_functions,
-            )
-        },
-        expect: Expect::Value((
-            windows(&[]),
-            gated("rule 0 complete 0; finished; reads [Function]"),
-        )),
-    },
-    Case {
-        name: CaseName(
-            "gated_and_all_active_runs_answer_the_same_no_function_joined_with_an_absent_kind",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            Input::Gated(
-                plans::functions_joined_with_an_absent_kind,
-                plans::no_function,
-            )
-        },
-        expect: Expect::Value((
-            windows(&[]),
-            gated("rule 0 complete 0; finished; reads [Function]"),
-        )),
-    },
-    Case {
-        name: CaseName(
-            "gated_and_all_active_runs_answer_the_same_refused_functions_read_by_a_dormant_join",
-        ),
-        word: Word::Succeeds,
-        input: || Input::Gated(plans::absent_kind_joined_with_functions, plans::no_facts),
-        expect: Expect::Value((
-            windows(&[]),
-            gated("rule 0 withheld; unfinished; reads [Function]"),
-        )),
-    },
-    Case {
-        name: CaseName(
-            "gated_and_all_active_runs_answer_the_same_functions_read_in_part_by_a_dormant_join",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            Input::Gated(
-                plans::absent_kind_joined_with_functions,
-                plans::no_function_read_in_part,
-            )
-        },
-        expect: Expect::Value((
-            windows(&[]),
-            gated(
-                "rule 0 Partial { table: Table { kinds: [Node], cells: [], count: RowCount(0) }, affected: [Some(FileId(0))] }; finished; reads [Function]",
-            ),
-        )),
-    },
-    Case {
-        name: CaseName(
-            "gated_and_all_active_runs_answer_the_same_functions_read_by_two_readers_once",
-        ),
-        word: Word::Succeeds,
-        input: || Input::Gated(plans::functions_read_twice, plans::two_functions),
-        expect: Expect::Value((
-            windows(&[]),
-            gated("rule 0 complete 2; rule 1 complete 2; finished; reads [Function]"),
+            gated("rule 0 complete 2; rule 1 complete 0; rule 2 complete 2; finished"),
         )),
     },
 ];

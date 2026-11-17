@@ -1,6 +1,5 @@
 //! One file run through the public seam over a program, by the operators as the engine composes them or with every node
 //! active (`all_active`): what the file's rules came to, and what a warm run allocated.
-use super::plans::Given;
 use super::subscriber::RunCost;
 use ryo_execution::inbound::use_cases::execution::fixtures::TableFacts;
 use ryo_execution::inbound::use_cases::execution::interface::{
@@ -18,9 +17,7 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::kind_index::fixtures::index_kinds;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_relations::domain::relations::types::{
-    FileId, KindBits, Offset, Relation, Words, WorkerNumber,
-};
+use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Words, WorkerNumber};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds, SourceView,
@@ -60,14 +57,8 @@ fn tree() -> (Elements, Symbols) {
 }
 
 /// The file run `times` times through the program of `request` by `operators`, every rule's diagnostic collected and its named
-/// outputs demanded, over `given`'s facts, read once each, and partial reads: what its rules came to and what its last run
-/// allocated.
-fn ran(
-    request: PrepareRequest,
-    operators: Operators,
-    given: &Given,
-    times: usize,
-) -> (FileRules, RunCost, Vec<Relation>) {
+/// outputs demanded, over facts that hold no relation: what its rules came to and what its last run allocated.
+fn ran(request: PrepareRequest, operators: Operators, times: usize) -> (FileRules, RunCost) {
     let engine = match operators {
         Operators::Gated => PrepareUseCaseImpl::new(Arc::new(
             ryo_execution::inbound::use_cases::execution::fixtures::operators(),
@@ -101,19 +92,7 @@ fn ran(
     let mut answered = None;
     for _ in 0..times {
         let (elements, mut symbols) = tree();
-        // Each relation is read once in the file: a second read fails.
-        let mut facts = TableFacts::new(
-            &given
-                .facts
-                .iter()
-                .map(|(relation, table)| (*relation, table))
-                .collect::<Vec<_>>(),
-        )
-        .reading_once();
-        let (said, answering) = ryo_execution::inbound::use_cases::execution::fixtures::partiality(
-            &given.partials,
-            &given.partials,
-        );
+        let mut facts = TableFacts::new(&[]);
         let (mut arena, mut places, mut words) = (Vec::new(), Vec::new(), Words::default());
         let before = dhat::HeapStats::get();
         let rules = execution.run_file(
@@ -125,9 +104,9 @@ fn ran(
                 sources: ryo_execution_runtime::outbound::facts::types::fact_sources::value::FactSources::unread(&elements, &mut [])
                     .expect("a file with no further source"),
                 active: &[],
-                said: &said,
+                said: &[],
                 recovery: ryo_execution::inbound::use_cases::metadata::interface::Recovery::Whole,
-                answering,
+                answering: Partiality::Physical,
                 semantic: SemanticSupport::Absent,
                 kinds: KindSupport::Absent,
                 first: &first,
@@ -148,26 +127,19 @@ fn ran(
                 blocks: after.total_blocks - before.total_blocks,
                 bytes: after.total_bytes - before.total_bytes,
             },
-            facts.history(),
         ));
     }
     execution.finish();
     answered.expect("the file ran at least once")
 }
 
-/// What the file's rules came to through the program of `request` by `operators`, over `given`.
-/// The relations whose rows the file read, one entry for each read, in order, follow the rules.
-pub(crate) fn file_rules(
-    request: PrepareRequest,
-    operators: Operators,
-    given: &Given,
-) -> (FileRules, Vec<Relation>) {
-    let (rules, _, reads) = ran(request, operators, given, 1);
-    (rules, reads)
+/// What the file's rules came to through the program of `request` by `operators`.
+pub(crate) fn file_rules(request: PrepareRequest, operators: Operators) -> FileRules {
+    ran(request, operators, 1).0
 }
 
 /// What the second of two runs of the file allocated through the program of `request` by the composed operators: the first
 /// warms the worker's buffers and the allocator's own metadata.
 pub(crate) fn warm_cost(request: PrepareRequest) -> RunCost {
-    ran(request, Operators::Gated, &Given::default(), 2).1
+    ran(request, Operators::Gated, 2).1
 }

@@ -99,7 +99,7 @@ pub(crate) fn run_rules(
     );
     // What the file holds of the program's triggers, and so which nodes can have a row or a row error in it.
     let mut triggers = std::mem::take(&mut scratch.triggers);
-    let read_at_open = fill(
+    let refused_at_open = fill(
         &mut triggers,
         &pass.program,
         &scratch.roots,
@@ -129,7 +129,7 @@ pub(crate) fn run_rules(
             hosted: Vec::new(),
             activities: &states,
             program: &pass.program,
-            read_at_open,
+            refused_at_open,
         },
         buffers: std::mem::take(&mut scratch.buffers),
         file,

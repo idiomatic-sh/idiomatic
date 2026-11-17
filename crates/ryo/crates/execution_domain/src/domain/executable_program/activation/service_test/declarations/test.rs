@@ -91,7 +91,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_antijoin_declares_its_contract"),
         word: Word::Succeeds,
         input: || OperationKind::Antijoin,
-        expect: Expect::Value(Cow::Borrowed("AllOf(InputMask(1)) fallible 3")),
+        expect: Expect::Value(Cow::Borrowed("AllOf(InputMask(1)) fallible 0")),
     },
     Case {
         name: CaseName("a_group_count_declares_its_contract"),
@@ -115,7 +115,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_rank_declares_its_contract"),
         word: Word::Succeeds,
         input: || OperationKind::Rank,
-        expect: Expect::Value(Cow::Borrowed("AllOf(InputMask(1)) fallible 1")),
+        expect: Expect::Value(Cow::Borrowed("AllOf(InputMask(1)) fallible 0")),
     },
     Case {
         name: CaseName("a_replace_declares_its_contract"),
@@ -139,7 +139,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_axis_declares_its_contract"),
         word: Word::Succeeds,
         input: || OperationKind::Axis,
-        expect: Expect::Value(Cow::Borrowed("AllOf(InputMask(1)) fallible 1")),
+        expect: Expect::Value(Cow::Borrowed("AllOf(InputMask(1)) fallible 0")),
     },
     Case {
         name: CaseName("a_closure_declares_its_contract"),
