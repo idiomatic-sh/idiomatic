@@ -3,6 +3,7 @@
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
 use crate::domain::operation_schema::types::{InputShape, OriginSide};
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, JoinColumn, Side},
     plans::types::Operation,
@@ -149,7 +150,7 @@ pub(crate) fn output_origins<T: Copy>(
         }
         Operation::SpanBounds { .. } => answer.extend([None, None]),
         Operation::Antijoin { .. } | Operation::Difference { .. } => {}
-        Operation::BandJoin { output, view, .. } => {
+        Operation::BandJoin(BandJoin { output, view, .. }) => {
             let view = right_view(view, inputs.get(1).and_then(|right| right.tree), None);
             answer = output
                 .iter()

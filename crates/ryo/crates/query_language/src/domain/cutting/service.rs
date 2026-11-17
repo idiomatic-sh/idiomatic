@@ -2,10 +2,10 @@
 
 use crate::domain::inlining::service::columns_read;
 use crate::domain::inlining::service::projection_column;
-use crate::domain::inlining::service::reading_through;
 use crate::domain::inlining::types::StepReading;
 use crate::domain::narrowing::service::{narrow_lookups, narrow_lookups_roots};
 use crate::domain::regrouping::service::{regroup_joins, regroup_joins_roots};
+use crate::domain::rerouting::service::reading_through;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::widths::service::width_of;
 use ryo_relations::domain::catalog::service::scope_of;
@@ -199,7 +199,7 @@ fn repeats_read(operation: &Operation) -> RepeatedRows {
         | Operation::Select { .. }
         | Operation::Extend { .. }
         | Operation::Join { .. }
-        | Operation::BandJoin { .. }
+        | Operation::BandJoin(_)
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }

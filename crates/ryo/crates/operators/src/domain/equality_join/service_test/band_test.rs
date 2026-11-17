@@ -1,11 +1,10 @@
 //! A band join is lowered in the plan's columns, its right columns read through its view, and answers the fan its answer and
 //! keys say.
-use super::service::{fan, lower};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::equality_join::service::{band_fan, banded};
 use crate::domain::growth::types::Fan;
-use ryo_values::domain::plan_parts::types::{
-    BandAnswer, BandEdge, BandTest, ColumnIndex, JoinColumn, KeyFan, Side,
-};
+use ryo_values::domain::band_joins::types::{BandAnswer, BandEdge, BandTest};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, KeyFan, Side};
 
 /// What a case lowers: the band, the answer, the view and the keys' fan.
 type Input = (Vec<BandEdge>, BandAnswer, Vec<ColumnIndex>, KeyFan);
@@ -83,7 +82,7 @@ fn subject((band, answer, view, keys): Input) -> Result<Value, Failure> {
         side: Side::Left,
         column: ColumnIndex(0),
     }];
-    let parts = lower(
+    let parts = banded(
         [&[ColumnIndex(0)], &[ColumnIndex(0)]],
         &band,
         answer,
@@ -93,7 +92,7 @@ fn subject((band, answer, view, keys): Input) -> Result<Value, Failure> {
     )
     .ok_or(Unlowered)?;
     let right = parts.band.first().map(|edge| edge.right).ok_or(Unlowered)?;
-    Ok((right, fan(&parts)))
+    Ok((right, band_fan(&parts)))
 }
 
 #[test]

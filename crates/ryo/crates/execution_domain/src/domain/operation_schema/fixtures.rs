@@ -344,7 +344,7 @@ pub fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> Vec<Tab
             ],
         }],
         Operation::Join { .. }
-        | Operation::BandJoin { .. }
+        | Operation::BandJoin(_)
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }

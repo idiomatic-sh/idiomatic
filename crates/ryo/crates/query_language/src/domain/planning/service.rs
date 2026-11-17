@@ -4,6 +4,7 @@
 use ryo_relations::domain::catalog::service::scope_of as relation_scope;
 use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::lineage::service::anchor_of;
 use ryo_values::domain::lineage::types::ColumnAnchor;
 
@@ -129,9 +130,9 @@ pub(crate) fn placed(
         | plans::Operation::Join {
             left_on, right_on, ..
         }
-        | plans::Operation::BandJoin {
+        | plans::Operation::BandJoin(BandJoin {
             left_on, right_on, ..
-        }
+        })
         | plans::Operation::Antijoin {
             left_on, right_on, ..
         } => {

@@ -5,6 +5,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::presence::{
     types::InputMask, types::PresenceMask, types::RowFailure,
 };
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// The input `operation` builds into an index of keys before it reads a row, if any: the set an intersection, a difference or
@@ -281,7 +282,7 @@ fn failure(
         // Any root, edge or lattice row can name a state the lattice does not hold.
         Operation::Worklist { .. } => RowFailure::OnRows(InputMask(7)),
         Operation::Select { comparisons, .. } => comparison_failure(comparisons, InputMask(1)),
-        Operation::Join { filter, .. } | Operation::BandJoin { filter, .. } => {
+        Operation::Join { filter, .. } | Operation::BandJoin(BandJoin { filter, .. }) => {
             comparison_failure(filter, InputMask(2))
         }
         Operation::Axis { domain_filter, .. } => comparison_failure(domain_filter, InputMask(4)),
@@ -351,7 +352,7 @@ pub(crate) fn prepare_for(
         | Operation::Project { .. }
         | Operation::Extend { .. }
         | Operation::Join { .. }
-        | Operation::BandJoin { .. }
+        | Operation::BandJoin(_)
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -400,7 +401,7 @@ pub(crate) fn prepare_for(
     };
     let (comparisons, predicate_input) = match operation {
         Operation::Select { comparisons, .. } => (comparisons.as_slice(), 0),
-        Operation::Join { filter, .. } | Operation::BandJoin { filter, .. } => {
+        Operation::Join { filter, .. } | Operation::BandJoin(BandJoin { filter, .. }) => {
             (filter.as_slice(), 1)
         }
         Operation::Axis { domain_filter, .. } => (domain_filter.as_slice(), 2),

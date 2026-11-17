@@ -1,8 +1,9 @@
 //! The `inlining` service: free functions named by verb over the views of a relation read in place, and the rows handed over cut to the columns asked.
 
+use crate::domain::rerouting::service::reading_through;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::plan_parts::service::each_column;
-use ryo_values::domain::plan_parts::service::each_column_mut;
 use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
@@ -13,7 +14,6 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use std::cell::Cell;
 
 /// The columns a join or an axis names of its input on `side`.
 fn side_columns(output: &[JoinColumn], side: Side) -> impl Iterator<Item = ColumnIndex> + '_ {
@@ -21,17 +21,6 @@ fn side_columns(output: &[JoinColumn], side: Side) -> impl Iterator<Item = Colum
         .iter()
         .filter(move |each| each.side == side)
         .map(|each| each.column)
-}
-
-/// The columns a join or an axis names of its input on `side`, to be renamed.
-fn side_columns_mut(
-    output: &mut [JoinColumn],
-    side: Side,
-) -> impl Iterator<Item = &mut ColumnIndex> + '_ {
-    output
-        .iter_mut()
-        .filter(move |each| each.side == side)
-        .map(|each| &mut each.column)
 }
 
 /// The columns the comparisons read, those the arguments of a function read among them.
@@ -42,17 +31,6 @@ fn compared_columns(comparisons: &[PlanComparison]) -> impl Iterator<Item = Colu
         each_column(&comparison.right, &mut |column| read.push(column));
     }
     read.into_iter()
-}
-
-/// Renames each column the comparisons read with `place`, those the arguments of a function read among them.
-fn rename_compared<F>(comparisons: &mut [PlanComparison], mut place: F)
-where
-    F: FnMut(&mut ColumnIndex),
-{
-    for comparison in comparisons {
-        each_column_mut(&mut comparison.left, &mut place);
-        each_column_mut(&mut comparison.right, &mut place);
-    }
 }
 
 /// Columns demanded from one of a join's inputs, retaining side and output order.
@@ -112,7 +90,7 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
                 *left, *right, left_on, right_on, output, read,
             )?);
         }
-        Operation::BandJoin {
+        Operation::BandJoin(BandJoin {
             left,
             right,
             left_on,
@@ -122,7 +100,7 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
             filter,
             view,
             ..
-        } => {
+        }) => {
             if is(right) && (!filter.is_empty() || !view.is_empty()) {
                 return None;
             }
@@ -220,148 +198,6 @@ pub(crate) fn columns_read(operation: &Operation, read: Input) -> Option<Vec<Col
     used.sort();
     used.dedup();
     Some(used)
-}
-
-/// The operation reading the step `read` now reading `through` instead, each column it names there named by `map`; nothing when
-/// `map` has no column for one of them, and then the operation may be left part renamed: a caller that can be refused renames a copy.
-pub(crate) fn reading_through(
-    operation: &mut Operation,
-    read: Input,
-    through: Input,
-    map: &dyn Fn(ColumnIndex) -> Option<ColumnIndex>,
-) -> Option<()> {
-    let unmapped = Cell::new(false);
-    let place = |column: &mut ColumnIndex| match map(*column) {
-        Some(mapped) => *column = mapped,
-        None => unmapped.set(true),
-    };
-    let is = |input: &Input| *input == read;
-    match operation {
-        Operation::Select {
-            from,
-            comparisons,
-            kept,
-        } if is(from) => {
-            *from = through;
-            kept.iter_mut().for_each(place);
-            rename_compared(comparisons, place);
-        }
-        Operation::Project { from, columns, .. } if is(from) => {
-            *from = through;
-            columns.iter_mut().for_each(place);
-        }
-        Operation::Join {
-            left,
-            right,
-            left_on,
-            right_on,
-            output,
-            ..
-        } => {
-            if is(left) {
-                *left = through;
-                left_on.iter_mut().for_each(place);
-                side_columns_mut(output, Side::Left).for_each(place);
-            }
-            if is(right) {
-                *right = through;
-                right_on.iter_mut().for_each(place);
-                side_columns_mut(output, Side::Right).for_each(place);
-            }
-        }
-        Operation::BandJoin {
-            left,
-            right,
-            left_on,
-            right_on,
-            band,
-            output,
-            ..
-        } => {
-            if is(left) {
-                *left = through;
-                left_on.iter_mut().for_each(place);
-                band.iter_mut().for_each(|edge| place(&mut edge.left));
-                side_columns_mut(output, Side::Left).for_each(place);
-            }
-            if is(right) {
-                *right = through;
-                right_on.iter_mut().for_each(place);
-                band.iter_mut().for_each(|edge| place(&mut edge.right));
-                side_columns_mut(output, Side::Right).for_each(place);
-            }
-        }
-        Operation::Antijoin {
-            right, right_on, ..
-        } if is(right) => {
-            *right = through;
-            right_on.iter_mut().for_each(place);
-        }
-        Operation::GroupCount {
-            from,
-            keys,
-            distinct,
-        } if is(from) => {
-            *from = through;
-            keys.iter_mut().for_each(place);
-            distinct.iter_mut().for_each(place);
-        }
-        Operation::Axis {
-            from,
-            edges,
-            domain,
-            id,
-            parent,
-            child,
-            domain_id,
-            domain_filter,
-            output,
-            ..
-        } => {
-            if is(from) {
-                *from = through;
-                place(id);
-                side_columns_mut(output, Side::Left).for_each(place);
-            }
-            if is(edges) {
-                *edges = through;
-                place(parent);
-                place(child);
-            }
-            if is(domain) {
-                *domain = through;
-                place(domain_id);
-                rename_compared(domain_filter, place);
-                side_columns_mut(output, Side::Right).for_each(place);
-            }
-        }
-        Operation::Select { .. }
-        | Operation::Project { .. }
-        | Operation::Extend { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. }
-        | Operation::Replace { .. }
-        | Operation::SpanBounds { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Worklist { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Words { .. }
-        | Operation::Rank { .. }
-        | Operation::Closure { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. } => {}
-    }
-    (!unmapped.get()).then_some(())
 }
 
 /// The steps with each filter-free view of a relation that only reorders its columns read in place by the per-file steps

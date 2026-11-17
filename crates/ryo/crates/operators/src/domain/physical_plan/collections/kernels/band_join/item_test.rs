@@ -10,9 +10,8 @@ use crate::domain::physical_plan::types::{InputRows, PlanNodeId, RowSource};
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
-use ryo_values::domain::plan_parts::types::{
-    BandAnswer, BandEdge, BandTest, ColumnIndex, JoinColumn, KeyFan, Side,
-};
+use ryo_values::domain::band_joins::types::{BandAnswer, BandEdge, BandTest};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, KeyFan, Side};
 use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// What a case gives the part.
@@ -223,7 +222,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         },
     ];
     let key = [ColumnIndex(0)];
-    let parts = crate::domain::band_join::service::lower(
+    let parts = crate::domain::equality_join::service::banded(
         [&key, &key],
         band,
         answer,
@@ -286,7 +285,7 @@ impl Witnesses for BandJoinNode {
         ]
         .into_iter()
         .filter_map(|(answer, fan)| {
-            crate::domain::band_join::service::lower(
+            crate::domain::equality_join::service::banded(
                 [&[columns.key], &[columns.key]],
                 &band,
                 answer,

@@ -11,6 +11,7 @@ use crate::domain::physical_plan::types::{PlanInput, ProbeIndex, RowMap, RowSour
 use crate::domain::set_rows::types::{SetKind, SetLowering};
 use crate::domain::worklist::types::WorklistShape;
 use crate::domain::{aggregate, closure, cycles, ordered_dfs, worklist};
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -106,7 +107,7 @@ pub(crate) fn lowered(
             })
         }),
         // A band join reads its right rows unfiltered: one whose right rows a filter keeps first makes no node.
-        Operation::BandJoin {
+        Operation::BandJoin(BandJoin {
             left_on,
             right_on,
             band,
@@ -116,9 +117,9 @@ pub(crate) fn lowered(
             view,
             fan,
             ..
-        } => both()
+        }) => both()
             .filter(|_| filter.is_empty())
-            .zip(crate::domain::band_join::service::lower(
+            .zip(crate::domain::equality_join::service::banded(
                 [left_on, right_on],
                 band,
                 *answer,

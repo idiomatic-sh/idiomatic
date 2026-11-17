@@ -235,7 +235,7 @@ pub(crate) struct BandJoinNode {
     /// The right rows.
     pub(crate) right: RowSource,
     /// The keys, the band, the answer and the output.
-    pub(crate) band: crate::domain::band_join::types::BandParts,
+    pub(crate) band: crate::domain::equality_join::types::BandParts,
 }
 
 /// What a bound scan reads: the host's rows of a declared relation, or the tables a `list<table>` parameter is bound to.

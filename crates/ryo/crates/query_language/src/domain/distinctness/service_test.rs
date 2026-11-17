@@ -27,6 +27,10 @@ enum Scenario {
     /// The functions' ids and names after their names were split into words, a projection that keeps its repeated rows, asked of
     /// both columns.
     TheWordsOfOneFunctionKeptRepeated,
+    /// The parser target of each file, asked of its file: the provider writes one row per file.
+    TheTargetOfEachFile,
+    /// The module identity of each file, asked of its file: the provider writes one row per file at most.
+    TheModuleOfEachFile,
 }
 
 /// Whether the step is distinct on the columns.
@@ -73,6 +77,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::TheWordsOfOneFunctionKeptRepeated,
         expect: Expect::Value(Uniqueness::Shared),
+    },
+    Case {
+        name: CaseName("a_select_of_the_parser_target_is_distinct_on_its_file"),
+        word: Word::Succeeds,
+        input: || Scenario::TheTargetOfEachFile,
+        expect: Expect::Value(Uniqueness::Unique),
+    },
+    Case {
+        name: CaseName("a_select_of_the_module_identity_is_distinct_on_its_file"),
+        word: Word::Succeeds,
+        input: || Scenario::TheModuleOfEachFile,
+        expect: Expect::Value(Uniqueness::Unique),
     },
 ];
 
@@ -127,6 +143,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             columns: vec![ColumnIndex(0), ColumnIndex(1)],
             distinct: RepeatedRows::Kept,
         }),
+        // Column 0 of each is its file.
+        step(Operation::Select {
+            from: Reads::Relation(Relation::LanguageTarget),
+            comparisons: Vec::new(),
+            kept: Vec::new(),
+        }),
+        step(Operation::Select {
+            from: Reads::Relation(Relation::ModuleIdentity),
+            comparisons: Vec::new(),
+            kept: Vec::new(),
+        }),
     ];
     let (at, columns): (u32, &[u32]) = match scenario {
         Scenario::TheChildOfTheEdges => (0, &[1]),
@@ -136,6 +163,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::TheEdgesJoinedToTheirSiblings => (3, &[0]),
         // Asked of every column it keeps: a projection that drops repeats would be distinct on them.
         Scenario::TheWordsOfOneFunctionKeptRepeated => (5, &[0, 1]),
+        Scenario::TheTargetOfEachFile => (6, &[0]),
+        Scenario::TheModuleOfEachFile => (7, &[0]),
     };
     let keys: Vec<ColumnIndex> = columns.iter().copied().map(ColumnIndex).collect();
     Ok(distinct_on(
@@ -150,3 +179,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[cfg(test)]
+mod extremum_test;

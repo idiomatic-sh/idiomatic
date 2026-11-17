@@ -180,7 +180,7 @@ impl<'a> DemandClosure<'a> {
             | Operation::Project { .. }
             | Operation::Extend { .. }
             | Operation::Join { .. }
-            | Operation::BandJoin { .. }
+            | Operation::BandJoin(_)
             | Operation::Union { .. }
             | Operation::Intersection { .. }
             | Operation::Difference { .. }

@@ -1,5 +1,6 @@
 //! The value objects domain, one module per concept.
 
+pub mod band_joins;
 pub mod compact_table;
 pub mod descriptions;
 pub mod files;

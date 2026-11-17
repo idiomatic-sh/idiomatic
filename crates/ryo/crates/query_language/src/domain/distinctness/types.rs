@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 
 use crate::domain::lowering::types::Uniqueness;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::StepId;
 
 /// What has been found of the distinctness of the steps of one plan, by step and set of columns: a step shared by many readers is
@@ -28,4 +30,29 @@ pub(crate) enum FileKeyed {
     Alone,
     /// A key is something other than the file, or there is none.
     Not,
+}
+
+/// An antijoin as the plan writes it: its left rows, the rows it removes, and the columns it compares on each.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Antijoined<'a> {
+    /// The rows it keeps of.
+    pub left: Input,
+    /// The rows it removes the matches of.
+    pub right: Input,
+    /// The left columns it compares.
+    pub left_on: &'a [ColumnIndex],
+    /// The right columns it compares, one for each left one.
+    pub right_on: &'a [ColumnIndex],
+}
+
+/// A step that pairs each row of one input with a strictly later (or earlier) row of it in the same partition: the partition's
+/// columns, the order column, and the columns of the pairs it answers.
+#[derive(Clone, Debug)]
+pub(crate) struct SelfOrdered<'a> {
+    /// The columns of the input the pairs agree on.
+    pub partition: Vec<ColumnIndex>,
+    /// The column of the input the pairs are ordered by.
+    pub order: ColumnIndex,
+    /// The columns of the pairs, each of one side.
+    pub output: &'a [JoinColumn],
 }

@@ -11,6 +11,7 @@
 //! spans alone never proves that the rows it matches come from one file. Two rows that meet on keys come from one file only when
 //! the keys pair, at one position, a column of each operand that states its row's file.
 use super::types::{ColumnAnchor, KeyPairing, Lineage};
+use crate::domain::band_joins::types::BandJoin;
 use crate::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use crate::domain::plans::types::Operation;
 use ryo_relations::domain::relations::types::CellKind;
@@ -313,13 +314,13 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
             reach: None,
             ..
         }
-        | Operation::BandJoin {
+        | Operation::BandJoin(BandJoin {
             left_on,
             right_on,
             output,
             view,
             ..
-        } => joined(&first, left_on, &second, right_on, output, view, kinds),
+        }) => joined(&first, left_on, &second, right_on, output, view, kinds),
         Operation::OrderedMatch {
             left_on,
             right_on,

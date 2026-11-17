@@ -4,18 +4,19 @@
 use super::types::DistinctMemo;
 use super::types::FileKeyed;
 use super::types::StepKeys;
+use super::types::{Antijoined, SelfOrdered};
 use crate::domain::lineage::service::column_kind;
 use crate::domain::lineage::types::LineageMemo;
 use crate::domain::lowering::types::Uniqueness;
 use crate::domain::resolving::service::relation_fields;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::band_joins::types::{BandJoin, BandTest};
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::step_in;
 use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
-use ryo_values::domain::plan_parts::types::KeyFan;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
@@ -141,11 +142,30 @@ fn step_distinct(
                 Uniqueness::Shared
             }
         }
-        Operation::Intersection { left, .. }
-        | Operation::Difference { left, .. }
-        | Operation::Antijoin { left, .. } => distinct_on(steps, memo, *left, keys),
+        Operation::Intersection { left, .. } | Operation::Difference { left, .. } => {
+            distinct_on(steps, memo, *left, keys)
+        }
+        Operation::Antijoin {
+            left,
+            right,
+            left_on,
+            right_on,
+        } => match distinct_on(steps, memo, *left, keys) {
+            Uniqueness::Unique => Uniqueness::Unique,
+            Uniqueness::Shared => extremum_kept(
+                steps,
+                memo,
+                Antijoined {
+                    left: *left,
+                    right: *right,
+                    left_on,
+                    right_on,
+                },
+                keys,
+            ),
+        },
         Operation::Join { .. }
-        | Operation::BandJoin { .. }
+        | Operation::BandJoin(_)
         | Operation::Union { .. }
         | Operation::Extend { .. }
         | Operation::Capture { .. }
@@ -166,6 +186,132 @@ fn step_distinct(
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => Uniqueness::Shared,
     })
+}
+
+/// Whether an antijoin keeps one row of its left rows S for each set of values of `keys`: when S is distinct on the antijoin's
+/// columns, those columns are a partition P and an order O, `keys` holds P, and the right rows are the rows of S a strictly later
+/// (or earlier) row of S shares P with, as either a self join of S on P with one strict order comparison of O or an `ordered-match`
+/// of S with itself on P by O answers them. Then every row of a partition but its last (or first) is removed, so the antijoin keeps
+/// that one row alone: the logical twin of the `ordered_existence` rewrite.
+fn extremum_kept(
+    steps: &[PlanStep],
+    memo: &mut DistinctMemo,
+    antijoin: Antijoined<'_>,
+    keys: &[ColumnIndex],
+) -> Uniqueness {
+    if last_of_each(steps, memo, antijoin, keys).is_some() {
+        Uniqueness::Unique
+    } else {
+        Uniqueness::Shared
+    }
+}
+
+/// The proof `extremum_kept` reads: some when every condition holds.
+fn last_of_each(
+    steps: &[PlanStep],
+    memo: &mut DistinctMemo,
+    antijoin: Antijoined<'_>,
+    keys: &[ColumnIndex],
+) -> Option<()> {
+    if antijoin.left_on.len() != antijoin.right_on.len()
+        || distinct_on(steps, memo, antijoin.left, antijoin.left_on) != Uniqueness::Unique
+    {
+        return None;
+    }
+    let Input::Step(paired) = antijoin.right else {
+        return None;
+    };
+    // A select that only keeps columns of the pairs is read through: the antijoin's columns named where the pairs hold them.
+    let (operation, answered) = match &step_in(steps, paired)?.operation {
+        Operation::Select {
+            from: Input::Step(from),
+            comparisons,
+            kept,
+        } if comparisons.is_empty() => (
+            &step_in(steps, *from)?.operation,
+            antijoin
+                .right_on
+                .iter()
+                .map(|column| view_source(kept, *column))
+                .collect::<Option<Vec<_>>>()?,
+        ),
+        operation => (operation, antijoin.right_on.to_vec()),
+    };
+    let ordered = self_ordered(operation, antijoin.left)?;
+    // Each pair answers its left row's own value in each column the antijoin compares.
+    for (left, right) in antijoin.left_on.iter().zip(&answered) {
+        let JoinColumn { side, column } = *column_in(ordered.output, *right)?;
+        if side != Side::Left || column != *left {
+            return None;
+        }
+    }
+    let mut compared = antijoin.left_on.to_vec();
+    compared.sort_unstable();
+    let mut expected = ordered.partition.clone();
+    expected.push(ordered.order);
+    expected.sort_unstable();
+    (compared == expected
+        && !ordered.partition.contains(&ordered.order)
+        && ordered.partition.iter().all(|column| keys.contains(column)))
+    .then_some(())
+}
+
+/// The partition, the order and the answer of `operation` when it pairs each row of `rows` with a strictly later (or earlier)
+/// row of `rows` in the same partition: a band join of `rows` with itself on equal partition columns with one strict order
+/// comparison of one column, and no filter of its right rows; or an `ordered-match` of `rows` with itself by one order.
+fn self_ordered(operation: &Operation, rows: Input) -> Option<SelfOrdered<'_>> {
+    match operation {
+        Operation::BandJoin(BandJoin {
+            left,
+            right,
+            left_on,
+            right_on,
+            band,
+            output,
+            filter,
+            view,
+            ..
+        }) if *left == rows && *right == rows && filter.is_empty() => {
+            let [edge] = band.as_slice() else {
+                return None;
+            };
+            let strict = matches!(edge.test, BandTest::Below | BandTest::Above);
+            let same =
+                |left: ColumnIndex, right: ColumnIndex| view_source(view, right) == Some(left);
+            (strict
+                && same(edge.left, edge.right)
+                && left_on.len() == right_on.len()
+                && left_on
+                    .iter()
+                    .zip(right_on)
+                    .all(|(left, right)| same(*left, *right)))
+            .then(|| SelfOrdered {
+                partition: left_on.clone(),
+                order: edge.left,
+                output,
+            })
+        }
+        Operation::OrderedMatch {
+            left,
+            right,
+            left_on,
+            right_on,
+            left_order,
+            right_order,
+            output,
+        } if *left == rows
+            && *right == rows
+            && left_on == right_on
+            && left_order == right_order =>
+        {
+            Some(SelfOrdered {
+                partition: left_on.clone(),
+                order: *left_order,
+                output,
+            })
+        }
+        _ => None,
+    }
 }
 
 /// Whether `keys` holds every column of a step that answers one row for each set of values of the columns `made` names: then its
@@ -197,79 +343,4 @@ pub(crate) fn keyed_on_file_alone(
     } else {
         FileKeyed::Not
     }
-}
-
-/// What a join's keys are proven to pair: as written for an `all-pairs join`; `Unique` when either side is distinct on its keys
-/// (the right through its view); `FileOnly` when the left keys are the file alone; `Shared` otherwise.
-pub(crate) fn key_fan(
-    steps: &[PlanStep],
-    memos: (&mut DistinctMemo, &mut LineageMemo),
-    sides: [(Input, &[ColumnIndex]); 2],
-    view: &[ColumnIndex],
-    written: KeyFan,
-) -> KeyFan {
-    let (distinct, kinds) = memos;
-    let [(left, left_on), (right, right_on)] = sides;
-    if written == KeyFan::AllPairs {
-        return KeyFan::AllPairs;
-    }
-    let right_keys: Option<Vec<ColumnIndex>> =
-        right_on.iter().map(|key| view_source(view, *key)).collect();
-    if right_keys.is_some_and(|keys| {
-        !keys.is_empty() && distinct_on(steps, distinct, right, &keys) == Uniqueness::Unique
-    }) || (!left_on.is_empty()
-        && distinct_on(steps, distinct, left, left_on) == Uniqueness::Unique)
-    {
-        KeyFan::Unique
-    } else if keyed_on_file_alone(steps, kinds, left, left_on) == FileKeyed::Alone {
-        KeyFan::FileOnly
-    } else {
-        KeyFan::Shared
-    }
-}
-
-/// The plan with each join's fan proven by `key_fan`: run once the plan's steps are placed, before it crosses to the operators.
-#[must_use]
-pub(crate) fn fanned(mut steps: Vec<PlanStep>) -> Vec<PlanStep> {
-    let mut distinct = DistinctMemo::default();
-    let mut kinds = LineageMemo::default();
-    let proven: Vec<Option<KeyFan>> = steps
-        .iter()
-        .map(|step| match &step.operation {
-            Operation::Join {
-                left,
-                right,
-                left_on,
-                right_on,
-                view,
-                fan,
-                reach: None,
-                ..
-            }
-            | Operation::BandJoin {
-                left,
-                right,
-                left_on,
-                right_on,
-                view,
-                fan,
-                ..
-            } => Some(key_fan(
-                &steps,
-                (&mut distinct, &mut kinds),
-                [(*left, left_on), (*right, right_on)],
-                view,
-                *fan,
-            )),
-            _ => None,
-        })
-        .collect();
-    for (step, found) in steps.iter_mut().zip(proven) {
-        if let (Operation::Join { fan, .. } | Operation::BandJoin { fan, .. }, Some(found)) =
-            (&mut step.operation, found)
-        {
-            *fan = found;
-        }
-    }
-    steps
 }

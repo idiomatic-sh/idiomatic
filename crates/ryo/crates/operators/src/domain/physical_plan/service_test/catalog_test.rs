@@ -3,7 +3,8 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::interface::Reach;
-use crate::domain::physical_plan::fixtures::{Step, text_program};
+use crate::domain::physical_plan::fixtures::Step;
+use crate::domain::physical_plan::fixtures::text::text_program;
 use crate::domain::physical_plan::service::lowering::service::lowered;
 use crate::domain::physical_plan::service::{Kernel, REWRITES, plan_with};
 use crate::domain::physical_plan::types::logical_program::value::LogicalProgram;
@@ -12,6 +13,7 @@ use crate::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use crate::domain::physical_plan::types::{
     LogicalNode, NodeBindings, PlanInput, PlanInputList, PlanNodeId,
 };
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId, StepScope};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
@@ -127,22 +129,22 @@ fn catalog_program() -> Vec<Step> {
         inputs: vec![PlanInput::Node(PlanNodeId(12)); 3],
     });
     steps.push(Step {
-        operation: Operation::BandJoin {
+        operation: Operation::BandJoin(BandJoin {
             left: count(),
             right: count(),
             left_on: vec![first],
             right_on: vec![first],
-            band: vec![ryo_values::domain::plan_parts::types::BandEdge {
+            band: vec![ryo_values::domain::band_joins::types::BandEdge {
                 left: first,
-                test: ryo_values::domain::plan_parts::types::BandTest::Below,
+                test: ryo_values::domain::band_joins::types::BandTest::Below,
                 right: first,
             }],
-            answer: ryo_values::domain::plan_parts::types::BandAnswer::Nearest,
+            answer: ryo_values::domain::band_joins::types::BandAnswer::Nearest,
             output: Vec::new(),
             filter: Vec::new(),
             view: Vec::new(),
             fan: ryo_values::domain::plan_parts::types::KeyFan::Shared,
-        },
+        }),
         inputs: vec![PlanInput::Node(PlanNodeId(12)); 2],
     });
     steps

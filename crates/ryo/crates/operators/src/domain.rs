@@ -21,7 +21,6 @@ pub mod words;
 pub mod reduction;
 
 pub mod axis;
-pub(crate) mod band_join;
 pub mod closure;
 pub mod comparing;
 pub mod cycles;

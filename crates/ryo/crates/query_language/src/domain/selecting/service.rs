@@ -1,8 +1,9 @@
 //! The `selecting` service: a `select` lowered to the steps that make it: a join, a filter and a
 //! projection, each only when the query wrote it.
 
+use crate::domain::banding::service::band_split;
 use crate::domain::comparing::service::comparison_of;
-use crate::domain::joining::service::{band_split, select_join, shown_of};
+use crate::domain::joining::service::{select_join, shown_of};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
     Addressable, Builder, Joined, LastStep, PlannedColumn, ShownColumns, Sourced,

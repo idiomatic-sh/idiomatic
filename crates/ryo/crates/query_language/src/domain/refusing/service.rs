@@ -44,7 +44,7 @@ pub(crate) fn refuse_spans_alone(
                 ..
             } => planning::keyed(&lowered.fields, held),
             plans::Operation::Join { .. }
-            | plans::Operation::BandJoin { .. }
+            | plans::Operation::BandJoin(_)
             | plans::Operation::Antijoin { .. }
             | plans::Operation::OrderedMatch { .. }
             | plans::Operation::GroupCount { .. }

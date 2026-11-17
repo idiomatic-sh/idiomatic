@@ -9,6 +9,7 @@ use crate::domain::resolving::service::relation_fields;
 use crate::domain::widths::service::width_of;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::band_joins::types::BandJoin;
 use ryo_values::domain::lineage::service::anchor_of;
 use ryo_values::domain::lineage::service::one_file;
 use ryo_values::domain::lineage::types::ColumnAnchor;
@@ -72,13 +73,13 @@ fn step_kind(
             view,
             ..
         }
-        | Operation::BandJoin {
+        | Operation::BandJoin(BandJoin {
             left,
             right,
             output,
             view,
             ..
-        } => {
+        }) => {
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             match side {
                 Side::Left => column_kind(steps, memo, *left, at),
@@ -191,7 +192,7 @@ fn step_origins(
             view,
             ..
         }
-        | Operation::BandJoin {
+        | Operation::BandJoin(BandJoin {
             left,
             right,
             left_on,
@@ -199,7 +200,7 @@ fn step_origins(
             output,
             view,
             ..
-        } => {
+        }) => {
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             let (own, own_column, other, own_keys, other_keys) = match side {
                 Side::Left => (*left, at, *right, left_on, right_on),

@@ -1,4 +1,4 @@
-//! Borrowed equality join contracts; no engine authority.
+//! Borrowed equality join contracts, and what a band join of keys and order comparisons lowers to; no engine authority.
 use crate::domain::select::types::SelectParts;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, RepeatedRows};
 
@@ -136,4 +136,21 @@ pub(crate) enum ProbeKey {
     },
     /// Every column of each side: a row is its key.
     Whole,
+}
+
+/// What a band join reads and answers, every right column named as the right rows hold it (its view applied).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct BandParts {
+    /// The left key columns.
+    pub(crate) left_on: Vec<ColumnIndex>,
+    /// The right key columns.
+    pub(crate) right_on: Vec<ColumnIndex>,
+    /// The band: one or two comparisons of a right column with a left one, the first ordering the right rows.
+    pub(crate) band: Vec<ryo_values::domain::band_joins::types::BandEdge>,
+    /// Which right rows of the band it answers.
+    pub(crate) answer: ryo_values::domain::band_joins::types::BandAnswer,
+    /// The columns of the answer.
+    pub(crate) output: Vec<JoinColumn>,
+    /// What its keys are proven to pair.
+    pub(crate) fan: ryo_values::domain::plan_parts::types::KeyFan,
 }

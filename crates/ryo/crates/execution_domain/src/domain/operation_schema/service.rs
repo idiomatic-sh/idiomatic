@@ -3,6 +3,7 @@ use super::projection::{
     service::joined, service::projected, service::right_column, service::right_view,
     service::schema_input,
 };
+use ryo_values::domain::band_joins::types::BandJoin;
 
 use super::types::InputShape;
 use super::types::bindings::value::BindingShape;
@@ -61,9 +62,7 @@ pub fn schema_of(
         Operation::Extend { values, .. } => {
             BindingShape::new(bindings).extended(values, first()?.kinds.to_vec())
         }
-        Operation::Join { .. } | Operation::BandJoin { .. } => {
-            join_schema(operation, inputs, bindings)
-        }
+        Operation::Join { .. } | Operation::BandJoin(_) => join_schema(operation, inputs, bindings),
         Operation::Union { .. } => union_schema(operation, inputs, bindings),
         Operation::Intersection { .. } | Operation::Difference { .. } => {
             let (left, right) = (first()?, second()?);
@@ -298,14 +297,14 @@ pub(crate) fn join_schema(
             reach,
             ..
         } => (left_on, right_on, output, filter, view, reach.as_ref()),
-        Operation::BandJoin {
+        Operation::BandJoin(BandJoin {
             left_on,
             right_on,
             output,
             filter,
             view,
             ..
-        } => (left_on, right_on, output, filter, view, None),
+        }) => (left_on, right_on, output, filter, view, None),
         _ => return Err(OperatingError::WrongOperation),
     };
     let (left, right) = (

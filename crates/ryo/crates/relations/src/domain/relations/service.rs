@@ -16,8 +16,10 @@ use crate::domain::relations::collections::relations::comment::item::CommentColu
 use crate::domain::relations::collections::relations::defines::item::DefinesColumn;
 use crate::domain::relations::collections::relations::entry::item::EntryColumn;
 use crate::domain::relations::collections::relations::function::item::FunctionColumn;
+use crate::domain::relations::collections::relations::language_target::item::LanguageTargetColumn;
 use crate::domain::relations::collections::relations::mapping::item::MappingColumn;
 use crate::domain::relations::collections::relations::mention::item::MentionColumn;
+use crate::domain::relations::collections::relations::module_identity::item::ModuleIdentityColumn;
 use crate::domain::relations::collections::relations::package_dependency::item::PackageDependencyColumn;
 use crate::domain::relations::collections::relations::parameter::item::ParameterColumn;
 use crate::domain::relations::collections::relations::prose::item::ProseColumn;
@@ -366,6 +368,8 @@ pub fn is_key(column: Column) -> ColumnKeyness {
             | Column::Resolves(ResolvesColumn::Occurrence)
             | Column::StringLiteral(StringLiteralColumn::Occurrence)
             | Column::BytesLiteral(BytesLiteralColumn::Occurrence)
+            | Column::LanguageTarget(LanguageTargetColumn::File)
+            | Column::ModuleIdentity(ModuleIdentityColumn::File)
     ) {
         ColumnKeyness::Key
     } else {
