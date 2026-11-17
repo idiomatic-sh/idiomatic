@@ -2,10 +2,10 @@
 //! What the `reporting` service makes of the lint call's answer, on values alone.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use super::types::SourceFiles;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::fixtures::matching;
 use crate::domain::applications::types::Plan;
 use crate::domain::findings::service::{error, whole_identity};
 use crate::domain::findings::types::{Fingerprint, Identifying, Reason};
@@ -13,6 +13,13 @@ use crate::domain::governance::types::Answers;
 use crate::domain::paths::types::RepoPath;
 use crate::domain::reporting::service::fingerprinted;
 use crate::domain::reporting::types::{Candidate, Reported, Reuse, Standing};
+use crate::domain::selectors::types::{PathSet, PatternFailure, SetGlob};
+use crate::outbound::matching::interface::MatchingPort as _;
+
+/// The matching adapter's compile of a set of globs, as the service is handed it.
+fn sets(globs: &[SetGlob]) -> Result<Arc<dyn PathSet>, PatternFailure> {
+    crate::outbound::matching::factory::globset().compile_set(globs)
+}
 
 /// `report` with the chain of what files had before their ignores hashed by the length of its parts: findings that differ in
 /// length differ in the chain.
@@ -93,7 +100,7 @@ fn said(scenario: Scenario) -> (String, &'static str) {
                     within: &within,
                 },
                 &|_| Ok::<_, std::convert::Infallible>(SourceFiles::default()),
-                matching().sets,
+                &sets,
                 &seven,
             );
             let made = made.unwrap_or_else(|error| panic!("report failed: {error}"));
@@ -272,7 +279,7 @@ fn source_lines_survive_settlement() {
                 .collect(),
             ))
         },
-        matching().sets,
+        &sets,
         &|identity| match &*identity.parts.0[2] {
             "first = 1 # ignore: p/r - valid value" => Fingerprint(11),
             "second = 2" => Fingerprint(22),
@@ -376,7 +383,7 @@ fn a_file_that_has_what_it_had_is_not_read_again() {
                         .collect(),
                 ))
             },
-            matching().sets,
+            &sets,
             &|identity| Fingerprint(u64::try_from(identity.parts.0[1].len()).unwrap_or(0) + 100),
         )
         .unwrap_or_else(|error| panic!("report failed: {error}"))
@@ -482,7 +489,7 @@ fn name_only_import_is_found_at_its_target() {
                     .collect(),
             ))
         },
-        matching().sets,
+        &sets,
         &|identity| {
             assert_eq!(&*identity.parts.0[2], "use serde::Serialize;");
             Fingerprint(7)
@@ -577,14 +584,7 @@ fn an_allow_pattern_that_does_not_compile_is_refused() {
         },
         // A module pattern is names and `*` and always compiles with the real matching port, so a compiler that refuses
         // every set stands for one that does not.
-        &|_: &[crate::domain::selectors::types::SetGlob]| -> Result<
-            Arc<dyn crate::domain::selectors::types::PathSet>,
-            crate::domain::selectors::types::PatternFailure,
-        > {
-            Err(crate::domain::selectors::types::PatternFailure(
-                "refused".into(),
-            ))
-        },
+        &crate::domain::selectors::fixtures::refusing_sets,
         &|_| Fingerprint(7),
     );
     let made = made.unwrap_or_else(|error| panic!("report failed: {error}"));
@@ -601,8 +601,6 @@ fn an_allow_pattern_that_does_not_compile_is_refused() {
         made.findings
     );
 }
-
-use std::sync::Arc;
 
 fn injected() -> super::service::ReportingService {
     super::service::ReportingService::new(

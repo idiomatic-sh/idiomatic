@@ -6,9 +6,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::captures::types::Interpolations;
 use crate::domain::packages::types::DefinitionName;
 use crate::domain::paths::types::RepoPath;
+use crate::domain::selectors::fixtures::refusing;
 use crate::domain::selectors::types::{
-    PartInstance, PartSelector, PathTest, PatternFailure, Recursion, Resolution, Resolved,
-    SelectionContext, Selector, Spelling,
+    PartInstance, PartSelector, Recursion, Resolution, Resolved, SelectionContext, Selector,
 };
 
 /// The spec selected and how deep.
@@ -16,10 +16,6 @@ type Input = (&'static str, Recursion);
 /// The directories selected, joined by `,`.
 type Value = String;
 type Failure = ();
-
-fn compile(_: &Spelling) -> Result<std::sync::Arc<dyn PathTest>, PatternFailure> {
-    Err(PatternFailure("a part selector compiles nothing".into()))
-}
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -61,7 +57,7 @@ fn subject((part, recursion): Input) -> Result<Value, Failure> {
         values: &Interpolations::default(),
         instances: &instances,
         placed: &[],
-        compile: &compile,
+        compile: &refusing,
     };
     let selector = Selector::Part(PartSelector {
         part: DefinitionName(part.into()),

@@ -1,22 +1,10 @@
-//! The `applications` service's cases, over the `check` fixture's workspace: what a rule entry's selectors can name.
+//! The `applications` service's cases, on values alone: which files are settled again.
 
-use super::fixtures::{placement, workspace};
-use super::service::known;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-
-/// The fixture's tree.
-const FILES: &[&str] = &[
-    "tastemaker.toml",
-    "src/a/errors.txt",
-    "src/a/stray.txt",
-    "src/b/notes.txt",
-];
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]
 enum Question {
-    /// The spec instances and the placed files a selector can name.
-    Known,
     /// A file with a template's contract, whose rule findings are what they were, when it is settled again.
     ReusableWithAContract,
 }
@@ -27,20 +15,12 @@ type Value = String;
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("each_instance_and_each_placed_file_can_be_named"),
-        word: Word::Succeeds,
-        input: || Question::Known,
-        expect: Expect::Value(String::new()),
-    },
-    Case {
-        name: CaseName("a_file_a_template_places_is_settled_again_whatever_its_findings_were"),
-        word: Word::Succeeds,
-        input: || Question::ReusableWithAContract,
-        expect: Expect::Value(String::new()),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("a_file_a_template_places_is_settled_again_whatever_its_findings_were"),
+    word: Word::Succeeds,
+    input: || Question::ReusableWithAContract,
+    expect: Expect::Value(String::new()),
+}];
 
 /// A file `a.toml` with the same findings as when it was last settled, and a file `b.toml` likewise: only `a.toml` has a template.
 fn reusable_with_a_contract() -> Value {
@@ -101,36 +81,8 @@ fn reusable_with_a_contract() -> Value {
 }
 
 fn subject(question: Input) -> Value {
-    let workspace = workspace(FILES);
-    let placement = placement(&workspace);
-    let (said, expected) = match question {
-        Question::ReusableWithAContract => (reusable_with_a_contract(), String::new()),
-        Question::Known => {
-            let known = known(&workspace, &placement);
-            (
-                format!(
-                    "{} | {}",
-                    known
-                        .instances
-                        .iter()
-                        .map(|instance| format!("{} {}", instance.directory.0, instance.spec.0))
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    known
-                        .placed
-                        .iter()
-                        .map(|placed| format!("{} {}", placed.path.0, placed.entry.0))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-                "src/a part, src/b part | src/a/errors.txt errors".to_owned(),
-            )
-        }
-    };
-    if said == expected {
-        String::new()
-    } else {
-        said
+    match question {
+        Question::ReusableWithAContract => reusable_with_a_contract(),
     }
 }
 

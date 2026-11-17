@@ -24,6 +24,9 @@ use crate::outbound::packages::fixtures::fake::PackagesFake;
 use crate::outbound::repository::fixtures::fake::RepositoryFake;
 use crate::outbound::templates::errors::TemplatesError;
 
+mod literal_captures;
+mod literal_param;
+
 /// The entry, and the directory of the instance.
 type Input = (&'static str, &'static str);
 /// The files written and kept, joined.

@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 
 use super::fixtures::{captures, declared, entry, template};
 use super::service::{
-    declaring, fewest, first_render, first_writing, given, literal_values, named_by_directory,
-    naming, optionality, placed_name, unfilled, waited, waiting,
+    declaring, fewest, first_render, first_writing, given, named_by_directory, naming, optionality,
+    placed_name, unfilled, waited, waiting,
 };
 use super::types::{
     Declaring, FirstWriting, MissingParam, Naming, Optionality, PlacedName, Unfilled, Waiting,
@@ -14,11 +14,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::captures::types::Captures;
 use crate::domain::contexts::types::ContextKey;
 use crate::domain::entries::types::{
-    Amount, Bound, ConditionName, Count, ParamName, ParamSource, ParamValue, ParamValues, Setting,
-    Value as EntryValue,
+    Amount, Bound, ConditionName, Count, ParamSource, ParamValues, Setting,
 };
 use crate::domain::paths::types::RepoPath;
-use crate::domain::scalars::types::TextValue;
 use crate::domain::selectors::types::PathPattern;
 
 /// What a row asks of the service.
@@ -30,8 +28,6 @@ enum Asked {
     Unfilled,
     /// Whether a name with a `?` left is a pattern.
     Pattern,
-    /// The literal `pkg::{lang}` an entry passes, with `lang = go`.
-    Literal,
     /// The param a spec takes from the name of the directory `langs/go`.
     Directory,
     /// The fewest files a conditional entry asks for, one when it holds and none when not.
@@ -77,12 +73,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_name_with_a_wildcard_left_is_a_pattern"),
         word: Word::Succeeds,
         input: || Asked::Pattern,
-        expect: Expect::Value(String::new()),
-    },
-    Case {
-        name: CaseName("a_literal_param_takes_the_captures"),
-        word: Word::Succeeds,
-        input: || Asked::Literal,
         expect: Expect::Value(String::new()),
     },
     Case {
@@ -253,25 +243,6 @@ fn module_said() -> Value {
     )
 }
 
-/// What a literal param that names a capture is written as, against what should be.
-fn literal_said() -> Value {
-    let passed = ParamValues(BTreeMap::from([(
-        ParamName("trait".into()),
-        ParamValue::Literal(EntryValue::Text(TextValue("pkg::{lang}".into()))),
-    )]));
-    held(
-        format!(
-            "{:?}",
-            literal_values(
-                &passed,
-                &captures(&[("lang", "go")]),
-                &crate::outbound::manifest::factory::toml()
-            )
-        ),
-        &format!("{:?}", captures(&[("trait", "pkg::go")])),
-    )
-}
-
 /// What the first render of a file at `directory` holds, against what should be: the given captures, the param the
 /// directory names, and the scaffold flag.
 fn rendered_said(directory: &RepoPath) -> Result<Value, Failure> {
@@ -280,7 +251,7 @@ fn rendered_said(directory: &RepoPath) -> Result<Value, Failure> {
         &declared("lang", ParamSource::DirectoryName),
         &ParamValues::default(),
         directory,
-        &crate::outbound::manifest::factory::toml(),
+        &crate::domain::entries::fixtures::unwritten,
     )?;
     let keys = context
         .values
@@ -317,7 +288,6 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             format!("{:?}", naming(&PlacedName("a?.txt".into()))),
             &format!("{:?}", Naming::Pattern),
         ),
-        Asked::Literal => literal_said(),
         Asked::Directory => held(
             format!(
                 "{:?}",
@@ -361,7 +331,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
                 &declared("kind", ParamSource::Given),
                 &ParamValues::default(),
                 &directory,
-                &crate::outbound::manifest::factory::toml(),
+                &crate::domain::entries::fixtures::unwritten,
             )
             .map(drop)?;
             String::new()

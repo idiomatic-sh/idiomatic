@@ -1,70 +1,61 @@
-//! The regex kind covers the paths its expression matches beneath the place, and what lies beneath them.
-
-use std::sync::Arc;
+//! The regex kind resolves only a regex selector, and names its expression when the compiler refuses it.
 
 use super::super::interface::SelectorsItem as _;
 use super::item::RegexItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::captures::types::Interpolations;
 use crate::domain::paths::types::RepoPath;
-use crate::domain::selectors::service::covers_any;
+use crate::domain::selectors::errors::SelectorsError;
+use crate::domain::selectors::fixtures::refusing;
 use crate::domain::selectors::types::{
-    PathTest, PatternFailure, RegexText, Resolution, ResolvedSelectors, SelectionContext, Selector,
-    Spelling,
+    PathPattern, RegexText, Resolution, SelectionContext, Selector,
 };
-use crate::outbound::matching::factory::globset;
-use crate::outbound::matching::interface::MatchingPort as _;
 
-/// The expression, and the path asked about.
-type Input = (&'static str, &'static str);
-/// Whether it is covered.
+/// The selector resolved.
+type Input = Selector;
+/// Whether it is another kind's.
 type Value = bool;
-type Failure = ();
-
-fn compile(spelling: &Spelling) -> Result<Arc<dyn PathTest>, PatternFailure> {
-    globset().compile(spelling)
-}
+type Failure = SelectorsError;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_path_the_expression_matches_is_covered"),
+        name: CaseName("a_selector_of_another_kind_is_not_mine"),
         word: Word::Succeeds,
-        input: || (r"^src/.*_test\.txt$", "crate/src/a_test.txt"),
+        input: || Selector::Glob(PathPattern("src/**".into())),
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("a_path_it_does_not_match_is_not"),
-        word: Word::Succeeds,
-        input: || (r"^src/.*_test\.txt$", "crate/src/a.txt"),
-        expect: Expect::Value(false),
-    },
-    Case {
-        name: CaseName("an_expression_that_does_not_compile_is_refused"),
+        name: CaseName("an_expression_the_compiler_refuses_is_refused_by_its_text"),
         word: Word::Refuses,
-        input: || ("(", "crate/src/a.txt"),
-        expect: Expect::error(()),
+        input: || Selector::Regex(RegexText("(".into())),
+        expect: Expect::Refusal(|actual| {
+            if actual
+                == &(SelectorsError::Pattern {
+                    pattern: "(".into(),
+                    reason: "refused".into(),
+                })
+            {
+                crate::cases::Selection::Matches
+            } else {
+                crate::cases::Selection::Differs
+            }
+        }),
     },
 ];
 
-fn subject((expression, path): Input) -> Result<Value, Failure> {
+fn subject(selector: Input) -> Result<Value, Failure> {
     let base = RepoPath("crate".into());
     let context = SelectionContext {
         base: &base,
         values: &Interpolations::default(),
         instances: &[],
         placed: &[],
-        compile: &compile,
+        compile: &refusing,
     };
-    let Resolution::Resolved(resolved) = RegexItem
-        .resolve(&Selector::Regex(RegexText(expression.into())), &context)
-        .map_err(drop)?
-    else {
-        return Err(());
-    };
-    Ok(
-        covers_any(&ResolvedSelectors(vec![resolved]), &RepoPath(path.into()))
-            == crate::domain::selectors::types::Coverage::Covered,
-    )
+    Ok(matches!(
+        RegexItem.resolve(&selector, &context)?,
+        Resolution::NotMine
+    ))
 }
 
 #[test]

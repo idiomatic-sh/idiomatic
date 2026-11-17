@@ -1,10 +1,11 @@
-//! The test support of the `applications` concept: the `check` fixture's workspace loaded over a tree, placed, and the
-//! matching port's compiles, which the tests of the concepts that plan the lint call build their subjects from.
+//! The `check` fixture's workspace loaded over a tree through the manifest adapter, placed, and the matching adapter's
+//! compiles: what the check's cases of the concepts that plan the lint call build their subjects from.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use super::types::{Carried, Compilers, ParamSet};
+use super::{PACKAGE, RULE, SPEC, TEMPLATE, WORKSPACE};
+use crate::domain::applications::types::{Carried, Compilers, ParamSet};
 use crate::domain::definitions::types::{LoadedWorkspace, Role};
 use crate::domain::entries::service::rule_release;
 use crate::domain::loading::service::{begin, finish, next, rule_read, spec_read, template_read};
@@ -17,7 +18,6 @@ use crate::domain::placement::types::Placement;
 use crate::domain::scopes::service::composition_of;
 use crate::domain::scopes::types::ScopeIndex;
 use crate::domain::selectors::types::{PathSet, PathTest, PatternFailure, SetGlob, Spelling};
-use crate::inbound::use_cases::check::fixtures::{PACKAGE, RULE, SPEC, TEMPLATE, WORKSPACE};
 use crate::outbound::manifest::interface::ManifestPort as _;
 use crate::outbound::manifest::types::DefinitionText;
 use crate::outbound::matching::interface::MatchingPort as _;

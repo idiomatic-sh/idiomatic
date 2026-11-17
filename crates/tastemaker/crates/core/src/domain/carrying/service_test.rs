@@ -1,80 +1,46 @@
-//! The `carrying` service's cases, over the `check` fixture's workspace: its one rule handed whole.
+//! The `carrying` service over a workspace that applies no rule, on values alone.
 
 use super::service::carried;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::fixtures::{applications, matching, placement, workspace};
 use crate::domain::applications::service::known;
+use crate::domain::definitions::fixtures::bare;
+use crate::domain::entries::fixtures::unwritten;
 use crate::domain::paths::types::RepoPath;
+use crate::domain::placement::service::place;
+use crate::domain::selectors::fixtures::refusing;
 
-/// The fixture's tree.
-const FILES: &[&str] = &[
-    "tastemaker.toml",
-    "src/a/errors.txt",
-    "src/a/stray.txt",
-    "src/b/lib.txt",
-];
-
-/// Which question is asked.
-#[derive(Clone, Copy, Debug)]
-enum Question {
-    /// The rules handed whole, and how many applications are matched here.
-    Handed,
-}
-
-type Input = Question;
-/// What the row said, empty when it said what was expected.
+/// The files of the tree.
+type Input = &'static [&'static str];
+/// What the service answered, in words, empty when it is what the row expects.
 type Value = String;
 type Failure = ();
 
-/// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("a_release_applied_once_is_handed_whole_with_its_globs"),
+    name: CaseName("a_workspace_that_applies_no_rule_hands_none"),
     word: Word::Succeeds,
-    input: || Question::Handed,
+    input: || &["tastemaker.toml", "src/a/lib.txt"],
     expect: Expect::Value(String::new()),
 }];
 
-fn subject(question: Input) -> Value {
-    let workspace = workspace(FILES);
-    let placement = placement(&workspace);
-    let applied = applications(&workspace, &placement);
-    let (said, expected) = match question {
-        Question::Handed => {
-            let said = match carried(
-                &placement,
-                &applied,
-                &known(&workspace, &placement),
-                matching().compile,
-                &RepoPath::default(),
-            ) {
-                Ok(split) => format!(
-                    "{} matched {}",
-                    split
-                        .handed
-                        .iter()
-                        .map(|rule| format!(
-                            "{}+{}",
-                            rule.include
-                                .iter()
-                                .map(|glob| &*glob.0)
-                                .collect::<Vec<_>>()
-                                .join(","),
-                            rule.exclude
-                                .iter()
-                                .map(|glob| &*glob.0)
-                                .collect::<Vec<_>>()
-                                .join(",")
-                        ))
-                        .collect::<Vec<_>>()
-                        .join("; "),
-                    split.matched.len()
-                ),
-                Err(failure) => format!("{failure:?}"),
-            };
-            (said, "**,**/**+ matched 0".to_owned())
-        }
+fn subject(files: Input) -> Value {
+    let workspace = bare(files);
+    let placement =
+        place(&workspace, &refusing, &unwritten).expect("a workspace that composes nothing places");
+    let said = match carried(
+        &placement,
+        &[],
+        &known(&workspace, &placement),
+        &refusing,
+        &RepoPath::default(),
+    ) {
+        Ok(split) => format!(
+            "{} handed, {} matched",
+            split.handed.len(),
+            split.matched.len()
+        ),
+        Err(failure) => format!("{failure:?}"),
     };
-    if said == expected {
+    if said == "0 handed, 0 matched" {
         String::new()
     } else {
         said

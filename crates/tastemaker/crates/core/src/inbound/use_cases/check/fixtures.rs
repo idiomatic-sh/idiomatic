@@ -1,6 +1,8 @@
 // ignore: idiomatic.arch/file-length - the check fixture builds one coherent workspace and its injected port set; its package, repository and analysis builders describe the same fixture and splitting them would obscure which ports a case receives.
 //! The test data of the `check` use case: a workspace of one package, held by the fakes of its ports.
 
+pub mod applications;
+
 use std::sync::Arc;
 
 use super::types::{CheckRequest, Fixing};

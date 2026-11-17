@@ -1,52 +1,43 @@
-//! Which files the `governance` service lets a placed rule answer about, on values alone.
+//! What the `governance` service decides for a placed rule whose globs do not compile, on values alone.
 
 use std::collections::BTreeMap;
 
 use super::service::{governance, governed};
-use super::types::{Answers, Governance};
+use super::types::Answers;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::applications::fixtures::matching;
 use crate::domain::applications::types::{
     GlobText, LintAnswer, LintRuleId, Plan, PlannedRule, Purpose, Rendering,
 };
 use crate::domain::definitions::types::{ColumnName, Diagnostic, QueryText};
-use crate::domain::findings::types::MessageTemplate;
-use crate::domain::findings::types::RuleId;
+use crate::domain::findings::types::{MessageTemplate, RuleId};
 use crate::domain::paths::types::RepoPath;
+use crate::domain::selectors::fixtures::refusing_sets;
 
-/// What a row of the cases does.
+/// What a row of the cases asks.
 #[derive(Clone, Copy)]
-enum Scenario {
-    /// A placed rule that reads `src/**` answers about a file under `src` and one outside it.
-    Answers,
-    /// The same rule, over a corpus with no file it reads.
-    IdleCorpus,
-    /// The same rule, over a corpus with a file it reads.
-    GoverningCorpus,
+enum Question {
+    /// The answers a rule whose globs do not compile keeps.
+    Kept,
+    /// Whether a rule whose globs do not compile governs a corpus.
+    Verdict,
 }
 
-type Input = Scenario;
-/// What the service answered, written out.
+type Input = Question;
+/// What the service answered, written out, empty when it is what the row expects.
 type Value = String;
 type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_rule_answers_only_about_the_files_it_reads"),
+        name: CaseName("a_rule_whose_globs_do_not_compile_keeps_every_answer"),
         word: Word::Succeeds,
-        input: || Scenario::Answers,
+        input: || Question::Kept,
         expect: Expect::Value(String::new()),
     },
     Case {
-        name: CaseName("a_rule_that_reads_none_of_the_corpus_is_idle"),
+        name: CaseName("a_rule_whose_globs_do_not_compile_governs"),
         word: Word::Succeeds,
-        input: || Scenario::IdleCorpus,
-        expect: Expect::Value(String::new()),
-    },
-    Case {
-        name: CaseName("a_rule_that_reads_a_file_of_the_corpus_governs"),
-        word: Word::Succeeds,
-        input: || Scenario::GoverningCorpus,
+        input: || Question::Verdict,
         expect: Expect::Value(String::new()),
     },
 ];
@@ -85,24 +76,10 @@ fn answer(path: &str) -> LintAnswer {
     }
 }
 
-/// What the scenario gave, and what it should give.
-fn said(scenario: Scenario) -> (String, &'static str) {
+fn subject(question: Input) -> Value {
     let plan = plan();
-    let matching = matching();
-    let id = LintRuleId("r".into());
-    let verdict = |corpus: &[&str]| {
-        let corpus = corpus
-            .iter()
-            .map(|path| RepoPath((*path).into()))
-            .collect::<Vec<_>>();
-        match governance(&plan, &id, &corpus, matching.sets) {
-            Governance::Governs => "governs",
-            Governance::Idle => "idle",
-        }
-        .to_owned()
-    };
-    match scenario {
-        Scenario::Answers => {
+    let (said, expected) = match question {
+        Question::Kept => {
             let kept = governed(
                 &plan,
                 Answers {
@@ -110,7 +87,7 @@ fn said(scenario: Scenario) -> (String, &'static str) {
                     unknowns: Vec::new(),
                     unread: Vec::new(),
                 },
-                matching.sets,
+                &refusing_sets,
             );
             (
                 kept.answers
@@ -118,17 +95,27 @@ fn said(scenario: Scenario) -> (String, &'static str) {
                     .map(|answer| &*answer.path.0)
                     .collect::<Vec<_>>()
                     .join(","),
-                "src/lib.txt",
+                "src/lib.txt,docs/a.md",
             )
         }
-        Scenario::IdleCorpus => (verdict(&["docs/a.md"]), "idle"),
-        Scenario::GoverningCorpus => (verdict(&["docs/a.md", "src/lib.txt"]), "governs"),
+        Question::Verdict => (
+            format!(
+                "{:?}",
+                governance(
+                    &plan,
+                    &LintRuleId("r".into()),
+                    &[RepoPath("docs/a.md".into())],
+                    &refusing_sets
+                )
+            ),
+            "Governs",
+        ),
+    };
+    if said == expected {
+        String::new()
+    } else {
+        said
     }
-}
-
-fn subject(scenario: Input) -> Value {
-    let (said, wanted) = said(scenario);
-    if said == wanted { String::new() } else { said }
 }
 
 #[test]

@@ -193,7 +193,7 @@ fn nested() -> Result<Value, Failure> {
         template: &empty,
         file: &file,
         captures: &implementation,
-        written: &crate::outbound::manifest::factory::toml(),
+        written: &crate::domain::entries::fixtures::unwritten,
     })
     .map_err(|unvalued| unvalued.0)?;
     let errors = found
@@ -335,7 +335,7 @@ fn subject(question: Input) -> Result<Value, Failure> {
         template: &template,
         file: &file,
         captures: &captures,
-        written: &crate::outbound::manifest::factory::toml(),
+        written: &crate::domain::entries::fixtures::unwritten,
     })
     .map_err(|unvalued| unvalued.0)?;
     let part = found

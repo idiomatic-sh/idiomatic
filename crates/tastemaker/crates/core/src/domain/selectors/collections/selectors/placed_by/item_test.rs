@@ -6,9 +6,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::captures::types::Interpolations;
 use crate::domain::packages::types::DefinitionName;
 use crate::domain::paths::types::RepoPath;
+use crate::domain::selectors::fixtures::refusing;
 use crate::domain::selectors::types::{
-    PathTest, PatternFailure, PlacedBySelector, PlacedPath, Resolution, Resolved, SelectionContext,
-    Selector, Spelling,
+    PlacedBySelector, PlacedPath, Resolution, Resolved, SelectionContext, Selector,
 };
 
 /// The entry selected, and the place.
@@ -16,12 +16,6 @@ type Input = (&'static str, &'static str);
 /// How many files it selects.
 type Value = usize;
 type Failure = ();
-
-fn compile(_: &Spelling) -> Result<std::sync::Arc<dyn PathTest>, PatternFailure> {
-    Err(PatternFailure(
-        "a placed-by selector compiles nothing".into(),
-    ))
-}
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -63,7 +57,7 @@ fn subject((entry, place): Input) -> Result<Value, Failure> {
         values: &Interpolations::default(),
         instances: &[],
         placed: &files,
-        compile: &compile,
+        compile: &refusing,
     };
     let selector = Selector::PlacedBy(PlacedBySelector {
         entry: DefinitionName(entry.into()),

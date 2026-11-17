@@ -18,6 +18,14 @@ use crate::outbound::analysis::fixtures::fake::AnalysisFake;
 use crate::outbound::packages::fixtures::fake::PackagesFake;
 use crate::outbound::repository::fixtures::fake::RepositoryFake;
 
+mod governed_answers;
+mod handed_rules;
+mod lint_plan;
+mod matched_rules;
+mod named_by_selectors;
+mod placed_files;
+mod reached_files;
+
 /// What a row changes about the fixture.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
