@@ -2,13 +2,11 @@
 #[cfg(test)]
 mod fixtures;
 use fixtures::file::measure;
-use fixtures::gated::{Operators, file_rules, warm_cost};
+use fixtures::gated::{Operators, came_to, file_rules, warm_cost};
 use fixtures::plans::{self, Given};
 use fixtures::project::measure_project;
 use fixtures::subscriber::{Access, Sample, Window, project_cost_matches, same_cost};
-use ryo_execution::inbound::use_cases::execution::interface::{
-    EmittedRoot, FileEnd, FileRules, OperatingError, RootOutcome,
-};
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use std::borrow::Cow;
@@ -140,29 +138,6 @@ fn subject(input: Input) -> Result<Value, OperatingError> {
         }
     };
     Ok((Cow::Owned(windows.into_inner()), answer))
-}
-/// What each rule's emitted root came to, then how the file ended.
-fn came_to(rules: &FileRules) -> String {
-    let mut written: Vec<String> = rules
-        .rules
-        .iter()
-        .map(|rule| match &rule.emit {
-            EmittedRoot::Delivered(RootOutcome::Complete(table)) => {
-                format!("rule {} complete {}", rule.rule.0, table.count.0)
-            }
-            EmittedRoot::Delivered(RootOutcome::Failed(error)) => {
-                format!("rule {} failed {error:?}", rule.rule.0)
-            }
-            EmittedRoot::Delivered(other) => format!("rule {} {other:?}", rule.rule.0),
-            EmittedRoot::Withheld => format!("rule {} withheld", rule.rule.0),
-        })
-        .collect();
-    written.push(match &rules.end {
-        FileEnd::Finished(_) => "finished".to_owned(),
-        FileEnd::Unfinished => "unfinished".to_owned(),
-        FileEnd::Refused(stop) => format!("refused {stop:?}"),
-    });
-    written.join("; ")
 }
 const fn windows(windows: &'static [Window]) -> Cow<'static, [Window]> {
     Cow::Borrowed(windows)
