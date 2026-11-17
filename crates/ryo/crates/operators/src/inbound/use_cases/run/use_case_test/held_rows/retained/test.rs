@@ -31,6 +31,8 @@ use ryo_values::domain::plans::types::Operation;
 enum Scenario {
     /// One select run in a file, in a program of few other nodes and in one of many: the work of the file's end in each.
     EndWork,
+    /// A file that runs no node, in a program of few nodes and in one of many: the work of the file's end in each.
+    EmptyEndWork,
     /// A big file, then a small one: the room the shared probe indexes keep.
     SharedRoom,
     /// A big file, then a small one: the room a filter's decisions about the file's names keep.
@@ -58,6 +60,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::EndWork,
         expect: Expect::Value(Observation::EndWork(EndWork(1), EndWork(1))),
+    },
+    Case {
+        name: CaseName("an_empty_files_end_does_no_work_whatever_the_programs_size"),
+        word: Word::Succeeds,
+        input: || Scenario::EmptyEndWork,
+        expect: Expect::Value(Observation::EndWork(EndWork(0), EndWork(0))),
     },
     Case {
         name: CaseName("a_big_files_shared_index_room_is_not_kept_past_the_cap"),
@@ -129,6 +137,15 @@ fn retained(buffers: &FileBuffers) -> RetainedRoom {
 
 /// The names of the big file: more than the cap, each its own text.
 const BIG: u32 = 10_000;
+
+/// What the file of the release-cost cases runs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Runs {
+    /// The select.
+    Select,
+    /// No node, after a file that ran the select: a file with nothing to fill.
+    Nothing,
+}
 
 /// The names of the small file.
 const SMALL: u32 = 3;
@@ -239,14 +256,14 @@ fn file(count: u32) -> (TextResources, ryo_values::domain::rows::types::Table) {
     (resources, table)
 }
 
-/// The work of the end of a file that runs only a select, in a program of the select, `others` selects no rule of the file
+/// The work of the end of a file that runs only a select, or `runs` nothing, in a program of the select, `others` selects no rule of the file
 /// runs, and two probes sharing an index. A select of a prefix is no lookup: a lookup's run answers every lookup of its
 /// index, so the file would fill them all.
 ///
 /// # Errors
 ///
 /// The select's fault.
-fn end_work(others: u32) -> Result<EndWork, Failure> {
+fn end_work(others: u32, runs: Runs) -> Result<EndWork, Failure> {
     let mut steps = vec![select(Test::StartsWith, "n0")];
     steps.extend((0..others).map(|_| select(Test::StartsWith, "n1")));
     steps.extend([probe(defines()), probe(defines())]);
@@ -258,6 +275,11 @@ fn end_work(others: u32) -> Result<EndWork, Failure> {
     let (mut resources, table) = file(SMALL);
     let inputs = TableInputs::new(&[(DEFINES, &table)]);
     ran(&plan, PlanNodeId(0), &mut buffers, &inputs, &mut resources)?;
+    if runs == Runs::Nothing {
+        // A file before it sized the buffers for the program; the empty file's end is the one counted.
+        buffers.ended();
+        buffers.ending = EndWork::default();
+    }
     buffers.ended();
     Ok(buffers.ending)
 }
@@ -316,8 +338,12 @@ fn room(of: fn(RetainedRoom) -> Room) -> Result<Observation, Failure> {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::EndWork => Ok(Observation::EndWork(
-            end_work(OTHERS[0])?,
-            end_work(OTHERS[1])?,
+            end_work(OTHERS[0], Runs::Select)?,
+            end_work(OTHERS[1], Runs::Select)?,
+        )),
+        Scenario::EmptyEndWork => Ok(Observation::EndWork(
+            end_work(OTHERS[0], Runs::Nothing)?,
+            end_work(OTHERS[1], Runs::Nothing)?,
         )),
         Scenario::SharedRoom => room(|room| room.shared),
         Scenario::MemoRoom => room(|room| room.memo),
