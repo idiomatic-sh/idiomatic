@@ -290,3 +290,42 @@ fn colliding_input_paths_are_refused_before_reading() {
             .all(|message| message.contains("same file"))
     );
 }
+
+/// A read of one file in which `language-target` has one row for each minor version given, every one for file 0.
+fn targets(minors: &[i64]) -> Read {
+    use ryo_relations::domain::relations::collections::relations::language_target::item::LanguageTargetRow;
+    let mut out = Collect::default();
+    for minor in minors {
+        out.write(LanguageTargetRow {
+            file: FileId(0),
+            major: Integer(3),
+            minor: Integer(*minor),
+        });
+    }
+    Read {
+        out,
+        symbols: Symbols::default(),
+        bytes: Vec::new(),
+        files: Vec::new(),
+        texts: vec![Vec::new()],
+        unknowns: &[],
+    }
+}
+
+/// The file is the key of `language-target`: a language that writes two targets for one file is held to it by the contract,
+/// with a finding naming the column and the file, and one target for the file is no finding.
+#[test]
+fn two_rows_for_one_file_of_a_relation_keyed_by_the_file_are_a_finding() {
+    let shown = "language_target/input.py";
+    let findings_of = |minors: &[i64]| {
+        let mut findings = Findings(Vec::new());
+        let written = rows_of_relation(&targets(minors), Relation::LanguageTarget, shown);
+        super::super::rows::judge_keys(Relation::LanguageTarget, &written, shown, &mut findings);
+        findings.0
+    };
+    assert_eq!(findings_of(&[12]), Vec::<String>::new());
+    assert_eq!(findings_of(&[12, 13]), vec![
+            "language_target/input.py: file is the key of language_target, but more than one row holds File(\"language_target/input.py\")"
+                .to_owned()
+        ]);
+}
