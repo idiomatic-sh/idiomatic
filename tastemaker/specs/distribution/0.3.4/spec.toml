@@ -9,8 +9,8 @@ templates = [
   { template = "smoke-test", file = "smoke_test.rs", params = { command = { param = "command" }, product = { param = "product" }, languages = { param = "languages" } }, description = "The root of the `distribution` test target, declaring one module per registry so that no registry ships without its smoke test; it runs no target." },
   { template = "target-test", file = "target_test.rs", params = { command = { param = "command" }, product = { param = "product" }, configuration = { param = "configuration" }, check = { param = "check" } }, description = "The targets' findings check the bench runs each target through: a target held to its `findings.toml`, what a run prints and the `exit_code` it ends with; and the registries the test root declares, each with its install and its build's languages." },
   # The performance: the `distribution` bench, never a test, which the performance job runs.
-  { template = "bench-main", file = "benches/bench.rs", params = { product = { param = "product" } }, description = "The `distribution` bench: every target's five rounds of a cold run and three of a warm run and a run after the edit, printed as Bencher Metric Format and never failing on a number." },
-  { template = "bench-measure", file = "benches/measure.rs", description = "One measured run, on a fixed allocation of `WORKERS` logical CPUs." },
+  { template = "bench-main", file = "benches/bench.rs", params = { product = { param = "product" }, validate = { param = "validate" } }, description = "The `distribution` bench: every target's five rounds of a cold run and three of a warm run and a run after the edit, printed as Bencher Metric Format and never failing on a number." },
+  { template = "bench-measure", file = "benches/measure.rs", params = { validate = { param = "validate" } }, description = "One measured run, on a fixed allocation of `WORKERS` logical CPUs." },
   { template = "bench-resources", file = "benches/resources.rs", description = "Samples the command process tree independently of measured CPU time." },
   { template = "bench-instrument", file = "benches/instrument.rs", description = "The bench's checks of its own instrument, run before it measures." },
   # npm: its build (cargo-dist), the package users install, its launcher, one package per
@@ -60,11 +60,12 @@ organization = { type = "identifier", description = "The organization every pack
 languages = { type = "identifier", description = "`linked`: each registry's build links the languages of its ecosystem alone, named in its build, and its smoke test holds the installed command to them. `none`: the product analyses no language, so every registry builds the crate as it is." }
 configuration = { type = "string", description = "The name of the product's own configuration file (`tastemaker.toml`), under which a run places a target's `configuration.toml` in the project." }
 check = { type = "text", description = "The arguments that make the command check the working directory and print its findings on standard output (`workspace check --format json`)." }
+validate = { type = "string", description = "The arguments that make the command validate a target's definitions and end with exit code 0 (`validate`), or empty where the command validates nothing: the bench's `--memory` then takes the cold check's peak alone, and `bench-measure` places no validation." }
 
 [[scenarios]]
 id = 'product-s-distribution-directory-npm-pypi-cargo'
 scenario = "A product's distribution directory with npm, PyPI and Cargo passes."
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -74,7 +75,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -102,7 +103,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -158,9 +159,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -170,16 +176,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -196,11 +201,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -274,7 +275,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -746,7 +747,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -2943,7 +2944,7 @@ fn prepare_policy(command: &Path, project: &Path) -> std::io::Result<()> {
 [[scenarios]]
 id = 'missing-build'
 scenario = 'The cargo-dist configuration is missing.'
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -2953,7 +2954,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -2981,7 +2982,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -3037,9 +3038,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -3049,16 +3055,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -3075,11 +3080,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -3153,7 +3154,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -3625,7 +3626,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -5809,7 +5810,7 @@ then.findings = [
 [[scenarios]]
 id = 'npm-installer'
 scenario = "The build adds cargo-dist's downloading npm installer."
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -5819,7 +5820,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -5847,7 +5848,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -5903,9 +5904,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -5915,16 +5921,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -5941,11 +5946,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -6019,7 +6020,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -6491,7 +6492,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -8692,7 +8693,7 @@ then.findings = [
 [[scenarios]]
 id = 'undeclared-registry'
 scenario = 'The test root does not declare a registry.'
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -8702,7 +8703,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -8730,7 +8731,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -8786,9 +8787,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -8798,16 +8804,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -8824,11 +8829,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -8902,7 +8903,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -9374,7 +9375,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -11571,7 +11572,7 @@ then.findings = [
 [[scenarios]]
 id = 'registry-without-smoke-test'
 scenario = "A registry's directory has no smoke test."
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -11581,7 +11582,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -11609,7 +11610,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -11665,9 +11666,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -11677,16 +11683,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -11703,11 +11708,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -11781,7 +11782,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -12253,7 +12254,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -14125,7 +14126,7 @@ then.findings = [
 [[scenarios]]
 id = 'unplaced-registry'
 scenario = "A registry's directory sits there that the spec does not place."
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -14135,7 +14136,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -14163,7 +14164,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -14219,9 +14220,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -14231,16 +14237,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -14257,11 +14262,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -14335,7 +14336,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -14807,7 +14808,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -17009,7 +17010,7 @@ then.findings = [
 [[scenarios]]
 id = 'registry-file-at-root'
 scenario = 'A file named after a registry sits beside the test root.'
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -17019,7 +17020,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -17047,7 +17048,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -17103,9 +17104,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -17115,16 +17121,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -17141,11 +17146,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -17219,7 +17220,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -17691,7 +17692,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -19893,7 +19894,7 @@ then.findings = [
 [[scenarios]]
 id = 'no-install-test'
 scenario = "Npm's smoke test does not install and run the packages."
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -19903,7 +19904,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -19931,7 +19932,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -19987,9 +19988,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -19999,16 +20005,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -20025,11 +20030,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -20103,7 +20104,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -20575,7 +20576,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -22703,7 +22704,7 @@ then.findings = [
 [[scenarios]]
 id = 'no-launcher'
 scenario = "Npm's launcher is missing."
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -22713,7 +22714,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -22741,7 +22742,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -22797,9 +22798,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -22809,16 +22815,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -22835,11 +22840,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -22913,7 +22914,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -23385,7 +23386,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -25538,7 +25539,7 @@ then.findings = [
 [[scenarios]]
 id = 'no-platform'
 scenario = 'No target has an npm platform package.'
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -25548,7 +25549,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -25576,7 +25577,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -25632,9 +25633,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -25644,16 +25650,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -25670,11 +25675,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -25748,7 +25749,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -26220,7 +26221,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -28240,7 +28241,7 @@ then.findings = [
 [[scenarios]]
 id = 'committed-binary'
 scenario = 'A binary is committed in an npm platform package.'
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -28250,7 +28251,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -28278,7 +28279,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -28334,9 +28335,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -28346,16 +28352,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -28372,11 +28377,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -28450,7 +28451,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -28922,7 +28923,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -31124,7 +31125,7 @@ then.findings = [
 [[scenarios]]
 id = 'second-python-package'
 scenario = "A second Python package sits beside the product's module."
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -31134,7 +31135,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -31162,7 +31163,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -31218,9 +31219,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -31230,16 +31236,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -31256,11 +31261,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -31334,7 +31335,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -31806,7 +31807,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -34008,7 +34009,7 @@ then.findings = [
 [[scenarios]]
 id = 'extension-module'
 scenario = 'The wheel is built as an extension module.'
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -34018,7 +34019,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -34046,7 +34047,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -34102,9 +34103,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -34114,16 +34120,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -34140,11 +34145,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -34218,7 +34219,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -34690,7 +34691,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -36890,7 +36891,7 @@ then.findings = [
 [[scenarios]]
 id = 'no-module-entry'
 scenario = 'Python -m has no entry.'
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -36900,7 +36901,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -36928,7 +36929,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -36984,9 +36985,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -36996,16 +37002,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -37022,11 +37027,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -37100,7 +37101,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -37572,7 +37573,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -39750,7 +39751,7 @@ then.findings = [
 [[scenarios]]
 id = 'pin-without-revision'
 scenario = 'A target is pinned by a tag and no revision.'
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -39760,7 +39761,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -39788,7 +39789,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -39844,9 +39845,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -39856,16 +39862,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -39882,11 +39887,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -39960,7 +39961,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -40432,7 +40433,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -42630,7 +42631,7 @@ then.findings = [
 [[scenarios]]
 id = 'script-in-targets'
 scenario = "A loose script sits in a registry's targets."
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -42640,7 +42641,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -42668,7 +42669,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -42724,9 +42725,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -42736,16 +42742,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -42762,11 +42767,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -42840,7 +42841,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -43312,7 +43313,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -45515,7 +45516,7 @@ then.findings = [
 [[scenarios]]
 id = 'results-in-target'
 scenario = 'A results file sits in a target.'
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -45525,7 +45526,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -45553,7 +45554,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -45609,9 +45610,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -45621,16 +45627,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -45647,11 +45652,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -45725,7 +45726,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -46197,7 +46198,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -48399,7 +48400,7 @@ then.findings = [
 [[scenarios]]
 id = 'registry-test-skips-targets'
 scenario = "A registry's smoke test gives no install its targets are checked through."
-given.params = { command = 'tastemaker', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
+given.params = { command = 'tastemaker', product = 'tastemaker', validate = 'validate', organization = 'idiomatic_sh', languages = 'linked', configuration = 'tastemaker.toml', check = 'workspace check --format json' }
 given.files.'benches/bench.rs' = '''
 //! tastemaker's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -48409,7 +48410,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -48437,7 +48438,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
 /// over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
@@ -48493,9 +48494,14 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept, then `validate`
+/// over a second fresh checkout, cold and again warm.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -48505,16 +48511,15 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
+    taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
     let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
     let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken.validate_peak.push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -48531,11 +48536,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -48609,7 +48610,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -49081,7 +49082,7 @@ pub(super) fn measure(
     numbers(&run)
 }
 
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
+/// Times `validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
 pub(super) fn validate(
     command: &Path,
     project: &Path,
@@ -51275,7 +51276,7 @@ then.findings = [
 [[scenarios]]
 id = 'cargo-only-product'
 scenario = "A product that ships to Cargo alone passes: neither npm's files nor PyPI's are placed."
-given.params = { command = 'ryo', product = 'ryo', organization = 'idiomatic_sh', languages = 'linked', configuration = '', check = '''query run --format json --text 'let marked = select * from "comment" where glob_any(text, "*distribution-proof*"); emit marked subject file key(span);' ''' }
+given.params = { command = 'ryo', product = 'ryo', validate = '', organization = 'idiomatic_sh', languages = 'linked', configuration = '', check = '''query run --format json --text 'let marked = select * from "comment" where glob_any(text, "*distribution-proof*"); emit marked subject file key(span);' ''' }
 given.files.'benches/bench.rs' = '''
 //! ryo's distribution perf: every registry's targets through its installed command: five
 //! rounds of a cold run, and three of a warm run and a run after the target's one-file
@@ -51285,7 +51286,7 @@ given.files.'benches/bench.rs' = '''
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `tm validate` over the target's definitions, each run on four CPUs.
+//! each run on four CPUs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-ryo --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -51313,18 +51314,11 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `tm validate`
-/// over the target's definitions cold and warm.
+/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check.
 #[derive(Default)]
 struct Memory {
     /// The cold check's peak memory in kibibytes, one per round.
     check_peak: Vec<u128>,
-    /// `validate`'s wall milliseconds on a fresh checkout, one per round.
-    validate_cold: Vec<u128>,
-    /// `validate`'s wall milliseconds over what the cold run proved, one per round.
-    validate_warm: Vec<u128>,
-    /// The larger peak memory of the two validations in kibibytes, one per round.
-    validate_peak: Vec<u128>,
 }
 
 /// The wall milliseconds of each round of one target: cold, warm, and after the edit.
@@ -51369,9 +51363,13 @@ fn round(command: &Path, target: &Path, snapshot: &Path, full: bool) -> std::io:
     Ok(numbers)
 }
 
-/// One round of `--memory` over a fresh checkout of `snapshot`: the cold check, whose peak is kept, then `validate` over a second fresh
-/// checkout, cold and again warm.
-fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Result<[u128; 4]> {
+/// One round of `--memory` over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is kept.
+fn memory_round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
     let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
     let scratch = tempfile::tempdir()?;
     let (_, project) = target_test::checkout(command, target, snapshot, scratch.path())?;
@@ -51381,16 +51379,8 @@ fn memory_round(command: &Path, target: &Path, snapshot: &Path) -> std::io::Resu
         scratch.path(),
         &target.join("findings.toml"),
     )?;
-    let proving = tempfile::tempdir()?;
-    let (_, project) = target_test::checkout(command, target, snapshot, proving.path())?;
-    let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
-    let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    Ok([
-        kibibytes(check_peak),
-        cold,
-        warm,
-        kibibytes(cold_peak.max(warm_peak)),
-    ])
+    taken.check_peak.push(kibibytes(check_peak));
+    Ok(())
 }
 
 /// Five rounds of the cold run, the first three of them with the warm run and the run after the edit; no fastest-run selection. Answers the target's line, its rounds,
@@ -51407,11 +51397,7 @@ fn prove(
     if memory {
         let mut taken = Memory::default();
         for _ in 0..ROUNDS {
-            let [check_peak, cold, warm, peak] = memory_round(command, target, &snapshot)?;
-            taken.check_peak.push(check_peak);
-            taken.validate_cold.push(cold);
-            taken.validate_warm.push(warm);
-            taken.validate_peak.push(peak);
+            memory_round(command, target, &snapshot, &mut taken)?;
         }
         kept.borrow_mut().push(Measured {
             benchmark: format!(
@@ -51485,7 +51471,7 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the peak and `validate` measures
+/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
 /// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
@@ -51502,9 +51488,6 @@ fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
                 let measures = if memory {
                     serde_json::json!({
                         "cold-peak-kib": measure(&each.memory.check_peak),
-                        "validate-cold-ms": measure(&each.memory.validate_cold),
-                        "validate-warm-ms": measure(&each.memory.validate_warm),
-                        "validate-peak-kib": measure(&each.memory.validate_peak),
                     })
                 } else {
                     serde_json::json!({
@@ -51954,23 +51937,6 @@ pub(super) fn measure(
     // The command ends with the exit code its expected findings state.
     let findings = target_test::hold(&std::fs::read(&run.printed)?, run.ended, expected)?;
     writeln!(std::io::stderr().lock(), "findings={findings}")?;
-    numbers(&run)
-}
-
-/// Times `tm validate` over the project's definitions, which must hold: its wall and CPU milliseconds and its peak bytes.
-pub(super) fn validate(
-    command: &Path,
-    project: &Path,
-    scratch: &Path,
-) -> std::io::Result<(u128, u128, u64)> {
-    let run = timed(command, project, scratch, "validate")?;
-    if run.ended != Some(0) {
-        return Err(std::io::Error::other(format!(
-            "`validate` ended with exit code {:?}: {}",
-            run.ended,
-            String::from_utf8_lossy(&std::fs::read(&run.printed)?)
-        )));
-    }
     numbers(&run)
 }
 '''

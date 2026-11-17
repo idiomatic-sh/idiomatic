@@ -71,19 +71,6 @@ impl ExecutionPort for Native {
         })
     }
 }
-/// Marks the files executable; a file system with no modes needs no marking.
-#[cfg(unix)]
-pub(in crate::inbound::use_cases::certify::use_case_test) fn make_executable(files: &[&Path]) {
-    for executable in files {
-        std::fs::set_permissions(
-            executable,
-            <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o755),
-        )
-        .unwrap();
-    }
-}
-#[cfg(not(unix))]
-pub(in crate::inbound::use_cases::certify::use_case_test) fn make_executable(_files: &[&Path]) {}
 pub(in crate::inbound::use_cases::certify::use_case_test) fn digest(path: &Path) -> String {
     format!("{:x}", Sha256::digest(std::fs::read(path).unwrap()))
 }
@@ -108,16 +95,17 @@ impl Fixture {
             .path()
             .join(crate::inbound::use_cases::certify::constants::FIXTURE_TOOL_FILE);
         let worker_executable = root.path().join("independent-worker");
-        write(
+        crate::outbound::execution::fixtures::executable::write(
             &reference_executable,
-            crate::inbound::use_cases::certify::constants::FIXTURE_TOOL_SCRIPT,
-        );
-        write(
+            crate::inbound::use_cases::certify::constants::FIXTURE_TOOL_SCRIPT.as_bytes(),
+        )
+        .unwrap();
+        crate::outbound::execution::fixtures::executable::write(
             &worker_executable,
-            "#!/bin/sh\nprintf 'independent worker\\n'\n",
-        );
+            b"#!/bin/sh\nprintf 'independent worker\\n'\n",
+        )
+        .unwrap();
         assert_ne!(digest(&reference_executable), digest(&worker_executable));
-        make_executable(&[&reference_executable, &worker_executable]);
         write(&profile.join("helper.ryoql"), "shared tested helper");
         write(&profile.join("second.ryoql"), "second tested helper");
         write(

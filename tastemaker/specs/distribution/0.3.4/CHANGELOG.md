@@ -1,3 +1,11 @@
+# distribution 0.3.4
+
+The bench's validation is the product's own: a new param, `validate`, names the arguments that make the command validate a target's definitions (`validate` for Tastemaker's `tm`), or is empty where the command validates nothing. `bench-main` and `bench-measure` take it: with it, `--memory` takes `cold-peak-kib` and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` as in 0.3.3; without it, `--memory` takes `cold-peak-kib` alone and `bench-measure` places no `validate`, so a product whose command has no `validate` (ryo, asymptote) places the same bench. `memory_round` keeps each round's measures in the target's `Memory` itself. Everything else is as in 0.3.3.
+
+# distribution 0.3.3
+
+The distribution bench takes memory: `-- --memory` runs the cargo registry's targets alone and reports `cold-peak-kib` (the peak of the cold check) and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` (`tm validate` over the target's definitions, cold and again warm). `bench-measure` runs one measured run through `timed`, holds a check to its expected findings and a validation to exit 0, and gives a run four logical CPUs (`WORKERS = 4`) in place of ten, so the command runs the same workers on a runner and on a larger machine. Everything else is as in 0.3.2. Edited in place: `bench-main` writes its check of the cold peak and its document line as rustfmt writes them at the repository's width, so a product's `cargo fmt` and the verbatim template agree.
+
 # distribution 0.3.2
 
 No build links a `javascript` language: the TypeScript language reads `.js`, `.jsx`, `.mjs` and `.cjs` files, and the

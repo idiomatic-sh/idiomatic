@@ -275,3 +275,61 @@ def test_a_python_tool_on_another_python_minor_is_reinstalled(monkeypatch) -> No
     assert install.stale_tool(PYTEST, install.installed_python()) == "installed on Python 3.15, declared 3.12"
     monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, PYTEST_LISTING, ""))
     assert install.stale_tool(PYTEST, install.installed_python()) is None
+
+
+def product(root: Path, name: str, version: str) -> Path:
+    """A product workspace at `crates/<name>` whose `cli` member is the package `idiomatic-sh-<name>` at the workspace's `version`."""
+    (root / f"crates/{name}/cli").mkdir(parents=True)
+    (root / f"crates/{name}/Cargo.toml").write_text(f'[workspace]\nmembers = ["cli"]\n\n[workspace.package]\nversion = "{version}"\n')
+    (root / f"crates/{name}/cli/Cargo.toml").write_text(f'[package]\nname = "idiomatic-sh-{name}"\nversion.workspace = true\n')
+    return root / f"crates/{name}/cli"
+
+
+def test_a_tool_pinned_at_its_own_unreleased_tree_version_is_built_from_the_tree(tmp_path, monkeypatch) -> None:
+    cli = product(tmp_path, "asymptote", "0.1.3")
+    tree = install.tree_crates(tmp_path)
+    assert tree == {"idiomatic-sh-asymptote": (cli, "0.1.3")}
+    released = {"idiomatic-sh-asymptote": {"0.1.1", "0.1.2"}}.get
+    assert install.unreleased(install.Crate("idiomatic-sh-asymptote", "0.1.3", bins=("asymptote",)), tree, released) == cli
+    calls = recorded(monkeypatch, 0)
+    assert install.install_from_tree(install.Crate("idiomatic-sh-asymptote", "0.1.3"), cli) == f"built from {cli}"
+    assert calls == [["cargo", "install", "--locked", "--force", "--path", str(cli)]]
+
+
+def test_a_tool_pinned_at_a_published_or_another_version_is_the_published_release(tmp_path) -> None:
+    tree = {"idiomatic-sh-tastemaker": (product(tmp_path, "tastemaker", "0.1.3"), "0.1.3")}
+    released = {"idiomatic-sh-tastemaker": {"0.1.2", "0.1.3"}}.get
+    assert install.unreleased(install.Crate("idiomatic-sh-tastemaker", "0.1.3"), tree, released) is None
+    assert install.unreleased(install.Crate("idiomatic-sh-tastemaker", "0.1.2"), tree, released) is None
+    assert install.unreleased(install.Crate("cargo-deny", "0.20.2"), tree, lambda name: set()) is None
+
+
+def test_the_published_versions_are_read_from_the_crates_io_index(monkeypatch) -> None:
+    import io
+    import urllib.error
+
+    asked: list[str] = []
+
+    def urlopen(url):
+        asked.append(url)
+        if url.endswith("/absent-crate"):
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+        return io.BytesIO(b'{"name":"idiomatic-sh-asymptote","vers":"0.1.1"}\n{"name":"idiomatic-sh-asymptote","vers":"0.1.2"}\n')
+
+    monkeypatch.setattr(install.urllib.request, "urlopen", urlopen)
+    assert install.published("idiomatic-sh-asymptote") == {"0.1.1", "0.1.2"}
+    assert install.published("absent-crate") == set()
+    assert install.published("abc") == {"0.1.1", "0.1.2"}
+    assert asked == [
+        "https://index.crates.io/id/io/idiomatic-sh-asymptote",
+        "https://index.crates.io/ab/se/absent-crate",
+        "https://index.crates.io/3/a/abc",
+    ]
+
+
+def test_every_own_tool_is_found_in_the_tree() -> None:
+    tree = install.tree_crates()
+    for crate in install.ROOT_CRATES:
+        if crate.name.startswith(install.OURS):
+            assert crate.name in tree, crate.name
+    assert tree["idiomatic-sh-asymptote"][0] == ROOT / "crates/asymptote/cli"

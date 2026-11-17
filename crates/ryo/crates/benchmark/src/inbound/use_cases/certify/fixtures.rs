@@ -4,9 +4,7 @@
     reason = "fixture setup and fake state are test preconditions; a panic fails the unit or acceptance proof that calls this module"
 )]
 use super::constants;
-use crate::inbound::use_cases::prepare_cases::fixtures::{
-    Contestant, Launches, case_document, executable_permissions,
-};
+use crate::inbound::use_cases::prepare_cases::fixtures::{Contestant, Launches, case_document};
 use crate::outbound::linter::interface::LinterPort;
 use ryo_benchmark_contracts::domain::measurements::types::CollectorDigest;
 use ryo_benchmark_contracts::domain::measurements::types::CollectorProfile;
@@ -88,8 +86,8 @@ pub fn exercise(
         .expect(constants::FIXTURE_PRECONDITION);
     let executable = root.path().join(constants::FIXTURE_TOOL_FILE);
     let bytes = constants::FIXTURE_TOOL_SCRIPT.as_bytes();
-    std::fs::write(&executable, bytes).expect(constants::FIXTURE_PRECONDITION);
-    executable_permissions(&executable);
+    crate::outbound::execution::fixtures::executable::write(&executable, bytes)
+        .expect(constants::FIXTURE_PRECONDITION);
     std::fs::write(
         directory.join(constants::FIXTURE_PROFILE_FILE),
         format!(
@@ -127,8 +125,8 @@ pub fn exercise(
     .expect(constants::FIXTURE_PRECONDITION);
     let suite = std::sync::Arc::new(crate::outbound::suite::factory::local());
     let launcher = root.path().join(constants::FIXTURE_LAUNCHER_FILE);
-    std::fs::write(&launcher, bytes).expect(constants::FIXTURE_PRECONDITION);
-    executable_permissions(&launcher);
+    crate::outbound::execution::fixtures::executable::write(&launcher, bytes)
+        .expect(constants::FIXTURE_PRECONDITION);
     let reference = std::sync::Arc::new(Contestant {
         executable: executable.clone(),
         arguments: vec![],
