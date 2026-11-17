@@ -31,13 +31,28 @@ fn target_is_attached_to_source_even_when_source_is_empty() {
     }
 }
 
+/// A file holds one target row however many modules, classes, functions and lambdas nest in it: the row is of the file, so
+/// `file` is the relation's key.
+fn one_target_row_per_file_however_many_scopes_nest_in_it() {
+    let nested = "import os\nclass C:\n    def f(self):\n        def g():\n            return lambda: (yield)\n        return g\n\nclass D(C):\n    x = [y for y in range(3)]\n";
+    assert_eq!(target(PythonTargetVersion::Py312, nested), (3, 12));
+}
+
 /// Each check below states its own source and asserts its own outcome.
-const CASES: &[Case<fn(), (), ()>] = &[Case {
-    name: CaseName("target_is_attached_to_source_even_when_source_is_empty"),
-    word: Word::Succeeds,
-    input: || target_is_attached_to_source_even_when_source_is_empty,
-    expect: Expect::Value(()),
-}];
+const CASES: &[Case<fn(), (), ()>] = &[
+    Case {
+        name: CaseName("target_is_attached_to_source_even_when_source_is_empty"),
+        word: Word::Succeeds,
+        input: || target_is_attached_to_source_even_when_source_is_empty,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("one_target_row_per_file_however_many_scopes_nest_in_it"),
+        word: Word::Succeeds,
+        input: || one_target_row_per_file_however_many_scopes_nest_in_it,
+        expect: Expect::Value(()),
+    },
+];
 
 #[test]
 fn succeeds() {
