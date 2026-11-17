@@ -4,8 +4,6 @@
 //! queue again when its state changes; every edge followed is one row, with the destination's state after the join.
 
 use super::super::distinct::item::counted;
-use super::super::hash_index::item::emptied;
-use super::super::hash_index::item::value_hash;
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};

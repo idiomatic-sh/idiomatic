@@ -86,3 +86,15 @@ pub(crate) fn value_hash(value: Value) -> IndexKeyHash {
     value.hash(&mut hasher);
     IndexKeyHash(hasher.finish())
 }
+
+impl crate::domain::kept_room::types::KeptRoom for VisitedSet {
+    fn kept(&mut self) {
+        self.table.kept();
+        self.met.kept();
+    }
+
+    #[cfg(test)]
+    fn room(&self) -> crate::domain::kept_room::types::Room {
+        self.table.room().max(self.met.room())
+    }
+}
