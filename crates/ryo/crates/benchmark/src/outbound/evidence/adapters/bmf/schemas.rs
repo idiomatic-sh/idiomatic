@@ -258,9 +258,7 @@ fn measured(
 }
 
 /// The times each file holds of its rule: the benchmark ending in `/verify/<rule>`, whatever language it was written under.
-pub(super) fn read_verification(
-    files: &VerificationTimesFiles,
-) -> Result<RuleTimings, Error> {
+pub(super) fn read_verification(files: &VerificationTimesFiles) -> Result<RuleTimings, Error> {
     let mut timings = BTreeMap::new();
     for (rule, file) in &files.0 {
         let text = std::fs::read_to_string(&file.0)?;

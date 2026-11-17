@@ -88,7 +88,9 @@ fn subject(adapter: &impl EvidencePort, steps: Input) -> Result<Value, Failure> 
             Step::Verification => adapter.verification(&language, &super::sample::timings()),
             Step::Growth => adapter.growth(&language, &super::sample::growth()),
             Step::ReadNoVerification => adapter
-                .read_verification(&crate::outbound::evidence::types::VerificationTimesFiles::default())
+                .read_verification(
+                    &crate::outbound::evidence::types::VerificationTimesFiles::default(),
+                )
                 .map(|timings| read += timings.0.len()),
             Step::Finish => adapter.finish(),
         };

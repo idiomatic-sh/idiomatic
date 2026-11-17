@@ -214,9 +214,13 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 let received = child.receive().map_err(classify)?;
                 // The same request stored in a file reads back as the one this process was given.
                 let stored = temporary.path().join("request.json");
-                std::fs::write(&stored, payload_text.as_bytes()).map_err(|_unwritten| Refusal::Unexpected)?;
+                std::fs::write(&stored, payload_text.as_bytes())
+                    .map_err(|_unwritten| Refusal::Unexpected)?;
                 let read = child.read(&stored).map_err(classify)?;
-                assert_eq!((&read.root, &read.files, &read.state), (&received.root, &received.files, &received.state));
+                assert_eq!(
+                    (&read.root, &read.files, &read.state),
+                    (&received.root, &received.files, &received.state)
+                );
                 assert_eq!(received.root, request.root);
                 assert_eq!(received.rules, std::path::PathBuf::from("rules"));
                 assert_eq!(received.files, request.files);
@@ -242,7 +246,10 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             let capture = capture.lock().expect("capture");
             if matches!(operation, Operation::RoundTrip) {
                 // What a worker in the bench's own process answers is what the child publishes.
-                assert_eq!(child.encoded(&expected_report).map_err(classify)?.0, capture.bytes);
+                assert_eq!(
+                    child.encoded(&expected_report).map_err(classify)?.0,
+                    capture.bytes
+                );
             }
             assert!(capture.bytes.ends_with(b"\n"));
             assert_eq!(capture.flushes, 1);

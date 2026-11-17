@@ -2,8 +2,8 @@
 //! receipts it leaves are validated against the registered cases.
 use super::super::authority::service::{refused, verify_context};
 use super::super::constants;
-use crate::domain::suite::types::inventory::value::{FailureReason, PassedRule, RuleEvidence};
 use super::super::types::RuleFiles;
+use crate::domain::suite::types::inventory::value::{FailureReason, PassedRule, RuleEvidence};
 use crate::outbound::{
     execution::interface::ExecutionPort,
     inventory::{

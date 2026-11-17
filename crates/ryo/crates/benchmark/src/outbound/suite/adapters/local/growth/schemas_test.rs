@@ -8,25 +8,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a rule over an operation in a frame at one size is a table"),
         word: Word::Succeeds,
-        input: || {
-            "file = \"case.py\"\nsizes = [1000]\n[[rules]]\nrule = \"F401\"\nprofile = \"profiles/F401\"\n[frames.module]\nhead = \"\"\nindent = \"\"\ntail = \"\"\n[[operations]]\nname = \"assign\"\nframes = [\"module\"]\nsegments = [{ lines = [\"v = 1\\n\"], fixed = 0, per-size = 1 }]\n"
-        },
+        input: || "file = \"case.py\"\nsizes = [1000]\n[[rules]]\nrule = \"F401\"\nprofile = \"profiles/F401\"\n[frames.module]\nhead = \"\"\nindent = \"\"\ntail = \"\"\n[[operations]]\nname = \"assign\"\nframes = [\"module\"]\nsegments = [{ lines = [\"v = 1\\n\"], fixed = 0, per-size = 1 }]\n",
         expect: Expect::Value((1, 1, 1, 1)),
     },
     Case {
         name: CaseName("an operation in a frame the table does not define is refused"),
         word: Word::Refuses,
-        input: || {
-            "file = \"case.py\"\nsizes = [1000]\n[[rules]]\nrule = \"F401\"\nprofile = \"profiles/F401\"\n[frames.module]\nhead = \"\"\nindent = \"\"\ntail = \"\"\n[[operations]]\nname = \"assign\"\nframes = [\"class\"]\nsegments = [{ lines = [\"v = 1\\n\"], fixed = 0, per-size = 1 }]\n"
-        },
+        input: || "file = \"case.py\"\nsizes = [1000]\n[[rules]]\nrule = \"F401\"\nprofile = \"profiles/F401\"\n[frames.module]\nhead = \"\"\nindent = \"\"\ntail = \"\"\n[[operations]]\nname = \"assign\"\nframes = [\"class\"]\nsegments = [{ lines = [\"v = 1\\n\"], fixed = 0, per-size = 1 }]\n",
         expect: Expect::Error(()),
     },
     Case {
         name: CaseName("an odd size is refused"),
         word: Word::Refuses,
-        input: || {
-            "file = \"case.py\"\nsizes = [999]\n[[rules]]\nrule = \"F401\"\nprofile = \"profiles/F401\"\n[frames.module]\nhead = \"\"\nindent = \"\"\ntail = \"\"\n[[operations]]\nname = \"assign\"\nframes = [\"module\"]\nsegments = [{ lines = [\"v = 1\\n\"], fixed = 0, per-size = 1 }]\n"
-        },
+        input: || "file = \"case.py\"\nsizes = [999]\n[[rules]]\nrule = \"F401\"\nprofile = \"profiles/F401\"\n[frames.module]\nhead = \"\"\nindent = \"\"\ntail = \"\"\n[[operations]]\nname = \"assign\"\nframes = [\"module\"]\nsegments = [{ lines = [\"v = 1\\n\"], fixed = 0, per-size = 1 }]\n",
         expect: Expect::Error(()),
     },
 ];

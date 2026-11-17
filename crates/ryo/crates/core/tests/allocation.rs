@@ -96,7 +96,8 @@ fn big_blocks(beside: Beside) -> Result<Value, Failure> {
         .flatten()
         .filter_map(|site| {
             let (bytes, blocks) = (site.get("tb")?.as_f64()?, site.get("tbk")?.as_f64()?);
-            (blocks > 0.0_f64 && bytes / blocks >= f64::from(BIG)).then_some(site.get("tbk")?.as_u64()?)
+            (blocks > 0.0_f64 && bytes / blocks >= f64::from(BIG))
+                .then_some(site.get("tbk")?.as_u64()?)
         })
         .sum();
     let most = u64::try_from((workers + rules) * TABLES).unwrap_or(u64::MAX);

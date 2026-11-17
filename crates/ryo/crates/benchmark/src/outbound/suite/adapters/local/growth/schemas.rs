@@ -1,8 +1,8 @@
 //! The shape of a language's growth table: the program's file, the rules and their profiles, the whole sizes, the frames
 //! and the operations grown in them.
 use ryo_benchmark_contracts::domain::growth::types::{
-    GrowthFrame, GrowthOperation, GrowthRule, GrowthSegment, GrowthSize, GrowthTable,
-    Repetitions, SourceFileName, TemplateName, TemplateText,
+    GrowthFrame, GrowthOperation, GrowthRule, GrowthSegment, GrowthSize, GrowthTable, Repetitions,
+    SourceFileName, TemplateName, TemplateText,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
@@ -82,7 +82,9 @@ pub(in super::super) fn growth(text: &str) -> Result<GrowthTable, Error> {
         return Err(Error::Invalid(super::super::constants::GROWTH_EMPTY.into()));
     }
     if wire.sizes.iter().any(|size| *size == 0 || size % 2 != 0) {
-        return Err(Error::Invalid(super::super::constants::GROWTH_ODD_SIZE.into()));
+        return Err(Error::Invalid(
+            super::super::constants::GROWTH_ODD_SIZE.into(),
+        ));
     }
     let frames: BTreeMap<TemplateName, GrowthFrame> = wire
         .frames
@@ -103,7 +105,10 @@ pub(in super::super) fn growth(text: &str) -> Result<GrowthTable, Error> {
         let named: Vec<TemplateName> = operation.frames.into_iter().map(TemplateName).collect();
         if named.is_empty()
             || named.iter().any(|frame| !frames.contains_key(frame))
-            || operation.segments.iter().any(|segment| segment.lines.is_empty())
+            || operation
+                .segments
+                .iter()
+                .any(|segment| segment.lines.is_empty())
         {
             return Err(Error::Invalid(format!(
                 "growth operation `{}`: {}",

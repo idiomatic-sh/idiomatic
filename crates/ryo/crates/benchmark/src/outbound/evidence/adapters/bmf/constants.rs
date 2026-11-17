@@ -9,7 +9,6 @@ pub(super) const MAX_EXACT_RESIDENT: u64 = 1_u64 << f64::MANTISSA_DIGITS;
 /// Refuse evidence that would silently round a resident-byte observation.
 pub(super) const INEXACT_RESIDENT: &str = "resident bytes exceed exact BMF numeric range";
 
-
 /// Aggregation must never publish a metric without observations.
 pub(super) const EMPTY_METRIC: &str = "empty metric sample group";
 

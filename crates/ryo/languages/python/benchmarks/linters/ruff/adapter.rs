@@ -1,6 +1,6 @@
 //! Ruff owns its invocation and requested-source IO; schemas normalize its process response.
 use super::{constants, schemas, settings::LinterRuffSettings};
-use ryo::linter::{RuleId, SourceText};
+use ryo::linter::SourceText;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
 use ryo_benchmark::outbound::linter::types::CanonicalText;
 use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
@@ -9,7 +9,7 @@ use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 #[derive(Debug)]
 /// Executes the pinned Ruff protocol against an explicit source set.
@@ -73,7 +73,7 @@ impl LinterPort for LinterRuffAdapter {
         }
         arguments.push(constants::END_OPTIONS.into());
         for file in &request.files {
-            RelativeArtifactPath::try_from(std::path::Path::new(file.0.as_ref()))?;
+            let _relative = RelativeArtifactPath::try_from(std::path::Path::new(file.0.as_ref()))?;
             arguments.push(file.0.as_ref().into());
         }
         Ok(Invocation {
@@ -95,7 +95,7 @@ impl LinterPort for LinterRuffAdapter {
         schemas::check_status(&output)?;
         let mut sources = BTreeMap::new();
         for file in &request.files {
-            RelativeArtifactPath::try_from(std::path::Path::new(file.0.as_ref()))?;
+            let _relative = RelativeArtifactPath::try_from(std::path::Path::new(file.0.as_ref()))?;
             let key = file.clone();
             if matches!(&request.context_manifest, ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) if
                 ryo_benchmark::domain::suite::service::declares_missing(manifest, file) == ryo_benchmark::domain::suite::types::ContextAbsence::Sealed)

@@ -295,10 +295,11 @@ fn compare(
             bench: &directory(),
             projects: suite.projects,
             growth: ryo_benchmark::domain::growth::types::CorpusGrowth::Ungrown,
-            verification: ryo_benchmark::inbound::use_cases::measure_corpus::types::VerifiedInventory {
-                directory: &verification,
-                rules: &verified,
-            },
+            verification:
+                ryo_benchmark::inbound::use_cases::measure_corpus::types::VerifiedInventory {
+                    directory: &verification,
+                    rules: &verified,
+                },
             cache: &cache,
             frozen_workload: &workload,
             certificate: &certificate,

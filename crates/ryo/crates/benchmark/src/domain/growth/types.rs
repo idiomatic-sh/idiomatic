@@ -1,7 +1,7 @@
 //! The plan of a growth run, its bounds and what it observed.
+use ryo_benchmark_contracts::domain::growth::types::{GrowthSize, SourceFileName};
 use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
 use ryo_benchmark_contracts::domain::measurements::types::{DoublingRatio, GrowthShape};
-use ryo_benchmark_contracts::domain::growth::types::{GrowthSize, SourceFileName};
 use std::collections::BTreeMap;
 
 /// A shape's program at one size.

@@ -46,14 +46,7 @@ impl LinterPort for LinterOxlintAdapter {
             arguments.push(constants::DENY.into());
             arguments.push(schemas::selector_of_rule(rule)?.into());
         }
-        arguments.extend(
-            [
-                constants::FORMAT,
-                constants::JSON,
-                constants::THREADS,
-            ]
-            .map(Into::into),
-        );
+        arguments.extend([constants::FORMAT, constants::JSON, constants::THREADS].map(Into::into));
         arguments.push(
             ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
                 .to_string()

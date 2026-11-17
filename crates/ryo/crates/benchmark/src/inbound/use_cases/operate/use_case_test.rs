@@ -19,7 +19,12 @@ enum Published {
     /// Anything else.
     Other,
 }
-type Value = (OperationVerdict, Cow<'static, str>, Published, Cow<'static, str>);
+type Value = (
+    OperationVerdict,
+    Cow<'static, str>,
+    Published,
+    Cow<'static, str>,
+);
 /// The refusal, the artifacts requests, as text, and whether a registration was written.
 type Failure = (Cow<'static, str>, Cow<'static, str>, bool);
 

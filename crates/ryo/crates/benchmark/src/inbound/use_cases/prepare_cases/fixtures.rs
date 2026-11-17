@@ -14,14 +14,20 @@ use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use sha2::{Digest as _, Sha256};
 use std::path::Path;
 use std::path::PathBuf;
+/// Which rules directory the operation is handed.
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
+    /// The authored rules directory, every source present.
     Complete,
+    /// A rules directory that does not exist.
     Missing,
 }
+/// How the operation refused.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refusal {
+    /// It refused the missing rules directory.
     MissingSource,
+    /// It refused for any other reason.
     Unexpected,
 }
 /// Run one public operation over independently authored source facts.
@@ -59,17 +65,13 @@ pub fn exercise(
                 ),
             }
             result.map_err(|error| match error {
-                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(error)
-                    if error.kind() == std::io::ErrorKind::NotFound =>
-                {
+                ReportsError::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
                     Refusal::MissingSource
                 }
-                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
-                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
-                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
-                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
-                    Refusal::Unexpected
-                }
+                ReportsError::Invalid(_)
+                | ReportsError::Io(_)
+                | ReportsError::Json(_)
+                | ReportsError::Toml(_) => Refusal::Unexpected,
             })
         },
     )
@@ -203,13 +205,13 @@ impl LinterPort for Contestant {
 /// When the fixture's directory, contestant script, profile or cases cannot be written.
 pub fn with_verification_sources<R>(
     operation: impl FnOnce(
-        &dyn crate::outbound::suite::interface::SuitePort,
+        &dyn SuitePort,
         &dyn LinterPort,
         &dyn LinterPort,
         &dyn crate::outbound::execution::interface::ExecutionPort,
-        &std::path::Path,
-        &std::path::Path,
-        &std::path::Path,
+        &Path,
+        &Path,
+        &Path,
     ) -> R,
 ) -> R {
     let root = tempfile::tempdir().expect(constants::FIXTURE_PRECONDITION);
@@ -336,7 +338,7 @@ pub fn case_document() -> toml::Value {
 /// # Panics
 /// When the script's permissions cannot be set.
 #[cfg(unix)]
-pub fn executable_permissions(path: &std::path::Path) {
+pub fn executable_permissions(path: &Path) {
     use std::os::unix::fs::PermissionsExt as _;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
         .expect(constants::FIXTURE_PRECONDITION);
@@ -358,9 +360,8 @@ pub fn workload_snapshot_preserves_exact_patch() -> Result<(), Box<dyn std::erro
         interface::SuitePort as _,
         types::{ArtifactPath, ArtifactSet},
     };
-    let seal = |path: &std::path::Path| {
-        local().fingerprint(ArtifactSet(std::slice::from_ref(&path.to_path_buf())))
-    };
+    let seal =
+        |path: &Path| local().fingerprint(ArtifactSet(std::slice::from_ref(&path.to_path_buf())));
     let directory_guard = tempfile::tempdir()?;
     let destination_guard = tempfile::tempdir()?;
     let (directory, destination) = (directory_guard.path(), destination_guard.path());

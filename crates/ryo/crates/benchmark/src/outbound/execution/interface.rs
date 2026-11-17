@@ -20,7 +20,8 @@ pub trait ExecutionPort: Send + Sync {
     fn compile(
         &self,
         _invocation: &Invocation,
-    ) -> Option<Result<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>, Error>> {
+    ) -> Option<Result<std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>, Error>>
+    {
         None
     }
     /// Launch the child and capture its exit status, streams and elapsed wall time.
@@ -30,4 +31,3 @@ pub trait ExecutionPort: Send + Sync {
     /// Returns an error when launching or observing the process fails.
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error>;
 }
-

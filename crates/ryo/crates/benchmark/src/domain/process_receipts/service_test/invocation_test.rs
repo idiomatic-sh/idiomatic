@@ -2,7 +2,6 @@
 use ryo_benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, ExitStatus, PathText, ReasonText, YesNo,
 };
-use sha2::Digest as _;
 
 use super::super::{
     errors::ProcessReceiptsError,

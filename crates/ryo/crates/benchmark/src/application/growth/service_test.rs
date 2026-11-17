@@ -4,9 +4,9 @@ use super::service::grow;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::growth::constants::{CPU_FLOOR, MEGABYTE, MEMORY_BOUND};
 use crate::domain::growth::types::{GrownProgram, GrowthPlan, RuleModules, ShapePrograms};
-use ryo_benchmark_contracts::domain::growth::types::{GrowthSize, SourceFileName};
 use crate::outbound::process_meter::fixtures::fake::ProcessMeterFake;
 use crate::outbound::suite::types::ArtifactPath;
+use ryo_benchmark_contracts::domain::growth::types::{GrowthSize, SourceFileName};
 use ryo_benchmark_contracts::domain::measurements::types::GrowthShape;
 use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
 use ryo_benchmark_contracts::domain::requests::types::{

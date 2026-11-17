@@ -56,7 +56,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(Refusal::InputCoverage),
     },
     Case {
-        name: CaseName("the ryo adapter launches with no thread pin of its own: the bench's run line is the one pin"),
+        name: CaseName(
+            "the ryo adapter launches with no thread pin of its own: the bench's run line is the one pin",
+        ),
         word: Word::Succeeds,
         input: || Scenario::AdapterPin,
         expect: Expect::Value(0),

@@ -60,10 +60,9 @@ pub(super) fn worker(
         WorkerInput::File(path) => WorkerSource::Stored(path),
         WorkerInput::Inline(payload) => WorkerSource::Argument(payload.0.into()),
     };
-    let transport: Arc<dyn WorkerPort + Send + Sync> = Arc::new(ryo_benchmark::outbound::worker::factory::json(
-        source,
-        Box::new(std::io::stdout()),
-    ));
+    let transport: Arc<dyn WorkerPort + Send + Sync> = Arc::new(
+        ryo_benchmark::outbound::worker::factory::json(source, Box::new(std::io::stdout())),
+    );
     let languages = ryo::linter::Languages(vec![ryo_typescript::linked()]);
     let frontend_diagnostic = frontend_diagnostic()?;
     let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
@@ -189,9 +188,9 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
     // The times of a verification go to its times file when the run names one, and nowhere when it does not.
     let evidence: Box<dyn ryo_benchmark::outbound::evidence::interface::EvidencePort> =
         match &run.timings {
-            VerifyTimes::Recorded(path) => {
-                Box::new(ryo_benchmark::outbound::evidence::factory::bmf_appending(path.clone()))
-            }
+            VerifyTimes::Recorded(path) => Box::new(
+                ryo_benchmark::outbound::evidence::factory::bmf_appending(path.clone()),
+            ),
             VerifyTimes::Unrecorded => Box::new(ryo_benchmark::outbound::evidence::factory::bmf(
                 Box::new(std::io::sink()),
                 Box::new(std::io::sink()),

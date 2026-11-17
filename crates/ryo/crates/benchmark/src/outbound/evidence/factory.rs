@@ -6,9 +6,9 @@ use std::io::Write;
 #[must_use]
 pub fn bmf(output: Box<dyn Write + Send>, comparison: Box<dyn Write + Send>) -> impl EvidencePort {
     EvidenceBmfAdapter::new(super::adapters::bmf::connection::EvidenceBmfConnection {
-        output: super::adapters::bmf::connection::DocumentDestination::Stream(std::sync::Mutex::new(
-            output,
-        )),
+        output: super::adapters::bmf::connection::DocumentDestination::Stream(
+            std::sync::Mutex::new(output),
+        ),
         comparison: std::sync::Mutex::new(comparison),
         document: std::sync::Mutex::new(Some(
             super::adapters::bmf::types::MeasureDocument::default(),

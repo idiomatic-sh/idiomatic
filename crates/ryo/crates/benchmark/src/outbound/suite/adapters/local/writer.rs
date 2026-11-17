@@ -304,7 +304,7 @@ pub(super) fn materialize(
         let path = root.join(relative.as_ref());
         std::fs::create_dir_all(
             path.parent()
-                .ok_or_else(|| Error::Invalid(super::constants::MISSING_CASE_PARENT.into()))?,
+                .ok_or_else(|| Error::Invalid(constants::MISSING_CASE_PARENT.into()))?,
         )?;
         std::fs::write(&path, source.0.as_bytes())?;
         if let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
@@ -381,7 +381,7 @@ pub(super) fn relative(path: &Path) -> Result<(), SuiteError> {
 }
 
 /// The bytes and count of every file below `directory`.
-pub(super) fn directory_size(directory: &std::path::Path) -> Result<StoreSize, Error> {
+pub(super) fn directory_size(directory: &Path) -> Result<StoreSize, Error> {
     let mut size = StoreSize::default();
     let mut pending = vec![directory.to_path_buf()];
     while let Some(next) = pending.pop() {

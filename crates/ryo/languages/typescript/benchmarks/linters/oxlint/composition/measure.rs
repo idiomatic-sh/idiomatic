@@ -304,10 +304,11 @@ fn compare(
                     parser: &parser,
                 },
             ),
-            verification: ryo_benchmark::inbound::use_cases::measure_corpus::types::VerifiedInventory {
-                directory: &verification,
-                rules: &verified,
-            },
+            verification:
+                ryo_benchmark::inbound::use_cases::measure_corpus::types::VerifiedInventory {
+                    directory: &verification,
+                    rules: &verified,
+                },
             cache: &cache,
             frozen_workload: &workload,
             certificate: &certificate,

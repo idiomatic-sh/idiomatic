@@ -45,11 +45,19 @@ fn times_file(inventory: &Path, rule: &RuleLabel) -> VerificationTimesFile {
 
 /// The times file of each of `rules`, the rules the inventory at `inventory` verified.
 #[must_use]
-pub(crate) fn times_files(inventory: &Path, rules: &[ryo::linter::RuleId]) -> VerificationTimesFiles {
+pub(crate) fn times_files(
+    inventory: &Path,
+    rules: &[ryo::linter::RuleId],
+) -> VerificationTimesFiles {
     VerificationTimesFiles(
         rules
             .iter()
-            .map(|rule| (rule.clone(), times_file(inventory, &RuleLabel(rule.to_string()))))
+            .map(|rule| {
+                (
+                    rule.clone(),
+                    times_file(inventory, &RuleLabel(rule.to_string())),
+                )
+            })
             .collect(),
     )
 }

@@ -63,7 +63,7 @@ impl ExecutionPort for Native {
         let failed = *self.failing.lock().unwrap() == Some(rule);
         Ok(ProcessOutput {
             status: ProcessExitCode(i32::from(failed)),
-            signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+            signal: TerminationSignal::Exited,
             stdout: CapturedBytes(vec![]),
             stderr: CapturedBytes(vec![]),
             wall: Duration::ZERO,
@@ -325,7 +325,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn drift(
 pub(in crate::inbound::use_cases::certify::use_case_test) fn missing_rule()
 -> Result<usize, Cow<'static, str>> {
     let mut f = Fixture::new();
-    f.document["rules"].as_array_mut().unwrap().pop();
+    let _dropped = f.document["rules"].as_array_mut().unwrap().pop();
     f.save();
     f.certify().map(|_| 0).map_err(|error| {
         refusal(
@@ -346,10 +346,11 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn modules(
     match change {
         "omit-all" => modules.clear(),
         "omit-one" => {
-            modules.remove("test/second").unwrap();
+            let _second = modules.remove("test/second").unwrap();
         }
         "unexpected" => {
-            modules.insert("test/unexpected".into(), modules["test/helper"].clone());
+            let _previous =
+                modules.insert("test/unexpected".into(), modules["test/helper"].clone());
         }
         _ => unreachable!(),
     }
@@ -392,7 +393,7 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn selected(
         RegisteredCoverage::Selected {
             rules: rules
                 .iter()
-                .map(|rule| ryo::linter::RuleId::try_from(*rule).unwrap())
+                .map(|rule| RuleId::try_from(*rule).unwrap())
                 .collect(),
             source: source.to_owned(),
         },

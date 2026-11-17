@@ -7,11 +7,11 @@
 
 use super::corpus::Corpus;
 use super::corpus::files;
+use super::runs::WORKERS;
 use super::runs::Written;
 use super::runs::agrees;
 use super::runs::given;
 use super::runs::lint;
-use super::runs::WORKERS;
 use super::runs::lint_keeping;
 use super::runs::run_query;
 use super::runs::write_all;
@@ -148,7 +148,12 @@ pub fn blocks() -> (usize, usize) {
         }),
         rules: BLOCK_RULES
             .iter()
-            .map(|(id, query)| ((*id).to_owned(), ((*query).to_owned(), "**/*.rs".to_owned())))
+            .map(|(id, query)| {
+                (
+                    (*id).to_owned(),
+                    ((*query).to_owned(), "**/*.rs".to_owned()),
+                )
+            })
             .collect(),
         ..super::corpus::fake_corpus()
     };

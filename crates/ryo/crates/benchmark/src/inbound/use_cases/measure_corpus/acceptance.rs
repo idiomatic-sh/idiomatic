@@ -1,7 +1,9 @@
 //! The public corpus measurement over the fakes of its boundaries.
 use cucumber::then;
 use ryo_benchmark::inbound::use_cases::measure_corpus::{
-    fixtures::{bench_of, discovering, measuring, project_of, use_case, with_corpus, with_suffixes},
+    fixtures::{
+        bench_of, discovering, measuring, project_of, use_case, with_corpus, with_suffixes,
+    },
     interface::MeasureCorpusUseCase as _,
     types::SourceSuffix,
 };

@@ -301,7 +301,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     let profile = PathBuf::from("profile");
     let mut suite = SuiteFake::default();
-    suite.artifact_digests.insert(
+    let _previous = suite.artifact_digests.insert(
         profile.join(RULES).join("A001").join(QUERY_RYOQL),
         ArtifactDigest(DIGEST.into()),
     );
