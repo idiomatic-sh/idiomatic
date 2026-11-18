@@ -1440,7 +1440,7 @@ def test_a_job_that_requires_its_receipts_restores_no_store_its_tools_cannot_ref
             if requires_receipts(defined):
                 receipts.append((path.name, name))
                 assert not store_steps(defined), (path.name, name)
-    assert receipts == [("benchmarks.yml", "bench-seed"), ("check.yml", "bench")]
+    assert receipts == [("benchmarks.yml", "bench-seed"), ("benchmarks.yml", "memory-seed"), ("check.yml", "bench")]
     warm = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"]["bench"]
     key = f"asymptote-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-ryo-bench-{TOOLHASH}-${{{{ github.run_id }}}}-${{{{ github.run_attempt }}}}"
     warm["steps"].insert(0, store_of({"steps": []}, "crates/ryo/.asymptote/cache", key)[0])
@@ -1975,9 +1975,20 @@ def test_the_bench_lock_is_seeded_only_by_hand() -> None:
     receipts its tools wrote; check.yml seeds nothing."""
     workflow = yaml.safe_load(read(DIRECTORY / "benchmarks.yml"))
     assert triggers(workflow) == {"workflow_dispatch"}
-    assert list(workflow["jobs"]) == ["bench-seed"]
+    assert list(workflow["jobs"]) == ["bench-seed", "memory-seed"]
+    # One seed a run, picked by the `seed` input: ryo's bench lock, or Tastemaker's memory records.
+    assert workflow[True]["workflow_dispatch"]["inputs"]["seed"]["options"] == ["ryo-bench", "tastemaker-memory"]
+    memory = workflow["jobs"]["memory-seed"]
+    assert memory["if"] == "${{ inputs.seed == 'tastemaker-memory' }}"
+    assert [step["run"] for step in memory["steps"] if "run" in step and step["run"] not in SETUP] == [
+        "asymptote check --root crates/tastemaker --groups memory",
+        'asymptote up --root crates/tastemaker --reason "seed on ubuntu-26.04"',
+        "asymptote down --root crates/tastemaker",
+    ]
+    assert memory["steps"][-1]["with"]["path"] == "crates/tastemaker/.asymptote/operations/"
     job = workflow["jobs"]["bench-seed"]
-    assert "if" not in job and "needs" not in job and "strategy" not in job
+    assert job["if"] == "${{ inputs.seed == 'ryo-bench' }}"
+    assert "needs" not in job and "strategy" not in job
     runs = [step["run"] for step in job["steps"] if "run" in step and step["run"] not in SETUP]
     assert runs == [SEED_CHECK, 'asymptote up --root crates/ryo --reason "seed on ubuntu-26.04"', "asymptote down --root crates/ryo"]
     # `up` and `down` run after a check that finished, red (the lock did not hold this runner's numbers) or green, and `down`

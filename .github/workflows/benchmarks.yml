@@ -1,4 +1,4 @@
-# Seeds ryo's bench lock, started only by hand (no paid CI: no schedule), on Linux: the `bench-seed` job checks every linter
+# Seeds ryo's bench lock (and, by the `seed` input, Tastemaker's memory records), started only by hand (no paid CI: no schedule), on Linux: the `bench-seed` job checks every linter
 # bench of the `bench` group (the deterministic measures a pull request is judged by) once on this hosted runner, then records
 # what the check found unseeded or over its best (`asymptote up`) and drops the records of measures no tool reports any more
 # (`asymptote down`), so the check workflow's `bench` job judges each pull request against records of the same runner. The
@@ -7,6 +7,12 @@
 name: benchmarks
 on:
   workflow_dispatch:
+    inputs:
+      seed:
+        description: "What to seed: ryo's bench lock, or Tastemaker's memory records"
+        type: choice
+        options: [ryo-bench, tastemaker-memory]
+        default: ryo-bench
 permissions:
   contents: read
 jobs:
@@ -15,6 +21,7 @@ jobs:
   # what it is here to seed; its new lock files are the result. `up` and `down` run after a check that finished, red or
   # green, and both refuse a check in which a tool failed (a bench whose reference differs), so nothing is seeded from it.
   bench-seed:
+    if: ${{ inputs.seed == 'ryo-bench' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 390
     defaults:
@@ -75,6 +82,62 @@ jobs:
           path: |
             crates/ryo/.asymptote/operations/
             target/benchmark/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+  # Seeds Tastemaker's `memory` records the same way, on the runner the check workflow's `check-linux (tastemaker)` job judges them
+  # on: the group checked once, `up` records what it found unseeded or over its best, `down` drops what no tool reports any more.
+  memory-seed:
+    if: ${{ inputs.seed == 'tastemaker-memory' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-bin: false
+          cache-workspace-crates: true
+          shared-key: ${{ runner.os }}-${{ runner.arch }}-tastemaker
+          save-if: false
+          cache-on-failure: true
+          workspaces: crates/tastemaker -> ../../target
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      - name: The tools the checks run, each at the version declared for it
+        run: uv run --script tools/install.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - id: check
+        run: asymptote check --root crates/tastemaker --groups memory
+      - id: up
+        if: ${{ !cancelled() && (steps.check.outcome == 'success' || steps.check.outcome == 'failure') }}
+        run: asymptote up --root crates/tastemaker --reason "seed on ubuntu-26.04"
+      - if: ${{ !cancelled() && steps.up.outcome == 'success' }}
+        run: asymptote down --root crates/tastemaker
+      - name: The seeded lock
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: memory-seed-${{ github.run_attempt }}
+          path: crates/tastemaker/.asymptote/operations/
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
