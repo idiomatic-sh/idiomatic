@@ -384,9 +384,9 @@ pub enum Family {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RowWidth(pub usize);
 
-/// The leading comparisons of a select that no row can make fail with an error: each tests a column the row has against a
-/// text the query wrote, by equality or by affix, so its cell's text alone decides it. The rest of the select's comparisons
-/// follow it in their order.
+/// The leading comparisons of a select that no row can make fail with an error: each compares columns the row has and values the
+/// query wrote by equality or by order, or tests a column against a written text by affix, so the row's cells alone decide it.
+/// The rest of the select's comparisons follow it in their order.
 ///
 /// # Examples
 ///

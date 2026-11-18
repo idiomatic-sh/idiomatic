@@ -1,5 +1,7 @@
 //! A filter of a join is made on the input whose columns it tests, and the infallible prefix of a filter of a union on both its
 //! inputs when every reader of the union is a filter whose prefix is not empty; a union another step reads whole stays as it is.
+//! A filter made on a filter of a relation that no other step reads is one filter of the relation, and a filter made twice is
+//! made once.
 
 use super::service::push_selections;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -126,6 +128,26 @@ fn named_main(column: u32) -> Vec<PlanComparison> {
     vec![named(column, "main")]
 }
 
+/// Reads the relation `relation`.
+pub(super) fn relation(relation: Relation) -> Reads {
+    Reads::Relation(relation)
+}
+
+/// Reads the step at `at`.
+pub(super) fn at(at: u32) -> Reads {
+    Reads::Step(StepId(at))
+}
+
+/// Column `left` equals column `right`.
+pub(super) fn same(left: u32, right: u32) -> PlanComparison {
+    PlanComparison {
+        test: Test::Equal,
+        left: Operand::Column(ColumnIndex(left)),
+        right: Operand::Column(ColumnIndex(right)),
+        origin: ComparisonOrigin::Unrecorded,
+    }
+}
+
 /// Whether `rewrite` gives back, for the plan and the step it emits, the plan and the step the row expects.
 pub(super) fn tested(
     (before, emitted, after, emits): (Vec<PlanStep>, StepId, Vec<PlanStep>, StepId),
@@ -228,16 +250,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             StepId(4),
             vec![
                 functions(),
-                comments(),
-                select(Reads::Step(StepId(1)), named_main(1)),
-                join(Reads::Step(StepId(0)), Reads::Step(StepId(2))),
-                select(Reads::Step(StepId(1)), named_main(1)),
+                select(Reads::Relation(Relation::Comment), named_main(1)),
+                join(Reads::Step(StepId(0)), Reads::Step(StepId(1))),
                 step(Operation::Union {
-                    left: Reads::Step(StepId(3)),
-                    right: Reads::Step(StepId(4)),
+                    left: Reads::Step(StepId(2)),
+                    right: Reads::Step(StepId(1)),
                 }),
             ],
-            StepId(5),
+            StepId(3),
         ),
         Scenario::FilteredJoin => (
             vec![
@@ -249,11 +269,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             StepId(3),
             vec![
                 functions(),
-                comments(),
-                select(Reads::Step(StepId(1)), named_main(1)),
-                join(Reads::Step(StepId(0)), Reads::Step(StepId(2))),
+                select(Reads::Relation(Relation::Comment), named_main(1)),
+                join(Reads::Step(StepId(0)), Reads::Step(StepId(1))),
             ],
-            StepId(3),
+            StepId(2),
         ),
         Scenario::UnionReadWhole => {
             let steps = vec![
@@ -323,5 +342,9 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 
+#[cfg(test)]
+mod antijoin_test;
+#[cfg(test)]
+mod keys_test;
 #[cfg(test)]
 mod placement_test;

@@ -8,7 +8,7 @@ use super::types::KeptColumns;
 use super::types::Pushed;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
-use crate::domain::selection_pushing::service::insert_before;
+use crate::domain::selection_pushing::service::placing::service::insert_before;
 use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
 use ryo_relations::domain::relations::service::columns;
