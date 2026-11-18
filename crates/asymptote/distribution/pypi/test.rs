@@ -1,17 +1,73 @@
-//! `PyPI`: the wheel `idiomatic-sh-asymptote`, built by the backend `pyproject.toml`
-//! names (maturin), which is this registry's build, installed into a fresh virtual
-//! environment without the index, run as `asymptote` and as
-//! `python -m idiomatic_sh_asymptote`.
+//! `PyPI`: the wheel built as the release builds it, installed offline and run.
+//! The wheel `idiomatic-sh-asymptote` is built by the backend `pyproject.toml` names (maturin),
+//! installed into a fresh virtual environment without the index, and run as `asymptote` and as
+//! `python -m idiomatic_sh_asymptote`. It runs only when named (tool `smoke`); nothing is
+//! published.
 
-use super::{has_version, output, registry_directory, run, strings};
+use snapbox::cmd::Command;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+
+/// Runs `command`, which must succeed.
+fn run(command: Command) {
+    drop(command.assert().success());
+}
+
+/// Runs `command`, which must succeed and print `expected` on its standard output.
+fn prints(command: Command, expected: impl snapbox::IntoData) {
+    drop(command.assert().success().stdout_eq(expected));
+}
 
 /// The host's Python 3.
 const PYTHON: &str = if cfg!(windows) { "python" } else { "python3" };
 
 /// The wheel's one Python module.
 const MODULE: &str = "idiomatic_sh_asymptote";
+
+/// What `--version` prints: the crate's version.
+fn version() -> String {
+    concat!(
+        "asymptote ",
+        env!("CARGO_PKG_VERSION"),
+        "
+"
+    )
+    .to_owned()
+}
+
+/// This registry's directory: the wheel's project, beside this file.
+fn project() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("pypi")
+}
+
+/// Builds the host wheel from `pyproject.toml` into `directory` and returns it. Maturin writes
+/// the wheel into the shared target directory (`target/wheels`, one file name per version)
+/// before the build backend copies it out, so two builds at once write one file and either
+/// copy can read a torn zip. A lock file in that target directory serializes the build and the
+/// copy across threads and across test processes (nextest runs each test in its own), and
+/// npm's test takes the same lock.
+fn wheel(directory: &Path) -> std::io::Result<PathBuf> {
+    let lock =
+        std::fs::File::create(Path::new(env!("CARGO_TARGET_TMPDIR")).join("wheel-build.lock"))?;
+    lock.lock()?;
+    let wheels = directory.join("wheels");
+    run(Command::new("uv")
+        .args(["build", "--wheel", "--out-dir"])
+        .arg(&wheels)
+        .arg(project()));
+    let built = std::fs::read_dir(&wheels)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<std::io::Result<Vec<_>>>()?
+        .into_iter()
+        .filter(|path| path.extension().is_some_and(|extension| extension == "whl"))
+        .collect::<Vec<_>>();
+    let [wheel] = built.as_slice() else {
+        return Err(std::io::Error::other(format!(
+            "the build made {} wheels, expected one",
+            built.len()
+        )));
+    };
+    Ok(wheel.clone())
+}
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -23,51 +79,20 @@ struct Installation {
     command: PathBuf,
 }
 
-/// The file holding this registry's build: the wheel and the languages it links.
-fn build_file() -> PathBuf {
-    registry_directory("pypi").join("pyproject.toml")
-}
-
 /// Builds the wheel under `directory` and installs it into a fresh virtual environment
 /// there, without the index.
 fn install(directory: &Path) -> std::io::Result<Installation> {
-    // Maturin writes the wheel into the shared target directory (`target/wheels`, one
-    // file name per version) before the build backend copies it out, so two builds at
-    // once write one file and either copy can read a torn zip. A lock file in that
-    // target directory serializes the build and the copy across threads and across test
-    // processes (nextest runs each test in its own), as the npm build's lock does.
-    let lock =
-        std::fs::File::create(Path::new(env!("CARGO_TARGET_TMPDIR")).join("pypi-smoke-test.lock"))?;
-    lock.lock()?;
-    let wheels = directory.join("wheels");
-    run(Command::new("uv")
-        .args(["build", "--wheel", "--out-dir"])
-        .arg(&wheels)
-        .arg(registry_directory("pypi")))?;
-    let wheels = std::fs::read_dir(&wheels)?
-        .map(|entry| entry.map(|entry| entry.path()))
-        .collect::<std::io::Result<Vec<_>>>()?
-        .into_iter()
-        .filter(|path| path.extension().is_some_and(|extension| extension == "whl"))
-        .collect::<Vec<_>>();
-    let [wheel] = wheels.as_slice() else {
-        return Err(std::io::Error::other(format!(
-            "the build made {} wheels, expected one",
-            wheels.len()
-        )));
-    };
-    let wheel = wheel.clone();
-
+    let wheel = wheel(directory)?;
     let environment = directory.join("environment");
     run(Command::new("uv")
         .args(["venv", "--python", PYTHON])
-        .arg(&environment))?;
+        .arg(&environment));
     let scripts = environment.join(if cfg!(windows) { "Scripts" } else { "bin" });
     let python = scripts.join(["python", std::env::consts::EXE_SUFFIX].concat());
     run(Command::new("uv")
         .args(["pip", "install", "--no-index", "--no-deps", "--python"])
         .arg(&python)
-        .arg(&wheel))?;
+        .arg(&wheel));
     Ok(Installation {
         wheel,
         python,
@@ -75,19 +100,34 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     })
 }
 
-/// The languages `PyPI`'s build links: the `features` of `pyproject.toml`.
-pub(super) fn languages() -> std::io::Result<Vec<String>> {
-    strings(&build_file(), &["tool", "maturin", "features"])
+/// The real command, in a scratch repository: `init`, then `check`, which finds
+/// nothing new and ends with 0.
+fn probe(installed: &Path) -> std::io::Result<()> {
+    let project = tempfile::tempdir()?;
+    run(Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(project.path()));
+    run(Command::new(installed)
+        .arg("init")
+        .current_dir(project.path()));
+    prints(
+        Command::new(installed)
+            .arg("check")
+            .current_dir(project.path()),
+        "0 new, 0 resolved\n",
+    );
+    Ok(())
 }
 
-/// Builds and installs the wheel under `directory` and returns the installed command.
-pub(super) fn command(directory: &Path) -> std::io::Result<PathBuf> {
-    install(directory).map(|installation| installation.command)
+/// The standard output of `command`, which must succeed.
+fn stdout(command: Command) -> String {
+    String::from_utf8_lossy(&command.assert().success().get_output().stdout).into_owned()
 }
 
 /// The wheel holds exactly its own files and passes the dry-run publish; it installs into
-/// a fresh environment and both of its entry points report the crate's version; a second,
-/// `--target` install finds the executable beside the package Python imports.
+/// a fresh environment, both of its entry points report the crate's version and the real
+/// command runs; a second, `--target` install finds the executable beside the package Python
+/// imports.
 #[test]
 fn installs_and_runs() {
     let directory = tempfile::tempdir().unwrap();
@@ -95,7 +135,7 @@ fn installs_and_runs() {
 
     // No test, target or build file ships: the wheel holds the executable, the Python
     // module's two files, and the metadata and bill of materials the backend writes.
-    let mut shipped = output(
+    let mut shipped = stdout(
         Command::new(PYTHON)
             .args([
                 "-c",
@@ -103,7 +143,6 @@ fn installs_and_runs() {
             ])
             .arg(&installation.wheel),
     )
-    .unwrap()
     .lines()
     .map(str::to_owned)
     .collect::<Vec<_>>();
@@ -126,15 +165,17 @@ fn installs_and_runs() {
     // The dry-run publish: uv reads the wheel as it would upload it and uploads nothing.
     run(Command::new("uv")
         .args(["publish", "--dry-run"])
-        .arg(&installation.wheel))
-    .unwrap();
+        .arg(&installation.wheel));
 
-    assert!(has_version(
-        &output(Command::new(&installation.command).arg("--version")).unwrap()
-    ));
-    assert!(has_version(
-        &output(Command::new(&installation.python).args(["-m", MODULE, "--version"])).unwrap()
-    ));
+    prints(
+        Command::new(&installation.command).arg("--version"),
+        version(),
+    );
+    prints(
+        Command::new(&installation.python).args(["-m", MODULE, "--version"]),
+        version(),
+    );
+    probe(&installation.command).unwrap();
     // Installed again with --target, the package Python imports from there runs the executable beside it, not the
     // environment's own.
     let target = directory.path().join("target");
@@ -143,17 +184,15 @@ fn installs_and_runs() {
         .arg(&installation.python)
         .arg("--target")
         .arg(&target)
-        .arg(&installation.wheel))
-    .unwrap();
-    let found = output(
+        .arg(&installation.wheel));
+    let found = stdout(
         Command::new(&installation.python)
             .env("PYTHONPATH", &target)
             .args([
                 "-c",
                 &format!("import {MODULE}; print({MODULE}.find_asymptote_bin())"),
             ]),
-    )
-    .unwrap();
+    );
     // Compared as canonical paths both sides: the temporary directory may be reached through a symbolic link (macOS's
     // /var is /private/var), which Python resolves.
     assert!(

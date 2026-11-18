@@ -11,7 +11,7 @@ dynamic = ["version"]
 
 [tool.maturin]
 bindings = "bin"
-manifest-path = "../../../cli/Cargo.toml"
+manifest-path = "../../cli/Cargo.toml"
 module-name = "idiomatic_sh_asymptote"
 python-source = "python"
 profile = "dist"

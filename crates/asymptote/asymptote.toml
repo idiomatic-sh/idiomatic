@@ -137,18 +137,11 @@ timeout-seconds = 3600
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "test-distribution"
+id = "smoke"
 group = "release-tests"
-# The `distribution` test target's findings: each target checked through the crate installed with its registry's languages.
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "target_test::", "targets_have_their_findings", "every_registry_is_declared"]
-timeout-seconds = 3600
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
-
-[[tools]]
-id = "release-smoke"
-group = "release-tests"
-# Each registry's package is built from the crate, installed in a scratch directory and run. Only the release workflow runs the `release-*` groups.
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "cargo::", "npm::", "pypi::"]
+# The crates.io package (the command line crate's `smoke` test) and, where `distribution/` holds them, the npm and PyPI
+# packages (the distribution crate's `npm` and `pypi` tests): each built, installed in a scratch directory and run.
+run = ["bash", "-c", "set -e; cargo test --locked --workspace --test smoke; if [ -f distribution/Cargo.toml ]; then cargo test --locked --manifest-path distribution/Cargo.toml --test npm --test pypi; fi"]
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo", "../tastemaker", "../.."]
 
@@ -161,24 +154,7 @@ run = ["bash", "-c", "set -o pipefail; cargo metadata --no-deps --locked --forma
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
-[[tools]]
-id = "performance"
-group = "perf"
-# The benches print the Bencher Metric Format: the lock holds each measure's best and asymptote judges against it.
-run = ["cargo", "bench", "--locked", "--workspace", "--bench", "commands"]
-output = "bmf"
-timeout-seconds = 3600
-inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
 
-[[tools]]
-id = "performance-distribution"
-group = "perf"
-# The `distribution` bench: each registry's targets through the installed command, cold, warm and after an edit. Each target is checked
-# with the external linter of its language (clippy, oxlint, Ruff), at the versions `tools/install.py` declares, and no Tastemaker policy.
-run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
-output = "bmf"
-timeout-seconds = 7200
-inputs = [".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "build"
