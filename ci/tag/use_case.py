@@ -1,8 +1,7 @@
 """The `tag` job's use case: the order of its steps over their ports, and nothing else.
 
-A product is released by the commit that changes its version: its workspace version at the commit differs from the parent's (a
-product new in the commit has none there), and its tag, `idiomatic-sh-<product>-v<version>`, does not exist yet (a rerun finds it
-made). A product whose manifest declares no workspace version at the commit is refused before any tag is created. Asked to, the job creates each such
+A product is released by the first green commit whose workspace version has no tag yet, `idiomatic-sh-<product>-v<version>`: the commit
+that changes it, or, when that commit's check was red, the next green one (a rerun finds the tag made). A product whose manifest declares no workspace version at the commit is refused before any tag is created. Asked to, the job creates each such
 product's tag at the commit; the release then builds and publishes those products alone.
 """
 
@@ -30,7 +29,7 @@ class Refused(Exception):
 
 @dataclasses.dataclass(frozen=True)
 class Request:
-    """What one run of the job is asked to do: the commit to judge against its parent, and whether to create the tags."""
+    """What one run of the job is asked to do: the commit to judge, and whether to create the tags."""
 
     revision: str
     push: bool
@@ -50,8 +49,6 @@ class UseCase:
             version = self.manifest.version(product, request.revision)
             if version is None:
                 raise Refused(f"crates/{product}/Cargo.toml declares no workspace version at {request.revision}")
-            if version == self.manifest.version(product, f"{request.revision}^"):
-                continue
             if not self.tags.exists(tag(product, version)):
                 released.append((product, version))
         if request.push:

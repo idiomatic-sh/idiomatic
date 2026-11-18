@@ -1,7 +1,7 @@
 # The release workflow on GitHub Actions, its thin edge, as ruff's is. A green check on main (check.yml's push run, `gate` passed) releases each
-# product whose version its commit changes: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in crates/<product>/Cargo.toml
-# differs from the parent commit's and whose tag (`idiomatic-sh-<product>-v<version>`) does not exist yet, and creates that tag at
-# the commit; the build and publish jobs then run for those products alone, each product's builds beside the others', its publish
+# product whose version has no tag yet: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in
+# crates/<product>/Cargo.toml has no tag (`idiomatic-sh-<product>-v<version>`), the commit that changed it having had a red check or
+# this one changing it, and creates that tag at the commit; the build and publish jobs then run for those products alone, each product's builds beside the others', its publish
 # in a concurrency group of its own, one product's publish at a time, ryo's first. A push to main starts nothing here: the release workflow starts when check.yml's run on it completes (`workflow_run`), and
 # its jobs run only when that run's `gate` passed (Linux, ARM, macOS and Windows), on that run's commit. A red or cancelled run
 # tags nothing; the next green run on main releases. A maintainer's hand run releases ONE product, the `product` input, and checks

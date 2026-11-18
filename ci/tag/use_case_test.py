@@ -29,9 +29,11 @@ class FakeManifest(Manifest):
 
 
 class FakeTags(Tags):
+    """The tags that exist; by default every `UNCHANGED` version's, released before."""
+
     def __init__(self, journal: Journal, existing: set[str] | None = None) -> None:
         self.journal = journal
-        self.existing = existing or set()
+        self.existing = {tag(product, version) for product, version in UNCHANGED.items()} if existing is None else existing
 
     def exists(self, tag: str) -> bool:
         self.journal.calls.append(("exists", tag))
@@ -58,11 +60,18 @@ def test_a_tag_is_named_for_its_product_and_version() -> None:
     assert tag("tastemaker", "0.2.0") == "idiomatic-sh-tastemaker-v0.2.0"
 
 
-def test_a_commit_that_changes_no_version_releases_nothing() -> None:
+def test_a_commit_whose_versions_are_all_tagged_releases_nothing() -> None:
     journal = Journal()
     assert UseCase(FakeManifest(journal, versions()), FakeTags(journal)).run(Request("HEAD", push=True)) == ()
     assert created(journal) == []
-    assert not [call for call in journal.calls if call[0] == "exists"], "no tag is looked up for an unchanged version"
+
+
+def test_a_version_an_earlier_commit_set_and_left_untagged_is_released() -> None:
+    """The commit that changed ryo's version had a red check, so nothing tagged it; the next green commit releases it."""
+    journal = Journal()
+    manifest = FakeManifest(journal, {"HEAD^": UNCHANGED | {"ryo": "0.2.0"}, "HEAD": UNCHANGED | {"ryo": "0.2.0"}})
+    assert UseCase(manifest, FakeTags(journal)).run(Request("HEAD", push=True)) == ("ryo",)
+    assert created(journal) == [("create", "idiomatic-sh-ryo-v0.2.0", "HEAD")]
 
 
 def test_each_product_whose_version_changed_is_released_and_tagged_at_the_commit() -> None:
@@ -82,7 +91,8 @@ def test_a_dry_run_names_the_products_and_creates_no_tag() -> None:
 def test_a_version_whose_tag_exists_is_not_released_again() -> None:
     """A rerun of the release finds the tags its first run created."""
     journal = Journal()
-    tags = FakeTags(journal, {"idiomatic-sh-ryo-v0.2.0"})
+    tags = FakeTags(journal)
+    tags.existing.add("idiomatic-sh-ryo-v0.2.0")
     assert UseCase(FakeManifest(journal, versions(ryo="0.2.0", tastemaker="0.2.0")), tags).run(Request("HEAD", push=True)) == ("tastemaker",)
     assert created(journal) == [("create", "idiomatic-sh-tastemaker-v0.2.0", "HEAD")]
 
@@ -90,7 +100,7 @@ def test_a_version_whose_tag_exists_is_not_released_again() -> None:
 def test_a_product_new_in_the_commit_is_released() -> None:
     journal = Journal()
     manifest = FakeManifest(journal, {"HEAD^": {"ryo": "0.1.1"}, "HEAD": {"ryo": "0.1.1", "tastemaker": "0.1.0", "asymptote": "0.1.0"}})
-    assert UseCase(manifest, FakeTags(journal)).run(Request("HEAD", push=False)) == ("tastemaker", "asymptote")
+    assert UseCase(manifest, FakeTags(journal, {"idiomatic-sh-ryo-v0.1.1"})).run(Request("HEAD", push=False)) == ("tastemaker", "asymptote")
 
 
 def test_a_product_without_a_version_at_the_commit_is_refused_before_any_tag() -> None:
