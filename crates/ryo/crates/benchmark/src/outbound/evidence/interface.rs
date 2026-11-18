@@ -55,6 +55,16 @@ pub trait EvidencePort {
         &self,
         files: &crate::outbound::evidence::types::VerificationTimesFiles,
     ) -> Result<crate::outbound::evidence::types::RuleTimings, Error>;
+    /// The written `document`, one BMF line, with the measures of `class` alone and a benchmark left with none of them
+    /// dropped.
+    ///
+    /// # Errors
+    /// A document that does not read, a measure of no class, or a document that keeps no measure of `class`.
+    fn select(
+        &self,
+        document: &crate::outbound::evidence::types::PublishedDocument,
+        class: crate::outbound::evidence::types::MeasureClass,
+    ) -> Result<crate::outbound::evidence::types::PublishedDocument, Error>;
     /// Write the one document every measure added so far is in.
     ///
     /// # Errors

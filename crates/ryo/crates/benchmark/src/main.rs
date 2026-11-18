@@ -106,6 +106,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ))),
             Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
             Arc::new(ryo_benchmark::outbound::host::factory::local()),
+            // The worker's document is read whole and the operation's class kept; nothing is written to these streams.
+            Arc::new(ryo_benchmark::outbound::evidence::factory::bmf(
+                Box::new(std::io::sink()),
+                Box::new(std::io::sink()),
+            )),
         );
         let report = operate.operate(
             &OperationRequest {

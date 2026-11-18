@@ -34,3 +34,13 @@ impl From<crate::outbound::executables::types::RunVerdict> for OperationVerdict 
         }
     }
 }
+
+/// The measures an operation publishes: a bench the deterministic ones a pull request is judged by, a timing run the times.
+impl From<BenchOperation> for crate::outbound::evidence::types::MeasureClass {
+    fn from(operation: BenchOperation) -> Self {
+        match operation {
+            BenchOperation::Bench => Self::Deterministic,
+            BenchOperation::Timing => Self::Timing,
+        }
+    }
+}

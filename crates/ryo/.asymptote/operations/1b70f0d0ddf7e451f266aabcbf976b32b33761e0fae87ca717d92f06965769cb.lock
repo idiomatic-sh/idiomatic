@@ -1,0 +1,28 @@
+version = 1
+parents = ["f5205e6bb6410be45d58c45400a2bc6cc1848a47e10ad80dadce20368556f8f0"]
+
+[[perf]]
+reasons = ["bench-per-language seed: the bench group's first run at 8d683dc73 (claude/int-batch, ryo-b1gq.66), local, taskset 0-3"]
+records = [
+  { tool = "bench/python/ruff", benchmark = "python/django", measure = "edited-peak-rss-bytes", best = 750579712.0 },
+  { tool = "bench/python/ruff", benchmark = "python/django", measure = "peak-rss-bytes", best = 2119008256.0 },
+  { tool = "bench/python/ruff", benchmark = "python/django", measure = "warm-peak-rss-bytes", best = 400461824.0 },
+  { tool = "bench/python/ruff", benchmark = "python/fastapi", measure = "edited-peak-rss-bytes", best = 677777408.0 },
+  { tool = "bench/python/ruff", benchmark = "python/fastapi", measure = "peak-rss-bytes", best = 1106321408.0 },
+  { tool = "bench/python/ruff", benchmark = "python/fastapi", measure = "warm-peak-rss-bytes", best = 315736064.0 },
+  { tool = "bench/python/ruff", benchmark = "python/pandas", measure = "edited-peak-rss-bytes", best = 812761088.0 },
+  { tool = "bench/python/ruff", benchmark = "python/pandas", measure = "peak-rss-bytes", best = 15679377408.0 },
+  { tool = "bench/python/ruff", benchmark = "python/pandas", measure = "warm-peak-rss-bytes", best = 344612864.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/clap", measure = "edited-peak-rss-bytes", best = 46563328.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/clap", measure = "peak-rss-bytes", best = 235356160.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/clap", measure = "warm-peak-rss-bytes", best = 38862848.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/ripgrep", measure = "edited-peak-rss-bytes", best = 51417088.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/ripgrep", measure = "peak-rss-bytes", best = 257069056.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/ripgrep", measure = "warm-peak-rss-bytes", best = 38064128.0 },
+  { tool = "bench/typescript/oxlint", benchmark = "typescript/hono", measure = "edited-peak-rss-bytes", best = 71335936.0 },
+  { tool = "bench/typescript/oxlint", benchmark = "typescript/hono", measure = "peak-rss-bytes", best = 358354944.0 },
+  { tool = "bench/typescript/oxlint", benchmark = "typescript/hono", measure = "warm-peak-rss-bytes", best = 46223360.0 },
+  { tool = "bench/typescript/oxlint", benchmark = "typescript/vite", measure = "edited-peak-rss-bytes", best = 110391296.0 },
+  { tool = "bench/typescript/oxlint", benchmark = "typescript/vite", measure = "peak-rss-bytes", best = 330735616.0 },
+  { tool = "bench/typescript/oxlint", benchmark = "typescript/vite", measure = "warm-peak-rss-bytes", best = 50245632.0 },
+]

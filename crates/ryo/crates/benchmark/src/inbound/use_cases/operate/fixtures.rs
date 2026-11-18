@@ -22,6 +22,10 @@ pub const BENCH: &str = "languages/fixture/benchmarks/linters/lint";
 /// The profile of the fixture bench: the tool `lint` and one default, `R1`.
 pub const PROFILE: &str = "tool = \"lint\"\nversion = \"lint 1.0.0\"\nsha256 = [\"52367a6622b19f08825e915fad80c542ad4f4c34dbcebad9f5007994b3e39208\"]\ndefaults = [\"R1\"]\n";
 
+/// The document the scripted worker writes: a project's store and peak memory and its CPU time, and one rule's
+/// verification times.
+const WORKER_DOCUMENT: &str = "{\"fixture/project\":{\"cpu-s\":{\"value\":2.5},\"peak-rss-bytes\":{\"value\":4096.0},\"store-bytes\":{\"value\":512.0}},\"fixture/verify/R1\":{\"total-ms\":{\"value\":3.0}}}\n";
+
 /// The profile's deferral of its one default: the verification passes it as DEFERRED and runs no case.
 pub const DEFERRED: &str = "\n[deferred]\ncontrol_flow = [\"R1\"]\n";
 
@@ -83,6 +87,10 @@ pub fn use_case_on(executables: Arc<ExecutablesFake>, processors: usize) -> Oper
             ),
             ..crate::outbound::host::fixtures::fake::HostFake::default()
         }),
+        Arc::new(crate::outbound::evidence::factory::bmf(
+            Box::new(std::io::sink()),
+            Box::new(std::io::sink()),
+        )),
     )
 }
 
@@ -144,7 +152,7 @@ pub fn observe(
         } else {
             Vec::new()
         },
-        stdout: b"{\"metric\":{}}\n".to_vec(),
+        stdout: WORKER_DOCUMENT.as_bytes().to_vec(),
         verdict: match scenario.verdict {
             OperationVerdict::Passed => RunVerdict::Passed,
             OperationVerdict::Failed => RunVerdict::Failed,

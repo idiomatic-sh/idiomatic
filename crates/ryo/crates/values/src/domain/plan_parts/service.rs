@@ -245,15 +245,18 @@ pub fn family_of(test: Test) -> Family {
     }
 }
 
-/// The leading comparisons of `comparisons` that cannot fail over a row of `width` columns: a column of the row compared with
-/// a written text by `=`, `!=`, `starts-with` or `ends-with`. The first comparison that may fail (a column past the row, a
-/// parameter, a function, a pattern compiled from the row) ends it, so a fault is never moved behind a test that decides
-/// without it. The one definition the planner's placement, the keyed-select rewrite and the engine's root kinds stop at.
+/// The leading comparisons of `comparisons` that cannot fail over a row of `width` columns: an equality or an order of columns
+/// of the row and values the query wrote (`=`, `!=`, `<`, `<=`, `>`, `>=`, `natural_lt`), which decide any two values without
+/// a fault, or a column of the row tested against a written text by `starts-with` or `ends-with`. The first comparison that
+/// may fail (a column past the row, a parameter, a function, a pattern compiled from the row) ends it, so a fault is never
+/// moved behind a test that decides without it. The one definition the planner's placement, the keyed-select rewrite and the
+/// engine's root kinds stop at.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_values::domain::plan_parts::service::fixed_prefix;
+/// use ryo_relations::domain::relations::types::Integer;
 /// use ryo_values::domain::plan_parts::types::{
 ///     ColumnIndex, ComparisonOrigin, LiteralText, Operand, PlanComparison, QueryLiteral, RowWidth, Test,
 /// };
@@ -265,18 +268,43 @@ pub fn family_of(test: Test) -> Family {
 /// };
 /// let comparisons = [written(Test::Equal, 0), written(Test::Matches, 1), written(Test::Equal, 1)];
 /// assert_eq!(fixed_prefix(&comparisons, RowWidth(2)).0.len(), 1);
+/// // Two columns of the row, or a column and a written number, are compared without a fault.
+/// let columns = |test| PlanComparison {
+///     test,
+///     left: Operand::Column(ColumnIndex(0)),
+///     right: Operand::Column(ColumnIndex(1)),
+///     origin: ComparisonOrigin::Unrecorded,
+/// };
+/// let number = PlanComparison {
+///     test: Test::Equal,
+///     left: Operand::Column(ColumnIndex(0)),
+///     right: Operand::Literal(QueryLiteral::Number(Integer(0))),
+///     origin: ComparisonOrigin::Unrecorded,
+/// };
+/// let ordered = [columns(Test::Equal), columns(Test::LessThan), number];
+/// assert_eq!(fixed_prefix(&ordered, RowWidth(2)).0.len(), 3);
+/// assert!(fixed_prefix(&ordered, RowWidth(1)).0.is_empty());
 /// ```
 #[must_use]
 pub fn fixed_prefix(comparisons: &[PlanComparison], width: RowWidth) -> FixedPrefix<'_> {
-    let infallible = |comparison: &PlanComparison| {
-        matches!(family_of(comparison.test), Family::Equality | Family::Affix)
-            && match (&comparison.left, &comparison.right) {
-                (Operand::Column(column), Operand::Literal(QueryLiteral::Text(_)))
-                | (Operand::Literal(QueryLiteral::Text(_)), Operand::Column(column)) => {
-                    usize::try_from(column.0).is_ok_and(|at| at < width.0)
-                }
-                _ => false,
-            }
+    let held = |column: &ColumnIndex| usize::try_from(column.0).is_ok_and(|at| at < width.0);
+    let decided = |operand: &Operand| match operand {
+        Operand::Column(column) => held(column),
+        Operand::Literal(QueryLiteral::Text(_) | QueryLiteral::Number(_)) => true,
+        Operand::Parameter(_) | Operand::Function(_) => false,
+    };
+    let infallible = |comparison: &PlanComparison| match family_of(comparison.test) {
+        Family::Equality | Family::Ordering => {
+            decided(&comparison.left) && decided(&comparison.right)
+        }
+        Family::Affix => match (&comparison.left, &comparison.right) {
+            (Operand::Column(column), Operand::Literal(QueryLiteral::Text(_)))
+            | (Operand::Literal(QueryLiteral::Text(_)), Operand::Column(column)) => held(column),
+            _ => false,
+        },
+        Family::FloatText | Family::Numeric | Family::Membership | Family::Glob | Family::Regex => {
+            false
+        }
     };
     let length = comparisons
         .iter()

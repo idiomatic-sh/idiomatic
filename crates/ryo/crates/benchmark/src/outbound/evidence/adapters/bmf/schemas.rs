@@ -2,7 +2,9 @@
 //! the comparison evidence line, as JSON on the comparison stream.
 use super::constants;
 use super::types::{BenchmarkName, MeasureDocument, MeasureName, MeasureValue, Observed};
-use crate::outbound::evidence::types::{RuleTiming, RuleTimings, VerificationTimesFiles};
+use crate::outbound::evidence::types::{
+    MeasureClass, PublishedDocument, RuleTiming, RuleTimings, VerificationTimesFiles,
+};
 use ryo_benchmark_contracts::domain::costs::types::{ProjectCosts, RunCost};
 use ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -286,6 +288,39 @@ pub(super) fn read_verification(files: &VerificationTimesFiles) -> Result<RuleTi
         let _previous = timings.insert(rule.clone(), timing);
     }
     Ok(RuleTimings(timings))
+}
+
+/// The written `document` with the measures of `class` alone, a benchmark left with none of them dropped; refused when
+/// it names a measure neither class names, or keeps none.
+pub(super) fn select(
+    document: &PublishedDocument,
+    class: MeasureClass,
+) -> Result<PublishedDocument, Error> {
+    let written: BTreeMap<String, serde_json::Map<String, serde_json::Value>> =
+        serde_json::from_slice(&document.0).map_err(|error| Error::Json(Box::new(error)))?;
+    let named = match class {
+        MeasureClass::Deterministic => constants::DETERMINISTIC.as_slice(),
+        MeasureClass::Timing => constants::TIMING.as_slice(),
+    };
+    let mut kept = BTreeMap::new();
+    for (benchmark, mut measures) in written {
+        if let Some(unclassed) = measures.keys().map(String::as_str).find(|measure| {
+            !constants::DETERMINISTIC.contains(measure) && !constants::TIMING.contains(measure)
+        }) {
+            return Err(Error::Invalid(format!(
+                "{}: {unclassed}",
+                constants::UNCLASSED_MEASURE
+            )));
+        }
+        measures.retain(|measure, _value| named.contains(&measure.as_str()));
+        let _previous = (!measures.is_empty()).then(|| kept.insert(benchmark, measures));
+    }
+    if kept.is_empty() {
+        return Err(Error::Invalid(constants::NOTHING_SELECTED.into()));
+    }
+    let mut line = serde_json::to_vec(&kept).map_err(|error| Error::Json(Box::new(error)))?;
+    line.extend_from_slice(constants::NEWLINE);
+    Ok(PublishedDocument(line))
 }
 
 /// One producer's execution metadata as the comparison evidence spells it.

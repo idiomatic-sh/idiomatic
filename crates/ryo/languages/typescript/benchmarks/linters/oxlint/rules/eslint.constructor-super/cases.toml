@@ -1212,4 +1212,3 @@ expected = [{ file = "case.ts", start = 20, end = 50 }]
 name = "constructor-key-code-point-escape"
 files = { "case.ts" = "class A extends B { \"constr\\u{75}ctor\"() { this.x; } }" }
 expected = [{ file = "case.ts", start = 20, end = 52 }]
-

@@ -1,10 +1,10 @@
 //! A filter of a join places each comparison of its infallible prefix that tests one input on that input: a left one is a filter
 //! of the left, a right one rides the probe when the probe walks the tree by a node key and is a filter of the right otherwise.
-//! A comparison of both inputs, and every one from the first that may fail on, stays after the join in its order; a reader of
-//! the join that is no filter keeps reading the join as it was.
+//! A comparison of both inputs that is no key (`keys_test`), and every one from the first that may fail on, stays after the join
+//! in its order; a reader of the join that is no filter keeps reading the join as it was.
 
 use super::super::service::push_selections;
-use super::{matches, named, select, select_kept, step, tested};
+use super::{at, matches, named, relation, same, select, select_kept, step, tested};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
@@ -122,26 +122,6 @@ fn join(
         view: Vec::new(),
         reach: None,
     })
-}
-
-/// Reads the relation `relation`.
-fn relation(relation: Relation) -> Reads {
-    Reads::Relation(relation)
-}
-
-/// Reads the step at `at`.
-fn at(at: u32) -> Reads {
-    Reads::Step(StepId(at))
-}
-
-/// Column `left` equals column `right`.
-fn same(left: u32, right: u32) -> PlanComparison {
-    PlanComparison {
-        test: Test::Equal,
-        left: Operand::Column(ColumnIndex(left)),
-        right: Operand::Column(ColumnIndex(right)),
-        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-    }
 }
 
 /// Column `column` matches the pattern the first parameter gives.
@@ -320,24 +300,24 @@ fn placed(scenario: Scenario) -> Planned {
                 ],
                 StepId(3),
                 vec![
+                    // The edges' filter both alternatives make is made once.
                     select(relation(Relation::SemanticChild), vec![named(3, "test")]),
                     select(
                         relation(Relation::SemanticSyntax),
                         vec![named(1, "if-statement")],
                     ),
                     placed(0, 1),
-                    select(relation(Relation::SemanticChild), vec![named(3, "test")]),
                     select(
                         relation(Relation::SemanticSyntax),
                         vec![named(1, "while-statement")],
                     ),
-                    placed(3, 4),
+                    placed(0, 3),
                     step(Operation::Union {
                         left: at(2),
-                        right: at(5),
+                        right: at(4),
                     }),
                 ],
-                StepId(6),
+                StepId(5),
             )
         }
         Scenario::NonFilterReaderKeepsTheJoin => {

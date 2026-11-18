@@ -1,0 +1,7 @@
+version = 1
+parents = ["aa3dd239fe70c5ea8062c9f7650249448ca47674c76bfa2b9e8dffe1dbef3e95"]
+
+perf-removed = [
+  { tool = "memory-distribution", benchmark = "cargo/ruff", measure = "validate-cold-ms" },
+  { tool = "memory-distribution", benchmark = "cargo/ruff", measure = "validate-warm-ms" },
+]

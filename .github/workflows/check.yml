@@ -1,8 +1,8 @@
 # The check workflow on GitHub Actions, its thin edge: the pull request gate, and on a push to main the run that seeds the caches a
 # pull request restores. Asymptote alone decides what runs. A pull request runs Linux x86 (ubuntu-26.04) only, and the fewest
 # builds: the `root` job (the repository's own groups), the `pull-request` job (the message main keeps), one `check-linux` job per
-# product (its `lint`, `clippy`, `check`, `release-tests`, `release-coverage` and `memory` groups in one asymptote call, so the tests share one
-# build), the `bench` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
+# product (its `lint`, `clippy`, `check`, `release-tests`, `release-coverage` and `memory` groups, each one the product's tools
+# declare, in one asymptote call, so the tests share one build), the `bench` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
 # Windows) and groups and `python-release`. Every cache is saved by a run on main alone (`github.ref ==
 # refs/heads/main`) and restored by every run: the Rust cache under one key per machine and product, shared by the groups of a
 # machine (no job id in it), the installed tools under one key per machine and the hash of the files that pin them, and each
@@ -15,15 +15,17 @@
 # branch, since a pull request a workflow opens starts no workflow. Each job is a machine, the toolchains (every sample's among
 # them: a sample whose toolchain is missing fails its test), `tools/install.py`, which installs every tool the checks run at the
 # version declared for it, prebuilt, and one `asymptote check` call. The `gate` job waits for every other and fails when one
-# failed or was cancelled; on a pull request the jobs that run on main alone (`check`, `python-release`) are skipped, which passes.
-# A draft pull request runs no CI: every job is skipped until it is ready for review. `gate` is the one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by
-# process (no repository rule enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote
-# init` installs, which runs the products' `lint` groups and the root's `repository` group.
+# failed or was cancelled, or was skipped where its own condition does not skip it (only the jobs that run on main alone,
+# `check` and `python-release`, skip a pull request). A draft pull request runs no check: every job but `gate` is skipped until
+# it is ready for review, and `gate` runs and fails, since GitHub counts a skipped required check as passing. `gate` is the one
+# verdict: a pull request merges only after the `gate` of a run on its head commit passed, by process (no repository rule
+# enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote init` installs, which runs
+# the products' `lint` groups and the root's `repository` group.
 name: check
 on:
   # `edited` too: an edited title starts a run, so the pull-request job checks the title the pull request now has. A draft runs
-  # nothing (every job, `gate` among them, is skipped while the pull request is a draft), and `ready_for_review` starts the run
-  # the draft skipped. Never `pull_request_target`, which runs a fork's code with the repository's secrets.
+  # no check (every job but `gate` is skipped while the pull request is a draft, and `gate` fails), and `ready_for_review` starts
+  # the run the draft skipped. Never `pull_request_target`, which runs a fork's code with the repository's secrets.
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, edited, ready_for_review]
@@ -264,7 +266,10 @@ jobs:
           key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-check-linux-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-check-linux-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
-      - run: asymptote check --root crates/${{ matrix.product }} --groups lint,clippy,check,release-tests,release-coverage,memory
+      # The job's groups the product's tools declare: asymptote refuses a group none of them does (asymptote has no `memory`).
+      - id: groups
+        run: uv run ci/groups/command.py --product ${{ matrix.product }} --groups lint,clippy,check,release-tests,release-coverage,memory
+      - run: asymptote check --root crates/${{ matrix.product }} --groups ${{ steps.groups.outputs.groups }}
       - name: Save the asymptote store
         if: always() && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -375,7 +380,10 @@ jobs:
           key: asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.label }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             asymptote-${{ runner.os }}-${{ runner.arch }}-${{ matrix.product }}-${{ matrix.check.label }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-
-      - run: asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.groups }}
+      # The row's groups the product's tools declare, as the `check-linux` job asks its own.
+      - id: groups
+        run: uv run ci/groups/command.py --product ${{ matrix.product }} --groups ${{ matrix.check.groups }}
+      - run: asymptote check --root crates/${{ matrix.product }} --groups ${{ steps.groups.outputs.groups }}
       - name: Save the asymptote store
         if: always() && github.ref == 'refs/heads/main' && matrix.check.store
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -391,13 +399,19 @@ jobs:
             crates/${{ matrix.product }}/target/checks/
             target/checks/
           if-no-files-found: ignore
-  # The one verdict: it fails when a job it waits for failed or was cancelled, and passes when each succeeded or was skipped (the
-  # main-only jobs, on a pull request).
+  # The one verdict, run on every event, a draft pull request's too: GitHub counts a skipped required check as passing, so a
+  # skipped gate would let a draft merge with no check. It fails on a draft, which runs no check, and otherwise when a job it waits
+  # for failed or was cancelled, or was skipped where its own condition does not skip it (the main-only jobs skip a pull request).
   gate:
     needs: [root, pull-request, check-linux, check, python-release, bench]
-    if: always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    if: always()
     runs-on: ubuntu-26.04
     steps:
+      - name: A draft pull request has no verdict
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft
+        run: |
+          echo "::error title=Draft pull request::A draft pull request runs no check, so it has no verdict: mark it ready for review, which runs the checks."
+          exit 1
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}

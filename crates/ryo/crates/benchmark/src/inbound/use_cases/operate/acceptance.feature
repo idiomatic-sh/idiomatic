@@ -1,7 +1,7 @@
 Feature: operate
   @succeeds
-  Scenario: A language bench passes when every default passes and writes only the worker's document
-    Then a bench writes exactly the document its sealed worker wrote, as one BMF document
+  Scenario: A language bench passes when every default passes and writes only the deterministic measures of the worker's document
+    Then a bench writes the deterministic measures of the document its sealed worker wrote, as one BMF document
 
   @refuses
   Scenario: A bench whose cases fail measures nothing

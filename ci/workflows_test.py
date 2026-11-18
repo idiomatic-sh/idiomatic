@@ -15,6 +15,9 @@ from pathlib import Path
 import pytest
 import yaml
 
+from ci.groups import composition as groups_composition
+from ci.groups.use_case import RELEASE_ROWS
+from ci.groups.use_case import Request as GroupsRequest
 from ci.tag.use_case import PRODUCTS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,8 +79,12 @@ CAPTURE_GROUP = re.compile(r"asymptote check --groups ([a-z][a-z-]*) --format js
 # chains anything to, or only actions (a build matrix). The values it is handed are crates.io's token, from its trusted publishing,
 # and the token `gh` creates the GitHub Release with; npm and PyPI exchange the OIDC token themselves.
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
-# The one other job command: seeding ryo's bench lock on the runner that judges it, one linter bench a step (benchmarks.yml).
-SEED = re.compile(r'asymptote up --root crates/ryo --reason "seed on [\w.-]+" --tool bench/[a-z]+/[a-z]+')
+# The one other job command: seeding ryo's bench lock on the runner that judges it, after the check of both bench groups: what
+# it found unseeded or over its best recorded (`up`), and the records of measures no tool reports any more dropped (`down`)
+# (benchmarks.yml).
+SEED = re.compile(r'asymptote (up --root crates/[\w-]+ --reason "seed on [\w.-]+"|down --root crates/[\w-]+)')
+# The check a seed stands on: the bench group alone (the timing group repeats the whole bench, and no job runs it twice).
+SEED_CHECK = "asymptote check --root crates/ryo --groups bench"
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
 # What may start a workflow: a hand run, and a pull request to main for the workflows `REQUESTED` names, the check alone (GitHub's
 # standard hosted runners are free on a public repository). The workflows `PUSHED` names may start on a push to main too, which
@@ -275,7 +282,7 @@ def checks(job: dict) -> list[int]:
 
 
 def seeds(job: dict) -> list[int]:
-    """The positions of the job's steps that seed one linter bench's lock."""
+    """The positions of the job's steps that seed a product's lock: ryo's bench, or Tastemaker's memory records."""
     return [index for index, step in enumerate(job["steps"]) if SEED.fullmatch(step.get("run", "").strip())]
 
 
@@ -325,12 +332,13 @@ def problems(workflow: dict) -> list[str]:
         elif positions:
             run = re.sub(r"\$\{\{.*?\}\}", "value", job["steps"][positions[0]]["run"].strip())
             following = enumerate(job["steps"][positions[0] + 1 :], start=positions[0] + 1)
-            if any(not step.get("uses", "").startswith(UPLOAD) and index not in saved for index, step in following):
+            seeding = set(seeds(job))
+            if any(not step.get("uses", "").startswith(UPLOAD) and index not in saved | seeding for index, step in following):
                 found.append(f"{name} does not end in its asymptote check step")
             if not CHECK.fullmatch(run) and not captured_check(run):
                 found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
         else:
-            steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP]
+            steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP and step != DRAFT_REFUSAL]
             runs = [re.sub(r"\$\{\{.*?\}\}", "value", step["run"].strip()) for step in steps]
             runs = [each for each in runs if each not in SETUP]
             if seeds(job) and all(SEED.fullmatch(each) for each in runs):
@@ -531,38 +539,62 @@ def test_a_pull_request_to_main_starts_only_the_check() -> None:
 
 
 def draft_problems(name: str, workflow: dict) -> list[str]:
-    """The jobs of a workflow a pull request starts that run while the pull request is a draft: each job's condition is `READY`,
-    `READY` and a further condition, `NOT_ON_A_PULL_REQUEST` (a job no pull request runs), or, for a job that waits for the
-    others whatever they did, `always()` and `READY`."""
+    """What lets a workflow a pull request starts check a draft, or pass one: a job but the verdict that runs while the pull
+    request is a draft (each one's condition is `READY`, `READY` and a further condition, or `NOT_ON_A_PULL_REQUEST`, a job no pull
+    request runs), and a verdict that a draft skips, which GitHub counts as passing, or that runs on a draft without first
+    failing it (`DRAFT_REFUSAL`)."""
     if "pull_request" not in triggers(workflow):
         return []
-    skipping = {READY, NOT_ON_A_PULL_REQUEST, GATE_CONDITION}
-    return [
-        f"{name} runs {job_name} on a draft pull request"
-        for job_name, job in workflow["jobs"].items()
-        if job.get("if") not in skipping and not str(job.get("if", "")).startswith(f"({READY}) && ")
-    ]
+    skipping = {READY, NOT_ON_A_PULL_REQUEST}
+    found = []
+    for job_name, job in workflow["jobs"].items():
+        condition = job.get("if")
+        if job_name == VERDICT:
+            if condition != GATE_CONDITION:
+                found.append(f"{name} skips {job_name} on a draft pull request, which GitHub counts as a pass")
+            elif job.get("steps", [None])[0] != DRAFT_REFUSAL:
+                found.append(f"{name} runs {job_name} on a draft pull request without failing it first")
+        elif condition not in skipping and not str(condition or "").startswith(f"({READY}) && "):
+            found.append(f"{name} runs {job_name} on a draft pull request")
+    return found
 
 
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
-def test_every_job_a_pull_request_starts_skips_a_draft(path: Path) -> None:
-    """A draft pull request runs no CI: every job of a workflow a pull request starts, `gate` among them, is skipped."""
+def test_every_job_a_pull_request_starts_skips_a_draft_and_the_gate_fails_it(path: Path) -> None:
+    """A draft pull request runs no check: every job of a workflow a pull request starts is skipped but `gate`, which runs and
+    fails, so a draft never shows a passing gate."""
     assert draft_problems(path.name, yaml.safe_load(read(path))) == []
 
 
 def test_a_job_a_pull_request_starts_that_does_not_skip_a_draft_is_refused() -> None:
-    """A draft pull request runs no CI: a job without `READY`, or whose condition `READY` does not bound, runs on a draft."""
+    """A draft pull request runs no check: a job without `READY`, or whose condition `READY` does not bound, runs on a draft."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     assert draft_problems("check.yml", workflow) == []
     unguarded = deepcopy(workflow)
     unguarded["jobs"]["check-linux"].pop("if")
     widened = deepcopy(workflow)
     widened["jobs"]["bench"]["if"] = f"{READY} && inputs.product == 'ryo'"
-    always = deepcopy(workflow)
-    always["jobs"]["gate"]["if"] = "always()"
     assert draft_problems("check.yml", unguarded) == ["check.yml runs check-linux on a draft pull request"]
     assert draft_problems("check.yml", widened) == ["check.yml runs bench on a draft pull request"]
-    assert draft_problems("check.yml", always) == ["check.yml runs gate on a draft pull request"]
+
+
+def test_a_gate_a_draft_skips_or_passes_is_refused() -> None:
+    """GitHub counts a skipped required check as passing, so the gate runs on a draft and fails it first: the shape #49 merged on,
+    a gate that a draft skips, is refused, and so is a gate that runs on a draft without its refusal."""
+    workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
+    assert workflow["jobs"][VERDICT]["steps"][0] == DRAFT_REFUSAL
+    skipped = deepcopy(workflow)
+    skipped["jobs"][VERDICT]["if"] = f"always() && ({READY})"
+    skipped["jobs"][VERDICT]["steps"].pop(0)
+    assert draft_problems("check.yml", skipped) == ["check.yml skips gate on a draft pull request, which GitHub counts as a pass"]
+    assert "gate must wait for ['root', 'pull-request', 'check-linux', 'check', 'python-release', 'bench'], whatever their results, a draft's too" in gate_problems(skipped)
+    unrefused = deepcopy(workflow)
+    unrefused["jobs"][VERDICT]["steps"].pop(0)
+    assert draft_problems("check.yml", unrefused) == ["check.yml runs gate on a draft pull request without failing it first"]
+    # The refusal fails only a draft, so a pull request that is ready for review reaches the verdict.
+    loosened = deepcopy(workflow)
+    loosened["jobs"][VERDICT]["steps"][0]["if"] = "github.event_name == 'pull_request'"
+    assert draft_problems("check.yml", loosened) == ["check.yml runs gate on a draft pull request without failing it first"]
     # A workflow no pull request starts has no draft to skip.
     assert draft_problems("release.yml", yaml.safe_load(read(DIRECTORY / "release.yml"))) == []
 
@@ -656,7 +688,14 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
         for tool in tomllib.loads(read(manifest))["tools"]
         if tool["group"].startswith("release")
     }
-    rows = workflow["jobs"]["check"]["strategy"]["matrix"]["include"]
+    # The rows are `ci/groups`' table, which its `groups` job keeps to the product's own: the check's matrix is that job's answer.
+    assert workflow["jobs"]["check"]["needs"] == "groups"
+    assert workflow["jobs"]["check"]["strategy"]["matrix"]["include"] == HAND_ROWS
+    assert [step["run"] for step in workflow["jobs"]["groups"]["steps"] if "run" in step] == [
+        "uv run ci/groups/command.py --product ${{ inputs.product }} --rows"
+    ]
+    assert workflow["jobs"]["groups"]["outputs"] == {"rows": "${{ steps.groups.outputs.rows }}"}
+    rows = list(RELEASE_ROWS)
     assert {row["group"] for row in rows} == released | {"repository", "lint", "clippy", "api", "check", "memory", "bench"}
     # A hand run's check, the pull request gate's rows for its product: its lint, the tests on every machine, and the root's
     # `repository` group from the root, the one row with a root of its own.
@@ -773,7 +812,7 @@ def test_a_green_check_on_main_releases_the_products_whose_version_its_commit_ch
     (download,) = [step for step in publish["steps"] if step.get("uses", "").startswith("actions/download-artifact@")]
     assert download["with"] == {"pattern": "${{ matrix.product }}-*", "merge-multiple": True, "path": "dist"}
     # A hand run checks its product with the linter benches' one group, `bench`, on Linux x86, and no retired bench group.
-    rows = jobs["check"]["strategy"]["matrix"]["include"]
+    rows = list(RELEASE_ROWS)
     assert {"runner": "ubuntu-26.04", "group": "bench"} in rows
     assert not [row for row in rows if row["group"].startswith("bench-")]
 
@@ -797,8 +836,22 @@ CONDITIONS = {
     "check": NOT_ON_A_PULL_REQUEST,
     "python-release": NOT_ON_A_PULL_REQUEST,
 }
-GATE_CONDITION = f"always() && ({READY})"
-ALLOWED_SKIPS = "${{ github.event_name == 'pull_request' && 'check,python-release' || '' }}"
+# The verdict runs on every event, a draft pull request's too: GitHub counts a skipped required check as passing.
+VERDICT = "gate"
+GATE_CONDITION = "always()"
+# Its first step fails a draft, which runs no check, with a message that says so; nothing else runs it.
+DRAFT_REFUSAL = {
+    "name": "A draft pull request has no verdict",
+    "if": "github.event_name == 'pull_request' && github.event.pull_request.draft",
+    "run": 'echo "::error title=Draft pull request::A draft pull request runs no check, so it has no verdict: mark it ready for review,'
+    ' which runs the checks."\nexit 1\n',
+}
+# A job may be skipped only where its own condition skips it: on a pull request, the ones that run on main alone.
+ALLOWED_SKIPS = (
+    "${{ github.event_name == 'pull_request' && '"
+    + ",".join(name for name, condition in CONDITIONS.items() if condition == NOT_ON_A_PULL_REQUEST)
+    + "' || '' }}"
+)
 
 
 def gate_problems(workflow: dict) -> list[str]:
@@ -819,9 +872,9 @@ def gate_problems(workflow: dict) -> list[str]:
         found.append("a merge to main must never cancel the run seeding the stores")
     gate = jobs.get("gate", {})
     if gate.get("if") != GATE_CONDITION or needs(gate) != GATED:
-        found.append(f"gate must wait for {GATED}, whatever their results")
+        found.append(f"gate must wait for {GATED}, whatever their results, a draft's too")
     steps = gate.get("steps", [{}])
-    if len(steps) != 1 or steps[0].get("with") != {"jobs": "${{ toJSON(needs) }}", "allowed-skips": ALLOWED_SKIPS}:
+    if len(steps) != 2 or steps[0] != DRAFT_REFUSAL or steps[1].get("with") != {"jobs": "${{ toJSON(needs) }}", "allowed-skips": ALLOWED_SKIPS}:
         found.append("gate may let only the jobs that run on main alone skip, and only where they do not run")
     return found
 
@@ -830,7 +883,7 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
     """A pull request to main and a push to main check every product, and a hand run the one product it names: each one's whole
     check fan-out, the rows release.yml checks a hand run with but the root row, which the `root` job runs. Asymptote's stores,
     not a paths filter, decide what runs. One `gate` job fails when a job failed or was cancelled and passes when each succeeded,
-    or was skipped when only the main-only jobs were, on a pull request."""
+    or was skipped when only the main-only jobs were, on a pull request; it fails a draft, which runs nothing else."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     on = workflow["on" if "on" in workflow else True]
     assert set(on) == {"pull_request", "push", "workflow_dispatch"}
@@ -854,12 +907,30 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
     linux, check = jobs["check-linux"], jobs["check"]
     assert linux["runs-on"] == "ubuntu-26.04"
     (linux_checking,) = [step["run"] for step in linux["steps"] if "asymptote check" in step.get("run", "")]
-    assert linux_checking == "asymptote check --root crates/${{ matrix.product }} --groups " + ",".join(LINUX_GROUPS)
+    assert linux_checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ steps.groups.outputs.groups }}"
+    # It asks each product the groups of `LINUX_GROUPS` its tools declare, through the one command that keeps them.
+    (asking,) = [step for step in linux["steps"] if step.get("id") == "groups"]
+    assert asking["run"] == "uv run ci/groups/command.py --product ${{ matrix.product }} --groups " + ",".join(LINUX_GROUPS)
+    # asymptote declares no `memory` group, so its Linux job asks the five others; ryo and Tastemaker declare all six.
+    for manifest in listed(ROOT, "crates/*/asymptote.toml"):
+        read(manifest)
+    asked = groups_composition.build()
+    assert {product: asked.run(GroupsRequest(product, LINUX_GROUPS)) for product in PRODUCTS} == {
+        "ryo": LINUX_GROUPS,
+        "tastemaker": LINUX_GROUPS,
+        "asymptote": ("lint", "clippy", "check", "release-tests", "release-coverage"),
+    }
     (checking,) = [step["run"] for step in check["steps"] if "asymptote check" in step.get("run", "")]
-    assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.groups }}"
+    assert checking == "asymptote check --root crates/${{ matrix.product }} --groups ${{ steps.groups.outputs.groups }}"
+    (asking,) = [step for step in check["steps"] if step.get("id") == "groups"]
+    assert asking["run"] == "uv run ci/groups/command.py --product ${{ matrix.product }} --groups ${{ matrix.check.groups }}"
+    # Every product declares every group of every row, so no row of the check matrix runs less than it names.
+    for row in check["strategy"]["matrix"]["check"]:
+        for product in PRODUCTS:
+            assert asked.run(GroupsRequest(product, tuple(row["groups"].split(",")))) == tuple(row["groups"].split(",")), (product, row)
     # The same machines and groups as the release's check, split in two: the pull request's Linux job, which every event runs, and
     # the rows a push to main and a hand run add, a row's groups sharing one asymptote call and so one build.
-    release = yaml.safe_load(read(DIRECTORY / "release.yml"))["jobs"]["check"]["strategy"]["matrix"]["include"]
+    release = list(RELEASE_ROWS)
     here = {("ubuntu-26.04", group) for group in LINUX_GROUPS} | {
         (row["runner"], group) for row in check["strategy"]["matrix"]["check"] for group in row["groups"].split(",")
     }
@@ -899,8 +970,8 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
             for index, step in enumerate(each["steps"])
             if "uses" in step and not step["uses"].startswith(UPLOAD) and index not in stored | saved_tools
         ] == [step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step]
-    (deciding,) = jobs["gate"]["steps"]
-    assert deciding["uses"].startswith("re-actors/")
+    (refusing, deciding) = jobs["gate"]["steps"]
+    assert refusing == DRAFT_REFUSAL and deciding["uses"].startswith("re-actors/")
 
 
 @pytest.mark.parametrize(
@@ -922,7 +993,7 @@ def test_a_pull_request_or_hand_run_checks_every_product_behind_one_gate() -> No
         ),
         pytest.param(lambda workflow: workflow["jobs"]["gate"]["needs"].remove("bench"), id="gate-drops-bench"),
         pytest.param(
-            lambda workflow: workflow["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "bench"}),
+            lambda workflow: workflow["jobs"]["gate"]["steps"][1]["with"].update({"allowed-skips": "bench"}),
             id="bench-skippable",
         ),
     ],
@@ -989,7 +1060,7 @@ def test_python_release_guard_cannot_be_orphaned_by_product_selection() -> None:
 def bench_required(workflow: dict) -> bool:
     """The gate waits for bench and never lets it skip."""
     gate = workflow["jobs"]["gate"]
-    return "bench" in needs(gate) and "bench" not in re.split(r"[\s,']+", gate["steps"][0]["with"]["allowed-skips"])
+    return "bench" in needs(gate) and "bench" not in re.split(r"[\s,']+", gate["steps"][-1]["with"]["allowed-skips"])
 
 
 def test_bench_is_required_by_the_gate() -> None:
@@ -998,7 +1069,7 @@ def test_bench_is_required_by_the_gate() -> None:
     dropped = deepcopy(workflow)
     dropped["jobs"]["gate"]["needs"].remove("bench")
     skippable = deepcopy(workflow)
-    skippable["jobs"]["gate"]["steps"][0]["with"]["allowed-skips"] += ", bench"
+    skippable["jobs"]["gate"]["steps"][-1]["with"]["allowed-skips"] += ", bench"
     assert not bench_required(dropped) and not bench_required(skippable)
 
 
@@ -1030,6 +1101,48 @@ def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
     assert release["cache-workspace-crates"] is True
     assert one_workspace(release, "crates/${{ inputs.product }}")
     assert release["shared-key"] == "${{ matrix.runner }}-${{ matrix.group }}-${{ inputs.product }}"
+
+
+# A hand release's check matrix: the rows the `groups` job keeps for the product.
+HAND_ROWS = "${{ fromJSON(needs.groups.outputs.rows) }}"
+
+
+def hand_rows(workflow: dict, product: str) -> list[dict]:
+    """The rows a hand release of `product` checks: the `groups` job's answer, run over the repository's manifests, where the
+    matrix is that answer, or the matrix's own rows."""
+    include = workflow["jobs"]["check"]["strategy"]["matrix"]["include"]
+    return list(groups_composition.build().rows(product)) if include == HAND_ROWS else include
+
+
+def undeclared_rows(workflow: dict) -> list[str]:
+    """Each row a hand release checks that asks a product for a group none of its tools declares, which asymptote refuses."""
+    for manifest in listed(ROOT, "crates/*/asymptote.toml"):
+        read(manifest)
+    declared = {product: groups_composition.build().manifest.groups(product) for product in PRODUCTS}
+    return [
+        f"a hand release of {product} asks for {row['group']} on {row['runner']}"
+        for product in PRODUCTS
+        for row in hand_rows(workflow, product)
+        if "root" not in row and row["group"] not in declared[product]
+    ]
+
+
+def test_a_hand_release_asks_each_product_only_the_groups_it_declares() -> None:
+    """A hand release checks its product's rows alone: asymptote declares neither memory nor bench, Tastemaker no bench. The
+    static matrix release.yml had asked every product for every row, so a hand release of either failed."""
+    workflow = yaml.safe_load(read(DIRECTORY / "release.yml"))
+    assert undeclared_rows(workflow) == []
+    assert [row["group"] for row in hand_rows(workflow, "asymptote") if row["runner"] == "ubuntu-26.04"] == [
+        "repository", "lint", "clippy", "check", "release-tests", "release-clippy", "release-coverage", "release-msrv",
+        "release-dylint", "release-hack", "release-resolution",
+    ]
+    static = deepcopy(workflow)
+    static["jobs"]["check"]["strategy"]["matrix"]["include"] = [dict(row) for row in RELEASE_ROWS]
+    assert undeclared_rows(static) == [
+        "a hand release of tastemaker asks for bench on ubuntu-26.04",
+        "a hand release of asymptote asks for memory on ubuntu-26.04",
+        "a hand release of asymptote asks for bench on ubuntu-26.04",
+    ]
 
 
 def release_check() -> dict:
@@ -1067,6 +1180,58 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
             "git_release_enable": False,
         }
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
+
+
+@functools.cache
+def publishable(workspace: Path) -> frozenset[str]:
+    """The workspace members cargo would publish (`publish` not false), read from `cargo metadata`."""
+    command = ["cargo", "metadata", "--format-version", "1", "--no-deps", "--locked", "--manifest-path", str(workspace / "Cargo.toml")]
+    metadata = json.loads(subprocess.run(command, capture_output=True, text=True, check=True).stdout)
+    members = set(metadata["workspace_members"])
+    return frozenset(package["name"] for package in metadata["packages"] if package["id"] in members and package["publish"] != [])
+
+
+def release_plz_problems(product: str, configuration: dict, published: frozenset[str]) -> list[str]:
+    """What keeps a product's release-plz.toml from releasing every crate it publishes as one: a publishable member with no
+    `[[package]]` (release-plz would leave it at its old version while the others move), a `[[package]]` that is no publishable
+    member, one outside the product's `version_group`, and a crate missing from the changelog of the one package that keeps it."""
+    packages = {package["name"]: package for package in configuration.get("package", [])}
+    found = [f"{product}: {name} is published but has no [[package]]" for name in sorted(published - set(packages))]
+    found += [f"{product}: [[package]] {name} is no publishable member" for name in sorted(set(packages) - published)]
+    found += [f"{product}: {name} is not in version_group {product}" for name, package in packages.items() if package.get("version_group") != product]
+    keeping = [name for name, package in packages.items() if package.get("changelog_update")]
+    if len(keeping) != 1:
+        return [*found, f"{product}: {len(keeping)} packages keep the changelog, not 1"]
+    included = {keeping[0], *packages[keeping[0]].get("changelog_include", [])}
+    found += [f"{product}: {name} is not in {keeping[0]}'s changelog_include" for name in sorted(published - included)]
+    return found
+
+
+@pytest.mark.parametrize("product", PRODUCTS)
+def test_release_plz_releases_every_published_crate_of_the_product(product: str) -> None:
+    """Every crate a product publishes moves to the product's one version in its release pull request, its commits in the
+    product's changelog."""
+    workspace = ROOT / "crates" / product
+    assert publishable(workspace)
+    assert release_plz_problems(product, tomllib.loads(read(workspace / "release-plz.toml")), publishable(workspace)) == []
+
+
+def test_a_published_crate_missing_from_release_plz_is_refused() -> None:
+    """ryo's release-plz.toml lacked six published crates (derived, execution, execution-domain, execution-runtime, matching,
+    operators): planted again, each is named."""
+    workspace = ROOT / "crates" / "ryo"
+    configuration = tomllib.loads(read(workspace / "release-plz.toml"))
+    dropped = {"idiomatic-sh-ryo-derived", "idiomatic-sh-ryo-operators"}
+    configuration["package"] = [package for package in configuration["package"] if package["name"] not in dropped]
+    for package in configuration["package"]:
+        if "changelog_include" in package:
+            package["changelog_include"] = [name for name in package["changelog_include"] if name not in dropped]
+    assert release_plz_problems("ryo", configuration, publishable(workspace)) == [
+        "ryo: idiomatic-sh-ryo-derived is published but has no [[package]]",
+        "ryo: idiomatic-sh-ryo-operators is published but has no [[package]]",
+        "ryo: idiomatic-sh-ryo-derived is not in idiomatic-sh-ryo's changelog_include",
+        "ryo: idiomatic-sh-ryo-operators is not in idiomatic-sh-ryo's changelog_include",
+    ]
 
 
 def test_the_bench_job_is_an_independent_complete_gate() -> None:
@@ -1275,7 +1440,7 @@ def test_a_job_that_requires_its_receipts_restores_no_store_its_tools_cannot_ref
             if requires_receipts(defined):
                 receipts.append((path.name, name))
                 assert not store_steps(defined), (path.name, name)
-    assert receipts == [("benchmarks.yml", "bench-seed"), ("check.yml", "bench")]
+    assert receipts == [("benchmarks.yml", "bench-seed"), ("benchmarks.yml", "memory-seed"), ("check.yml", "bench")]
     warm = yaml.safe_load(read(DIRECTORY / "check.yml"))["jobs"]["bench"]
     key = f"asymptote-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-ryo-bench-{TOOLHASH}-${{{{ github.run_id }}}}-${{{{ github.run_attempt }}}}"
     warm["steps"].insert(0, store_of({"steps": []}, "crates/ryo/.asymptote/cache", key)[0])
@@ -1601,10 +1766,8 @@ BENCH = "languages/{lang}/benchmarks/linters/{linter}"
 COLLECTOR = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--"]
 # The one pin of every timed measure: the whole process tree of the bench on processors 0-3 with four workers.
 PIN = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4"]
-BENCH_TOLERANCES = {
-    "cpu-s", "wall-s", "peak-rss-bytes", "warm-cpu-s", "warm-peak-rss-bytes", "edited-cpu-s", "edited-peak-rss-bytes",
-    "store-bytes", "total-ms", "max-case-ms", "compile-ms", "doubling-ratio", "larger-ms",
-}
+# The deterministic measure held to its best exactly, with no tolerance: how many files the store holds.
+EXACT = {"store-files"}
 # The tools the one bench replaced: the verification, the corpus measure and parity, the verify times and growth, and the runs
 # over ruff with Tastemaker's rules, which left ryo.
 RETIRED = {
@@ -1630,8 +1793,14 @@ def bench_tool_problems(tools: list[dict], job: dict) -> list[str]:
     (tool,) = benches
     if tool.get("run") != [*PIN, *COLLECTOR, "bench", BENCH] or BENCH not in tool.get("inputs", []):
         found.append("bench must run the pinned collector's bench verb over each bench directory")
-    if tool.get("output") != "bmf" or set(tool.get("tolerance-percent", {})) != BENCH_TOLERANCES:
+    classes = measure_classes()
+    if tool.get("output") != "bmf" or set(tool.get("tolerance-percent", {})) != set(classes["DETERMINISTIC"]) - EXACT:
         found.append("bench must print BMF with the bench's tolerance table")
+    timing = [each for each in tools if each.get("group") == "bench-timing"]
+    if [each.get("run") for each in timing] != [[*PIN, *COLLECTOR, "bench-timing", BENCH]] or any(
+        set(each.get("tolerance-percent", {})) != set(classes["TIMING"]) or each.get("inputs") != tool.get("inputs") for each in timing
+    ):
+        found.append("bench-timing must run the pinned collector's timing verb over the bench's inputs, every time held to a tolerance")
     if any("tastemaker" in each for each in tool.get("inputs", [])):
         found.append("bench reads no Tastemaker rule")
     found += [f"{each['id']} is retired by bench" for each in tools if each.get("id") in RETIRED]
@@ -1658,14 +1827,16 @@ def test_each_language_bench_is_one_pinned_tool() -> None:
     one_bench = deepcopy(tools)
     bench(one_bench)["run"][-1] = "languages/python/benchmarks/linters/ruff"
     loose = deepcopy(tools)
-    del bench(loose)["tolerance-percent"]["cpu-s"]
+    del bench(loose)["tolerance-percent"]["peak-rss-bytes"]
+    untimed = deepcopy(tools)
+    next(tool for tool in untimed if tool.get("group") == "bench-timing")["tolerance-percent"].pop("wall-s")
     tastemaker = deepcopy(tools)
     bench(tastemaker)["inputs"].append("../../tastemaker")
     second = deepcopy(tools)
     second.append({**bench(second), "id": "bench-replay"})
     retired = deepcopy(tools)
     retired.append({"id": "memory-lint", "group": "memory", "run": ["cargo", "bench"]})
-    for changed in (unpinned, one_worker, one_bench, loose, tastemaker, second, retired):
+    for changed in (unpinned, one_worker, one_bench, loose, untimed, tastemaker, second, retired):
         assert bench_tool_problems(changed, job)
     assert bench_tool_problems(tools, {**job, "env": {**job["env"], "RAYON_NUM_THREADS": "1"}})
 
@@ -1676,18 +1847,186 @@ def test_the_test_tools_filter_no_test_out() -> None:
     assert {identity: tools[identity]["run"] for identity in UNFILTERED_TESTS} == UNFILTERED_TESTS
 
 
+# The measures the collector classes as deterministic (`DETERMINISTIC` in the BMF evidence constants), the one definition the
+# gate reads; every other measure the document writes is a time.
+EVIDENCE_CONSTANTS = ROOT / "crates/ryo/crates/benchmark/src/outbound/evidence/adapters/bmf/constants.rs"
+
+
+def measure_classes() -> dict[str, list[str]]:
+    """Each class the collector's evidence constants name (`DETERMINISTIC`, `TIMING`) and the measures in it, by name."""
+    text = read(EVIDENCE_CONSTANTS)
+    names = dict(re.findall(r'pub\(super\) const ([A-Z_]+): &str = "([a-z-]+)";', text))
+    classes = {}
+    for name, members in re.findall(r"pub\(super\) const (DETERMINISTIC|TIMING): \[&str; \d+\] = \[([^\]]*)\];", text):
+        classes[name] = [names[member.strip()] for member in members.split(",") if member.strip()]
+    return classes
+
+
+def timing_gate_problems(manifest: dict, workflows: dict[str, dict]) -> list[str]:
+    """What lets a timing measure judge a pull request: the gating bench tool holding a timing measure to a tolerance, or
+    publishing through any verb but `bench`, and a workflow a pull request starts running the timing group."""
+    classes = measure_classes()
+    tools = {tool["id"]: tool for tool in manifest["tools"]}
+    found = []
+    gating = [tool for tool in manifest["tools"] if tool["group"] == BENCH_JOB_GROUP]
+    for tool in gating:
+        timed = sorted(set(tool.get("tolerance-percent", {})) - set(classes["DETERMINISTIC"]))
+        found += [f"{tool['id']} holds the time {measure} to a tolerance" for measure in timed]
+        if tool["run"][-2] != "bench":
+            found.append(f"{tool['id']} publishes through {tool['run'][-2]}, not the deterministic `bench`")
+    timing = tools.get("bench-timing", {})
+    if timing.get("group") == BENCH_JOB_GROUP or timing.get("run", [None, None])[-2] != "bench-timing":
+        found.append("the timing measures are not bench-timing's, outside the gating group")
+    for name, workflow in workflows.items():
+        if "pull_request" not in triggers(workflow):
+            continue
+        for job_name, job in workflow["jobs"].items():
+            for step in job.get("steps", []):
+                matched = re.search(r"--groups (\S+)", step.get("run", ""))
+                if matched and "bench-timing" in matched[1].split(","):
+                    found.append(f"{name} runs bench-timing in {job_name}, which a pull request starts")
+    return found
+
+
+def test_a_timing_measure_never_gates_the_pull_request_bench() -> None:
+    """The pull request's `bench` job judges the deterministic measures alone (the store and the peak memory); the times are
+    `bench-timing`'s, which no workflow a pull request starts runs (the owner's decision of 2026-11-17)."""
+    classes = measure_classes()
+    assert classes["DETERMINISTIC"] == ["store-bytes", "store-files", "peak-rss-bytes", "warm-peak-rss-bytes", "edited-peak-rss-bytes"]
+    assert set(classes["TIMING"]) == {"cpu-s", "wall-s", "warm-cpu-s", "edited-cpu-s", "total-ms", "max-case-ms", "compile-ms", "doubling-ratio", "larger-ms"}
+    manifest = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))
+    workflows = {path.name: yaml.safe_load(read(path)) for path in WORKFLOWS}
+    assert timing_gate_problems(manifest, workflows) == []
+    # Planted: #49's bench tool, which held every time to a tolerance in the gating group.
+    planted = deepcopy(manifest)
+    (bench,) = [tool for tool in planted["tools"] if tool["id"] == "bench"]
+    bench["tolerance-percent"] |= {"cpu-s": 10, "wall-s": 15}
+    assert timing_gate_problems(planted, workflows) == ["bench holds the time cpu-s to a tolerance", "bench holds the time wall-s to a tolerance"]
+    # Planted: the pull request's bench job running the timing group beside its own.
+    gated = deepcopy(workflows)
+    for step in gated["check.yml"]["jobs"]["bench"]["steps"]:
+        if step.get("run") == BENCH_JOB_CHECK:
+            step["run"] = BENCH_JOB_CHECK + ",bench-timing"
+    assert timing_gate_problems(manifest, gated) == ["check.yml runs bench-timing in bench, which a pull request starts"]
+
+
+# The command every bench tool runs: one full bench, whatever measures it publishes.
+BENCH_RUN = "ryo-benchmark-collector"
+
+
+def groups_of(job: dict) -> list[set[str]]:
+    """The groups each instance of the job checks: each `--groups` of its steps, a matrix row's (`matrix.check.groups`,
+    `matrix.group`) or the groups a `groups` step names (`steps.groups.outputs.groups`) expanded per row."""
+    rows = job.get("strategy", {}).get("matrix", {}).get("check") or job.get("strategy", {}).get("matrix", {}).get("include")
+    rows = [dict(row) for row in RELEASE_ROWS] if rows == HAND_ROWS else rows if isinstance(rows, list) else [{}]
+    named = {step.get("id"): step.get("run", "") for step in job.get("steps", [])}
+    found = []
+    for row in rows:
+        listed: set[str] = set()
+        for step in job.get("steps", []):
+            run = step.get("run", "")
+            if not run.startswith("asymptote check"):
+                continue
+            run = run.replace("${{ steps.groups.outputs.groups }}", (re.search(r"--groups (\S+)", named.get("groups", "")) or [None, ""])[1])
+            run = run.replace("${{ matrix.check.groups }}", row.get("groups", "")).replace("${{ matrix.group }}", row.get("group", ""))
+            matched = re.search(r"--groups (\S+)", run)
+            listed |= set(matched[1].split(",")) if matched else set()
+        found.append(listed)
+    return found
+
+
+def twice_problems(workflows: dict[str, dict], tools: list[dict]) -> list[str]:
+    """Each job instance whose groups hold more than one tool that runs the whole bench."""
+    benches = {tool["group"] for tool in tools if BENCH_RUN in tool["run"]}
+    found = []
+    for name, workflow in workflows.items():
+        for job_name, job in workflow["jobs"].items():
+            for listed in groups_of(job):
+                running = sorted(listed & benches)
+                if len(running) > 1 or any(sum(1 for tool in tools if tool["group"] == group and BENCH_RUN in tool["run"]) > 1 for group in running):
+                    found.append(f"{name} runs the bench twice in {job_name}: {running}")
+    return sorted(set(found))
+
+
+def test_no_job_runs_the_bench_twice() -> None:
+    """A full bench run takes hours: no job checks two groups whose tools each run it, and no group holds two such tools.
+    `bench-timing` repeats the bench, so no workflow runs it."""
+    workflows = {path.name: yaml.safe_load(read(path)) for path in WORKFLOWS}
+    tools = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))["tools"]
+    assert twice_problems(workflows, tools) == []
+    # Planted: the cancelled seed run's job, which checked both bench groups.
+    planted = deepcopy(workflows)
+    for step in planted["benchmarks.yml"]["jobs"]["bench-seed"]["steps"]:
+        if step.get("run") == SEED_CHECK:
+            step["run"] = SEED_CHECK + ",bench-timing"
+    assert twice_problems(planted, tools) == ["benchmarks.yml runs the bench twice in bench-seed: ['bench', 'bench-timing']"]
+    # Planted: a second full-bench tool in the gating group.
+    doubled = [*tools, {**next(tool for tool in tools if tool["id"] == "bench-timing"), "group": "bench"}]
+    assert twice_problems(workflows, doubled) == [
+        "benchmarks.yml runs the bench twice in bench-seed: ['bench']",
+        "check.yml runs the bench twice in bench: ['bench']",
+        "release.yml runs the bench twice in check: ['bench']",
+    ]
+    assert not [name for name, workflow in workflows.items() if any("bench-timing" in str(job) for job in workflow["jobs"].values())]
+
+
 def test_the_bench_lock_is_seeded_only_by_hand() -> None:
     """benchmarks.yml, started only by hand, seeds ryo's bench lock, one linter bench a step, and uploads the lock and the
     receipts its tools wrote; check.yml seeds nothing."""
     workflow = yaml.safe_load(read(DIRECTORY / "benchmarks.yml"))
     assert triggers(workflow) == {"workflow_dispatch"}
-    assert list(workflow["jobs"]) == ["bench-seed"]
-    job = workflow["jobs"]["bench-seed"]
-    assert "if" not in job and "needs" not in job and "strategy" not in job
-    assert [job["steps"][index]["run"].split()[-1] for index in seeds(job)] == [
-        "bench/python/ruff", "bench/rust/clippy", "bench/typescript/oxlint"
+    assert list(workflow["jobs"]) == ["bench-seed", "memory-seed"]
+    # One seed a run, picked by the `seed` input: ryo's bench lock, or Tastemaker's memory records.
+    assert workflow[True]["workflow_dispatch"]["inputs"]["seed"]["options"] == ["ryo-bench", "tastemaker-memory"]
+    memory = workflow["jobs"]["memory-seed"]
+    assert memory["if"] == "${{ inputs.seed == 'tastemaker-memory' }}"
+    assert [step["run"] for step in memory["steps"] if "run" in step and step["run"] not in SETUP] == [
+        "asymptote check --root crates/tastemaker --groups memory",
+        'asymptote up --root crates/tastemaker --reason "seed on ubuntu-26.04"',
+        "asymptote down --root crates/tastemaker",
     ]
+    assert memory["steps"][-1]["with"]["path"] == "crates/tastemaker/.asymptote/operations/"
+    job = workflow["jobs"]["bench-seed"]
+    assert job["if"] == "${{ inputs.seed == 'ryo-bench' }}"
+    assert "needs" not in job and "strategy" not in job
+    runs = [step["run"] for step in job["steps"] if "run" in step and step["run"] not in SETUP]
+    assert runs == [SEED_CHECK, 'asymptote up --root crates/ryo --reason "seed on ubuntu-26.04"', "asymptote down --root crates/ryo"]
+    # `up` and `down` run after a check that finished, red (the lock did not hold this runner's numbers) or green, and `down`
+    # only after `up` recorded.
+    (up,) = [step for step in job["steps"] if step.get("id") == "up"]
+    assert up["if"] == "${{ !cancelled() && (steps.check.outcome == 'success' || steps.check.outcome == 'failure') }}"
+    (down,) = [step for step in job["steps"] if step.get("run") == "asymptote down --root crates/ryo"]
+    assert down["if"] == "${{ !cancelled() && steps.up.outcome == 'success' }}"
+    assert not any("continue-on-error" in step for step in job["steps"])
     upload = job["steps"][-1]
     assert upload["uses"].startswith(UPLOAD) and upload["if"] == "always()"
     assert upload["with"]["path"].split() == ["crates/ryo/.asymptote/operations/", "target/benchmark/"]
     assert "asymptote up" not in read(DIRECTORY / "check.yml")
+
+
+def pull_request_time_problems(manifests: dict[str, dict], check: str) -> list[str]:
+    """Every tool, in any product, of a group the check workflow asks for (which a pull request runs) that holds a wall time (a
+    measure in `-ms` or `-s`) to a tolerance: a time on a shared runner never judges a pull request (the owner's decision of
+    2026-11-17), in any product, not only ryo's bench."""
+    asked = {group for listed in re.findall(r"--groups (\S+)", check) if "${{" not in listed for group in listed.split(",")}
+    found = []
+    for name, manifest in manifests.items():
+        for tool in manifest["tools"]:
+            if tool["group"] in asked:
+                timed = sorted(measure for measure in tool.get("tolerance-percent", {}) if re.search(r"-m?s$", measure))
+                found += [f"{name}: {tool['id']} ({tool['group']}) holds the time {measure} to a tolerance" for measure in timed]
+    return found
+
+
+def test_no_tool_a_pull_request_runs_holds_a_time() -> None:
+    manifests = {str(path.parent.relative_to(ROOT)): tomllib.loads(read(path)) for path in [ROOT / "asymptote.toml", *listed(ROOT, "crates/*/asymptote.toml")]}
+    check = read(DIRECTORY / "check.yml")
+    assert pull_request_time_problems(manifests, check) == []
+    # Planted: Tastemaker's memory tool as #52 first had it, holding `validate`'s wall times beside its peaks.
+    planted = deepcopy(manifests)
+    (memory,) = [tool for tool in planted["crates/tastemaker"]["tools"] if tool["id"] == "memory-distribution"]
+    memory["tolerance-percent"] |= {"validate-cold-ms": 25, "validate-warm-ms": 50}
+    assert pull_request_time_problems(planted, check) == [
+        "crates/tastemaker: memory-distribution (memory) holds the time validate-cold-ms to a tolerance",
+        "crates/tastemaker: memory-distribution (memory) holds the time validate-warm-ms to a tolerance",
+    ]

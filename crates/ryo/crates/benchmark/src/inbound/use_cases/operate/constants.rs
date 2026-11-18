@@ -1,6 +1,6 @@
 //! The command line vocabulary of the bench operations.
 /// What the operation commands take.
-pub const USAGE: &str = "usage: bench <languages/<lang>/benchmarks/linters/<linter>>";
+pub const USAGE: &str = "usage: bench|bench-timing <languages/<lang>/benchmarks/linters/<linter>>";
 /// The refusal of a reference tool whose bytes or version line are not the profile's.
 pub const REFERENCE_NOT_VERIFIED: &str =
     "the reference tool is not the pinned one: its bytes or its version line differ";

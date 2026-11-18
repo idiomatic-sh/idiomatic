@@ -17,12 +17,17 @@ const PASSING: Scenario = Scenario {
     processors: 4,
 };
 
-#[then("a bench writes exactly the document its sealed worker wrote, as one BMF document")]
+#[then(
+    "a bench writes the deterministic measures of the document its sealed worker wrote, as one BMF document"
+)]
 fn bench(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
     let observed = run(PASSING);
     assert_eq!(observed.answer, Ok(OperationVerdict::Passed));
-    assert_eq!(observed.stdout, b"{\"metric\":{}}\n");
+    assert_eq!(
+        observed.stdout,
+        b"{\"fixture/project\":{\"peak-rss-bytes\":{\"value\":4096.0},\"store-bytes\":{\"value\":512.0}}}\n"
+    );
     assert!(
         serde_json::from_slice::<serde_json::Value>(&observed.stdout).is_ok(),
         "the bench's standard output is one BMF document"

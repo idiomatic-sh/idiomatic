@@ -17,6 +17,8 @@ pub enum Step {
     Growth,
     /// The times of no verification file.
     ReadNoVerification,
+    /// A document whose measures are all of the class selected.
+    SelectWhole,
     /// The document written.
     Finish,
 }
@@ -50,6 +52,14 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("no verification file gives no times"),
         word: Word::Succeeds,
         input: || &[Step::ReadNoVerification],
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName(
+            "a document whose measures are all of the class selected is published as it was",
+        ),
+        word: Word::Succeeds,
+        input: || &[Step::SelectWhole],
         expect: Expect::Value(0),
     },
     Case {
@@ -92,6 +102,22 @@ fn subject(adapter: &impl EvidencePort, steps: Input) -> Result<Value, Failure> 
                     &crate::outbound::evidence::types::VerificationTimesFiles::default(),
                 )
                 .map(|timings| read += timings.0.len()),
+            Step::SelectWhole => {
+                let whole = crate::outbound::evidence::types::PublishedDocument(
+                    b"{\"python/django\":{\"store-bytes\":{\"value\":10.0}}}\n".to_vec(),
+                );
+                adapter
+                    .select(&whole, crate::outbound::evidence::types::MeasureClass::Deterministic)
+                    .and_then(|kept| {
+                        if kept == whole {
+                            Ok(())
+                        } else {
+                            Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
+                                "a whole selection changed the document".into(),
+                            ))
+                        }
+                    })
+            }
             Step::Finish => adapter.finish(),
         };
         outcome.map_err(|_refused| ())?;

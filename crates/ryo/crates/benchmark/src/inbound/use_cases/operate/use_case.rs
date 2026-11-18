@@ -6,8 +6,8 @@ use crate::application::inventory_verification::service as inventory_verificatio
 use crate::application::registration::service::register;
 use crate::domain::operations::constants::{COLLECTOR, INVENTORY, WORKER};
 use crate::domain::operations::service::{document, layout, worker_arguments};
-use crate::domain::operations::types::BenchOperation;
 use crate::domain::suite::types::inventory::value::InventoryVerdict;
+use crate::outbound::evidence::types::{MeasureClass, PublishedDocument};
 use crate::outbound::{
     executables::{
         interface::ExecutablesPort,
@@ -43,6 +43,8 @@ pub struct OperateUseCaseImpl {
     scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
     /// The processors the bench may run on: a bench is measured on four.
     host: Arc<dyn crate::outbound::host::interface::HostPort>,
+    /// Keeps the measures of the operation's class in the worker's document.
+    evidence: Arc<dyn crate::outbound::evidence::interface::EvidencePort>,
 }
 
 impl OperateUseCaseImpl {
@@ -56,6 +58,7 @@ impl OperateUseCaseImpl {
         execution: Arc<dyn ExecutionPort>,
         scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
         host: Arc<dyn crate::outbound::host::interface::HostPort>,
+        evidence: Arc<dyn crate::outbound::evidence::interface::EvidencePort>,
     ) -> Self {
         Self {
             executables,
@@ -65,6 +68,7 @@ impl OperateUseCaseImpl {
             execution,
             scheduler,
             host,
+            evidence,
         }
     }
 }
@@ -138,21 +142,35 @@ impl OperateUseCase for OperateUseCaseImpl {
             self.scheduler.as_ref(),
             ShardCount(1),
         )?;
-        let answer = match verified {
-            InventoryVerdict::Failed => OperationVerdict::Failed,
-            InventoryVerdict::Passed => OperationVerdict::from(self.executables.run_sealed(
-                &worker.path,
-                &RunArguments(worker_arguments(
-                    BenchOperation::Bench,
-                    &layout,
-                    &reference.path,
-                )),
-                &document(&layout),
-                output,
-                observations,
-            )?),
-        };
-        Ok(OperationReport { verdict: answer })
+        if verified == InventoryVerdict::Failed {
+            return Ok(OperationReport {
+                verdict: OperationVerdict::Failed,
+            });
+        }
+        // The worker writes every measure; the operation publishes those of its class alone.
+        let mut written = Vec::new();
+        let ran = self.executables.run_sealed(
+            &worker.path,
+            &RunArguments(worker_arguments(
+                request.operation,
+                &layout,
+                &reference.path,
+            )),
+            &document(&layout),
+            &mut written,
+            observations,
+        )?;
+        if ran == RunVerdict::Passed {
+            let published = self.evidence.select(
+                &PublishedDocument(written),
+                MeasureClass::from(request.operation),
+            )?;
+            output.write_all(&published.0)?;
+            output.flush()?;
+        }
+        Ok(OperationReport {
+            verdict: OperationVerdict::from(ran),
+        })
     }
 }
 

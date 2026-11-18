@@ -61,6 +61,31 @@ pub(super) const EDITED_PEAK_RSS_BYTES: &str = "edited-peak-rss-bytes";
 pub(super) const STORE_BYTES: &str = "store-bytes";
 /// The measure of a project's store: how many files the cold run left in the candidate's state.
 pub(super) const STORE_FILES: &str = "store-files";
+/// The measures the same tree gives again on any machine of the runner's kind: what the cold run leaves in its store,
+/// and the peak memory of each run. Every other measure the document writes is in `TIMING`.
+pub(super) const DETERMINISTIC: [&str; 5] = [
+    STORE_BYTES,
+    STORE_FILES,
+    PEAK_RSS_BYTES,
+    WARM_PEAK_RSS_BYTES,
+    EDITED_PEAK_RSS_BYTES,
+];
+/// The measures of time, which move with the machine and its load.
+pub(super) const TIMING: [&str; 9] = [
+    CPU_S,
+    WALL_S,
+    WARM_CPU_S,
+    EDITED_CPU_S,
+    TOTAL_MS,
+    MAX_CASE_MS,
+    COMPILE_MS,
+    DOUBLING_RATIO,
+    LARGER_MS,
+];
+/// The refusal of a measure neither `DETERMINISTIC` nor `TIMING` names.
+pub(super) const UNCLASSED_MEASURE: &str = "a measure that is neither deterministic nor timing";
+/// The refusal of a selection that keeps no measure.
+pub(super) const NOTHING_SELECTED: &str = "the document holds no measure of the class selected";
 /// The field of a measure that holds its value.
 pub(super) const VALUE: &str = "value";
 /// The refusal of a benchmark added twice to one document.

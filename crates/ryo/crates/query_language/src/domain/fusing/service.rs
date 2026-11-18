@@ -21,7 +21,7 @@ pub(crate) fn fuse_keyed_reaches(
 
 /// `consumer` as one step with `producer`, when both only filter and cut columns: the comparisons of
 /// the producer, then the consumer's on the columns they name in the producer's input.
-fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
+pub(crate) fn fuse(producer: &Operation, consumer: &Operation) -> Option<Operation> {
     let Operation::Select {
         from,
         comparisons: first,
