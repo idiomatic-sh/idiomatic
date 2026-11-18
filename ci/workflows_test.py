@@ -1598,8 +1598,10 @@ def unnamed_inputs(product: Path, top: Path = ROOT, tools: list[dict] | None = N
         if TM.search(written):
             required.add("")
         if BUILDS.search(written) or READS.search(written):
-            manifest = re.search(r"--manifest-path\s+(\S+)/Cargo\.toml", written)
-            workspaces = [Path(os.path.normpath(product / manifest[1])) if manifest else product]
+            # A manifest a run names but the product lacks is not built: the run guards it (`if [ -f ... ]`), as the `smoke`
+            # tool guards the distribution crate a product that ships to crates.io alone does not have.
+            manifests = [Path(os.path.normpath(product / each)) for each in re.findall(r"--manifest-path\s+(\S+)/Cargo\.toml", written)]
+            workspaces = [each for each in manifests if (each / "Cargo.toml").is_file()] or [product]
             library = re.search(r"--path\s+(\S+)", written)
             if library and (product / library[1] / "Cargo.toml").is_file():
                 workspaces.append(Path(os.path.normpath(product / library[1])))
@@ -1653,9 +1655,9 @@ def test_a_tool_that_misses_what_it_runs_or_reads_is_named() -> None:
     missing = unnamed_inputs(ryo, tools=[{**tools["test-language"], "inputs": narrow}])
     assert "test-language: crates/ryo/cli" in missing and "test-language: crates/ryo/crates/execution" in missing
     assert "test-language: crates/ryo/languages/python" in missing
-    distribution = tools["test-distribution"]
-    unread = unnamed_inputs(ryo, tools=[{**distribution, "inputs": [each for each in distribution["inputs"] if each != "../../tastemaker"]}])
-    assert unread == ["test-distribution: tastemaker"]
+    smoke = tools["smoke"]
+    unread = unnamed_inputs(ryo, tools=[{**smoke, "inputs": [each for each in smoke["inputs"] if each != "../../tastemaker"]}])
+    assert unread == ["smoke: tastemaker"]
     clippy = tools["cargo-clippy"]
     helper = "../../ci/scripts/checks/cargo_diagnostics.py"
     unrun = unnamed_inputs(ryo, tools=[{**clippy, "inputs": [each for each in clippy["inputs"] if each != helper]}])
