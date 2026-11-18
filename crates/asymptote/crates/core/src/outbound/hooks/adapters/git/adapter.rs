@@ -4,9 +4,9 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-#[cfg(unix)]
-use super::constants::EXECUTABLE;
 use super::constants::{GIT_PATH, HOOKS};
+#[cfg(unix)]
+use super::constants::{SHELL, WRITE_EXECUTABLE};
 use crate::outbound::hooks::errors::HooksError;
 use crate::outbound::hooks::interface::HooksPort;
 use crate::outbound::hooks::types::{GitAnswer, HookFile, Installed};
@@ -66,17 +66,33 @@ fn path_of(root: &ProductRoot, name: &HookName) -> Result<PathBuf, HooksError> {
     Ok(PathBuf::from(format!("{}{SEPARATOR}{}", root.0, answer.0)))
 }
 
-/// Makes the script at `path` executable.
+/// Writes `script` to `path` and makes it executable, through a child (`WRITE_EXECUTABLE`).
 #[cfg(unix)]
-fn executable(path: &Path) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(EXECUTABLE))
+fn write_executable(path: &Path, script: &ScriptText) -> std::io::Result<()> {
+    use std::io::Write as _;
+    let mut child = Command::new(SHELL)
+        .args(WRITE_EXECUTABLE)
+        .arg(path)
+        .stdin(Stdio::piped())
+        .spawn()?;
+    let written = child
+        .stdin
+        .take()
+        .ok_or_else(|| std::io::Error::other(path.display().to_string()))
+        .and_then(|mut stdin| stdin.write_all(script.0.as_bytes()));
+    let status = child.wait()?;
+    written?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(status.to_string()))
+    }
 }
 
-/// A file system with no executable bit has nothing to set: the script written is all there is, so this only finds it there.
+/// A file system with no executable bit has nothing to set: the script written is all there is.
 #[cfg(not(unix))]
-fn executable(path: &Path) -> std::io::Result<()> {
-    std::fs::metadata(path).map(|_| ())
+fn write_executable(path: &Path, script: &ScriptText) -> std::io::Result<()> {
+    std::fs::write(path, script.0.as_bytes())
 }
 
 impl HooksPort for HooksGitAdapter {
@@ -122,8 +138,7 @@ impl HooksPort for HooksGitAdapter {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(unwritable)?;
         }
-        std::fs::write(&path, script.0.as_bytes()).map_err(unwritable)?;
-        executable(&path).map_err(unwritable)
+        write_executable(&path, script).map_err(unwritable)
     }
 
     fn remove(&self, root: &ProductRoot, name: &HookName) -> Result<(), HooksError> {

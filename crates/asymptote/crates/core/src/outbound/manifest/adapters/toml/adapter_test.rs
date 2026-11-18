@@ -428,18 +428,16 @@ fn workspace(question: Question, base: &std::path::Path) -> Result<Value, Failur
 }
 
 /// Makes `languages/go` of `base` an entry a captured input reaches but cannot read: on Unix a directory that cannot be
-/// searched, so the metadata of `languages/go/src` is refused; on Windows a sibling whose name is no UTF-8 text (an unpaired
+/// searched, so the metadata of `languages/go/src` is refused, its own permissions restored after; on Windows a sibling whose name is no UTF-8 text (an unpaired
 /// surrogate). Answers what undoes it, so the temporary directory can be removed.
 #[cfg(unix)]
 fn unreadable_entry(base: &std::path::Path) -> impl FnOnce() {
     use std::os::unix::fs::PermissionsExt as _;
     let go = base.join("languages/go");
+    let captured = std::fs::metadata(&go).expect("the directory").permissions();
     std::fs::set_permissions(&go, std::fs::Permissions::from_mode(0o000)).expect("the mode");
     move || {
-        drop(std::fs::set_permissions(
-            &go,
-            std::fs::Permissions::from_mode(0o755),
-        ));
+        drop(std::fs::set_permissions(&go, captured));
     }
 }
 
