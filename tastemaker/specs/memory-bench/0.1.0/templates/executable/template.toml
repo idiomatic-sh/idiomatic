@@ -1,0 +1,27 @@
+description = "The one writer of an executable file in the bench: a child writes it, then the mode is set."
+why = "A file this multi-threaded process writes and then launches can fail with `Text file busy`; a child writer cannot leak the descriptor (rule `executable-written-in-process`)."
+content = '''
+//! The one writer of an executable file in this process: a child writes the file, so no descriptor
+//! this multi-threaded process holds for writing can leak into a child another thread forks, and the
+//! launch that follows never fails with "Text file busy" (ETXTBSY).
+'''
+
+[given]
+file = 'executable.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'executable.rs' = '''
+//! The one writer of an executable file in this process: a child writes the file, so no descriptor
+//! this multi-threaded process holds for writing can leak into a child another thread forks, and the
+//! launch that follows never fails with "Text file busy" (ETXTBSY).
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.files.'.gitkeep' = ''
+then.findings = [
+  { rule = 'executable#count', path = '.' },
+]

@@ -1,0 +1,319 @@
+description = "A command line crate's `Outcome`: how a command ended, `Success`, `Failure` or `Error`, and its exit code 0, 1 or 2; and each error's next step (`Remedy`), with no wildcard match."
+why = "Gives every command the same three endings, so callers read one exit code convention across commands and CLIs: each command's `run` returns it, and the command tree's root turns it into the process status once. Each product classes its errors here, `From<&Error> for Outcome`, and gives each its next step in the `remedy` module; the module's `#![deny(clippy::wildcard_enum_match_arm)]` makes every match in it name every variant, so a new error variant is classed where it is added."
+content = '''
+//! How a command ended, and the process exit code that says so; and, in [`remedy`], what
+//! the user does next about each error a command can end with. Every match here names
+//! every variant: a wildcard is refused, so a new error variant is classed where it is
+//! added.
+#![deny(clippy::wildcard_enum_match_arm)]
+
+pub mod remedy;
+
+#[cfg(test)]
+#[path = "outcome_test.rs"]
+mod tests;
+
+/// How a command ended: every command's `run` returns one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[must_use]
+pub enum Outcome {
+    /// The command did its job: exit 0.
+    Success,
+    /// The command refused its input or reached a negative verdict: exit 1.
+    Failure,
+    /// The command could not run: exit 2.
+    Error,
+}
+
+impl Outcome {
+    /// The process exit code.
+    #[must_use]
+    pub const fn code(self) -> u8 {
+        match self {
+            Self::Success => 0,
+            Self::Failure => 1,
+            Self::Error => 2,
+        }
+    }
+}
+
+impl From<Outcome> for std::process::ExitCode {
+    fn from(outcome: Outcome) -> Self {
+        Self::from(outcome.code())
+    }
+}
+'''
+
+[given]
+file = 'cli/src/outcome.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'cli/src/outcome.rs' = '''
+//! How a command ended, and the process exit code that says so; and, in [`remedy`], what
+//! the user does next about each error a command can end with. Every match here names
+//! every variant: a wildcard is refused, so a new error variant is classed where it is
+//! added.
+#![deny(clippy::wildcard_enum_match_arm)]
+
+pub mod remedy;
+
+#[cfg(test)]
+#[path = "outcome_test.rs"]
+mod tests;
+
+/// How a command ended: every command's `run` returns one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[must_use]
+pub enum Outcome {
+    /// The command did its job: exit 0.
+    Success,
+    /// The command refused its input or reached a negative verdict: exit 1.
+    Failure,
+    /// The command could not run: exit 2.
+    Error,
+}
+
+impl Outcome {
+    /// The process exit code.
+    #[must_use]
+    pub const fn code(self) -> u8 {
+        match self {
+            Self::Success => 0,
+            Self::Failure => 1,
+            Self::Error => 2,
+        }
+    }
+}
+
+impl From<Outcome> for std::process::ExitCode {
+    fn from(outcome: Outcome) -> Self {
+        Self::from(outcome.code())
+    }
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template, such as a conversion from a verdict.'
+given.files.'cli/src/outcome.rs' = '''
+//! How a command ended, and the process exit code that says so; and, in [`remedy`], what
+//! the user does next about each error a command can end with. Every match here names
+//! every variant: a wildcard is refused, so a new error variant is classed where it is
+//! added.
+#![deny(clippy::wildcard_enum_match_arm)]
+
+pub mod remedy;
+
+#[cfg(test)]
+#[path = "outcome_test.rs"]
+mod tests;
+
+/// How a command ended: every command's `run` returns one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[must_use]
+pub enum Outcome {
+    /// The command did its job: exit 0.
+    Success,
+    /// The command refused its input or reached a negative verdict: exit 1.
+    Failure,
+    /// The command could not run: exit 2.
+    Error,
+}
+
+impl Outcome {
+    /// The process exit code.
+    #[must_use]
+    pub const fn code(self) -> u8 {
+        match self {
+            Self::Success => 0,
+            Self::Failure => 1,
+            Self::Error => 2,
+        }
+    }
+}
+
+impl From<Outcome> for std::process::ExitCode {
+    fn from(outcome: Outcome) -> Self {
+        Self::from(outcome.code())
+    }
+}
+
+
+/// A verdict the product classes, beside the template.
+impl From<bool> for Outcome {
+    fn from(passed: bool) -> Self {
+        if passed { Self::Success } else { Self::Failure }
+    }
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'outcome#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'no-code'
+scenario = 'The outcome has no exit code of its own.'
+given.files.'cli/src/outcome.rs' = '''
+//! How a command ended, and the process exit code that says so.
+
+/// How a command ended: every command's `run` returns one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[must_use]
+pub enum Outcome {
+    /// The command did its job: exit 0.
+    Success,
+    /// The command refused its input or reached a negative verdict: exit 1.
+    Failure,
+    /// The command could not run: exit 2.
+    Error,
+}
+
+impl From<Outcome> for std::process::ExitCode {
+    fn from(outcome: Outcome) -> Self {
+        Self::from(outcome as u8)
+    }
+}
+'''
+then.findings = [
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+]
+
+[[scenarios]]
+id = 'no-exit-code'
+scenario = 'The outcome does not convert to an exit code.'
+given.files.'cli/src/outcome.rs' = '''
+//! How a command ended, and the process exit code that says so.
+
+/// How a command ended: every command's `run` returns one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[must_use]
+pub enum Outcome {
+    /// The command did its job: exit 0.
+    Success,
+    /// The command refused its input or reached a negative verdict: exit 1.
+    Failure,
+    /// The command could not run: exit 2.
+    Error,
+}
+
+impl Outcome {
+    /// The process exit code.
+    #[must_use]
+    pub const fn code(self) -> u8 {
+        match self {
+            Self::Success => 0,
+            Self::Failure => 1,
+            Self::Error => 2,
+        }
+    }
+}
+'''
+then.findings = [
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+]
+
+[[scenarios]]
+id = 'wildcard-allowed'
+scenario = 'The module lets a match fall through a wildcard, so a new error variant would compile with no next step.'
+given.files.'cli/src/outcome.rs' = '''
+//! How a command ended, and the process exit code that says so; and, in [`remedy`], what
+//! the user does next about each error a command can end with. Every match here names
+//! every variant: a wildcard is refused, so a new error variant is classed where it is
+//! added.
+
+pub mod remedy;
+
+/// How a command ended: every command's `run` returns one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[must_use]
+pub enum Outcome {
+    /// The command did its job: exit 0.
+    Success,
+    /// The command refused its input or reached a negative verdict: exit 1.
+    Failure,
+    /// The command could not run: exit 2.
+    Error,
+}
+
+impl Outcome {
+    /// The process exit code.
+    #[must_use]
+    pub const fn code(self) -> u8 {
+        match self {
+            Self::Success => 0,
+            Self::Failure => 1,
+            Self::Error => 2,
+        }
+    }
+}
+
+impl From<Outcome> for std::process::ExitCode {
+    fn from(outcome: Outcome) -> Self {
+        Self::from(outcome.code())
+    }
+}
+'''
+then.findings = [
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+]
+
+[[scenarios]]
+id = 'no-remedy-module'
+scenario = 'The module declares no remedies, so no error names its next step.'
+given.files.'cli/src/outcome.rs' = '''
+//! How a command ended, and the process exit code that says so; and, in [`remedy`], what
+//! the user does next about each error a command can end with. Every match here names
+//! every variant: a wildcard is refused, so a new error variant is classed where it is
+//! added.
+#![deny(clippy::wildcard_enum_match_arm)]
+
+
+/// How a command ended: every command's `run` returns one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[must_use]
+pub enum Outcome {
+    /// The command did its job: exit 0.
+    Success,
+    /// The command refused its input or reached a negative verdict: exit 1.
+    Failure,
+    /// The command could not run: exit 2.
+    Error,
+}
+
+impl Outcome {
+    /// The process exit code.
+    #[must_use]
+    pub const fn code(self) -> u8 {
+        match self {
+            Self::Success => 0,
+            Self::Failure => 1,
+            Self::Error => 2,
+        }
+    }
+}
+
+impl From<Outcome> for std::process::ExitCode {
+    fn from(outcome: Outcome) -> Self {
+        Self::from(outcome.code())
+    }
+}
+'''
+then.findings = [
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+  { rule = 'outcome#template', path = 'cli/src/outcome.rs' },
+]

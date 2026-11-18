@@ -1,0 +1,36 @@
+description = "One macro file of a resource: the macro_rules definitions of one concern, with nothing else asked."
+why = "The macros of a resource sit one concern to a file below its `macros/` directory, which the resource's `macros.rs` declares; the `entry` spec does not place the directory, because it is not a function. The template is open: it asks that the file exist and states its role, and the macros are its author's."
+content = '''
+//! One concern of the macros of the `{{ resource }}` resource.
+'''
+
+[params]
+resource = { type = "identifier", description = "The resource, captured from its path." }
+
+[given]
+file = 'sdk/src/resources/greeting/macros/link.rs'
+params = { resource = 'greeting' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'sdk/src/resources/greeting/macros/link.rs' = '''
+//! One concern of the macros of the `greeting` resource.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'sdk/src/resources/greeting/macros/link.rs' = '''
+//! One concern of the macros of the `greeting` resource.
+
+/// A thing the template does not ask for.
+pub struct Extra;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'resource-macro#count', path = '.' },
+]

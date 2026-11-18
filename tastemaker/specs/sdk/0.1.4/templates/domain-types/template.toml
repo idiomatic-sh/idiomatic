@@ -1,0 +1,36 @@
+description = "The values of one concept of the SDK's own domain, with nothing else asked."
+why = "The values more than one function of the SDK shares sit in their concept's `types.rs`, the SDK's one edge copy of each, which no core type stands in for: the SDK names no internal crate's type in its surface. The template is open: it asks that the file exist and states its role, and the types are its author's."
+content = '''
+//! The types of the `{{ concept }}` concept.
+'''
+
+[params]
+concept = { type = "identifier", description = "The concept, captured from its path." }
+
+[given]
+file = 'sdk/src/domain/relation/types.rs'
+params = { concept = 'relation' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'sdk/src/domain/relation/types.rs' = '''
+//! The types of the `relation` concept.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'sdk/src/domain/relation/types.rs' = '''
+//! The types of the `relation` concept.
+
+/// The name of a relation a query reads.
+pub struct RelationName(pub Box<str>);
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'domain-types#count', path = '.' },
+]

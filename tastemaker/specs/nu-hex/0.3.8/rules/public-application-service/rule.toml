@@ -1,0 +1,140 @@
+description = "An application operation that has a service, `src/application/<operation>/service.rs`, declares it public in its module file, `pub mod service;`, and declares its service test, when it has one, exactly `#[cfg(test)] mod service_test;`."
+why = "An application operation's module file is placed by `part-module`, which holds a namespace operation (one that only gathers sub-concepts) and an operation with its own service alike; the `application-module` template it replaced also held that the service is declared `pub`, so the engine crates above an operation can call it. A placement cannot tell the two kinds of module file apart by their path, so this rule keeps that one requirement of the template for the operations that have a service: a module file beside a directory holding `service.rs` that declares no `mod service` of bare `pub` visibility (`pub(crate)`, `pub(super)` and none are not) is reported. The template also wrote the proof's declaration, `#[cfg(test)] mod service_test;`: the proof compiles only under test, never under the `fixtures` feature or any other gate, and is private, so a module file beside a directory holding `service_test.rs` that does not declare `mod service_test` with no visibility, gated by exactly `#[cfg(test)]` and decorated by nothing else, is reported too (`module-declares` only asks that the gate name `test`). A namespace operation has no service.rs and is not read."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let sources = select file, span from tree-nodes where kind = "source-file";
+let files = project(from="filesystem.file", columns=["path"]);
+let services = capture(from=files, path="path", pattern="{*root}/application/{operation}/service.rs", captures=["root", "operation"]);
+let module-files = capture(from=sources, path="file", pattern="{*root}/application/{operation}.rs", captures=["root", "operation"]);
+let operations = select l."file" as "file", l."span" as "span" from module-files as l join services as r on l."root" = r."root" and l."operation" = r."operation";
+let modules = select * from tree-nodes where kind = "module";
+let name-nodes = select * from tree-nodes where kind = "name";
+let idents = select * from tree-tokens where kind = "ident";
+let visibilities = select * from tree-nodes where kind = "visibility";
+let inners = select * from tree-nodes where kind = "visibility-inner";
+let kids = select l."id" as "id", r."child" as "child" from modules as l join "syntax-child" as r on l."id" = r."parent";
+let named = select l."id" as "id", r."id" as "name-node" from kids as l join name-nodes as r on l."child" = r."id";
+let name-kids = select l."id" as "id", r."child" as "token" from named as l join "syntax-child" as r on l."name-node" = r."parent";
+let name-texts = select l."id" as "id", r."text" as "text", r."file" as "file" from name-kids as l join idents as r on l."token" = r."id";
+let service-mods = select * from name-texts where text = "service";
+let vis = select l."id" as "id", r."id" as "vis" from kids as l join visibilities as r on l."child" = r."id";
+let vis-kids = select l."id" as "id", l."vis" as "vis", r."child" as "child" from vis as l join "syntax-child" as r on l."vis" = r."parent";
+let restricted = select l."id" as "id" from vis-kids as l join inners as r on l."child" = r."id";
+let public = antijoin(left=vis, right=restricted, left-on=["id"], right-on=["id"]);
+let public-services = select l."file" as "file" from service-mods as l join public as r on l."id" = r."id";
+let missing = antijoin(left=operations, right=public-services, left-on=["file"], right-on=["file"]);
+let missing-service = extend(from=missing, values={"problem": "has a service but does not declare it `pub mod service;`"});
+let service-tests = capture(from=files, path="path", pattern="{*root}/application/{operation}/service_test.rs", captures=["root", "operation"]);
+let tested-modules = select l."file" as "file", l."span" as "span" from module-files as l join service-tests as r on l."root" = r."root" and l."operation" = r."operation";
+let proved = intersection(left=tested-modules, right=operations);
+let test-mods = select * from name-texts where text = "service_test";
+let decorations = select l."declaration" as "id", l."target" as "target", l."arguments" as "arguments" from "decorates" as l;
+let test-gates = select * from decorations where target = "cfg" and arguments = "test";
+let other-decorations = select * from decorations where target != "cfg" or arguments != "test";
+let gated-tests = select l."id" as "id", l."file" as "file" from test-mods as l join test-gates as r on l."id" = r."id";
+let only-gated = antijoin(left=gated-tests, right=other-decorations, left-on=["id"], right-on=["id"]);
+let exact-tests = antijoin(left=only-gated, right=vis, left-on=["id"], right-on=["id"]);
+let missing-test = antijoin(left=proved, right=exact-tests, left-on=["file"], right-on=["file"]);
+let missing-test-found = extend(from=missing-test, values={"problem": "has a service test but does not declare it exactly `#[cfg(test)] mod service_test;`"});
+let violations = union(left=missing-service, right=missing-test-found);
+emit violations subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{file}` {problem}"
+help = "Declare the operation's service public in its module file, `pub mod service;`, and its proof `#[cfg(test)] mod service_test;`: private, gated by exactly `#[cfg(test)]`, as the operation's module file is written."
+
+[given]
+include = ['src/application/*.rs', 'src/application/*/service.rs', 'src/application/*/service_test.rs']
+
+[[scenarios]]
+id = 'public-service-passes'
+scenario = 'An operation module that declares its service `pub mod service;` passes.'
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+pub mod service;
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/application/short/service.rs' = 'pub fn run() {}'
+
+[[scenarios]]
+id = 'private-service-refused'
+scenario = 'An operation module that declares its service `mod service;` is reported.'
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+mod service;
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/application/short/service.rs' = 'pub fn run() {}'
+then.findings = [
+  { path = 'src/application/short.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'crate-visible-service-refused'
+scenario = 'An operation module that declares its service `pub(crate) mod service;` is reported.'
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+pub(crate) mod service;
+'''
+given.files.'src/application/short/service.rs' = 'pub fn run() {}'
+then.findings = [
+  { path = 'src/application/short.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'namespace-is-not-read'
+scenario = 'A namespace operation, which has no service.rs, is not read.'
+given.files.'src/application/file_dag.rs' = '''
+//! The file DAG.
+pub mod derived;
+'''
+given.files.'src/application/file_dag/derived.rs' = 'pub mod service;'
+given.files.'src/application/file_dag/derived/service.rs' = 'pub fn derive() {}'
+
+[[scenarios]]
+id = 'exact-test-gate-passes'
+scenario = 'An operation module that declares its proof `#[cfg(test)] mod service_test;` passes.'
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+pub mod service;
+#[cfg(test)]
+mod service_test;
+'''
+given.files.'src/application/short/service.rs' = 'pub fn run() {}'
+given.files.'src/application/short/service_test.rs' = '#[test] fn runs() {}'
+
+[[scenarios]]
+id = 'fixtures-gated-test-refused'
+scenario = 'An operation module that declares its proof under `#[cfg(any(test, feature = "fixtures"))]` is reported: the proof compiles under test only.'
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+pub mod service;
+#[cfg(any(test, feature = "fixtures"))]
+mod service_test;
+'''
+given.files.'src/application/short/service.rs' = 'pub fn run() {}'
+given.files.'src/application/short/service_test.rs' = '#[test] fn runs() {}'
+then.findings = [
+  { path = 'src/application/short.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'visible-test-refused'
+scenario = 'An operation module that declares its proof `#[cfg(test)] pub(crate) mod service_test;` is reported: the proof is private.'
+given.files.'src/application/short.rs' = '''
+//! The `short` application operation.
+pub mod service;
+#[cfg(test)]
+pub(crate) mod service_test;
+'''
+given.files.'src/application/short/service.rs' = 'pub fn run() {}'
+given.files.'src/application/short/service_test.rs' = '#[test] fn runs() {}'
+then.findings = [
+  { path = 'src/application/short.rs', line = 2 },
+]

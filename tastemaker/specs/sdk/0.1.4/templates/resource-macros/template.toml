@@ -1,0 +1,36 @@
+description = "A resource's macros module: the module file that declares the macros the resource exports, with nothing else asked."
+why = "A resource that exports macros for the programs that use it (`link!` and `reads!` for a language) keeps them in a `macros` module of its own, declared `mod macros;` by the resource module, so a macro is not mistaken for a function a user calls. The template is open: it asks that the file exist and states its role, and the declarations are its author's."
+content = '''
+//! The macros of the `{{ resource }}` resource.
+'''
+
+[params]
+resource = { type = "identifier", description = "The resource, captured from its path." }
+
+[given]
+file = 'sdk/src/resources/greeting/macros.rs'
+params = { resource = 'greeting' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'sdk/src/resources/greeting/macros.rs' = '''
+//! The macros of the `greeting` resource.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'sdk/src/resources/greeting/macros.rs' = '''
+//! The macros of the `greeting` resource.
+
+/// A thing the template does not ask for.
+pub struct Extra;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'resource-macros#count', path = '.' },
+]

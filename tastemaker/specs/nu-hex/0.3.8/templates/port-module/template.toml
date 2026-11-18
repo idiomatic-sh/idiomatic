@@ -1,0 +1,100 @@
+description = "One outbound port's module file: its interface, its test support under the `fixtures` feature, its adapters and its factory."
+why = "Declares one port's files and its test support the way every adapter of the port runs it: under the `fixtures` gate, so the contract and the fake ship to tests only and every port compiles the same way. It declares the members every port has; the port's optional types, errors and schemas with their tests are declared by the same file, which the shared rule `module-declares` holds, because a template sees only its own instance."
+content = '''
+//! The `{{ port }}` port.
+
+pub mod interface;
+{%- if present["types"] | default(false) %}
+pub mod types;
+{%- endif %}
+{%- if present["errors"] | default(false) %}
+pub mod errors;
+{%- endif %}
+{%- if present["schemas"] | default(false) %}
+mod schemas;
+{%- endif %}
+{%- if present["adapters"] | default(false) %}
+pub(crate) mod adapters;
+{%- endif %}
+{%- if present["factory"] | default(false) %}
+pub mod factory;
+{%- endif %}
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+
+[params]
+port = { type = "identifier", description = "The port, captured from its path." }
+
+[given]
+file = 'src/outbound/names.rs'
+params = { port = 'names' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+pub(crate) mod adapters;
+pub mod factory;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+pub(crate) mod adapters;
+pub mod factory;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+
+pub mod types;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/outbound/constants.rs'
+then.findings = [
+  { rule = 'port-module#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'fixtures-not-gated'
+scenario = "The port's test support is compiled for the crate's own tests only."
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+pub(crate) mod adapters;
+pub mod factory;
+
+#[cfg(test)]
+mod fixtures;
+'''
+then.findings = [
+  { rule = 'port-module#template', path = 'src/outbound/names.rs' },
+]
+
+[[scenarios]]
+id = 'no-interface'
+scenario = 'The module file does not declare the port.'
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+then.findings = [
+  { rule = 'port-module#template', path = 'src/outbound/names.rs' },
+]

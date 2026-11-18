@@ -1,0 +1,220 @@
+description = "A map or set is not keyed by a bare type: not text, an integer, a `bool`, a `char` or a tuple (`HashMap`, `BTreeMap`, `HashSet`, `BTreeSet`, `IndexMap`, `IndexSet`); its key is an enum or a typed id."
+why = "A bare key is a hash of bytes where an enum or a typed id is one integer, and a misspelled key is a lookup that fails at run time where a misspelled variant is a compile error. Found from the generic arguments of a map or set type in the syntax tree: the first argument is `String` or `&str`. A string anywhere inside the key counts (`HashMap<Vec<String>, V>` is reported). Not seen: a key behind an alias or a different path (`std::collections::HashMap` written in full is seen; a type alias is not), and a key wrapped in another type."
+
+query = '''
+param allowed-paths: set<string>;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let paths = select * from tree-nodes where kind = "path";
+let segments = select * from tree-nodes where kind = "path-segment";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let idents = select * from tree-tokens where kind = "ident";
+let maps = select * from idents where glob_any(text, "{HashMap,BTreeMap,HashSet,BTreeSet,IndexMap,IndexSet,FxHashMap,FxHashSet}");
+let strings = select * from idents where glob_any(text, "{String,str,usize,isize,u8,u16,u32,u64,u128,i8,i16,i32,i64,i128,f32,f64,bool,char}");
+let arg-lists = select * from tree-nodes where kind = "generic-arg-list";
+let type-args = select * from tree-nodes where kind = "type-arg";
+let path-types = select * from tree-nodes where kind = "path-type";
+let seg-name = select l."id" as "segment", l."file" as "file", l."span" as "span", r."child" as "node" from segments as l join "syntax-child" as r on l."id" = r."parent";
+let seg-ref = select l."segment" as "segment", l."file" as "file", l."span" as "span", r."id" as "node" from seg-name as l join name-refs as r on l."node" = r."id";
+let seg-ident = select l."segment" as "segment", l."file" as "file", l."span" as "span", r."child" as "node" from seg-ref as l join "syntax-child" as r on l."node" = r."parent";
+let map-segments = select l."segment" as "segment", l."file" as "file", l."span" as "span" from seg-ident as l join maps as r on l."node" = r."id";
+let seg-kids = select l."segment" as "segment", l."file" as "file", l."span" as "span", r."child" as "node" from map-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let seg-args = select l."segment" as "segment", l."file" as "file", l."span" as "span", r."id" as "node" from seg-kids as l join arg-lists as r on l."node" = r."id";
+let arg-kids = select l."segment" as "segment", l."file" as "file", l."span" as "span", r."child" as "node", r."ordinal" as "ordinal" from seg-args as l join "syntax-child" as r on l."node" = r."parent";
+let first-kids = select * from arg-kids where ordinal = 1;
+let key-args = select r."id" as "id", l."segment" as "type", l."file" as "file", l."span" as "span" from first-kids as l join type-args as r on l."node" = r."id";
+let key-descendants = axis(from=key-args, relation="syntax-child", direction=descendant, domain=path-types);
+let k0-c = select l."type" as "type", l."file" as "file", l."span" as "span", r."child" as "node" from key-descendants as l join "syntax-child" as r on l."related" = r."parent";
+let k0 = select l."type" as "type", l."file" as "file", l."span" as "span", r."id" as "node" from k0-c as l join paths as r on l."node" = r."id";
+let k1-c = select l."type" as "type", l."file" as "file", l."span" as "span", r."child" as "node" from k0 as l join "syntax-child" as r on l."node" = r."parent";
+let k1 = select l."type" as "type", l."file" as "file", l."span" as "span", r."id" as "node" from k1-c as l join segments as r on l."node" = r."id";
+let k2-c = select l."type" as "type", l."file" as "file", l."span" as "span", r."child" as "node" from k1 as l join "syntax-child" as r on l."node" = r."parent";
+let k2 = select l."type" as "type", l."file" as "file", l."span" as "span", r."id" as "node" from k2-c as l join name-refs as r on l."node" = r."id";
+let key-idents = select l."type" as "type", l."file" as "file", l."span" as "span", r."child" as "node" from k2 as l join "syntax-child" as r on l."node" = r."parent";
+let tuple-types = select * from tree-nodes where kind = "tuple-type";
+let tuple-kids = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "child" from tuple-types as l join "syntax-child" as r on l."id" = r."parent";
+let tuple-elements = select l."id" as "id", l."file" as "file", l."span" as "span" from tuple-kids as l join tree-nodes as r on l."child" = r."id";
+let tuples = project(from=tuple-elements, columns=["id", "file", "span"]);
+let key-tuples = axis(from=key-args, relation="syntax-child", direction=descendant, domain=tuples);
+let tuple-found = select l."type" as "type", l."file" as "file", l."span" as "span" from key-tuples as l join tuples as r on l."related" = r."id";
+let ident-found = select l."type" as "type", l."file" as "file", l."span" as "span" from key-idents as l join strings as r on l."node" = r."id";
+let found = union(left=ident-found, right=tuple-found);
+let allowed = select * from found where glob_any(file, $allowed-paths);
+let reported = antijoin(left=found, right=allowed, left-on=["type"], right-on=["type"]);
+emit reported subject "file" key("span");
+'''
+
+[params.allowed-paths]
+type = "set<string>"
+description = "Globs of the files that may hold this shape: the edges, the error messages and the tests."
+
+[diagnostic]
+primary = "span"
+message = "this map or set is keyed by a bare type"
+help = "For this value, make a new named type; never reuse one that means something else. Key it by an enum or a typed id (a named type), never by a bare string, number, bool, char or tuple."
+
+[given]
+include = ['**/*.rs']
+params = { allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'string-key-in-a-body'
+scenario = 'A map keyed by a bare string.'
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub fn build() {
+    let _m: BTreeMap<String, u8> = BTreeMap::new();
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'str-reference-key-in-a-body'
+scenario = 'A map keyed by a bare str-reference.'
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub fn build() {
+    let _m: BTreeMap<&'static str, u8> = BTreeMap::new();
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'integer-key-in-a-body'
+scenario = 'A map keyed by a bare integer.'
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub fn build() {
+    let _m: BTreeMap<u32, u8> = BTreeMap::new();
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'tuple-key-in-a-body'
+scenario = 'A map keyed by a bare tuple.'
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub fn build() {
+    let _m: BTreeMap<(u8, u8), u8> = BTreeMap::new();
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'bool-key-in-a-body'
+scenario = 'A map keyed by a bare bool.'
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub fn build() {
+    let _m: BTreeMap<bool, u8> = BTreeMap::new();
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'char-key-in-a-body'
+scenario = 'A map keyed by a bare char.'
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub fn build() {
+    let _m: BTreeMap<char, u8> = BTreeMap::new();
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'set-keyed-by-an-integer'
+scenario = 'A set keyed by a bare integer.'
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use std::collections::HashSet;
+
+pub struct Seen {
+    pub ids: HashSet<u64>,
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'key-nested-in-a-tuple-key'
+scenario = 'A bare type nested in a key.'
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub fn build() {
+    let _m: BTreeMap<(Id, String), u8> = BTreeMap::new();
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'typed-key'
+scenario = 'A map keyed by a named type.'
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub struct Id(pub u8);
+
+pub fn build() {
+    let _m: BTreeMap<Id, u8> = BTreeMap::new();
+}
+'''
+
+[[scenarios]]
+id = 'bare-key-in-an-allowed-file'
+scenario = 'A bare key in an allowed file.'
+given.files.'src/constants.rs' = '''
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub fn build() {
+    let _m: BTreeMap<String, u8> = BTreeMap::new();
+}
+'''

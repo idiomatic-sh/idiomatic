@@ -1,0 +1,3366 @@
+description = "The BDD runner holds the shell its template gives it, function by function: it finds the feature files next to it, checks with cucumber's own Gherkin parser that every scenario and outline carries exactly one case word and that the features state a success and a refusal, runs each feature with cucumber's default command line failing on a skipped step, and asserts the execution did not fail and that a step passed; its steps, in `src/inbound/use_cases/<use_case>/acceptance.rs`, match cucumber expressions or plain strings and take the world as `world`, and no `Observation` residue remains; its only file-level attribute is one #![expect(..)] with a reason."
+why = "The bdd-runner template places the file; this rule fixes its shell while authors write the steps, so a runner cannot skip steps, pass with none, run another feature, accept a scenario that names no case word or two, or run features that prove no success or no refusal. The shell is four functions (`features`, `check`, `run`, `main`) and each must say, token by token, what the template gives it: Cargo metadata and the runner's own source path locate the directory once, for both the check and the run; cucumber owns parsing and execution, Rust owns the case-word count and the runtime options. A token is seen as written, also inside a macro's arguments; an equivalent rewrite with other tokens is a finding."
+
+query = '''
+param world: string;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let files = select * from tree-nodes where kind = "source-file";
+let identifiers = select * from tree-tokens where kind = "ident";
+let kind-fn-nodes = select * from tree-nodes where kind = "fn";
+let kind-attr-nodes = select * from tree-nodes where kind = "attr";
+let kind-path-nodes = select * from tree-nodes where kind = "path";
+let kind-path-segment-nodes = select * from tree-nodes where kind = "path-segment";
+let kind-name-ref-nodes = select * from tree-nodes where kind = "name-ref";
+let kind-ident-tokens = select * from tree-tokens where kind = "ident";
+let kind-token-tree-meta-nodes = select * from tree-nodes where kind = "token-tree-meta";
+let kind-name-nodes = select * from tree-nodes where kind = "name";
+let kind-ident-pat-nodes = select * from tree-nodes where kind = "ident-pat";
+let kind-param-nodes = select * from tree-nodes where kind = "param";
+let kind-struct-nodes = select * from tree-nodes where kind = "struct";
+let runner-files = select * from files where glob_any(file, "{tests/bdd.rs,**/tests/bdd.rs}");
+let runner-rows = select l."file" as "file", l."span" as "span" from runner-files as l join runner-files as r on l."id" = r."id";
+let runner-children = select l."file" as "file", r."child" as "child" from runner-files as l join "syntax-child" as r on l."id" = r."parent";
+let top-functions = select l."file" as "file", l."child" as "id", r."span" as "span" from runner-children as l join kind-fn-nodes as r on l."child" = r."id";
+let function-parts = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "child" from top-functions as l join "syntax-child" as r on l."id" = r."parent";
+let function-names = select l."id" as "id", l."file" as "file", l."span" as "span", l."child" as "name" from function-parts as l join kind-name-nodes as r on l."child" = r."id";
+let function-name-tokens = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "token" from function-names as l join "syntax-child" as r on l."name" = r."parent";
+let named-functions = select l."id" as "id", l."file" as "file", l."span" as "span", l."token" as "token", r."text" as "name" from function-name-tokens as l join kind-ident-tokens as r on l."token" = r."id";
+let name-token-ids = project(from=named-functions, columns=["token"]);
+let runner-tokens = select l."id" as "id", l."kind" as "kind", l."text" as "text", l."file" as "file" from tree-tokens as l join runner-files as r on l."file" = r."file";
+let token-owners = axis(from=runner-tokens, relation="syntax-child", direction=nearest-ancestor, domain=named-functions);
+let owned-tokens = select l."id" as "token", l."related" as "function", l."file" as "file", l."text" as "text" from token-owners as l join named-functions as r on l."related" = r."id";
+let body-tokens = antijoin(left=owned-tokens, right=name-token-ids, left-on=["token"], right-on=["token"]);
+let function-tokens = select l."function" as "function", r."name" as "name", l."token" as "token", l."file" as "file", l."text" as "text" from body-tokens as l join named-functions as r on l."function" = r."id";
+let fn-features = select * from named-functions where name = "features";
+let tokens-features = select * from function-tokens where name = "features";
+let fn-check = select * from named-functions where name = "check";
+let tokens-check = select * from function-tokens where name = "check";
+let fn-run = select * from named-functions where name = "run";
+let tokens-run = select * from function-tokens where name = "run";
+let fn-main = select * from named-functions where name = "main";
+let tokens-main = select * from function-tokens where name = "main";
+let have-fn-features = project(from=fn-features, columns=["file"]);
+let no-fn-features = antijoin(left=runner-rows, right=have-fn-features, left-on=["file"], right-on=["file"]);
+let no-fn-features-findings = extend(from=no-fn-features, values={"what": "declares no function `features`"});
+let have-fn-check = project(from=fn-check, columns=["file"]);
+let no-fn-check = antijoin(left=runner-rows, right=have-fn-check, left-on=["file"], right-on=["file"]);
+let no-fn-check-findings = extend(from=no-fn-check, values={"what": "declares no function `check`"});
+let have-fn-run = project(from=fn-run, columns=["file"]);
+let no-fn-run = antijoin(left=runner-rows, right=have-fn-run, left-on=["file"], right-on=["file"]);
+let no-fn-run-findings = extend(from=no-fn-run, values={"what": "declares no function `run`"});
+let have-fn-main = project(from=fn-main, columns=["file"]);
+let no-fn-main = antijoin(left=runner-rows, right=have-fn-main, left-on=["file"], right-on=["file"]);
+let no-fn-main-findings = extend(from=no-fn-main, values={"what": "declares no function `main`"});
+let need-features-metadatacommand = select * from tokens-features where text = "MetadataCommand";
+let have-features-metadatacommand = project(from=need-features-metadatacommand, columns=["function"]);
+let lack-features-metadatacommand = antijoin(left=fn-features, right=have-features-metadatacommand, left-on=["id"], right-on=["function"]);
+let lack-features-metadatacommand-rows = project(from=lack-features-metadatacommand, columns=["file", "span"]);
+let lack-features-metadatacommand-findings = extend(from=lack-features-metadatacommand-rows, values={"what": "`features` never locates the workspace with cargo metadata (no `MetadataCommand`)"});
+let need-features-manifest-path = select * from tokens-features where text = "manifest_path";
+let have-features-manifest-path = project(from=need-features-manifest-path, columns=["function"]);
+let lack-features-manifest-path = antijoin(left=fn-features, right=have-features-manifest-path, left-on=["id"], right-on=["function"]);
+let lack-features-manifest-path-rows = project(from=lack-features-manifest-path, columns=["file", "span"]);
+let lack-features-manifest-path-findings = extend(from=lack-features-manifest-path-rows, values={"what": "`features` never points cargo metadata at the crate's own manifest (no `manifest_path`)"});
+let need-features-cargo-toml = select * from tokens-features where glob_any(text, "?/Cargo.toml?");
+let have-features-cargo-toml = project(from=need-features-cargo-toml, columns=["function"]);
+let lack-features-cargo-toml = antijoin(left=fn-features, right=have-features-cargo-toml, left-on=["id"], right-on=["function"]);
+let lack-features-cargo-toml-rows = project(from=lack-features-cargo-toml, columns=["file", "span"]);
+let lack-features-cargo-toml-findings = extend(from=lack-features-cargo-toml-rows, values={"what": "`features` never points cargo metadata at the crate's own manifest (no `'/Cargo.toml'`)"});
+let need-features-concat = select * from tokens-features where text = "concat";
+let have-features-concat = project(from=need-features-concat, columns=["function"]);
+let lack-features-concat = antijoin(left=fn-features, right=have-features-concat, left-on=["id"], right-on=["function"]);
+let lack-features-concat-rows = project(from=lack-features-concat, columns=["file", "span"]);
+let lack-features-concat-findings = extend(from=lack-features-concat-rows, values={"what": "`features` never builds the manifest path from the crate's directory (no `concat`)"});
+let need-features-env = select * from tokens-features where text = "env";
+let have-features-env = project(from=need-features-env, columns=["function"]);
+let lack-features-env = antijoin(left=fn-features, right=have-features-env, left-on=["id"], right-on=["function"]);
+let lack-features-env-rows = project(from=lack-features-env, columns=["file", "span"]);
+let lack-features-env-findings = extend(from=lack-features-env-rows, values={"what": "`features` never reads the crate's directory from the build (no `env`)"});
+let need-features-cargo-manifest-dir = select * from tokens-features where glob_any(text, "?CARGO_MANIFEST_DIR?");
+let have-features-cargo-manifest-dir = project(from=need-features-cargo-manifest-dir, columns=["function"]);
+let lack-features-cargo-manifest-dir = antijoin(left=fn-features, right=have-features-cargo-manifest-dir, left-on=["id"], right-on=["function"]);
+let lack-features-cargo-manifest-dir-rows = project(from=lack-features-cargo-manifest-dir, columns=["file", "span"]);
+let lack-features-cargo-manifest-dir-findings = extend(from=lack-features-cargo-manifest-dir-rows, values={"what": "`features` never reads the crate's directory from the build (no `'CARGO_MANIFEST_DIR'`)"});
+let need-features-no-deps = select * from tokens-features where text = "no_deps";
+let have-features-no-deps = project(from=need-features-no-deps, columns=["function"]);
+let lack-features-no-deps = antijoin(left=fn-features, right=have-features-no-deps, left-on=["id"], right-on=["function"]);
+let lack-features-no-deps-rows = project(from=lack-features-no-deps, columns=["file", "span"]);
+let lack-features-no-deps-findings = extend(from=lack-features-no-deps-rows, values={"what": "`features` never asks cargo metadata for no dependencies (no `no_deps`)"});
+let need-features-other-options = select * from tokens-features where text = "other_options";
+let have-features-other-options = project(from=need-features-other-options, columns=["function"]);
+let lack-features-other-options = antijoin(left=fn-features, right=have-features-other-options, left-on=["id"], right-on=["function"]);
+let lack-features-other-options-rows = project(from=lack-features-other-options, columns=["file", "span"]);
+let lack-features-other-options-findings = extend(from=lack-features-other-options-rows, values={"what": "`features` never passes cargo metadata its options (no `other_options`)"});
+let need-features-offline = select * from tokens-features where glob_any(text, "?--offline?");
+let have-features-offline = project(from=need-features-offline, columns=["function"]);
+let lack-features-offline = antijoin(left=fn-features, right=have-features-offline, left-on=["id"], right-on=["function"]);
+let lack-features-offline-rows = project(from=lack-features-offline, columns=["file", "span"]);
+let lack-features-offline-findings = extend(from=lack-features-offline-rows, values={"what": "`features` never runs cargo metadata offline (no `'--offline'`)"});
+let need-features-locked = select * from tokens-features where glob_any(text, "?--locked?");
+let have-features-locked = project(from=need-features-locked, columns=["function"]);
+let lack-features-locked = antijoin(left=fn-features, right=have-features-locked, left-on=["id"], right-on=["function"]);
+let lack-features-locked-rows = project(from=lack-features-locked, columns=["file", "span"]);
+let lack-features-locked-findings = extend(from=lack-features-locked-rows, values={"what": "`features` never runs cargo metadata locked (no `'--locked'`)"});
+let need-features-exec = select * from tokens-features where text = "exec";
+let have-features-exec = project(from=need-features-exec, columns=["function"]);
+let lack-features-exec = antijoin(left=fn-features, right=have-features-exec, left-on=["id"], right-on=["function"]);
+let lack-features-exec-rows = project(from=lack-features-exec, columns=["file", "span"]);
+let lack-features-exec-findings = extend(from=lack-features-exec-rows, values={"what": "`features` never executes cargo metadata (no `exec`)"});
+let need-features-workspace-root = select * from tokens-features where text = "workspace_root";
+let have-features-workspace-root = project(from=need-features-workspace-root, columns=["function"]);
+let lack-features-workspace-root = antijoin(left=fn-features, right=have-features-workspace-root, left-on=["id"], right-on=["function"]);
+let lack-features-workspace-root-rows = project(from=lack-features-workspace-root, columns=["file", "span"]);
+let lack-features-workspace-root-findings = extend(from=lack-features-workspace-root-rows, values={"what": "`features` never roots its own source path in the workspace (no `workspace_root`)"});
+let need-features-join = select * from tokens-features where text = "join";
+let have-features-join = project(from=need-features-join, columns=["function"]);
+let lack-features-join = antijoin(left=fn-features, right=have-features-join, left-on=["id"], right-on=["function"]);
+let lack-features-join-rows = project(from=lack-features-join, columns=["file", "span"]);
+let lack-features-join-findings = extend(from=lack-features-join-rows, values={"what": "`features` never joins its own source path to the workspace root (no `join`)"});
+let need-features-file = select * from tokens-features where text = "file";
+let have-features-file = project(from=need-features-file, columns=["function"]);
+let lack-features-file = antijoin(left=fn-features, right=have-features-file, left-on=["id"], right-on=["function"]);
+let lack-features-file-rows = project(from=lack-features-file, columns=["file", "span"]);
+let lack-features-file-findings = extend(from=lack-features-file-rows, values={"what": "`features` never locates its directory from its own source path (no `file`)"});
+let need-features-with-file-name = select * from tokens-features where text = "with_file_name";
+let have-features-with-file-name = project(from=need-features-with-file-name, columns=["function"]);
+let lack-features-with-file-name = antijoin(left=fn-features, right=have-features-with-file-name, left-on=["id"], right-on=["function"]);
+let lack-features-with-file-name-rows = project(from=lack-features-with-file-name, columns=["file", "span"]);
+let lack-features-with-file-name-findings = extend(from=lack-features-with-file-name-rows, values={"what": "`features` never takes the directory of its own source path (no `with_file_name`)"});
+let need-features-read-dir = select * from tokens-features where text = "read_dir";
+let have-features-read-dir = project(from=need-features-read-dir, columns=["function"]);
+let lack-features-read-dir = antijoin(left=fn-features, right=have-features-read-dir, left-on=["id"], right-on=["function"]);
+let lack-features-read-dir-rows = project(from=lack-features-read-dir, columns=["file", "span"]);
+let lack-features-read-dir-findings = extend(from=lack-features-read-dir-rows, values={"what": "`features` never reads its directory (no `read_dir`)"});
+let need-features-retain = select * from tokens-features where text = "retain";
+let have-features-retain = project(from=need-features-retain, columns=["function"]);
+let lack-features-retain = antijoin(left=fn-features, right=have-features-retain, left-on=["id"], right-on=["function"]);
+let lack-features-retain-rows = project(from=lack-features-retain, columns=["file", "span"]);
+let lack-features-retain-findings = extend(from=lack-features-retain-rows, values={"what": "`features` never keeps only the feature files (no `retain`)"});
+let need-features-feature = select * from tokens-features where glob_any(text, "?feature?");
+let have-features-feature = project(from=need-features-feature, columns=["function"]);
+let lack-features-feature = antijoin(left=fn-features, right=have-features-feature, left-on=["id"], right-on=["function"]);
+let lack-features-feature-rows = project(from=lack-features-feature, columns=["file", "span"]);
+let lack-features-feature-findings = extend(from=lack-features-feature-rows, values={"what": "`features` never keeps only files with the `feature` extension (no `'feature'`)"});
+let need-features-sort = select * from tokens-features where text = "sort";
+let have-features-sort = project(from=need-features-sort, columns=["function"]);
+let lack-features-sort = antijoin(left=fn-features, right=have-features-sort, left-on=["id"], right-on=["function"]);
+let lack-features-sort-rows = project(from=lack-features-sort, columns=["file", "span"]);
+let lack-features-sort-findings = extend(from=lack-features-sort-rows, values={"what": "`features` never sorts the features (no `sort`)"});
+let need-check-parse-path = select * from tokens-check where text = "parse_path";
+let have-check-parse-path = project(from=need-check-parse-path, columns=["function"]);
+let lack-check-parse-path = antijoin(left=fn-check, right=have-check-parse-path, left-on=["id"], right-on=["function"]);
+let lack-check-parse-path-rows = project(from=lack-check-parse-path, columns=["file", "span"]);
+let lack-check-parse-path-findings = extend(from=lack-check-parse-path-rows, values={"what": "`check` never parses each feature with cucumber's own Gherkin parser (no `parse_path`)"});
+let need-check-gherkinenv = select * from tokens-check where text = "GherkinEnv";
+let have-check-gherkinenv = project(from=need-check-gherkinenv, columns=["function"]);
+let lack-check-gherkinenv = antijoin(left=fn-check, right=have-check-gherkinenv, left-on=["id"], right-on=["function"]);
+let lack-check-gherkinenv-rows = project(from=lack-check-gherkinenv, columns=["file", "span"]);
+let lack-check-gherkinenv-findings = extend(from=lack-check-gherkinenv-rows, values={"what": "`check` never parses each feature with cucumber's own Gherkin parser (no `GherkinEnv`)"});
+let need-check-scenarios = select * from tokens-check where text = "scenarios";
+let have-check-scenarios = project(from=need-check-scenarios, columns=["function"]);
+let lack-check-scenarios = antijoin(left=fn-check, right=have-check-scenarios, left-on=["id"], right-on=["function"]);
+let lack-check-scenarios-rows = project(from=lack-check-scenarios, columns=["file", "span"]);
+let lack-check-scenarios-findings = extend(from=lack-check-scenarios-rows, values={"what": "`check` never looks at every scenario and outline (no `scenarios`)"});
+let need-check-rules = select * from tokens-check where text = "rules";
+let have-check-rules = project(from=need-check-rules, columns=["function"]);
+let lack-check-rules = antijoin(left=fn-check, right=have-check-rules, left-on=["id"], right-on=["function"]);
+let lack-check-rules-rows = project(from=lack-check-rules, columns=["file", "span"]);
+let lack-check-rules-findings = extend(from=lack-check-rules-rows, values={"what": "`check` never looks into the features' Rule blocks (no `rules`)"});
+let need-check-tags = select * from tokens-check where text = "tags";
+let have-check-tags = project(from=need-check-tags, columns=["function"]);
+let lack-check-tags = antijoin(left=fn-check, right=have-check-tags, left-on=["id"], right-on=["function"]);
+let lack-check-tags-rows = project(from=lack-check-tags, columns=["file", "span"]);
+let lack-check-tags-findings = extend(from=lack-check-tags-rows, values={"what": "`check` never reads the scenarios' tags (no `tags`)"});
+let need-check-count = select * from tokens-check where text = "count";
+let have-check-count = project(from=need-check-count, columns=["function"]);
+let lack-check-count = antijoin(left=fn-check, right=have-check-count, left-on=["id"], right-on=["function"]);
+let lack-check-count-rows = project(from=lack-check-count, columns=["file", "span"]);
+let lack-check-count-findings = extend(from=lack-check-count-rows, values={"what": "`check` never counts the case words of each scenario (no `count`)"});
+let need-check-1 = select * from tokens-check where text = "1";
+let have-check-1 = project(from=need-check-1, columns=["function"]);
+let lack-check-1 = antijoin(left=fn-check, right=have-check-1, left-on=["id"], right-on=["function"]);
+let lack-check-1-rows = project(from=lack-check-1, columns=["file", "span"]);
+let lack-check-1-findings = extend(from=lack-check-1-rows, values={"what": "`check` never requires exactly one case word per scenario (no `1`)"});
+let need-check-succeeds = select * from tokens-check where glob_any(text, "?succeeds?");
+let have-check-succeeds = project(from=need-check-succeeds, columns=["function"]);
+let lack-check-succeeds = antijoin(left=fn-check, right=have-check-succeeds, left-on=["id"], right-on=["function"]);
+let lack-check-succeeds-rows = project(from=lack-check-succeeds, columns=["file", "span"]);
+let lack-check-succeeds-findings = extend(from=lack-check-succeeds-rows, values={"what": "`check` never names the case word succeeds (no `'succeeds'`)"});
+let need-check-refuses = select * from tokens-check where glob_any(text, "?refuses?");
+let have-check-refuses = project(from=need-check-refuses, columns=["function"]);
+let lack-check-refuses = antijoin(left=fn-check, right=have-check-refuses, left-on=["id"], right-on=["function"]);
+let lack-check-refuses-rows = project(from=lack-check-refuses, columns=["file", "span"]);
+let lack-check-refuses-findings = extend(from=lack-check-refuses-rows, values={"what": "`check` never names the case word refuses (no `'refuses'`)"});
+let need-check-fails = select * from tokens-check where glob_any(text, "?fails?");
+let have-check-fails = project(from=need-check-fails, columns=["function"]);
+let lack-check-fails = antijoin(left=fn-check, right=have-check-fails, left-on=["id"], right-on=["function"]);
+let lack-check-fails-rows = project(from=lack-check-fails, columns=["file", "span"]);
+let lack-check-fails-findings = extend(from=lack-check-fails-rows, values={"what": "`check` never names the case word fails (no `'fails'`)"});
+let need-check-rejects = select * from tokens-check where glob_any(text, "?rejects?");
+let have-check-rejects = project(from=need-check-rejects, columns=["function"]);
+let lack-check-rejects = antijoin(left=fn-check, right=have-check-rejects, left-on=["id"], right-on=["function"]);
+let lack-check-rejects-rows = project(from=lack-check-rejects, columns=["file", "span"]);
+let lack-check-rejects-findings = extend(from=lack-check-rejects-rows, values={"what": "`check` never names the case word rejects (no `'rejects'`)"});
+let need-check-all = select * from tokens-check where text = "all";
+let have-check-all = project(from=need-check-all, columns=["function"]);
+let lack-check-all = antijoin(left=fn-check, right=have-check-all, left-on=["id"], right-on=["function"]);
+let lack-check-all-rows = project(from=lack-check-all, columns=["file", "span"]);
+let lack-check-all-findings = extend(from=lack-check-all-rows, values={"what": "`check` never checks every scenario (no `all`)"});
+let need-check-any = select * from tokens-check where text = "any";
+let have-check-any = project(from=need-check-any, columns=["function"]);
+let lack-check-any = antijoin(left=fn-check, right=have-check-any, left-on=["id"], right-on=["function"]);
+let lack-check-any-rows = project(from=lack-check-any, columns=["file", "span"]);
+let lack-check-any-findings = extend(from=lack-check-any-rows, values={"what": "`check` never requires a succeeding and a refusing scenario (no `any`)"});
+let need-check-assert = select * from tokens-check where text = "assert";
+let have-check-assert = project(from=need-check-assert, columns=["function"]);
+let lack-check-assert = antijoin(left=fn-check, right=have-check-assert, left-on=["id"], right-on=["function"]);
+let lack-check-assert-rows = project(from=lack-check-assert, columns=["file", "span"]);
+let lack-check-assert-findings = extend(from=lack-check-assert-rows, values={"what": "`check` never asserts what it checks (no `assert`)"});
+let need-run-with-default-cli = select * from tokens-run where text = "with_default_cli";
+let have-run-with-default-cli = project(from=need-run-with-default-cli, columns=["function"]);
+let lack-run-with-default-cli = antijoin(left=fn-run, right=have-run-with-default-cli, left-on=["id"], right-on=["function"]);
+let lack-run-with-default-cli-rows = project(from=lack-run-with-default-cli, columns=["file", "span"]);
+let lack-run-with-default-cli-findings = extend(from=lack-run-with-default-cli-rows, values={"what": "`run` never runs with cucumber's default command line (no `with_default_cli`)"});
+let need-run-fail-on-skipped = select * from tokens-run where text = "fail_on_skipped";
+let have-run-fail-on-skipped = project(from=need-run-fail-on-skipped, columns=["function"]);
+let lack-run-fail-on-skipped = antijoin(left=fn-run, right=have-run-fail-on-skipped, left-on=["id"], right-on=["function"]);
+let lack-run-fail-on-skipped-rows = project(from=lack-run-fail-on-skipped, columns=["file", "span"]);
+let lack-run-fail-on-skipped-findings = extend(from=lack-run-fail-on-skipped-rows, values={"what": "`run` never fails on a skipped step (no `fail_on_skipped`)"});
+let need-run-run = select * from tokens-run where text = "run";
+let have-run-run = project(from=need-run-run, columns=["function"]);
+let lack-run-run = antijoin(left=fn-run, right=have-run-run, left-on=["id"], right-on=["function"]);
+let lack-run-run-rows = project(from=lack-run-run, columns=["file", "span"]);
+let lack-run-run-findings = extend(from=lack-run-run-rows, values={"what": "`run` never runs the feature (no `run`)"});
+let need-run-await = select * from tokens-run where text = "await";
+let have-run-await = project(from=need-run-await, columns=["function"]);
+let lack-run-await = antijoin(left=fn-run, right=have-run-await, left-on=["id"], right-on=["function"]);
+let lack-run-await-rows = project(from=lack-run-await, columns=["file", "span"]);
+let lack-run-await-findings = extend(from=lack-run-await-rows, values={"what": "`run` never awaits the run (no `await`)"});
+let need-run-execution-has-failed = select * from tokens-run where text = "execution_has_failed";
+let have-run-execution-has-failed = project(from=need-run-execution-has-failed, columns=["function"]);
+let lack-run-execution-has-failed = antijoin(left=fn-run, right=have-run-execution-has-failed, left-on=["id"], right-on=["function"]);
+let lack-run-execution-has-failed-rows = project(from=lack-run-execution-has-failed, columns=["file", "span"]);
+let lack-run-execution-has-failed-findings = extend(from=lack-run-execution-has-failed-rows, values={"what": "`run` never asserts the execution did not fail (no `execution_has_failed`)"});
+let need-run-passed-steps = select * from tokens-run where text = "passed_steps";
+let have-run-passed-steps = project(from=need-run-passed-steps, columns=["function"]);
+let lack-run-passed-steps = antijoin(left=fn-run, right=have-run-passed-steps, left-on=["id"], right-on=["function"]);
+let lack-run-passed-steps-rows = project(from=lack-run-passed-steps, columns=["file", "span"]);
+let lack-run-passed-steps-findings = extend(from=lack-run-passed-steps-rows, values={"what": "`run` never asserts that a step passed (no `passed_steps`)"});
+let need-run-stats = select * from tokens-run where text = "Stats";
+let have-run-stats = project(from=need-run-stats, columns=["function"]);
+let lack-run-stats = antijoin(left=fn-run, right=have-run-stats, left-on=["id"], right-on=["function"]);
+let lack-run-stats-rows = project(from=lack-run-stats, columns=["file", "span"]);
+let lack-run-stats-findings = extend(from=lack-run-stats-rows, values={"what": "`run` never reads the execution's statistics (no `Stats`)"});
+let need-run = select * from tokens-run where text = "!=";
+let have-run = project(from=need-run, columns=["function"]);
+let lack-run = antijoin(left=fn-run, right=have-run, left-on=["id"], right-on=["function"]);
+let lack-run-rows = project(from=lack-run, columns=["file", "span"]);
+let lack-run-findings = extend(from=lack-run-rows, values={"what": "`run` never requires a passed step (no `!=`)"});
+let need-run-0 = select * from tokens-run where text = "0";
+let have-run-0 = project(from=need-run-0, columns=["function"]);
+let lack-run-0 = antijoin(left=fn-run, right=have-run-0, left-on=["id"], right-on=["function"]);
+let lack-run-0-rows = project(from=lack-run-0, columns=["file", "span"]);
+let lack-run-0-findings = extend(from=lack-run-0-rows, values={"what": "`run` never requires a passed step (no `0`)"});
+let need-run-assert = select * from tokens-run where text = "assert";
+let have-run-assert = project(from=need-run-assert, columns=["function"]);
+let lack-run-assert = antijoin(left=fn-run, right=have-run-assert, left-on=["id"], right-on=["function"]);
+let lack-run-assert-rows = project(from=lack-run-assert, columns=["file", "span"]);
+let lack-run-assert-findings = extend(from=lack-run-assert-rows, values={"what": "`run` never asserts the run (no `assert`)"});
+let need-main-features = select * from tokens-main where text = "features";
+let have-main-features = project(from=need-main-features, columns=["function"]);
+let lack-main-features = antijoin(left=fn-main, right=have-main-features, left-on=["id"], right-on=["function"]);
+let lack-main-features-rows = project(from=lack-main-features, columns=["file", "span"]);
+let lack-main-features-findings = extend(from=lack-main-features-rows, values={"what": "`main` never gets the features (no `features`)"});
+let need-main-check = select * from tokens-main where text = "check";
+let have-main-check = project(from=need-main-check, columns=["function"]);
+let lack-main-check = antijoin(left=fn-main, right=have-main-check, left-on=["id"], right-on=["function"]);
+let lack-main-check-rows = project(from=lack-main-check, columns=["file", "span"]);
+let lack-main-check-findings = extend(from=lack-main-check-rows, values={"what": "`main` never checks the features before it runs them (no `check`)"});
+let need-main-run = select * from tokens-main where text = "run";
+let have-main-run = project(from=need-main-run, columns=["function"]);
+let lack-main-run = antijoin(left=fn-main, right=have-main-run, left-on=["id"], right-on=["function"]);
+let lack-main-run-rows = project(from=lack-main-run, columns=["file", "span"]);
+let lack-main-run-findings = extend(from=lack-main-run-rows, values={"what": "`main` never runs each feature (no `run`)"});
+let need-main-for = select * from tokens-main where text = "for";
+let have-main-for = project(from=need-main-for, columns=["function"]);
+let lack-main-for = antijoin(left=fn-main, right=have-main-for, left-on=["id"], right-on=["function"]);
+let lack-main-for-rows = project(from=lack-main-for, columns=["file", "span"]);
+let lack-main-for-findings = extend(from=lack-main-for-rows, values={"what": "`main` never runs every feature (no `for`)"});
+let need-main-await = select * from tokens-main where text = "await";
+let have-main-await = project(from=need-main-await, columns=["function"]);
+let lack-main-await = antijoin(left=fn-main, right=have-main-await, left-on=["id"], right-on=["function"]);
+let lack-main-await-rows = project(from=lack-main-await, columns=["file", "span"]);
+let lack-main-await-findings = extend(from=lack-main-await-rows, values={"what": "`main` never awaits each run (no `await`)"});
+let need-main-ok = select * from tokens-main where text = "Ok";
+let have-main-ok = project(from=need-main-ok, columns=["function"]);
+let lack-main-ok = antijoin(left=fn-main, right=have-main-ok, left-on=["id"], right-on=["function"]);
+let lack-main-ok-rows = project(from=lack-main-ok, columns=["file", "span"]);
+let lack-main-ok-findings = extend(from=lack-main-ok-rows, values={"what": "`main` never ends with Ok (no `Ok`)"});
+let many-bangs = select * from tokens-run where text = "!";
+let many-bangs-counts = group-count(from=many-bangs, keys=["function"], count="seen", distinct="token");
+let many-bangs-enough = select * from many-bangs-counts where seen > 2;
+let have-run-bangs = project(from=many-bangs-enough, columns=["function"]);
+let lack-run-bangs = antijoin(left=fn-run, right=have-run-bangs, left-on=["id"], right-on=["function"]);
+let lack-run-bangs-rows = project(from=lack-run-bangs, columns=["file", "span"]);
+let lack-run-bangs-findings = extend(from=lack-run-bangs-rows, values={"what": "`run` does not assert twice and negate the failure (three `!`)"});
+let many-equals = select * from tokens-check where text = "==";
+let many-equals-counts = group-count(from=many-equals, keys=["function"], count="seen", distinct="token");
+let many-equals-enough = select * from many-equals-counts where seen > 1;
+let have-check-equals = project(from=many-equals-enough, columns=["function"]);
+let lack-check-equals = antijoin(left=fn-check, right=have-check-equals, left-on=["id"], right-on=["function"]);
+let lack-check-equals-rows = project(from=lack-check-equals, columns=["file", "span"]);
+let lack-check-equals-findings = extend(from=lack-check-equals-rows, values={"what": "`check` does not compare both the case-word count and the tag (two `==`)"});
+let runner-struct-nodes = select l."file" as "file", l."child" as "id" from runner-children as l join kind-struct-nodes as r on l."child" = r."id";
+let struct-parts = select l."id" as "id", l."file" as "file", r."child" as "child" from runner-struct-nodes as l join "syntax-child" as r on l."id" = r."parent";
+let struct-name-nodes = select l."id" as "id", l."file" as "file", l."child" as "name" from struct-parts as l join kind-name-nodes as r on l."child" = r."id";
+let struct-name-tokens = select l."id" as "id", l."file" as "file", r."child" as "token" from struct-name-nodes as l join "syntax-child" as r on l."name" = r."parent";
+let world-type-tokens = select * from kind-ident-tokens where text = $world;
+let world-structs = select l."file" as "file" from struct-name-tokens as l join world-type-tokens as r on l."token" = r."id";
+let world-less = antijoin(left=runner-rows, right=world-structs, left-on=["file"], right-on=["file"]);
+let world-less-findings = extend(from=world-less, values={"what": "declares no struct named for its world"});
+let world-uses = select * from tokens-run where text = $world;
+let world-use-counts = group-count(from=world-uses, keys=["function"], count="seen", distinct="token");
+let world-use-enough = select * from world-use-counts where seen > 2;
+let have-run-world = project(from=world-use-enough, columns=["function"]);
+let lack-run-world = antijoin(left=fn-run, right=have-run-world, left-on=["id"], right-on=["function"]);
+let lack-run-world-rows = project(from=lack-run-world, columns=["file", "span"]);
+let lack-run-world-findings = extend(from=lack-run-world-rows, values={"what": "`run` does not name its world three times: the cucumber constructor and the two statistics reads"});
+let function-counts = group-count(from=named-functions, keys=["file", "name"], count="declared");
+let repeated-functions = select * from function-counts where declared > 1;
+let repeated-required = select * from repeated-functions where glob_any(name, "{features,check,run,main}");
+let repeated-rows = select r."file" as "file", r."span" as "span" from repeated-required as l join named-functions as r on l."file" = r."file" and l."name" = r."name";
+let repeated-findings = extend(from=repeated-rows, values={"what": "declares a function of its shell more than once"});
+let return-tokens = select * from function-tokens where text = "return";
+let return-rows = select r."file" as "file", r."span" as "span" from return-tokens as l join named-functions as r on l."function" = r."id";
+let return-findings = extend(from=return-rows, values={"what": "returns early: it reaches its assertions or it fails"});
+let attributed-files = select r."child" as "child", l."id" as "id", l."file" as "file" from files as l join "syntax-child" as r on l."id" = r."parent";
+let attributes = select * from tree-nodes where kind = "attr";
+let file-attributes = select r."id" as "attribute", l."file" as "file" from attributed-files as l join attributes as r on l."child" = r."id";
+let meta-nodes = select * from tree-nodes where kind = "token-tree-meta";
+let name-ref-nodes = select * from tree-nodes where kind = "name-ref";
+let expect-identifiers = select * from identifiers where text = "expect";
+let expect-name-ref-edges = select l."parent" as "id" from "syntax-child" as l join expect-identifiers as r on l."child" = r."id";
+let expect-name-refs = select l."id" as "id" from name-ref-nodes as l join expect-name-ref-edges as r on l."id" = r."id";
+let expect-segments = select l."parent" as "id" from "syntax-child" as l join expect-name-refs as r on l."child" = r."id";
+let expect-paths = select l."parent" as "id" from "syntax-child" as l join expect-segments as r on l."child" = r."id";
+let expect-meta-edges = select l."parent" as "id" from "syntax-child" as l join expect-paths as r on l."child" = r."id";
+let expect-metas = select l."id" as "id" from meta-nodes as l join expect-meta-edges as r on l."id" = r."id";
+let token-tree-nodes = select * from tree-nodes where kind = "token-tree";
+let reason-identifiers = select * from identifiers where text = "reason";
+let reason-positions = select l."parent" as "parent", l."ordinal" as "reason" from "syntax-child" as l join reason-identifiers as r on l."child" = r."id";
+let expectation-eq-tokens = select * from tree-tokens where kind = "eq";
+let eq-positions = select l."ordinal" as "eq", l."parent" as "parent" from "syntax-child" as l join expectation-eq-tokens as r on l."child" = r."id";
+let reason-eq-pairs = select r."eq" as "eq", l."parent" as "parent", l."reason" as "reason" from reason-positions as l join eq-positions as r on l."parent" = r."parent";
+let reason-then-eq = select * from reason-eq-pairs where reason < eq;
+let expectation-string-tokens = select * from tree-tokens where kind = "string";
+let string-positions = select l."parent" as "parent", l."ordinal" as "text" from "syntax-child" as l join expectation-string-tokens as r on l."child" = r."id";
+let reason-eq-string = select l."eq" as "eq", l."parent" as "parent", r."text" as "text" from reason-then-eq as l join string-positions as r on l."parent" = r."parent";
+let reason-assigned = select * from reason-eq-string where eq < text;
+let reason-tree-edges = project(from=reason-assigned, columns=["parent"]);
+let reason-tree-ids = select l."parent" as "id" from reason-tree-edges as l join reason-tree-edges as r on l."parent" = r."parent";
+let reason-trees = select l."id" as "id" from token-tree-nodes as l join reason-tree-ids as r on l."id" = r."id";
+let reason-meta-edges = select l."parent" as "id" from "syntax-child" as l join reason-trees as r on l."child" = r."id";
+let reasoned-expect-metas = select l."id" as "id" from expect-metas as l join reason-meta-edges as r on l."id" = r."id";
+let reasoned-expect-attribute-edges = select l."parent" as "attribute" from "syntax-child" as l join reasoned-expect-metas as r on l."child" = r."id";
+let allowed-file-attributes = select l."attribute" as "attribute", l."file" as "file" from file-attributes as l join reasoned-expect-attribute-edges as r on l."attribute" = r."attribute";
+let refused-file-attributes = antijoin(left=file-attributes, right=allowed-file-attributes, left-on=["attribute"], right-on=["attribute"]);
+let refused-paths = project(from=refused-file-attributes, columns=["file"]);
+let distinct-allowed-file-attributes = project(from=allowed-file-attributes, columns=["file", "attribute"]);
+let allowed-counts = group-count(from=distinct-allowed-file-attributes, keys=["file"], count="expectations");
+let repeated-expectations = select * from allowed-counts where expectations > 1;
+let repeated-paths = project(from=repeated-expectations, columns=["file"]);
+let refused-file-rows = select r."file" as "file", r."span" as "span" from refused-paths as l join files as r on l."file" = r."file";
+let refused-file-findings = extend(from=refused-file-rows, values={"what": "has a file-level attribute other than one `#![expect(..)]` with a reason"});
+let repeated-file-rows = select r."file" as "file", r."span" as "span" from repeated-paths as l join files as r on l."file" = r."file";
+let repeated-file-findings = extend(from=repeated-file-rows, values={"what": "has more than one file-level `#![expect(..)]`"});
+let step-words = select * from kind-ident-tokens where glob_any(text, "{given,when,then,r#given,r#when,r#then}");
+let step-word-ref-edges = select l."parent" as "id" from "syntax-child" as l join step-words as r on l."child" = r."id";
+let step-word-refs = select l."id" as "id" from kind-name-ref-nodes as l join step-word-ref-edges as r on l."id" = r."id";
+let step-segment-edges = select l."parent" as "id" from "syntax-child" as l join step-word-refs as r on l."child" = r."id";
+let step-segments = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from kind-path-segment-nodes as l join step-segment-edges as r on l."id" = r."id";
+let step-path-edges = select l."parent" as "id" from "syntax-child" as l join step-segments as r on l."child" = r."id";
+let step-paths = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from kind-path-nodes as l join step-path-edges as r on l."id" = r."id";
+let step-meta-edges = select l."parent" as "id" from "syntax-child" as l join step-paths as r on l."child" = r."id";
+let step-metas = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from kind-token-tree-meta-nodes as l join step-meta-edges as r on l."id" = r."id";
+let regex-words = select * from kind-ident-tokens where glob_any(text, "{regex,r#regex}");
+let regex-tree-edges = select l."parent" as "id" from "syntax-child" as l join regex-words as r on l."child" = r."id";
+let regex-meta-edges = select l."parent" as "id" from "syntax-child" as l join regex-tree-edges as r on l."child" = r."id";
+let regex-steps = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from step-metas as l join regex-meta-edges as r on l."id" = r."id";
+let regex-findings = extend(from=regex-steps, values={"what": "a step matches a regex: match a cucumber expression or a plain string"});
+let regex-rows = project(from=regex-findings, columns=["file", "span", "kind", "what"]);
+let step-attribute-edges = select l."parent" as "id" from "syntax-child" as l join step-metas as r on l."child" = r."id";
+let step-attributes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from kind-attr-nodes as l join step-attribute-edges as r on l."id" = r."id";
+let step-function-edges = select l."parent" as "id" from "syntax-child" as l join step-attributes as r on l."child" = r."id";
+let step-functions = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from kind-fn-nodes as l join step-function-edges as r on l."id" = r."id";
+let step-parameter-lists = select r."id" as "function", l."child" as "list" from "syntax-child" as l join step-functions as r on l."parent" = r."id";
+let step-parameter-edges = select r."function" as "function", l."parent" as "list", l."ordinal" as "ordinal", l."child" as "parameter" from "syntax-child" as l join step-parameter-lists as r on l."parent" = r."list";
+let step-parameters = select l."function" as "function", l."list" as "list", l."ordinal" as "ordinal", l."parameter" as "parameter" from step-parameter-edges as l join kind-param-nodes as r on l."parameter" = r."id";
+let parameter-pairs = select r."ordinal" as "before", l."ordinal" as "ordinal", l."parameter" as "parameter" from step-parameters as l join step-parameters as r on l."list" = r."list";
+let later-parameter-pairs = select * from parameter-pairs where before < ordinal;
+let first-step-parameters = antijoin(left=step-parameters, right=later-parameter-pairs, left-on=["parameter"], right-on=["parameter"]);
+let world-names = select * from kind-ident-tokens where text = "world";
+let world-name-edges = select l."parent" as "id" from "syntax-child" as l join world-names as r on l."child" = r."id";
+let world-pattern-edges = select l."parent" as "id" from "syntax-child" as l join world-name-edges as r on l."child" = r."id";
+let world-patterns = select l."id" as "id" from kind-ident-pat-nodes as l join world-pattern-edges as r on l."id" = r."id";
+let world-parameter-edges = select l."parent" as "parameter" from "syntax-child" as l join world-patterns as r on l."child" = r."id";
+let world-first-parameters = select l."function" as "id" from first-step-parameters as l join world-parameter-edges as r on l."parameter" = r."parameter";
+let unworldly-steps = antijoin(left=step-functions, right=world-first-parameters, left-on=["id"], right-on=["id"]);
+let world-findings = extend(from=unworldly-steps, values={"what": "a step does not take the world as its first parameter named `world`"});
+let world-rows = project(from=world-findings, columns=["file", "span", "kind", "what"]);
+let step-rows = union(left=regex-rows, right=world-rows);
+let observation-tokens = select * from kind-ident-tokens where glob_any(text, "{Observation,r#Observation}");
+let observation-name-edges = select l."parent" as "id" from "syntax-child" as l join observation-tokens as r on l."child" = r."id";
+let observation-names = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from kind-name-nodes as l join observation-name-edges as r on l."id" = r."id";
+let observation-findings = extend(from=observation-names, values={"what": "declares `Observation`, the retired composes-its-services residue: assert the domain's own results"});
+let observation-rows = project(from=observation-findings, columns=["file", "span", "kind", "what"]);
+let residue-rows = union(left=step-rows, right=observation-rows);
+let residue-projected = project(from=residue-rows, columns=["file", "span", "what"]);
+let found-1 = union(left=no-fn-features-findings, right=no-fn-check-findings);
+let found-2 = union(left=found-1, right=no-fn-run-findings);
+let found-3 = union(left=found-2, right=no-fn-main-findings);
+let found-4 = union(left=found-3, right=lack-features-metadatacommand-findings);
+let found-5 = union(left=found-4, right=lack-features-manifest-path-findings);
+let found-6 = union(left=found-5, right=lack-features-cargo-toml-findings);
+let found-7 = union(left=found-6, right=lack-features-concat-findings);
+let found-8 = union(left=found-7, right=lack-features-env-findings);
+let found-9 = union(left=found-8, right=lack-features-cargo-manifest-dir-findings);
+let found-10 = union(left=found-9, right=lack-features-no-deps-findings);
+let found-11 = union(left=found-10, right=lack-features-other-options-findings);
+let found-12 = union(left=found-11, right=lack-features-offline-findings);
+let found-13 = union(left=found-12, right=lack-features-locked-findings);
+let found-14 = union(left=found-13, right=lack-features-exec-findings);
+let found-15 = union(left=found-14, right=lack-features-workspace-root-findings);
+let found-16 = union(left=found-15, right=lack-features-join-findings);
+let found-17 = union(left=found-16, right=lack-features-file-findings);
+let found-18 = union(left=found-17, right=lack-features-with-file-name-findings);
+let found-19 = union(left=found-18, right=lack-features-read-dir-findings);
+let found-20 = union(left=found-19, right=lack-features-retain-findings);
+let found-21 = union(left=found-20, right=lack-features-feature-findings);
+let found-22 = union(left=found-21, right=lack-features-sort-findings);
+let found-23 = union(left=found-22, right=lack-check-parse-path-findings);
+let found-24 = union(left=found-23, right=lack-check-gherkinenv-findings);
+let found-25 = union(left=found-24, right=lack-check-scenarios-findings);
+let found-26 = union(left=found-25, right=lack-check-rules-findings);
+let found-27 = union(left=found-26, right=lack-check-tags-findings);
+let found-28 = union(left=found-27, right=lack-check-count-findings);
+let found-29 = union(left=found-28, right=lack-check-1-findings);
+let found-30 = union(left=found-29, right=lack-check-succeeds-findings);
+let found-31 = union(left=found-30, right=lack-check-refuses-findings);
+let found-32 = union(left=found-31, right=lack-check-fails-findings);
+let found-33 = union(left=found-32, right=lack-check-rejects-findings);
+let found-34 = union(left=found-33, right=lack-check-all-findings);
+let found-35 = union(left=found-34, right=lack-check-any-findings);
+let found-36 = union(left=found-35, right=lack-check-assert-findings);
+let found-37 = union(left=found-36, right=lack-run-with-default-cli-findings);
+let found-38 = union(left=found-37, right=lack-run-fail-on-skipped-findings);
+let found-39 = union(left=found-38, right=lack-run-run-findings);
+let found-40 = union(left=found-39, right=lack-run-await-findings);
+let found-41 = union(left=found-40, right=lack-run-execution-has-failed-findings);
+let found-42 = union(left=found-41, right=lack-run-passed-steps-findings);
+let found-43 = union(left=found-42, right=lack-run-stats-findings);
+let found-44 = union(left=found-43, right=lack-run-findings);
+let found-45 = union(left=found-44, right=lack-run-0-findings);
+let found-46 = union(left=found-45, right=lack-run-assert-findings);
+let found-47 = union(left=found-46, right=lack-main-features-findings);
+let found-48 = union(left=found-47, right=lack-main-check-findings);
+let found-49 = union(left=found-48, right=lack-main-run-findings);
+let found-50 = union(left=found-49, right=lack-main-for-findings);
+let found-51 = union(left=found-50, right=lack-main-await-findings);
+let found-52 = union(left=found-51, right=lack-main-ok-findings);
+let found-53 = union(left=found-52, right=lack-run-bangs-findings);
+let found-54 = union(left=found-53, right=lack-check-equals-findings);
+let found-55 = union(left=found-54, right=world-less-findings);
+let found-56 = union(left=found-55, right=lack-run-world-findings);
+let found-57 = union(left=found-56, right=repeated-findings);
+let found-58 = union(left=found-57, right=return-findings);
+let found-59 = union(left=found-58, right=refused-file-findings);
+let found-60 = union(left=found-59, right=repeated-file-findings);
+let found-61 = union(left=found-60, right=residue-projected);
+let acceptance-0-tokens = select * from tokens-features where glob_any(text, "?acceptance.feature?");
+let acceptance-0-owners = project(from=acceptance-0-tokens, columns=["function"]);
+let acceptance-0-missing = antijoin(left=fn-features, right=acceptance-0-owners, left-on=["id"], right-on=["function"]);
+let acceptance-0-rows = project(from=acceptance-0-missing, columns=["file", "span"]);
+let acceptance-0-findings = extend(from=acceptance-0-rows, values={"what": "`features` omits acceptance execution guard `acceptance.feature`"});
+let acceptance-0-all = union(left=found-61, right=acceptance-0-findings);
+let acceptance-1-tokens = select * from tokens-check where text = "steps";
+let acceptance-1-owners = project(from=acceptance-1-tokens, columns=["function"]);
+let acceptance-1-missing = antijoin(left=fn-check, right=acceptance-1-owners, left-on=["id"], right-on=["function"]);
+let acceptance-1-rows = project(from=acceptance-1-missing, columns=["file", "span"]);
+let acceptance-1-findings = extend(from=acceptance-1-rows, values={"what": "`check` omits acceptance execution guard `steps`"});
+let acceptance-1-all = union(left=acceptance-0-all, right=acceptance-1-findings);
+let acceptance-2-tokens = select * from tokens-check where text = "examples";
+let acceptance-2-owners = project(from=acceptance-2-tokens, columns=["function"]);
+let acceptance-2-missing = antijoin(left=fn-check, right=acceptance-2-owners, left-on=["id"], right-on=["function"]);
+let acceptance-2-rows = project(from=acceptance-2-missing, columns=["file", "span"]);
+let acceptance-2-findings = extend(from=acceptance-2-rows, values={"what": "`check` omits acceptance execution guard `examples`"});
+let acceptance-2-all = union(left=acceptance-1-all, right=acceptance-2-findings);
+let acceptance-3-tokens = select * from tokens-check where text = "rows";
+let acceptance-3-owners = project(from=acceptance-3-tokens, columns=["function"]);
+let acceptance-3-missing = antijoin(left=fn-check, right=acceptance-3-owners, left-on=["id"], right-on=["function"]);
+let acceptance-3-rows = project(from=acceptance-3-missing, columns=["file", "span"]);
+let acceptance-3-findings = extend(from=acceptance-3-rows, values={"what": "`check` omits acceptance execution guard `rows`"});
+let acceptance-3-all = union(left=acceptance-2-all, right=acceptance-3-findings);
+let acceptance-4-tokens = select * from tokens-check where text = "expand_examples";
+let acceptance-4-owners = project(from=acceptance-4-tokens, columns=["function"]);
+let acceptance-4-missing = antijoin(left=fn-check, right=acceptance-4-owners, left-on=["id"], right-on=["function"]);
+let acceptance-4-rows = project(from=acceptance-4-missing, columns=["file", "span"]);
+let acceptance-4-findings = extend(from=acceptance-4-rows, values={"what": "`check` omits acceptance execution guard `expand_examples`"});
+let acceptance-4-all = union(left=acceptance-3-all, right=acceptance-4-findings);
+let acceptance-5-tokens = select * from tokens-run where text = "expected_steps";
+let acceptance-5-owners = project(from=acceptance-5-tokens, columns=["function"]);
+let acceptance-5-missing = antijoin(left=fn-run, right=acceptance-5-owners, left-on=["id"], right-on=["function"]);
+let acceptance-5-rows = project(from=acceptance-5-missing, columns=["file", "span"]);
+let acceptance-5-findings = extend(from=acceptance-5-rows, values={"what": "`run` omits acceptance execution guard `expected_steps`"});
+let acceptance-5-all = union(left=acceptance-4-all, right=acceptance-5-findings);
+let acceptance-6-tokens = select * from tokens-run where text = "assert_eq";
+let acceptance-6-owners = project(from=acceptance-6-tokens, columns=["function"]);
+let acceptance-6-missing = antijoin(left=fn-run, right=acceptance-6-owners, left-on=["id"], right-on=["function"]);
+let acceptance-6-rows = project(from=acceptance-6-missing, columns=["file", "span"]);
+let acceptance-6-findings = extend(from=acceptance-6-rows, values={"what": "`run` omits acceptance execution guard `assert_eq`"});
+let acceptance-6-all = union(left=acceptance-5-all, right=acceptance-6-findings);
+let acceptance-7-tokens = select * from tokens-main where text = "zip";
+let acceptance-7-owners = project(from=acceptance-7-tokens, columns=["function"]);
+let acceptance-7-missing = antijoin(left=fn-main, right=acceptance-7-owners, left-on=["id"], right-on=["function"]);
+let acceptance-7-rows = project(from=acceptance-7-missing, columns=["file", "span"]);
+let acceptance-7-findings = extend(from=acceptance-7-rows, values={"what": "`main` omits acceptance execution guard `zip`"});
+let acceptance-7-all = union(left=acceptance-6-all, right=acceptance-7-findings);
+emit acceptance-7-all subject "file" key("span", "what");
+'''
+
+[params.world]
+type = "string"
+description = "The cucumber World type the runner drives."
+
+[diagnostic]
+primary = "span"
+message = "BDD runner {what}"
+help = "Rewrite tests/bdd.rs to the bdd-runner template's shell (`tm scaffold` writes it): its functions `features`, `check`, `run` and `main` as the template gives them, checking that every scenario and outline carries exactly one of @succeeds, @refuses, @fails and @rejects and that the features state a success and a refusal, then running each feature failing on a skipped step and asserting no failure and a passed step. Write the steps in `src/inbound/use_cases/<use_case>/acceptance.rs` as #[given(\"..\")] or #[given(expr = \"..\")] taking `world: &mut <World>` first, and assert the part's own results. A file's one attribute is an `#![expect(..)]` with a reason."
+
+[given]
+include = ['tests/bdd.rs', 'src/inbound/use_cases/*/acceptance.rs']
+params = { world = 'Behavior' }
+files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+'''
+files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The colocated acceptance features of this crate, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let inbound = tests.with_file_name("src").join("inbound");
+    let mut features = ::std::vec::Vec::new();
+    for namespace in ["use_cases", "contracts"] {
+        let owners = inbound.join(namespace);
+        if !owners.is_dir() { continue; }
+        for owner in ::std::fs::read_dir(owners)? {
+            let owner = owner?.path();
+            if owner.is_dir() { features.push(owner.join("acceptance.feature")); }
+        }
+    }
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
+    ::std::assert!(!features.is_empty(), "no acceptance features discovered");
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    ::std::assert!(scenarios.iter().all(|scenario| !scenario.steps.is_empty()), "every scenario has executable steps");
+    ::std::assert!(scenarios.iter().all(|scenario| {
+        (!matches!(scenario.keyword.as_str(), "Scenario Outline" | "Scenario Template") || !scenario.examples.is_empty())
+            && scenario.examples.iter().all(|examples| examples.table.as_ref().is_some_and(|table| table.rows.len() > 1))
+    }), "every outline and Examples table has a data row");
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+    parsed.iter().flatten().map(|feature| {
+        let expanded = ::cucumber::feature::Ext::expand_examples(feature.clone());
+        ::std::assert!(expanded.is_ok(), "every outline expands");
+        expanded.iter().map(|feature| {
+            let background = feature.background.as_ref().map_or(0, |background| background.steps.len());
+            let direct: usize = feature.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum();
+            let rules: usize = feature.rules.iter().map(|rule| {
+                let background = background + rule.background.as_ref().map_or(0, |background| background.steps.len());
+                rule.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum::<usize>()
+            }).sum();
+            ::std::assert!(direct + rules > 0, "every feature has executable scenarios");
+            direct + rules
+        }).sum()
+    }).collect()
+
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf, expected_steps: usize) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+    ::std::assert_eq!(::cucumber::writer::Stats::<Behavior>::passed_steps(&result), expected_steps, "every discovered scenario and example must execute");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    let expected = check(&features);
+    for (feature, expected_steps) in features.into_iter().zip(expected) {
+        run(feature, expected_steps).await;
+    }
+    Ok(())
+}
+'''
+
+[[scenarios]]
+id = 'template-s-runner-steps-module'
+scenario = "The template's runner with a steps module."
+
+[[scenarios]]
+id = 'steps-plain-string'
+scenario = 'Steps written as plain strings.'
+given.files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when("greet runs")]
+fn runs(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+'''
+
+[[scenarios]]
+id = 'file-expect'
+scenario = 'One file-level expect with a reason.'
+given.files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+#![expect(clippy::expect_used, reason = "a failed step is a panic the runner reports")]
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+'''
+
+[[scenarios]]
+id = 'world-with-fields'
+scenario = 'A world that carries state.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior {
+    accepted: Option<bool>,
+}
+
+/// The colocated acceptance features of this crate, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let inbound = tests.with_file_name("src").join("inbound");
+    let mut features = ::std::vec::Vec::new();
+    for namespace in ["use_cases", "contracts"] {
+        let owners = inbound.join(namespace);
+        if !owners.is_dir() { continue; }
+        for owner in ::std::fs::read_dir(owners)? {
+            let owner = owner?.path();
+            if owner.is_dir() { features.push(owner.join("acceptance.feature")); }
+        }
+    }
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
+    ::std::assert!(!features.is_empty(), "no acceptance features discovered");
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    ::std::assert!(scenarios.iter().all(|scenario| !scenario.steps.is_empty()), "every scenario has executable steps");
+    ::std::assert!(scenarios.iter().all(|scenario| {
+        (!matches!(scenario.keyword.as_str(), "Scenario Outline" | "Scenario Template") || !scenario.examples.is_empty())
+            && scenario.examples.iter().all(|examples| examples.table.as_ref().is_some_and(|table| table.rows.len() > 1))
+    }), "every outline and Examples table has a data row");
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+    parsed.iter().flatten().map(|feature| {
+        let expanded = ::cucumber::feature::Ext::expand_examples(feature.clone());
+        ::std::assert!(expanded.is_ok(), "every outline expands");
+        expanded.iter().map(|feature| {
+            let background = feature.background.as_ref().map_or(0, |background| background.steps.len());
+            let direct: usize = feature.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum();
+            let rules: usize = feature.rules.iter().map(|rule| {
+                let background = background + rule.background.as_ref().map_or(0, |background| background.steps.len());
+                rule.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum::<usize>()
+            }).sum();
+            ::std::assert!(direct + rules > 0, "every feature has executable scenarios");
+            direct + rules
+        }).sum()
+    }).collect()
+
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf, expected_steps: usize) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+    ::std::assert_eq!(::cucumber::writer::Stats::<Behavior>::passed_steps(&result), expected_steps, "every discovered scenario and example must execute");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    let expected = check(&features);
+    for (feature, expected_steps) in features.into_iter().zip(expected) {
+        run(feature, expected_steps).await;
+    }
+    Ok(())
+}
+'''
+
+[[scenarios]]
+id = 'no-fail-on-skipped'
+scenario = 'A run that does not fail on a skipped step.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 85 },
+]
+
+[[scenarios]]
+id = 'no-failure-assertion'
+scenario = 'A run that never asserts the execution did not fail.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = false;
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'failure-not-negated'
+scenario = 'An assertion that holds when the execution failed.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'no-passed-step'
+scenario = 'A run that never asserts a step passed.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = true;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'passed-steps-compared-with-one'
+scenario = 'A threshold other than zero.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 1;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'passed-steps-equal-zero'
+scenario = 'An operator that holds when no step passed.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) == 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'case-word-count-not-one'
+scenario = 'A check that wants two case words.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 2
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'case-word-missing'
+scenario = 'A check that does not know the word rejects.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'check-not-called'
+scenario = 'A main that never checks the features.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'run-not-awaited'
+scenario = 'A main that never awaits the run.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        let _ = run(feature);
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'online-metadata'
+scenario = 'Cargo metadata that may go online.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'unlocked-metadata'
+scenario = 'Cargo metadata that may change the lock.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'wrong-extension'
+scenario = 'Features found by another extension.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "txt"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'another-world'
+scenario = 'A runner whose world is not the one named.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Other;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 1 },
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'wrong-stats-world'
+scenario = 'Statistics read from another world.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Other>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Other>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'early-return'
+scenario = 'A check that may return before asserting.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    if features.is_empty() {
+        return;
+    }
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 77 },
+  { path = 'tests/bdd.rs', line = 77 },
+  { path = 'tests/bdd.rs', line = 89 },
+]
+
+[[scenarios]]
+id = 'two-runs'
+scenario = 'A shell that declares run twice.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    check(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 30 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+  { path = 'tests/bdd.rs', line = 97 },
+  { path = 'tests/bdd.rs', line = 97 },
+  { path = 'tests/bdd.rs', line = 97 },
+]
+
+[[scenarios]]
+id = 'no-check-function'
+scenario = 'A shell without its check.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The feature files next to this runner, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let mut features = ::std::fs::read_dir(&tests)?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()?;
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn verify(features: &[::std::path::PathBuf]) {
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    verify(&features);
+    for feature in features {
+        run(feature).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 1 },
+  { path = 'tests/bdd.rs', line = 8 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 74 },
+  { path = 'tests/bdd.rs', line = 86 },
+  { path = 'tests/bdd.rs', line = 86 },
+]
+
+[[scenarios]]
+id = 'file-allow'
+scenario = 'A file-level allow: it is reported.'
+given.files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+#![allow(dead_code)]
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/acceptance.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'two-file-expects'
+scenario = 'Two file-level expects: it is reported.'
+given.files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+#![expect(clippy::expect_used, reason = "one")]
+#![expect(clippy::unwrap_used, reason = "two")]
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/acceptance.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'expect-without-reason'
+scenario = 'A file-level expect with no reason.'
+given.files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+#![expect(clippy::expect_used)]
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/acceptance.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'regex-step'
+scenario = 'A step that matches a regex.'
+given.files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given(regex = "an accepted input")]
+fn accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/acceptance.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'world-not-first'
+scenario = 'A step whose first parameter is not the world.'
+given.files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(count: u8, world: &mut Behavior) {
+    let _ = (count, world);
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/acceptance.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'misnamed-world-parameter'
+scenario = 'A step that names its world parameter otherwise.'
+given.files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(state: &mut Behavior) {
+    let _ = state;
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/acceptance.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'observation-residue'
+scenario = 'The retired Observation residue.'
+given.files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+struct Observation;
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/acceptance.rs', line = 22 },
+]
+
+[[scenarios]]
+id = 'empty-example-guard-missing'
+scenario = 'A project of 2 files that is reported at `tests/bdd.rs`.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The colocated acceptance features of this crate, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let inbound = tests.with_file_name("src").join("inbound");
+    let mut features = ::std::vec::Vec::new();
+    for namespace in ["use_cases", "contracts"] {
+        let owners = inbound.join(namespace);
+        if !owners.is_dir() { continue; }
+        for owner in ::std::fs::read_dir(owners)? {
+            let owner = owner?.path();
+            if owner.is_dir() { features.push(owner.join("acceptance.feature")); }
+        }
+    }
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
+    ::std::assert!(!features.is_empty(), "no acceptance features discovered");
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    ::std::assert!(scenarios.iter().all(|scenario| !scenario.steps.is_empty()), "every scenario has executable steps");
+    ::std::assert!(scenarios.iter().all(|scenario| {
+        (!matches!(scenario.keyword.as_str(), "Scenario Outline" | "Scenario Template") || !scenario.examples.is_empty())
+            && scenario.examples.iter().all(|examples| examples.table.as_ref().is_some_and(|table| true))
+    }), "every outline and Examples table has a data row");
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+    parsed.iter().flatten().map(|feature| {
+        let expanded = ::cucumber::feature::Ext::expand_examples(feature.clone());
+        ::std::assert!(expanded.is_ok(), "every outline expands");
+        expanded.iter().map(|feature| {
+            let background = feature.background.as_ref().map_or(0, |background| background.steps.len());
+            let direct: usize = feature.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum();
+            let rules: usize = feature.rules.iter().map(|rule| {
+                let background = background + rule.background.as_ref().map_or(0, |background| background.steps.len());
+                rule.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum::<usize>()
+            }).sum();
+            ::std::assert!(direct + rules > 0, "every feature has executable scenarios");
+            direct + rules
+        }).sum()
+    }).collect()
+
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf, expected_steps: usize) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+    ::std::assert_eq!(::cucumber::writer::Stats::<Behavior>::passed_steps(&result), expected_steps, "every discovered scenario and example must execute");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    let expected = check(&features);
+    for (feature, expected_steps) in features.into_iter().zip(expected) {
+        run(feature, expected_steps).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 37 },
+]
+
+[[scenarios]]
+id = 'execution-count-missing'
+scenario = 'A project of 2 files that is reported at `tests/bdd.rs`.'
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/greet/acceptance.rs"]
+mod greet;
+
+#[derive(Debug, Default, cucumber::World)]
+struct Behavior;
+
+/// The colocated acceptance features of this crate, sorted.
+fn features() -> ::std::result::Result<::std::vec::Vec<::std::path::PathBuf>, ::cargo_metadata::Error> {
+    let tests = ::cargo_metadata::MetadataCommand::new()
+        .manifest_path(::std::concat!(
+            ::std::env!("CARGO_MANIFEST_DIR"),
+            "/Cargo.toml"
+        ))
+        .no_deps()
+        .other_options(::std::vec!["--offline".into(), "--locked".into()])
+        .exec()?
+        .workspace_root
+        .join(::std::file!())
+        .with_file_name("");
+    let inbound = tests.with_file_name("src").join("inbound");
+    let mut features = ::std::vec::Vec::new();
+    for namespace in ["use_cases", "contracts"] {
+        let owners = inbound.join(namespace);
+        if !owners.is_dir() { continue; }
+        for owner in ::std::fs::read_dir(owners)? {
+            let owner = owner?.path();
+            if owner.is_dir() { features.push(owner.join("acceptance.feature")); }
+        }
+    }
+    features.retain(|path| path.extension().is_some_and(|extension| extension == "feature"));
+    features.sort();
+    Ok(features)
+}
+
+/// Fails unless every feature parses, every scenario and outline carries exactly one case word,
+/// and the features state a success and a refusal.
+fn check(features: &[::std::path::PathBuf]) -> ::std::vec::Vec<usize> {
+    ::std::assert!(!features.is_empty(), "no acceptance features discovered");
+    let parsed = features
+        .iter()
+        .map(|feature| {
+            ::cucumber::gherkin::Feature::parse_path(
+                feature,
+                ::cucumber::gherkin::GherkinEnv::default(),
+            )
+            .map_err(::std::boxed::Box::new)
+        })
+        .collect::<::std::result::Result<::std::vec::Vec<_>, _>>();
+    ::std::assert!(parsed.is_ok(), "every feature parses");
+    let scenarios = parsed
+        .iter()
+        .flatten()
+        .flat_map(|feature| {
+            feature
+                .scenarios
+                .iter()
+                .chain(feature.rules.iter().flat_map(|rule| rule.scenarios.iter()))
+        })
+        .collect::<::std::vec::Vec<_>>();
+    ::std::assert!(scenarios.iter().all(|scenario| !scenario.steps.is_empty()), "every scenario has executable steps");
+    ::std::assert!(scenarios.iter().all(|scenario| {
+        (!matches!(scenario.keyword.as_str(), "Scenario Outline" | "Scenario Template") || !scenario.examples.is_empty())
+            && scenario.examples.iter().all(|examples| examples.table.as_ref().is_some_and(|table| table.rows.len() > 1))
+    }), "every outline and Examples table has a data row");
+    let words = ["succeeds", "refuses", "fails", "rejects"];
+    let one_word_each = scenarios.iter().all(|scenario| {
+        scenario
+            .tags
+            .iter()
+            .filter(|tag| words.contains(&tag.as_str()))
+            .count()
+            == 1
+    });
+    ::std::assert!(
+        one_word_each,
+        "every scenario and outline carries exactly one of @succeeds, @refuses, @fails, @rejects"
+    );
+    for word in ["succeeds", "refuses"] {
+        let stated = scenarios
+            .iter()
+            .any(|scenario| scenario.tags.iter().any(|tag| tag == word));
+        ::std::assert!(stated, "the features have a @{word} scenario");
+    }
+    parsed.iter().flatten().map(|feature| {
+        let expanded = ::cucumber::feature::Ext::expand_examples(feature.clone());
+        ::std::assert!(expanded.is_ok(), "every outline expands");
+        expanded.iter().map(|feature| {
+            let background = feature.background.as_ref().map_or(0, |background| background.steps.len());
+            let direct: usize = feature.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum();
+            let rules: usize = feature.rules.iter().map(|rule| {
+                let background = background + rule.background.as_ref().map_or(0, |background| background.steps.len());
+                rule.scenarios.iter().map(|scenario| scenario.steps.len() + background).sum::<usize>()
+            }).sum();
+            ::std::assert!(direct + rules > 0, "every feature has executable scenarios");
+            direct + rules
+        }).sum()
+    }).collect()
+
+}
+
+/// Runs one feature, failing on a skipped step, on a failed step and when no step passed.
+async fn run(feature: ::std::path::PathBuf, unchecked_steps: usize) {
+    let result = <Behavior as ::cucumber::World>::cucumber()
+        .with_default_cli()
+        .fail_on_skipped()
+        .run(feature)
+        .await;
+    let failed = ::cucumber::writer::Stats::<Behavior>::execution_has_failed(&result);
+    let some_passed = ::cucumber::writer::Stats::<Behavior>::passed_steps(&result) != 0;
+    ::std::assert!(!failed, "a step failed or was skipped");
+    ::std::assert!(some_passed, "no step passed");
+    ::std::assert_eq!(::cucumber::writer::Stats::<Behavior>::passed_steps(&result), unchecked_steps, "every discovered scenario and example must execute");
+}
+
+#[::tokio::main(flavor = "current_thread")]
+async fn main() -> ::std::result::Result<(), ::cargo_metadata::Error> {
+    let features = features()?;
+    let expected = check(&features);
+    for (feature, unchecked_steps) in features.into_iter().zip(expected) {
+        run(feature, unchecked_steps).await;
+    }
+    Ok(())
+}
+'''
+then.findings = [
+  { path = 'tests/bdd.rs', line = 102 },
+]

@@ -1,0 +1,29 @@
+description = "The bench's proofs: the target's preparation keeps dependencies isolated and inside, a summary is independent of order, and the findings guard refuses other findings or exit codes."
+why = "The guard and the preparation are proven every run, before any number is taken."
+content = '''
+//! The bench's proofs, run before it measures anything and alone under `cargo test`: the target's
+//! preparation keeps declared dependencies as isolated copies and lets no path or symlink escape
+//! the target or the repository; a summary is independent of order and names every change; and
+//! the findings guard refuses another exit code or other findings than the target states.
+'''
+
+[given]
+file = 'proof.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'proof.rs' = '''
+//! The bench's proofs, run before it measures anything and alone under `cargo test`: the target's
+//! preparation keeps declared dependencies as isolated copies and lets no path or symlink escape
+//! the target or the repository; a summary is independent of order and names every change; and
+//! the findings guard refuses another exit code or other findings than the target states.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.files.'.gitkeep' = ''
+then.findings = [
+  { rule = 'memory-proof#count', path = '.' },
+]

@@ -1,0 +1,112 @@
+description = "`thiserror` is named only in errors.rs: no `#[derive(thiserror::Error)]`, `use thiserror` or other mention of the crate in any other file the entry includes."
+why = "A domain's failures are one file: errors.rs holds every error type, so a reader finds them in one place and a type elsewhere is not an error by accident. The entry's `exclude` names the errors.rs files. Not seen: a derive written through a renamed import of the crate."
+
+query = '''
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let identifiers = select * from tree-tokens where kind = "ident";
+let thiserror = select * from identifiers where text = "thiserror";
+emit thiserror subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`thiserror` is named outside errors.rs"
+help = "Move the error type into the domain's errors.rs and import it from there; only errors.rs names `thiserror`."
+
+[given]
+include = ['**']
+exclude = ['**/errors.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+files.'src/greeting.rs' = '''
+mod errors;
+mod types;
+'''
+files.'src/greeting/types.rs' = '''
+pub struct Greeting(pub String);
+'''
+files.'src/lib.rs' = '''
+mod greeting;
+'''
+
+[[scenarios]]
+id = 'derive-in-errors'
+scenario = 'An error type derived in errors.rs.'
+given.files.'src/greeting/errors.rs' = '''
+#[derive(Debug, thiserror::Error)]
+pub enum GreetingError {
+    #[error("no name")]
+    Empty,
+}
+'''
+
+[[scenarios]]
+id = 'derive-in-types'
+scenario = 'An error type derived in types.rs.'
+given.files.'src/greeting/errors.rs' = '''
+pub enum GreetingError {}
+'''
+given.files.'src/greeting/types.rs' = '''
+#[derive(Debug, thiserror::Error)]
+#[error("out of range")]
+pub struct RangeError;
+'''
+then.findings = [
+  { path = 'src/greeting/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'import-in-test'
+scenario = 'Thiserror imported by a test.'
+given.files.'src/greeting/errors.rs' = '''
+pub enum GreetingError {}
+'''
+given.files.'tests/end_to_end.rs' = '''
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+#[error("frame")]
+struct FrameError;
+'''
+then.findings = [
+  { path = 'tests/end_to_end.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'error-named-elsewhere'
+scenario = 'The standard Error trait named outside errors.rs is not thiserror.'
+given.files.'src/greeting/errors.rs' = '''
+pub enum GreetingError {}
+'''
+given.files.'src/greeting/types.rs' = '''
+pub fn describe(error: &dyn std::error::Error) -> String {
+    error.to_string()
+}
+'''
+
+[[scenarios]]
+id = 'schema-error'
+scenario = 'A conversion error derived in schemas.rs.'
+given.exclude = ['**/errors.rs', '**/schemas.rs']
+given.files.'src/greeting.rs' = '''
+mod schemas;
+mod types;
+'''
+given.files.'src/greeting/schemas.rs' = '''
+//! The wire shape of a greeting and the refusal of its conversion.
+
+/// Why a greeting is refused.
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum GreetingSchemaError {
+    /// It names nobody.
+    #[error("the greeting names nobody")]
+    Nobody,
+}
+'''

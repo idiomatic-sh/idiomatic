@@ -1,0 +1,54 @@
+description = "One file of a fixture tree under the crate's `tests/fixtures/`: another workspace's file, of any kind, that the crate's tests read as input."
+why = "Places the inputs a crate's tests run its code over (another product's manifests, tastemaker.toml, sources in any language), so a fixture tree is part of the closed crate instead of a hole the workspace excludes. Its content is the test's, so the template asks nothing of it."
+content = '''
+{# Nothing: the content of a fixture is the test's. #}
+'''
+
+[[scenarios]]
+id = 'another-workspace-s-manifest-source-under-tests'
+scenario = "Another workspace's manifest and source, under tests/fixtures, are placed."
+given.file = 'app/tests/fixtures/{*path}'
+given.count = { min = 1 }
+given.files.'app/tests/fixtures/consumer/Cargo.toml' = '''
+[workspace]
+members = ["."]
+
+[package]
+name = "consumer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+'''
+given.files.'app/tests/fixtures/consumer/src/lib.rs' = '''
+//! A consumer the crate's tests build: its code is the test's input, not the crate's.
+
+pub use std::collections::BTreeMap as Map;
+'''
+
+[[scenarios]]
+id = 'other-languages'
+scenario = 'Files of any language, one that does not parse among them, are placed.'
+given.file = 'app/tests/fixtures/{*path}'
+given.count = { min = 1 }
+given.files.'app/tests/fixtures/scripts/broken.rs' = '''
+// A source that does not parse, as a test of a syntax error reads it.
+fn broken( {
+'''
+given.files.'app/tests/fixtures/scripts/client.py' = '''
+def greet(name):
+    return f"hello {name}"
+'''
+given.files.'app/tests/fixtures/scripts/client.ts' = '''
+export function greet(name: string): string {
+  return `hello ${name}`;
+}
+'''
+
+[[scenarios]]
+id = 'no-file-where-entry-requires-one'
+scenario = 'No file where the entry requires one.'
+given.file = 'app/tests/fixtures/{*path}'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'fixture-tree#count', path = '.' },
+]

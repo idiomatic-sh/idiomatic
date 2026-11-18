@@ -1,0 +1,159 @@
+description = "An item's `item.rs` implements a trait: an `impl <Trait> for` block, or a `reads!` or `reads_manifest!` call that names a struct the file declares."
+why = "An item is one implementation of a shape its collection states once, whether the collection declares the trait (`<Collection>Item` in its interface.rs) or another crate owns it (a language's relations implement ryo's `ReadItem` or `ManifestItem`). Which trait an item imports and implements is held per collection by the `item` template, which reads the collection's pair in `item-trait`; this rule holds what a template cannot see: a provider crate's item is `pub(crate) struct <Name>Item;` and the `ryo::reads! { <Name>Item =>.. }` call writes the impl, so the impl is not in the text. A `reads!` call that names the file's struct is the declaration of the implementation (the rule `readers-in-items` already holds that such a call stands only in an item folder). An item with neither, or a call that names another struct, is a struct that implements nothing. Read as written: an inherent `impl` is not a trait impl, and a macro other than `reads` and `reads_manifest` is not seen."
+
+query = '''
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let files = project(from=listed-files, columns=["file"]);
+let item-files = capture(from=files, path="file", pattern="{*dir}/item.rs", captures=["dir"]);
+let item-paths = project(from=item-files, columns=["file"]);
+let impls = select * from tree-nodes where kind = "impl";
+let impl-children = select r."child" as "child", l."file" as "file" from impls as l join "syntax-child" as r on l."id" = r."parent";
+let for-tokens = select * from tree-tokens where kind = "for-kw";
+let trait-impls = select l."file" as "file" from impl-children as l join for-tokens as r on l."child" = r."id";
+let idents = select * from tree-tokens where kind = "ident";
+let macro-names = select * from idents where glob_any(text, "{reads,reads_manifest}");
+let name-refs = select r."parent" as "node", l."file" as "file" from macro-names as l join "syntax-child" as r on l."id" = r."child";
+let segments = select r."parent" as "node", l."file" as "file" from name-refs as l join "syntax-child" as r on l."node" = r."child";
+let paths = select r."parent" as "node", l."file" as "file" from segments as l join "syntax-child" as r on l."node" = r."child";
+let owners = select r."parent" as "node", l."file" as "file" from paths as l join "syntax-child" as r on l."node" = r."child";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let reads-calls = select l."node" as "call", l."file" as "file" from owners as l join macro-calls as r on l."node" = r."id";
+let call-children = select l."file" as "file", r."child" as "child" from reads-calls as l join "syntax-child" as r on l."call" = r."parent";
+let token-trees = select * from tree-nodes where kind = "token-tree";
+let call-trees = select l."file" as "file", r."id" as "tree" from call-children as l join token-trees as r on l."child" = r."id";
+let tree-children = select l."file" as "file", r."child" as "child" from call-trees as l join "syntax-child" as r on l."tree" = r."parent";
+let named-in-call = select l."file" as "file", r."text" as "named" from tree-children as l join idents as r on l."child" = r."id";
+let structs = select * from tree-nodes where kind = "struct";
+let names = select * from tree-nodes where kind = "name";
+let struct-children = select l."file" as "file", r."child" as "child" from structs as l join "syntax-child" as r on l."id" = r."parent";
+let struct-names = select l."file" as "file", r."id" as "name" from struct-children as l join names as r on l."child" = r."id";
+let name-children = select l."file" as "file", r."child" as "child" from struct-names as l join "syntax-child" as r on l."name" = r."parent";
+let declared = select l."file" as "file", r."text" as "declared" from name-children as l join idents as r on l."child" = r."id";
+let called = select l."file" as "file" from declared as l join named-in-call as r on l."file" = r."file" and l."declared" = r."named";
+let trait-paths = project(from=trait-impls, columns=["file"]);
+let call-paths = project(from=called, columns=["file"]);
+let implementers = union(left=trait-paths, right=call-paths);
+let lacking = antijoin(left=item-paths, right=implementers, left-on=["file"], right-on=["file"]);
+let lacking-rows = extend(from=lacking, values={"problem": "has no `impl <Trait> for` and no `reads!` call that names its struct"});
+emit lacking-rows subject "file" key("problem");
+'''
+
+[diagnostic]
+primary = "file"
+message = "this item {problem}"
+help = "Implement the trait of the item's collection for its struct (`impl <Trait> for <Struct>`), or, in a language provider, write the `ryo::reads!` call whose first token is the struct. An ignore is not legitimate here: a struct that implements nothing is not an item of its collection."
+
+[given]
+include = ['**/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'impl-of-own-trait'
+scenario = "An item that implements its collection's own trait."
+given.files.'src/collections/shapes/circle/item.rs' = '''
+use super::super::interface::ShapesItem;
+
+struct CircleItem;
+
+impl ShapesItem for CircleItem {}
+'''
+
+[[scenarios]]
+id = 'impl-of-trait-of-another-crate'
+scenario = 'An item that implements a trait of another crate.'
+given.files.'src/collections/shapes/circle/item.rs' = '''
+use ryo::languages::ReadItem;
+
+struct CircleItem;
+
+impl ReadItem for CircleItem {}
+'''
+
+[[scenarios]]
+id = 'reads-call-names-the-struct'
+scenario = "A provider crate's item declared by a reads call that names its struct."
+given.files.'src/collections/shapes/circle/item.rs' = '''
+pub(crate) struct CircleItem;
+
+ryo::reads! {
+    CircleItem => languages::Circle |tree, at, _symbols| {
+        row { a: node(at) }
+    }
+}
+'''
+
+[[scenarios]]
+id = 'reads-call-names-another-struct'
+scenario = "A reads call that names another struct than the file's."
+given.files.'src/collections/shapes/circle/item.rs' = '''
+pub(crate) struct CircleItem;
+
+ryo::reads! {
+    SquareItem => languages::Circle |tree, at, _symbols| {
+        row { a: node(at) }
+    }
+}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/circle/item.rs' },
+]
+
+[[scenarios]]
+id = 'other-macro-names-the-struct'
+scenario = 'A macro other than reads that names the struct.'
+given.files.'src/collections/shapes/circle/item.rs' = '''
+pub(crate) struct CircleItem;
+
+declare! {
+    CircleItem => languages::Circle
+}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/circle/item.rs' },
+]
+
+[[scenarios]]
+id = 'inherent-impl-only'
+scenario = 'An inherent impl is no trait.'
+given.files.'src/collections/shapes/circle/item.rs' = '''
+struct CircleItem;
+
+impl CircleItem {
+    fn new() -> Self {
+        Self
+    }
+}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/circle/item.rs' },
+]
+
+[[scenarios]]
+id = 'struct-alone'
+scenario = 'A struct with no impl and no call.'
+given.files.'src/collections/shapes/circle/item.rs' = '''
+use ryo::languages::ReadItem;
+
+struct CircleItem;
+'''
+then.findings = [
+  { path = 'src/collections/shapes/circle/item.rs' },
+]
+
+[[scenarios]]
+id = 'item-named-for-its-relation'
+scenario = 'An item named for its relation, as a kernel crate names it, implements the trait.'
+given.files.'src/collections/shapes/circle/item.rs' = '''
+use super::super::interface::ShapesItem;
+
+pub struct Circle;
+
+impl ShapesItem for Circle {}
+'''

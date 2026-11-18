@@ -1,0 +1,38 @@
+description = "An SDK crate has no `src/composition.rs`: each function's `composition.rs` under `src/entries/` is its whole wiring."
+why = "Composition is owned at the edge, one per function a user calls, as it is one per command in a command line: an SDK is an edge like a command line. A crate-wide composition root would be a second place a function's implementations are chosen, and the wiring every function shared. The crate spec places no `src/composition.rs`, so the file is also a closed finding; this rule says what to do with it in an SDK crate."
+
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+emit files subject "path" key("path");
+'''
+
+[diagnostic]
+primary = "path"
+message = "the SDK crate has a crate-wide composition root"
+help = "Move each function's wiring into its own `src/entries/<resource>/<verb>/composition.rs`, and delete `src/composition.rs` with its `mod composition;`."
+
+[given]
+include = ['sdk/src/composition.rs']
+
+[[scenarios]]
+id = 'crate-wide-composition-root'
+scenario = 'A crate-wide composition root.'
+given.files.'sdk/src/composition.rs' = '''
+//! The composition root.
+
+/// Every function's service.
+pub fn services() {}
+'''
+then.findings = [
+  { path = 'sdk/src/composition.rs' },
+]
+
+[[scenarios]]
+id = 'per-function'
+scenario = 'Only per-function compositions.'
+given.files.'sdk/src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`.
+
+/// The service.
+pub fn build() {}
+'''

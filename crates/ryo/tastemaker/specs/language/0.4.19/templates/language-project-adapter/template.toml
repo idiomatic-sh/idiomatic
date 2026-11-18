@@ -1,0 +1,54 @@
+description = "A file of a manifest reading adapter, the implementation of the manifest reading port for one manifest format or tool: `src/outbound/manifest_reading/adapters/<adapter>/adapter.rs`."
+why = "A language that has the manifest reading port has one adapter for each manifest format or tool it serves, each in this shape: a module file, `adapter.rs` and `adapter_test.rs`, the test running the port's contract (`adapter-contract`). The entry's count is at least none because the manifest reading port is the language's own, and what a language owes is said by `language-parts` (a test beside each adapter); where the file exists it is held to this template's declarations, and `tm scaffold` writes a new adapter from it. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The manifest reading port, implemented for `{{ adapter }}`.
+
+use crate::outbound::manifest_reading::interface::ManifestReadingPort;
+
+/// The `{{ adapter }}` manifest reading adapter.
+#[derive(Debug)]
+pub(crate) struct ManifestReading{{ adapter | pascal }}Adapter;
+
+impl ManifestReadingPort for ManifestReading{{ adapter | pascal }}Adapter {}
+'''
+
+[given]
+file = 'src/outbound/manifest_reading/adapters/{adapter}/adapter.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The manifest reading port, implemented for `demo_tool`.
+
+use crate::outbound::manifest_reading::interface::ManifestReadingPort;
+
+/// The `demo_tool` manifest reading adapter.
+#[derive(Debug)]
+pub(crate) struct ManifestReadingDemoToolAdapter;
+
+impl ManifestReadingPort for ManifestReadingDemoToolAdapter {}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/outbound/manifest_reading/adapters/demo_tool/adapter.rs' = '''
+//! The manifest reading port, implemented for `demo_tool`.
+
+use crate::outbound::manifest_reading::interface::ManifestReadingPort;
+
+/// The `demo_tool` manifest reading adapter.
+#[derive(Debug)]
+pub(crate) struct ManifestReadingDemoToolAdapter;
+
+impl ManifestReadingPort for ManifestReadingDemoToolAdapter {}
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-project-adapter#count', path = '.' },
+]

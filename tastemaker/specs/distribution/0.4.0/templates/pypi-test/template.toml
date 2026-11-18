@@ -1,0 +1,21 @@
+description = "PyPI's smoke test: it builds the wheel as the release does, installs it offline and runs the command both ways."
+why = "The PR installs the wheel the release ships."
+content = '''
+//! PyPI: the wheel built as the release builds it, installed offline and run.
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'pypi/test.rs'
+given.files.'pypi/test.rs' = '''
+//! PyPI: the wheel built as the release builds it, installed offline and run.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'pypi/test.rs'
+then.findings = [
+  { rule = 'pypi-test#count', path = '.' },
+]

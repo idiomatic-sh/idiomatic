@@ -1,0 +1,34 @@
+description = "A file of a language's typed fixtures beneath `src/fixtures/`: what its answers are held to, as Rust."
+why = "A language states what its conformance holds it to as typed Rust, not as a table in a data file. The files beneath `src/fixtures/` are the language's own helpers and rows, behind the `fixtures` feature the contract reads; the template is open, it asks that the file exist and states its role, and the rows are the language's own."
+content = '''
+//! The fixtures of the language.
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'src/fixtures/{*fixture}'
+given.count = { min = 1 }
+given.files.'src/fixtures/reading.rs' = '''
+//! The fixtures of this language.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'src/fixtures/{*fixture}'
+given.count = { min = 1 }
+given.files.'src/fixtures/reading.rs' = '''
+//! The fixtures of this language.
+
+pub const SHOWN: &str = "item.x";
+'''
+
+[[scenarios]]
+id = 'no-file-where-entry-requires-one'
+scenario = 'No file where the entry requires one.'
+given.file = 'src/fixtures/{*fixture}'
+given.count = { min = 1 }
+then.findings = [
+  { rule = 'language-fixture#count', path = '.' },
+]

@@ -1,0 +1,78 @@
+description = "A module is found where the compiler looks for it: no `#[path]`, except the four conventions templates write: a test file included beside its subject (`*_test.rs`), a BDD runner's acceptance file, a bench root's workload, a CLI replay suite's shared fixture, and a linter worker test's composition module."
+why = "A `#[path]` makes a file a module of a crate its directory does not say it belongs to: a test or bench that reaches into another target's files by path (the old `../distribution/smoke_test.rs`) shares code no Cargo target owns, and no layout rule can see the reach. The conventions kept are each written by a template, so each is one decision with one owner; any other `#[path]` is a reach this rule refuses."
+
+query = '''
+let paths = select * from "decorates" where target = "path";
+let tests = select * from paths where glob_any(arguments, "?*_test.rs?") and not glob_any(arguments, "?../*");
+let templated = select * from paths where glob_any(arguments, "{?../src/inbound/*/*/acceptance.rs?,?performance/*/bench.rs?,?../fixtures/replay/*.rs?,?../composition/*.rs?}");
+let kept = union(left=tests, right=templated);
+let refused = antijoin(left=paths, right=kept, left-on=["occurrence"], right-on=["occurrence"]);
+emit refused subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this module is loaded through `#[path]`"
+help = "Move the file where the compiler finds it (`<module>.rs` beside its parent, or `<parent>/<module>.rs`) and delete the attribute; code two Cargo targets share belongs in a crate both depend on."
+
+[given]
+include = ['**']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'reach-into-another-target'
+scenario = 'A bench reaches into a test target by path.'
+given.files.'benches/memory/main.rs' = '''
+#[path = "../../distribution/smoke_test.rs"]
+mod smoke;
+fn main() {}
+'''
+then.findings = [
+  { path = 'benches/memory/main.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'sibling-module-by-path'
+scenario = 'A module loaded by path beside a file the replay suite loads.'
+given.files.'tests/fixtures/replay/base.rs' = '''
+#[path = "rules.rs"]
+pub(crate) mod rules;
+'''
+then.findings = [
+  { path = 'tests/fixtures/replay/base.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'template-conventions-pass'
+scenario = 'A unit-test pair, a nested test include, a BDD acceptance file, a bench workload, a replay fixture and a worker composition module pass.'
+given.files.'src/lib.rs' = '''
+#[cfg(test)]
+#[path = "lib_test.rs"]
+mod tests;
+'''
+given.files.'src/engine_test.rs' = '''
+#[path = "engine_test/adapter_scenario_test.rs"]
+mod adapter_scenario_test;
+'''
+given.files.'tests/bdd.rs' = '''
+#[path = "../src/inbound/use_cases/check/acceptance.rs"]
+mod check;
+'''
+given.files.'benches/performance.rs' = '''
+#[path = "performance/engine/bench.rs"]
+mod engine;
+fn main() {}
+'''
+given.files.'tests/replay/main.rs' = '''
+#[path = "../fixtures/replay/base.rs"]
+mod base;
+'''
+given.files.'engine_test/worker_request_input_test.rs' = '''
+#[path = "../composition/request_input.rs"]
+mod request_input;
+'''

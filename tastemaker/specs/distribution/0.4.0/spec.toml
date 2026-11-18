@@ -1,0 +1,125 @@
+description = "A product's `distribution` directory: what the release uploads to npm and PyPI, each beside its smoke test, as one unpublished crate, and a README that says what the product publishes and where. A product that ships to crates.io alone holds the README alone; crates.io's package is the command line crate, whose smoke test the `cli` spec places."
+why = "Packaging lives where it is published from, and its proof beside it: nothing reaches into the directory from another crate, nothing else lives in it (the directory is closed), a registry's package and its test come and go together, and the README cannot say a registry the directory does not ship."
+conditions = { npm = { description = "The product ships to npm: `npm/package.json` is placed.", rule = { rule = "present", include = ["npm/package.json"] } }, pypi = { description = "The product ships to PyPI: `pypi/pyproject.toml` is placed.", rule = { rule = "present", include = ["pypi/pyproject.toml"] } }, packages = { description = "The product ships a package of its own beyond crates.io: npm's or PyPI's package file is placed. npm ships the PyPI wheel's binary, so either needs the PyPI project.", rule = { rule = "present", include = ["npm/package.json", "pypi/pyproject.toml"] } } }
+templates = [
+  { template = "distribution-readme", file = "README.md", params = { organization = { param = "organization" }, product = { param = "product" } }, description = "What the product publishes and where." },
+  { template = "distribution-package", file = "Cargo.toml", count = { when = { condition = "packages" }, then = 1, else = 0 }, params = { organization = { param = "organization" }, product = { param = "product" } }, description = "The unpublished crate of the npm and PyPI smoke tests." },
+  { template = "npm-package", file = "npm/package.json", count = { when = { condition = "npm" }, then = 1, else = 0 }, params = { command = { param = "command" }, organization = { param = "organization" }, product = { param = "product" } }, description = "The package a user installs from npm." },
+  { template = "npm-launcher", file = "npm/launcher.js", count = { when = { condition = "npm" }, then = 1, else = 0 }, params = { command = { param = "command" }, organization = { param = "organization" }, product = { param = "product" } }, description = "The npm command." },
+  { template = "npm-platform", file = "npm/platforms/{target}/package.json", count = { when = { condition = "npm" }, then = 8, else = 0 }, params = { organization = { param = "organization" }, product = { param = "product" } }, description = "One platform's npm package; the directory names are the release's targets." },
+  { template = "npm-platform-readme", file = "npm/platforms/{target}/README.md", count = { when = { condition = "npm" }, then = 8, else = 0 }, params = { organization = { param = "organization" }, product = { param = "product" } }, description = "One platform's npm package's README." },
+  { template = "npm-test", file = "npm/test.rs", count = { when = { condition = "npm" }, then = 1, else = 0 }, description = "npm's smoke test." },
+  { template = "pypi-project", file = "pypi/pyproject.toml", count = { when = { condition = "packages" }, then = 1, else = 0 }, params = { organization = { param = "organization" }, product = { param = "product" }, languages = { param = "languages" } }, description = "PyPI's build, which npm's packages also take their binary from." },
+  { template = "pypi-package-init", file = "pypi/python/{organization}_{product}/__init__.py", count = { when = { condition = "pypi" }, then = 1, else = 0 }, params = { command = { param = "command" }, organization = { param = "organization" }, product = { param = "product" } }, description = "The wheel's one Python module." },
+  { template = "pypi-package-main", file = "pypi/python/{organization}_{product}/__main__.py", count = { when = { condition = "pypi" }, then = 1, else = 0 }, params = { organization = { param = "organization" }, product = { param = "product" } }, description = "The `python -m` entry." },
+  { alias = "pypi-license", template = "idiomatic.arch/unchecked@0.1.0", file = "pypi/LICENSE", count = { min = 0 }, description = "The license text the Python package ships." },
+  { template = "pypi-test", file = "pypi/test.rs", count = { when = { condition = "pypi" }, then = 1, else = 0 }, description = "PyPI's smoke test." },
+]
+
+[params]
+product = { type = "identifier", description = "The product: its name in every package name." }
+command = { type = "identifier", description = "The command the product installs." }
+organization = { type = "identifier", description = "The organization every package is published under, as a Python identifier (`idiomatic_sh`)." }
+languages = { type = "identifier", description = "`linked` or `none`: whether each build links the product's languages." }
+
+[[scenarios]]
+id = 'crates-io-alone'
+scenario = "A product that ships to crates.io alone holds the README alone."
+given.params = { command = 'ryo', product = 'ryo', organization = 'idiomatic_sh', languages = 'linked' }
+given.files.'README.md' = '''
+# What ryo publishes
+
+This directory is what the release uploads to the package registries other than crates.io; the crates.io package is the command line crate itself.
+
+| Registry | Package | Built from | Proven by |
+|---|---|---|---|
+| crates.io | `idiomatic-sh-ryo` | `cli/` | `cli/tests/smoke.rs` |
+
+`.github/workflows/release.yml` builds and publishes them.
+'''
+
+[[scenarios]]
+id = 'readme-lists-unshipped-registry'
+scenario = "The README lists PyPI in a product that ships to crates.io alone."
+given.params = { command = 'ryo', product = 'ryo', organization = 'idiomatic_sh', languages = 'linked' }
+given.files.'README.md' = '''
+# What ryo publishes
+
+This directory is what the release uploads to the package registries other than crates.io; the crates.io package is the command line crate itself.
+
+| Registry | Package | Built from | Proven by |
+|---|---|---|---|
+| crates.io | `idiomatic-sh-ryo` | `cli/` | `cli/tests/smoke.rs` |
+| PyPI | `idiomatic-sh-ryo` | `distribution/pypi/` (maturin) | `distribution/pypi/test.rs` |
+
+`.github/workflows/release.yml` builds and publishes them.
+'''
+then.findings = [
+  { rule = 'distribution-readme#template', path = 'README.md' },
+  { rule = 'distribution-readme#template', path = 'README.md' },
+  { rule = 'distribution-readme#template', path = 'README.md' },
+]
+
+[[scenarios]]
+id = 'stray-under-distribution'
+scenario = "A bench, a library and the old registries level under distribution/ are strays."
+given.params = { command = 'ryo', product = 'ryo', organization = 'idiomatic_sh', languages = 'linked' }
+given.files.'README.md' = '''
+# What ryo publishes
+
+This directory is what the release uploads to the package registries other than crates.io; the crates.io package is the command line crate itself.
+
+| Registry | Package | Built from | Proven by |
+|---|---|---|---|
+| crates.io | `idiomatic-sh-ryo` | `cli/` | `cli/tests/smoke.rs` |
+
+`.github/workflows/release.yml` builds and publishes them.
+'''
+given.files.'benches/bench.rs' = 'fn main() {}'
+given.files.'lib.rs' = '//! support'
+given.files.'registries/npm/package.json' = '{}'
+then.findings = [
+  { rule = '#closed', path = 'benches/bench.rs' },
+  { rule = '#closed', path = 'lib.rs' },
+  { rule = '#closed', path = 'registries/npm/package.json' },
+]
+
+[[scenarios]]
+id = 'npm-without-its-test-or-pypi'
+scenario = "npm's package file without its test, its other files, the crate manifest or PyPI's project."
+given.params = { command = 'tm', product = 'tastemaker', organization = 'idiomatic_sh', languages = 'linked' }
+given.files.'README.md' = '''
+# What tastemaker publishes
+
+This directory is what the release uploads to the package registries other than crates.io; the crates.io package is the command line crate itself.
+
+| Registry | Package | Built from | Proven by |
+|---|---|---|---|
+| crates.io | `idiomatic-sh-tastemaker` | `cli/` | `cli/tests/smoke.rs` |
+| npm | `@idiomatic-sh/tastemaker`, and one `@idiomatic-sh/tastemaker-<target>` per platform | `distribution/npm/`, carrying the PyPI wheel's binary | `distribution/npm/test.rs` |
+
+`.github/workflows/release.yml` builds and publishes them.
+'''
+given.files.'npm/package.json' = '''
+{
+  "name": "@idiomatic-sh/tastemaker",
+  "description": "The tastemaker command line: runs the native binary from the platform package npm installs for this machine.",
+  "bin": {
+    "tm": "launcher.js"
+  },
+  "files": [
+    "launcher.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
+'''
+then.findings = [
+  { rule = 'distribution-package#count', path = '.' },
+  { rule = 'npm-launcher#count', path = '.' },
+  { rule = 'npm-platform#count', path = '.' },
+  { rule = 'npm-platform-readme#count', path = '.' },
+  { rule = 'npm-test#count', path = '.' },
+  { rule = 'pypi-project#count', path = '.' },
+]

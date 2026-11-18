@@ -1,0 +1,47 @@
+description = "The page that says what the product publishes and where: crates.io always (the command line crate itself), and npm and PyPI exactly when `distribution/` holds their packages, each with the test that proves it."
+why = "The directory is what the release uploads; a reader opening it learns the registries from the one page the layout renders, and a row cannot drift from what ships because the page is rendered from the same packages and compared byte for byte."
+match = "text"
+params = { organization = { type = "identifier", description = "The organization every package is published under, as a Python identifier (`idiomatic_sh`)." }, product = { type = "identifier", description = "The product: its name in every package name." } }
+content = '''
+# What {{ product }} publishes
+
+This directory is what the release uploads to the package registries other than crates.io; the crates.io package is the command line crate itself.
+
+| Registry | Package | Built from | Proven by |
+|---|---|---|---|
+| crates.io | `{{ organization | kebab }}-{{ product }}` | `cli/` | `cli/tests/smoke.rs` |
+{%- if present["npm-package"] | default(false) %}
+| npm | `@{{ organization | kebab }}/{{ product }}`, and one `@{{ organization | kebab }}/{{ product }}-<target>` per platform | `distribution/npm/`, carrying the PyPI wheel's binary | `distribution/npm/test.rs` |
+{%- endif %}
+{%- if present["pypi-project"] | default(false) %}
+| PyPI | `{{ organization | kebab }}-{{ product }}` | `distribution/pypi/` (maturin) | `distribution/pypi/test.rs` |
+{%- endif %}
+
+`.github/workflows/release.yml` builds and publishes them.
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'README.md'
+given.params = { organization = 'idiomatic_sh', product = 'ryo' }
+given.files.'README.md' = '''
+# What ryo publishes
+
+This directory is what the release uploads to the package registries other than crates.io; the crates.io package is the command line crate itself.
+
+| Registry | Package | Built from | Proven by |
+|---|---|---|---|
+| crates.io | `idiomatic-sh-ryo` | `cli/` | `cli/tests/smoke.rs` |
+
+`.github/workflows/release.yml` builds and publishes them.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'README.md'
+given.params = { organization = 'idiomatic_sh', product = 'ryo' }
+then.findings = [
+  { rule = 'distribution-readme#count', path = '.' },
+]

@@ -1,0 +1,82 @@
+description = "A Cargo target's source stays inside its package: the `path` of a `[lib]`, `[[bin]]`, `[[test]]`, `[[bench]]` or `[[example]]` names no file above the manifest's own directory."
+why = "A target whose root lies outside its package (`path = \"../distribution/smoke_test.rs\"`) is code the package's layout does not show and its spec does not place, and it ships in no `cargo package` of the crate it is built with. Dependency paths are not targets: a workspace's crates name their siblings, which this rule leaves alone."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind" from "syntax-tree" as l where l."text" = "";
+let documents = select * from tree-nodes where kind = "toml";
+let entries = project(from="entry", columns=["file", "owner", "occurrence", "key", "decoded", "span"]);
+let target-keys = select * from entries where glob_any(key, "{lib,bin,test,bench,example}");
+let target-roots = select l."occurrence" as "entry" from target-keys as l join documents as r on l."owner" = r."id";
+let tables = select * from "mapping";
+let lib-tables = select r."id" as "table" from target-roots as l join tables as r on l."entry" = r."owner";
+let elements = select l."occurrence" as "element", l."owner" as "entry" from "sequence-element" as l;
+let array-elements = select r."element" as "element" from target-roots as l join elements as r on l."entry" = r."entry";
+let members = select * from tables where kind = "sequence-member";
+let array-tables = select r."id" as "table" from array-elements as l join members as r on l."element" = r."owner";
+let target-tables = union(left=lib-tables, right=array-tables);
+let paths = select * from entries where key = "path";
+let target-paths = select l."file" as "file", l."span" as "span", l."decoded" as "decoded" from paths as l join target-tables as r on l."owner" = r."table";
+let outside = select * from target-paths where glob_any(decoded, "{../*,/*}");
+emit outside subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this target's source `{decoded}` lies outside its package"
+help = "Move the target's files into the package's own directory (`tests/`, `benches/`, or a folder of its own) and point `path` there, or make the code a crate both packages depend on."
+
+[given]
+include = ['**/Cargo.toml']
+
+[[scenarios]]
+id = 'test-outside'
+scenario = 'A test target whose source is in a sibling directory.'
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "cli"
+version = "0.1.0"
+
+[[test]]
+name = "distribution"
+path = "../distribution/smoke_test.rs"
+'''
+then.findings = [
+  { path = 'cli/Cargo.toml', line = 7 },
+]
+
+[[scenarios]]
+id = 'bench-outside'
+scenario = 'A bench target whose source is in a sibling directory.'
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "cli"
+version = "0.1.0"
+
+[[bench]]
+name = "distribution"
+path = "../distribution/benches/bench.rs"
+harness = false
+'''
+then.findings = [
+  { path = 'cli/Cargo.toml', line = 7 },
+]
+
+[[scenarios]]
+id = 'inside-and-dependencies-pass'
+scenario = 'Targets inside the package and a sibling dependency path pass.'
+given.files.'distribution/Cargo.toml' = '''
+[package]
+name = "distribution"
+version = "0.1.0"
+publish = false
+
+[lib]
+path = "lib.rs"
+
+[[test]]
+name = "npm"
+path = "npm/test.rs"
+
+[dependencies]
+core = { path = "../crates/core" }
+'''

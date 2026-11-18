@@ -1,0 +1,63 @@
+description = "The constants.rs of the `language` concept: which files are the language's: the text and numbers its code uses, so no literal sits in code."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The names of the `language` concept: the file names the language reads, text that came from disk.
+
+{% if scaffold | default(false) %}
+/// The ending of the paths of {{ lang }} files.
+pub(crate) const EXTENSION: &str = ".{{ ext | default(lang) }}";
+{% endif %}
+
+/// The names of the directories the language never reads, at any depth: the dependency, environment and build directories of its
+/// ecosystem, which the walks of ryo and Tastemaker do not enter. Empty when the ecosystem has none.
+pub(crate) const SKIPS: &[ryo::languages::SkippedDirectory] = &[];
+
+/// What the language is called, in listings: the name of its directory.
+pub(crate) const NAME: &str = "{{ lang }}";
+'''
+
+[params]
+lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name." }
+
+[given]
+file = 'src/domain/language/constants.rs'
+params = { lang = 'demo' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/domain/language/constants.rs' = '''
+//! The names of the `language` concept: the file names the language reads, text that came from disk.
+
+
+/// The names of the directories the language never reads, at any depth: the dependency, environment and build directories of its
+/// ecosystem, which the walks of ryo and Tastemaker do not enter. Empty when the ecosystem has none.
+pub(crate) const SKIPS: &[ryo::languages::SkippedDirectory] = &[];
+
+/// What the language is called, in listings: the name of its directory.
+pub(crate) const NAME: &str = "demo";
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/domain/language/constants.rs' = '''
+//! The names of the `language` concept: the file names the language reads, text that came from disk.
+
+
+/// The names of the directories the language never reads, at any depth: the dependency, environment and build directories of its
+/// ecosystem, which the walks of ryo and Tastemaker do not enter. Empty when the ecosystem has none.
+pub(crate) const SKIPS: &[ryo::languages::SkippedDirectory] = &[];
+
+/// What the language is called, in listings: the name of its directory.
+pub(crate) const NAME: &str = "demo";
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-domain-language-constants#count', path = '.' },
+]

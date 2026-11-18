@@ -1,0 +1,153 @@
+description = "A function's module file: the function, its connections, its composition, its schemas, and its test under #[cfg(test)]."
+why = "Declares a function a user calls and the files beside it, each one primitive: the connections that open its stores, the composition that wires its service, the schemas that check its request, and its test, so each directory under `src/entries/` compiles as one unit. A function's optional files (its composition test, its fixtures) are declared by `module-declares`, which reads the directory: a template sees only its own instance, not the part's optional files."
+content = '''
+//! `{{ resource }} {{ entry }}`.
+
+pub mod entry;
+pub(crate) mod composition;
+{%- if present["errors"] | default(false) %}
+pub mod errors;
+{%- endif %}
+{%- if present["connections"] | default(false) %}
+pub(crate) mod connections;
+{%- endif %}
+pub(crate) mod schemas;
+{%- if present["types"] | default(false) %}
+pub mod types;
+{%- endif %}
+
+#[cfg(test)]
+mod entry_test;
+{%- if present["composition-test"] | default(false) %}
+
+#[cfg(test)]
+mod composition_test;
+{%- endif %}
+{%- if present["edge-fixtures"] | default(false) %}
+
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) mod fixtures;
+{%- endif %}
+'''
+
+[params]
+resource = { type = "identifier", description = "The resource, captured from its path." }
+entry = { type = "identifier", description = "The entry, captured from its path." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'sdk/src/resources/greeting/show.rs'
+given.params = { resource = 'greeting', entry = 'show' }
+given.files.'sdk/src/resources/greeting/show.rs' = '''
+//! `greeting show`.
+
+pub mod entry;
+pub(crate) mod composition;
+pub(crate) mod connections;
+pub(crate) mod schemas;
+
+#[cfg(test)]
+mod entry_test;
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'sdk/src/resources/greeting/show.rs'
+given.params = { resource = 'greeting', entry = 'show' }
+given.files.'sdk/src/resources/greeting/show.rs' = '''
+//! `greeting show`.
+
+pub mod entry;
+pub(crate) mod composition;
+pub(crate) mod connections;
+pub(crate) mod schemas;
+
+#[cfg(test)]
+mod entry_test;
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'sdk/src/resources/greeting/show.rs'
+given.params = { resource = 'greeting', entry = 'show' }
+then.findings = [
+  { rule = 'entry-module#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'test-not-cfg-test'
+scenario = "The function's test is compiled outside tests."
+given.file = 'sdk/src/resources/greeting/show.rs'
+given.params = { resource = 'greeting', entry = 'show' }
+given.files.'sdk/src/resources/greeting/show.rs' = '''
+//! `greeting show`.
+
+pub mod entry;
+pub(crate) mod composition;
+pub(crate) mod connections;
+pub(crate) mod schemas;
+
+mod entry_test;
+'''
+then.findings = [
+  { rule = 'entry-module#template', path = 'sdk/src/resources/greeting/show.rs' },
+]
+
+[[scenarios]]
+id = 'no-composition'
+scenario = 'The module does not declare its composition.'
+given.file = 'sdk/src/resources/greeting/show.rs'
+given.params = { resource = 'greeting', entry = 'show' }
+given.files.'sdk/src/resources/greeting/show.rs' = '''
+//! `greeting show`.
+
+pub mod entry;
+pub(crate) mod connections;
+pub(crate) mod schemas;
+
+#[cfg(test)]
+mod entry_test;
+'''
+then.findings = [
+  { rule = 'entry-module#template', path = 'sdk/src/resources/greeting/show.rs' },
+]
+
+[[scenarios]]
+id = 'no-connections'
+scenario = 'The module declares no connections when the verb has none.'
+given.file = 'sdk/src/resources/greeting/show.rs'
+given.params = { resource = 'greeting', entry = 'show' }
+given.files.'sdk/src/resources/greeting/show.rs' = '''
+//! `greeting show`.
+
+pub mod entry;
+pub(crate) mod composition;
+pub(crate) mod schemas;
+
+#[cfg(test)]
+mod entry_test;
+'''
+
+[[scenarios]]
+id = 'no-schemas'
+scenario = 'The module does not declare its schemas.'
+given.file = 'sdk/src/resources/greeting/show.rs'
+given.params = { resource = 'greeting', entry = 'show' }
+given.files.'sdk/src/resources/greeting/show.rs' = '''
+//! `greeting show`.
+
+pub mod entry;
+pub(crate) mod composition;
+pub(crate) mod connections;
+
+#[cfg(test)]
+mod entry_test;
+'''
+then.findings = [
+  { rule = 'entry-module#template', path = 'sdk/src/resources/greeting/show.rs' },
+]

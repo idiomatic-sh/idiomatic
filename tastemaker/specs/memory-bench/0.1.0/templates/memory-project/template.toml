@@ -1,0 +1,27 @@
+description = "The target's checkout, its configuration and policy placed, and the guard that holds a run's findings and exit code to the target's `findings.toml`."
+why = "A memory number is only worth keeping for a run that did its job."
+content = '''
+//! The target's checkout and its findings guard: a fresh copy of the target's pinned revision, with
+//! its dependencies bound, its configuration placed and its policy prepared, and the hold of what
+//! a run prints, and the exit code it ends with, to the target's `findings.toml`.
+'''
+
+[given]
+file = 'project.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'project.rs' = '''
+//! The target's checkout and its findings guard: a fresh copy of the target's pinned revision, with
+//! its dependencies bound, its configuration placed and its policy prepared, and the hold of what
+//! a run prints, and the exit code it ends with, to the target's `findings.toml`.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.files.'.gitkeep' = ''
+then.findings = [
+  { rule = 'memory-project#count', path = '.' },
+]

@@ -1,0 +1,22 @@
+description = "A file of the crate's integration tests: the root test, a group's test, or a group's test support."
+why = "A crate's integration tests are grouped by the behaviour they prove, `tests/<group>/` with its module file, its test and its support, groups nesting as deep as the behaviour does, and the root `tests/test.rs` declares them. The pattern places every such file by its role, so a new group touches no manifest; what a test may import is held by the crate's test rules, and its module tree by `orphan-rust-files`."
+content = '''
+//! A test of the crate, run through its public API.
+'''
+
+[[scenarios]]
+id = "test-file"
+scenario = "An integration test with any tests has no finding."
+given.file = "tests/order/test.rs"
+given.files.'tests/order/test.rs' = '''
+//! The crate keeps the order it is given.
+
+#[test]
+fn keeps_order() {}
+'''
+
+[[scenarios]]
+id = "test-file-missing"
+scenario = "A test file the entry places that is missing is reported."
+given.file = "tests/order/test.rs"
+then.findings = [{ rule = "#count", path = "." }]
