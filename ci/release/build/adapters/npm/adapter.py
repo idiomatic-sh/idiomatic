@@ -55,7 +55,7 @@ class NpmBuild(Build):
         self.dist = dist
 
     def build(self, product: Product, scope: str, into: Path) -> list[Artifact]:
-        npm = self.root / "crates" / product.name / "distribution" / "registries" / "npm"
+        npm = self.root / "crates" / product.name / "distribution" / "npm"
         if not npm.is_dir():
             return []
         if scope == SHARED:

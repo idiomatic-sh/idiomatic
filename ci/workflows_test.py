@@ -748,20 +748,27 @@ def test_the_release_builds_every_target_in_one_matrix_whose_rows_run_the_same_s
         "PyO3/maturin-action",
         "actions/upload-artifact",
     ]
+    # The matrix's targets are the npm platform packages of every product that ships to npm: npm carries the wheel's binary.
+    targets = sorted(row["target"] for row in build["strategy"]["matrix"]["platform"])
+    packaged: dict[str, list[str]] = {}
+    for package in listed(ROOT, "crates/*/distribution/npm/platforms/*/package.json"):
+        packaged.setdefault(package.parents[4].name, []).append(package.parent.name)
+    assert packaged, "no product ships npm platform packages"
+    assert {product: sorted(names) for product, names in packaged.items()} == {product: targets for product in packaged}
     # Every shipped product's binary, for its GitHub Release: the wheel of its PyPI project, or of its command line crate when it
-    # ships to Cargo alone.
+    # ships to crates.io alone.
     built = {step["with"]["working-directory"] for step in build["steps"] if step["uses"].startswith("PyO3/maturin-action@")}
     assert built == {
-        "crates/asymptote/distribution/registries/pypi",
+        "crates/asymptote/distribution/pypi",
         "crates/ryo/cli",
-        "crates/tastemaker/distribution/registries/pypi",
+        "crates/tastemaker/distribution/pypi",
     }
     # A row builds only its product, one of the products the run releases.
     building = {step["with"]["working-directory"]: step["if"] for step in build["steps"] if step["uses"].startswith("PyO3/maturin-action@")}
     assert {directory: condition.split("'")[1] for directory, condition in building.items()} == {
-        "crates/asymptote/distribution/registries/pypi": "asymptote",
+        "crates/asymptote/distribution/pypi": "asymptote",
         "crates/ryo/cli": "ryo",
-        "crates/tastemaker/distribution/registries/pypi": "tastemaker",
+        "crates/tastemaker/distribution/pypi": "tastemaker",
     }
     assert workflow["jobs"]["publish"]["needs"] == ["tag", "build"]
     released = "${{ fromJSON(github.event_name == 'workflow_run' && needs.tag.outputs.products || format('[\"{0}\"]', inputs.product)) }}"
@@ -1470,8 +1477,7 @@ RUN_TIME_READS = {
     # cli/tests/replay/check.rs:325-356 checks a `git archive` of the repository's HEAD, and benchmark_fixture.rs:35-46 copies
     # every tastemaker.lock of the repository: tastemaker's tests read the whole tree.
     "crates/tastemaker": [""],
-    # distribution/target_test.rs:102 installs crates/tastemaker/cli, which builds ryo's crates and reads the root's Tastemaker
-    # packages, tastemaker/benchmarks among them, and the targets' pin.toml copy its fixtures: the whole tree.
+    # cli/tests/replay reads the root's Tastemaker packages and the repository's tree through its fixtures: the whole tree.
     "crates/asymptote": [""],
     "tools/lints": [],
 }
@@ -1503,10 +1509,10 @@ def run_paths(run: list[str], cwd: Path, top: Path) -> set[str]:
 
 
 def benchy(tool: dict) -> bool:
-    """Whether a tool measures: a bench, perf or memory group. It reads its own product and pinned external targets alone, and what its
+    """Whether a tool measures: a bench or memory group. It reads its own product and pinned external targets alone, and what its
     run builds; it runs no test, so it reads nothing at run time beyond that."""
     group = tool.get("group", "")
-    return group in ("perf", "memory") or group.startswith("bench")
+    return group == "memory" or group.startswith("bench")
 
 
 # What a bench tool may name outside its product: the toolchain, and the helper that installs a pinned tool. The Tastemaker package of

@@ -19,8 +19,6 @@ Where a version is declared:
   `name = { version = "x.y.z", locked = true, bins = [...] }`. A tool is
   declared in one place: one `ROOT_CRATES` holds, or another product's manifest declares, is an error.
 - `cargo-dylint` and `dylint-link`, in `tools/lints/Cargo.toml` (`dylint_linting`): a library loads only into the dylint of its own version.
-- `cargo-dist`, in the `dist-workspace.toml` of the npm registry, which cargo-dist reads itself (crates.io holds no release of it as new as
-  the one pinned, so its own installer installs it).
 - the nightly toolchain, in `crates/ryo/Cargo.toml` (`[workspace.metadata.api] nightly`).
 - everything that is not Rust, in `TOOLS` below: it has no manifest here; the package managers ryo's tests compare against, which npm
   installs, in `NODE_TOOLS`.
@@ -169,31 +167,6 @@ def dylint_version(root: Path = ROOT) -> str:
     """The version of `dylint_linting` the lints are built against."""
     manifest = tomllib.loads((root / "tools/lints/Cargo.toml").read_text(encoding="utf-8"))
     return manifest["dependencies"]["dylint_linting"].removeprefix("=")
-
-
-DIST_WORKSPACE = "crates/asymptote/distribution/registries/npm/dist-workspace.toml"
-DIST_INSTALLER = "https://github.com/axodotdev/cargo-dist/releases/download/v{version}/cargo-dist-installer.{extension}"
-
-
-def dist_version(root: Path = ROOT) -> str:
-    """The version of cargo-dist the npm registry's `dist-workspace.toml` pins."""
-    return tomllib.loads((root / DIST_WORKSPACE).read_text(encoding="utf-8"))["dist"]["cargo-dist-version"]
-
-
-def dist_installed() -> str:
-    """The version `cargo dist --version` answers; empty where there is none."""
-    found = run(["cargo", "dist", "--version"], check=False, capture=True)
-    return found.stdout.split()[-1] if found.returncode == 0 and found.stdout.split() else ""
-
-
-def install_dist(version: str) -> None:
-    """Runs cargo-dist's own installer for `version`, which writes `dist` and its alias `cargo-dist`, the command `cargo dist` runs."""
-    if os.name == "nt":
-        url = DIST_INSTALLER.format(version=version, extension="ps1")
-        run(["powershell", "-ExecutionPolicy", "ByPass", "-c", f"irm {url} | iex"])
-        return
-    url = DIST_INSTALLER.format(version=version, extension="sh")
-    run(["sh", "-c", f"curl --proto '=https' --tlsv1.2 -LsSf {url} | sh"])
 
 
 def nightly(root: Path = ROOT) -> str:
@@ -563,9 +536,6 @@ def main(argv: list[str]) -> int:
     if shutil.which("gh") is None:
         sys.exit(f"gh installs {', '.join(GH_EXTENSIONS)}: install the GitHub CLI first")
     install_gh_extensions(installed_gh_extensions())
-    version = dist_version()
-    if dist_installed() != version:
-        install_dist(version)
     toolchains = run(["rustup", "toolchain", "list"], capture=True).stdout
     wanted = nightly()
     if not toolchains.count(wanted):

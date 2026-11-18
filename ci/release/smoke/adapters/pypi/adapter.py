@@ -20,7 +20,7 @@ class PypiSmoke(Smoke):
 
     def smoke(self, product: Product, artifacts: list[Artifact], into: Path) -> None:
         crate = self.root / "crates" / product.name
-        pyproject = crate / "distribution" / "registries" / "pypi" / "pyproject.toml"
+        pyproject = crate / "distribution" / "pypi" / "pyproject.toml"
         module = tomllib.loads(pyproject.read_text())["tool"]["maturin"]["module-name"]
         for artifact in artifacts:
             environment = into / "venv"

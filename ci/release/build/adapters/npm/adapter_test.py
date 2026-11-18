@@ -32,7 +32,7 @@ def test_the_npm_adapter_implements_the_port() -> None:
 
 def registry(tmp_path):
     """npm's registry directory of the demo product: its launcher and one platform package per target."""
-    npm = tmp_path / "crates/demo/distribution/registries/npm"
+    npm = tmp_path / "crates/demo/distribution/npm"
     for target in PRODUCT.targets:
         (npm / "platforms" / target).mkdir(parents=True)
         (npm / "platforms" / target / "package.json").write_text(json.dumps({"name": f"@scope/demo-{target}"}))

@@ -98,9 +98,8 @@ def test_the_own_tools_are_their_published_releases_pinned_apart_from_their_work
     assert install.ARCHIVES["taplo"]["version"] == "0.10.0"
 
 
-def test_the_dylint_and_dist_pins_are_read_from_the_files_that_hold_them() -> None:
+def test_the_dylint_pin_is_read_from_the_file_that_holds_it() -> None:
     assert install.dylint_version() == tomllib.loads((ROOT / "tools/lints/Cargo.toml").read_text())["dependencies"]["dylint_linting"].removeprefix("=")
-    assert install.dist_version().count(".") == 2
 
 
 def commands(tools: list[dict]) -> set[str]:
