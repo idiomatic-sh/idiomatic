@@ -1,0 +1,11 @@
+version = 1
+parents = ["70cd2a6a8d2a2ac04bab2880af5b9a28c3a7817311facba1c34d46cbb0ddc1e4"]
+
+[[perf]]
+reasons = ["seed on ubuntu-26.04"]
+records = [
+  { tool = "memory-distribution", benchmark = "cargo/ruff", measure = "cold-peak-kib", best = 29668.0 },
+  { tool = "memory-distribution", benchmark = "cargo/ruff", measure = "validate-cold-ms", best = 17.0 },
+  { tool = "memory-distribution", benchmark = "cargo/ruff", measure = "validate-peak-kib", best = 19244.0 },
+  { tool = "memory-distribution", benchmark = "cargo/ruff", measure = "validate-warm-ms", best = 17.0 },
+]
