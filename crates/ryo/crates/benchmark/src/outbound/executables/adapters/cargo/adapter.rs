@@ -56,27 +56,32 @@ fn fresh(sealed: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-/// Let the sealed copy be executed.
+/// Copy `source` to `sealed` and let the copy be executed, through a child (`COPY_EXECUTABLE`).
 #[cfg(unix)]
-fn executable(sealed: &Path) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(
-        sealed,
-        std::fs::Permissions::from_mode(super::constants::EXECUTABLE_MODE),
-    )
+fn copy_executable(source: &Path, sealed: &Path) -> std::io::Result<()> {
+    let status = Command::new(super::constants::SHELL)
+        .args(super::constants::COPY_EXECUTABLE)
+        .arg(source)
+        .arg(sealed)
+        .stdin(Stdio::null())
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(status.to_string()))
+    }
 }
 
-/// Off Unix a copied file keeps whatever lets it run.
+/// Off Unix a copied file keeps whatever lets it run, and a launch never finds it busy.
 #[cfg(not(unix))]
-fn executable(_sealed: &Path) -> std::io::Result<()> {
-    Ok(())
+fn copy_executable(source: &Path, sealed: &Path) -> std::io::Result<()> {
+    std::fs::copy(source, sealed).map(drop)
 }
 
 /// Copy `source` to `sealed` as an executable, write its seal record beside it, and answer its digest.
 fn seal(source: &Path, sealed: &Path) -> Result<Sealed, Error> {
     let bytes = std::fs::read(source)?;
-    std::fs::write(sealed, &bytes)?;
-    executable(sealed)?;
+    copy_executable(source, sealed)?;
     let copy = Sealed {
         path: sealed.to_owned(),
         sha256: Sha256Text(format!("{:x}", Sha256::digest(&bytes))),
