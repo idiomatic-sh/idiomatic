@@ -2030,3 +2030,35 @@ def test_no_tool_a_pull_request_runs_holds_a_time() -> None:
         "crates/tastemaker: memory-distribution (memory) holds the time validate-cold-ms to a tolerance",
         "crates/tastemaker: memory-distribution (memory) holds the time validate-warm-ms to a tolerance",
     ]
+
+
+MOLD = "rui314/setup-mold@"
+LINKED = re.compile(r"(^|\s)(cargo |uv run --script tools/install\.py)")
+
+
+def unlinked_problems(workflow: dict) -> list[str]:
+    """A Linux job outside a container that builds Rust (cargo, or install.py building the tree's tools) sets up mold first: the
+    repository's .cargo/config.toml links with it on Linux, and a runner without it fails with `cannot find 'ld'`."""
+    found = []
+    for name, each in (workflow.get("jobs") or {}).items():
+        if each.get("container") or not str(each.get("runs-on", "")).startswith("ubuntu"):
+            continue
+        mold = False
+        for step in each.get("steps", []):
+            mold = mold or str(step.get("uses", "")).startswith(MOLD)
+            if LINKED.search(str(step.get("run", ""))) and not mold:
+                found.append(f"{name}: builds Rust before setting up mold")
+                break
+    return found
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
+def test_every_linux_job_that_builds_rust_sets_up_mold_first(path: Path) -> None:
+    assert unlinked_problems(yaml.safe_load(read(path))) == []
+
+
+def test_a_linux_job_that_installs_without_mold_is_refused() -> None:
+    bare = {"jobs": {"check": {"runs-on": "ubuntu-26.04", "steps": [{"run": "uv run --script tools/install.py"}]}}}
+    linked = {"jobs": {"check": {"runs-on": "ubuntu-26.04", "steps": [{"uses": MOLD + "x"}, {"run": "uv run --script tools/install.py"}]}}}
+    assert unlinked_problems(bare) == ["check: builds Rust before setting up mold"]
+    assert unlinked_problems(linked) == []
