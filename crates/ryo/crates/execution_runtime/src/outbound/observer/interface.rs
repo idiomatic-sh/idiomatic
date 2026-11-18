@@ -1,6 +1,6 @@
 //! What the `observer` port asks of the outside, in the core's own vocabulary.
 
-use super::types::FedTotals;
+use super::types::{FedTotals, FileHandovers};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::LogicalCounts;
@@ -46,5 +46,5 @@ pub trait ObserverPort: Send + Sync {
     /// # Errors
     ///
     /// The observer lost what it was told.
-    fn handovers(&self) -> Result<Vec<FileHandover>, OperatingError>;
+    fn handovers(&self) -> Result<FileHandovers, OperatingError>;
 }

@@ -1,7 +1,7 @@
 //! The fake of the `observer` port: what the core's tests stand in for it with.
 
 use crate::outbound::observer::interface::ObserverPort;
-use crate::outbound::observer::types::FedTotals;
+use crate::outbound::observer::types::{FedTotals, FileHandovers};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
@@ -51,14 +51,14 @@ impl ObserverPort for ObserverFake {
             .push(handover);
         Ok(())
     }
-    fn handovers(&self) -> Result<Vec<FileHandover>, OperatingError> {
+    fn handovers(&self) -> Result<FileHandovers, OperatingError> {
         let mut told = self
             .handed
             .lock()
             .map_err(|_| OperatingError::NotRun)?
             .clone();
         told.sort_unstable();
-        Ok(told)
+        Ok(FileHandovers(told))
     }
 }
 

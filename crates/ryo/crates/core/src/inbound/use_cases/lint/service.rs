@@ -316,7 +316,7 @@ pub(super) fn answer(
         features: features_of(fed.as_ref(), run),
         work: work_of(fed.as_ref(), run),
         handovers: handovers.map_or_else(Vec::new, |told| {
-            crate::domain::reporting::service::widest_each(&told, run.paths, run.ids)
+            crate::domain::reporting::service::widest_each(&told.0, run.paths, run.ids)
         }),
     })
 }

@@ -5,7 +5,7 @@ use super::constants::COUNTED_HANDOVERS;
 use super::types::CountedFed;
 use super::types::CountedHandovers;
 use crate::outbound::observer::interface::ObserverPort;
-use crate::outbound::observer::types::FedTotals;
+use crate::outbound::observer::types::{FedTotals, FileHandovers};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{LogicalCounts, RowsFed};
@@ -64,7 +64,7 @@ impl ObserverPort for ObserverCountingAdapter {
         Ok(())
     }
 
-    fn handovers(&self) -> Result<Vec<FileHandover>, OperatingError> {
+    fn handovers(&self) -> Result<FileHandovers, OperatingError> {
         let mut told = self
             .handovers
             .0
@@ -72,6 +72,6 @@ impl ObserverPort for ObserverCountingAdapter {
             .map(|told| told.clone())
             .map_err(|_| OperatingError::NotRun)?;
         told.sort_unstable();
-        Ok(told)
+        Ok(FileHandovers(told))
     }
 }

@@ -129,7 +129,7 @@ fn past_handovers() -> Value {
         && observer.handed(handover(COUNTED_HANDOVERS)) == Err(OperatingError::ShapeMismatch)
         && observer
             .handovers()
-            .is_ok_and(|told| told.len() == COUNTED_HANDOVERS)
+            .is_ok_and(|told| told.0.len() == COUNTED_HANDOVERS)
 }
 
 #[test]

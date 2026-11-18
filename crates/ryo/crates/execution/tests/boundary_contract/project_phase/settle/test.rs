@@ -123,8 +123,9 @@ impl ObserverPort for RefusesFirst {
     }
     fn handovers(
         &self,
-    ) -> Result<Vec<ryo_values::domain::runs::types::FileHandover>, OperatingError> {
-        Ok(Vec::new())
+    ) -> Result<ryo_execution_runtime::outbound::observer::types::FileHandovers, OperatingError>
+    {
+        Ok(ryo_execution_runtime::outbound::observer::types::FileHandovers::default())
     }
 }
 
