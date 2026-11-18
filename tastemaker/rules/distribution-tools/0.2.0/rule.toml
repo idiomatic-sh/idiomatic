@@ -34,29 +34,32 @@ let smoked = project(from=smoke-runs, columns=["file"]);
 let unsmoked = antijoin(left=manifests, right=smoked, left-on=["file"], right-on=["file"]);
 let unsmoked-cols = project(from=unsmoked, columns=["file"]);
 let unsmoked-rows = extend(from=unsmoked-cols, values={"id": "asymptote.toml", "problem": "has no `smoke` tool in `release-tests` running `--test smoke`"});
-let npm-files = select * from files where glob_any(file, "{distribution/npm/package.json,**/distribution/npm/package.json}");
+let npm-files = select * from files where file = "distribution/npm/package.json";
 let npm-runs = select * from smoke-words where glob_any(word, "{npm,*--test npm*}");
 let npm-run = project(from=npm-runs, columns=["file"]);
-let npm-products = capture(from=npm-files, path="file", pattern="{*product}/distribution/npm/package.json", captures=["product"]);
-let npm-manifests = capture(from=npm-run, path="file", pattern="{*product}/asymptote.toml", captures=["product"]);
-let npm-missing = antijoin(left=npm-products, right=npm-manifests, left-on=["product"], right-on=["product"]);
+let npm-shipped = extend(from=npm-files, values={"workspace": "product"});
+let npm-smoked-rows = extend(from=npm-run, values={"workspace": "product"});
+let npm-smoked = project(from=npm-smoked-rows, columns=["workspace"]);
+let npm-missing = antijoin(left=npm-shipped, right=npm-smoked, left-on=["workspace"], right-on=["workspace"]);
 let npm-missing-cols = project(from=npm-missing, columns=["file"]);
 let npm-rows = extend(from=npm-missing-cols, values={"id": "npm", "problem": "ships to npm, and the `smoke` tool does not run `--test npm`"});
-let pypi-files = select * from files where glob_any(file, "{distribution/pypi/pyproject.toml,**/distribution/pypi/pyproject.toml}");
+let pypi-files = select * from files where file = "distribution/pypi/pyproject.toml";
 let pypi-runs = select * from smoke-words where glob_any(word, "{pypi,*--test pypi*}");
 let pypi-run = project(from=pypi-runs, columns=["file"]);
-let pypi-products = capture(from=pypi-files, path="file", pattern="{*product}/distribution/pypi/pyproject.toml", captures=["product"]);
-let pypi-manifests = capture(from=pypi-run, path="file", pattern="{*product}/asymptote.toml", captures=["product"]);
-let pypi-missing = antijoin(left=pypi-products, right=pypi-manifests, left-on=["product"], right-on=["product"]);
+let pypi-shipped = extend(from=pypi-files, values={"workspace": "product"});
+let pypi-smoked-rows = extend(from=pypi-run, values={"workspace": "product"});
+let pypi-smoked = project(from=pypi-smoked-rows, columns=["workspace"]);
+let pypi-missing = antijoin(left=pypi-shipped, right=pypi-smoked, left-on=["workspace"], right-on=["workspace"]);
 let pypi-missing-cols = project(from=pypi-missing, columns=["file"]);
 let pypi-rows = extend(from=pypi-missing-cols, values={"id": "pypi", "problem": "ships to PyPI, and the `smoke` tool does not run `--test pypi`"});
-let bench-files = select * from files where glob_any(file, "{cli/benches/memory/main.rs,**/cli/benches/memory/main.rs}");
+let bench-files = select * from files where file = "cli/benches/memory/main.rs";
 let memories = select * from named where id = "memory" and group = "memory";
 let memory-words = select l."file" as "file", r."word" as "word" from memories as l join words as r on l."tool" = r."tool" where r."word" = "memory";
 let memory-run = project(from=memory-words, columns=["file"]);
-let bench-products = capture(from=bench-files, path="file", pattern="{*product}/cli/benches/memory/main.rs", captures=["product"]);
-let memory-manifests = capture(from=memory-run, path="file", pattern="{*product}/asymptote.toml", captures=["product"]);
-let memory-missing = antijoin(left=bench-products, right=memory-manifests, left-on=["product"], right-on=["product"]);
+let bench-shipped = extend(from=bench-files, values={"workspace": "product"});
+let memory-run-rows = extend(from=memory-run, values={"workspace": "product"});
+let memory-ran = project(from=memory-run-rows, columns=["workspace"]);
+let memory-missing = antijoin(left=bench-shipped, right=memory-ran, left-on=["workspace"], right-on=["workspace"]);
 let memory-missing-cols = project(from=memory-missing, columns=["file"]);
 let memory-rows = extend(from=memory-missing-cols, values={"id": "memory", "problem": "is the memory bench, and no `memory` tool in group `memory` runs `--bench memory`"});
 let a = union(left=perf-rows, right=removed-id-rows);
@@ -74,15 +77,15 @@ message = "`{id}` {problem}"
 help = "One `smoke` tool in `release-tests` runs `--test smoke` on the CLI and `--test npm`/`--test pypi` on the distribution crate for each registry it ships to; the memory bench runs as tool `memory` in group `memory`; delete every `perf`-group tool and every run that names a removed target or a `::` test filter."
 
 [given]
-include = ['**/asymptote.toml', '**/distribution/npm/package.json', '**/distribution/pypi/pyproject.toml', '**/cli/benches/memory/main.rs']
+include = ['asymptote.toml', 'distribution/npm/package.json', 'distribution/pypi/pyproject.toml', 'cli/benches/memory/main.rs']
 
 [[scenarios]]
 id = 'agreed-wiring-passes'
 scenario = 'A product shipping to npm and PyPI with a memory bench, wired as agreed.'
-given.files.'demo/distribution/npm/package.json' = '{ "name": "@demo/demo" }'
-given.files.'demo/distribution/pypi/pyproject.toml' = '[project]'
-given.files.'demo/cli/benches/memory/main.rs' = 'fn main() {}'
-given.files.'demo/asymptote.toml' = '''
+given.files.'distribution/npm/package.json' = '{ "name": "@demo/demo" }'
+given.files.'distribution/pypi/pyproject.toml' = '[project]'
+given.files.'cli/benches/memory/main.rs' = 'fn main() {}'
+given.files.'asymptote.toml' = '''
 [[tools]]
 id = "smoke"
 group = "release-tests"
@@ -97,7 +100,7 @@ run = ["tool", "bench", "--package", "demo", "--bench", "memory"]
 [[scenarios]]
 id = 'old-wiring-is-refused'
 scenario = 'The old layout: filters matching no test, a perf tool, no smoke tool.'
-given.files.'demo/asymptote.toml' = '''
+given.files.'asymptote.toml' = '''
 [[tools]]
 id = "release-smoke"
 group = "release-tests"
@@ -109,38 +112,38 @@ group = "perf"
 run = ["tool", "bench", "--bench", "commands"]
 '''
 then.findings = [
-  { path = 'demo/asymptote.toml' },
-  { path = 'demo/asymptote.toml' },
-  { path = 'demo/asymptote.toml' },
-  { path = 'demo/asymptote.toml' },
-  { path = 'demo/asymptote.toml' },
-  { path = 'demo/asymptote.toml' },
+  { path = 'asymptote.toml' },
+  { path = 'asymptote.toml' },
+  { path = 'asymptote.toml' },
+  { path = 'asymptote.toml' },
+  { path = 'asymptote.toml' },
+  { path = 'asymptote.toml' },
 ]
 
 [[scenarios]]
 id = 'registry-not-smoked'
 scenario = 'A product ships to npm, and its smoke tool runs the CLI smoke alone.'
-given.files.'demo/distribution/npm/package.json' = '{ "name": "@demo/demo" }'
-given.files.'demo/asymptote.toml' = '''
+given.files.'distribution/npm/package.json' = '{ "name": "@demo/demo" }'
+given.files.'asymptote.toml' = '''
 [[tools]]
 id = "smoke"
 group = "release-tests"
 run = ["tool", "test", "--package", "demo", "--test", "smoke"]
 '''
 then.findings = [
-  { path = 'demo/distribution/npm/package.json' },
+  { path = 'distribution/npm/package.json' },
 ]
 
 [[scenarios]]
 id = 'memory-bench-not-run'
 scenario = 'The CLI holds the memory bench and no memory tool runs it.'
-given.files.'demo/cli/benches/memory/main.rs' = 'fn main() {}'
-given.files.'demo/asymptote.toml' = '''
+given.files.'cli/benches/memory/main.rs' = 'fn main() {}'
+given.files.'asymptote.toml' = '''
 [[tools]]
 id = "smoke"
 group = "release-tests"
 run = ["tool", "test", "--package", "demo", "--test", "smoke"]
 '''
 then.findings = [
-  { path = 'demo/cli/benches/memory/main.rs' },
+  { path = 'cli/benches/memory/main.rs' },
 ]

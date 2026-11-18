@@ -2,7 +2,7 @@
 
 ## 0.14.0
 
-`ignore`, `sysinfo` and `cpu-time` leave the workspace's dependencies, and `[profile.test.package.sysinfo]` the profiles: they served the distribution benches and the `commands` bench every product carried, which distribution 0.4.0 and cli 0.13.0 delete; Cargo refuses a workspace dependency no member uses. A product whose own crates use them (tastemaker's memory bench) keeps declaring them; the template holds what every product needs.
+`ignore`, `sysinfo` and `cpu-time` leave the workspace's dependencies, and `[profile.test.package.sysinfo]` the profiles: they served the distribution benches and the `commands` bench every product carried, which distribution 0.4.0 and cli 0.13.0 delete, and the template's own `[workspace.lints.cargo]` sets `unused_workspace_dependencies = "deny"`, so a product whose members no longer use them fails to build (asymptote). A product whose own crates use them (tastemaker's memory bench) keeps declaring them; the template holds what every product needs.
 
 ### Moving up from 0.13.0
 

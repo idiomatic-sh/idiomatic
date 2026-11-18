@@ -19,19 +19,6 @@ fn prints(command: Command, expected: impl snapbox::IntoData) {
 /// The npm command.
 const NPM: &str = if cfg!(windows) { "npm.cmd" } else { "npm" };
 
-/// The languages npm's build links: the PyPI wheel's, in the order `--version` lists them.
-const LANGUAGES: [&str; 9] = [
-    "css",
-    "go",
-    "html",
-    "json",
-    "markdown",
-    "python",
-    "rust",
-    "toml",
-    "typescript",
-];
-
 /// What an installation leaves in its scratch directory.
 struct Installation {
     /// The binary the wheel holds, which the host's platform package carries.
@@ -53,14 +40,33 @@ fn stdout(command: Command) -> String {
     String::from_utf8_lossy(&command.assert().success().get_output().stdout).into_owned()
 }
 
-/// What `--version` prints: the crate's version and, with theirs, exactly the wheel's languages.
-fn version() -> String {
-    let languages = LANGUAGES.map(|language| format!("{language} [..]"));
-    format!(
+/// What `--version` prints: the crate's version and the wheel's languages, PyPI's `tool.maturin.features`.
+fn version() -> std::io::Result<String> {
+    let project =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("pypi/pyproject.toml"))?
+            .parse::<toml::Table>()
+            .map_err(std::io::Error::other)?;
+    let features = project
+        .get("tool")
+        .and_then(|tool| tool.get("maturin"))
+        .and_then(|maturin| maturin.get("features"))
+        .and_then(toml::Value::as_array)
+        .filter(|features| !features.is_empty())
+        .ok_or_else(|| std::io::Error::other("pyproject.toml names no language"))?;
+    let languages = features
+        .iter()
+        .map(|feature| {
+            feature
+                .as_str()
+                .map(|language| format!("{language} [..]"))
+                .ok_or_else(|| std::io::Error::other("a feature is not a string"))
+        })
+        .collect::<std::io::Result<Vec<_>>>()?;
+    Ok(format!(
         "tm {} ({})\n",
         env!("CARGO_PKG_VERSION"),
         languages.join(", ")
-    )
+    ))
 }
 
 /// The host's target triple, as rustc names it.
@@ -308,7 +314,7 @@ fn installs_and_runs() {
     );
     prints(
         Command::new(&installation.command).arg("--version"),
-        version(),
+        version().unwrap(),
     );
     probe(&installation.command).unwrap();
     // The launcher passes arguments and the exit status through: an argument the command refuses

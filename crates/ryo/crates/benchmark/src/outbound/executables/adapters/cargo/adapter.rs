@@ -80,8 +80,9 @@ fn copy_executable(source: &Path, sealed: &Path) -> std::io::Result<()> {
 
 /// Copy `source` to `sealed` as an executable, write its seal record beside it, and answer its digest.
 fn seal(source: &Path, sealed: &Path) -> Result<Sealed, Error> {
-    let bytes = std::fs::read(source)?;
     copy_executable(source, sealed)?;
+    // The digest is the sealed copy's own: what runs is what the record names.
+    let bytes = std::fs::read(sealed)?;
     let copy = Sealed {
         path: sealed.to_owned(),
         sha256: Sha256Text(format!("{:x}", Sha256::digest(&bytes))),
