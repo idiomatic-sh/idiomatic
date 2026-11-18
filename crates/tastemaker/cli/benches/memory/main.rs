@@ -1,0 +1,152 @@
+//! tastemaker's memory bench: the command line crate installed as Cargo installs it, then five rounds over
+//! the Ruff target beside this file (`ruff/`), each run on four CPUs: the peak memory of a cold `check`,
+//! and the wall milliseconds and peak memory of `validate` over the target's definitions, cold and
+//! warm. It prints one Bencher Metric Format document on stdout (benchmark = `ruff`, measures
+//! `cold-peak-kib`, `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib`: `value` the
+//! median of the rounds, `lower_value` the lowest, `upper_value` the highest) and every line meant
+//! for a person on stderr; asymptote's `memory` tool judges the document against its lock, and the
+//! bench asserts no budget. It first runs its proofs (the target's preparation and summary) and
+//! then its instrument's checks; without `--bench`, as `cargo test` runs it, it runs the proofs
+//! alone. It fails when a proof or the instrument fails, or a run cannot start or prints other
+//! findings, or ends with another exit code, than `ruff/findings.toml` states.
+
+mod executable;
+mod install;
+mod instrument;
+mod measure;
+mod project;
+mod proof;
+mod resources;
+
+use std::io::Write as _;
+use std::path::Path;
+use std::process::ExitCode;
+
+/// The target the bench measures, the directory beside this file: its pin, configuration,
+/// findings and policy.
+const TARGET: &str = "ruff";
+
+/// What the bench takes of each round: the peak of the cold check, and `validate` over the
+/// target's definitions cold and warm.
+#[derive(Default)]
+struct Memory {
+    /// The cold check's peak memory in kibibytes, one per round.
+    check_peak: Vec<u128>,
+    /// `validate`'s wall milliseconds on a fresh checkout, one per round.
+    validate_cold: Vec<u128>,
+    /// `validate`'s wall milliseconds over what the cold run proved, one per round.
+    validate_warm: Vec<u128>,
+    /// The larger peak memory of the two validations in kibibytes, one per round.
+    validate_peak: Vec<u128>,
+}
+
+/// One round over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is
+/// kept, then `validate` over a second fresh checkout, cold and again warm.
+fn round(
+    command: &Path,
+    target: &Path,
+    snapshot: &Path,
+    taken: &mut Memory,
+) -> std::io::Result<()> {
+    let kibibytes = |bytes: u64| u128::from(bytes) / 1024;
+    let scratch = tempfile::tempdir()?;
+    let (_, project) = project::checkout(command, target, snapshot, scratch.path())?;
+    let (_, _, check_peak) = measure::measure(
+        command,
+        &project,
+        scratch.path(),
+        &target.join("findings.toml"),
+    )?;
+    taken.check_peak.push(kibibytes(check_peak));
+    let proving = tempfile::tempdir()?;
+    let (_, project) = project::checkout(command, target, snapshot, proving.path())?;
+    let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
+    let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
+    taken.validate_cold.push(cold);
+    taken.validate_warm.push(warm);
+    taken
+        .validate_peak
+        .push(kibibytes(cold_peak.max(warm_peak)));
+    Ok(())
+}
+
+/// The median of the rounds of a cost: the middle one, or the mean of the two in the middle; 0 for
+/// no rounds.
+fn median(rounds: &[u128]) -> u128 {
+    let mut sorted = rounds.to_vec();
+    sorted.sort_unstable();
+    let middle = sorted.len() / 2;
+    let upper = sorted.get(middle).copied().unwrap_or_default();
+    if sorted.len().is_multiple_of(2)
+        && let Some(lower) = middle.checked_sub(1).and_then(|index| sorted.get(index))
+    {
+        lower.midpoint(upper)
+    } else {
+        upper
+    }
+}
+
+/// The measures as one Bencher Metric Format document, under the target's name.
+fn document(taken: &Memory) -> serde_json::Value {
+    let measure = |rounds: &[u128]| {
+        let number = |value: u128| u64::try_from(value).unwrap_or(u64::MAX);
+        serde_json::json!({
+            "value": number(median(rounds)),
+            "lower_value": number(rounds.iter().min().copied().unwrap_or_default()),
+            "upper_value": number(rounds.iter().max().copied().unwrap_or_default()),
+        })
+    };
+    serde_json::json!({
+        TARGET: {
+            "cold-peak-kib": measure(&taken.check_peak),
+            "validate-cold-ms": measure(&taken.validate_cold),
+            "validate-warm-ms": measure(&taken.validate_warm),
+            "validate-peak-kib": measure(&taken.validate_peak),
+        }
+    })
+}
+
+/// The instrument's checks, then the install, the rounds and the document.
+fn bench() -> std::io::Result<serde_json::Value> {
+    instrument::check().map_err(|error| {
+        std::io::Error::other(format!("the instrument fails its check: {error}"))
+    })?;
+    measure::allocation()?;
+    let target = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("benches/memory")
+        .join(TARGET);
+    let snapshot = project::preparation::snapshot(&target)?;
+    let installed = tempfile::tempdir()?;
+    let command = install::cargo_install(installed.path())?;
+    let mut taken = Memory::default();
+    for _ in 0..measure::ROUNDS {
+        round(&command, &target, &snapshot, &mut taken)?;
+    }
+    writeln!(
+        std::io::stderr().lock(),
+        "{TARGET}: rounds={} workers={}",
+        measure::ROUNDS,
+        measure::WORKERS
+    )?;
+    Ok(document(&taken))
+}
+
+/// Runs the proofs, and under `cargo bench` (`--bench`) measures and prints the document: success
+/// unless a proof or the instrument fails, or a run cannot run or prints other findings.
+fn main() -> ExitCode {
+    let measured = proof::check().and_then(|()| {
+        if std::env::args().any(|each| each == "--bench") {
+            bench().and_then(|document| writeln!(std::io::stdout().lock(), "{document}"))
+        } else {
+            Ok(())
+        }
+    });
+    match measured {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            // A closed standard error leaves nothing to report to: the exit code still says the bench failed.
+            drop(writeln!(std::io::stderr().lock(), "{error}"));
+            ExitCode::FAILURE
+        }
+    }
+}

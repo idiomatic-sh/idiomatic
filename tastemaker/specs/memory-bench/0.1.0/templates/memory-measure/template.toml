@@ -6,8 +6,9 @@ content = '''
 //! One measured run: wall and child-inclusive CPU from hyperfine, peak memory from hyperfine
 //! and the sampled process tree, under an address-space cap on a fixed CPU allocation.
 
+use super::install::output;
+use super::project;
 use super::resources;
-use super::{output, project};
 use std::io::Write as _;
 use std::path::Path;
 use std::process::Command;
@@ -209,8 +210,9 @@ given.files.'measure.rs' = '''
 //! One measured run: wall and child-inclusive CPU from hyperfine, peak memory from hyperfine
 //! and the sampled process tree, under an address-space cap on a fixed CPU allocation.
 
+use super::install::output;
+use super::project;
 use super::resources;
-use super::{output, project};
 use std::io::Write as _;
 use std::path::Path;
 use std::process::Command;
@@ -416,8 +418,9 @@ given.files.'measure.rs' = '''
 //! One measured run: wall and child-inclusive CPU from hyperfine, peak memory from hyperfine
 //! and the sampled process tree, under an address-space cap on a fixed CPU allocation.
 
+use super::install::output;
+use super::project;
 use super::resources;
-use super::{output, project};
 use std::io::Write as _;
 use std::path::Path;
 use std::process::Command;

@@ -53,7 +53,7 @@ mod resources;
 
 use std::io::Write as _;
 use std::path::Path;
-use std::process::{Command, ExitCode};
+use std::process::ExitCode;
 
 /// The target the bench measures, the directory beside this file: its pin, configuration,
 /// findings and policy.
@@ -71,27 +71,6 @@ struct Memory {
     validate_warm: Vec<u128>,
     /// The larger peak memory of the two validations in kibibytes, one per round.
     validate_peak: Vec<u128>,
-}
-
-/// Runs `command` to completion for its effect, or answers an error carrying both of its
-/// outputs when it fails.
-pub(crate) fn run(command: &mut Command) -> std::io::Result<()> {
-    output(command).map(drop)
-}
-
-/// Runs `command` to completion and answers its standard output, or an error carrying both
-/// of its outputs when it fails.
-pub(crate) fn output(command: &mut Command) -> std::io::Result<String> {
-    let ran = command.output()?;
-    if !ran.status.success() {
-        return Err(std::io::Error::other(format!(
-            "{command:?} failed with {}:\n{}{}",
-            ran.status,
-            String::from_utf8_lossy(&ran.stdout),
-            String::from_utf8_lossy(&ran.stderr)
-        )));
-    }
-    String::from_utf8(ran.stdout).map_err(std::io::Error::other)
 }
 
 /// One round over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is
@@ -209,8 +188,9 @@ given.files.'measure.rs' = '''
 //! One measured run: wall and child-inclusive CPU from hyperfine, peak memory from hyperfine
 //! and the sampled process tree, under an address-space cap on a fixed CPU allocation.
 
+use super::install::output;
+use super::project;
 use super::resources;
-use super::{output, project};
 use std::io::Write as _;
 use std::path::Path;
 use std::process::Command;
@@ -863,7 +843,8 @@ given.files.'executable.rs' = '''
 '''
 given.files.'install.rs' = '''
 //! The command the bench measures: the command line crate installed under a scratch root by Cargo's
-//! install, in the release profile with its default features, as a user installs it from crates.io.
+//! install, in the release profile with its default features, as a user installs it from crates.io;
+//! and the runs of a command to completion that the install, the checkout and the measures share.
 '''
 given.files.'project.rs' = '''
 //! The target's checkout and its findings guard: a fresh copy of the target's pinned revision, with
@@ -961,7 +942,7 @@ mod resources;
 
 use std::io::Write as _;
 use std::path::Path;
-use std::process::{Command, ExitCode};
+use std::process::ExitCode;
 
 /// The target the bench measures, the directory beside this file: its pin, configuration,
 /// findings and policy.
@@ -979,27 +960,6 @@ struct Memory {
     validate_warm: Vec<u128>,
     /// The larger peak memory of the two validations in kibibytes, one per round.
     validate_peak: Vec<u128>,
-}
-
-/// Runs `command` to completion for its effect, or answers an error carrying both of its
-/// outputs when it fails.
-pub(crate) fn run(command: &mut Command) -> std::io::Result<()> {
-    output(command).map(drop)
-}
-
-/// Runs `command` to completion and answers its standard output, or an error carrying both
-/// of its outputs when it fails.
-pub(crate) fn output(command: &mut Command) -> std::io::Result<String> {
-    let ran = command.output()?;
-    if !ran.status.success() {
-        return Err(std::io::Error::other(format!(
-            "{command:?} failed with {}:\n{}{}",
-            ran.status,
-            String::from_utf8_lossy(&ran.stdout),
-            String::from_utf8_lossy(&ran.stderr)
-        )));
-    }
-    String::from_utf8(ran.stdout).map_err(std::io::Error::other)
 }
 
 /// One round over a fresh checkout of `snapshot`, kept in `taken`: the cold check, whose peak is
@@ -1117,8 +1077,9 @@ given.files.'measure.rs' = '''
 //! One measured run: wall and child-inclusive CPU from hyperfine, peak memory from hyperfine
 //! and the sampled process tree, under an address-space cap on a fixed CPU allocation.
 
+use super::install::output;
+use super::project;
 use super::resources;
-use super::{output, project};
 use std::io::Write as _;
 use std::path::Path;
 use std::process::Command;
@@ -1771,7 +1732,8 @@ given.files.'executable.rs' = '''
 '''
 given.files.'install.rs' = '''
 //! The command the bench measures: the command line crate installed under a scratch root by Cargo's
-//! install, in the release profile with its default features, as a user installs it from crates.io.
+//! install, in the release profile with its default features, as a user installs it from crates.io;
+//! and the runs of a command to completion that the install, the checkout and the measures share.
 '''
 given.files.'project.rs' = '''
 //! The target's checkout and its findings guard: a fresh copy of the target's pinned revision, with

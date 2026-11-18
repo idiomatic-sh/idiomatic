@@ -79,11 +79,11 @@ fn validated(directory: &std::path::Path) -> Result<(), String> {
     }
 }
 
-/// Validating the crate's own distribution fixture package (a rule with its scenarios) succeeds, cold and then warm. How long validating
-/// takes and how much memory it reaches are measured over a pinned target by the `distribution` bench's memory run, which asymptote
+/// Validating the memory bench's policy package (a rule with its scenarios, `benches/memory/ruff/policy`) succeeds, cold and then warm.
+/// How long validating takes and how much memory it reaches are measured over a pinned target by the `memory` bench, which asymptote
 /// holds to its best.
 #[test]
-fn validating_the_distribution_fixture_succeeds_cold_and_warm() {
+fn validating_the_memory_bench_policy_succeeds_cold_and_warm() {
     let scratch = tempfile::tempdir().expect("the scene directory");
     let git = std::process::Command::new("git")
         .args(["init", "-q"])
@@ -92,7 +92,7 @@ fn validating_the_distribution_fixture_succeeds_cold_and_warm() {
         .expect("git starts");
     assert!(git.success(), "git init succeeds");
     crate::fixes::copy(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/distribution/cargo"),
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("benches/memory/ruff/policy"),
         &scratch.path().join("policy"),
     )
     .expect("the fixture copied");

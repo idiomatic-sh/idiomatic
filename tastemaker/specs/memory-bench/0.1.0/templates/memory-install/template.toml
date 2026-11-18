@@ -2,7 +2,8 @@ description = "The command the bench measures: the command line crate installed 
 why = "The bench measures the command a user installs, built as crates.io builds it."
 content = '''
 //! The command the bench measures: the command line crate installed under a scratch root by Cargo's
-//! install, in the release profile with its default features, as a user installs it from crates.io.
+//! install, in the release profile with its default features, as a user installs it from crates.io;
+//! and the runs of a command to completion that the install, the checkout and the measures share.
 '''
 
 [given]
@@ -13,7 +14,8 @@ id = 'rendered-template-passes'
 scenario = 'The rendered template passes.'
 given.files.'install.rs' = '''
 //! The command the bench measures: the command line crate installed under a scratch root by Cargo's
-//! install, in the release profile with its default features, as a user installs it from crates.io.
+//! install, in the release profile with its default features, as a user installs it from crates.io;
+//! and the runs of a command to completion that the install, the checkout and the measures share.
 '''
 
 [[scenarios]]

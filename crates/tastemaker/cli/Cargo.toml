@@ -69,15 +69,9 @@ tempfile.workspace = true
 trycmd.workspace = true
 shlex.workspace = true
 
-[[bench]]
-name = "commands"
-path = "benches/performance/main.rs"
-harness = false
-
 # One feature for each language this build links. Every language is a default:
 # a registry's build or a check names its own set with `--no-default-features --features ...`.
 [features]
-distribution = []
 default = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 fixtures = ["dep:tempfile"]
 # A diagnostic build: `--timings=phases` prints the outer phases of a command and when each began and ended (Linux).
@@ -96,16 +90,13 @@ toml = ["dep:ryo_toml"]
 workspace = true
 
 [[test]]
-name = "distribution"
-path = "../distribution/smoke_test.rs"
-required-features = ["distribution"]
-test = false
+name = "smoke"
+test = false          # installs the crate with Cargo: run when named (tool `smoke`)
 
 [[bench]]
-name = "distribution"
-path = "../distribution/benches/bench.rs"
+name = "memory"
+path = "benches/memory/main.rs"
 harness = false
-required-features = ["distribution"]
 test = false
 
 # cargo-binstall's prebuilt binary: the GitHub Release of the package's own tag, `<package>-v<version>`, holds one archive
