@@ -6,7 +6,9 @@
 //! `lower_value` the fastest, `upper_value` the slowest) and every line meant for a person
 //! on stderr; Asymptote's `perf` group judges the document against the ratchet, and the
 //! bench asserts no budget. `-- --memory` runs the cargo registry's targets alone and takes `cold-peak-kib`, the peak memory of the cold check,
-//! and `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib` of `validate` over the target's definitions, each run on four CPUs.
+//! and `validate-peak-kib`, the larger peak of `validate` over the target's definitions cold and warm, each run on four CPUs: the
+//! deterministic measures a pull request is judged by. The wall times of those validations, `validate-cold-ms` and `validate-warm-ms`,
+//! are the timing run's (no `--memory`), beside the cold, warm and edit times, which no pull request runs.
 //! The bench asserts no budget. The performance job runs
 //! `cargo bench -p idiomatic-sh-tastemaker --features distribution --bench distribution`, and it is never
 //! part of a test run. It fails when its instrument fails its own checks, or a target
@@ -34,8 +36,8 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// What `--memory` takes of the cargo registry's targets alone instead of the timings: the peak of the cold check, and `validate`
-/// over the target's definitions cold and warm.
+/// What the memory rounds take of a cargo registry target: the peak of the cold check, and `validate` over the target's definitions
+/// cold and warm. `--memory` publishes the peaks; the timing run publishes `validate`'s wall times.
 #[derive(Default)]
 struct Memory {
     /// The cold check's peak memory in kibibytes, one per round.
@@ -151,6 +153,13 @@ fn prove(
             measure::WORKERS
         ));
     }
+    // The cargo registry's targets also take `validate`'s wall times here, never in `--memory`: a time does not gate a pull request.
+    let mut validations = Memory::default();
+    if registry == "cargo" {
+        for _ in 0..ROUNDS {
+            memory_round(command, target, &snapshot, &mut validations)?;
+        }
+    }
     let mut rounds = Vec::new();
     for index in 0..ROUNDS {
         let measured = round(command, target, &snapshot, index < WARM_ROUNDS)?;
@@ -178,7 +187,7 @@ fn prove(
         cold: phase(0),
         warm: phase(1),
         edit: phase(2),
-        memory: Memory::default(),
+        memory: validations,
     });
     Ok(format!(
         "cold rounds={ROUNDS} warm and edit rounds={WARM_ROUNDS} workers={} rounds={rounds:?}",
@@ -208,8 +217,9 @@ fn median(rounds: &[u128]) -> u128 {
     }
 }
 
-/// The measures as one Bencher Metric Format document: the timings of every target, or with `memory` the memory measures
-/// of the targets that took them. A measure is held under one asymptote tool, so no document carries both.
+/// The measures as one Bencher Metric Format document: the timings of every target (with `validate`'s for the targets that took
+/// them), or with `memory` the peak memory of the targets that took it. A measure is held under one asymptote tool, so no document
+/// carries both.
 fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
     let measure = |rounds: &[u128]| {
         let number = |value: u128| u64::try_from(value).unwrap_or(u64::MAX);
@@ -225,16 +235,19 @@ fn document(kept: &[Measured], memory: bool) -> serde_json::Value {
                 let measures = if memory {
                     serde_json::json!({
                         "cold-peak-kib": measure(&each.memory.check_peak),
-                        "validate-cold-ms": measure(&each.memory.validate_cold),
-                        "validate-warm-ms": measure(&each.memory.validate_warm),
                         "validate-peak-kib": measure(&each.memory.validate_peak),
                     })
                 } else {
-                    serde_json::json!({
+                    let mut times = serde_json::json!({
                         "cold-ms": measure(&each.cold),
                         "warm-ms": measure(&each.warm),
                         "edit-ms": measure(&each.edit),
-                    })
+                    });
+                    if !each.memory.validate_cold.is_empty() {
+                        times["validate-cold-ms"] = measure(&each.memory.validate_cold);
+                        times["validate-warm-ms"] = measure(&each.memory.validate_warm);
+                    }
+                    times
                 };
                 (each.benchmark.clone(), measures)
             })

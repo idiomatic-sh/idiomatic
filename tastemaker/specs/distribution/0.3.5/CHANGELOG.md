@@ -7,7 +7,12 @@ the children's wall on a development machine and 44% on a GitHub-hosted runner, 
 its members and each one's children, transitively (`/proc/<pid>/task/<thread>/children`), with each process's parent and start
 time from `/proc/<pid>/stat` and its resident bytes from the `VmRSS` of `/proc/<pid>/status`. Its cost follows the tree. Elsewhere
 the observation reads every process through sysinfo, as before. `Tree` is unchanged and the instrument's checks and bounds are
-as in 0.3.4. Everything else is as in 0.3.4.
+as in 0.3.4.
+
+With `validate`, `--memory` takes the deterministic measures alone, `cold-peak-kib` and `validate-peak-kib`, which a pull request is
+judged by: a wall time on a shared runner judges none. `validate-cold-ms` and `validate-warm-ms` move to the timing run (no
+`--memory`), whose cargo registry targets take the memory rounds' `validate` beside their cold, warm and edit times. Without
+`validate` the bench is as in 0.3.4. Everything else is as in 0.3.4.
 
 # distribution 0.3.4
 

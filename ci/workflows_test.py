@@ -82,7 +82,7 @@ COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 # The one other job command: seeding ryo's bench lock on the runner that judges it, after the check of both bench groups: what
 # it found unseeded or over its best recorded (`up`), and the records of measures no tool reports any more dropped (`down`)
 # (benchmarks.yml).
-SEED = re.compile(r'asymptote (up --root crates/ryo --reason "seed on [\w.-]+"|down --root crates/ryo)')
+SEED = re.compile(r'asymptote (up --root crates/[\w-]+ --reason "seed on [\w.-]+"|down --root crates/[\w-]+)')
 # The check a seed stands on: the bench group alone (the timing group repeats the whole bench, and no job runs it twice).
 SEED_CHECK = "asymptote check --root crates/ryo --groups bench"
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
@@ -282,7 +282,7 @@ def checks(job: dict) -> list[int]:
 
 
 def seeds(job: dict) -> list[int]:
-    """The positions of the job's steps that seed one linter bench's lock."""
+    """The positions of the job's steps that seed a product's lock: ryo's bench, or Tastemaker's memory records."""
     return [index for index, step in enumerate(job["steps"]) if SEED.fullmatch(step.get("run", "").strip())]
 
 
@@ -2002,3 +2002,31 @@ def test_the_bench_lock_is_seeded_only_by_hand() -> None:
     assert upload["uses"].startswith(UPLOAD) and upload["if"] == "always()"
     assert upload["with"]["path"].split() == ["crates/ryo/.asymptote/operations/", "target/benchmark/"]
     assert "asymptote up" not in read(DIRECTORY / "check.yml")
+
+
+def pull_request_time_problems(manifests: dict[str, dict], check: str) -> list[str]:
+    """Every tool, in any product, of a group the check workflow asks for (which a pull request runs) that holds a wall time (a
+    measure in `-ms` or `-s`) to a tolerance: a time on a shared runner never judges a pull request (the owner's decision of
+    2026-11-17), in any product, not only ryo's bench."""
+    asked = {group for listed in re.findall(r"--groups (\S+)", check) if "${{" not in listed for group in listed.split(",")}
+    found = []
+    for name, manifest in manifests.items():
+        for tool in manifest["tools"]:
+            if tool["group"] in asked:
+                timed = sorted(measure for measure in tool.get("tolerance-percent", {}) if re.search(r"-m?s$", measure))
+                found += [f"{name}: {tool['id']} ({tool['group']}) holds the time {measure} to a tolerance" for measure in timed]
+    return found
+
+
+def test_no_tool_a_pull_request_runs_holds_a_time() -> None:
+    manifests = {str(path.parent.relative_to(ROOT)): tomllib.loads(read(path)) for path in [ROOT / "asymptote.toml", *listed(ROOT, "crates/*/asymptote.toml")]}
+    check = read(DIRECTORY / "check.yml")
+    assert pull_request_time_problems(manifests, check) == []
+    # Planted: Tastemaker's memory tool as #52 first had it, holding `validate`'s wall times beside its peaks.
+    planted = deepcopy(manifests)
+    (memory,) = [tool for tool in planted["crates/tastemaker"]["tools"] if tool["id"] == "memory-distribution"]
+    memory["tolerance-percent"] |= {"validate-cold-ms": 25, "validate-warm-ms": 50}
+    assert pull_request_time_problems(planted, check) == [
+        "crates/tastemaker: memory-distribution (memory) holds the time validate-cold-ms to a tolerance",
+        "crates/tastemaker: memory-distribution (memory) holds the time validate-warm-ms to a tolerance",
+    ]
