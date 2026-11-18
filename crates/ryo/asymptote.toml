@@ -293,9 +293,9 @@ id = "bench-timing"
 group = "bench-timing"
 # The same run as `bench`, publishing its timing measures alone: the cold, warm and edited runs' CPU and wall seconds, each
 # rule's verification times and each shape's growth. A shared runner moves them from run to run, so no pull request is judged
-# by them: no workflow a pull request starts runs this group. benchmarks.yml's hand-run bench-seed job checks and seeds it
-# on the runner, and a developer runs it to read a change's cost. The one pin of every timed measure: the whole process tree
-# runs on processors 0-3 with RAYON_NUM_THREADS=4.
+# by them. It repeats the whole bench, so no workflow runs it (no job runs the bench twice): a developer runs it alone to
+# read a change's cost. The one pin of every timed measure: the whole process tree runs on processors 0-3 with
+# RAYON_NUM_THREADS=4.
 run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "bench-timing", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 tolerance-percent = { cpu-s = 10, wall-s = 15, warm-cpu-s = 10, edited-cpu-s = 10, total-ms = 10, max-case-ms = 10, compile-ms = 10, doubling-ratio = 10, larger-ms = 10 }

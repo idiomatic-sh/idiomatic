@@ -83,8 +83,8 @@ COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 # it found unseeded or over its best recorded (`up`), and the records of measures no tool reports any more dropped (`down`)
 # (benchmarks.yml).
 SEED = re.compile(r'asymptote (up --root crates/ryo --reason "seed on [\w.-]+"|down --root crates/ryo)')
-# The check a seed stands on: both bench groups, the deterministic and the timing one.
-SEED_CHECK = "asymptote check --root crates/ryo --groups bench,bench-timing"
+# The check a seed stands on: the bench group alone (the timing group repeats the whole bench, and no job runs it twice).
+SEED_CHECK = "asymptote check --root crates/ryo --groups bench"
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
 # What may start a workflow: a hand run, and a pull request to main for the workflows `REQUESTED` names, the check alone (GitHub's
 # standard hosted runners are free on a public repository). The workflows `PUSHED` names may start on a push to main too, which
@@ -1908,6 +1908,66 @@ def test_a_timing_measure_never_gates_the_pull_request_bench() -> None:
         if step.get("run") == BENCH_JOB_CHECK:
             step["run"] = BENCH_JOB_CHECK + ",bench-timing"
     assert timing_gate_problems(manifest, gated) == ["check.yml runs bench-timing in bench, which a pull request starts"]
+
+
+# The command every bench tool runs: one full bench, whatever measures it publishes.
+BENCH_RUN = "ryo-benchmark-collector"
+
+
+def groups_of(job: dict) -> list[set[str]]:
+    """The groups each instance of the job checks: each `--groups` of its steps, a matrix row's (`matrix.check.groups`,
+    `matrix.group`) or the groups a `groups` step names (`steps.groups.outputs.groups`) expanded per row."""
+    rows = job.get("strategy", {}).get("matrix", {}).get("check") or job.get("strategy", {}).get("matrix", {}).get("include")
+    rows = [dict(row) for row in RELEASE_ROWS] if rows == HAND_ROWS else rows if isinstance(rows, list) else [{}]
+    named = {step.get("id"): step.get("run", "") for step in job.get("steps", [])}
+    found = []
+    for row in rows:
+        listed: set[str] = set()
+        for step in job.get("steps", []):
+            run = step.get("run", "")
+            if not run.startswith("asymptote check"):
+                continue
+            run = run.replace("${{ steps.groups.outputs.groups }}", (re.search(r"--groups (\S+)", named.get("groups", "")) or [None, ""])[1])
+            run = run.replace("${{ matrix.check.groups }}", row.get("groups", "")).replace("${{ matrix.group }}", row.get("group", ""))
+            matched = re.search(r"--groups (\S+)", run)
+            listed |= set(matched[1].split(",")) if matched else set()
+        found.append(listed)
+    return found
+
+
+def twice_problems(workflows: dict[str, dict], tools: list[dict]) -> list[str]:
+    """Each job instance whose groups hold more than one tool that runs the whole bench."""
+    benches = {tool["group"] for tool in tools if BENCH_RUN in tool["run"]}
+    found = []
+    for name, workflow in workflows.items():
+        for job_name, job in workflow["jobs"].items():
+            for listed in groups_of(job):
+                running = sorted(listed & benches)
+                if len(running) > 1 or any(sum(1 for tool in tools if tool["group"] == group and BENCH_RUN in tool["run"]) > 1 for group in running):
+                    found.append(f"{name} runs the bench twice in {job_name}: {running}")
+    return sorted(set(found))
+
+
+def test_no_job_runs_the_bench_twice() -> None:
+    """A full bench run takes hours: no job checks two groups whose tools each run it, and no group holds two such tools.
+    `bench-timing` repeats the bench, so no workflow runs it."""
+    workflows = {path.name: yaml.safe_load(read(path)) for path in WORKFLOWS}
+    tools = tomllib.loads(read(ROOT / "crates/ryo/asymptote.toml"))["tools"]
+    assert twice_problems(workflows, tools) == []
+    # Planted: the cancelled seed run's job, which checked both bench groups.
+    planted = deepcopy(workflows)
+    for step in planted["benchmarks.yml"]["jobs"]["bench-seed"]["steps"]:
+        if step.get("run") == SEED_CHECK:
+            step["run"] = SEED_CHECK + ",bench-timing"
+    assert twice_problems(planted, tools) == ["benchmarks.yml runs the bench twice in bench-seed: ['bench', 'bench-timing']"]
+    # Planted: a second full-bench tool in the gating group.
+    doubled = [*tools, {**next(tool for tool in tools if tool["id"] == "bench-timing"), "group": "bench"}]
+    assert twice_problems(workflows, doubled) == [
+        "benchmarks.yml runs the bench twice in bench-seed: ['bench']",
+        "check.yml runs the bench twice in bench: ['bench']",
+        "release.yml runs the bench twice in check: ['bench']",
+    ]
+    assert not [name for name, workflow in workflows.items() if any("bench-timing" in str(job) for job in workflow["jobs"].values())]
 
 
 def test_the_bench_lock_is_seeded_only_by_hand() -> None:

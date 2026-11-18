@@ -1,8 +1,8 @@
 # Seeds ryo's bench lock, started only by hand (no paid CI: no schedule), on Linux: the `bench-seed` job checks every linter
-# bench of the `bench` group (the deterministic measures a pull request is judged by) and of the `bench-timing` group (the
-# times, which no pull request is judged by) once on this hosted runner, then records what the check found unseeded or over
-# its best (`asymptote up`) and drops the records of measures no tool reports any more (`asymptote down`), so the check
-# workflow's `bench` job judges each pull request against records of the same runner. It restores no asymptote store: a
+# bench of the `bench` group (the deterministic measures a pull request is judged by) once on this hosted runner, then records
+# what the check found unseeded or over its best (`asymptote up`) and drops the records of measures no tool reports any more
+# (`asymptote down`), so the check workflow's `bench` job judges each pull request against records of the same runner. The
+# `bench-timing` group is not run here: it repeats the whole bench, and no job runs the bench twice. It restores no asymptote store: a
 # reused tool writes no receipts, and the upload requires them.
 name: benchmarks
 on:
@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 jobs:
-  # Seeds the bench lock on the runner that judges it: both bench groups checked once, their medians taken as the lock's, and
+  # Seeds the bench lock on the runner that judges it: the bench group checked once, its medians taken as the lock's, and
   # the lock uploaded for a commit. A run whose lock did not yet hold this runner's numbers ends red at its check, which is
   # what it is here to seed; its new lock files are the result. `up` and `down` run after a check that finished, red or
   # green, and both refuse a check in which a tool failed (a bench whose reference differs), so nothing is seeded from it.
@@ -61,7 +61,7 @@ jobs:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
       - id: check
-        run: asymptote check --root crates/ryo --groups bench,bench-timing
+        run: asymptote check --root crates/ryo --groups bench
       - id: up
         if: ${{ !cancelled() && (steps.check.outcome == 'success' || steps.check.outcome == 'failure') }}
         run: asymptote up --root crates/ryo --reason "seed on ubuntu-26.04"
