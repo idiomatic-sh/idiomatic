@@ -8,7 +8,7 @@ It runs the same on a laptop and in CI: `uv run ci/tag/command.py --help`.
     uv run ci/tag/command.py --dry-run
 
 It names, as a JSON list, the products the checkout's commit releases: each whose workspace version in `crates/<product>/Cargo.toml`
-differs from the parent commit's and whose tag, `idiomatic-sh-<product>-v<version>`, does not exist yet. `--push` then creates
+has no tag yet, `idiomatic-sh-<product>-v<version>`. `--push` then creates
 each of those tags at the commit. On GitHub Actions the list is also the job's `products` output, which the release's build and
 publish run over.
 """
