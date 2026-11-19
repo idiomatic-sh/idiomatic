@@ -45,6 +45,9 @@ pub(crate) fn base_rows(
             let Some(select) = select else {
                 return Some(true);
             };
+            if never_holds(select, view.kinds) {
+                return Some(false);
+            }
             let kernel = filter(select, view.kinds, run.resources.texts());
             let decisions = buffers.decisions.get_mut(place)?;
             readied(decisions);
@@ -67,6 +70,9 @@ pub(crate) fn base_rows(
             let Some(select) = select else {
                 return Some(true);
             };
+            if never_holds(select, tree.kinds) {
+                return Some(false);
+            }
             let kernel = filter(select, tree.kinds, run.resources.texts());
             let decisions = buffers.decisions.get_mut(place)?;
             readied(decisions);
@@ -87,4 +93,26 @@ pub(crate) fn base_rows(
 /// Whether every kept column is one of the row's `width` columns: a select keeping another faults even with no row kept.
 fn kept_in(kept: &[ryo_values::domain::plan_parts::types::ColumnIndex], width: usize) -> bool {
     kept.iter().all(|column| usize::try_from(column.0).is_ok_and(|at| at < width))
+}
+
+/// Whether the select's first comparison holds for no row and faults on none: a node or number column compared with itself
+/// by `!=`, `<` or `>`.
+fn never_holds(
+    select: &crate::domain::select::types::SelectParts,
+    kinds: &[ryo_relations::domain::relations::types::CellKind],
+) -> bool {
+    use ryo_relations::domain::relations::types::CellKind;
+    use ryo_values::domain::plan_parts::types::{Operand, Test};
+    let Some(first) = select.comparisons.first() else {
+        return false;
+    };
+    let (Operand::Column(left), Operand::Column(right)) = (&first.left, &first.right) else {
+        return false;
+    };
+    left == right
+        && matches!(first.test, Test::NotEqual | Test::LessThan | Test::GreaterThan)
+        && usize::try_from(left.0)
+            .ok()
+            .and_then(|at| kinds.get(at))
+            .is_some_and(|kind| matches!(kind, CellKind::Node | CellKind::Number))
 }
