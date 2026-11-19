@@ -69,6 +69,10 @@ fn key_of(source: RowSource, comparisons: &[PlanComparison]) -> Option<SelectKey
 /// The `keyed_select` rewrite: the filters of one relation keyed on one of its columns become lookups of one shared index of
 /// it when two or more of them key on it; a single one keeps its scan, which costs less than an index.
 fn keyed_selects(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
+    // Spike (ryo-fmx3): the partition of sibling constant filters answers them lazily instead.
+    if crate::spike::fanout_lookups() {
+        return;
+    }
     let mut keyed = KeyedIndexes::default();
     let mut keys: Vec<Vec<SelectKey>> = Vec::new();
     for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {

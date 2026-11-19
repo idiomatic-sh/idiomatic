@@ -88,6 +88,21 @@ pub fn killers_off() -> bool {
     *OFF.get_or_init(|| std::env::var_os("RYO_NO_KILLERS").is_some())
 }
 
+/// Spike (ryo-fmx3): whether sibling constant filters read one partition of their source (`RYO_NO_FANOUT` switches it off),
+/// set once.
+pub fn fanout() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RYO_NO_FANOUT").is_none())
+}
+
+/// Spike (ryo-fmx3): whether the filters `keyed_select` would make lookups of one shared index (each build answering every
+/// lookup of it) are left filters that read one partition instead, made once and read only by the siblings asked for
+/// (`RYO_NO_FANOUT_LOOKUPS` keeps the lookups), set once. Only demand-driven runs make partitions, so only they drop the lookups.
+pub fn fanout_lookups() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| fanout() && lazy() && std::env::var_os("RYO_NO_FANOUT_LOOKUPS").is_none())
+}
+
 /// Whether the recorder is on.
 pub fn on() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();

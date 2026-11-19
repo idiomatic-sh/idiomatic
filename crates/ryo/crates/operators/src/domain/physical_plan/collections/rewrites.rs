@@ -11,6 +11,8 @@ pub(crate) mod interface;
 pub(crate) mod keyed_select;
 pub(crate) mod ordered_existence;
 // Spike (ryo-fmx3)
+pub(crate) mod partitioned_select;
+// Spike (ryo-fmx3)
 pub(crate) mod pointer_chase;
 // Spike (ryo-fmx3)
 pub(crate) mod seeded_closure;

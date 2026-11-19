@@ -13,6 +13,8 @@ pub(crate) mod lookup;
 pub(crate) mod ordered_match;
 pub(crate) mod ordered_walk;
 // Spike (ryo-fmx3)
+pub(crate) mod partition;
+// Spike (ryo-fmx3)
 pub(crate) mod pointer_chase;
 pub(crate) mod probe;
 pub(crate) mod probe_right;

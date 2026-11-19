@@ -26,6 +26,8 @@ pub struct PhysicalPlan {
     /// Spike (ryo-fmx3): by node, the cheap leaves (lookups and scans of base rows) that must hold a row for the node to hold
     /// one: a demand-driven run reads them first.
     pub(crate) guards: Vec<Box<[u32]>>,
+    /// Spike (ryo-fmx3): the sibling constant filters that read one partition of their source.
+    pub(crate) partitions: crate::domain::physical_plan::collections::rewrites::partitioned_select::item::SelectPartitions,
 }
 
 impl PhysicalPlan {

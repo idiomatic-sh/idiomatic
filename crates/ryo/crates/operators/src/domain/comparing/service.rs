@@ -357,7 +357,7 @@ pub(crate) fn fast_of(comparison: &PlanComparison) -> FastComparison<'_> {
 
 /// Spike (ryo-fmx3): the number a cell is compared as, as `datum` makes it; none for a cell compared otherwise.
 #[inline]
-fn number_of(value: Value) -> Option<i64> {
+pub(crate) fn number_of(value: Value) -> Option<i64> {
     match value {
         Value::Node(node) => Some(node.0.cast_signed()),
         Value::Number(number) => Some(number.0),

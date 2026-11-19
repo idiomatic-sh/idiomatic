@@ -109,6 +109,8 @@ pub struct FileBuffers {
     pub(crate) known_full: Vec<u32>,
     /// Spike (ryo-fmx3): the open file's number in this worker, from one.
     pub(crate) generation: u32,
+    /// Spike (ryo-fmx3): the partitions of sibling constant filters the open file made.
+    pub(crate) partitions: crate::domain::physical_plan::collections::kernels::partition::item::FilePartitions,
     /// Spike (ryo-fmx3): by node known empty in the open file, the node whose own run held no row and so emptied it.
     pub(crate) origin: Vec<u32>,
     /// Spike (ryo-fmx3): by node, across this worker's files, the necessary node that most often emptied it and how sure
