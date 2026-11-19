@@ -55,6 +55,15 @@ pub(crate) fn run(
 
 /// Grows the per-node buffers to the plan's nodes, keeping what they hold.
 fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
+    // Spike (ryo-fmx3): the buffers already grown for this plan fit it.
+    let key = (
+        std::ptr::from_ref(plan) as usize,
+        plan.nodes.len(),
+        plan.indexes.len(),
+    );
+    if buffers.sized_for == key {
+        return;
+    }
     let count = plan.node_count().0;
     if buffers.nodes.len() < count {
         buffers.nodes.resize_with(count, || None);
@@ -69,6 +78,7 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
         buffers.known_full.resize(count, 0);
     }
     sized_shared(plan, buffers);
+    buffers.sized_for = key;
 }
 
 /// Spike (ryo-fmx3): whether evaluation is demand-driven, set once from `RYO_LAZY`: a node whose driving input holds no row
@@ -197,7 +207,9 @@ fn materialize(
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
     let span = timed(buffers);
-    crate::spike::enter(node.0);
+    if crate::spike::on() {
+        crate::spike::enter(node.0);
+    }
     let made = if guarded_empty(plan, run, node, buffers) {
         marked_empty(plan, buffers, node);
         Ok(())
@@ -208,10 +220,12 @@ fn materialize(
     } else {
         kernels_of(plan, run, node, buffers)
     };
-    crate::spike::leave(match buffers.rows(node) {
-        NodeRows::Materialized(table) => table.count.0,
-        NodeRows::Absent => 0,
-    });
+    if crate::spike::on() {
+        crate::spike::leave(match buffers.rows(node) {
+            NodeRows::Materialized(table) => table.count.0,
+            NodeRows::Absent => 0,
+        });
+    }
     timed_to(buffers, span, node);
     made
 }
@@ -235,10 +249,13 @@ fn guarded_empty(
     };
     sized(plan, buffers);
     // First what the file already knows of the leaves, which costs nothing; then the leaves still to make.
-    if guards
-        .iter()
-        .any(|guard| known(buffers, *guard) == Known::Empty)
-    {
+    let stamp = buffers.generation.wrapping_add(1);
+    if guards.iter().any(|guard| {
+        buffers
+            .known_empty
+            .get(usize::try_from(*guard).unwrap_or(usize::MAX))
+            == Some(&stamp)
+    }) {
         return true;
     }
     for guard in guards.iter() {
@@ -319,12 +336,8 @@ pub(super) fn made(
         | Lowering::Worklist { .. }
         | Lowering::Components { .. } => {}
     }
-    let mut sources = lowering.sources();
-    let first = sources
-        .next()
-        .ok_or(PortableOperatorFault::WrongOperation)?;
-    let second = sources.next();
-    let third = sources.next();
+    let [first, second, third] = lowering.source_slots();
+    let first = first.ok_or(PortableOperatorFault::WrongOperation)?;
     settled(plan, run, first, buffers)?;
     if lazy()
         && matches!(

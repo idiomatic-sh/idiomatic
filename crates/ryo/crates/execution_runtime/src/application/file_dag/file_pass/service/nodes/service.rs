@@ -258,6 +258,27 @@ pub(crate) fn ran_node(
     symbols: &mut Symbols,
     node: PlanNodeId,
 ) -> Result<(), OperatingError> {
+    // Spike (ryo-fmx3): a node the file holds or found empty is answered with no resources built and no entity sources bound.
+    if ryo_operators::spike::lazy()
+        && let Some(answer) = ryo_operators::domain::physical_plan::service::answered_without_running(
+            physical(&at.pass.program),
+            &mut at.buffers,
+            node,
+        )
+    {
+        return answer.map_err(|fault| {
+            if let PortableOperatorFault::RenderRefused { refusal } = fault {
+                at.refusals
+                    .get(usize::try_from(refusal.0).unwrap_or(usize::MAX))
+                    .cloned()
+                    .unwrap_or_else(|| portable_fault(fault))
+            } else if let PortableOperatorFault::Withheld(token) = fault {
+                reason(&at.inputs.withholdings, token)
+            } else {
+                portable_fault(fault)
+            }
+        });
+    }
     let mut resources = PassResources {
         symbols,
         source: at.source,

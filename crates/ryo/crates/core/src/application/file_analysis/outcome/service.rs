@@ -2,7 +2,7 @@
 use super::super::service::FileAnalysis;
 use super::super::types::{FileVisit, Worker};
 use crate::domain::keeping::service::rows_of;
-use crate::domain::recording::service::frontier_flat;
+use crate::domain::recording::service::{ascending, frontier_flat_in};
 use crate::domain::recording::service::interface_bytes;
 use crate::domain::recording::service::made_ran;
 use crate::domain::recording::service::moved_words;
@@ -82,10 +82,12 @@ impl FileAnalysis {
             _ => (None, &[][..]),
         };
         let mut flat = Flat::default();
+        let in_order = ascending(&moved);
         let frontier: Vec<Digest> = (0..setting.metadata.len())
             .map(|rule| {
-                frontier_flat(
+                frontier_flat_in(
                     &moved,
+                    in_order,
                     observations,
                     slots,
                     setting,

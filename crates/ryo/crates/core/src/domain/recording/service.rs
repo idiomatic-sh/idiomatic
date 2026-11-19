@@ -119,8 +119,34 @@ pub(crate) fn moved_words(
 
 /// What the file handed to one rule, apart: the buckets of the rule's frontier with their words, one after the other. An edit that
 /// changes only what one rule reads leaves the others' steps as they were.
+#[cfg(test)]
 pub(crate) fn frontier_flat(
     moved: &[BucketWords],
+    observations: Option<
+        ryo_values::domain::observations::types::validated_frontiers::value::ValidatedFrontiers<'_>,
+    >,
+    slots: &[ryo_execution::inbound::use_cases::execution::interface::ObservedFrontierRoot],
+    setting: &VisitSetting<'_>,
+    rule: RuleIndex,
+    flat: &mut Flat,
+) {
+    frontier_flat_in(moved, false, observations, slots, setting, rule, flat);
+}
+
+/// Spike (ryo-fmx3): whether `moved` holds its buckets in strictly ascending order, which lets each rule's buckets be found
+/// by search instead of by a pass over every bucket of the file.
+pub(crate) fn ascending(moved: &[BucketWords]) -> bool {
+    moved.windows(2).all(|pair| {
+        pair.first()
+            .zip(pair.get(1))
+            .is_some_and(|(before, after)| before.bucket.0 < after.bucket.0)
+    })
+}
+
+/// [`frontier_flat`], the buckets of `rule` found by search when `ascending` says `moved` is in bucket order.
+pub(crate) fn frontier_flat_in(
+    moved: &[BucketWords],
+    ascending: bool,
     observations: Option<
         ryo_values::domain::observations::types::validated_frontiers::value::ValidatedFrontiers<'_>,
     >,
@@ -138,10 +164,18 @@ pub(crate) fn frontier_flat(
         .get(rule.0)
         .map_or(0, |rule| rule.frontier_capture.len());
     flat.0.clear();
-    for each in moved.iter().filter(|each| {
+    let inside = |each: &BucketWords| {
         each.bucket.0 >= first
             && usize::try_from(each.bucket.0 - first).is_ok_and(|place| place < places)
-    }) {
+    };
+    let window = if ascending {
+        let from = moved.partition_point(|each| each.bucket.0 < first);
+        let to = from + moved.get(from..).unwrap_or_default().partition_point(inside);
+        moved.get(from..to).unwrap_or_default()
+    } else {
+        moved
+    };
+    for each in window.iter().filter(|each| inside(each)) {
         flat.0.extend([
             u64::from(each.bucket.0),
             u64::try_from(each.word_count.0).unwrap_or(u64::MAX),
