@@ -44,6 +44,13 @@ path = "benches/performance.rs"
 harness = false
 required-features = ["fixtures"]
 
+# Spike (ryo-vhuy): today's kernels against a typed, fused executor on the scan's plan shapes.
+[[bench]]
+name = "typed"
+path = "benches/typed.rs"
+harness = false
+required-features = ["fixtures"]
+
 [[test]]
 name = "allocation"
 harness = false
