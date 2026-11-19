@@ -4,17 +4,25 @@
 from __future__ import annotations
 
 from ci.changes import command, composition
-from ci.changes.use_case_test import FakeBuilds, FakeDiff, FakePending
+from ci.changes.use_case_test import FakeBuilds, FakeDiff, FakeManifest, FakePending
 
 
 def job(*paths: str, unreleased: frozenset[str] = frozenset()) -> composition.UseCase:
-    return composition.compose(composition.Parts(diff=FakeDiff(paths), builds=FakeBuilds(), pending=FakePending(unreleased)))
+    return composition.compose(
+        composition.Parts(diff=FakeDiff(paths), builds=FakeBuilds(), manifest=FakeManifest(), pending=FakePending(unreleased))
+    )
 
 
 def test_a_pull_request_s_products_rows_and_skips_are_printed(capsys, monkeypatch) -> None:
     monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
     assert command.run(["--event=pull_request", "--product="], job("README.md")) == 0
-    assert capsys.readouterr() == ('products=[]\nrows=[]\nskips=["check-linux","check","python-release","bench"]\n', "")
+    printed, said = capsys.readouterr()
+    lines = printed.splitlines()
+    assert said == ""
+    assert lines[0] == 'products=["tastemaker","asymptote"]'
+    assert lines[1].startswith('rows=[{"product":"tastemaker","check":{"runner":"ubuntu-26.04","groups":"release-clippy",')
+    assert lines[1].count('"product":"tastemaker"') == lines[1].count('"product":"asymptote"') == 9
+    assert lines[2:] == ['skips=["python-release","bench"]']
 
 
 def test_on_github_actions_they_are_the_step_s_outputs(tmp_path, monkeypatch) -> None:
@@ -25,7 +33,9 @@ def test_on_github_actions_they_are_the_step_s_outputs(tmp_path, monkeypatch) ->
     lines = output.read_text().splitlines()
     assert lines[0] == "before=1"
     assert lines[1] == 'products=["tastemaker"]'
-    assert lines[2].startswith('rows=[{"product":"tastemaker","check":{"runner":"ubuntu-26.04","groups":"release-clippy","label":"release-clippy",')
+    assert lines[2].startswith(
+        'rows=[{"product":"tastemaker","check":{"runner":"ubuntu-26.04","groups":"release-clippy","label":"release-clippy",'
+    )
     assert '"release-resolution"' not in lines[2]
     assert lines[3:] == ['skips=["python-release","bench"]']
 

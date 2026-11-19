@@ -1,9 +1,13 @@
 """The `changes` job's use case: the order of its steps over their ports, and nothing else.
 
-A pull request checks the products it touches, and every product when it touches a path they all read: each path it changes
-is a product's (`crates/<product>/...`), shared (`SHARED`: the workflows, the CI helpers, the tools, the toolchain and cargo
-configuration, the root's Tastemaker package and its definitions), or the root's alone (`ROOT_ONLY`: the files only the `root`
-job's groups read, which every pull request runs). A path no list names is refused, not guessed, so a new top-level file is
+A pull request checks every product whose checks read a path it changes. Each path is a product's (`crates/<product>/...`),
+shared (`SHARED`: the workflows, the CI helpers, the tools, the toolchain and cargo configuration, the root's Tastemaker package
+and its definitions), or outside every product beside those (`ROOT_ONLY`: the root's documents and the configuration of its own
+checks). A change to a product's directory checks it and every product that reads it, closed over who reads whom: a product
+reads another whose tree it builds against (`builds`, its `[patch.crates-io]`), whose directory an input of its tools names
+(`manifest`, its asymptote.toml), or whose directory its tests read at run time (`RUN_TIME_READS`). A shared path checks every
+product. A path outside every product's directory checks the products whose tests read the whole tree (`RUN_TIME_READS`' `""`),
+and the `root` job, which every pull request runs. A path no list names is refused, not guessed, so a new top-level file is
 classified before any pull request skips a product for it. A push to main checks every product, and a hand run the one it names.
 
 A checked product runs its Linux job and every row of `CHECK_ROWS`, its release rows among them, so a platform or packaging
@@ -28,7 +32,26 @@ from ci.tag.use_case import PRODUCTS
 if typing.TYPE_CHECKING:
     from ci.changes.builds.interface import Builds
     from ci.changes.diff.interface import Diff
+    from ci.changes.manifest.interface import Manifest
     from ci.changes.pending.interface import Pending
+
+# What a workspace's tests read at run time beyond the packages cargo builds, each from the repository's top, swept by hand: a
+# test that reads a file no path dependency reaches is invisible to cargo metadata, so it is named here, with the code that reads it.
+RUN_TIME_READS = {
+    "crates/ryo": [
+        # cli/tests/replay/rule_fixtures.rs:40,49 reads the root's Tastemaker package.
+        "tastemaker",
+    ],
+    # cli/tests/replay/check.rs:325-356 checks a `git archive` of the repository's HEAD, and benchmark_fixture.rs:35-46 copies
+    # every tastemaker.lock of the repository: tastemaker's tests read the whole tree.
+    "crates/tastemaker": [""],
+    # distribution/target_test.rs:102 installs crates/tastemaker/cli, which builds ryo's crates and reads the root's Tastemaker
+    # packages, tastemaker/benchmarks among them, and the targets' pin.toml copy its fixtures: the whole tree.
+    "crates/asymptote": [""],
+    "tools/lints": [],
+}
+# The products whose tests read the whole tree at run time: a change anywhere outside the products' directories checks them.
+WHOLE_TREE = tuple(product for product in PRODUCTS if "" in RUN_TIME_READS.get(f"crates/{product}", []))
 
 # What every product's check reads outside `crates/`, each a top-level file or directory: a change to one checks every product.
 # The workflows and CI helpers (`.github`, `ci`; ci/scripts/checks runs inside the products' clippy and api tools), the tools
@@ -52,9 +75,9 @@ SHARED = (
     ".gitattributes",
     ".gitignore",
 )
-# What only the `root` job's groups read, each a top-level file: the root's documents and the configuration of its repository
-# checks (typos, taplo, yamllint, editorconfig, gitleaks) and of the pull request title's (commitizen). Every pull request runs
-# the `root` and `pull-request` jobs, so a change to one of these is checked there and runs no product.
+# What no product's tools name, each a top-level file: the root's documents and the configuration of its repository checks
+# (typos, taplo, yamllint, editorconfig, gitleaks) and of the pull request title's (commitizen). Every pull request runs the
+# `root` and `pull-request` jobs, which read them; a change to one also checks the products whose tests read the whole tree.
 ROOT_ONLY = (
     "README.md",
     "LICENSE",
@@ -112,33 +135,49 @@ class Plan:
     skips: tuple[str, ...]
 
 
-def owners(path: str) -> tuple[str, ...]:
-    """The products a change to `path`, written from the repository's top, checks: its own, every one, or none."""
+def place(path: str) -> str | None:
+    """Where `path`, written from the repository's top, lies: the product whose directory holds it, or None for a path outside
+    every product's directory, shared or not (`shared` tells them apart)."""
     top, _, rest = path.partition("/")
     if top == "crates":
         product = rest.partition("/")[0]
         if product in PRODUCTS and "/" in rest:
-            return (product,)
+            return product
         raise Refused(f"{path} is in no product's directory: {', '.join(PRODUCTS)}")
-    if top in SHARED:
-        return PRODUCTS
-    if top in ROOT_ONLY and not rest:
-        return ()
+    if top in SHARED or (top in ROOT_ONLY and not rest):
+        return None
     raise Refused(f"{path} is neither shared nor the root's alone: name it in SHARED or ROOT_ONLY of ci/changes/use_case.py")
+
+
+def shared(path: str) -> bool:
+    """Whether every product's check reads `path`."""
+    return path.partition("/")[0] in SHARED
+
+
+def run_time_named(product: str) -> frozenset[str]:
+    """The other products whose directory, or a path inside it, `product`'s tests read at run time (`RUN_TIME_READS`)."""
+    named = RUN_TIME_READS.get(f"crates/{product}", [])
+    return frozenset(other for other in PRODUCTS if other != product and any(each.split("/")[:2] == ["crates", other] for each in named))
 
 
 class UseCase:
     """The job, over the ports its composition supplies."""
 
-    def __init__(self, diff: Diff, builds: Builds, pending: Pending) -> None:
+    def __init__(self, diff: Diff, builds: Builds, manifest: Manifest, pending: Pending) -> None:
         self.diff = diff
         self.builds = builds
+        self.manifest = manifest
         self.pending = pending
 
     def run(self, request: Request) -> Plan:
         """What the run `request` describes checks."""
         if request.event == "pull_request":
-            touched = {product for path in self.diff.paths() for product in owners(path)}
+            paths = self.diff.paths()
+            places = [place(path) for path in paths]
+            if any(shared(path) for path in paths):
+                touched = set(PRODUCTS)
+            else:
+                touched = self.readers({each for each in places if each is not None}) | ({*WHOLE_TREE} if None in places else set())
             products = tuple(product for product in PRODUCTS if product in touched)
         elif request.event == "push":
             products = PRODUCTS
@@ -157,6 +196,14 @@ class UseCase:
         )
         running = {"check-linux": bool(products), "check": bool(rows)} | {job: product in products for job, product in OWN_JOBS.items()}
         return Plan(products, rows, tuple(job for job in DECIDED if not running[job]))
+
+    def readers(self, changed: set[str]) -> set[str]:
+        """The products `changed` and every product that reads one of them, directly or through another."""
+        reads = {product: self.builds.built_on(product) | self.manifest.named(product) | run_time_named(product) for product in PRODUCTS}
+        checked = set(changed)
+        while grown := {product for product in PRODUCTS if product not in checked and reads[product] & checked}:
+            checked |= grown
+        return checked
 
     def waiting(self, products: tuple[str, ...]) -> frozenset[str]:
         """The products whose resolution row waits: each builds against a product whose version has no tag yet."""

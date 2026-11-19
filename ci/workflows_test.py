@@ -17,7 +17,8 @@ import yaml
 
 from ci.changes import composition as changes_composition
 from ci.changes.builds.adapters.file.adapter import FileBuilds
-from ci.changes.use_case import CHECK_ROWS, DECIDED, ROOT_ONLY, SHARED
+from ci.changes.manifest.adapters.file.adapter import FileManifest
+from ci.changes.use_case import CHECK_ROWS, DECIDED, OWN_JOBS, ROOT_ONLY, RUN_TIME_READS, SHARED
 from ci.changes.use_case import Plan as ChangesPlan
 from ci.changes.use_case import Request as ChangesRequest
 from ci.groups import composition as groups_composition
@@ -1094,11 +1095,12 @@ class Unreleased:
 
 
 def changed(*paths: str, event: str = "pull_request", product: str = "", unreleased: frozenset[str] = frozenset()) -> ChangesPlan:
-    """What the `changes` job answers for a run: the paths and the releases faked, which product builds on which read from the
-    products' Cargo.toml as the checkout holds them."""
-    for manifest in listed(ROOT, "crates/*/Cargo.toml"):
+    """What the `changes` job answers for a run: the paths and the releases faked, which product reads which from the products'
+    Cargo.toml and asymptote.toml as the checkout holds them."""
+    for manifest in [*listed(ROOT, "crates/*/Cargo.toml"), *listed(ROOT, "crates/*/asymptote.toml")]:
         read(manifest)
-    job = changes_composition.compose(changes_composition.Parts(diff=Changed(paths), builds=FileBuilds(ROOT), pending=Unreleased(unreleased)))
+    parts = changes_composition.Parts(diff=Changed(paths), builds=FileBuilds(ROOT), manifest=FileManifest(ROOT), pending=Unreleased(unreleased))
+    job = changes_composition.compose(parts)
     return job.run(ChangesRequest(event, product))
 
 
@@ -1134,62 +1136,83 @@ def started(workflow: dict, plan: ChangesPlan) -> list[str]:
     return found
 
 
-def test_a_change_to_the_root_s_documents_alone_runs_no_product_rows() -> None:
+def checked(started_jobs: list[str]) -> dict[str, list[str]]:
+    """The started jobs grouped by product (`root` for the jobs no product's matrix expands): `check-linux` and each release row
+    by the label and runner it shows, ryo's own jobs under ryo."""
+    found: dict[str, list[str]] = {}
+    for each in started_jobs:
+        if "(" in each:
+            product, _, rest = each.partition("(")[2].rstrip(")").partition(", ")
+            found.setdefault(product, []).append(f"{each.partition(' ')[0]} {rest}".strip())
+        else:
+            found.setdefault("ryo" if each in OWN_JOBS else "root", []).append(each)
+    return found
+
+
+# A product's release rows as check.yml's `check` job shows them, each `<label>, <runner>`.
+RELEASE_ROW_NAMES = [
+    "check release-clippy, ubuntu-26.04",
+    "check api, macos-26",
+    "check check-tests, ubuntu-26.04-arm",
+    "check check-tests, macos-26",
+    "check check-tests, windows-2025",
+    "check release-msrv, ubuntu-26.04",
+    "check release-dylint, ubuntu-26.04",
+    "check release-hack, ubuntu-26.04",
+    "check release-resolution, ubuntu-26.04",
+]
+
+
+def test_a_change_to_the_root_s_documents_alone_runs_the_whole_tree_readers_only() -> None:
     """A pull request that edits the README and the licence runs the root's groups, the title's check, the `changes` job and the
-    gate, and no product's job: no Linux job, no release row, no Python release build, no bench."""
+    gate, and the products whose tests read the whole tree (Tastemaker's check of a `git archive` of HEAD, asymptote's): their
+    Linux job and every release row. ryo's tests read no such file, so none of its jobs runs."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    assert started(workflow, changed("README.md", "LICENSE")) == ["changes", "root", "pull-request", "gate"]
+    assert checked(started(workflow, changed("README.md", "LICENSE"))) == {
+        "root": ["changes", "root", "pull-request", "gate"],
+        "tastemaker": ["check-linux", *RELEASE_ROW_NAMES],
+        "asymptote": ["check-linux", *RELEASE_ROW_NAMES],
+    }
 
 
-def test_a_change_inside_ryo_alone_runs_ryo_s_rows_and_its_release_rows_only() -> None:
+def test_a_change_inside_ryo_alone_runs_ryo_and_every_product_that_reads_it() -> None:
     """A pull request that edits ryo alone runs ryo's Linux job, every release row of ryo's (macOS, Windows and ARM tests, dylint,
-    msrv, hack, api, resolution), its Python release build and its bench, and nothing of Tastemaker's or asymptote's."""
+    msrv, hack, api, resolution), its Python release build and its bench; and the same rows of Tastemaker, which builds against
+    ryo's crates, and of asymptote, whose tests install Tastemaker's command line."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    assert started(workflow, changed("crates/ryo/cli/src/main.rs", "crates/ryo/README.md")) == [
-        "changes",
-        "root",
-        "pull-request",
-        "check-linux (ryo)",
-        "check (ryo, release-clippy, ubuntu-26.04)",
-        "check (ryo, api, macos-26)",
-        "check (ryo, check-tests, ubuntu-26.04-arm)",
-        "check (ryo, check-tests, macos-26)",
-        "check (ryo, check-tests, windows-2025)",
-        "check (ryo, release-msrv, ubuntu-26.04)",
-        "check (ryo, release-dylint, ubuntu-26.04)",
-        "check (ryo, release-hack, ubuntu-26.04)",
-        "check (ryo, release-resolution, ubuntu-26.04)",
-        "gate",
-        "python-release",
-        "bench",
-    ]
+    assert checked(started(workflow, changed("crates/ryo/cli/src/main.rs", "crates/ryo/README.md"))) == {
+        "root": ["changes", "root", "pull-request", "gate"],
+        "ryo": ["check-linux", *RELEASE_ROW_NAMES, "python-release", "bench"],
+        "tastemaker": ["check-linux", *RELEASE_ROW_NAMES],
+        "asymptote": ["check-linux", *RELEASE_ROW_NAMES],
+    }
 
 
-def test_a_change_inside_tastemaker_alone_runs_its_rows_and_its_resolution_waits_for_an_unreleased_ryo() -> None:
-    """A pull request that edits Tastemaker alone runs its Linux job and release rows, and none of ryo's jobs. Tastemaker builds
-    against ryo's tree, so while ryo's version has no tag its resolution row waits for the release (ryo-gnv5)."""
+def test_a_change_inside_tastemaker_alone_runs_its_readers_and_its_resolution_waits_for_an_unreleased_ryo() -> None:
+    """A pull request that edits Tastemaker alone runs every product whose checks read Tastemaker's directory: asymptote's, and
+    ryo's, whose test tools name `../tastemaker` among their inputs (crates/ryo/asymptote.toml). Tastemaker builds against ryo's
+    tree, so while ryo's version has no tag its resolution row waits for the release (ryo-gnv5)."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
     released = started(workflow, changed("crates/tastemaker/cli/src/main.rs"))
-    assert released == [
-        "changes",
-        "root",
-        "pull-request",
-        "check-linux (tastemaker)",
-        "check (tastemaker, release-clippy, ubuntu-26.04)",
-        "check (tastemaker, api, macos-26)",
-        "check (tastemaker, check-tests, ubuntu-26.04-arm)",
-        "check (tastemaker, check-tests, macos-26)",
-        "check (tastemaker, check-tests, windows-2025)",
-        "check (tastemaker, release-msrv, ubuntu-26.04)",
-        "check (tastemaker, release-dylint, ubuntu-26.04)",
-        "check (tastemaker, release-hack, ubuntu-26.04)",
-        "check (tastemaker, release-resolution, ubuntu-26.04)",
-        "gate",
-    ]
+    assert checked(released) == {
+        "root": ["changes", "root", "pull-request", "gate"],
+        "ryo": ["check-linux", *RELEASE_ROW_NAMES, "python-release", "bench"],
+        "tastemaker": ["check-linux", *RELEASE_ROW_NAMES],
+        "asymptote": ["check-linux", *RELEASE_ROW_NAMES],
+    }
     waiting = started(workflow, changed("crates/tastemaker/cli/src/main.rs", unreleased=frozenset({"ryo", "tastemaker"})))
     assert [each for each in released if each not in waiting] == ["check (tastemaker, release-resolution, ubuntu-26.04)"]
     # ryo's own resolution row never waits: ryo builds on no other product's tree.
     assert "check (ryo, release-resolution, ubuntu-26.04)" in started(workflow, changed("crates/ryo/Cargo.toml", unreleased=frozenset({"ryo"})))
+
+
+def test_a_change_inside_asymptote_alone_runs_asymptote_alone() -> None:
+    """No product's checks read asymptote's directory: a pull request that edits it alone runs asymptote's jobs and no other's."""
+    workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
+    assert checked(started(workflow, changed("crates/asymptote/cli/src/main.rs"))) == {
+        "root": ["changes", "root", "pull-request", "gate"],
+        "asymptote": ["check-linux", *RELEASE_ROW_NAMES],
+    }
 
 
 @pytest.mark.parametrize("path", [".github/workflows/check.yml", ".github/workflows/release.yml"])
@@ -1215,10 +1238,9 @@ def test_a_hand_run_checks_its_one_product() -> None:
 def test_every_top_level_path_is_shared_or_the_root_s_alone() -> None:
     """Every entry at the repository's top is a product directory's parent (`crates`), shared, or the root's alone, so the
     `changes` job refuses no path a pull request can touch today; and every path a product's tool names outside the products'
-    directories is shared, or a product's check could miss a change it reads. A tool that reads the whole tree (the `tastemaker`
-    lint, Tastemaker's and asymptote's tests) is covered by the root's own groups, which every pull request runs. A product's
-    tool may name another product's directory (Tastemaker builds against ryo's crates): a pull request checks the product it
-    touches alone, and main's run checks every product."""
+    directories is shared, or a product's check could miss a change it reads. The whole tree a tool names is the `changes`
+    job's `RUN_TIME_READS` readers' (Tastemaker's and asymptote's tests), checked on every change outside the products'
+    directories, and the `root` job's; another product's directory a tool names makes it that product's reader."""
     tracked = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, check=True, capture_output=True, text=True).stdout.split("\0")
     tops = sorted({path.split("/")[0] for path in tracked if path})
     assert [top for top in tops if top != "crates" and top not in SHARED and top not in ROOT_ONLY] == []
@@ -1685,21 +1707,7 @@ TESTS = re.compile(r"\bcargo(\s+\"?\+[^\s\"]+\"?)?\s+(test|nextest|llvm-cov|benc
 READS = re.compile(r"\bcargo fmt\b.*--all|cargo-deny")
 # A run of `tm check` reads every tastemaker.lock of the repository: the whole tree.
 TM = re.compile(r"(^|\s)tm check\b")
-# What a workspace's tests read at run time beyond the packages cargo builds, each from the repository's top, swept by hand: a
-# test that reads a file no path dependency reaches is invisible to cargo metadata, so it is named here, with the code that reads it.
-RUN_TIME_READS = {
-    "crates/ryo": [
-        # cli/tests/replay/rule_fixtures.rs:40,49 reads the root's Tastemaker package.
-        "tastemaker",
-    ],
-    # cli/tests/replay/check.rs:325-356 checks a `git archive` of the repository's HEAD, and benchmark_fixture.rs:35-46 copies
-    # every tastemaker.lock of the repository: tastemaker's tests read the whole tree.
-    "crates/tastemaker": [""],
-    # distribution/target_test.rs:102 installs crates/tastemaker/cli, which builds ryo's crates and reads the root's Tastemaker
-    # packages, tastemaker/benchmarks among them, and the targets' pin.toml copy its fixtures: the whole tree.
-    "crates/asymptote": [""],
-    "tools/lints": [],
-}
+# What a workspace's tests read at run time beyond the packages cargo builds: `RUN_TIME_READS`, ci/changes' one table.
 
 
 @functools.cache
