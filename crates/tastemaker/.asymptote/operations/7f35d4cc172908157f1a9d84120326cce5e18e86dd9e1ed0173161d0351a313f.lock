@@ -1,0 +1,9 @@
+version = 1
+parents = ["e2e82b652e4d7be062972bb5781f354c51edd7486a3179fab7c6cd7e1fe33521"]
+
+[[perf]]
+reasons = ["seed on ubuntu-26.04"]
+records = [
+  { tool = "memory", benchmark = "ruff", measure = "cold-peak-kib", best = 29360.0 },
+  { tool = "memory", benchmark = "ruff", measure = "validate-peak-kib", best = 19048.0 },
+]
