@@ -5,3 +5,5 @@ pub(crate) mod push;
 pub(crate) mod service;
 pub(crate) mod sources;
 pub(crate) mod stages;
+// Spike (ryo-vhuy): typed chains.
+pub(crate) mod typed;

@@ -195,7 +195,7 @@ pub(crate) fn plan_with(
         );
     }
     Ok(PhysicalPlan {
-        entity_queries: std::sync::Arc::new(entity_queries::service::compile(&nodes, &indexes)), guards: guards(&nodes), nodes, indexes, layouts: Vec::new() })
+        entity_queries: std::sync::Arc::new(entity_queries::service::compile(&nodes, &indexes)), guards: guards(&nodes), nodes, indexes, layouts: Vec::new(), typed: Vec::new() })
 }
 
 /// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them (`flow_of`). Who reads

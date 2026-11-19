@@ -256,7 +256,11 @@ fn chained(
         last: StagePlace(length.saturating_sub(1)),
         first_probe,
     };
-    let answered = pushed_all(&mut push, nodes, row, head_chunk, stages);
+    // Spike (ryo-vhuy): a chain the typed path covers runs as one typed loop; any other runs today's path.
+    let answered = match super::typed::service::pushed(&mut push, nodes, stages) {
+        Some(answered) => answered,
+        None => pushed_all(&mut push, nodes, row, head_chunk, stages),
+    };
     let hard = push.hard.take();
     closed_all(buffers, stages);
     let pending = pending_of(&head_rows);

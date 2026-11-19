@@ -26,6 +26,8 @@ pub struct PhysicalPlan {
     /// Spike (ryo-fmx3): by node, the cheap leaves (lookups and scans of base rows) that must hold a row for the node to hold
     /// one: a demand-driven run reads them first.
     pub(crate) guards: Vec<Box<[u32]>>,
+    /// Spike (ryo-vhuy): by node, whether the typed chain path covers it as a stage (0), else why not; set with the layouts.
+    pub(crate) typed: Vec<u8>,
 }
 
 impl PhysicalPlan {
@@ -36,7 +38,13 @@ impl PhysicalPlan {
         layouts: Vec<Option<Vec<ryo_relations::domain::relations::types::CellKind>>>,
     ) -> Self {
         self.layouts = layouts;
+        self.typed = crate::domain::physical_plan::service::run::pipeline::typed::service::eligibility(&self.nodes, &self.layouts);
         self
+    }
+
+    /// Spike (ryo-vhuy): whether the typed chain path covers `node` as a stage (0), else the reason it does not.
+    pub(crate) fn typed_stage(&self, node: crate::domain::physical_plan::types::PlanNodeId) -> u8 {
+        self.typed.get(usize::try_from(node.0).unwrap_or(usize::MAX)).copied().unwrap_or(1)
     }
 
     /// How many nodes the plan runs: one per node of the program it was made of.

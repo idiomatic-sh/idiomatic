@@ -82,6 +82,26 @@ pub fn probe_lever(name: &str) -> bool {
         .any(|off| off == name || off == "all")
 }
 
+/// Spike (ryo-vhuy): whether the typed mechanism `name` (`RYO_TYPED_OFF` lists the ones switched off, comma-separated, or
+/// `all`) is on: `chains` (typed filter/projection chains), `joins` (id-keyed probes at a chain head, by position), read once.
+pub fn typed_lever(name: &str) -> bool {
+    static OFF: OnceLock<String> = OnceLock::new();
+    !OFF.get_or_init(|| std::env::var("RYO_TYPED_OFF").unwrap_or_default())
+        .split(',')
+        .any(|off| off == name || off == "all")
+}
+
+/// Spike (ryo-vhuy): typed-path counts by reason (0 = covered), each with the head rows it read; the last slot is rows kept.
+static TYPED: [std::sync::atomic::AtomicU64; 34] = [const { std::sync::atomic::AtomicU64::new(0) }; 34];
+
+/// Spike (ryo-vhuy): counts one chain by `reason` with the `rows` it read, when the recorder is on.
+pub fn typed_count(reason: usize, rows: u64) {
+    if on() && reason < 17 {
+        TYPED[2 * reason].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        TYPED[2 * reason + 1].fetch_add(rows, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 /// Whether the learned kill order is switched off, set once from `RYO_NO_KILLERS`.
 pub fn killers_off() -> bool {
     static OFF: OnceLock<bool> = OnceLock::new();
@@ -376,6 +396,12 @@ pub fn dump() {
         let mut probe_path = path.clone();
         probe_path.push(".probes");
         drop(std::fs::write(probe_path, text));
+    }
+    {
+        let mut typed_path = path.clone();
+        typed_path.push(".typed");
+        let counts: Vec<u64> = TYPED.iter().map(|count| count.load(std::sync::atomic::Ordering::Relaxed)).collect();
+        drop(std::fs::write(typed_path, format!("{counts:?}\n")));
     }
     let global = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let descriptions = DESCRIPTIONS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
