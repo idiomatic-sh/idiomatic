@@ -3,7 +3,7 @@
 //! over edges keyed through `hash_index`'s table.
 
 use super::super::filter::item::{filter, keep, readied};
-use super::super::hash_index::item::{cells, find_value, keyed_walk};
+use super::super::hash_index::item::{cells, find_value, indexed, keyed_walk};
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
@@ -159,6 +159,11 @@ pub(crate) fn walked(
     };
     let verdicts = filter(&axis.domain, among_kinds, run.resources.texts());
     readied(decisions);
+    // Spike (ryo-fmx3): a domain filter of no comparisons whose kept columns are all in its rows keeps every element it is
+    // asked about: no element's row is read to decide it.
+    let admits_all = axis.domain.comparisons.is_empty()
+        && axis.domain.bindings.is_empty()
+        && axis.domain.kept.iter().all(|column| usize::from(*column) < among_kinds.len());
     for at in 0..starts_count {
         let row = RowIndex(at);
         let start = cell_of(starts, row, axis.id)
@@ -179,13 +184,25 @@ pub(crate) fn walked(
                     })
                 };
                 let keyed = edge_rows.ok_or(PortableOperatorFault::WrongOperation)?;
-                keyed_walk(edge_side, keyed, to, axis.direction, start, walk, admitted)?;
+                // Spike (ryo-fmx3): a nearest ancestor up a chain of single parents needs no visited set.
+                let chained = if axis.direction == Direction::NearestAncestor {
+                    nearest_on_chain(edge_side, keyed, to, start, &admitted)?
+                } else {
+                    None
+                };
+                match chained {
+                    Some(found) => walk.reached.extend(found),
+                    None => keyed_walk(edge_side, keyed, to, axis.direction, start, walk, admitted)?,
+                }
             }
         }
         for place in 0..walk.reached.len() {
             let candidate = walk.reached[place];
             let admitted = match mode {
                 Mode::Empty => false,
+                Mode::Native {
+                    among: Some(_), ..
+                } if admits_all => true,
                 Mode::Native {
                     among: Some(among), ..
                 } => {
@@ -212,6 +229,8 @@ pub(crate) fn walked(
                     }
                     walk.rows.count.0 > 0
                 }
+                // Spike (ryo-fmx3): an indexed nearest ancestor's walk admitted what it reached by this same domain lookup.
+                Mode::Indexed { .. } if axis.direction == Direction::NearestAncestor => marks,
                 Mode::Native { among: None, .. } | Mode::Indexed { .. } => {
                     marks && find_value(members, domain_side, candidate)?.is_some()
                 }
@@ -360,4 +379,30 @@ fn native(tree: &TreeRead<'_>, direction: Direction, start: Value, found: &mut V
         return;
     }
     walked_tree(elements, file, direction, at, found);
+}
+
+/// Spike (ryo-fmx3): the nearest ancestor `keyed_walk` answers from `start`, found without a visited set while each entity
+/// has at most one parent: `Some(None)` for none, `Some(Some(entity))` for the one admitted; none when an entity has more
+/// than one parent or the chain runs past 64 steps (a cycle, maybe), for `keyed_walk` to answer.
+fn nearest_on_chain(
+    edges: KeyedSide<'_>,
+    index: &KeyedRows,
+    to: ColumnIndex,
+    start: Value,
+    admitted: &impl Fn(Value) -> Result<SetMembership, PortableOperatorFault>,
+) -> Result<Option<Option<Value>>, PortableOperatorFault> {
+    let mut entity = start;
+    for _ in 0..64 {
+        let Some(run) = find_value(index, edges, entity)? else {
+            return Ok(Some(None));
+        };
+        if run.rows.0 != 1 {
+            return Ok(None);
+        }
+        entity = cell_of(edges.rows, indexed(run.first), to).ok_or(PortableOperatorFault::NoSuchColumn { index: to })?;
+        if admitted(entity)? == SetMembership::In {
+            return Ok(Some(Some(entity)));
+        }
+    }
+    Ok(None)
 }
