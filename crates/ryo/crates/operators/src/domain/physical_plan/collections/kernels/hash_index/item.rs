@@ -322,3 +322,119 @@ fn follow(
     }
     Ok(())
 }
+
+/// Spike (ryo-fmx3): the hash of a row's cells in key columns `on`, each read by `cell`: `hash_of`, with the reader
+/// monomorphised.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for the first key column past the row.
+#[inline]
+pub(crate) fn hash_read(
+    on: &[ColumnIndex],
+    row: RowIndex,
+    cell: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+) -> Result<IndexKeyHash, PortableOperatorFault> {
+    let mut missing = None;
+    let hash = hash_of_cells(on.iter().map_while(|column| {
+        let read = cell(row, *column);
+        if read.is_none() {
+            missing = Some(*column);
+        }
+        read
+    }));
+    match missing {
+        Some(index) => Err(PortableOperatorFault::NoSuchColumn { index }),
+        None => Ok(hash),
+    }
+}
+
+/// Spike (ryo-fmx3): whether two rows hold the same cells in their key columns: `same_key`, each side's reader
+/// monomorphised.
+#[inline]
+fn same_read(
+    one_on: &[ColumnIndex],
+    one_row: RowIndex,
+    one: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+    other_on: &[ColumnIndex],
+    other_row: RowIndex,
+    other: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+) -> bool {
+    one_on.len() == other_on.len()
+        && one_on.iter().zip(other_on).all(|(a, b)| {
+            let cell = one(one_row, *a);
+            cell.is_some() && cell == other(other_row, *b)
+        })
+}
+
+/// Spike (ryo-fmx3): `cells`, each row's key read by `cell`, a reader of the side's own kind.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a key column past a row.
+pub(crate) fn cells_read(
+    count: RowCount,
+    on: &[ColumnIndex],
+    cell: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+    rows: &mut KeyedRows,
+) -> Result<(), PortableOperatorFault> {
+    cleared(rows, count);
+    rows.keys.reserve(count.0.min(1 << 16), |run| run.hash.0);
+    for at in 0..count.0 {
+        let hash = hash_read(on, RowIndex(at), cell)?;
+        let row = IndexedRow(u32::try_from(at).unwrap_or(u32::MAX));
+        insert(rows, hash, row, |run| {
+            if run.hash == hash && same_read(on, indexed(run.first), cell, on, RowIndex(at), cell) {
+                PredicateOutcome::Holds
+            } else {
+                PredicateOutcome::Fails
+            }
+        });
+    }
+    Ok(())
+}
+
+/// Spike (ryo-fmx3): `find_cells`, the left row's key read by `left`, the index's rows by `right`.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a left key column past the row.
+#[inline]
+pub(crate) fn find_read(
+    rows: &KeyedRows,
+    right_on: &[ColumnIndex],
+    right: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+    left_on: &[ColumnIndex],
+    at: RowIndex,
+    left: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+) -> Result<Option<KeyedRun>, PortableOperatorFault> {
+    let hash = hash_read(left_on, at, left)?;
+    Ok(rows
+        .keys
+        .find(hash.0, |run| {
+            run.hash == hash && same_read(right_on, indexed(run.first), right, left_on, at, left)
+        })
+        .copied())
+}
+
+/// Spike (ryo-fmx3): `cells` over `side`, its rows read by their own kind's reader when the `fastkey` lever is on.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a key column past a row.
+pub(crate) fn cells_typed(side: KeyedSide<'_>, rows: &mut KeyedRows) -> Result<(), PortableOperatorFault> {
+    use super::super::scan_facts::item::{facts_cell, table_cell};
+    if !crate::spike::probe_lever("fastkey") {
+        return cells(side, rows);
+    }
+    match side.rows {
+        crate::domain::physical_plan::types::InputRows::Table(table) => {
+            cells_read(table.count, side.on, &|row, column| table_cell(table, row, column), rows)
+        }
+        crate::domain::physical_plan::types::InputRows::Facts(view) => {
+            cells_read(rows_of(view), side.on, &|row, column| facts_cell(view, row, column), rows)
+        }
+        crate::domain::physical_plan::types::InputRows::Tree(_)
+        | crate::domain::physical_plan::types::InputRows::Row(..) => cells(side, rows),
+    }
+}

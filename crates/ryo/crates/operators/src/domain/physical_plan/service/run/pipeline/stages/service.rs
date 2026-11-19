@@ -217,6 +217,65 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
             })?
         }
         Lowering::Probe { probe, index, .. } => {
+            // Spike (ryo-fmx3): the recorder's per-probe-stage counts.
+            if crate::spike::on() {
+                let started = std::time::Instant::now();
+                let first = own.work == ProbeWork::Pending;
+                let cells_before = out.cells.len();
+                let right_rows = right.map_or(0, |rows| rows_count(rows).0) as u64;
+                let answered = probe_chunk(run, buffers, place, probe, index, input, kinds, own, right, out, bound);
+                let width = out.kinds.len().max(1);
+                let read = answered.as_ref().map_or(0, |read| read.read.0) as u64;
+                crate::spike::probe_call(
+                    node.0,
+                    u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+                    first && own.work == ProbeWork::Done,
+                    read,
+                    right_rows,
+                    (out.cells.len().saturating_sub(cells_before) / width) as u64,
+                );
+                return answered;
+            }
+            probe_chunk(run, buffers, place, probe, index, input, kinds, own, right, out, bound)?
+        }
+        Lowering::Lookup { .. }
+        | Lowering::Distinct { .. }
+        | Lowering::Group { .. }
+        | Lowering::Reach { .. }
+        | Lowering::SeededReach { .. }
+        | Lowering::Axis { .. }
+        | Lowering::OrderedWalk { .. }
+        | Lowering::Worklist { .. }
+        | Lowering::Components { .. }
+        | Lowering::OrderedMatch { .. }
+        | Lowering::Render { .. }
+        | Lowering::ScanBound { .. }
+        | Lowering::Unlowered => return Err(PortableOperatorFault::WrongOperation),
+    })
+}
+
+/// Spike (ryo-fmx3): the node at a place of the plan.
+fn node_of_place(place: usize) -> u32 {
+    u32::try_from(place).unwrap_or(u32::MAX)
+}
+
+/// A probe stage's chunk call (`stage_chunk`'s probe arm).
+#[expect(clippy::too_many_arguments, reason = "spike (ryo-fmx3): the probe arm, lifted out for the recorder")]
+fn probe_chunk(
+    run: &mut KernelRun<'_>,
+    buffers: &mut FileBuffers,
+    place: usize,
+    probe: &crate::domain::equality_join::types::ProbeParts,
+    index: &ProbeIndex,
+    input: RowChunk<'_>,
+    kinds: &[CellKind],
+    own: &mut StageOwn,
+    right: Option<&ChainRows<'_>>,
+    out: &mut Table,
+    bound: CellBound,
+) -> Result<ChunkRead, PortableOperatorFault> {
+    Ok({
+        {
             let right = right.ok_or(PortableOperatorFault::WrongOperation)?;
             let run: &KernelRun<'_> = run;
             let mut tree = None;
@@ -237,6 +296,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
             {
                 buffers.builds.0 += 1;
             }
+            let planned = *index;
             let index = probe_index(&mut buffers.shared.indexes, own_index, *index)?;
             let mut scratch = ProbeScratch {
                 index,
@@ -256,7 +316,22 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
             // its first left row's.
             if *work == ProbeWork::Pending && count_of(input.rows).0 > input.from.0 {
                 *work = ProbeWork::Done;
-                if let Some(fault) = probe_prepared(probe, kinds, right, run, &mut scratch)? {
+                let started = crate::spike::on().then(std::time::Instant::now);
+                let prepared = probe_prepared(probe, kinds, right, run, &mut scratch);
+                if let Some(started) = started {
+                    let built = if build == crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild::Builds {
+                        count_of(crate::domain::physical_plan::collections::kernels::probe_right::item::read_right(probe, build, right, scratch.kept)).0 as u64
+                    } else {
+                        0
+                    };
+                    let kind = match planned {
+                        ProbeIndex::Own => 0,
+                        ProbeIndex::Shared(_) => 1,
+                        ProbeIndex::Tree => 2,
+                    } + if probe.filter.comparisons.is_empty() { 0 } else { 4 };
+                    crate::spike::probe_prep(node_of_place(place), u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX), built, kind);
+                }
+                if let Some(fault) = prepared? {
                     return Ok(ChunkRead {
                         read: RowCount(1),
                         stop: ChunkStop::Faulted(fault),
@@ -278,19 +353,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
             *fed = right_fed;
             answered?
         }
-        Lowering::Lookup { .. }
-        | Lowering::Distinct { .. }
-        | Lowering::Group { .. }
-        | Lowering::Reach { .. }
-        | Lowering::SeededReach { .. }
-        | Lowering::Axis { .. }
-        | Lowering::OrderedWalk { .. }
-        | Lowering::Worklist { .. }
-        | Lowering::Components { .. }
-        | Lowering::OrderedMatch { .. }
-        | Lowering::Render { .. }
-        | Lowering::ScanBound { .. }
-        | Lowering::Unlowered => return Err(PortableOperatorFault::WrongOperation),
     })
 }
 
