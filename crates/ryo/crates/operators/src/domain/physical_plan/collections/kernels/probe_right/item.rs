@@ -297,7 +297,7 @@ fn extremes(
     order: OrderedProbe,
     index: &mut KeyedRows,
 ) -> Result<(), PortableOperatorFault> {
-    let KeyedRows { keys, next } = index;
+    let KeyedRows { keys, next, .. } = index;
     for key in keys.iter_mut() {
         let mut best = key.first;
         let mut bound = number_at(right, indexed(best), order.right_order)?;

@@ -13,6 +13,8 @@ pub(crate) struct KeyedRows {
     pub(crate) keys: hashbrown::HashTable<KeyedRun>,
     /// The next row of the same key after each row; `NO_ROW` after the last.
     pub(crate) next: Vec<IndexedRow>,
+    /// Spike (ryo-jenl): the key census class of the last build.
+    pub(crate) census: u8,
 }
 
 /// One key of an index: its hash, the first and last of its rows and how many rows it has.
@@ -71,6 +73,7 @@ impl KeyedRows {
         Self {
             keys: hashbrown::HashTable::new(),
             next: Vec::with_capacity(room.0),
+            census: 0,
         }
     }
 

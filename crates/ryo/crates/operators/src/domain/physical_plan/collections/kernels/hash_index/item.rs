@@ -97,6 +97,36 @@ fn hashed(run: &KeyedRun, hash: IndexKeyHash) -> PredicateOutcome {
     }
 }
 
+/// Spike (ryo-jenl): counts a build of `side` in the key census.
+fn census(side: KeyedSide<'_>, rows: &mut KeyedRows) {
+    if !crate::spike::keystats() {
+        return;
+    }
+    let kinds = super::super::scan_facts::item::kinds_of(side.rows);
+    let class = crate::spike::key_class(side.on.iter().map(|column| {
+        kinds.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied().unwrap_or(CellKind::Flag)
+    }));
+    rows.census = u8::try_from(class).unwrap_or(4);
+    let count = count_of(side.rows);
+    crate::spike::key_rows(0, class, count.0 as u64);
+    if class == 0 && count.0 > 0 {
+        let (mut low, mut high, mut file, mut files) = (u64::MAX, 0u64, None, false);
+        for at in 0..count.0 {
+            if let Some(Value::Node(node)) = cell_of(side.rows, RowIndex(at), side.on[0]) {
+                let place = node.0 & 0xffff_ffff;
+                low = low.min(place);
+                high = high.max(place);
+                let here = node.0 >> 32;
+                if file.is_some_and(|seen| seen != here) {
+                    files = true;
+                }
+                file = Some(here);
+            }
+        }
+        crate::spike::key_range(high.saturating_sub(low) + 1, count.0 as u64, files);
+    }
+}
+
 /// Keys the relation's rows by the hash of `column`'s text into `rows`: each key's first and last row, and each row's next
 /// of the same key, ascending. A cell with no text is no key.
 pub(crate) fn texts(
@@ -106,6 +136,9 @@ pub(crate) fn texts(
     rows: &mut KeyedRows,
 ) {
     cleared(rows, rows_of(view));
+    if crate::spike::keystats() {
+        crate::spike::key_rows(5, 2, rows_of(view).0 as u64);
+    }
     let Some(cells) = view
         .columns
         .get(usize::try_from(column.0).unwrap_or(usize::MAX))
@@ -174,6 +207,7 @@ pub(crate) fn cells(
     side: KeyedSide<'_>,
     rows: &mut KeyedRows,
 ) -> Result<(), PortableOperatorFault> {
+    census(side, rows);
     let count = count_of(side.rows);
     cleared(rows, count);
     for at in 0..count.0 {
@@ -217,6 +251,9 @@ pub(crate) fn find_cells(
     indexed_side: KeyedSide<'_>,
     probe: KeyedRowAt<'_>,
 ) -> Result<Option<KeyedRun>, PortableOperatorFault> {
+    if crate::spike::keystats() {
+        crate::spike::key_rows(1, usize::from(rows.census), 1);
+    }
     let hash = hash_of(probe)?;
     Ok(rows
         .keys
@@ -246,6 +283,9 @@ pub(crate) fn find_value(
     let [column] = indexed_side.on else {
         return Err(PortableOperatorFault::ShapeMismatch);
     };
+    if crate::spike::keystats() {
+        crate::spike::key_rows(1, usize::from(rows.census), 1);
+    }
     let hash = hash_of_cells([key]);
     Ok(rows
         .keys
@@ -408,6 +448,9 @@ pub(crate) fn find_read(
     at: RowIndex,
     left: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
 ) -> Result<Option<KeyedRun>, PortableOperatorFault> {
+    if crate::spike::keystats() {
+        crate::spike::key_rows(1, usize::from(rows.census), 1);
+    }
     let hash = hash_read(left_on, at, left)?;
     Ok(rows
         .keys
@@ -426,6 +469,9 @@ pub(crate) fn cells_typed(side: KeyedSide<'_>, rows: &mut KeyedRows) -> Result<(
     use super::super::scan_facts::item::{facts_cell, table_cell};
     if !crate::spike::probe_lever("fastkey") {
         return cells(side, rows);
+    }
+    if !matches!(side.rows, crate::domain::physical_plan::types::InputRows::Tree(_) | crate::domain::physical_plan::types::InputRows::Row(..)) {
+        census(side, rows);
     }
     match side.rows {
         crate::domain::physical_plan::types::InputRows::Table(table) => {

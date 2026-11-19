@@ -66,6 +66,9 @@ impl RowSet {
     /// Keeps the row `table` holds from cell `start` when no row kept before it holds the same cells: `First`, and it is kept;
     /// `Repeat` otherwise. The set keeps the rows of `table` in order, so the row kept is the table's next row.
     pub(crate) fn first_seen(&mut self, table: &Table, start: CellStart) -> FirstSeen {
+        if crate::spike::keystats() {
+            crate::spike::key_rows(2, crate::spike::key_class(table.kinds.iter().copied()), 1);
+        }
         let new = table.cells.get(start.0..).unwrap_or_default();
         let hash = hash_of_cells(new.iter().copied());
         if self
@@ -97,6 +100,9 @@ impl RowSet {
         cell: impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
     ) -> Result<(), PortableOperatorFault> {
         self.kept.clear();
+        if crate::spike::keystats() {
+            crate::spike::key_rows(3, crate::spike::key_class(kinds.iter().copied()), count.0 as u64);
+        }
         let mut cells = Vec::with_capacity(kinds.len());
         for at in 0..count.0 {
             cells.clear();
@@ -132,6 +138,9 @@ impl RowSet {
         cell: impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
         row: &[Value],
     ) -> SetMembership {
+        if crate::spike::keystats() {
+            crate::spike::key_rows(4, crate::spike::key_class(kinds.iter().copied()), 1);
+        }
         let hash = hash_of_cells(row.iter().copied());
         if self
             .kept
