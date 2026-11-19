@@ -26,10 +26,16 @@ pub fn property_at(
     property: PropertyId,
 ) -> Option<NameText<'_>> {
     let table = engine(elements);
-    let Ok(found) = table
-        .decoded
-        .binary_search_by_key(&(at, property), |each| (each.element, each.property))
-    else {
+    // Spike (ryo-fmx3, host3): the search starts at this thread's last answer and widens from there: readers ask in tree
+    // order, so a lookup reads a few neighbouring entries, not a bisection of the whole file's entries.
+    thread_local! {
+        static LAST: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    }
+    let found = galloped(&table.decoded, (at, property), LAST.with(std::cell::Cell::get));
+    if let Ok(place) | Err(place) = found {
+        LAST.with(|last| last.set(place));
+    }
+    let Ok(found) = found else {
         return None; // a binary search answers where a key it does not find would go: that is the key's absence, not a failure
     };
     let each = table.decoded.get(found)?;
@@ -46,6 +52,52 @@ pub fn property_at(
             Err(_) => None,
         })
         .map(NameText)
+}
+
+/// Spike (ryo-fmx3, host3): where `key` is in `decoded`, ordered by element and property, as `binary_search_by_key` answers,
+/// searched outwards from `guess` in doubling steps and then by bisection between the last two steps.
+fn galloped(
+    decoded: &[crate::domain::elements::types::DecodedProperty],
+    key: (Position, PropertyId),
+    guess: usize,
+) -> Result<usize, usize> {
+    let Some(last) = decoded.len().checked_sub(1) else {
+        return Err(0);
+    };
+    let start = guess.min(last);
+    let at = |index: usize| decoded.get(index).map(|each| (each.element, each.property));
+    let (low, high) = if at(start).is_some_and(|found| found < key) {
+        let (mut before, mut step) = (start, 1_usize);
+        loop {
+            let next = start.saturating_add(step);
+            if next > last {
+                break (before + 1, decoded.len());
+            }
+            if at(next).is_some_and(|found| found >= key) {
+                break (before + 1, next + 1);
+            }
+            before = next;
+            step = step.saturating_mul(2);
+        }
+    } else {
+        let (mut after, mut step) = (start, 1_usize);
+        loop {
+            let Some(next) = start.checked_sub(step) else {
+                break (0, after + 1);
+            };
+            if at(next).is_some_and(|found| found < key) {
+                break (next + 1, after + 1);
+            }
+            after = next;
+            step = step.saturating_mul(2);
+        }
+    };
+    decoded
+        .get(low..high)
+        .unwrap_or_default()
+        .binary_search_by_key(&key, |each| (each.element, each.property))
+        .map(|found| found + low)
+        .map_err(|place| place + low)
 }
 
 /// The one spelling of a binary64 value every language writes: the shortest round-trip decimal `f64`'s `Display` writes, with
