@@ -145,7 +145,7 @@ fn publishes_dry_run() {
 }
 
 /// The installed command links exactly the languages the crate's default features name: its
-/// provider catalog lists each (`relation describe comment --json`, `languages`, `<name>: ...`).
+/// provider catalog lists each (`relation describe comment --json`, `languages`, `{"name": ...}`).
 #[test]
 fn links_its_languages() {
     let directory = tempfile::tempdir().unwrap();
@@ -160,13 +160,7 @@ fn links_its_languages() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|entry| {
-            entry
-                .as_str()
-                .and_then(|text| text.split_once(": "))
-                .map(|(name, _)| name.to_owned())
-                .unwrap()
-        })
+        .map(|entry| entry["name"].as_str().map(str::to_owned).unwrap())
         .collect::<Vec<_>>();
     linked.sort();
     assert_eq!(linked, FEATURES);
