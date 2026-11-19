@@ -146,7 +146,15 @@ impl<'p> LogicalProgram<'p> {
     }
 
     /// The nodes, in node order.
-    pub(crate) fn nodes(&self) -> &[LogicalNode<'p>] {
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_operators::domain::physical_plan::types::logical_program::value::LogicalProgram;
+    /// assert!(LogicalProgram::new().nodes().is_empty());
+    /// ```
+    #[must_use]
+    pub fn nodes(&self) -> &[LogicalNode<'p>] {
         &self.nodes
     }
 

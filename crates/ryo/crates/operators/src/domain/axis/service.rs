@@ -18,3 +18,18 @@ pub(crate) fn lower(
         output: shape.output.to_vec(),
     }
 }
+
+/// The keyed columns of an axis's edges: from the child to the parent upward, else downward.
+pub(crate) fn keyed_columns(axis: &super::types::AxisParts) -> super::types::KeyedColumns {
+    use ryo_values::domain::plan_parts::types::Direction;
+    let up = matches!(
+        axis.direction,
+        Direction::Parent | Direction::Ancestor | Direction::NearestAncestor
+    );
+    let (from, to) = if up {
+        (axis.child, axis.parent)
+    } else {
+        (axis.parent, axis.child)
+    };
+    super::types::KeyedColumns { from, to }
+}

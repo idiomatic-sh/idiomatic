@@ -200,3 +200,84 @@ impl SharedIndexes {
         }
     }
 }
+
+/// A reader of one planned index, with the number of readers the file must account for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct IndexReader {
+    /// Which storage the planner assigned.
+    pub(crate) place: IndexPlace,
+    /// How many nodes can read this identity in the file.
+    pub(crate) readers: NodeReaders,
+}
+
+/// Storage for one ordered key over its original source rows. Only demand from a reader opens shared storage.
+#[derive(Debug)]
+pub(crate) enum KeyedStorage<'a> {
+    /// The node's own scratch.
+    Own(&'a mut KeyedRows),
+    /// The unchanged published relation and exact ordered key have more than one reader.
+    File {
+        /// The file-local owner.
+        indexes: &'a mut SharedIndexes,
+        /// Where the owner borrows empty storage.
+        pools: &'a mut IndexPools,
+        /// The planner's reader registration.
+        reader: IndexReader,
+    },
+}
+
+/// An access to keyed source rows, measured at the build in tests.
+#[derive(Debug)]
+pub(crate) struct KeyedAccess<'a> {
+    /// Where the key's ordered row links live.
+    pub(crate) storage: KeyedStorage<'a>,
+    /// Counts actual index construction in the executable contract.
+    #[cfg(test)]
+    pub(crate) builds: &'a mut super::super::worker_meters::value::IndexBuilds,
+}
+
+impl<'b> KeyedAccess<'b> {
+    /// The ordered row links a demanded key reads. A failed build leaves no reusable prefix.
+    ///
+    /// # Errors
+    ///
+    /// The first fault while building the existing source-row index, or a mismatched index kind.
+    pub(crate) fn rows(
+        self,
+        build: impl FnOnce(
+            &mut KeyedRows,
+        ) -> Result<(), crate::domain::contract::types::PortableOperatorFault>,
+    ) -> Result<&'b KeyedRows, crate::domain::contract::types::PortableOperatorFault> {
+        use crate::domain::contract::types::PortableOperatorFault;
+        let rows = match self.storage {
+            KeyedStorage::Own(rows) => rows,
+            KeyedStorage::File {
+                indexes,
+                pools,
+                reader,
+            } => {
+                indexes.opened(reader.place, reader.readers, pools);
+                let stored = indexes
+                    .indexes
+                    .get_mut(reader.place.0)
+                    .ok_or(PortableOperatorFault::WrongOperation)?;
+                let IndexRows::Keyed(rows) = &mut stored.rows else {
+                    return Err(PortableOperatorFault::WrongOperation);
+                };
+                if !rows.next.is_empty() {
+                    return Ok(rows);
+                }
+                rows
+            }
+        };
+        #[cfg(test)]
+        {
+            self.builds.0 += 1;
+        }
+        if let Err(fault) = build(rows) {
+            rows.cleared();
+            return Err(fault);
+        }
+        Ok(rows)
+    }
+}

@@ -235,6 +235,7 @@ pub(crate) fn lowered(
                     starts,
                     edges,
                     domain,
+                    edge_index: None,
                     axis: crate::domain::axis::service::lower(
                         crate::domain::axis::types::AxisShape {
                             direction: *direction,

@@ -1,5 +1,6 @@
 //! The planner's one dispatch over the operation kinds, each kind lowered once by its own concept; the registry of the rewrites
 //! it applies over what it lowered, and the `kernels!` catalog of the kernels the lowerings run.
+pub(crate) mod entity_queries;
 pub(crate) mod indexes;
 pub(crate) mod kernels;
 pub(crate) mod lowering;
@@ -145,10 +146,15 @@ pub(crate) fn plan_with(
         rewrite.rewrite(&mut nodes, &mut indexes);
     }
     // After the rewrites: a rewrite changes a probe's right rows, key and mode, and replaces probes.
-    indexes::service::shared_indexes(&mut nodes, &mut indexes);
+    indexes::service::shared_indexes(&mut nodes, &mut indexes, |node| {
+        logical
+            .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+            .map(|step| step.scope)
+    });
     // Last: whether a node streams reads every node's final sources and the indexes.
     flows(&mut nodes, &indexes);
-    Ok(PhysicalPlan { nodes, indexes })
+    Ok(PhysicalPlan {
+        entity_queries: std::sync::Arc::new(entity_queries::service::compile(&nodes, &indexes)), nodes, indexes })
 }
 
 /// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them (`flow_of`). Who reads
@@ -247,4 +253,18 @@ fn flow_of(
 /// The node at `id`, to change.
 fn place(nodes: &mut [PhysicalNode], id: PlanNodeId) -> Option<&mut PhysicalNode> {
     nodes.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
+}
+/// Offer the immutable source columns whose preceding file query already requested them.
+/// The caller borrows these only from the complete, stable fact store for the currently open file.
+pub fn bind_requested_entity_sources<'a>(
+    buffers: &mut crate::domain::physical_plan::types::file_buffers::value::FileBuffers,
+    plan: &crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+    texts: &crate::domain::table_texts::types::Texts<'_>,
+    read: impl Fn(
+        ryo_relations::domain::relations::types::Relation,
+    ) -> Option<ryo_relations::domain::relations::types::ColumnsView<'a>>,
+) {
+    buffers
+        .entity_queries
+        .bind(&plan.entity_queries, texts, read);
 }

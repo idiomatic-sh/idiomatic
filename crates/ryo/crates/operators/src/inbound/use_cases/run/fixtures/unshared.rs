@@ -19,8 +19,10 @@ use ryo_values::domain::rows::types::Table;
 #[must_use]
 pub fn unshared(mut plan: PhysicalPlan) -> PhysicalPlan {
     for node in &mut plan.nodes {
-        if let Lowering::Probe { index, .. } = &mut node.lowering {
-            *index = ProbeIndex::Own;
+        match &mut node.lowering {
+            Lowering::Probe { index, .. } => *index = ProbeIndex::Own,
+            Lowering::Axis { edge_index, .. } => *edge_index = None,
+            _ => {}
         }
     }
     plan

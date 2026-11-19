@@ -3,6 +3,7 @@
 
 #[cfg(test)]
 mod fixtures;
+pub mod routes;
 pub mod service;
 #[cfg(test)]
 mod service_test;

@@ -165,7 +165,7 @@ fn subject(shape: Input) -> Result<Value, Failure> {
     };
     let mut indexes = Vec::new();
     TreeProbeItem.rewrite(&mut nodes, &mut indexes);
-    shared_indexes(&mut nodes, &mut indexes);
+    shared_indexes(&mut nodes, &mut indexes, |_| None);
     let index_of = |node: &PhysicalNode| {
         if let Lowering::Probe { index, .. } = &node.lowering {
             Some(*index)

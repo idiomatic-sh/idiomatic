@@ -98,6 +98,8 @@ pub(crate) enum Lowering {
         domain: RowSource,
         /// The walk.
         axis: AxisParts,
+        /// The file-owned edge index when another physical reader needs these exact fact keys.
+        edge_index: Option<crate::domain::physical_plan::types::shared_index::value::IndexReader>,
     },
     /// `ordered_walk`: from each distinct partition and root, in sorted order, the edges an ordered depth-first visit reaches.
     OrderedWalk {

@@ -20,6 +20,14 @@ pub(crate) struct AxisParts {
     pub(crate) output: Vec<ryo_values::domain::plan_parts::types::JoinColumn>,
 }
 
+/// The directed key and destination for a walk over indexed edges.
+pub(crate) struct KeyedColumns {
+    /// The column whose cells identify each edge chain.
+    pub(crate) from: ryo_values::domain::plan_parts::types::ColumnIndex,
+    /// The entity the edge reaches.
+    pub(crate) to: ryo_values::domain::plan_parts::types::ColumnIndex,
+}
+
 /// The axis operation's columns and direction, borrowed from it for its lowering.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct AxisShape<'a> {

@@ -305,6 +305,6 @@ pub(crate) fn replay(
     };
     tables.fresh.push(FreshRecord {
         place: at,
-        record: renewed(outcome),
+        record: renewed(outcome).into(),
     });
 }

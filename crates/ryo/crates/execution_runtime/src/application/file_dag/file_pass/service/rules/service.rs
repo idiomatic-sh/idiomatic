@@ -25,7 +25,6 @@ use crate::application::file_dag::publications::types::BoundTables;
 use ryo_execution_domain::domain::completion::types::ObservationAdmission;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::service::rule as fused_rule;
 use ryo_execution_domain::domain::finish::types::Arena;
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -78,6 +77,17 @@ pub(crate) fn run_rules(
             partials,
         };
     }
+    let condition = pass.conditional.as_ref().map_or(
+        crate::application::file_dag::file_pass::types::SourceCondition::Unproven,
+        |selection| {
+            crate::application::file_dag::file_pass::service::selection::service::supplied(
+                &selection.absence,
+                input.source,
+                symbols,
+                &lookup,
+            )
+        },
+    );
     let evaluation = match input.answering {
         Partiality::Physical => partials.as_slice(),
         Partiality::Relaxed => &[][..],
@@ -96,6 +106,7 @@ pub(crate) fn run_rules(
         file,
     );
     let mut at = PassFile {
+        condition,
         request,
         pass,
         inputs: PassInputs {
@@ -120,6 +131,7 @@ pub(crate) fn run_rules(
         outputs: std::mem::take(&mut scratch.outputs),
         answers: std::mem::take(&mut scratch.answers),
     };
+    crate::application::file_dag::file_pass::service::selection::service::retire_unchosen(&mut at);
     for outputs in &mut at.outputs {
         outputs.clear();
     }
@@ -236,7 +248,11 @@ pub(crate) fn delivered_rule(
     if diagnostic == DiagnosticDelivery::Forwarded {
         return Err(OperatingError::NotRun);
     }
-    let nodes = fused_rule(&at.pass.program, rule)?;
+    let nodes = crate::application::file_dag::file_pass::service::selection::service::file_rule(
+        at.pass,
+        at.condition,
+        rule,
+    )?;
     // A step no root reads, whose schema refuses, stops the rule's run in the file before any row.
     if let Some(refusal) = &nodes.refused {
         return Err(refusal.clone());
@@ -304,7 +320,12 @@ fn output_rows(
 ) -> Result<NodeAnswer, OperatingError> {
     match source {
         Some(Input::Step(id)) => {
-            let step = fused_rule(&at.pass.program, rule)?
+            let step =
+                crate::application::file_dag::file_pass::service::selection::service::file_rule(
+                    at.pass,
+                    at.condition,
+                    rule,
+                )?
                 .steps
                 .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                 .ok_or(OperatingError::NotRun)

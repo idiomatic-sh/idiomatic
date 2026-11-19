@@ -69,7 +69,7 @@ fn replay_scenario(outcome: FileOutcome) -> Value {
         &entry(),
         Digest([1; 16]),
     );
-    let fresh = &worker.fresh[0].record;
+    let fresh = &worker.fresh[0].record.clone().into_record();
     let renewed = fresh.number == FileNumber(3) && fresh.digest == Digest([1; 16]);
     count(worker.unread.len()) * 100 + count(worker.fresh.len()) * 10 + u64::from(renewed)
 }

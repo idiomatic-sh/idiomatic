@@ -29,6 +29,8 @@ use ryo_relations::domain::relations::types::{NodeId, Value};
 /// ```
 #[derive(Debug, Default)]
 pub struct FileBuffers {
+    /// Optional immutable query state belongs to exactly one open file.
+    pub(crate) entity_queries: crate::domain::entity_queries::types::entity_files::value::EntityFileSession,
     /// The rows of each node, by node id; a node not run or released holds none.
     pub(crate) nodes: Vec<Option<ryo_values::domain::rows::types::Table>>,
     /// The fault each node raised after its rows, by node id: its readers raise it once they have read every row before it.
@@ -343,6 +345,7 @@ impl FileBuffers {
 }
 
 impl FileBuffers {
+
     /// Ends the open file: each node it touched is released, and each shared index it opened, each streamed stage's own
     /// index and repeats, and the worker's own index, second index and repeats give their rows to the worker's index pools,
     /// each to the pool of its kind, no other, so the work is the file's, not the program's; its other scratch keeps its room
@@ -358,6 +361,7 @@ impl FileBuffers {
     /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
     /// ```
     pub fn ended(&mut self) {
+        self.entity_queries = Default::default();
         let touched = self.touched.taken();
         for node in &touched {
             self.release(*node);

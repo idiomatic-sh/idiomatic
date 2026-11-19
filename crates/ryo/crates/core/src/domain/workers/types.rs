@@ -45,7 +45,7 @@ pub(crate) struct FreshRecord {
     /// The file's place among the files.
     pub place: FileOrder,
     /// What came of the file.
-    pub record: Record,
+    pub record: worker_record::value::WorkerRecord,
 }
 
 /// What the language wrote of one file, for the project to read, and the file's place.
@@ -123,6 +123,8 @@ pub(crate) enum Checking {
 /// What one worker owns, which no other worker touches while the jobs run: its element table, the bytes of the file it reads,
 /// the rules that govern it, its tables of the store and the room it computes in.
 pub(crate) struct Tables {
+    /// Complete staged-receipt schema shared by files handled by this worker.
+    pub(crate) receipt_layout: Option<std::sync::Arc<[worker_record::value::ReceiptLayout]>>,
     /// Current file's demanded named frontier readiness; empty ordinary path allocates nothing.
     pub current_observations:
         Option<std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
@@ -321,3 +323,5 @@ pub(crate) trait RunDecisions {
     /// Whether the partials block these reads.
     fn blocked(&self, needs: &[RelationRead], partial: &[Partial]) -> Blocking;
 }
+
+pub(crate) mod worker_record;

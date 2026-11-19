@@ -22,9 +22,12 @@ use crate::domain::physical_plan::collections::kernels::reach::item::{
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     count_of, kinds_of, row_of,
 };
+use crate::domain::physical_plan::service::indexes::service::closed;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
-use crate::domain::physical_plan::types::shared_index::value::{IndexKind, IndexRows};
+use crate::domain::physical_plan::types::shared_index::value::{
+    IndexKind, IndexRows, KeyedAccess, KeyedStorage,
+};
 use crate::domain::physical_plan::types::{CellStart, KernelRun, PlanNodeId};
 use ryo_values::domain::rows::types::{RowIndex, Table};
 
@@ -120,7 +123,9 @@ pub(crate) fn kernels(
             };
             return reached(graph, edges, starts, run, scratch, output);
         }
-        Lowering::Axis { axis, .. } => {
+        Lowering::Axis {
+            axis, edge_index, ..
+        } => {
             let inputs = AxisInputs {
                 starts: input,
                 edges: other.ok_or(PortableOperatorFault::WrongOperation)?,
@@ -130,18 +135,36 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
-            buffers.pools.keyed.refilled(&mut buffers.index);
             // The domain is keyed: the second index is readied as keyed rows.
             buffers.second.readied(IndexKind::Keyed, &mut buffers.pools);
             let IndexRows::Keyed(domain) = &mut buffers.second else {
                 return Err(PortableOperatorFault::WrongOperation);
             };
+            let storage = match edge_index {
+                Some(reader) => KeyedStorage::File {
+                    indexes: &mut buffers.shared,
+                    pools: &mut buffers.pools,
+                    reader: *reader,
+                },
+                None => {
+                    buffers.pools.keyed.refilled(&mut buffers.index);
+                    KeyedStorage::Own(&mut buffers.index)
+                }
+            };
             let tables = AxisTables {
-                edges: &mut buffers.index,
+                edges: KeyedAccess {
+                    storage,
+                    #[cfg(test)]
+                    builds: &mut buffers.builds,
+                },
                 domain,
                 decisions,
             };
-            return walked(axis, inputs, run, tables, &mut buffers.walk, output);
+            let answer = walked(axis, inputs, run, tables, &mut buffers.walk, output);
+            if let Some(reader) = edge_index {
+                closed(buffers, reader.place);
+            }
+            return answer;
         }
         Lowering::OrderedWalk { dfs, .. } => {
             let edges = other.ok_or(PortableOperatorFault::WrongOperation)?;

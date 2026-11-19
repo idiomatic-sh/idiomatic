@@ -16,7 +16,6 @@ use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::refusals::service::deferred_layout;
-use ryo_execution_domain::domain::executable_program::service::rule as fused_rule;
 use ryo_execution_domain::domain::executable_program::types::RuleNodes;
 use ryo_execution_domain::domain::finish::service::escape_frame;
 use ryo_execution_domain::domain::finish::types::{Arena, Leaves, Leaving};
@@ -62,7 +61,12 @@ pub(crate) fn captured_rule(
     }
     let digest = at.request.program.rule_digest(rule)?;
     let frontiers = at.request.program.frontiers(rule)?;
-    let nodes = fused_rule(&at.pass.program, rule)?.clone();
+    let nodes = crate::application::file_dag::file_pass::service::selection::service::file_rule(
+        at.pass,
+        at.condition,
+        rule,
+    )?
+    .clone();
     let plan = Arc::clone(at.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?);
     let CaptureContext {
         worker,

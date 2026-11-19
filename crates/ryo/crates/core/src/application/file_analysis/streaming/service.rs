@@ -320,7 +320,7 @@ impl FileVisits {
                 .tables
                 .fresh
                 .into_iter()
-                .map(|each| each.record)
+                .map(|each| each.record.into_record())
                 .collect(),
             unknowns: worker.tables.unknowns,
             skipped: worker.tables.skipped,

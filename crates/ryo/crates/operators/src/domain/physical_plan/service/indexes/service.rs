@@ -3,60 +3,115 @@
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
 use crate::domain::physical_plan::collections::kernels::probe_right::item::IndexBuild;
+use crate::domain::physical_plan::types::RowSource;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalNode;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::row_set::value::RowSet;
+use crate::domain::physical_plan::types::shared_index::value::IndexReader;
 use crate::domain::physical_plan::types::shared_index::value::{IndexKind, IndexRows, SharedIndex};
 use crate::domain::physical_plan::types::{
     IndexIdentity, IndexKey, IndexPlace, KeyedIndex, KeyedIndexes, NodeReaders, PlanNodeId,
     ProbeIndex,
 };
+use ryo_values::domain::plan_parts::types::{Direction, StepScope};
 
 /// Shares one index between the probes of one right source and key: a planning step, not a rewrite, since an unshared plan
 /// answers the same rows. A probe of whole rows (an intersection's or a difference's) shares a row set, keyed
 /// `IndexKey::Rows`; any other a `hash_index` of its key columns. A probe that filters its right rows indexes rows of its own and keeps its own index, as does an
 /// ordered probe, which turns each key's first row into its extremum, and a probe alone on its right source and key; a probe
 /// that walks the tree has no index to share. Run after the rewrites, which change a probe's right rows, key, mode and index.
-pub(crate) fn shared_indexes(nodes: &mut [PhysicalNode], indexes: &mut Vec<KeyedIndex>) {
+pub(crate) fn shared_indexes(
+    nodes: &mut [PhysicalNode],
+    indexes: &mut Vec<KeyedIndex>,
+    scope: impl Fn(PlanNodeId) -> Option<StepScope>,
+) {
     let mut keyed = KeyedIndexes::default();
     for (node, id) in nodes.iter().zip((0..).map(PlanNodeId)) {
-        if let Lowering::Probe {
+        if let Some(identity) = reader_key(&node.lowering, scope(id)) {
+            let _: IndexPlace = read_by(&mut keyed, identity, id);
+        }
+    }
+    for mut index in keyed.indexes {
+        // Joining a file axis to another execution scope has no proved common source generation.
+        if index
+            .readers
+            .iter()
+            .any(|id| scope(*id) != Some(StepScope::PerFile))
+        {
+            index.readers.retain(|id| {
+                matches!(
+                    nodes
+                        .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+                        .map(|node| &node.lowering),
+                    Some(Lowering::Probe { .. })
+                )
+            });
+        }
+        if index.readers.len() < 2 {
+            continue;
+        }
+        let reader = IndexReader {
+            place: IndexPlace(indexes.len()),
+            readers: NodeReaders(u32::try_from(index.readers.len()).unwrap_or(u32::MAX)),
+        };
+        for id in &index.readers {
+            match nodes
+                .get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
+                .map(|node| &mut node.lowering)
+            {
+                Some(Lowering::Probe { index, .. }) => *index = ProbeIndex::Shared(reader.place),
+                Some(Lowering::Axis { edge_index, .. }) => *edge_index = Some(reader),
+                _ => {}
+            }
+        }
+        indexes.push(index);
+    }
+}
+
+/// The immutable rows and ordered key a physical reader actually indexes.
+fn reader_key(lowering: &Lowering, scope: Option<StepScope>) -> Option<IndexIdentity> {
+    match lowering {
+        Lowering::Probe {
             right,
             probe,
             index: ProbeIndex::Own,
             ..
-        } = &node.lowering
-            && probe.filter.comparisons.is_empty()
-            && !matches!(probe.mode, ProbeMode::Ordered(_))
+        } if probe.filter.comparisons.is_empty()
+            && !matches!(probe.mode, ProbeMode::Ordered(_)) =>
         {
-            let key = match &probe.key {
-                ProbeKey::Columns { right: on, .. } => IndexKey::Cells(on.clone()),
-                ProbeKey::Whole => IndexKey::Rows,
-            };
-            let _: IndexPlace = read_by(
-                &mut keyed,
-                IndexIdentity {
-                    source: *right,
-                    key,
+            Some(IndexIdentity {
+                source: *right,
+                key: match &probe.key {
+                    ProbeKey::Columns { right, .. } => IndexKey::Cells(right.clone()),
+                    ProbeKey::Whole => IndexKey::Rows,
                 },
-                id,
-            );
+            })
         }
-    }
-    let keyed = keyed.indexes;
-    for index in keyed.into_iter().filter(|index| index.readers.len() > 1) {
-        let at = IndexPlace(indexes.len());
-        for reader in &index.readers {
-            if let Some(Lowering::Probe { index: shared, .. }) = nodes
-                .get_mut(usize::try_from(reader.0).unwrap_or(usize::MAX))
-                .map(|node| &mut node.lowering)
-            {
-                *shared = ProbeIndex::Shared(at);
-            }
+        Lowering::Axis {
+            edges: edges @ RowSource::Facts(_),
+            axis,
+            ..
+        } if scope == Some(StepScope::PerFile)
+            && axis.output.is_empty()
+            && axis.domain.kept.is_empty()
+            && axis.domain.comparisons.is_empty()
+            && matches!(
+                axis.direction,
+                Direction::Child
+                    | Direction::Parent
+                    | Direction::Descendant
+                    | Direction::Ancestor
+                    | Direction::NearestAncestor
+            ) =>
+        {
+            Some(IndexIdentity {
+                source: *edges,
+                key: IndexKey::Cells(vec![crate::domain::axis::service::keyed_columns(axis).from]),
+            })
         }
-        indexes.push(index);
+        _ => None,
     }
 }
 

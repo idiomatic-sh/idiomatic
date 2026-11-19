@@ -92,7 +92,13 @@ fn materialize(
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
     let span = timed(buffers);
-    let made = kernels_of(plan, run, node, buffers);
+    let made = if let Some(table) = super::entity_queries::service::answer(plan, node, buffers) {
+        sized(plan, buffers);
+        hold(plan, buffers, node, table, None);
+        Ok(())
+    } else {
+        kernels_of(plan, run, node, buffers)
+    };
     timed_to(buffers, span, node);
     made
 }

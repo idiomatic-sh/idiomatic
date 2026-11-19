@@ -184,8 +184,7 @@ impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
 
 impl StreamScratch {
     /// The open file ended: each stage's own index and repeats go to the worker's index pools, each to the pool of its kind,
-    /// which keeps their room only within its caps. Within a file a stage keeps them across its chain's runs, so an index past `KEPT_ROOM` is not made
-    /// again for each run.
+    /// which keeps their room only within its caps. This also releases any stage left unsettled when its file closes.
     pub(crate) fn given_back(&mut self, pools: &mut IndexPools) {
         for stage in self.levels.iter_mut().flat_map(|level| &mut level.stages) {
             stage.own.index.given_back(pools);
@@ -215,7 +214,7 @@ impl ChainScratch {
 
 impl StageScratch {
     /// Empties the stage after its chain's run, keeping no more room in its tables than the bound, and its index empty. Its
-    /// own index and repeats keep their room for the chain's next run in the file; the file's end gives them to the pool.
+    /// private index and repeats remain owned until the chain releases them to the worker pools.
     pub(crate) fn settled(&mut self) {
         for table in [&mut self.out, &mut self.own.kept] {
             table.kinds.clear();
@@ -227,5 +226,18 @@ impl StageScratch {
         }
         self.own.index.cleared();
         self.fault = None;
+    }
+}
+
+impl ChainScratch {
+    /// Return this completed chain's private index and repeat state once its input chunks, pending prefix and shared probes have been settled.
+    pub(crate) fn release_private(&mut self, pools: &mut IndexPools) {
+        for stage in &mut self.stages {
+            stage.own.index.given_back(pools);
+            pools.rows.pooled(
+                std::mem::take(&mut stage.own.repeats),
+                PoolSize(POOL_INDEXES),
+            );
+        }
     }
 }

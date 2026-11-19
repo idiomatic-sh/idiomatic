@@ -221,3 +221,36 @@ fn rows_index((): ()) -> Result<GivenBack, Failure> {
 fn gives_back_rows_indexes() {
     run(ROWS_INDEX_CASES, Word::Succeeds, rows_index);
 }
+
+/// A completed chain lends its private storage at once; a second release at file end has nothing left to lend.
+const COMPLETED_CASES: &[Case<(), GivenBack, Failure>] = &[Case {
+    name: CaseName("a_completed_chain_releases_its_private_storage_exactly_once"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(GivenBack {
+        keyed: PoolSize(1),
+        sets: PoolSize(1),
+    }),
+}];
+fn after_chain(_: ()) -> Result<GivenBack, Failure> {
+    let mut chain = ChainScratch::default();
+    let mut own = StageScratch::default();
+    own.own.index = IndexRows::Keyed(keyed(128));
+    own.own.repeats = RowSet::with_room(Room(256));
+    chain.stages.push(own);
+    let mut pools = IndexPools::default();
+    chain.settled();
+    chain.release_private(&mut pools);
+    let mut stream = StreamScratch {
+        levels: vec![chain],
+    };
+    stream.given_back(&mut pools);
+    Ok(GivenBack {
+        keyed: pools.keyed.len(),
+        sets: pools.rows.len(),
+    })
+}
+#[test]
+fn releases_completed_private_storage() {
+    run(COMPLETED_CASES, Word::Succeeds, after_chain);
+}

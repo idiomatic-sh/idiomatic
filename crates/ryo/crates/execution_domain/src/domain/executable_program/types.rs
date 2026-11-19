@@ -9,9 +9,9 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
 use ryo_operators::domain::physical_plan::types::rule_ordinal::value::RuleOrdinal;
 use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
-use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::observations::types::BoundObservationInput;
-use ryo_values::domain::plan_parts::types::{LiteralText, StepScope};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText, QueryLiteral, StepScope};
 use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
@@ -227,4 +227,55 @@ pub(crate) struct DraftedColumns {
     pub(crate) layout: Result<Vec<CellKind>, OperatingError>,
     /// When its refusal is answered.
     pub(crate) timing: SchemaTiming,
+}
+
+/// One total literal equality in the original source's columns.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct SourceViewBranch<'p> {
+    /// The input column of the equality.
+    pub(crate) column: ColumnIndex,
+    /// The checked literal.
+    pub(crate) value: &'p QueryLiteral,
+}
+
+/// A stable first-distinct projection over one source, with ordered branches.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ProjectedSourceRows<'p> {
+    /// The only relation acquired.
+    pub(crate) relation: Relation,
+    /// The output columns in their authored order.
+    pub(crate) columns: Vec<ColumnIndex>,
+    /// The first scan's predicate.
+    pub(crate) first: SourceViewBranch<'p>,
+    /// The optional second scan's predicate.
+    pub(crate) second: Option<SourceViewBranch<'p>>,
+}
+
+/// The operation and actual inputs of a per-file node whose preflight succeeded.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CheckedSourceNode<'s, 'p> {
+    /// The original compiled operation.
+    pub(crate) operation: &'p Operation,
+    /// Its resolved input slots.
+    pub(crate) inputs: &'s [PlanInput],
+}
+
+/// The literal source of a filter and any mapping into its physical columns.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SourceColumnMap<'p> {
+    /// The catalog relation requested by this view.
+    pub(crate) relation: Relation,
+    /// Each row's projected columns, or the identity when the row reads its source directly.
+    pub(crate) projection: Option<&'p [ColumnIndex]>,
+}
+
+/// A typed condition under which a complete source predicate is empty in a file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourceAbsence {
+    /// Source whose rows the file delivered completely.
+    pub relation: Relation,
+    /// Physical column carrying the predicate's text.
+    pub column: ColumnIndex,
+    /// Text absent from that column throughout the file.
+    pub text: LiteralText,
 }

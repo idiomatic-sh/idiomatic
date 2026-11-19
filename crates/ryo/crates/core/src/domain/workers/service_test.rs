@@ -57,6 +57,7 @@ enum Scenario {
     Absorb,
     /// Puts the unread files and the records in the order of the files.
     Order,
+    ParkedRecord,
     /// Whether the rule at this place governs a file only the second rule governs.
     GovernsRule(usize),
 }
@@ -167,6 +168,46 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             absorb(&mut met, worker);
             u64::from(met.read.0) * 10 + count(met.arenas.len())
         }
+        Scenario::ParkedRecord => {
+            use ryo_values::domain::records::types::{
+                FrontierCoverage, FrontierOrdinal, FrontierProof, Handed, HandedWords, Handing,
+                PayloadLength, PayloadOffset, ProducerRule, Ran, RecordWords, StagedWords,
+                StagingSession,
+            };
+            use ryo_values::domain::stored_facts::types::Bucket;
+            let mut output = record("a.rs");
+            let row = |offset| HandedWords {
+                bucket: Bucket(5),
+                proof: FrontierProof {
+                    rule: ProducerRule(1),
+                    input: FrontierOrdinal(2),
+                    rule_digest: Digest([4; 16]),
+                    coverage: FrontierCoverage::Complete,
+                },
+                handed: RecordWords::Staged(StagedWords {
+                    session: StagingSession(2),
+                    offset: PayloadOffset(offset),
+                    length: PayloadLength(3),
+                }),
+            };
+            output.outcome = FileOutcome::Read(Ran {
+                rows: Default::default(),
+                number: FileNumber(0),
+                interface: Digest([0; 16]),
+                noted: Digest([7; 16]),
+                frontier: Vec::new(),
+                handed: Handing::Made(Handed {
+                    buckets: vec![row(15), row(18), row(88)],
+                    ..Default::default()
+                }),
+            });
+            let mut item = crate::domain::workers::types::worker_record::value::WorkerRecord::from(
+                output.clone(),
+            );
+            let mut template = None;
+            item.park(&mut template);
+            u64::from(template.is_some() && item.into_record() == output)
+        }
         Scenario::Order => {
             let mut met = WorkersMet::default();
             for path in ["b.rs", "a.rs"] {
@@ -178,7 +219,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             for place in [2, 0] {
                 met.fresh.push(FreshRecord {
                     place: FileOrder(place),
-                    record: record("x.rs"),
+                    record: record("x.rs").into(),
                 });
             }
             let fresh = order(&mut met);
@@ -194,6 +235,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_parked_file_returns_its_exact_ordered_staged_ranges"),
+        word: Word::Succeeds,
+        input: || Scenario::ParkedRecord,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("a_worker_prepares_metadata_without_retaining_rule_execution_rows"),
         word: Word::Succeeds,

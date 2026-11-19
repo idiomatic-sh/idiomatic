@@ -38,3 +38,7 @@ pub mod table_scratch;
 pub mod table_texts;
 pub mod tree_cells;
 pub(crate) mod worklist;
+
+pub mod row_predicates;
+
+pub(crate) mod entity_queries;

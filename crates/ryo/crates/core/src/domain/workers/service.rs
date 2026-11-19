@@ -25,6 +25,7 @@ use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::
 #[must_use]
 pub(crate) fn tables_for(number: WorkerNumber) -> Tables {
     Tables {
+        receipt_layout: None,
         current_observations: None,
         observations: Vec::new(),
         number,
@@ -112,7 +113,10 @@ pub(crate) fn order(met: &mut WorkersMet) -> Fresh {
     fresh.sort_by_key(|each| each.place.0);
     Fresh {
         places: fresh.iter().map(|each| each.place).collect(),
-        records: fresh.into_iter().map(|each| each.record).collect(),
+        records: fresh
+            .into_iter()
+            .map(|each| each.record.into_record())
+            .collect(),
     }
 }
 

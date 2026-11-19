@@ -18,7 +18,7 @@ use ryo_execution_domain::domain::completion::types::completion_policy::value::C
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::refusals::service::layout;
 use ryo_execution_domain::domain::executable_program::service::{
-    consumers, engine_uses, physical, rule as fused_rule,
+    consumers, physical, rule as fused_rule,
 };
 use ryo_execution_domain::domain::frontier_coverage::service::affected_files;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -86,6 +86,13 @@ pub(crate) fn node_rows(
             return Err(error);
         }
     };
+    let node = crate::application::file_dag::file_pass::service::selection::service::selected_step(
+        at.pass,
+        at.condition,
+        rule,
+        step,
+        node,
+    )?;
     let completion = CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
     if completion.region_admission(needs) == RegionAdmission::Blocked {
         let mut table = Table::default();
@@ -259,6 +266,14 @@ pub(crate) fn ran_node(
         semantic: at.semantic,
         refusals: &mut at.refusals,
     };
+    if at.request.observer.is_none() && at.inputs.lookup.partials().is_empty() {
+        ryo_operators::domain::physical_plan::service::bind_requested_entity_sources(&mut at.buffers, physical(&at.pass.program), &resources.texts(), |relation| {
+            match at.inputs.lookup.columns(relation) {
+                Ok(view) => Some(view),
+                Err(_) => None,
+            }
+        });
+    }
     run_node(at.pass, node, &mut at.buffers, &at.inputs, &mut resources).map_err(|fault| {
         if let PortableOperatorFault::RenderRefused { refusal } = fault {
             // A refused rendering answers the engine's reason for the node it came from, whichever rule ran that node.
@@ -312,7 +327,11 @@ pub(crate) fn unread_unrun(
             continue;
         }
         let (Ok(nodes), Some(plan)) = (
-            fused_rule(&pass.program, RuleIndex(rule)),
+            crate::application::file_dag::file_pass::service::selection::service::file_rule(
+                pass,
+                at.condition,
+                RuleIndex(rule),
+            ),
             pass.plans.get(rule),
         ) else {
             continue;
@@ -340,15 +359,7 @@ pub(crate) fn unread_unrun(
 /// Ends `rule`'s turn in the open file, whether it ran or not: each of its engine uses, the node it emits and each node it holds
 /// for a frontier or a named output, is done, so a node no reader still needs gives its rows back now, not at the file's end.
 pub(crate) fn rule_done(at: &mut PassFile<'_, '_, '_, '_>, rule: RuleIndex) {
-    let pass = at.pass;
-    // A rule the program does not hold has no engine use.
-    let Ok(uses) = engine_uses(&pass.program, rule) else {
-        return;
-    };
-    let plan = physical(&pass.program);
-    for node in uses {
-        at.buffers.used(plan, *node);
-    }
+    crate::application::file_dag::file_pass::service::selection::service::finish_rule(at, rule);
 }
 
 /// Ends the file: every node's rows go back to the buffers, those of a rule the file stopped at among them.

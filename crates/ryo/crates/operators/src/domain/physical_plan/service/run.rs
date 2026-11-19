@@ -7,3 +7,5 @@ pub(crate) mod reading;
 pub(crate) mod service;
 
 pub(crate) mod types;
+
+pub(super) mod entity_queries;

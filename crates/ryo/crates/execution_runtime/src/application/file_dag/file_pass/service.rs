@@ -52,6 +52,7 @@ pub(crate) mod counters;
 pub(crate) mod inputs;
 pub(crate) mod nodes;
 pub(crate) mod rules;
+pub(crate) mod selection;
 
 /// Writes into `into` the relations the rules that run on a file read, each once, in rule order: the union of `reads` over the
 /// rules whose intent for the file is Run. A rule that does not run on the file evaluates none of its nodes there, so nothing
@@ -184,6 +185,16 @@ pub(crate) fn pass_program(
     source: &PassSource,
     sets: &mut ReadSets,
 ) -> Result<PassProgram, OperatingError> {
+    conditioned_pass(source, sets, None, None)
+}
+
+/// Prepare the ordinary file program together with a variant for one typed source condition.
+pub(crate) fn conditioned_pass(
+    source: &PassSource,
+    sets: &mut ReadSets,
+    condition: Option<ryo_execution_domain::domain::executable_program::types::SourceAbsence>,
+    extended: Option<Relation>,
+) -> Result<PassProgram, OperatingError> {
     let PassSource {
         plans,
         bindings,
@@ -201,14 +212,47 @@ pub(crate) fn pass_program(
         })
         .collect();
     let mut inputs = ProgramInputs::hosting(hosted.clone());
-    let build = logical(&rules, &mut inputs)?;
-    let plan = operators.plan(build.program()).map_err(portable_fault)?;
-    let program = assemble(build, plan);
+    inputs.assuming(None, extended);
+    let normal = logical(&rules, &mut inputs)?;
+    let (program, conditional) = if let Some(absence) = condition {
+        let mut alternative = ProgramInputs::hosting(hosted.clone());
+        alternative.assuming(Some(absence.clone()), extended);
+        let mut storage = ProgramInputs::default();
+        let selected = (|| {
+            let other = logical(&rules, &mut alternative)?;
+            let joined = ryo_execution_domain::domain::executable_program::routes::service::joined(
+                normal,
+                other,
+                &rules,
+                &mut storage,
+            )?;
+            let combined = joined.program;
+            let routes = joined.routes;
+            let physical = operators.plan(combined.program()).map_err(portable_fault)?;
+            Ok::<_, OperatingError>((assemble(combined, physical), routes))
+        })();
+        match selected {
+            Ok((program, routes)) => (
+                program,
+                Some(Box::new(
+                    crate::application::file_dag::file_pass::types::ConditionalFileProgram {
+                        absence,
+                        routes,
+                    },
+                )),
+            ),
+            Err(_) => return conditioned_pass(source, sets, None, extended),
+        }
+    } else {
+        let physical = operators.plan(normal.program()).map_err(portable_fault)?;
+        (assemble(normal, physical), None)
+    };
     let reads = plans
         .iter()
         .map(|plan| step_read_sets(plan, sets))
         .collect();
     Ok(PassProgram {
+        conditional,
         program,
         operators: Arc::clone(operators),
         plans: plans.to_vec().into_boxed_slice(),

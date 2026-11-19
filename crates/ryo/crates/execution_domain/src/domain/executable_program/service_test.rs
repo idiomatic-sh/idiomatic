@@ -19,6 +19,14 @@ type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("source_view_keeps_order_bindings_refusals_roots_and_original_steps"),
+        word: Word::Succeeds,
+        input: || Request::SourceViews,
+        expect: Expect::Value(Cow::Borrowed(
+            "same [true, true, false, false, false, false, false, false]; steps [5, 6, 6, 6, 5, 6, 5, 6]; shared frontier true; distinct risky roots true; invalid projection Err(Table(NoSuchColumn { index: 99 }))",
+        )),
+    },
+    Case {
         name: CaseName("equal_steps_over_equal_inputs_are_one_node"),
         word: Word::Succeeds,
         input: || Request::EqualSteps,
@@ -138,6 +146,17 @@ fn subject(request: Input) -> Result<Value, Failure> {
         .collect();
     let mut inputs = ProgramInputs::default();
     let build = logical(&rules, &mut inputs).map_err(|_| ())?;
+    if matches!(request, Request::SourceViews) {
+        let nodes = &build.rules;
+        let same: Vec<_> = nodes.iter().map(|r| r.emit == nodes[0].emit).collect();
+        let steps: Vec<_> = nodes.iter().map(|r| r.steps.len()).collect();
+        let frontier = nodes[0].steps[3] == nodes[1].steps[4];
+        let risky = nodes[4].emit != nodes[5].emit;
+        let invalid = &nodes[7].steps[0];
+        return Ok(Cow::Owned(format!(
+            "same {same:?}; steps {steps:?}; shared frontier {frontier}; distinct risky roots {risky}; invalid projection {invalid:?}"
+        )));
+    }
     let planned = PlanUseCaseImpl.plan(build.program()).map_err(|_| ())?;
     let program = assemble(build, planned);
     let nodes = inputs.lists.len();

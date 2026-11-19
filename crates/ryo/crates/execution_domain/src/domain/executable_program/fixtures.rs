@@ -6,12 +6,16 @@ use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
 };
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, ObservationBindingId, Operand,
-    ParameterId, PlanComparison, QueryLiteral, StepId, StepScope, Test,
+    ColumnIndex, Input as StepInput, LiteralText, ObservationBindingId, Operand, ParameterId,
+    StepId, StepScope, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, Plan, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
+
+mod source_projections;
+mod steps;
+use steps::{bound_plan, compared, per_file, plan, select, text, union_of};
 
 /// A request of rules, each written as its steps and what its parameter is bound to.
 #[derive(Clone, Copy, Debug)]
@@ -44,65 +48,8 @@ pub(super) enum Request {
     /// Four rules with the same two selects: the difference of the first and the second, the difference of the second and the
     /// first, the union of the first and the second, and the union of the first with itself.
     InputOrder,
-}
-
-/// A comparison of a column with an operand.
-fn compared(test: Test, column: u32, right: Operand) -> PlanComparison {
-    PlanComparison {
-        test,
-        left: Operand::Column(ColumnIndex(column)),
-        right,
-        origin: ComparisonOrigin::Unrecorded,
-    }
-}
-
-/// A written text.
-fn text(written: &str) -> Operand {
-    Operand::Literal(QueryLiteral::Text(LiteralText(written.into())))
-}
-
-/// A select of `from` by `comparisons`, keeping every column.
-fn select(from: StepInput, comparisons: Vec<PlanComparison>) -> Operation {
-    Operation::Select {
-        from,
-        comparisons,
-        kept: Vec::new(),
-    }
-}
-
-/// A plan of `steps` that emits its last step and hands `frontier` to the steps after the files.
-fn plan(steps: Vec<PlanStep>, frontier: Vec<StepInput>) -> Arc<Plan> {
-    bound_plan(steps, frontier, Vec::new())
-}
-
-/// A plan of `steps` with `observation_inputs`, that emits its last step and hands `frontier` to the steps after the files.
-fn bound_plan(
-    steps: Vec<PlanStep>,
-    frontier: Vec<StepInput>,
-    observation_inputs: Vec<BoundObservationInput>,
-) -> Arc<Plan> {
-    Arc::new(Plan {
-        observation_inputs,
-        parameters: Vec::new(),
-        comparison_origins: Vec::new(),
-        observations: Vec::new(),
-        frontier,
-        emit: Emit {
-            step: StepId(u32::try_from(steps.len().saturating_sub(1)).unwrap_or(0)),
-            subject: ColumnIndex(0),
-            key: Vec::new(),
-            headings: Vec::new(),
-        },
-        steps,
-    })
-}
-
-/// A step on each file.
-fn per_file(operation: Operation) -> PlanStep {
-    PlanStep {
-        operation,
-        scope: StepScope::PerFile,
-    }
+    /// Per-file source views, adverse orders and fallible intervening operations.
+    SourceViews,
 }
 
 /// A step after the files.
@@ -165,14 +112,6 @@ fn own_steps(at: u32, name: &str, projections: u32) -> Vec<PlanStep> {
     .collect()
 }
 
-/// The union of a rule's steps `left` and `right`.
-fn union_of(left: u32, right: u32) -> PlanStep {
-    per_file(Operation::Union {
-        left: StepInput::Step(StepId(left)),
-        right: StepInput::Step(StepId(right)),
-    })
-}
-
 /// The difference of a rule's steps `left` and `right`.
 fn difference_of(left: u32, right: u32) -> PlanStep {
     per_file(Operation::Difference {
@@ -191,6 +130,7 @@ pub(super) fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding
     };
     let unbound = Vec::new;
     match request {
+        Request::SourceViews => source_projections::source_views(),
         Request::EqualSteps => vec![
             (plan(vec![per_file(named())], Vec::new()), unbound()),
             (plan(vec![per_file(named())], Vec::new()), unbound()),

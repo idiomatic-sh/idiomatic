@@ -7,7 +7,7 @@ use crate::domain::executable_program::types::logical_build::value::LogicalBuild
 use crate::domain::executable_program::types::program_inputs::value::ProgramInputs;
 use crate::domain::executable_program::types::{
     Consumers, Draft, DraftInputs, DraftedColumns, RootKind, RuleInput, RuleNodes, RuleScopes,
-    StepAt,
+    SchemaTiming, StepAt,
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::service::schema_of;
@@ -28,12 +28,14 @@ use std::hash::{Hash, Hasher};
 pub(crate) mod logical;
 pub mod refusals;
 pub mod scopes;
+pub(crate) mod source_views;
 use logical::service::{
     after_inputs, answered_steps, derived_roots, held, observation_reaches, read_inputs, stated,
     step_key, timed,
 };
 use refusals::service::{deferred_layouts, inputs_by_node};
 use scopes::service::scope_at;
+use source_views::service::signature;
 
 /// The request's rules as one logical program: equal steps over equal inputs, in the same scope and with the same bindings,
 /// are one node, whichever step numbers their rules give the steps they read; each rule's emitted node and the nodes its frontier and named roots keep are recorded; each node's schema
@@ -64,6 +66,7 @@ pub fn logical<'p>(
     // Each draft's operation as `step_key` compares it, by draft.
     let mut keys: Vec<Cow<'p, Operation>> = Vec::new();
     let mut buckets = hashbrown::HashMap::<u64, Vec<usize>>::new();
+    let mut source_views = hashbrown::HashMap::<_, Vec<usize>>::new();
     let mut nodes = Vec::with_capacity(rules.len());
     let mut scopes = Vec::with_capacity(rules.len());
     for (rule, input) in rules.iter().enumerate() {
@@ -147,8 +150,28 @@ pub fn logical<'p>(
                         && rules[draft.rule.0].bindings.0 == input.bindings.0
                 })
             });
+            let view = (found.is_none()
+                && step.scope == ryo_values::domain::plan_parts::types::StepScope::PerFile
+                && timing == SchemaTiming::Stated
+                && schema.is_ok()
+                && schema == layout)
+                .then(|| signature(&step.operation, &list, &drafts, inputs, &schema))
+                .flatten();
+            let found = found.or_else(|| {
+                source_views.get(view.as_ref()?).and_then(|candidates| {
+                    candidates.iter().copied().find(|at| {
+                        let previous = &drafts[*at];
+                        previous.schema == schema
+                            && previous.layout == layout
+                            && rules[previous.rule.0].bindings.0 == input.bindings.0
+                    })
+                })
+            });
             let at = found.unwrap_or_else(|| {
                 let at = drafts.len();
+                if let Some(view) = view {
+                    source_views.entry(view).or_default().push(at);
+                }
                 drafts.push(Draft {
                     operation: &step.operation,
                     rule: RuleIndex(rule),

@@ -14,6 +14,8 @@ use crate::domain::physical_plan::types::KeyedIndex;
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct PhysicalPlan {
+    /// Source-backed queries checked against this fully lowered physical plan.
+    pub(crate) entity_queries: std::sync::Arc<crate::domain::entity_queries::types::entity_plan::value::QueryPlan>,
     /// Each node's kernels and readers, by node id.
     pub(crate) nodes: Vec<PhysicalNode>,
     /// The shared indexes, each built once per file for all its readers: a relation's lookups, or one right side's probes.

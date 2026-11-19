@@ -358,9 +358,8 @@ pub(crate) fn finish_file(
                 }
                 FileOutcome::Read(_) | FileOutcome::Unread { .. } => {}
             }
-            tables.fresh.push(FreshRecord {
-                place: at,
-                record: Record {
+            let mut record =
+                crate::domain::workers::types::worker_record::value::WorkerRecord::from(Record {
                     executable: file.executable,
                     path: file.path.clone(),
                     size: file.size,
@@ -368,8 +367,9 @@ pub(crate) fn finish_file(
                     digest,
                     number,
                     outcome,
-                },
-            });
+                });
+            record.park(&mut tables.receipt_layout);
+            tables.fresh.push(FreshRecord { place: at, record });
         }
         // What this file handed cannot be moved to another run: it keeps no record, and the next run reads it again.
         (Answering::Findings, None) => tables.unrecorded.push(file.path.clone()),

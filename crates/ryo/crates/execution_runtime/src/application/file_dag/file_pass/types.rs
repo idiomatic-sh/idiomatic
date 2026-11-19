@@ -41,6 +41,8 @@ pub(crate) enum TreeStart {
 /// that run it, the rules' plans and what each step of each rule reads.
 #[derive(Debug)]
 pub(crate) struct PassProgram {
+    /// File-specific ports available after the provider proves the source condition.
+    pub(crate) conditional: Option<Box<ConditionalFileProgram>>,
     /// The planned program.
     pub(crate) program: ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
     /// The operators that run its nodes.
@@ -150,6 +152,8 @@ pub(crate) struct OutputState {
 /// One file's run through the planned program: the request and its program, the rows and buffers its nodes read and fill,
 /// its partiality, its bytes and the readiness of its rules' named outputs.
 pub(crate) struct PassFile<'f, 'p, 'a, 's> {
+    /// Which route the complete file sources authorize.
+    pub(crate) condition: SourceCondition,
     /// The request.
     pub(crate) request: PassRequest<'f>,
     /// Its planned program.
@@ -277,4 +281,23 @@ pub(crate) enum CountersListened {
     Listening,
     /// It does not: the run counts nothing and emits nothing.
     Unheard,
+}
+
+/// Routes through the single physical graph and the evidence required to select them.
+#[derive(Debug)]
+pub(crate) struct ConditionalFileProgram {
+    /// The ordered source predicate for this prepared program.
+    pub(crate) absence: ryo_execution_domain::domain::executable_program::types::SourceAbsence,
+    /// Public ports on the request's single prepared graph.
+    pub(crate) routes:
+        ryo_execution_domain::domain::executable_program::routes::types::FileProgramRoutes,
+}
+
+/// The outcome of inspecting a file for a prepared source condition.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SourceCondition {
+    /// Some row could select the branch.
+    Unproven,
+    /// The complete file source proves the branch empty.
+    Proven,
 }
