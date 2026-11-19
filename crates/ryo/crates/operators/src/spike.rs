@@ -47,6 +47,15 @@ pub fn entity_off() -> bool {
     *OFF.get_or_init(|| std::env::var_os("RYO_NO_ENTITY").is_some())
 }
 
+/// Whether the probe lever named `name` (`RYO_PROBE_OFF` lists the ones switched off, comma-separated, or `all`) is on:
+/// `fastkey`, probe index builds and lookups reading each side by its own kind's reader.
+pub fn probe_lever(name: &str) -> bool {
+    static OFF: OnceLock<String> = OnceLock::new();
+    !OFF.get_or_init(|| std::env::var("RYO_PROBE_OFF").unwrap_or_default())
+        .split(',')
+        .any(|off| off == name || off == "all")
+}
+
 /// Whether the recorder is on.
 pub fn on() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
@@ -143,6 +152,7 @@ pub fn flush() {
     if !on() {
         return;
     }
+    flush_probes();
     LOCAL.with(|local| {
         let mut local = local.borrow_mut();
         if local.touched.is_empty() {
@@ -169,11 +179,140 @@ pub fn flush() {
     });
 }
 
+/// Spike (ryo-fmx3): what one probe stage cost across the run: its own time in its chunk calls, its runs, the left rows it
+/// read, the right rows of its runs, and its time split by the shape of the call (right >= 4 x left; left x right < 64).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ProbeStat {
+    /// Nanoseconds in the stage's chunk calls.
+    pub nanos: u64,
+    /// Runs (a run readies the right side once).
+    pub runs: u64,
+    /// Calls.
+    pub calls: u64,
+    /// Left rows read.
+    pub left: u64,
+    /// Right rows over its runs.
+    pub right: u64,
+    /// Rows written.
+    pub out: u64,
+    /// Nanoseconds in calls whose right was at least four times its left.
+    pub big_right: u64,
+    /// Nanoseconds in calls whose left times right was under 64.
+    pub tiny: u64,
+    /// Nanoseconds in the right side's preparation (filter, index build).
+    pub prep: u64,
+    /// Right rows indexed by a build.
+    pub built: u64,
+    /// Builds.
+    pub builds: u64,
+    /// Index kind: 0 own, 1 shared, 2 tree; 4 is added when the probe filters its right rows.
+    pub kind: u64,
+}
+
+thread_local! {
+    static PROBES: RefCell<(Vec<ProbeStat>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new())) };
+}
+static GLOBAL_PROBES: Mutex<Vec<ProbeStat>> = Mutex::new(Vec::new());
+
+/// Spike (ryo-fmx3): one chunk call of probe stage `node`.
+pub fn probe_prep(node: u32, nanos: u64, built: u64, kind: u64) {
+    PROBES.with(|probes| {
+        let (stats, _) = &mut *probes.borrow_mut();
+        let at = node as usize;
+        if stats.len() <= at {
+            stats.resize(at + 1, ProbeStat::default());
+        }
+        let stat = &mut stats[at];
+        stat.prep += nanos;
+        if built > 0 {
+            stat.builds += 1;
+            stat.built += built;
+        }
+        stat.kind = kind;
+    });
+}
+
+/// Spike (ryo-fmx3): one chunk call of probe stage `node`.
+pub fn probe_call(node: u32, nanos: u64, first: bool, left: u64, right: u64, out: u64) {
+    PROBES.with(|probes| {
+        let (stats, touched) = &mut *probes.borrow_mut();
+        let at = node as usize;
+        if stats.len() <= at {
+            stats.resize(at + 1, ProbeStat::default());
+        }
+        let stat = &mut stats[at];
+        if stat.calls == 0 {
+            touched.push(node);
+        }
+        stat.calls += 1;
+        stat.nanos += nanos;
+        stat.left += left;
+        stat.out += out;
+        if first {
+            stat.runs += 1;
+            stat.right += right;
+        }
+        if right >= left.saturating_mul(4) {
+            stat.big_right += nanos;
+        }
+        if left.saturating_mul(right) < 64 {
+            stat.tiny += nanos;
+        }
+    });
+}
+
+fn flush_probes() {
+    PROBES.with(|probes| {
+        let (stats, touched) = &mut *probes.borrow_mut();
+        if touched.is_empty() {
+            return;
+        }
+        let mut global = GLOBAL_PROBES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        for node in touched.drain(..) {
+            let at = node as usize;
+            if global.len() <= at {
+                global.resize(at + 1, ProbeStat::default());
+            }
+            let from = std::mem::take(&mut stats[at]);
+            let into = &mut global[at];
+            into.nanos += from.nanos;
+            into.runs += from.runs;
+            into.calls += from.calls;
+            into.left += from.left;
+            into.right += from.right;
+            into.out += from.out;
+            into.big_right += from.big_right;
+            into.tiny += from.tiny;
+            into.prep += from.prep;
+            into.built += from.built;
+            into.builds += from.builds;
+            into.kind = from.kind;
+        }
+    });
+}
+
 /// Writes the totals to the file `RYO_STATS` names, one JSON object per node that ran or was skipped.
 pub fn dump() {
     let Some(path) = std::env::var_os("RYO_STATS") else {
         return;
     };
+    flush_probes();
+    {
+        let probes = GLOBAL_PROBES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut text = String::new();
+        for (node, stat) in probes.iter().enumerate() {
+            if stat.calls == 0 {
+                continue;
+            }
+            text.push_str(&format!(
+                "{{\"node\":{node},\"nanos\":{},\"runs\":{},\"calls\":{},\"left\":{},\"right\":{},\"out\":{},\"big_right\":{},\"tiny\":{},\"prep\":{},\"built\":{},\"builds\":{},\"kind\":{}}}\n",
+                stat.nanos, stat.runs, stat.calls, stat.left, stat.right, stat.out, stat.big_right, stat.tiny, stat.prep, stat.built, stat.builds, stat.kind
+            ));
+        }
+        let mut probe_path = path.clone();
+        probe_path.push(".probes");
+        drop(std::fs::write(probe_path, text));
+    }
     let global = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let descriptions = DESCRIPTIONS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let owners = OWNERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
