@@ -20,9 +20,22 @@ pub struct PhysicalPlan {
     pub(crate) nodes: Vec<PhysicalNode>,
     /// The shared indexes, each built once per file for all its readers: a relation's lookups, or one right side's probes.
     pub(crate) indexes: Vec<KeyedIndex>,
+    /// Spike (ryo-fmx3): each node's output cell kinds, set by the engine when it assembles the program; a lazily skipped
+    /// node answers an empty table of these kinds.
+    pub(crate) layouts: Vec<Option<Vec<ryo_relations::domain::relations::types::CellKind>>>,
 }
 
 impl PhysicalPlan {
+    /// Spike (ryo-fmx3): the plan with each node's output cell kinds.
+    #[must_use]
+    pub fn with_layouts(
+        mut self,
+        layouts: Vec<Option<Vec<ryo_relations::domain::relations::types::CellKind>>>,
+    ) -> Self {
+        self.layouts = layouts;
+        self
+    }
+
     /// How many nodes the plan runs: one per node of the program it was made of.
     ///
     /// # Examples

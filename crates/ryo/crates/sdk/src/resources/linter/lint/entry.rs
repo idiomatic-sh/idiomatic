@@ -137,6 +137,7 @@ pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport
     let report = super::composition::build(engine, rows.clone(), reading, &connections, settings)
         .lint(core)
         .map_err(LintError::from_core)?;
+    ryo_operators::spike::dump();
     schemas::report(rows.take(), report)
 }
 

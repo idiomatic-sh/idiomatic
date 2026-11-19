@@ -40,6 +40,13 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn walked(
     let mut at = tail;
     loop {
         chain.push(at);
+        // Spike (ryo-fmx3): demand-driven, a probe heads its chain, so its left input is held and seen empty before its right
+        // side is readied.
+        if crate::domain::physical_plan::service::run::service::lazy()
+            && matches!(physical(plan, at)?.lowering, Lowering::Probe { .. })
+        {
+            break;
+        }
         match physical(plan, at)?.lowering.sources().next() {
             Some(RowSource::Node(read))
                 if physical(plan, read)?.flow == NodeFlow::Streamed

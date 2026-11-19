@@ -63,6 +63,50 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
     sized_shared(plan, buffers);
 }
 
+/// Spike (ryo-fmx3): whether evaluation is demand-driven, set once from `RYO_LAZY`: a node whose driving input holds no row
+/// answers no row without readying its other inputs.
+pub(crate) fn lazy() -> bool {
+    static LAZY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *LAZY.get_or_init(|| std::env::var_os("RYO_LAZY").is_some_and(|value| value != "0"))
+}
+
+/// Spike (ryo-fmx3): whether `source` is a held node with no row and no pending fault.
+pub(crate) fn held_empty(buffers: &FileBuffers, source: RowSource) -> bool {
+    let RowSource::Node(read) = source else {
+        return false;
+    };
+    let place = usize::try_from(read.0).unwrap_or(usize::MAX);
+    matches!(buffers.rows(read), NodeRows::Materialized(table) if table.count.0 == 0)
+        && matches!(buffers.pending.get(place), Some(None) | None)
+}
+
+/// Spike (ryo-fmx3): holds `node` with no row, in its planned layout.
+pub(crate) fn hold_empty(plan: &PhysicalPlan, buffers: &mut FileBuffers, node: PlanNodeId) {
+    let table = buffers.pool.fresh();
+    hold_empty_in(plan, buffers, node, table);
+}
+
+/// Spike (ryo-fmx3): holds `node` with no row, in its planned layout, in the room of `table`.
+pub(crate) fn hold_empty_in(
+    plan: &PhysicalPlan,
+    buffers: &mut FileBuffers,
+    node: PlanNodeId,
+    mut table: ryo_values::domain::rows::types::Table,
+) {
+    sized(plan, buffers);
+    table.cells.clear();
+    table.count = RowCount(0);
+    table.kinds.clear();
+    if let Some(Some(kinds)) = plan
+        .layouts
+        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+    {
+        table.kinds.extend_from_slice(kinds);
+    }
+    hold(plan, buffers, node, table, None);
+    crate::spike::skip(node.0);
+}
+
 /// Runs an earlier node `source` reads when it holds no rows.
 pub(super) fn ready(
     plan: &PhysicalPlan,
@@ -92,6 +136,7 @@ fn materialize(
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
     let span = timed(buffers);
+    crate::spike::enter(node.0);
     let made = if let Some(table) = super::entity_queries::service::answer(plan, node, buffers) {
         sized(plan, buffers);
         hold(plan, buffers, node, table, None);
@@ -99,6 +144,10 @@ fn materialize(
     } else {
         kernels_of(plan, run, node, buffers)
     };
+    crate::spike::leave(match buffers.rows(node) {
+        NodeRows::Materialized(table) => table.count.0,
+        NodeRows::Absent => 0,
+    });
     timed_to(buffers, span, node);
     made
 }
@@ -173,6 +222,20 @@ pub(super) fn made(
     let second = sources.next();
     let third = sources.next();
     ready(plan, run, first, buffers)?;
+    if lazy()
+        && matches!(
+            lowering,
+            Lowering::SeededReach { .. }
+                | Lowering::Axis { .. }
+                | Lowering::OrderedWalk { .. }
+                | Lowering::Worklist { .. }
+                | Lowering::OrderedMatch { .. }
+        )
+        && held_empty(buffers, first)
+    {
+        hold_empty(plan, buffers, node);
+        return Ok(());
+    }
     if let Some(second) = second {
         ready(plan, run, second, buffers)?;
     }

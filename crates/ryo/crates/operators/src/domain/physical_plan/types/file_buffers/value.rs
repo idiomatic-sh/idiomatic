@@ -361,6 +361,7 @@ impl FileBuffers {
     /// assert_eq!(buffers.rows(PlanNodeId(0)), NodeRows::Absent);
     /// ```
     pub fn ended(&mut self) {
+        crate::spike::flush();
         self.entity_queries = Default::default();
         let touched = self.touched.taken();
         for node in &touched {

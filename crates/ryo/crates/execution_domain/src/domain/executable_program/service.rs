@@ -269,6 +269,24 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
         reach,
         ..
     } = build;
+    if ryo_operators::spike::on() {
+        let mut owners: Vec<Vec<u32>> = vec![Vec::new(); layouts.len()];
+        for (rule, nodes) in rules.iter().enumerate() {
+            for node in nodes.steps.iter().flatten() {
+                if let Some(list) = owners.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
+                    list.push(u32::try_from(rule).unwrap_or(u32::MAX));
+                }
+            }
+        }
+        ryo_operators::spike::owners(owners);
+    }
+    // Spike (ryo-fmx3): the operators answer a lazily skipped node in its layout.
+    let plan = plan.with_layouts(
+        layouts
+            .iter()
+            .map(|layout| layout.as_ref().ok().cloned())
+            .collect(),
+    );
     ExecutableProgram {
         plan,
         rules,

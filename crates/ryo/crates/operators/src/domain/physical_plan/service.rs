@@ -153,8 +153,26 @@ pub(crate) fn plan_with(
     });
     // Last: whether a node streams reads every node's final sources and the indexes.
     flows(&mut nodes, &indexes);
+    if crate::spike::on() {
+        crate::spike::describe(
+            nodes
+                .iter()
+                .map(|node| {
+                    let mut text = format!("{:?} {:?}", node.flow, node.lowering);
+                    if text.len() > 600 {
+                        let mut cut = 600;
+                        while !text.is_char_boundary(cut) {
+                            cut -= 1;
+                        }
+                        text.truncate(cut);
+                    }
+                    text
+                })
+                .collect(),
+        );
+    }
     Ok(PhysicalPlan {
-        entity_queries: std::sync::Arc::new(entity_queries::service::compile(&nodes, &indexes)), nodes, indexes })
+        entity_queries: std::sync::Arc::new(entity_queries::service::compile(&nodes, &indexes)), nodes, indexes, layouts: Vec::new() })
 }
 
 /// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them (`flow_of`). Who reads

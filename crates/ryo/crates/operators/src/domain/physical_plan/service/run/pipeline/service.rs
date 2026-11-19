@@ -98,6 +98,14 @@ fn chained(
         };
         if at == 0 {
             ready(plan, run, source, buffers)?;
+            // Spike (ryo-fmx3): every streamed stage answers no row over no row, so a chain whose head reads a held node with
+            // no row holds none, its right sides never readied.
+            if crate::domain::physical_plan::service::run::service::lazy()
+                && crate::domain::physical_plan::service::run::service::held_empty(buffers, source)
+            {
+                crate::domain::physical_plan::service::run::service::hold_empty_in(plan, buffers, tail, output);
+                return Ok(());
+            }
         }
         let right = right_of(stage.lowering);
         if let Some(right) = right {
@@ -111,6 +119,22 @@ fn chained(
             if let Err(fault) = readied {
                 hard = Some(ChainFault { node: *node, fault });
                 break;
+            }
+            // Spike (ryo-fmx3): an inner or semi probe over a right side with no row answers no row; nothing is read yet.
+            if at == 0
+                && crate::domain::physical_plan::service::run::service::lazy()
+                && matches!(
+                    stage.lowering,
+                    Lowering::Probe { probe, .. } if matches!(
+                        probe.mode,
+                        crate::domain::equality_join::types::ProbeMode::Inner
+                            | crate::domain::equality_join::types::ProbeMode::Semi
+                    )
+                )
+                && crate::domain::physical_plan::service::run::service::held_empty(buffers, right)
+            {
+                crate::domain::physical_plan::service::run::service::hold_empty_in(plan, buffers, tail, output);
+                return Ok(());
             }
         }
         if at == 0 {
