@@ -279,6 +279,12 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
             }
         }
         ryo_operators::spike::owners(owners);
+        ryo_operators::spike::emits(
+            rules
+                .iter()
+                .map(|nodes| nodes.emit.as_ref().map_or(u32::MAX, |node| node.0))
+                .collect(),
+        );
     }
     // Spike (ryo-fmx3): the operators answer a lazily skipped node in its layout.
     let plan = plan.with_layouts(

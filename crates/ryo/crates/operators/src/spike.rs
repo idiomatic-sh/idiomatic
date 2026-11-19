@@ -19,21 +19,35 @@ pub struct NodeStat {
     pub empty: u64,
     /// Nanoseconds spent answering empty without running.
     pub skip_nanos: u64,
+    /// Nanoseconds of its runs in files where no rule that owns it emitted a row.
+    pub dead_nanos: u64,
+    /// Rows it held in files where no rule that owns it emitted a row.
+    pub dead_rows: u64,
 }
 
 struct Local {
     stats: Vec<NodeStat>,
     stack: Vec<(u32, Instant, u64, bool)>,
     touched: Vec<u32>,
+    /// What ran in the open file: node, its own nanoseconds, its rows.
+    file: Vec<(u32, u64, u64)>,
 }
 
 thread_local! {
-    static LOCAL: RefCell<Local> = const { RefCell::new(Local { stats: Vec::new(), stack: Vec::new(), touched: Vec::new() }) };
+    static LOCAL: RefCell<Local> = const { RefCell::new(Local { stats: Vec::new(), stack: Vec::new(), touched: Vec::new(), file: Vec::new() }) };
 }
 
 static GLOBAL: Mutex<Vec<NodeStat>> = Mutex::new(Vec::new());
 static DESCRIPTIONS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static OWNERS: Mutex<Vec<Vec<u32>>> = Mutex::new(Vec::new());
+static EMITS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
+
+/// The node each rule emits, by rule ordinal (`u32::MAX` for none).
+pub fn emits(emits: Vec<u32>) {
+    if on() {
+        *EMITS.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = emits;
+    }
+}
 
 /// Whether evaluation is demand-driven, set once from `RYO_LAZY`.
 pub fn lazy() -> bool {
@@ -66,6 +80,12 @@ pub fn probe_lever(name: &str) -> bool {
     !OFF.get_or_init(|| std::env::var("RYO_PROBE_OFF").unwrap_or_default())
         .split(',')
         .any(|off| off == name || off == "all")
+}
+
+/// Whether the learned kill order is switched off, set once from `RYO_NO_KILLERS`.
+pub fn killers_off() -> bool {
+    static OFF: OnceLock<bool> = OnceLock::new();
+    *OFF.get_or_init(|| std::env::var_os("RYO_NO_KILLERS").is_some())
 }
 
 /// Whether the recorder is on.
@@ -117,9 +137,12 @@ pub fn leave(rows: usize) {
         if let Some(parent) = local.stack.last_mut() {
             parent.2 = parent.2.saturating_add(whole);
         }
+        let own = whole.saturating_sub(inner);
+        if !skipped {
+            local.file.push((node, own, rows as u64));
+        }
         let stat = slot(&mut local, node);
         let fresh = stat.runs == 0 && stat.skips == 0;
-        let own = whole.saturating_sub(inner);
         if skipped {
             stat.skips += 1;
             stat.skip_nanos = stat.skip_nanos.saturating_add(own);
@@ -167,6 +190,33 @@ pub fn flush() {
     flush_probes();
     LOCAL.with(|local| {
         let mut local = local.borrow_mut();
+        // Which rules emitted a row in this file, and so which of the file's runs served a rule that found something.
+        let ran = std::mem::take(&mut local.file);
+        if !ran.is_empty() {
+            let emits = EMITS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let owners = OWNERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut held: std::collections::HashMap<u32, u64> = std::collections::HashMap::new();
+            for (node, _, rows) in &ran {
+                *held.entry(*node).or_default() += rows;
+            }
+            let live: Vec<bool> = emits
+                .iter()
+                .map(|emit| held.get(emit).copied().unwrap_or(0) > 0)
+                .collect();
+            for (node, nanos, rows) in &ran {
+                let alive = owners
+                    .get(*node as usize)
+                    .is_some_and(|rules| rules.iter().any(|rule| live.get(*rule as usize).copied().unwrap_or(false)));
+                if !alive {
+                    let stat = slot(&mut local, *node);
+                    stat.dead_nanos = stat.dead_nanos.saturating_add(*nanos);
+                    stat.dead_rows += rows;
+                }
+            }
+        }
+        let mut ran = ran;
+        ran.clear();
+        local.file = ran;
         if local.touched.is_empty() {
             return;
         }
@@ -185,6 +235,8 @@ pub fn flush() {
             into.skips += from.skips;
             into.empty += from.empty;
             into.skip_nanos += from.skip_nanos;
+            into.dead_nanos += from.dead_nanos;
+            into.dead_rows += from.dead_rows;
         }
         local.touched = touched;
         local.touched.clear();
@@ -336,8 +388,8 @@ pub fn dump() {
         let description = descriptions.get(node).map_or("", String::as_str);
         let rules = owners.get(node).map_or(&[][..], Vec::as_slice);
         text.push_str(&format!(
-            "{{\"node\":{node},\"nanos\":{},\"runs\":{},\"rows\":{},\"skips\":{},\"empty\":{},\"skip_nanos\":{},\"rules\":{rules:?},\"desc\":{:?}}}\n",
-            stat.nanos, stat.runs, stat.rows, stat.skips, stat.empty, stat.skip_nanos, description
+            "{{\"node\":{node},\"nanos\":{},\"runs\":{},\"rows\":{},\"skips\":{},\"empty\":{},\"skip_nanos\":{},\"dead_nanos\":{},\"dead_rows\":{},\"rules\":{rules:?},\"desc\":{:?}}}\n",
+            stat.nanos, stat.runs, stat.rows, stat.skips, stat.empty, stat.skip_nanos, stat.dead_nanos, stat.dead_rows, description
         ));
     }
     drop(std::fs::write(path, text));

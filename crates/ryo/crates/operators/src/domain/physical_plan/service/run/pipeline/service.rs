@@ -65,7 +65,8 @@ pub(in crate::domain::physical_plan::service::run) fn streamed(
         };
         settled(plan, run, source, buffers)?;
         if held_empty(buffers, source) {
-            marked_empty(plan, buffers, tail);
+            let origin = crate::domain::physical_plan::service::run::service::origin_of(buffers, source);
+            marked_empty(plan, buffers, tail, origin);
             return Ok(());
         }
     }
@@ -136,7 +137,8 @@ fn chained(
                 crate::domain::physical_plan::service::run::service::settled(plan, run, source, buffers)?;
                 if crate::domain::physical_plan::service::run::service::held_empty(buffers, source) {
                     buffers.pool.pooled(output, crate::domain::kept_room::types::PoolSize(crate::domain::kept_room::constants::POOL_TABLES));
-                    crate::domain::physical_plan::service::run::service::marked_empty(plan, buffers, tail);
+                    let origin = crate::domain::physical_plan::service::run::service::origin_of(buffers, source);
+                    crate::domain::physical_plan::service::run::service::marked_empty(plan, buffers, tail, origin);
                     return Ok(());
                 }
             }
@@ -163,7 +165,8 @@ fn chained(
                 crate::domain::physical_plan::service::run::service::settled(plan, run, right, buffers)?;
                 if crate::domain::physical_plan::service::run::service::held_empty(buffers, right) {
                     buffers.pool.pooled(output, crate::domain::kept_room::types::PoolSize(crate::domain::kept_room::constants::POOL_TABLES));
-                    crate::domain::physical_plan::service::run::service::marked_empty(plan, buffers, tail);
+                    let origin = crate::domain::physical_plan::service::run::service::origin_of(buffers, right);
+                    crate::domain::physical_plan::service::run::service::marked_empty(plan, buffers, tail, origin);
                     return Ok(());
                 }
             }

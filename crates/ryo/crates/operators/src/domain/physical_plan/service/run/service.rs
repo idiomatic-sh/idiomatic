@@ -67,6 +67,8 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
     if buffers.known_empty.len() < count {
         buffers.known_empty.resize(count, 0);
         buffers.known_full.resize(count, 0);
+        buffers.origin.resize(count, u32::MAX);
+        buffers.killers.resize(count, (u32::MAX, 0));
     }
     sized_shared(plan, buffers);
 }
@@ -173,11 +175,85 @@ pub(crate) fn installed(plan: &PhysicalPlan, buffers: &mut FileBuffers, node: Pl
     }
 }
 
+/// Spike (ryo-fmx3): the node whose own run held no row and so emptied `source`, a node known empty in the open file.
+pub(crate) fn origin_of(buffers: &FileBuffers, source: RowSource) -> u32 {
+    match source {
+        RowSource::Node(read) => buffers
+            .origin
+            .get(usize::try_from(read.0).unwrap_or(usize::MAX))
+            .copied()
+            .filter(|origin| *origin != u32::MAX)
+            .unwrap_or(read.0),
+        RowSource::Facts(_) | RowSource::Tree(_) | RowSource::Frontier(_) | RowSource::Observation(_) => u32::MAX,
+    }
+}
+
+/// How sure a node's killer must be before it is read first.
+const KILLER_SURE: u16 = 2;
+/// The most a killer's count grows to, so a change of files' shape unseats it within a few files.
+const KILLER_MOST: u16 = 8;
+
+/// Spike (ryo-fmx3): `node` ended the open file empty: the node that emptied it is counted for it, the one that most
+/// often does so becoming its killer (a majority vote over the worker's files).
+fn learned(buffers: &mut FileBuffers, node: PlanNodeId) {
+    let place = usize::try_from(node.0).unwrap_or(usize::MAX);
+    let Some(origin) = buffers.origin.get(place).copied() else {
+        return;
+    };
+    if origin == u32::MAX || origin == node.0 {
+        return;
+    }
+    if let Some((killer, sure)) = buffers.killers.get_mut(place) {
+        if *killer == origin {
+            *sure = (*sure + 1).min(KILLER_MOST);
+        } else if *sure == 0 {
+            *killer = origin;
+            *sure = 1;
+        } else {
+            *sure -= 1;
+        }
+    }
+}
+
+/// Spike (ryo-fmx3): whether the necessary node that most often emptied `node` in this worker's earlier files holds no row
+/// in the open one; it is made first when the file has not made it. Answers who emptied it.
+fn killed(
+    plan: &PhysicalPlan,
+    run: &mut KernelRun<'_>,
+    node: PlanNodeId,
+    buffers: &mut FileBuffers,
+) -> Option<u32> {
+    if !lazy() || crate::spike::killers_off() {
+        return None;
+    }
+    let place = usize::try_from(node.0).unwrap_or(usize::MAX);
+    let (killer, sure) = buffers.killers.get(place).copied()?;
+    if killer == u32::MAX || sure < KILLER_SURE || killer == node.0 {
+        return None;
+    }
+    if known(buffers, killer) == Known::Unmade
+        && buffers.rows(PlanNodeId(killer)) == NodeRows::Absent
+        && materialize(plan, run, PlanNodeId(killer), buffers).is_err()
+    {
+        return None;
+    }
+    (known(buffers, killer) == Known::Empty)
+        .then(|| origin_of(buffers, RowSource::Node(PlanNodeId(killer))))
+}
+
 /// Spike (ryo-fmx3): marks `node` empty in the open file without holding a table.
-pub(crate) fn marked_empty(plan: &PhysicalPlan, buffers: &mut FileBuffers, node: PlanNodeId) {
+pub(crate) fn marked_empty(
+    plan: &PhysicalPlan,
+    buffers: &mut FileBuffers,
+    node: PlanNodeId,
+    origin: u32,
+) {
     sized(plan, buffers);
     let place = usize::try_from(node.0).unwrap_or(usize::MAX);
     let stamp = buffers.generation.wrapping_add(1);
+    if let Some(slot) = buffers.origin.get_mut(place) {
+        *slot = origin;
+    }
     if let Some(known) = buffers.known_empty.get_mut(place) {
         *known = stamp;
     }
@@ -198,8 +274,11 @@ fn materialize(
 ) -> Result<(), PortableOperatorFault> {
     let span = timed(buffers);
     crate::spike::enter(node.0);
-    let made = if guarded_empty(plan, run, node, buffers) {
-        marked_empty(plan, buffers, node);
+    let made = if let Some(origin) = killed(plan, run, node, buffers) {
+        marked_empty(plan, buffers, node, origin);
+        Ok(())
+    } else if let Some(origin) = guarded_empty(plan, run, node, buffers) {
+        marked_empty(plan, buffers, node, origin);
         Ok(())
     } else if let Some(table) = super::entity_queries::service::answer(plan, node, buffers) {
         sized(plan, buffers);
@@ -213,6 +292,9 @@ fn materialize(
         NodeRows::Absent => 0,
     });
     timed_to(buffers, span, node);
+    if lazy() && known(buffers, node.0) == Known::Empty {
+        learned(buffers, node);
+    }
     made
 }
 
@@ -223,23 +305,23 @@ fn guarded_empty(
     run: &mut KernelRun<'_>,
     node: PlanNodeId,
     buffers: &mut FileBuffers,
-) -> bool {
+) -> Option<u32> {
     if !lazy() || crate::spike::guards_off() {
-        return false;
+        return None;
     }
     let Some(guards) = plan
         .guards
         .get(usize::try_from(node.0).unwrap_or(usize::MAX))
     else {
-        return false;
+        return None;
     };
     sized(plan, buffers);
     // First what the file already knows of the leaves, which costs nothing; then the leaves still to make.
-    if guards
+    if let Some(guard) = guards
         .iter()
-        .any(|guard| known(buffers, *guard) == Known::Empty)
+        .find(|guard| known(buffers, **guard) == Known::Empty)
     {
-        return true;
+        return Some(*guard);
     }
     for guard in guards.iter() {
         if known(buffers, *guard) != Known::Unmade {
@@ -249,10 +331,10 @@ fn guarded_empty(
             continue;
         }
         if known(buffers, *guard) == Known::Empty {
-            return true;
+            return Some(*guard);
         }
     }
-    false
+    None
 }
 
 /// What `materialize` runs for `node`.
@@ -337,7 +419,8 @@ pub(super) fn made(
         )
         && held_empty(buffers, first)
     {
-        marked_empty(plan, buffers, node);
+        let origin = origin_of(buffers, first);
+        marked_empty(plan, buffers, node, origin);
         return Ok(());
     }
     if let Some(second) = second {
@@ -347,7 +430,8 @@ pub(super) fn made(
             && held_empty(buffers, first)
             && held_empty(buffers, second)
         {
-            marked_empty(plan, buffers, node);
+            // A union of two empties has no one node that emptied it: it emptied itself.
+            marked_empty(plan, buffers, node, node.0);
             return Ok(());
         }
         ready(plan, run, second, buffers)?;

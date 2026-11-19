@@ -109,6 +109,11 @@ pub struct FileBuffers {
     pub(crate) known_full: Vec<u32>,
     /// Spike (ryo-fmx3): the open file's number in this worker, from one.
     pub(crate) generation: u32,
+    /// Spike (ryo-fmx3): by node known empty in the open file, the node whose own run held no row and so emptied it.
+    pub(crate) origin: Vec<u32>,
+    /// Spike (ryo-fmx3): by node, across this worker's files, the necessary node that most often emptied it and how sure
+    /// that is: read first in the next file.
+    pub(crate) killers: Vec<(u32, u16)>,
 }
 
 /// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.

@@ -93,6 +93,13 @@ pub(crate) fn hold(
     // Spike (ryo-fmx3): what the open file knows of the node, kept past its release.
     let stamp = buffers.generation.wrapping_add(1);
     let empty = rows.count.0 == 0 && pending.is_none();
+    // A node that ran and held no row emptied itself; one only marked empty before keeps who emptied it.
+    if empty
+        && buffers.known_empty.get(place) != Some(&stamp)
+        && let Some(origin) = buffers.origin.get_mut(place)
+    {
+        *origin = node.0;
+    }
     if let Some(known) = buffers.known_empty.get_mut(place) {
         *known = if empty { stamp } else { 0 };
     }
