@@ -3,7 +3,7 @@
 //! it walks) and an ordered probe's extremes, each probe's its own; and that side as a run of left rows reads it.
 
 use super::super::filter::item::{FilterKernel, filter, keep, readied};
-use super::super::hash_index::item::{cells, indexed};
+use super::super::hash_index::item::indexed;
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
@@ -111,6 +111,8 @@ pub(crate) struct ProbeReads<'a> {
     pub(crate) fed: &'a mut NodeFed,
     /// Whether it probes each left row.
     pub(crate) left: LeftRows,
+    /// Spike (ryo-fmx3): whether the `fastkey` lever is on.
+    pub(crate) fast_key: bool,
 }
 
 /// The right side of `probe` over `right`, readied in `scratch`, as its left rows read it: resolved once for a run of left
@@ -164,6 +166,7 @@ pub(crate) fn probe_reads<'a>(
         } else {
             LeftRows::Probed
         },
+        fast_key: crate::spike::probe_lever("fastkey"),
     })
 }
 
@@ -253,7 +256,8 @@ pub(crate) fn probe_prepared(
         // A whole-row key reads a row set, any other key keyed rows: the index was readied of its key's kind.
         let built = match (&probe.key, &mut *scratch.index) {
             (ProbeKey::Columns { .. }, IndexRows::Keyed(rows)) => {
-                cells(KeyedSide { rows: right, on }, rows)
+                // Spike (ryo-fmx3): each right row read by its own kind's reader.
+                super::super::hash_index::item::cells_typed(KeyedSide { rows: right, on }, rows)
             }
             (ProbeKey::Whole, IndexRows::Rows(set)) => {
                 set.built(count_of(right), kinds_of(right), |row, column| {

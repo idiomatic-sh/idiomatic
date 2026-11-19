@@ -90,6 +90,12 @@ pub(crate) fn probe_rows(
                 table_cell(table, at, column)
             })
         }
+        // Spike (ryo-fmx3): a relation's left read by the relation's own reader.
+        InputRows::Facts(view) if reads.fast_key => {
+            by_right(probe, &mut reads, left, output, bound, |at, column| {
+                facts_cell(view, at, column)
+            })
+        }
         InputRows::Facts(_) | InputRows::Tree(_) | InputRows::Row(..) => {
             by_right(probe, &mut reads, left, output, bound, |at, column| {
                 cell_of(left.rows, at, column)
@@ -156,6 +162,7 @@ fn row_probed(
         matcher,
         fed,
         left: reading,
+        fast_key,
     } = reads;
     let (right, index) = (*right, *index);
     if *reading == LeftRows::Kept {
@@ -165,6 +172,13 @@ fn row_probed(
         return Ok(None);
     }
     let matched = match (*walked, index) {
+        // Spike (ryo-fmx3): the left key read by the left's reader, the index's rows by the right's.
+        (None, IndexRows::Keyed(rows)) if *fast_key => {
+            match super::super::hash_index::item::find_read(rows, right_on, right_cell, left_on, at, left_cell) {
+                Ok(found) => Matched::Indexed(rows, found),
+                Err(fault) => return Ok(Some(fault)),
+            }
+        }
         (None, IndexRows::Keyed(rows)) => match find_cells(
             rows,
             KeyedSide {
