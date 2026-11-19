@@ -20,7 +20,7 @@ if typing.TYPE_CHECKING:
 # A hand release's check, one job per row: a row's group on its machine, from the product's root, or from the repository's root
 # (`root`) for the root's own `repository` group, which no product has. The tests (check, release-tests) run on every machine;
 # the groups whose verdict is the same on every platform run once, on Linux, but the SDK's API, on macOS, where cargo-public-api
-# ships a prebuilt. bench holds the linter benches. check.yml's gate runs these rows for every product.
+# ships a prebuilt. bench holds the linter benches. check.yml runs these rows for each product a run checks (ci/changes).
 RELEASE_ROWS: tuple[dict[str, str], ...] = (
     {"runner": "ubuntu-26.04", "group": "repository", "root": "."},
     {"runner": "ubuntu-26.04", "group": "lint"},
