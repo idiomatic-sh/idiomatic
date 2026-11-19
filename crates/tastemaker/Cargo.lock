@@ -1532,7 +1532,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-tastemaker"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "anstream 1.0.0",
  "clap",
@@ -1573,7 +1573,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-tastemaker-core"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "blake3",
  "cargo_metadata",
@@ -1601,7 +1601,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-tastemaker-values"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "foldhash 0.2.0",
  "rayon",
