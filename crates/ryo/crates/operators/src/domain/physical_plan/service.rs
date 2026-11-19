@@ -30,6 +30,8 @@ pub(crate) const REWRITES: &[&dyn RewritesItem] = &[
     &crate::domain::physical_plan::collections::rewrites::group_keys::item::GroupKeysItem,
     &crate::domain::physical_plan::collections::rewrites::existence_probe::item::ExistenceProbeItem,
     &crate::domain::physical_plan::collections::rewrites::tree_probe::item::TreeProbeItem,
+    // Spike (ryo-fmx3): a closure read only by probes keyed on its partition and source is walked from their left rows.
+    &crate::domain::physical_plan::collections::rewrites::seeded_closure::item::SeededClosureItem,
 ];
 
 /// Declares the kernels once: the catalog the reachability case reads, each kernel by its item.

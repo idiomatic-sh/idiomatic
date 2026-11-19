@@ -15,6 +15,7 @@ use crate::domain::equality_join::types::SeededJoin;
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, KeyedRows, NO_ROW};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
+use crate::domain::physical_plan::types::shared_index::value::KeyedAccess;
 use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
 use crate::domain::physical_plan::types::walk_scratch::value::{
     ReachedCount, ReachedPlace, ReachedRun, WalkScratch,
@@ -66,8 +67,8 @@ pub(crate) enum Starts<'a> {
 
 /// What a reach borrows besides its rows: the run, for a seeded closure's probe, and the worker's two keyed-row tables.
 pub(crate) struct ReachScratch<'s> {
-    /// The edges, keyed by partition and source.
-    pub(crate) index: &'s mut KeyedRows,
+    /// Spike (ryo-fmx3): the edges, keyed by partition and source: the node's own, or the file's shared index.
+    pub(crate) index: KeyedAccess<'s>,
     /// The walks' work.
     pub(crate) walk: &'s mut WalkScratch,
     /// The probe's own scratch, over the second keyed-row table, for a seeded closure.
@@ -98,13 +99,16 @@ pub(crate) fn reached(
     columns
         .far
         .extend(graph.keys.iter().copied().chain([graph.destination]));
-    cells(
-        KeyedSide {
-            rows: edges,
-            on: &columns.near,
-        },
-        index,
-    )?;
+    let near = &columns.near;
+    let index: &KeyedRows = index.rows(|rows| {
+        cells(
+            KeyedSide {
+                rows: edges,
+                on: near,
+            },
+            rows,
+        )
+    })?;
     walk.reached.clear();
     walk.runs.clear();
     match starts {
