@@ -124,6 +124,20 @@ pub(crate) fn visited(
     }
     let (by_edge, by_root) = sorted.split_at_mut(edge_count);
     by_root.sort_unstable_by(|one, other| canon.root_order(*one, *other));
+    // Spike (ryo-fmx3): each partition and source's run of `by_edge`, found once instead of by two searches per expansion.
+    let width = canon.keys.0 + 2;
+    let mut runs: hashbrown::HashMap<&[Value], (usize, usize)> = hashbrown::HashMap::new();
+    let mut first = 0;
+    while first < by_edge.len() {
+        let mut end = first + 1;
+        while end < by_edge.len() && canon.edge_order(by_edge[first], by_edge[end]).is_eq() {
+            end += 1;
+        }
+        let at = indexed(by_edge[first]).0 * width;
+        let _ = runs.insert(&canon.edges[at..at + width - 1], (first, end));
+        first = end;
+    }
+    let mut key: Vec<Value> = Vec::with_capacity(width - 1);
     let mut previous: Option<IndexedRow> = None;
     for root in by_root.iter().copied() {
         if previous.is_some_and(|before| canon.root_order(before, root).is_eq()) {
@@ -138,7 +152,9 @@ pub(crate) fn visited(
                 root,
                 by_edge,
                 canon,
+                runs: &runs,
             },
+            &mut key,
             &mut walk.visited,
             &mut walk.frontier,
             output,
@@ -198,6 +214,8 @@ struct Sides<'a> {
     by_edge: &'a [IndexedRow],
     /// The canonical key cells of both.
     canon: Canon<'a>,
+    /// Spike (ryo-fmx3): each partition and source's run of `by_edge`.
+    runs: &'a hashbrown::HashMap<&'a [Value], (usize, usize)>,
 }
 
 /// The visit from one root: each edge leaving an expanded entity in order, its destination expanded after it is yielded.
@@ -205,21 +223,25 @@ struct Sides<'a> {
 fn visit(
     dfs: &DfsParts,
     sides: Sides<'_>,
+    key: &mut Vec<Value>,
     met: &mut VisitedSet,
     frames: &mut Vec<RowIndex>,
     output: &mut Table,
 ) -> Result<(), PortableOperatorFault> {
     met.reset();
     frames.clear();
+    key.clear();
+    key.extend((0..sides.canon.keys.0).map(|place| sides.canon.root(sides.root, KeyPlace(place))));
+    key.push(Value::Number(Integer(0)));
     let start = sides.canon.root(sides.root, sides.canon.keys);
     let _root = met.meet(start);
-    framed(sides, start, frames);
+    framed(sides, key, start, frames);
     let mut ordinal = Integer(0);
     let mut pending: Option<Value> = None;
     loop {
         if let Some(destination) = pending.take() {
             if met.meet(destination) == SetMembership::Out {
-                framed(sides, destination, frames);
+                framed(sides, key, destination, frames);
             }
         }
         let at = loop {
@@ -262,21 +284,11 @@ fn visit(
 }
 
 /// Pushes onto `frames` the run of `by_edge` of the edges leaving `entity` in the root's partition: its first and end place.
-fn framed(sides: Sides<'_>, entity: Value, frames: &mut Vec<RowIndex>) {
-    let canon = sides.canon;
-    let against = |edge: &IndexedRow| {
-        (0..canon.keys.0)
-            .map(KeyPlace)
-            .map(|place| canon.edge(*edge, place).cmp(&canon.root(sides.root, place)))
-            .find(|order| order.is_ne())
-            .unwrap_or_else(|| canon.edge(*edge, canon.keys).cmp(&entity))
-    };
-    let first = sides
-        .by_edge
-        .partition_point(|edge| against(edge) == Ordering::Less);
-    let end = sides
-        .by_edge
-        .partition_point(|edge| against(edge) != Ordering::Greater);
+fn framed(sides: Sides<'_>, key: &mut [Value], entity: Value, frames: &mut Vec<RowIndex>) {
+    if let Some(last) = key.last_mut() {
+        *last = entity;
+    }
+    let (first, end) = sides.runs.get(&*key).copied().unwrap_or((0, 0));
     frames.extend([RowIndex(first), RowIndex(end)]);
 }
 
