@@ -154,6 +154,7 @@ impl FileQueries {
                     positions
                 } else {
                 let candidates = selected.as_ref().unwrap_or(&inputs[0]);
+                // Spike (ryo-fmx3): a text test reads the field's code column, made once per file, not a hash per row.
                 let predicates: Vec<_> = tests
                     .iter()
                     .map(|test| {
@@ -161,17 +162,20 @@ impl FileQueries {
                             EntityOperand::Column(c) => Some(field(0, *c)),
                             EntityOperand::Text(..) => None,
                         };
-                        (field(0, test.column), other, test)
+                        let coded = match &test.operand {
+                            EntityOperand::Text(..) => self.graph.codes_of(layout(0)[usize::from(test.column)]),
+                            EntityOperand::Column(_) => &[][..],
+                        };
+                        (field(0, test.column), other, test, coded)
                     })
                     .collect();
                 candidates.iter()
                     .copied()
                     .filter(|&p| {
-                        predicates.iter().all(|(left, right, test)| {
-                            let w = left.get(p);
+                        predicates.iter().all(|(left, right, test, coded)| {
                             let matched = match (&test.operand, right) {
-                                (EntityOperand::Text(_, id), _) => self.graph.code(w) == Some(*id),
-                                (_, Some(r)) => w == r.get(p),
+                                (EntityOperand::Text(_, id), _) => coded[p.0 as usize] == id.0,
+                                (_, Some(r)) => left.get(p) == r.get(p),
                                 _ => unreachable!(),
                             };
                             matched == (test.test == Test::Equal)
