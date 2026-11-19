@@ -1206,11 +1206,15 @@ def test_a_change_inside_tastemaker_alone_runs_its_readers_and_its_resolution_wa
     assert "check (ryo, release-resolution, ubuntu-26.04)" in started(workflow, changed("crates/ryo/Cargo.toml", unreleased=frozenset({"ryo"})))
 
 
-def test_a_change_inside_asymptote_alone_runs_asymptote_alone() -> None:
-    """No product's checks read asymptote's directory: a pull request that edits it alone runs asymptote's jobs and no other's."""
+@pytest.mark.parametrize("path", ["crates/asymptote/cli/src/main.rs", "crates/asymptote/tastemaker.lock"])
+def test_a_change_inside_asymptote_alone_runs_asymptote_and_tastemaker(path: str) -> None:
+    """No product's tools name asymptote's directory, but Tastemaker's tests read the whole tree (its replay tests copy every
+    tastemaker.lock, asymptote's among them): a pull request that edits asymptote alone runs asymptote's jobs and Tastemaker's,
+    and none of ryo's."""
     workflow = yaml.safe_load(read(DIRECTORY / "check.yml"))
-    assert checked(started(workflow, changed("crates/asymptote/cli/src/main.rs"))) == {
+    assert checked(started(workflow, changed(path))) == {
         "root": ["changes", "root", "pull-request", "gate"],
+        "tastemaker": ["check-linux", *RELEASE_ROW_NAMES],
         "asymptote": ["check-linux", *RELEASE_ROW_NAMES],
     }
 

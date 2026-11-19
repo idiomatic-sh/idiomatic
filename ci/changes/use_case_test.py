@@ -82,17 +82,19 @@ def test_a_change_inside_a_product_checks_it_and_every_product_that_reads_it_wit
 
 
 def test_the_readers_are_closed_over_who_reads_whom() -> None:
-    """asymptote reads Tastemaker, which builds on ryo: a change to ryo checks asymptote though no input of asymptote names ryo."""
+    """asymptote reads Tastemaker, which builds on ryo: a change to ryo checks asymptote though no input of asymptote names ryo.
+    Tastemaker and asymptote read the whole tree, so every change checks both."""
     named = {"asymptote": {"tastemaker"}}
     assert pull_request("crates/ryo/cli/src/main.rs", named=named).products == ("ryo", "tastemaker", "asymptote")
     assert pull_request("crates/tastemaker/cli/src/main.rs", named=named).products == ("tastemaker", "asymptote")
-    assert pull_request("crates/asymptote/cli/src/main.rs", named=named).products == ("asymptote",)
+    assert pull_request("crates/asymptote/cli/src/main.rs", named=named).products == ("tastemaker", "asymptote")
 
 
-def test_the_jobs_of_one_product_skip_when_it_is_not_checked() -> None:
-    plan = pull_request("crates/asymptote/cli/src/main.rs")
-    assert plan.products == ("asymptote",)
-    assert rows(plan) == every_row("asymptote")
+def test_a_change_inside_a_product_checks_the_whole_tree_readers_and_the_jobs_of_an_unchecked_product_skip() -> None:
+    """Tastemaker's replay tests copy every tastemaker.lock of the tree, asymptote's among them."""
+    plan = pull_request("crates/asymptote/tastemaker.lock")
+    assert plan.products == ("tastemaker", "asymptote")
+    assert rows(plan) == every_row("tastemaker") + every_row("asymptote")
     assert plan.skips == ("python-release", "bench")
 
 
@@ -147,7 +149,7 @@ def test_a_push_checks_every_product_and_a_hand_run_the_one_it_names() -> None:
 def test_a_product_built_on_an_unreleased_product_waits_for_its_resolution_row_alone() -> None:
     """ryo-gnv5: Tastemaker needs the ryo version this tree bumps, which only the release this check gates publishes."""
     plan = pull_request("crates/tastemaker/cli/src/main.rs", unreleased=frozenset({"ryo"}), named={})
-    assert rows(plan) == [each for each in every_row("tastemaker") if each[1] != "release-resolution"]
+    assert rows(plan) == [each for each in every_row("tastemaker") if each[1] != "release-resolution"] + every_row("asymptote")
     assert plan.skips == ("python-release", "bench")
     # ryo's own resolution row stays: it builds on no other product's tree.
     shared = job(".github/workflows/check.yml", unreleased=frozenset({"ryo"})).run(Request("push", ""))
@@ -157,12 +159,12 @@ def test_a_product_built_on_an_unreleased_product_waits_for_its_resolution_row_a
     # Once the release tagged ryo, Tastemaker's resolution row runs again.
     assert rows(pull_request("crates/tastemaker/cli/src/main.rs", unreleased=frozenset({"tastemaker"}), named={})) == every_row(
         "tastemaker"
-    )
+    ) + every_row("asymptote")
 
 
 def test_the_releases_are_asked_only_when_a_checked_product_builds_on_another() -> None:
     pending = FakePending(frozenset({"ryo"}))
-    UseCase(FakeDiff(("crates/asymptote/cli/src/main.rs",)), FakeBuilds(), FakeManifest(), pending).run(Request("pull_request", ""))
+    UseCase(FakeDiff(()), FakeBuilds(), FakeManifest(), pending).run(Request("workflow_dispatch", "asymptote"))
     assert pending.asked == 0
     UseCase(FakeDiff(("crates/tastemaker/cli/src/main.rs",)), FakeBuilds(), FakeManifest(), pending).run(Request("pull_request", ""))
     assert pending.asked == 1

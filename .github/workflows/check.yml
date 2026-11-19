@@ -3,8 +3,8 @@
 # (`ci/changes/command.py`) decides which products a run checks. A pull request checks each product whose directory it touches
 # and every product that reads one of those, closed over who reads whom (a patched build, a tool input, a run-time read); every
 # product when it touches a path they all read (`SHARED` in ci/changes/use_case.py: the workflows, the CI helpers, the tools, the
-# toolchain and cargo configuration, the root's Tastemaker package and definitions); and the products whose tests read the whole
-# tree when it touches any other path (`ROOT_ONLY`). A push to main checks every product, and a hand run the one its `product`
+# toolchain and cargo configuration, the root's Tastemaker package and definitions); and on every change, wherever it lies, the
+# products whose tests read the whole tree. A push to main checks every product, and a hand run the one its `product`
 # input names: the release pull request workflow (release-pr.yml) starts one on its branch, since a pull request a workflow opens
 # starts no workflow. Every run runs the `root` job (the repository's own groups) and the `pull-request` job (the message main
 # keeps). For each checked product: one `check-linux` job (its `lint`, `clippy`, `check`, `release-tests`, `release-coverage` and

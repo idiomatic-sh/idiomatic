@@ -6,8 +6,9 @@ and its definitions), or outside every product beside those (`ROOT_ONLY`: the ro
 checks). A change to a product's directory checks it and every product that reads it, closed over who reads whom: a product
 reads another whose tree it builds against (`builds`, its `[patch.crates-io]`), whose directory an input of its tools names
 (`manifest`, its asymptote.toml), or whose directory its tests read at run time (`RUN_TIME_READS`). A shared path checks every
-product. A path outside every product's directory checks the products whose tests read the whole tree (`RUN_TIME_READS`' `""`),
-and the `root` job, which every pull request runs. A path no list names is refused, not guessed, so a new top-level file is
+product. Every change checks the products whose tests read the whole tree (`RUN_TIME_READS`' `""`), wherever its paths lie: a
+product's directory (asymptote's tastemaker.lock, which Tastemaker's replay tests copy) or outside every product's, which the
+`root` job, run by every pull request, reads too. A path no list names is refused, not guessed, so a new top-level file is
 classified before any pull request skips a product for it. A push to main checks every product, and a hand run the one it names.
 
 A checked product runs its Linux job and every row of `CHECK_ROWS`, its release rows among them, so a platform or packaging
@@ -50,7 +51,7 @@ RUN_TIME_READS = {
     "crates/asymptote": [""],
     "tools/lints": [],
 }
-# The products whose tests read the whole tree at run time: a change anywhere outside the products' directories checks them.
+# The products whose tests read the whole tree at run time: every change, wherever its paths lie, checks them.
 WHOLE_TREE = tuple(product for product in PRODUCTS if "" in RUN_TIME_READS.get(f"crates/{product}", []))
 
 # What every product's check reads outside `crates/`, each a top-level file or directory: a change to one checks every product.
@@ -177,7 +178,7 @@ class UseCase:
             if any(shared(path) for path in paths):
                 touched = set(PRODUCTS)
             else:
-                touched = self.readers({each for each in places if each is not None}) | ({*WHOLE_TREE} if None in places else set())
+                touched = self.readers({each for each in places if each is not None}) | ({*WHOLE_TREE} if paths else set())
             products = tuple(product for product in PRODUCTS if product in touched)
         elif request.event == "push":
             products = PRODUCTS
