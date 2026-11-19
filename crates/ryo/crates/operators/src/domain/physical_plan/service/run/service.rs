@@ -241,14 +241,24 @@ fn killed(
     if killer == u32::MAX || sure < KILLER_SURE || killer == node.0 {
         return None;
     }
-    if known(buffers, killer) == Known::Unmade
-        && buffers.rows(PlanNodeId(killer)) == NodeRows::Absent
-    {
-        // Spike (ryo-8y7q): a killer whose reads were counted done is never made (its inputs may be gone).
-        if buffers.reads_settled(killer) || materialize(plan, run, PlanNodeId(killer), buffers).is_err() {
-            return None;
+    if known(buffers, killer) == Known::Unmade && buffers.rows(PlanNodeId(killer)) == NodeRows::Absent {
+        // A killer that is a base leaf is read in place until its first row, as a guard is.
+        match super::base_guard::service::base_rows(plan, run, PlanNodeId(killer), buffers) {
+            Some(true) => return None,
+            Some(false) => {
+                marked_empty(plan, buffers, PlanNodeId(killer), killer);
+                return Some(killer);
+            }
+            None => {
+                // Spike (ryo-8y7q): a killer whose reads were counted done is never made (its inputs may be gone).
+                if buffers.reads_settled(killer)
+                    || materialize(plan, run, PlanNodeId(killer), buffers).is_err()
+                {
+                    return None;
+                }
+                buffers.release_if_idle(plan, PlanNodeId(killer));
+            }
         }
-        buffers.release_if_idle(plan, PlanNodeId(killer));
     }
     (known(buffers, killer) == Known::Empty)
         .then(|| origin_of(buffers, RowSource::Node(PlanNodeId(killer))))
@@ -350,6 +360,15 @@ fn guarded_empty(
     for guard in guards.iter() {
         if known(buffers, *guard) != Known::Unmade {
             continue;
+        }
+        // Spike (ryo-fmx3): a base leaf is read in place until its first row, never made only to guard.
+        match super::base_guard::service::base_rows(plan, run, PlanNodeId(*guard), buffers) {
+            Some(true) => continue,
+            Some(false) => {
+                marked_empty(plan, buffers, PlanNodeId(*guard), *guard);
+                return Some(*guard);
+            }
+            None => {}
         }
         if materialize(plan, run, PlanNodeId(*guard), buffers).is_err() {
             continue;

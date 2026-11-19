@@ -10,10 +10,7 @@ use ryo_relations::domain::{
     terms::types::Symbol,
 };
 use ryo_values::domain::rows::types::RowCount;
-use std::{
-    collections::HashMap,
-    sync::{Arc, OnceLock},
-};
+use std::sync::{Arc, OnceLock};
 const ABSENT: EntityPosition = EntityPosition(u32::MAX);
 const FILE_LIMIT: usize = 16 * 1024 * 1024;
 /// An ordered file-local bag of entity positions.
@@ -54,7 +51,9 @@ pub(in super::super::super) struct EntityFileColumns {
     parents: Vec<EntityPosition>,
     data: [FactColumn; 5],
     source: [EntityPositions; 2],
-    codes: HashMap<Symbol, Option<EntityLiteralCode>>,
+    codes: rustc_hash::FxHashMap<Symbol, Option<EntityLiteralCode>>,
+    // Spike (ryo-fmx3): each field's literal code by position, made on first use (u32::MAX: none).
+    coded: Vec<OnceLock<Vec<u32>>>,
     no_spelling: Option<EntityLiteralCode>,
     ancestors: Vec<OnceLock<FactColumn>>,
 }
@@ -98,7 +97,7 @@ impl EntityFileColumns {
         let mut observed = vec![false; size];
         let mut si = Vec::with_capacity(nr);
         let mut ei = Vec::with_capacity(ne);
-        let mut codes = HashMap::new();
+        let mut codes = rustc_hash::FxHashMap::default();
         let no_spelling = plan.names.get(TextView::default().0).copied();
         let mut remember = |raw| {
             let Ok(raw) = u32::try_from(raw) else {
@@ -153,6 +152,7 @@ impl EntityFileColumns {
             codes,
             no_spelling,
             ancestors: (0..plan.field_slots.0).map(|_| OnceLock::new()).collect(),
+            coded: (0..plan.field_slots.0.max(7)).map(|_| OnceLock::new()).collect(),
         })
     }
     pub(in super::super::super) fn len(&self) -> RowCount {
@@ -173,6 +173,24 @@ impl EntityFileColumns {
             .get(&Symbol(raw.0 as u32))
             .copied()
             .unwrap_or(self.no_spelling)
+    }
+    /// Spike (ryo-fmx3): the literal code of `column` at each position, `u32::MAX` where it has none: what `code` answers
+    /// for the column's word there, read once per file and field.
+    pub(in super::super::super) fn codes_of(&self, column: EntityColumn) -> &[u32] {
+        let EntityColumn(field, AncestorDistance(depth)) = column;
+        let slot = 7 * depth + field as usize;
+        let Some(place) = self.coded.get(slot) else {
+            return &[];
+        };
+        place.get_or_init(|| {
+            let words = self.field(column);
+            (0..self.len().0)
+                .map(|p| {
+                    self.code(words.get(EntityPosition(p as u32)))
+                        .map_or(u32::MAX, |code| code.0)
+                })
+                .collect()
+        })
     }
     pub(in super::super::super) fn parent(
         &self,

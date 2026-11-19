@@ -60,10 +60,12 @@ impl EntitySubscriptions {
                     })
                     .map(|code| (code, Vec::new()))
                     .collect();
-                let field = graph.field(fields[usize::from(partition.column)]);
+                // Spike (ryo-fmx3): the field's code column, made once per file.
+                let coded = graph.codes_of(fields[usize::from(partition.column)]);
                 for &position in source.iter() {
-                    if let Some(code) = graph.code(field.get(position))
-                        && let Some(rows) = selected.get_mut(&code)
+                    let code = coded[position.0 as usize];
+                    if code != u32::MAX
+                        && let Some(rows) = selected.get_mut(&EntityLiteralCode(code))
                     {
                         rows.push(position);
                     }
