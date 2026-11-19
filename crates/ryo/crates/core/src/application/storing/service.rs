@@ -175,25 +175,24 @@ impl Storing {
         ));
         // What the host declares is digested once: each rule's digest combines its own with it.
         let hosted = self.digest.digest(DigestBytes(&hosted_identity(hosted).0));
-        rules
-            .iter()
-            .zip(plans)
-            .map(|(rule, plan)| {
-                let own = self.digest.combine(&[
-                    self.digest.digest(DigestBytes(
+        let digest: &dyn DigestPort = &*self.digest;
+        // Spike (ryo-fmx3, host3): each rule's identity is its own: the rules are digested on every worker at once.
+        let one = |(rule, plan): (&RuleSpec, &&Plan)| {
+                let own = digest.combine(&[
+                    digest.digest(DigestBytes(
                         &configuration(std::slice::from_ref(rule), &[]).0,
                     )),
                     hosted,
                     schema,
                     source_selection,
-                    self.digest.digest(DigestBytes(&plan_identity(plan).0)),
+                    digest.digest(DigestBytes(&plan_identity(plan).0)),
                 ]);
                 let own = if plan.observations.is_empty() {
                     own
                 } else {
-                    self.digest.combine(&[
+                    digest.combine(&[
                         own,
-                        self.digest.digest(DigestBytes(
+                        digest.digest(DigestBytes(
                             &ryo_values::domain::observations::service::output_identity(
                                 &plan.observations,
                             )
@@ -205,7 +204,7 @@ impl Storing {
                 StoredRule {
                     rule: RuleId(rule.id.0.clone()),
                     digest: if reads {
-                        self.digest.combine(&[own, resolved])
+                        digest.combine(&[own, resolved])
                     } else {
                         own
                     },
@@ -215,8 +214,13 @@ impl Storing {
                         Crossing::Within
                     },
                 }
-            })
-            .collect()
+            };
+        if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Startup) {
+            use rayon::prelude::*;
+            rules.par_iter().zip(plans.par_iter()).map(one).collect()
+        } else {
+            rules.iter().zip(plans).map(one).collect()
+        }
     }
 
     /// What the run does with what the last kept, and the changed files that decision reads alone before the run.
