@@ -6,7 +6,8 @@ use ryo::languages::{self, AbsenceCause, Reader, Support};
 use crate::domain::model::types::Declarations;
 use crate::domain::relations::collections::relations::{
     binding_event::item::BindingEventItem, binding_read::item::BindingReadItem,
-    binding_shadow::item::BindingShadowItem, binding_use::item::BindingUseItem,
+    binding_resolution::item::BindingResolutionItem, binding_shadow::item::BindingShadowItem,
+    binding_use::item::BindingUseItem,
     bytes_literal::item::BytesLiteralItem, compiler_feature::item::CompilerFeatureItem,
     constant_key::item::ConstantKeyItem, embedded_expression::item::EmbeddedExpressionItem,
     expression_shape::item::ExpressionShapeItem, expression_type::item::ExpressionTypeItem,
@@ -129,6 +130,10 @@ impl languages::Semantics<Declarations> for ParseContract {
 
     fn binding_use(&self) -> Support<Reader<languages::BindingUse, Declarations>> {
         languages::reads::<BindingUseItem>()
+    }
+
+    fn binding_resolution(&self) -> Support<Reader<languages::BindingResolution, Declarations>> {
+        languages::reads::<BindingResolutionItem>()
     }
 
     fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Declarations>> {

@@ -51,6 +51,9 @@ pub(crate) mod binding_read;
 /// Generic static binding analysis.
 pub(crate) mod binding_use;
 
+/// Schedule-order name resolution.
+pub(crate) mod binding_resolution;
+
 /// Generic static binding analysis.
 pub(crate) mod binding_shadow;
 

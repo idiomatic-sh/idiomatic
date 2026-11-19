@@ -17,7 +17,7 @@ ryo::reads! {
    Some(index)=>{
     each (index.events.iter()) as answer {
      given kind = languages::intern_derived(symbols, tree.source, vocabulary::event(answer.kind));
-row { occurrence:node(answer.occurrence),name:value(answer.name),scope:node(answer.scope),phase:node(answer.phase),kind:value(kind),ordinal:value(answer.ordinal),file:file,span:span(answer.occurrence), }
+row { occurrence:node(answer.occurrence),name:value(answer.name),scope:node(answer.scope),phase:node(answer.phase),kind:value(kind),ordinal:value(answer.ordinal),file:file,span:span(answer.occurrence),lexical:node(answer.lexical), }
     }
    }
   }

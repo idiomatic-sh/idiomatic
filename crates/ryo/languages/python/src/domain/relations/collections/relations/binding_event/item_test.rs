@@ -70,6 +70,7 @@ fn events(source: &'static str) -> Vec<Event> {
                 Want::Number(ordinal),
                 Want::File(_),
                 Want::Span(start, _),
+                Want::Node(_lexical),
             ] = **row
             else {
                 panic!("binding-event row has the canonical columns")
