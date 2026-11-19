@@ -30,6 +30,8 @@ pub(crate) const REWRITES: &[&dyn RewritesItem] = &[
     &crate::domain::physical_plan::collections::rewrites::band_existence::item::BandExistenceItem,
     // Spike (ryo-fmx3): a distinct projection of a group's keys reads the group's source.
     &crate::domain::physical_plan::collections::rewrites::group_keys::item::GroupKeysItem,
+    // Spike (ryo-fmx3): a probe of a column-only select of a relation probes the relation.
+    &crate::domain::physical_plan::collections::rewrites::facts_right::item::FactsRightItem,
     &crate::domain::physical_plan::collections::rewrites::existence_probe::item::ExistenceProbeItem,
     &crate::domain::physical_plan::collections::rewrites::tree_probe::item::TreeProbeItem,
     // Spike (ryo-fmx3): a closure read only by probes keyed on its partition and source is walked from their left rows.
