@@ -54,6 +54,10 @@ pub(crate) fn kernels(
         Lowering::Distinct { .. } => {
             output.kinds = kinds.to_vec();
             buffers.pools.rows.refilled(&mut buffers.repeats);
+            // Spike (ryo-fmx3): room for every row at once, never grown row by row.
+            let total = std::iter::once(input).chain(other).map(|source| count_of(source).0).sum::<usize>();
+            output.cells.reserve(total.saturating_mul(kinds.len()));
+            buffers.repeats.reserved(total);
             for source in std::iter::once(input).chain(other) {
                 if kinds_of(source) != kinds {
                     return Err(PortableOperatorFault::ShapeMismatch);

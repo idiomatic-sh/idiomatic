@@ -65,3 +65,31 @@ pub(crate) fn projected(
     counted(output, start, distinct, repeats);
     Ok(())
 }
+
+/// Spike (ryo-fmx3): `projected` over row `at` of a relation's columns, each projected cell read in place.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a column past the row, the cells before it written, as `projected` leaves them.
+pub(crate) fn projected_facts(
+    view: &ryo_relations::domain::relations::types::ColumnsView<'_>,
+    at: ryo_values::domain::rows::types::RowIndex,
+    columns: &[ColumnIndex],
+    distinct: RepeatedRows,
+    repeats: &mut RowSet,
+    output: &mut Table,
+) -> Result<(), PortableOperatorFault> {
+    let start = CellStart(output.cells.len());
+    for column in columns {
+        output.cells.push(
+            super::super::scan_facts::item::facts_cell_at(
+                view,
+                at,
+                usize::try_from(column.0).unwrap_or(usize::MAX),
+            )
+            .ok_or(PortableOperatorFault::NoSuchColumn { index: *column })?,
+        );
+    }
+    counted(output, start, distinct, repeats);
+    Ok(())
+}
