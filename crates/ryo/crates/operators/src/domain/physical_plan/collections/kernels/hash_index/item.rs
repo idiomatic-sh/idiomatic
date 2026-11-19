@@ -626,7 +626,10 @@ fn words_read(
             insert(rows, hash, row, |run| hashed(run, hash));
         }
     }
-    rows.scratch = scratch;
+    // The words are read once per build: a build past the kept room gives its scratch back rather than hold it.
+    if scratch.capacity() <= crate::domain::kept_room::constants::KEPT_ROOM {
+        rows.scratch = scratch;
+    }
     rows.words = words;
     if crate::spike::keystats() {
         crate::spike::key_rows(6, usize::from(rows.census), count.0 as u64);
