@@ -48,7 +48,7 @@ pub(crate) fn push_selections_roots(
 ) -> Vec<PlanStep> {
     loop {
         let mut moved = false;
-        let mut readers = readers_of(&steps);
+        let mut readers = Readers::of(&steps);
         for place in (0..steps.len()).rev() {
             let id = StepId(u32::try_from(place).unwrap_or(u32::MAX));
             if roots.contains(&id) {
@@ -59,7 +59,7 @@ pub(crate) fn push_selections_roots(
                 .and_then(|reading| shared_push(&steps, id, reading))
             {
                 shared_into(&mut steps, roots, push);
-                readers = readers_of(&steps);
+                readers.rebuild(&steps);
                 moved = true;
                 continue;
             }
@@ -79,7 +79,7 @@ pub(crate) fn push_selections_roots(
             {
                 insert_before(&mut steps, roots, reader, before, filter);
             }
-            readers = readers_of(&steps);
+            readers.rebuild(&steps);
             moved = true;
         }
         if !moved {
@@ -152,20 +152,67 @@ fn without_repeats(steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> 
     made
 }
 
-/// For each step, the places of the steps that read it.
-fn readers_of(steps: &[PlanStep]) -> Vec<Vec<StepIndex>> {
-    let mut readers = vec![Vec::new(); steps.len()];
-    for (place, step) in steps.iter().enumerate() {
-        for input in named(&inputs_of(&step.operation)) {
-            if let Input::Step(id) = *input
-                && let Some(reading) = readers.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
-                && reading.last() != Some(&StepIndex(place))
-            {
-                reading.push(StepIndex(place));
+/// Spike (ryo-fmx3): for each step, the places of the steps that read it, in one flat list with a start per step, rebuilt in
+/// place so the lists keep their room across the rewrites of a plan.
+#[derive(Default)]
+struct Readers {
+    starts: Vec<usize>,
+    flat: Vec<StepIndex>,
+}
+
+impl Readers {
+    /// The readers of `steps`, each reader once per step it reads, in step order.
+    fn of(steps: &[PlanStep]) -> Self {
+        let mut readers = Self::default();
+        readers.rebuild(steps);
+        readers
+    }
+
+    fn rebuild(&mut self, steps: &[PlanStep]) {
+        let count = steps.len();
+        self.starts.clear();
+        self.starts.resize(count + 2, 0);
+        let read_from = |step: &PlanStep, visit: &mut dyn FnMut(usize)| {
+            let inputs = inputs_of(&step.operation);
+            let named = named(&inputs);
+            for (at, input) in named.iter().enumerate() {
+                if let Input::Step(id) = *input
+                    && !named.get(..at).is_some_and(|before| before.contains(input))
+                {
+                    visit(usize::try_from(id.0).unwrap_or(usize::MAX));
+                }
             }
+        };
+        for step in steps {
+            read_from(step, &mut |read| {
+                if read < count {
+                    self.starts[read + 2] += 1;
+                }
+            });
+        }
+        for at in 2..self.starts.len() {
+            self.starts[at] += self.starts[at - 1];
+        }
+        self.flat.clear();
+        self.flat.resize(self.starts[count + 1], StepIndex(0));
+        // `starts[read + 1]` is where the next reader of `read` goes; after the fill it is where `read + 1`'s start is.
+        for (place, step) in steps.iter().enumerate() {
+            read_from(step, &mut |read| {
+                if read < count {
+                    let slot = self.starts[read + 1];
+                    self.flat[slot] = StepIndex(place);
+                    self.starts[read + 1] += 1;
+                }
+            });
         }
     }
-    readers
+
+    /// The readers of the step at `place`.
+    fn get(&self, place: usize) -> Option<&[StepIndex]> {
+        let from = *self.starts.get(place)?;
+        let to = *self.starts.get(place + 1)?;
+        self.flat.get(from..to)
+    }
 }
 
 /// What takes the place of each of `readers`, the steps that read the union or the join `id`, whose comparisons move: for a join,

@@ -44,7 +44,6 @@ use ryo_values::domain::runs::types::{FileHandover, ParsedRows, RowsHanded, Rule
 use ryo_values::domain::stored_facts::service::frontier_bucket;
 use ryo_values::domain::table_words::service::{encode_table, pack};
 use ryo_values::domain::table_words::types::WordSlice;
-use std::sync::Arc;
 
 /// What a rule does after its emitted node: its frontiers captured, each one captured kept in the facts and committed, and its
 /// steps reported to the observer, if any. A capture the engine could not make is answered as it is, for the caller to note.
@@ -67,7 +66,8 @@ pub(crate) fn captured_rule(
         at.condition,
         rule,
     )?;
-    let plan = Arc::clone(at.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?);
+    // Spike (ryo-fmx3): borrowed from the pass, not cloned: the count every worker bumps per rule per file was contended.
+    let plan: &Plan = pass.plans.get(rule.0).map(|plan| &**plan).ok_or(OperatingError::NotRun)?;
     let CaptureContext {
         worker,
         arena: Arena(arena),
@@ -220,7 +220,7 @@ pub(crate) fn captured_rule(
             committed(at, rule, kept.input)?;
         }
     }
-    observed(at, rule, &plan, &nodes)?;
+    observed(at, rule, plan, nodes)?;
     Ok(RuleAfter::Ran { captures })
 }
 

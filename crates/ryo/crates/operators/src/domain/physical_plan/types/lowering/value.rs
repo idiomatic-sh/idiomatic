@@ -207,7 +207,8 @@ impl Lowering {
     }
 
     /// The rows the node reads, in the order its kernels read them; a lookup reads its index's relation, which is not here.
-    pub(crate) fn sources(&self) -> impl Iterator<Item = RowSource> {
+    #[inline]
+    pub(crate) fn source_slots(&self) -> [Option<RowSource>; 3] {
         let (first, second, third) = match self {
             Self::Filter { source, .. }
             | Self::Project { source, .. }
@@ -240,6 +241,12 @@ impl Lowering {
             } => (Some(*roots), Some(*edges), Some(*lattice)),
             Self::Lookup { .. } | Self::ScanBound { .. } | Self::Unlowered => (None, None, None),
         };
-        first.into_iter().chain(second).chain(third)
+        [first, second, third]
+    }
+
+    /// Spike (ryo-fmx3): [`Self::source_slots`] as an iterator with no chained adapters.
+    #[inline]
+    pub(crate) fn sources(&self) -> impl Iterator<Item = RowSource> {
+        self.source_slots().into_iter().flatten()
     }
 }

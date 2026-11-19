@@ -289,6 +289,26 @@ fn flow_of(
 fn place(nodes: &mut [PhysicalNode], id: PlanNodeId) -> Option<&mut PhysicalNode> {
     nodes.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
 }
+/// Spike (ryo-fmx3): answers a node the open file already holds or only marked empty with no resources built: `Some` is what
+/// `run` answers for it (its pending fault, or nothing), `None` when the node still has to be run.
+pub fn answered_without_running(
+    plan: &crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan,
+    buffers: &mut crate::domain::physical_plan::types::file_buffers::value::FileBuffers,
+    node: PlanNodeId,
+) -> Option<Result<(), crate::domain::contract::types::PortableOperatorFault>> {
+    use crate::domain::physical_plan::types::NodeRows;
+    if buffers.rows(node) == NodeRows::Absent {
+        if run::service::known(buffers, node.0) != run::service::Known::Empty {
+            return None;
+        }
+        run::service::installed(plan, buffers, node);
+    }
+    Some(match buffers.pending.get(usize::try_from(node.0).unwrap_or(usize::MAX)) {
+        Some(Some(fault)) => Err(fault.clone()),
+        Some(None) | None => Ok(()),
+    })
+}
+
 /// Offer the immutable source columns whose preceding file query already requested them.
 /// The caller borrows these only from the complete, stable fact store for the currently open file.
 pub fn bind_requested_entity_sources<'a>(

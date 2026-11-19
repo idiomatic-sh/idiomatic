@@ -114,6 +114,9 @@ pub struct FileBuffers {
     /// Spike (ryo-fmx3): by node, across this worker's files, the necessary node that most often emptied it and how sure
     /// that is: read first in the next file.
     pub(crate) killers: Vec<(u32, u16)>,
+    /// Spike (ryo-fmx3): the plan these buffers were last grown for (its address, node count and index count), so `sized` costs
+    /// one comparison once the buffers fit.
+    pub(crate) sized_for: (usize, usize, usize),
 }
 
 /// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.

@@ -16,6 +16,18 @@ enum CompletionBehavior {
     BlockBeforeRun(FileId, std::sync::Arc<[Partial]>),
     DropAfterCollect(std::sync::Arc<Partials>),
 }
+/// Spike (ryo-fmx3): `partials` as one shared list; no partial, the thread's one empty list, so a policy made per node answers no
+/// allocation when the file is whole.
+fn shared(partials: &[Partial]) -> std::sync::Arc<[Partial]> {
+    thread_local! {
+        static NONE: std::sync::Arc<[Partial]> = std::sync::Arc::from(Vec::new());
+    }
+    if partials.is_empty() {
+        NONE.with(std::sync::Arc::clone)
+    } else {
+        partials.into()
+    }
+}
 /// No Default: the scope's actual partiality source must be supplied.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct CompletionPolicy {
@@ -40,8 +52,8 @@ impl CompletionPolicy {
     ) -> Self {
         Self {
             scope: ScopeIdentity::File { rule, file },
-            behavior: CompletionBehavior::BlockBeforeRun(file, evaluation.into()),
-            publication: CompletionBehavior::BlockBeforeRun(file, publication.into()),
+            behavior: CompletionBehavior::BlockBeforeRun(file, shared(evaluation)),
+            publication: CompletionBehavior::BlockBeforeRun(file, shared(publication)),
         }
     }
     /// The policy of one rule over the project: rows from partial inputs are dropped after they are collected.
