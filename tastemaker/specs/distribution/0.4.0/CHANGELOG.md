@@ -1,6 +1,24 @@
+<<<<<<<< HEAD:tastemaker/specs/distribution/0.4.0/CHANGELOG.md
 ## 0.4.0
 
 The directory holds only what is published to npm and PyPI, each beside its smoke test, as one unpublished crate, and a README; the bench, targets, proofs and cargo-dist build go.
+========
+# distribution 0.3.5
+
+The bench's sampler reads the measured tree alone on Linux. 0.3.4's `bench-resources` refreshed every process of the machine
+through sysinfo at each 5 ms observation, so the sampler's CPU followed how many processes the machine ran. It took 12 to 22% of
+the children's wall on a development machine and 44% on a GitHub-hosted runner, where `bench-instrument`'s 30% bound refused it
+(the `memory-distribution` tool of #49's check run 44168859733). On Linux an observation now reads `/proc` for the tree's root,
+its members and each one's children, transitively (`/proc/<pid>/task/<thread>/children`), with each process's parent and start
+time from `/proc/<pid>/stat` and its resident bytes from the `VmRSS` of `/proc/<pid>/status`. Its cost follows the tree. Elsewhere
+the observation reads every process through sysinfo, as before. `Tree` is unchanged and the instrument's checks and bounds are
+as in 0.3.4.
+
+With `validate`, `--memory` takes the deterministic measures alone, `cold-peak-kib` and `validate-peak-kib`, which a pull request is
+judged by: a wall time on a shared runner judges none. `validate-cold-ms` and `validate-warm-ms` move to the timing run (no
+`--memory`), whose cargo registry targets take the memory rounds' `validate` beside their cold, warm and edit times. Without
+`validate` the bench is as in 0.3.4. Everything else is as in 0.3.4.
+>>>>>>>> origin/main:tastemaker/specs/distribution/0.3.5/CHANGELOG.md
 
 # distribution 0.3.4
 

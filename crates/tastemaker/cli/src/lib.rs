@@ -4,7 +4,7 @@
     test,
     expect(
         dead_code_pub_in_binary,
-        reason = "the unit-test build is the one binary that compiles this library's public items with no dependent: `main.rs` calls `resources::run`, which reaches every item it flags, and the unit tests do not"
+        reason = "the unit-test build is the one binary that compiles this library's public items with no dependent: the binary entry point calls `resources::run`, which reaches every item it flags, and the unit tests do not"
     )
 )]
 

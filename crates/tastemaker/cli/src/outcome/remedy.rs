@@ -82,9 +82,8 @@ fn manifest(error: &ManifestError) -> Next {
                 .to_owned(),
         ),
         ManifestError::LockVersion { .. } => Next::Run("tm check --fix".to_owned()),
-        // ignore: idiomatic.arch/no-language-names - the repository's installer is a file named `install.py`; the text points at that file
         ManifestError::Needs { needs, .. } => Next::Fix(format!(
-            "install tastemaker {needs}, the version the workspace's `tastemaker.toml` needs: in a repository that has one, run `uv run --script tools/install.py`, which installs every tool at the version the repository declares; elsewhere install it the way Tastemaker's README installs it",
+            "install tastemaker {needs}, the version the workspace's `tastemaker.toml` needs: in a repository that has one, run the repository's tool installer with `uv run --script`, which installs every tool at the version the repository declares; elsewhere install it the way Tastemaker's README installs it",
         )),
     }
 }

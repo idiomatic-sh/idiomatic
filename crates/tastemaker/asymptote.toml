@@ -157,15 +157,14 @@ inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../..
 id = "memory"
 group = "memory"
 # The memory bench (cli/benches/memory) over its pinned target, ruff at its pinned revision: the peak memory of the cold `tm check`
-# (`cold-peak-kib`) and `tm validate` over the target's definitions, cold (`validate-cold-ms`) and again warm (`validate-warm-ms`), with
-# its larger peak (`validate-peak-kib`), each the median of five rounds over a fresh checkout. Every run is held to four processors (the
-# bench's `taskset --cpu-list 0-3`, which it refuses on a machine without them), so the command runs the same four workers on every
-# machine and the lock needs no machine. The peaks are resident sets, which move with how many workers hold their tables at once, so 5%;
-# the times are wall clock on a shared runner: a cold validation may rise 25% over its best, a warm one, which is tens of milliseconds,
-# 50%. Targets, not gates: a peak under 500 MB, 300 ms cold and 10 ms warm.
+# (`cold-peak-kib`) and the larger peak of `tm validate` over the target's definitions, cold and again warm (`validate-peak-kib`), each
+# the median of five rounds over a fresh checkout. Only these deterministic measures gate a pull request; a wall time on a shared runner
+# does not, so the bench publishes no time. Every run is held to four processors (the bench's `taskset --cpu-list 0-3`, which it refuses
+# on a machine without them), so the command runs the same four workers on every machine and the lock needs no machine. The peaks are
+# resident sets, which move with how many workers hold their tables at once, so 5%. Target, not gate: a peak under 500 MB.
 run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-tastemaker", "--bench", "memory"]
 output = "bmf"
-tolerance-percent = { cold-peak-kib = 5, validate-peak-kib = 5, validate-cold-ms = 25, validate-warm-ms = 50 }
+tolerance-percent = { cold-peak-kib = 5, validate-peak-kib = 5 }
 timeout-seconds = 3600
 inputs = [".", "../ryo/crates", "../ryo/languages", "../../rust-toolchain.toml", "../../.cargo", "../../tastemaker/benchmarks"]
 

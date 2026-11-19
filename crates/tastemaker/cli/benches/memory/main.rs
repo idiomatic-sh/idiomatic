@@ -1,8 +1,9 @@
 //! tastemaker's memory bench: the command line crate installed as Cargo installs it, then five rounds over
 //! the Ruff target beside this file (`ruff/`), each run on four CPUs: the peak memory of a cold `check`,
-//! and the wall milliseconds and peak memory of `validate` over the target's definitions, cold and
-//! warm. It prints one Bencher Metric Format document on stdout (benchmark = `ruff`, measures
-//! `cold-peak-kib`, `validate-cold-ms`, `validate-warm-ms` and `validate-peak-kib`: `value` the
+//! and the larger peak memory of `validate` over the target's definitions, cold and warm: the
+//! deterministic measures a pull request is judged by, and no wall time, which a shared runner moves
+//! from run to run. It prints one Bencher Metric Format document on stdout (benchmark = `ruff`, measures
+//! `cold-peak-kib` and `validate-peak-kib`: `value` the
 //! median of the rounds, `lower_value` the lowest, `upper_value` the highest) and every line meant
 //! for a person on stderr; asymptote's `memory` tool judges the document against its lock, and the
 //! bench asserts no budget. It first runs its proofs (the target's preparation and summary) and
@@ -26,16 +27,12 @@ use std::process::ExitCode;
 /// findings and policy.
 const TARGET: &str = "ruff";
 
-/// What the bench takes of each round: the peak of the cold check, and `validate` over the
-/// target's definitions cold and warm.
+/// What the bench takes of each round: the peak of the cold check, and the larger peak of
+/// `validate` over the target's definitions cold and warm.
 #[derive(Default)]
 struct Memory {
     /// The cold check's peak memory in kibibytes, one per round.
     check_peak: Vec<u128>,
-    /// `validate`'s wall milliseconds on a fresh checkout, one per round.
-    validate_cold: Vec<u128>,
-    /// `validate`'s wall milliseconds over what the cold run proved, one per round.
-    validate_warm: Vec<u128>,
     /// The larger peak memory of the two validations in kibibytes, one per round.
     validate_peak: Vec<u128>,
 }
@@ -60,10 +57,8 @@ fn round(
     taken.check_peak.push(kibibytes(check_peak));
     let proving = tempfile::tempdir()?;
     let (_, project) = project::checkout(command, target, snapshot, proving.path())?;
-    let (cold, _, cold_peak) = measure::validate(command, &project, proving.path())?;
-    let (warm, _, warm_peak) = measure::validate(command, &project, proving.path())?;
-    taken.validate_cold.push(cold);
-    taken.validate_warm.push(warm);
+    let (_, _, cold_peak) = measure::validate(command, &project, proving.path())?;
+    let (_, _, warm_peak) = measure::validate(command, &project, proving.path())?;
     taken
         .validate_peak
         .push(kibibytes(cold_peak.max(warm_peak)));
@@ -99,8 +94,6 @@ fn document(taken: &Memory) -> serde_json::Value {
     serde_json::json!({
         TARGET: {
             "cold-peak-kib": measure(&taken.check_peak),
-            "validate-cold-ms": measure(&taken.validate_cold),
-            "validate-warm-ms": measure(&taken.validate_warm),
             "validate-peak-kib": measure(&taken.validate_peak),
         }
     })

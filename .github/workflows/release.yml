@@ -1,25 +1,28 @@
 # The release workflow on GitHub Actions, its thin edge, as ruff's is. A green check on main (check.yml's push run, `gate` passed) releases each
-# product whose version its commit changes: the `tag` job runs `ci/tag/command.py --push`, which names each product whose workspace version in crates/<product>/Cargo.toml
-# differs from the parent commit's and whose tag (`idiomatic-sh-<product>-v<version>`) does not exist yet, and creates that tag at
-# the commit; the build and publish jobs then run for those products alone, each product's builds beside the others', its publish
-# in a concurrency group of its own, one product's publish at a time, ryo's first. A push to main starts nothing here: the release workflow starts when check.yml's run on it completes (`workflow_run`), and
-# its jobs run only when that run's `gate` passed (Linux, ARM, macOS and Windows), on that run's commit. A red or cancelled run
-# tags nothing; the next green run on main releases. A maintainer's hand run releases ONE product, the `product` input, and checks
-# it first: `asymptote check --root crates/<product> --groups <group>` runs each of that product's groups (its tests and packaging
-# tests and its lint, one job per group and machine, and the repository root's `repository` group). Tastemaker depends on ryo's crates, so a ryo version
-# it needs is on crates.io before tastemaker's publish. The `build` job builds each product's wheel (Ryo's only for
-# its binary) on each of eight targets' own machines through PyO3/maturin-action (the manylinux 2_17 and musllinux_1_2 containers
-# on Linux), one matrix whose rows run the same steps; then the `publish` job runs `ci/release/command.py --product <product>`
+# product whose version has no tag yet, in two runs. The run `workflow_run` starts only tags: its `tag` job runs `ci/tag/command.py
+# --push`, which names each product whose workspace version in crates/<product>/Cargo.toml has no tag (`idiomatic-sh-<product>-v<version>`),
+# the commit that changed it having had a red check or this one changing it, and creates that tag at the commit; its `dispatch` job
+# then dispatches this workflow (`workflow_dispatch`) from each new tag with `publish`, ryo's first and each run awaited, since
+# tastemaker depends on ryo's crates. It builds and publishes nothing: crates.io's trusted publishing refuses a `workflow_run`
+# run. A push to main starts nothing here: the release workflow starts when check.yml's run on it completes, and its `tag` job
+# runs only when that run's `gate` passed, on that run's commit. A red or cancelled run tags nothing; the next green run on main
+# releases. The dispatched run (or a maintainer's hand run, which releases ONE product, the `product` input) checks the product
+# first: `asymptote check --root crates/<product> --groups <group>` runs each of that product's groups (its tests and packaging
+# tests and its lint, one job per group and machine, and the repository root's `repository` group). The `build` job builds the
+# product's wheel (Ryo's only for its binary) on each of eight targets' own machines through PyO3/maturin-action (the manylinux
+# 2_17 and musllinux_1_2 containers on Linux), one matrix whose rows run the same steps; then the `publish` job runs
+# `ci/release/command.py --product <product>`
 # once per product over what the rows built: it makes the product's npm packages and its GitHub Release archives from the wheels'
 # binaries, hands every package to its registry's dry run, and, when it publishes, uploads to crates.io (skipping a version
-# already there), then npm and PyPI, and last creates the product's GitHub Release with `gh`. A green check publishes; a hand run is a
-# dry run unless all three hold: a maintainer dispatches it with `publish` from the product's own tag, the maintainer is the
-# repository variable RELEASE_MAINTAINER (unset until a maintainer sets it), and each registry trusts this workflow for
+# already there), then npm and PyPI, and last creates the product's GitHub Release with `gh`. A run is a dry run unless all three
+# hold: it is dispatched with `publish` from the product's own tag, by the maintainer (the repository variable RELEASE_MAINTAINER,
+# unset until a maintainer sets it) or by this workflow's `dispatch` job, and each registry trusts this workflow for
 # publishing: crates.io, npm and PyPI each through its trusted publishing (OIDC), with no token kept in the repository, which only
 # a maintainer can arrange (the `distribution` spec).
 name: release
 on:
-  # A green check on main: the run check.yml's push to main started, completed with its `gate` passed. The jobs run on its commit.
+  # A green check on main: the run check.yml's push to main started, completed with its `gate` passed. Its jobs tag the commit
+  # and dispatch the release; they build and publish nothing.
   # A red, cancelled or pull request run starts nothing: the next green run on main releases.
   workflow_run:
     workflows: [check]
@@ -64,6 +67,37 @@ jobs:
         run: uv run ci/tag/command.py --push
         env:
           GH_TOKEN: ${{ github.token }}
+  # The release of each product the `tag` job tagged: this workflow dispatched from the product's new tag with `publish`, one product
+  # at a time and each run awaited, ryo's first (tastemaker depends on its crates, which must be on crates.io before tastemaker's
+  # publish). Dispatched by this job's token, the run is a `workflow_dispatch` one, which crates.io's trusted publishing accepts.
+  # This job builds and publishes nothing, and it alone holds `actions: write`.
+  dispatch:
+    needs: tag
+    if: ${{ needs.tag.result == 'success' && needs.tag.outputs.products != '[]' }}
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCTS: ${{ needs.tag.outputs.products }}
+          COMMIT: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          for product in $(jq -r '.[]' <<< "$PRODUCTS"); do
+            tag="$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/idiomatic-sh-$product-v" --jq ".[] | select(.object.sha == \"$COMMIT\") | .ref | ltrimstr(\"refs/tags/\")")"
+            since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$tag" -f product="$product" -f publish=true
+            run=""
+            for _ in $(seq 20); do
+              run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --event workflow_dispatch --branch "$tag" --json databaseId,headBranch,createdAt --jq "[.[] | select(.headBranch == \"$tag\" and .createdAt >= \"$since\")] | first | .databaseId // empty")"
+              [ -n "$run" ] && break
+              sleep 15
+            done
+            [ -n "$run" ] || { echo "::error::no release run for $tag started within 5 minutes"; exit 1; }
+            gh run watch "$run" --repo "$GITHUB_REPOSITORY" --interval 60 --exit-status
+          done
   # A hand run's check rows for its product: `ci/groups` keeps, of the release's rows (`RELEASE_ROWS`, a group on its machine), the
   # repository root's and each whose group the product's tools declare, so no row asks a product for a group it has none of.
   groups:
@@ -143,14 +177,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - run: asymptote check --root ${{ matrix.root || format('crates/{0}', inputs.product) }} --groups ${{ matrix.group }}
   build:
-    needs: [tag, check]
-    # A release's products are the `tag` job's (its check skipped); a hand run's is its input, once its check passed.
-    if: ${{ !cancelled() && !failure() && (github.event_name == 'workflow_dispatch' || (needs.tag.result == 'success' && needs.tag.outputs.products != '[]')) }}
+    needs: check
+    # Only a dispatched run builds, its product the input, once its check passed: the run a completed check starts builds nothing.
+    if: ${{ !cancelled() && !failure() && github.event_name == 'workflow_dispatch' }}
     name: build (${{ matrix.product }}, ${{ matrix.platform.target }})
     strategy:
       fail-fast: false
       matrix:
-        product: ${{ fromJSON(github.event_name == 'workflow_run' && needs.tag.outputs.products || format('["{0}"]', inputs.product)) }}
+        product: ${{ fromJSON(format('["{0}"]', inputs.product)) }}
         platform:
           - { target: x86_64-unknown-linux-gnu, runner: ubuntu-26.04, manylinux: 2_17 }
           - { target: aarch64-unknown-linux-gnu, runner: ubuntu-26.04-arm, manylinux: 2_17 }
@@ -170,7 +204,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         if: matrix.product == 'asymptote'
@@ -204,15 +237,12 @@ jobs:
           name: ${{ matrix.product }}-${{ matrix.platform.target }}
           path: dist
   publish:
-    needs: [tag, build]
+    needs: build
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     strategy:
       fail-fast: false
-      # One product's publish at a time, in the `tag` job's order (ryo, tastemaker, asymptote): tastemaker depends on ryo's crates,
-      # so when a push releases both, ryo's are on crates.io before tastemaker's publish starts.
-      max-parallel: 1
       matrix:
-        product: ${{ fromJSON(github.event_name == 'workflow_run' && needs.tag.outputs.products || format('["{0}"]', inputs.product)) }}
+        product: ${{ fromJSON(format('["{0}"]', inputs.product)) }}
     # Each product's publish in a group of its own: one product's publishes never overlap, and products publish side by side.
     concurrency:
       group: release-${{ matrix.product }}
@@ -223,13 +253,13 @@ jobs:
       contents: write
       id-token: write
     env:
-      # A green check on main publishes the products its `tag` job tagged. A hand run publishes only from the product's own tag and by the
-      # maintainer's dispatch; otherwise the job builds and dry-runs the product and uploads nothing.
-      PUBLISH: ${{ github.event_name == 'workflow_run' || (inputs.publish && github.ref_type == 'tag' && startsWith(github.ref_name, format('idiomatic-sh-{0}-v', matrix.product)) && vars.RELEASE_MAINTAINER != '' && github.triggering_actor == vars.RELEASE_MAINTAINER) }}
+      # A run publishes only from the product's own tag, dispatched with `publish`: by the maintainer's hand, or by this workflow's
+      # `dispatch` job for a tag the `tag` job made (crates.io's trusted publishing refuses a `workflow_run` run, so the run a
+      # completed check starts publishes nothing itself). Otherwise the job builds and dry-runs the product and uploads nothing.
+      PUBLISH: ${{ inputs.publish && github.ref_type == 'tag' && startsWith(github.ref_name, format('idiomatic-sh-{0}-v', matrix.product)) && ((vars.RELEASE_MAINTAINER != '' && github.triggering_actor == vars.RELEASE_MAINTAINER) || github.triggering_actor == 'github-actions[bot]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
       # npm's trusted publishing needs npm 11.5.1 or later: the latest Node 24, not a runner's cached one, bundles it.

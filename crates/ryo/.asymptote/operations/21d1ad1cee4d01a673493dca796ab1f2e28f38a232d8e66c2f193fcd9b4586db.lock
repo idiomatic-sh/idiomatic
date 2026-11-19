@@ -1,0 +1,10 @@
+version = 1
+parents = ["1b70f0d0ddf7e451f266aabcbf976b32b33761e0fae87ca717d92f06965769cb"]
+
+[[perf]]
+reasons = ["bench-per-language seed: the bench group's first run at 8d683dc73 (claude/int-batch, ryo-b1gq.66), local, taskset 0-3", "seed on ubuntu-26.04"]
+records = [
+  { tool = "bench/python/ruff", benchmark = "python/django", measure = "store-bytes", best = 71205064.0 },
+  { tool = "bench/python/ruff", benchmark = "python/fastapi", measure = "store-bytes", best = 26529154.0 },
+  { tool = "bench/python/ruff", benchmark = "python/pandas", measure = "store-bytes", best = 45640125.0 },
+]

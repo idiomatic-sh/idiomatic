@@ -130,7 +130,7 @@ fn handovers(adapter: &impl ObserverPort, file: FileId) -> Value {
     let Ok(mut expected) = adapter.handovers() else {
         return false;
     };
-    expected.push(handover);
-    expected.sort_unstable();
+    expected.0.push(handover);
+    expected.0.sort_unstable();
     adapter.handed(handover) == Ok(()) && adapter.handovers().is_ok_and(|after| after == expected)
 }
