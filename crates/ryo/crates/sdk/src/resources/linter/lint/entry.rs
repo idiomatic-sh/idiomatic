@@ -138,6 +138,7 @@ pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport
         .lint(core)
         .map_err(LintError::from_core)?;
     ryo_operators::spike::dump();
+    ryo_operators::spike::memstats_dump();
     schemas::report(rows.take(), report)
 }
 

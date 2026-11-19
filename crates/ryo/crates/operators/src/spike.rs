@@ -394,3 +394,49 @@ pub fn dump() {
     }
     drop(std::fs::write(path, text));
 }
+
+/// Spike (ryo-8y7q): whether the memory counters are on, set once from `RYO_MEMSTATS`.
+pub fn memstats() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RYO_MEMSTATS").is_some())
+}
+
+/// Spike (ryo-8y7q): over the run, the files ended, the table bytes still held at their ends (sum and largest), and of
+/// those the bytes of tables no reader and no engine use was still waiting for.
+static END_HELD: Mutex<(u64, u64, u64, u64)> = Mutex::new((0, 0, 0, 0));
+
+/// Spike (ryo-8y7q): one file ended holding `held` table bytes, `idle` of them in tables no consumer still waited for.
+pub fn end_held(held: u64, idle: u64) {
+    let mut totals = END_HELD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    totals.0 += 1;
+    totals.1 += held;
+    totals.2 = totals.2.max(held);
+    totals.3 += idle;
+}
+
+/// Spike (ryo-8y7q): prints the memory counters to stderr.
+pub fn memstats_dump() {
+    if !memstats() {
+        return;
+    }
+    let totals = *END_HELD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    eprintln!(
+        "MEMSTATS files={} end_held_sum_mib={:.1} end_held_max_mib={:.1} end_idle_sum_mib={:.1}",
+        totals.0,
+        totals.1 as f64 / 1048576.0,
+        totals.2 as f64 / 1048576.0,
+        totals.3 as f64 / 1048576.0
+    );
+}
+
+/// Spike (ryo-8y7q): whether the early release of tables in lazy mode is switched off, set once from `RYO_NO_RELEASE`.
+pub fn release_off() -> bool {
+    static OFF: OnceLock<bool> = OnceLock::new();
+    *OFF.get_or_init(|| std::env::var_os("RYO_NO_RELEASE").is_some())
+}
+
+/// Spike (ryo-8y7q): the bytes of source the files read at once may hold, from `RYO_ADMISSION` when set, read once.
+pub fn admission_bytes() -> Option<u64> {
+    static BYTES: OnceLock<Option<u64>> = OnceLock::new();
+    *BYTES.get_or_init(|| std::env::var("RYO_ADMISSION").ok().and_then(|value| value.parse().ok()))
+}

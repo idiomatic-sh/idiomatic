@@ -141,7 +141,9 @@ const ADMISSION_BYTES: u64 = 1 << 20;
 /// something is, only one that keeps the files being read within the limit.
 #[must_use]
 pub(crate) fn admitted(ordered: &Ordered, size: FileSize) -> Admittance {
-    if ordered.inflight.0 == 0 || ordered.inflight.0.saturating_add(size.0) <= ADMISSION_BYTES {
+    // Spike (ryo-8y7q): the bound, `RYO_ADMISSION` bytes when set.
+    let bound = ryo_operators::spike::admission_bytes().unwrap_or(ADMISSION_BYTES);
+    if ordered.inflight.0 == 0 || ordered.inflight.0.saturating_add(size.0) <= bound {
         Admittance::Admitted
     } else {
         Admittance::Waits
