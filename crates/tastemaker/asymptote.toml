@@ -169,7 +169,6 @@ timeout-seconds = 3600
 inputs = [".", "../ryo/crates", "../ryo/languages", "../../rust-toolchain.toml", "../../.cargo", "../../tastemaker/benchmarks"]
 
 
-
 [[tools]]
 id = "build"
 group = "build"

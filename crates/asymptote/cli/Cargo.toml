@@ -60,7 +60,7 @@ workspace = true
 
 [[test]]
 name = "smoke"
-test = false          # installs the crate with Cargo: run when named (tool `smoke`)
+test = false   # installs the crate with Cargo: run when named (tool `smoke`)
 
 # cargo-binstall's prebuilt binary: the GitHub Release of the package's own tag, `<package>-v<version>`, holds one archive
 # per target, `<package>-<target>.tar.gz` (`.zip` on Windows), with the bare command inside.

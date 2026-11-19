@@ -91,7 +91,7 @@ workspace = true
 
 [[test]]
 name = "smoke"
-test = false          # installs the crate with Cargo: run when named (tool `smoke`)
+test = false   # installs the crate with Cargo: run when named (tool `smoke`)
 
 [[bench]]
 name = "memory"

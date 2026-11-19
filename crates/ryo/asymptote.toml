@@ -207,7 +207,6 @@ timeout-seconds = 7200
 inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 
-
 [[tools]]
 id = "test-language"
 group = "check"

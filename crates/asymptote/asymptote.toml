@@ -155,7 +155,6 @@ timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 
-
 [[tools]]
 id = "build"
 group = "build"
