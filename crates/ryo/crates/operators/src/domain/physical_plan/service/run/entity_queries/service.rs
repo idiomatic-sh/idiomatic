@@ -9,6 +9,9 @@ pub(in super::super) fn answer(
     node: PlanNodeId,
     buffers: &mut FileBuffers,
 ) -> Option<Table> {
+    if crate::spike::entity_off() {
+        return None;
+    }
     let stage = plan.entity_queries.exported(EntityExportId(node.0))?;
     if buffers.counters.is_some() {
         return None;

@@ -41,6 +41,12 @@ pub fn lazy() -> bool {
     *LAZY.get_or_init(|| std::env::var_os("RYO_LAZY").is_some_and(|value| value != "0"))
 }
 
+/// Whether the entity-query answers are switched off, set once from `RYO_NO_ENTITY`.
+pub fn entity_off() -> bool {
+    static OFF: OnceLock<bool> = OnceLock::new();
+    *OFF.get_or_init(|| std::env::var_os("RYO_NO_ENTITY").is_some())
+}
+
 /// Whether the recorder is on.
 pub fn on() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();

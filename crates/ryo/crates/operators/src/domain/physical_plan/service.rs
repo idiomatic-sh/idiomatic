@@ -118,6 +118,17 @@ pub(crate) fn plan_with(
 ) -> Result<PhysicalPlan, PortableOperatorFault> {
     program.check_shape()?;
     let logical = program.nodes();
+    // Spike (ryo-fmx3): the merged logical program as text, one node per line, for the spike's offline analysis.
+    if let Some(path) = std::env::var_os("RYO_DUMP_PLAN") {
+        let mut text = String::new();
+        for (at, node) in logical.iter().enumerate() {
+            text.push_str(&format!(
+                "{at}\t{:?}\t{:?}\t{:?}\t{:?}\n",
+                node.scope, node.inputs.0, node.operation, node.bindings.0
+            ));
+        }
+        drop(std::fs::write(path, text));
+    }
     let mut nodes: Vec<PhysicalNode> = logical
         .iter()
         .map(|node| PhysicalNode {
@@ -282,6 +293,9 @@ pub fn bind_requested_entity_sources<'a>(
         ryo_relations::domain::relations::types::Relation,
     ) -> Option<ryo_relations::domain::relations::types::ColumnsView<'a>>,
 ) {
+    if crate::spike::entity_off() {
+        return;
+    }
     buffers
         .entity_queries
         .bind(&plan.entity_queries, texts, read);
