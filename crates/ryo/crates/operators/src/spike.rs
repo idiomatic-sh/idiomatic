@@ -402,12 +402,24 @@ pub fn keystats() -> bool {
     *ON.get_or_init(|| std::env::var_os("RYO_KEYSTATS").is_some())
 }
 
-/// Spike (ryo-jenl): census sites: 0 index build, 1 index probe, 2 repeat check, 3 row-set build, 4 row-set ask, 5 text index.
+/// Spike (ryo-jenl): census sites: 0 index build, 1 index probe, 2 repeat check, 3 row-set build, 4 row-set ask, 5 text index,
+/// 6 index rows keyed by words, 7 index probes by words.
 /// Classes: 0 one node column, 1 two node columns, 2 one other column, 3 two columns otherwise, 4 wider.
-static KEY_ROWS: [std::sync::atomic::AtomicU64; 30] = [const { std::sync::atomic::AtomicU64::new(0) }; 30];
+static KEY_ROWS: [std::sync::atomic::AtomicU64; 40] = [const { std::sync::atomic::AtomicU64::new(0) }; 40];
 /// Spike (ryo-jenl): single-node-column builds: rows by log2 of the id range, rows by log2 of range/rows, rows of builds
 /// whose nodes span files, builds.
 static KEY_RANGE: [std::sync::atomic::AtomicU64; 72] = [const { std::sync::atomic::AtomicU64::new(0) }; 72];
+
+/// Spike (ryo-jenl): two-column index build rows by their kinds' pair (first x 6 + second, kinds in `CellKind` order).
+static KEY_PAIRS: [std::sync::atomic::AtomicU64; 36] = [const { std::sync::atomic::AtomicU64::new(0) }; 36];
+
+/// Spike (ryo-jenl): `rows` index build rows keyed by two columns of kinds `pair`.
+pub fn key_pair(pair: [ryo_relations::domain::relations::types::CellKind; 2], rows: u64) {
+    let at = (pair[0] as usize) * 6 + pair[1] as usize;
+    if let Some(slot) = KEY_PAIRS.get(at) {
+        slot.fetch_add(rows, std::sync::atomic::Ordering::Relaxed);
+    }
+}
 
 /// Spike (ryo-jenl): the census class of a key of `kinds`.
 pub fn key_class(kinds: impl ExactSizeIterator<Item = ryo_relations::domain::relations::types::CellKind>) -> usize {
@@ -450,5 +462,32 @@ pub fn dump_keys() {
     };
     let rows: Vec<u64> = KEY_ROWS.iter().map(|slot| slot.load(std::sync::atomic::Ordering::Relaxed)).collect();
     let range: Vec<u64> = KEY_RANGE.iter().map(|slot| slot.load(std::sync::atomic::Ordering::Relaxed)).collect();
-    drop(std::fs::write(path, format!("{{\"rows\":{rows:?},\"range\":{range:?}}}\n")));
+    let pairs: Vec<u64> = KEY_PAIRS.iter().map(|slot| slot.load(std::sync::atomic::Ordering::Relaxed)).collect();
+    drop(std::fs::write(path, format!("{{\"rows\":{rows:?},\"range\":{range:?},\"pairs\":{pairs:?}}}\n")));
+}
+
+/// Spike (ryo-jenl): whether the dense-key mechanism named `name` (`RYO_DENSE_OFF` lists the ones switched off,
+/// comma-separated, or `all`) is on: `words`, index keys that are one word hashed exactly; `repeats`, a repeat check of a
+/// one-word row hashed by its word; `cellword`, a key's cells hashed one word each; `slots`, a one-word index whose words
+/// span few places addressed by position.
+pub fn dense_lever(name: &str) -> bool {
+    let at = match name {
+        "words" => 0,
+        "repeats" => 1,
+        "cellword" => 2,
+        "slots" => 3,
+        _ => return true,
+    };
+    dense_levers()[at]
+}
+
+/// Spike (ryo-jenl): the dense-key switches, read once from `RYO_DENSE_OFF`.
+#[inline]
+pub fn dense_levers() -> &'static [bool; 4] {
+    static ON: OnceLock<[bool; 4]> = OnceLock::new();
+    ON.get_or_init(|| {
+        let off = std::env::var("RYO_DENSE_OFF").unwrap_or_default();
+        let on = |name: &str| !off.split(',').any(|item| item == name || item == "all");
+        [on("words"), on("repeats"), on("cellword"), on("slots")]
+    })
 }
