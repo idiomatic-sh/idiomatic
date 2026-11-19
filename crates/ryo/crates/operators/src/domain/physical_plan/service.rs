@@ -22,12 +22,16 @@ use ryo_values::domain::plan_parts::types::{InputNumber, RepeatedRows};
 /// Every rewrite, in the order the planner applies them: each an equivalence, so a plan answers the same rows with or without
 /// it.
 pub(crate) const REWRITES: &[&dyn RewritesItem] = &[
+    // Spike (ryo-fmx3): a chain of inner self probes over one key runs as one pointer chase.
+    &crate::domain::physical_plan::collections::rewrites::pointer_chase::item::PointerChaseItem,
     &crate::domain::physical_plan::collections::rewrites::keyed_select::item::KeyedSelectItem,
     &crate::domain::physical_plan::collections::rewrites::ordered_existence::item::OrderedExistenceItem,
     // Spike (ryo-fmx3): band semi matches in place of pairs formed and filtered.
     &crate::domain::physical_plan::collections::rewrites::band_existence::item::BandExistenceItem,
     // Spike (ryo-fmx3): a distinct projection of a group's keys reads the group's source.
     &crate::domain::physical_plan::collections::rewrites::group_keys::item::GroupKeysItem,
+    // Spike (ryo-fmx3): a probe of a column-only select of a relation probes the relation.
+    &crate::domain::physical_plan::collections::rewrites::facts_right::item::FactsRightItem,
     &crate::domain::physical_plan::collections::rewrites::existence_probe::item::ExistenceProbeItem,
     &crate::domain::physical_plan::collections::rewrites::tree_probe::item::TreeProbeItem,
     // Spike (ryo-fmx3): a closure read only by probes keyed on its partition and source is walked from their left rows.
@@ -268,6 +272,7 @@ fn flow_of(
         | Lowering::OrderedWalk { .. }
         | Lowering::Worklist { .. }
         | Lowering::Components { .. }
+        | Lowering::PointerChase { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }
         | Lowering::ScanBound { .. }

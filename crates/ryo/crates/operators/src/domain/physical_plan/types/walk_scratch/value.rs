@@ -29,6 +29,10 @@ pub(crate) struct WalkScratch {
     pub(crate) next: Vec<Value>,
     /// The row an axis's domain filter writes.
     pub(crate) written: Vec<Value>,
+    /// Spike (ryo-fmx3): an ordered walk's run of sorted edges of each partition and source, by the hash of its key cells.
+    pub(crate) edge_runs: hashbrown::HashTable<(u32, u32)>,
+    /// Spike (ryo-fmx3): the key cells an ordered walk looks a run up by.
+    pub(crate) run_key: Vec<Value>,
 }
 
 /// The key columns a walk reads, kept with their capacity between nodes.

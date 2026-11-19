@@ -416,7 +416,8 @@ pub(super) fn made(
         | Lowering::Axis { .. }
         | Lowering::OrderedWalk { .. }
         | Lowering::Worklist { .. }
-        | Lowering::Components { .. } => {}
+        | Lowering::Components { .. }
+        | Lowering::PointerChase { .. } => {}
     }
     let [first, second, third] = lowering.source_slots();
     let first = first.ok_or(PortableOperatorFault::WrongOperation)?;
@@ -429,6 +430,7 @@ pub(super) fn made(
                 | Lowering::OrderedWalk { .. }
                 | Lowering::Worklist { .. }
                 | Lowering::OrderedMatch { .. }
+                | Lowering::PointerChase { .. }
         )
         && held_empty(buffers, first)
     {
@@ -523,7 +525,8 @@ pub(super) fn made(
         Lowering::Group { .. }
         | Lowering::Render { .. }
         | Lowering::Reach { .. }
-        | Lowering::Components { .. } => left_fault.clone(),
+        | Lowering::Components { .. }
+        | Lowering::PointerChase { .. } => left_fault.clone(),
         Lowering::OrderedMatch { .. } => left_fault.clone().or_else(|| right_fault.clone()),
         Lowering::Axis { .. } => right_fault.clone().or_else(|| last_fault.clone()),
         Lowering::OrderedWalk { .. } => right_fault.clone().or_else(|| left_fault.clone()),

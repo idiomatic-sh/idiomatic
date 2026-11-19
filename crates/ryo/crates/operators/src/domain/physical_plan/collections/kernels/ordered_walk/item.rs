@@ -11,7 +11,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_dfs::types::DfsParts;
 use crate::domain::physical_plan::types::InputRows;
 use crate::domain::physical_plan::types::Resources;
-use crate::domain::physical_plan::types::keyed_rows::value::IndexedRow;
+use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, hash_of_cells};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
@@ -46,6 +46,7 @@ impl KernelsItem for OrderedWalkItem {
             | Lowering::Axis { .. }
             | Lowering::Components { .. }
             | Lowering::TextMap { .. }
+            | Lowering::PointerChase { .. }
             | Lowering::OrderedMatch { .. }
             | Lowering::Render { .. }
             | Lowering::ScanBound { .. }
@@ -124,6 +125,25 @@ pub(crate) fn visited(
     }
     let (by_edge, by_root) = sorted.split_at_mut(edge_count);
     by_root.sort_unstable_by(|one, other| canon.root_order(*one, *other));
+    // Spike (ryo-fmx3): each partition and source's run of `by_edge`, found once instead of by two searches per expansion.
+    let width = canon.keys.0 + 2;
+    let runs = &mut walk.edge_runs;
+    runs.clear();
+    let mut first = 0;
+    while first < by_edge.len() {
+        let mut end = first + 1;
+        while end < by_edge.len() && canon.edge_order(by_edge[first], by_edge[end]).is_eq() {
+            end += 1;
+        }
+        let at = indexed(by_edge[first]).0 * width;
+        let hash = hash_of_cells(canon.edges[at..at + width - 1].iter().copied()).0;
+        let _ = runs.insert_unique(hash, (first as u32, end as u32), |held| {
+            let at = indexed(by_edge[held.0 as usize]).0 * width;
+            hash_of_cells(canon.edges[at..at + width - 1].iter().copied()).0
+        });
+        first = end;
+    }
+    let key = &mut walk.run_key;
     let mut previous: Option<IndexedRow> = None;
     for root in by_root.iter().copied() {
         if previous.is_some_and(|before| canon.root_order(before, root).is_eq()) {
@@ -138,7 +158,9 @@ pub(crate) fn visited(
                 root,
                 by_edge,
                 canon,
+                runs,
             },
+            key,
             &mut walk.visited,
             &mut walk.frontier,
             output,
@@ -198,6 +220,8 @@ struct Sides<'a> {
     by_edge: &'a [IndexedRow],
     /// The canonical key cells of both.
     canon: Canon<'a>,
+    /// Spike (ryo-fmx3): each partition and source's run of `by_edge`.
+    runs: &'a hashbrown::HashTable<(u32, u32)>,
 }
 
 /// The visit from one root: each edge leaving an expanded entity in order, its destination expanded after it is yielded.
@@ -205,21 +229,25 @@ struct Sides<'a> {
 fn visit(
     dfs: &DfsParts,
     sides: Sides<'_>,
+    key: &mut Vec<Value>,
     met: &mut VisitedSet,
     frames: &mut Vec<RowIndex>,
     output: &mut Table,
 ) -> Result<(), PortableOperatorFault> {
     met.reset();
     frames.clear();
+    key.clear();
+    key.extend((0..sides.canon.keys.0).map(|place| sides.canon.root(sides.root, KeyPlace(place))));
+    key.push(Value::Number(Integer(0)));
     let start = sides.canon.root(sides.root, sides.canon.keys);
     let _root = met.meet(start);
-    framed(sides, start, frames);
+    framed(sides, key, start, frames);
     let mut ordinal = Integer(0);
     let mut pending: Option<Value> = None;
     loop {
         if let Some(destination) = pending.take() {
             if met.meet(destination) == SetMembership::Out {
-                framed(sides, destination, frames);
+                framed(sides, key, destination, frames);
             }
         }
         let at = loop {
@@ -262,21 +290,19 @@ fn visit(
 }
 
 /// Pushes onto `frames` the run of `by_edge` of the edges leaving `entity` in the root's partition: its first and end place.
-fn framed(sides: Sides<'_>, entity: Value, frames: &mut Vec<RowIndex>) {
+fn framed(sides: Sides<'_>, key: &mut [Value], entity: Value, frames: &mut Vec<RowIndex>) {
+    if let Some(last) = key.last_mut() {
+        *last = entity;
+    }
     let canon = sides.canon;
-    let against = |edge: &IndexedRow| {
-        (0..canon.keys.0)
-            .map(KeyPlace)
-            .map(|place| canon.edge(*edge, place).cmp(&canon.root(sides.root, place)))
-            .find(|order| order.is_ne())
-            .unwrap_or_else(|| canon.edge(*edge, canon.keys).cmp(&entity))
-    };
-    let first = sides
-        .by_edge
-        .partition_point(|edge| against(edge) == Ordering::Less);
-    let end = sides
-        .by_edge
-        .partition_point(|edge| against(edge) != Ordering::Greater);
+    let width = canon.keys.0 + 2;
+    let (first, end) = sides
+        .runs
+        .find(hash_of_cells(key.iter().copied()).0, |held| {
+            let at = indexed(sides.by_edge[held.0 as usize]).0 * width;
+            canon.edges[at..at + width - 1] == *key
+        })
+        .map_or((0, 0), |held| (held.0 as usize, held.1 as usize));
     frames.extend([RowIndex(first), RowIndex(end)]);
 }
 

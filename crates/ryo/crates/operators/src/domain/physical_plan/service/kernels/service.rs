@@ -230,6 +230,9 @@ pub(crate) fn kernels(
                 output,
             );
         }
+        Lowering::PointerChase { chase, .. } => {
+            return crate::domain::physical_plan::collections::kernels::pointer_chase::item::chased(chase, input, output);
+        }
         Lowering::OrderedMatch {
             ordered,
             left: left_source,

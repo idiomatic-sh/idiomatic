@@ -27,6 +27,7 @@ impl KernelsItem for DistinctItem {
                 | Lowering::Extend { .. }
                 | Lowering::Group { .. }
                 | Lowering::TextMap { .. }
+                | Lowering::PointerChase { .. }
                 | Lowering::OrderedMatch { .. }
                 | Lowering::Render { .. }
                 | Lowering::Reach { .. }
