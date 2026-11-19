@@ -112,7 +112,12 @@ pub(crate) fn facts_cell(
     row: RowIndex,
     column: ColumnIndex,
 ) -> Option<Value> {
-    let at = usize::try_from(column.0).unwrap_or(usize::MAX);
+    facts_cell_at(view, row, usize::try_from(column.0).unwrap_or(usize::MAX))
+}
+
+/// Spike (ryo-fmx3): `facts_cell` of a column by its place.
+#[inline]
+pub(crate) fn facts_cell_at(view: &ColumnsView<'_>, row: RowIndex, at: usize) -> Option<Value> {
     let kind = view.kinds.get(at)?;
     let bits = view.columns.get(at)?.0.get(row.0)?;
     Some(from_bits(*kind, Bits(*bits)))

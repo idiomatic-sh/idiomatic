@@ -4,7 +4,10 @@
 #[cfg(test)]
 use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_roots::item::tree_row;
-use crate::domain::comparing::service::holds_bound;
+use super::super::scan_facts::item::{decode, facts_cell_at};
+use crate::domain::comparing::service::{FastComparison, fast_holds, fast_of, holds_bound_from};
+use ryo_relations::domain::relations::service::from_bits;
+use ryo_relations::domain::relations::types::{Bits, ColumnsView};
 use crate::domain::comparing::types::{DecisionWorkspace, NameCount, RowShape};
 use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::patterns::types::PatternMatcher;
@@ -62,7 +65,12 @@ pub(crate) struct FilterKernel<'f> {
     pub(crate) texts: Texts<'f>,
     /// How many names the open file has.
     pub(crate) names: NameCount,
+    /// Spike (ryo-fmx3): the first comparisons, each specialised once; the rest only the generic path decides.
+    pub(crate) fast: [FastComparison<'f>; FAST],
 }
+
+/// Spike (ryo-fmx3): how many of a filter's comparisons are specialised.
+pub(crate) const FAST: usize = 4;
 
 /// The filter of `select` over rows of `kinds`, against the open file's names as they are now. Its memo is readied once per
 /// node run (`readied`), never here, and grows to the places it decides.
@@ -71,11 +79,16 @@ pub(crate) fn filter<'f>(
     kinds: &'f [CellKind],
     texts: Texts<'f>,
 ) -> FilterKernel<'f> {
+    let mut fast = [FastComparison::Generic; FAST];
+    for (slot, comparison) in fast.iter_mut().zip(&select.comparisons) {
+        *slot = fast_of(comparison);
+    }
     FilterKernel {
         select,
         kinds,
         texts,
         names: NameCount(ryo_language::domain::names::service::name_count(texts.symbols).0),
+        fast,
     }
 }
 
@@ -99,8 +112,23 @@ pub(crate) fn holds(
     if !comparisons.is_empty() && row.len() != filter.kinds.len() {
         return Err(PortableOperatorFault::ShapeMismatch);
     }
-    holds_bound(
+    holds_from(filter, matcher, 0, row, decisions)
+}
+
+/// Spike (ryo-fmx3): whether every comparison from `from` on holds for `row`, a row of the filter's width.
+fn holds_from(
+    filter: FilterKernel<'_>,
+    matcher: PatternMatcher<'_>,
+    from: usize,
+    row: &[Value],
+    decisions: &mut NodeDecisions,
+) -> Result<PredicateOutcome, PortableOperatorFault> {
+    let comparisons = &filter.select.comparisons;
+    let fasts = filter.fast.get(..comparisons.len().min(FAST)).unwrap_or_default();
+    holds_bound_from(
         comparisons,
+        fasts,
+        from,
         row,
         RowShape {
             kinds: filter.kinds,
@@ -108,7 +136,6 @@ pub(crate) fn holds(
         },
         &filter.texts,
         &filter.select.bindings,
-        None,
         matcher,
         DecisionWorkspace {
             select: &mut decisions.select,
@@ -117,6 +144,79 @@ pub(crate) fn holds(
     )
     .map_err(PortableOperatorFault::from)
 }
+
+/// Spike (ryo-fmx3): `keep` over row `at` of a relation's columns, read in place: the specialised comparisons read only the
+/// cells they name, a row is decoded only when a comparison needs the generic path, and a kept row's cells are copied
+/// straight from the columns.
+///
+/// # Errors
+///
+/// As `keep`.
+#[expect(clippy::too_many_arguments, reason = "spike (ryo-fmx3): keep's arguments plus the columns and the row")]
+pub(crate) fn keep_facts(
+    filter: FilterKernel<'_>,
+    matcher: PatternMatcher<'_>,
+    view: &ColumnsView<'_>,
+    at: RowIndex,
+    scratch: &mut Vec<Value>,
+    decisions: &mut NodeDecisions,
+    written: &mut Vec<Value>,
+    output: &mut Table,
+) -> Result<(), PortableOperatorFault> {
+    let comparisons = &filter.select.comparisons;
+    let mut from = comparisons.len();
+    for (number, fast) in filter.fast.iter().take(comparisons.len()).enumerate() {
+        match fast_holds(fast, |column| facts_cell_at(view, at, column), &filter.texts) {
+            Some(PredicateOutcome::Holds) => {}
+            Some(PredicateOutcome::Fails) => return Ok(()),
+            None => {
+                from = number;
+                break;
+            }
+        }
+    }
+    if from == comparisons.len() && comparisons.len() <= FAST {
+        // Every comparison held: the row is written from the columns, the kept ones or all of them.
+        if filter.select.kept.is_empty() {
+            output.cells.extend(
+                view.kinds
+                    .iter()
+                    .zip(view.columns)
+                    .filter_map(|(kind, column)| column.0.get(at.0).map(|bits| from_bits(*kind, Bits(*bits)))),
+            );
+        } else {
+            let start = output.cells.len();
+            for column in &filter.select.kept {
+                let Some(cell) = facts_cell_at(view, at, usize::try_from(column.0).unwrap_or(usize::MAX)) else {
+                    output.cells.truncate(start);
+                    return Err(PortableOperatorFault::NoSuchColumn { index: *column });
+                };
+                output.cells.push(cell);
+            }
+        }
+        output.count = RowCount(output.count.0 + 1);
+        return Ok(());
+    }
+    let from = from.min(FAST);
+    decode(view, at, scratch);
+    let row: &[Value] = scratch;
+    if !comparisons.is_empty() && row.len() != filter.kinds.len() {
+        return Err(PortableOperatorFault::ShapeMismatch);
+    }
+    if holds_from(filter, matcher, from, row, decisions)? == PredicateOutcome::Fails {
+        return Ok(());
+    }
+    if filter.select.kept.is_empty() {
+        output.cells.extend_from_slice(row);
+    } else {
+        written.clear();
+        crate::domain::project::service::project(row, &filter.select.kept, written)?;
+        output.cells.extend_from_slice(written);
+    }
+    output.count = RowCount(output.count.0 + 1);
+    Ok(())
+}
+
 
 /// Keeps the nodes of `nodes` whose rows of `tree` every comparison holds for, in order, and answers the first row's fault.
 pub(crate) fn kept_nodes(

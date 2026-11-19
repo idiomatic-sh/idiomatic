@@ -12,7 +12,7 @@ use super::super::probe_right::item::{
     LeftRows, ProbeReads, ProbeScratch, number_at, probe_prepared, probe_reads, walked_tree,
 };
 use super::super::scan_facts::item::{
-    cell_of, chunk_read, count_of, facts_cell, kinds_of, row_of, table_cell,
+    cell_of, chunk_read, count_of, facts_cell, kinds_of, row_of, table_cell, table_row, facts_cell_at,
 };
 use super::super::scan_roots::item::{keyed_roots, next_found, tree_cell};
 use crate::domain::contract::types::PortableOperatorFault;
@@ -224,6 +224,44 @@ fn row_probed(
     };
     if probe.mode == ProbeMode::Inner {
         match matched {
+            // Spike (ryo-fmx3): a table left's row read once, each answer cell read off the row's slice; a table or a
+            // relation right read by its own reader, with no closure per cell.
+            Matched::Indexed(rows, key) if matches!(left, InputRows::Table(_)) => {
+                let InputRows::Table(left_table) = left else {
+                    return Err(PortableOperatorFault::WrongOperation);
+                };
+                let left_row = row_cells(left_table, at);
+                let mut matched_row = key.map_or(NO_ROW, |key| key.first);
+                while matched_row != NO_ROW {
+                    let right_at = indexed(matched_row);
+                    let fault = match right {
+                        InputRows::Table(right_table) => {
+                            let right_row = row_cells(right_table, right_at);
+                            answered_rows(probe, left_row, output, repeats, |column| {
+                                right_row.get(column).copied()
+                            })
+                        }
+                        InputRows::Facts(view) => {
+                            answered_rows(probe, left_row, output, repeats, |column| {
+                                facts_cell_at(view, right_at, column)
+                            })
+                        }
+                        InputRows::Tree(_) | InputRows::Row(..) => answered(
+                            probe,
+                            at,
+                            right_at,
+                            output,
+                            repeats,
+                            left_cell,
+                            right_cell,
+                        ),
+                    };
+                    if let Some(fault) = fault {
+                        return Ok(Some(fault));
+                    }
+                    matched_row = next_of(rows, matched_row);
+                }
+            }
             Matched::Indexed(rows, key) => {
                 let mut matched_row = key.map_or(NO_ROW, |key| key.first);
                 while matched_row != NO_ROW {
@@ -329,6 +367,44 @@ fn answered(
         let cell = match column.side {
             Side::Left => left_cell(at, column.column),
             Side::Right => right_cell(right_row, column.column),
+        };
+        let Some(cell) = cell else {
+            output.cells.truncate(start.0);
+            return Some(PortableOperatorFault::NoSuchColumn {
+                index: column.column,
+            });
+        };
+        output.cells.push(cell);
+    }
+    counted(output, start, probe.repeated, repeats);
+    None
+}
+
+/// Spike (ryo-fmx3): the cells of row `row` of a table, exactly its width, as `table_cell` reads them: none past its rows.
+#[inline]
+fn row_cells(table: &Table, row: RowIndex) -> &[Value] {
+    if row.0 >= table.count.0 || table.kinds.is_empty() {
+        return &[];
+    }
+    table_row(table, row)
+}
+
+
+/// Spike (ryo-fmx3): `answered` with the left row's cells in hand and the right row's read by `right_cell`.
+#[inline]
+fn answered_rows(
+    probe: &ProbeParts,
+    left_row: &[Value],
+    output: &mut Table,
+    repeats: &mut RowSet,
+    right_cell: impl Fn(usize) -> Option<Value>,
+) -> Option<PortableOperatorFault> {
+    let start = CellStart(output.cells.len());
+    for column in &probe.output {
+        let at = usize::try_from(column.column.0).unwrap_or(usize::MAX);
+        let cell = match column.side {
+            Side::Left => left_row.get(at).copied(),
+            Side::Right => right_cell(at),
         };
         let Some(cell) = cell else {
             output.cells.truncate(start.0);

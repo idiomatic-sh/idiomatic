@@ -9,13 +9,13 @@ use crate::domain::physical_plan::collections::kernels::extend::item::{
     extended, kind_of, resolved,
 };
 use crate::domain::physical_plan::collections::kernels::filter::item::{
-    filter, keep, kept_kinds, readied,
+    filter, keep, keep_facts, kept_kinds, readied,
 };
 use crate::domain::physical_plan::collections::kernels::probe::item::probe_rows;
 use crate::domain::physical_plan::collections::kernels::probe_right::item::{
     ProbeScratch, probe_prepared,
 };
-use crate::domain::physical_plan::collections::kernels::project::item::projected;
+use crate::domain::physical_plan::collections::kernels::project::item::{projected, projected_facts};
 use crate::domain::physical_plan::collections::kernels::scan_facts::item::{
     chunk_read, count_of, kinds_of, row_of,
 };
@@ -29,7 +29,7 @@ use crate::domain::physical_plan::types::shared_index::value::IndexKind;
 use crate::domain::physical_plan::types::stream_scratch::value::{
     CellBound, ChunkRead, ChunkStop, ProbeWork, RowChunk, StageOwn,
 };
-use crate::domain::physical_plan::types::{KernelRun, NodeFed, ProbeIndex};
+use crate::domain::physical_plan::types::{InputRows, KernelRun, NodeFed, ProbeIndex};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::rows::types::{RowCount, Table};
 
@@ -176,6 +176,13 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
                 .ok_or(PortableOperatorFault::WrongOperation)?;
             let kernel = filter(select, kinds, run.resources.texts());
             let written = &mut buffers.written;
+            // Spike (ryo-fmx3): a relation's rows read in place, decoded only when the generic path needs them.
+            if let InputRows::Facts(view) = input.rows {
+                let scratch = &mut buffers.row;
+                return chunk_read(input, out, bound, |at, out| {
+                    Ok(keep_facts(kernel, run.matcher, view, at, scratch, decisions, written, out).err())
+                });
+            }
             each_row(input, &mut buffers.row, out, bound, |cells, out| {
                 keep(kernel, run.matcher, cells, decisions, written, out)
             })?
@@ -205,6 +212,12 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
         }
         Lowering::Project { project, .. } => {
             let repeats = &mut own.repeats;
+            // Spike (ryo-fmx3): a relation's projected cells read in place, the row never decoded whole.
+            if let InputRows::Facts(view) = input.rows {
+                return chunk_read(input, out, bound, |at, out| {
+                    Ok(projected_facts(view, at, &project.columns, project.distinct, repeats, out).err())
+                });
+            }
             each_row(input, &mut buffers.row, out, bound, |cells, out| {
                 projected(cells, &project.columns, project.distinct, repeats, out)
             })?

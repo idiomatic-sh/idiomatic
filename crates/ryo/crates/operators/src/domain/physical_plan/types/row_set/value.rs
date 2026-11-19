@@ -166,6 +166,11 @@ impl RowSet {
         crate::domain::kept_room::types::Room(self.kept.capacity())
     }
 
+    /// Spike (ryo-fmx3): room for `rows` more rows.
+    pub(crate) fn reserved(&mut self, rows: usize) {
+        self.kept.reserve(rows, |kept| kept.hash.0);
+    }
+
     /// Empties the set for its next rows, keeping its room.
     pub(crate) fn cleared(&mut self) {
         self.kept.clear();
