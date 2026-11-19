@@ -1,26 +1,34 @@
 # The check workflow on GitHub Actions, its thin edge: the pull request gate, and on a push to main the run that seeds the caches a
-# pull request restores. Asymptote alone decides what runs. A pull request runs Linux x86 (ubuntu-26.04) only, and the fewest
-# builds: the `root` job (the repository's own groups), the `pull-request` job (the message main keeps), one `check-linux` job per
-# product (its `lint`, `clippy`, `check`, `release-tests`, `release-coverage` and `memory` groups, each one the product's tools
-# declare, in one asymptote call, so the tests share one build), the `bench` job and `gate`. A push to main and a hand run add the rest: the `check` job's other machines (ARM, macOS,
-# Windows) and groups and `python-release`. Every cache is saved by a run on main alone (`github.ref ==
-# refs/heads/main`) and restored by every run: the Rust cache under one key per machine and product, shared by the groups of a
-# machine (no job id in it), the installed tools under one key per machine and the hash of the files that pin them, and each
-# job's `.asymptote/cache` store under its groups and the hash of those files, this workflow, the toolchains and the helper
-# scripts, so any of them changing opens an empty store. A pull request that edits one of them starts cold, once. A job whose
-# answer stands on state outside the repository keeps no store: release-resolution (crates.io's live
-# index), api (the newest release tag) and the pull-request job (the event). The bench job keeps none either: asymptote reuses a
-# tool's result without the receipts its run wrote, and the upload requires the receipts, so every bench tool runs in full. A
-# hand run checks the one product its `product` input names: the release pull request workflow (release-pr.yml) starts one on its
-# branch, since a pull request a workflow opens starts no workflow. Each job is a machine, the toolchains (every sample's among
+# pull request restores and that the release starts on. Asymptote alone decides what runs inside a job; the `changes` job
+# (`ci/changes/command.py`) decides which products a run checks. A pull request checks each product whose directory it touches
+# and every product that reads one of those, closed over who reads whom (a patched build, a tool input, a run-time read); every
+# product when it touches a path they all read (`SHARED` in ci/changes/use_case.py: the workflows, the CI helpers, the tools, the
+# toolchain and cargo configuration, the root's Tastemaker package and definitions); and on every change, wherever it lies, the
+# products whose tests read the whole tree. A push to main checks every product, and a hand run the one its `product`
+# input names: the release pull request workflow (release-pr.yml) starts one on its branch, since a pull request a workflow opens
+# starts no workflow. Every run runs the `root` job (the repository's own groups) and the `pull-request` job (the message main
+# keeps). For each checked product: one `check-linux` job (its `lint`, `clippy`, `check`, `release-tests`, `release-coverage` and
+# `memory` groups, each one the product's tools declare, in one asymptote call, so the tests share one build), and the release's
+# rows in the `check` job, the other machines (ARM, macOS, Windows) and groups (`CHECK_ROWS`), so a platform or packaging blocker
+# shows on the pull request that brings it, not at the release; for ryo also `python-release` and the `bench` job. A product that
+# builds against another product's tree waits with its `release-resolution` row while that product's version has no tag yet: the
+# version it needs is published by the release this run gates (ryo-gnv5). The skipping is a job's own condition on the `changes`
+# job's `skips` output, never a workflow `paths` filter, so every job, `gate` among them, reports on every pull request and no
+# required check sits pending. Every cache is saved by a run on main alone (`github.ref == refs/heads/main`) and restored by every
+# run: the Rust cache under one key per machine and product, shared by the groups of a machine (no job id in it), the installed
+# tools under one key per machine and the hash of the files that pin them, and each job's `.asymptote/cache` store under its
+# groups and the hash of those files, this workflow, the toolchains and the helper scripts, so any of them changing opens an
+# empty store. A pull request that edits one of them starts cold, once. A job whose answer stands on state outside the
+# repository keeps no store: release-resolution (crates.io's live index), api (the newest release tag) and the pull-request job
+# (the event). The bench job keeps none either: asymptote reuses a tool's result without the receipts its run wrote, and the
+# upload requires the receipts, so every bench tool runs in full. Each job is a machine, the toolchains (every sample's among
 # them: a sample whose toolchain is missing fails its test), `tools/install.py`, which installs every tool the checks run at the
 # version declared for it, prebuilt, and one `asymptote check` call. The `gate` job waits for every other and fails when one
-# failed or was cancelled, or was skipped where its own condition does not skip it (only the jobs that run on main alone,
-# `check` and `python-release`, skip a pull request). A draft pull request runs no check: every job but `gate` is skipped until
-# it is ready for review, and `gate` runs and fails, since GitHub counts a skipped required check as passing. `gate` is the one
-# verdict: a pull request merges only after the `gate` of a run on its head commit passed, by process (no repository rule
-# enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote init` installs, which runs
-# the products' `lint` groups and the root's `repository` group.
+# failed or was cancelled, or was skipped but the ones the `changes` job's `skips` names. A draft pull request runs no check:
+# every job but `gate` is skipped until it is ready for review, and `gate` runs and fails, since GitHub counts a skipped required
+# check as passing. `gate` is the one verdict: a pull request merges only after the `gate` of a run on its head commit passed, by
+# process (no repository rule enforces it). The commit gate stays `asymptote check --hook pre-commit`, the git hook `asymptote
+# init` installs, which runs the products' `lint` groups and the root's `repository` group.
 name: check
 on:
   # `edited` too: an edited title starts a run, so the pull-request job checks the title the pull request now has. A draft runs
@@ -51,6 +59,33 @@ concurrency:
   # green `gate`, and a commit with no run would never release.
   cancel-in-progress: ${{ github.event_name != 'push' }}
 jobs:
+  # What this run checks: the products a pull request touches (every product on a push to main, a hand run's one), the release's
+  # rows for them, and the jobs left with nothing to run, which their own conditions skip and the gate lets skip. A pull request's
+  # checkout is GitHub's merge of it into main, so the merge and its first parent, main's newest commit, are all it reads of git;
+  # the tags it asks GitHub for say which product's version is unreleased.
+  changes:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-26.04
+    outputs:
+      products: ${{ steps.changes.outputs.products }}
+      rows: ${{ steps.changes.outputs.rows }}
+      skips: ${{ steps.changes.outputs.skips }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.16"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.8"
+      - id: changes
+        run: uv run ci/changes/command.py --event=${{ github.event_name }} --product=${{ inputs.product }}
+        env:
+          # The release tags, read through `gh`: unauthenticated, GitHub's rate limit refuses it.
+          GH_TOKEN: ${{ github.token }}
   # The repository root's own groups, which no product has, so the root's tools alone.
   root:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
@@ -188,16 +223,17 @@ jobs:
             ~/.cargo/.crates2.json
           key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
       - run: asymptote check --root . --groups pull-request
-  # The tests on Linux x86, the one machine a pull request runs on: the product's `check`, `release-tests` and `release-coverage`
-  # groups in one asymptote call, so the tests share one build and the coverage run adds its instrumented one. Every event runs it;
-  # a run on main seeds the Rust cache and the stores a pull request restores.
+  # The tests on Linux x86 of each product the run checks: the product's `lint`, `clippy`, `check`, `release-tests`,
+  # `release-coverage` and `memory` groups in one asymptote call, so the tests share one build and the coverage run adds its
+  # instrumented one. A run on main seeds the Rust cache and the stores a pull request restores.
   check-linux:
     name: check-linux (${{ matrix.product }})
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    needs: changes
+    if: (github.event_name != 'pull_request' || !github.event.pull_request.draft) && !contains(fromJSON(needs.changes.outputs.skips), 'check-linux')
     strategy:
       fail-fast: false
       matrix:
-        product: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.product) || '["ryo","tastemaker","asymptote"]') }}
+        product: ${{ fromJSON(needs.changes.outputs.products) }}
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -285,28 +321,19 @@ jobs:
             crates/${{ matrix.product }}/target/checks/
             target/checks/
           if-no-files-found: ignore
-  # The release's machines and groups beyond Linux x86's tests: never on a pull request, which runs `check-linux` alone.
+  # The release's machines and groups beyond Linux x86's tests, for each product the run checks, a pull request's too: one job per
+  # row of the `changes` job's `rows`, a product and a row of `CHECK_ROWS` (ci/changes/use_case.py), each an independent build. A
+  # row's groups share one asymptote call, so its tools share one build. `store` is whether the row keeps an asymptote store;
+  # `save` is whether its run seeds the Rust cache (one row per machine, since all of a machine's rows share the one key: the first
+  # save wins and the rest would be wasted).
   check:
-    if: github.event_name != 'pull_request'
+    needs: changes
+    if: (github.event_name != 'pull_request' || !github.event.pull_request.draft) && !contains(fromJSON(needs.changes.outputs.skips), 'check')
     name: check (${{ matrix.product }}, ${{ matrix.check.label }}, ${{ matrix.check.runner }})
     strategy:
       fail-fast: false
-      # Everything the pull request's `check-linux` job does not run, on a push to main and a hand run: every product, a hand run's
-      # one, times these rows, one job per independent build. A row's groups share one asymptote call, so its tools share one
-      # build. `store` is whether the row keeps an asymptote store; `save` is whether its run seeds the Rust cache (one row per
-      # machine, since all of a machine's rows share the one key: the first save wins and the rest would be wasted).
       matrix:
-        product: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.product) || '["ryo","tastemaker","asymptote"]') }}
-        check:
-          - { runner: ubuntu-26.04, groups: "release-clippy", label: release-clippy, store: true, save: false }
-          - { runner: macos-26, groups: "api", label: api, store: false, save: false }
-          - { runner: ubuntu-26.04-arm, groups: "check,release-tests", label: check-tests, store: true, save: true }
-          - { runner: macos-26, groups: "check,release-tests", label: check-tests, store: true, save: true }
-          - { runner: windows-2025, groups: "check,release-tests", label: check-tests, store: true, save: true }
-          - { runner: ubuntu-26.04, groups: "release-msrv", label: release-msrv, store: true, save: false }
-          - { runner: ubuntu-26.04, groups: "release-dylint", label: release-dylint, store: true, save: false }
-          - { runner: ubuntu-26.04, groups: "release-hack", label: release-hack, store: true, save: false }
-          - { runner: ubuntu-26.04, groups: "release-resolution", label: release-resolution, store: false, save: false }
+        include: ${{ fromJSON(needs.changes.outputs.rows) }}
     runs-on: ${{ matrix.check.runner }}
     defaults:
       run:
@@ -401,9 +428,10 @@ jobs:
           if-no-files-found: ignore
   # The one verdict, run on every event, a draft pull request's too: GitHub counts a skipped required check as passing, so a
   # skipped gate would let a draft merge with no check. It fails on a draft, which runs no check, and otherwise when a job it waits
-  # for failed or was cancelled, or was skipped where its own condition does not skip it (the main-only jobs skip a pull request).
+  # for failed or was cancelled, or was skipped but the ones the `changes` job left with nothing to run (its `skips`). A failed
+  # `changes` job fails it, and skips every job that waits for it, none of which it then lets skip.
   gate:
-    needs: [root, pull-request, check-linux, check, python-release, bench]
+    needs: [changes, root, pull-request, check-linux, check, python-release, bench]
     if: always()
     runs-on: ubuntu-26.04
     steps:
@@ -415,9 +443,11 @@ jobs:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}
-          allowed-skips: ${{ github.event_name == 'pull_request' && 'check,python-release' || '' }}
+          allowed-skips: ${{ needs.changes.outputs.skips }}
+  # Ryo's Python release build, on every run that checks ryo, a pull request's too.
   python-release:
-    if: github.event_name != 'pull_request'
+    needs: changes
+    if: (github.event_name != 'pull_request' || !github.event.pull_request.draft) && !contains(fromJSON(needs.changes.outputs.skips), 'python-release')
     runs-on: ubuntu-26.04
     defaults:
       run:
@@ -489,15 +519,16 @@ jobs:
           path: crates/ryo/.asymptote/cache
           key: asymptote-${{ runner.os }}-${{ runner.arch }}-ryo-python-release-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml', 'tastemaker.toml', 'asymptote.toml', '.github/workflows/check.yml', 'ci/scripts/**', 'rust-toolchain.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
   bench:
-    # Each linter bench on one Linux runner (never a check matrix row), its one asymptote group: the collector verifies every
-    # default of the bench against its cases, then runs ryo and the pinned reference over each project of its language, any
-    # difference a failure, and publishes ryo's cost, its verification times and its growth as one document, judged against the
-    # committed lock. The tool's run line pins the whole process tree to four processors and four workers, so the job sets no
+    # Ryo's linter benches, on every run that checks ryo, each on one Linux runner (never a check matrix row), its one asymptote
+    # group: the collector verifies every default of the bench against its cases, then runs ryo and the pinned reference over each
+    # project of its language, any difference a failure, and publishes ryo's cost, its verification times and its growth as one
+    # document, judged against the committed lock. The tool's run line pins the whole process tree to four processors and four workers, so the job sets no
     # worker count of its own. It restores no asymptote store: a reused tool writes no receipts, and the upload requires them, so
     # every bench tool runs in full on every run. The job's limit is above the bench tools' timeouts, so asymptote reports a
     # timeout before the runner cancels the job.
     name: bench
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    needs: changes
+    if: (github.event_name != 'pull_request' || !github.event.pull_request.draft) && !contains(fromJSON(needs.changes.outputs.skips), 'bench')
     runs-on: ubuntu-26.04
     timeout-minutes: 390
     env:
