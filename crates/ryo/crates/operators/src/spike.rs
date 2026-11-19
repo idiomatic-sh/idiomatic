@@ -492,7 +492,7 @@ pub fn dump_keys() {
 /// Spike (ryo-jenl): whether the dense-key mechanism named `name` (`RYO_DENSE_OFF` lists the ones switched off,
 /// comma-separated, or `all`) is on: `words`, index keys that are one word hashed exactly; `repeats`, a repeat check of a
 /// one-word row hashed by its word; `cellword`, a key's cells hashed one word each; `slots`, a one-word index whose words
-/// span few places addressed by position; `pairs`, a two-cell index addressed by position on its first cell; `walks`, the
+/// span few places addressed by position; `walks`, the
 /// indexes of walks, closures, components and groups keyed the same way.
 pub fn dense_lever(name: &str) -> bool {
     let at = match name {
@@ -500,8 +500,7 @@ pub fn dense_lever(name: &str) -> bool {
         "repeats" => 1,
         "cellword" => 2,
         "slots" => 3,
-        "pairs" => 4,
-        "walks" => 5,
+        "walks" => 4,
         _ => return true,
     };
     dense_levers()[at]
@@ -509,11 +508,11 @@ pub fn dense_lever(name: &str) -> bool {
 
 /// Spike (ryo-jenl): the dense-key switches, read once from `RYO_DENSE_OFF`.
 #[inline]
-pub fn dense_levers() -> &'static [bool; 6] {
-    static ON: OnceLock<[bool; 6]> = OnceLock::new();
+pub fn dense_levers() -> &'static [bool; 5] {
+    static ON: OnceLock<[bool; 5]> = OnceLock::new();
     ON.get_or_init(|| {
         let off = std::env::var("RYO_DENSE_OFF").unwrap_or_default();
         let on = |name: &str| !off.split(',').any(|item| item == name || item == "all");
-        [on("words"), on("repeats"), on("cellword"), on("slots"), on("pairs"), on("walks")]
+        [on("words"), on("repeats"), on("cellword"), on("slots"), on("walks")]
     })
 }

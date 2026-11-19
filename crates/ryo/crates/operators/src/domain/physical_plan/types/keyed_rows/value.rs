@@ -26,11 +26,6 @@ pub(crate) struct KeyedRows {
     pub(crate) base: u64,
     /// Spike (ryo-jenl): each row's word, read once while the index is built.
     pub(crate) scratch: Vec<u64>,
-    /// Spike (ryo-jenl): for a two-cell key addressed by its first cell, each key's next key of the same first cell
-    /// (`NO_SLOT` after the last), by its place in `runs`.
-    pub(crate) siblings: Vec<u32>,
-    /// Spike (ryo-jenl): whether `slots` address a two-cell key by its first cell's half of the word.
-    pub(crate) paired: bool,
 }
 
 /// Spike (ryo-jenl): a slot of no key.
@@ -107,8 +102,6 @@ impl KeyedRows {
             runs: Vec::new(),
             base: 0,
             scratch: Vec::new(),
-            siblings: Vec::new(),
-            paired: false,
         }
     }
 
@@ -119,8 +112,6 @@ impl KeyedRows {
         self.words = KeyWords::Cells;
         self.slots.clear();
         self.runs.clear();
-        self.siblings.clear();
-        self.paired = false;
     }
 
     /// Spike (ryo-jenl): the key of word `word`, by position when the index is position-addressed, else by its exact hash.
@@ -129,19 +120,6 @@ impl KeyedRows {
         if self.slots.is_empty() && self.runs.is_empty() {
             let hash = word_hash(word);
             return self.keys.find(hash.0, |run| run.hash == hash).copied();
-        }
-        if self.paired {
-            let at = usize::try_from((word >> 32).wrapping_sub(self.base)).ok()?;
-            let mut slot = *self.slots.get(at)?;
-            while slot != NO_SLOT {
-                let place = usize::try_from(slot).ok()?;
-                let run = self.runs.get(place)?;
-                if run.hash.0 == word {
-                    return Some(*run);
-                }
-                slot = *self.siblings.get(place)?;
-            }
-            return None;
         }
         let at = usize::try_from(word.wrapping_sub(self.base)).ok()?;
         let slot = *self.slots.get(at)?;
@@ -166,7 +144,6 @@ impl crate::domain::kept_room::types::KeptRoom for KeyedRows {
         self.slots.kept();
         self.runs.kept();
         self.scratch.kept();
-        self.siblings.kept();
     }
 
     #[cfg(test)]
@@ -184,7 +161,6 @@ impl crate::domain::kept_room::types::Poolable for KeyedRows {
             && self.slots.capacity() <= 4 * KEPT_ROOM
             && self.runs.capacity() <= KEPT_ROOM
             && self.scratch.capacity() <= KEPT_ROOM
-            && self.siblings.capacity() <= KEPT_ROOM
         {
             crate::domain::kept_room::types::RoomFit::Fits
         } else {

@@ -213,7 +213,7 @@ pub(crate) fn cells(
     rows: &mut KeyedRows,
 ) -> Result<(), PortableOperatorFault> {
     // Spike (ryo-jenl): a key that is one word is keyed by its word, by position when its words span few places.
-    if crate::spike::dense_levers()[5] {
+    if crate::spike::dense_levers()[4] {
         census(side, rows);
         if words_any(side, rows)? {
             return Ok(());
@@ -590,22 +590,6 @@ fn words_read(
         scratch.push(word);
     }
     let span = high.wrapping_sub(low);
-    if count.0 > 0 && matches!(words, KeyWords::Two(..)) && crate::spike::dense_levers()[4] {
-        let (mut first_low, mut first_high) = (u64::MAX, 0u64);
-        for word in &scratch {
-            first_low = first_low.min(word >> 32);
-            first_high = first_high.max(word >> 32);
-        }
-        if first_high.wrapping_sub(first_low) < 4 * count.0 as u64 + 64 {
-            paired_slots(rows, &scratch, first_low, first_high);
-            rows.scratch = scratch;
-            rows.words = words;
-            if crate::spike::keystats() {
-                crate::spike::key_rows(6, usize::from(rows.census), count.0 as u64);
-            }
-            return Ok(true);
-        }
-    }
     if count.0 > 0 && crate::spike::dense_levers()[3] && span < 4 * count.0 as u64 + 64 {
         // Position-addressed: each key's place in `runs` at its word less the smallest; the slots cleared are at most four
         // per row.
@@ -699,57 +683,4 @@ fn find_word(rows: &KeyedRows, word: u64) -> Option<KeyedRun> {
         crate::spike::key_rows(7, usize::from(rows.census), 1);
     }
     rows.word_run(word)
-}
-
-/// Spike (ryo-jenl): keys two-cell words by position on their first cell's half (`base` the smallest), the keys of one first
-/// cell chained through `siblings`, newest first; each key's rows ascending through `next`.
-fn paired_slots(rows: &mut KeyedRows, words: &[u64], low: u64, high: u64) {
-    rows.paired = true;
-    rows.base = low;
-    rows.slots.clear();
-    rows.slots.resize(usize::try_from(high - low).unwrap_or(0) + 1, NO_SLOT);
-    for (at, word) in words.iter().enumerate() {
-        let row = IndexedRow(u32::try_from(at).unwrap_or(u32::MAX));
-        let place = usize::try_from((word >> 32) - low).unwrap_or(usize::MAX);
-        let Some(head) = rows.slots.get(place).copied() else {
-            continue;
-        };
-        let mut slot = head;
-        let mut found = None;
-        while slot != NO_SLOT {
-            let index = usize::try_from(slot).unwrap_or(usize::MAX);
-            match rows.runs.get(index) {
-                Some(run) if run.hash.0 == *word => {
-                    found = Some(index);
-                    break;
-                }
-                Some(_) => slot = rows.siblings.get(index).copied().unwrap_or(NO_SLOT),
-                None => break,
-            }
-        }
-        match found {
-            Some(index) => {
-                if let Some(run) = rows.runs.get_mut(index) {
-                    if let Some(link) = rows.next.get_mut(usize::try_from(run.last.0).unwrap_or(usize::MAX)) {
-                        *link = row;
-                    }
-                    run.last = row;
-                    run.rows = RowCount(run.rows.0.saturating_add(1));
-                }
-            }
-            None => {
-                let index = u32::try_from(rows.runs.len()).unwrap_or(NO_SLOT);
-                rows.runs.push(KeyedRun {
-                    hash: IndexKeyHash(*word),
-                    first: row,
-                    last: row,
-                    rows: RowCount(1),
-                });
-                rows.siblings.push(head);
-                if let Some(slot) = rows.slots.get_mut(place) {
-                    *slot = index;
-                }
-            }
-        }
-    }
 }
