@@ -64,7 +64,7 @@ pub(crate) const NO_ROW: IndexedRow = IndexedRow(u32::MAX);
 pub(crate) fn hash_of_cells(cells: impl IntoIterator<Item = Value>) -> IndexKeyHash {
     // Spike (ryo-jenl): one multiply per cell, of the cell's payload word, the variant never hashed: equal cells have equal
     // words (a name's word is its text's hash, which is its equality), so it is a hash of the cells' equality.
-    if crate::spike::dense_levers()[2] {
+    if crate::spike::cellword() {
         let mut hash = 0u64;
         for cell in cells {
             hash = (hash.rotate_left(5) ^ cell_word(cell)).wrapping_mul(0x517c_c1b7_2722_0a95);

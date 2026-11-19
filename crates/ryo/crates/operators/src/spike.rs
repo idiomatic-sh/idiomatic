@@ -397,9 +397,32 @@ pub fn dump() {
 }
 
 /// Spike (ryo-jenl): whether the key census is on, set once from `RYO_KEYSTATS` (a file the census is written to).
+#[inline]
 pub fn keystats() -> bool {
-    static ON: OnceLock<bool> = OnceLock::new();
-    *ON.get_or_init(|| std::env::var_os("RYO_KEYSTATS").is_some())
+    static ON: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+    switch(&ON, || std::env::var_os("RYO_KEYSTATS").is_some())
+}
+
+/// Spike (ryo-jenl): a switch read once into a byte (0 not read yet, 1 off, 2 on), so a hot path's check is one plain load.
+#[inline]
+fn switch(cell: &std::sync::atomic::AtomicU8, read: impl FnOnce() -> bool) -> bool {
+    use std::sync::atomic::Ordering::Relaxed;
+    match cell.load(Relaxed) {
+        2 => true,
+        1 => false,
+        _ => {
+            let on = read();
+            cell.store(if on { 2 } else { 1 }, Relaxed);
+            on
+        }
+    }
+}
+
+/// Spike (ryo-jenl): whether a key's cells hash one word each (`cellword` in `RYO_DENSE_OFF`), as one plain load.
+#[inline]
+pub fn cellword() -> bool {
+    static ON: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+    switch(&ON, || dense_levers()[2])
 }
 
 /// Spike (ryo-jenl): census sites: 0 index build, 1 index probe, 2 repeat check, 3 row-set build, 4 row-set ask, 5 text index,
