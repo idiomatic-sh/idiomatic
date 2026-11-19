@@ -334,8 +334,8 @@ fn a_composed_crate_reads_its_placed_context() {
     std::fs::write(directory.join("tastemaker.toml"), format!(r#"workspace = {{ name = "composed", dependencies = [{{ package = "idiomatic.arch", path = '{}' }}] }}
 closed = false
 specs = [
-{{ alias = "edge", spec = "idiomatic.arch/cli", include = ["app"], params = {{ product = "demo", library = "demo", markdown = "absent", writes = [] }} }},
-{{ alias = "package", spec = "idiomatic.arch/crate", include = ["app"], params = {{ package = "demo", library = "demo", binary = "demo", distribution = "absent", product = "demo", folder = "demo" }} }}
+{{ alias = "edge", spec = "idiomatic.arch/cli", include = ["app"], params = {{ probe = "`--help`", languages = "none", product = "demo", library = "demo", markdown = "absent", writes = [] }} }},
+{{ alias = "package", spec = "idiomatic.arch/crate", include = ["app"], params = {{ package = "demo", library = "demo", binary = "demo", product = "demo", folder = "demo" }} }}
 ]
 "#, root().join("tastemaker").display())).expect("placement");
     let tastemaker = env!("CARGO_BIN_EXE_tm");

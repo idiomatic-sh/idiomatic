@@ -183,13 +183,20 @@ fn verify_pin(
         })
 }
 
+/// Sets the pin file's mode through a child `chmod`: the executable mode is never set in this process, and the file is
+/// only read for its metadata, never launched.
 #[cfg(unix)]
 fn permissions(path: &std::path::Path, executable: bool) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt as _;
-    std::fs::set_permissions(
-        path,
-        std::fs::Permissions::from_mode(if executable { 0o700 } else { 0o600 }),
-    )
+    let mode = if executable { "700" } else { "600" };
+    let status = std::process::Command::new("chmod")
+        .arg(mode)
+        .arg(path)
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(status.to_string()))
+    }
 }
 #[cfg(not(unix))]
 fn permissions(_: &std::path::Path, _: bool) -> std::io::Result<()> {

@@ -1,0 +1,21 @@
+description = "npm's smoke test: it builds the host wheel as the release does, stages the host platform package with the wheel's binary, packs and installs both packages offline, and runs the command."
+why = "The PR installs the npm package the release ships: the same binary, from the same build."
+content = '''
+//! npm: the package built from the PyPI wheel's binary as the release builds it, installed offline and run.
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'npm/test.rs'
+given.files.'npm/test.rs' = '''
+//! npm: the package built from the PyPI wheel's binary as the release builds it, installed offline and run.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'npm/test.rs'
+then.findings = [
+  { rule = 'npm-test#count', path = '.' },
+]

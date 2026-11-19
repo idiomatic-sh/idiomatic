@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "crates/core", "crates/values"]
+members = ["cli", "crates/core", "crates/values", "distribution"]
 resolver = "3"
 
 # tastemaker has no SDK, so no `package`: `nightly` runs the doctests alone (step `test-doc`), as only a nightly rustdoc checks the

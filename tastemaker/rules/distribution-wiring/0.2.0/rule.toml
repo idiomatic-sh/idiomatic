@@ -1,0 +1,98 @@
+description = "A product's distribution crate, `distribution/Cargo.toml`, is a member of the product's workspace and is never published: the workspace's `members` lists `distribution`, and the crate says `publish = false`."
+why = "A crate outside the workspace is never built, so its smoke tests could rot unseen; one that may be published would put the product's packaging tests on crates.io."
+
+query = '''
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let crates = select * from listed-files where file = "distribution/Cargo.toml";
+let entries = project(from="entry", columns=["file", "owner", "occurrence", "key", "kind", "decoded", "text"]);
+let members = project(from="workspace-member", columns=["package"]);
+let unlisted = antijoin(left=crates, right=members, left-on=["file"], right-on=["package"]);
+let not-members = extend(from=unlisted, values={"reason": "the workspace's `members` does not list `distribution`"});
+let publish-keys = select * from entries where key = "publish";
+let unpublished = select * from publish-keys where text = "false";
+let held = select l."file" as "file" from crates as l join unpublished as r on l."file" = r."file";
+let published = antijoin(left=crates, right=held, left-on=["file"], right-on=["file"]);
+let publishable = extend(from=published, values={"reason": "it does not say `publish = false`"});
+let findings = union(left=not-members, right=publishable);
+emit findings subject "file" key("file", "reason");
+'''
+
+[diagnostic]
+primary = "file"
+message = "`{file}` is wired wrong: {reason}"
+help = "Add `\"distribution\"` to the product workspace's `members` in `Cargo.toml`, and `publish = false` under `[package]` in `distribution/Cargo.toml`."
+
+[[scenarios]]
+id = 'member-and-unpublished'
+scenario = 'A member that says `publish = false`: nothing is reported.'
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "distribution"]
+'''
+given.files.'distribution/Cargo.toml' = '''
+[package]
+name = "demo-distribution"
+version = "0.1.0"
+publish = false
+'''
+
+[[scenarios]]
+id = 'no-distribution-crate'
+scenario = 'A product with no distribution crate: nothing is reported.'
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli"]
+'''
+
+[[scenarios]]
+id = 'not-a-member'
+scenario = 'The workspace does not list the distribution crate: it is reported.'
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli"]
+'''
+given.files.'distribution/Cargo.toml' = '''
+[package]
+name = "demo-distribution"
+version = "0.1.0"
+publish = false
+'''
+then.findings = [
+  { path = 'distribution/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'publishable'
+scenario = 'The distribution crate may be published: it is reported.'
+given.files.'cli/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["cli", "distribution"]
+'''
+given.files.'distribution/Cargo.toml' = '''
+[package]
+name = "demo-distribution"
+version = "0.1.0"
+'''
+then.findings = [
+  { path = 'distribution/Cargo.toml' },
+]

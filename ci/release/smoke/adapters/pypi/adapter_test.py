@@ -16,7 +16,7 @@ def test_the_pypi_adapter_implements_the_port() -> None:
 
 
 def test_the_wheel_installs_without_the_index_and_runs_both_ways(tmp_path, monkeypatch) -> None:
-    pypi = tmp_path / "crates/demo/distribution/registries/pypi"
+    pypi = tmp_path / "crates/demo/distribution/pypi"
     pypi.mkdir(parents=True)
     (pypi / "pyproject.toml").write_text('[tool.maturin]\nmodule-name = "org_demo"\n')
     calls = []

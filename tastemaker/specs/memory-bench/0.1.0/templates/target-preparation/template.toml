@@ -1,0 +1,23 @@
+description = "Materializes the target's pinned revision and its declared dependencies in a checkout, before any run of the command."
+why = "No dependency path or symlink escapes the target or the repository, and every round starts from the same tree."
+content = '''
+//! Product-neutral preparation of a target checkout, before any run of the command.
+'''
+
+[given]
+file = 'project/preparation.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'project/preparation.rs' = '''
+//! Product-neutral preparation of a target checkout, before any run of the command.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.files.'.gitkeep' = ''
+then.findings = [
+  { rule = 'target-preparation#count', path = '.' },
+]

@@ -1,7 +1,6 @@
 //! What every replay test shares: the lint over a tree it writes, with the real languages and ports, and a finding as text.
 //! Each suite that lints with the real engine includes it whole.
 
-#[path = "rules.rs"]
 pub(crate) mod rules;
 
 use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;

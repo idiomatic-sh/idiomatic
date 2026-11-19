@@ -18,7 +18,7 @@ class PypiBuild(Build):
         self.dist = dist
 
     def build(self, product: Product, scope: str, into: Path) -> list[Artifact]:
-        pypi = self.root / "crates" / product.name / "distribution" / "registries" / "pypi"
+        pypi = self.root / "crates" / product.name / "distribution" / "pypi"
         if scope == SHARED or not pypi.is_dir():
             return []
         pattern = f"{product.package.replace('-', '_')}-*.whl"

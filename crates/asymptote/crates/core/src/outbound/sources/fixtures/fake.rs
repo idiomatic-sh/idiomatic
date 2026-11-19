@@ -40,12 +40,6 @@ impl SourcesFake {
         }
     }
 
-    /// How many file contents the stamps read so far.
-    #[must_use]
-    pub fn contents_read(&self) -> usize {
-        self.reads.load(Ordering::Relaxed)
-    }
-
     /// Writes `text` at `path`.
     pub fn write(&self, path: &str, text: &str) {
         // A write replaces whatever text the path held, as a file's would.

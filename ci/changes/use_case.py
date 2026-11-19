@@ -46,8 +46,7 @@ RUN_TIME_READS = {
     # cli/tests/replay/check.rs:325-356 checks a `git archive` of the repository's HEAD, and benchmark_fixture.rs:35-46 copies
     # every tastemaker.lock of the repository: tastemaker's tests read the whole tree.
     "crates/tastemaker": [""],
-    # distribution/target_test.rs:102 installs crates/tastemaker/cli, which builds ryo's crates and reads the root's Tastemaker
-    # packages, tastemaker/benchmarks among them, and the targets' pin.toml copy its fixtures: the whole tree.
+    # cli/tests/replay reads the root's Tastemaker packages and the repository's tree through its fixtures: the whole tree.
     "crates/asymptote": [""],
     "tools/lints": [],
 }

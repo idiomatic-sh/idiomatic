@@ -1600,6 +1600,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-tastemaker-distribution"
+version = "0.1.4"
+dependencies = [
+ "snapbox",
+ "tempfile",
+ "toml 1.1.4+spec-1.1.0",
+]
+
+[[package]]
 name = "idiomatic-sh-tastemaker-values"
 version = "0.1.4"
 dependencies = [

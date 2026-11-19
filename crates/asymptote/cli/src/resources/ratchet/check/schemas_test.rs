@@ -368,6 +368,14 @@ fn perf(outcomes: Outcomes) -> String {
         Outcomes::Nothing => {}
     }
     let schema = PerfSchema::from(&outcome);
+    // One finding per judged measure: every regression, unseeded measure, improvement and resolved record.
+    assert_eq!(
+        schema.findings.len(),
+        outcome.regressed.len()
+            + outcome.unseeded.len()
+            + outcome.improved.len()
+            + outcome.resolved.len()
+    );
     let lines = Printed(&schema, false).to_string();
     if schema.spoke() {
         format!("{lines}|{}", Printed(&schema, true))

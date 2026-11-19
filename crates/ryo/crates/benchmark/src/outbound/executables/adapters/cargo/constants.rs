@@ -18,9 +18,16 @@ pub(super) const ONE_BENCH_EXECUTABLE: &str =
     "expected exactly one bench executable of the bench's package";
 /// The refusal of a reference tool the search path does not hold.
 pub(super) const TOOL_NOT_FOUND: &str = "reference tool not found on the search path";
-/// Owner read, write and execute; group and others read and execute.
+/// The shell a child writes a sealed executable with.
 #[cfg(unix)]
-pub(super) const EXECUTABLE_MODE: u32 = 0o755;
+pub(super) const SHELL: &str = "/bin/sh";
+/// What that child runs: it copies the built executable (`$1`) to the sealed copy (`$2`) and makes it executable (0755:
+/// owner read, write and execute; group and others read and execute). A child writes it, so no descriptor this
+/// multi-threaded process holds for writing can leak into a child another thread forks, and the launch that follows never
+/// fails with "Text file busy" (ETXTBSY).
+#[cfg(unix)]
+pub(super) const COPY_EXECUTABLE: [&str; 3] =
+    ["-c", "cat \"$1\" > \"$2\" && chmod 755 \"$2\"", "sh"];
 /// The refusal of a child whose output was not captured.
 pub(super) const NO_OUTPUT: &str = "the sealed executable's output was not captured";
 /// The size of one read of a child's output.

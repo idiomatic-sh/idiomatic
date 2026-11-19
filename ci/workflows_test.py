@@ -778,20 +778,27 @@ def test_the_release_builds_every_target_in_one_matrix_whose_rows_run_the_same_s
         "PyO3/maturin-action",
         "actions/upload-artifact",
     ]
+    # The matrix's targets are the npm platform packages of every product that ships to npm: npm carries the wheel's binary.
+    targets = sorted(row["target"] for row in build["strategy"]["matrix"]["platform"])
+    packaged: dict[str, list[str]] = {}
+    for package in listed(ROOT, "crates/*/distribution/npm/platforms/*/package.json"):
+        packaged.setdefault(package.parents[4].name, []).append(package.parent.name)
+    assert packaged, "no product ships npm platform packages"
+    assert {product: sorted(names) for product, names in packaged.items()} == {product: targets for product in packaged}
     # Every shipped product's binary, for its GitHub Release: the wheel of its PyPI project, or of its command line crate when it
-    # ships to Cargo alone.
+    # ships to crates.io alone.
     built = {step["with"]["working-directory"] for step in build["steps"] if step["uses"].startswith("PyO3/maturin-action@")}
     assert built == {
-        "crates/asymptote/distribution/registries/pypi",
+        "crates/asymptote/distribution/pypi",
         "crates/ryo/cli",
-        "crates/tastemaker/distribution/registries/pypi",
+        "crates/tastemaker/distribution/pypi",
     }
     # A row builds only its product, one of the products the run releases.
     building = {step["with"]["working-directory"]: step["if"] for step in build["steps"] if step["uses"].startswith("PyO3/maturin-action@")}
     assert {directory: condition.split("'")[1] for directory, condition in building.items()} == {
-        "crates/asymptote/distribution/registries/pypi": "asymptote",
+        "crates/asymptote/distribution/pypi": "asymptote",
         "crates/ryo/cli": "ryo",
-        "crates/tastemaker/distribution/registries/pypi": "tastemaker",
+        "crates/tastemaker/distribution/pypi": "tastemaker",
     }
     assert workflow["jobs"]["publish"]["needs"] == "build"
     released = "${{ fromJSON(format('[\"{0}\"]', inputs.product)) }}"
@@ -1791,10 +1798,10 @@ def run_paths(run: list[str], cwd: Path, top: Path) -> set[str]:
 
 
 def benchy(tool: dict) -> bool:
-    """Whether a tool measures: a bench, perf or memory group. It reads its own product and pinned external targets alone, and what its
+    """Whether a tool measures: a bench or memory group. It reads its own product and pinned external targets alone, and what its
     run builds; it runs no test, so it reads nothing at run time beyond that."""
     group = tool.get("group", "")
-    return group in ("perf", "memory") or group.startswith("bench")
+    return group == "memory" or group.startswith("bench")
 
 
 # What a bench tool may name outside its product: the toolchain, and the helper that installs a pinned tool. The Tastemaker package of
@@ -1880,8 +1887,10 @@ def unnamed_inputs(product: Path, top: Path = ROOT, tools: list[dict] | None = N
         if TM.search(written):
             required.add("")
         if BUILDS.search(written) or READS.search(written):
-            manifest = re.search(r"--manifest-path\s+(\S+)/Cargo\.toml", written)
-            workspaces = [Path(os.path.normpath(product / manifest[1])) if manifest else product]
+            # A manifest a run names but the product lacks is not built: the run guards it (`if [ -f ... ]`), as the `smoke`
+            # tool guards the distribution crate a product that ships to crates.io alone does not have.
+            manifests = [Path(os.path.normpath(product / each)) for each in re.findall(r"--manifest-path\s+(\S+)/Cargo\.toml", written)]
+            workspaces = [each for each in manifests if (each / "Cargo.toml").is_file()] or [product]
             library = re.search(r"--path\s+(\S+)", written)
             if library and (product / library[1] / "Cargo.toml").is_file():
                 workspaces.append(Path(os.path.normpath(product / library[1])))
@@ -1935,9 +1944,9 @@ def test_a_tool_that_misses_what_it_runs_or_reads_is_named() -> None:
     missing = unnamed_inputs(ryo, tools=[{**tools["test-language"], "inputs": narrow}])
     assert "test-language: crates/ryo/cli" in missing and "test-language: crates/ryo/crates/execution" in missing
     assert "test-language: crates/ryo/languages/python" in missing
-    distribution = tools["test-distribution"]
-    unread = unnamed_inputs(ryo, tools=[{**distribution, "inputs": [each for each in distribution["inputs"] if each != "../../tastemaker"]}])
-    assert unread == ["test-distribution: tastemaker"]
+    smoke = tools["smoke"]
+    unread = unnamed_inputs(ryo, tools=[{**smoke, "inputs": [each for each in smoke["inputs"] if each != "../../tastemaker"]}])
+    assert unread == ["smoke: tastemaker"]
     clippy = tools["cargo-clippy"]
     helper = "../../ci/scripts/checks/cargo_diagnostics.py"
     unrun = unnamed_inputs(ryo, tools=[{**clippy, "inputs": [each for each in clippy["inputs"] if each != helper]}])
@@ -2313,11 +2322,11 @@ def test_no_tool_a_pull_request_runs_holds_a_time() -> None:
     assert pull_request_time_problems(manifests, check) == []
     # Planted: Tastemaker's memory tool as #52 first had it, holding `validate`'s wall times beside its peaks.
     planted = deepcopy(manifests)
-    (memory,) = [tool for tool in planted["crates/tastemaker"]["tools"] if tool["id"] == "memory-distribution"]
+    (memory,) = [tool for tool in planted["crates/tastemaker"]["tools"] if tool["id"] == "memory"]
     memory["tolerance-percent"] |= {"validate-cold-ms": 25, "validate-warm-ms": 50}
     assert pull_request_time_problems(planted, check) == [
-        "crates/tastemaker: memory-distribution (memory) holds the time validate-cold-ms to a tolerance",
-        "crates/tastemaker: memory-distribution (memory) holds the time validate-warm-ms to a tolerance",
+        "crates/tastemaker: memory (memory) holds the time validate-cold-ms to a tolerance",
+        "crates/tastemaker: memory (memory) holds the time validate-warm-ms to a tolerance",
     ]
 
 

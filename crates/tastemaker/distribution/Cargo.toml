@@ -1,0 +1,25 @@
+[package]
+name = "idiomatic-sh-tastemaker-distribution"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[test]]
+name = "npm"
+path = "npm/test.rs"
+test = false
+
+[[test]]
+name = "pypi"
+path = "pypi/test.rs"
+test = false
+
+[dev-dependencies]
+snapbox.workspace = true
+tempfile.workspace = true
+toml.workspace = true
+
+[lints]
+workspace = true

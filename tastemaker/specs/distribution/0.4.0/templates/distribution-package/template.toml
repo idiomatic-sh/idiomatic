@@ -1,0 +1,67 @@
+description = "The distribution crate's manifest: an unpublished package whose targets are the npm and PyPI smoke tests beside their packaging, each run only when named."
+why = "Cargo builds the smoke tests from the directory that holds what they prove, with no path out of it; `publish = false` keeps the crate off crates.io, `test = false` keeps package builds out of every plain test run, and the tests run and assert commands with snapbox; npm's test reads PyPI's features with toml only where the builds link languages, so no product declares a dependency it never uses (cargo-machete)."
+params = { organization = { type = "identifier", description = "The organization, as a Python identifier." }, product = { type = "identifier", description = "The product." }, languages = { type = "identifier", description = "`linked` or `none`: whether each build links the product's languages, which npm's test then reads from PyPI's features." } }
+content = '''
+[package]
+name = "{{ organization | kebab }}-{{ product }}-distribution"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+{%- if present["npm-test"] | default(false) %}
+
+[[test]]
+name = "npm"
+path = "npm/test.rs"
+test = false
+{%- endif %}
+{%- if present["pypi-test"] | default(false) %}
+
+[[test]]
+name = "pypi"
+path = "pypi/test.rs"
+test = false
+{%- endif %}
+
+[dev-dependencies]
+snapbox.workspace = true
+tempfile.workspace = true
+{%- if languages == "linked" and present["npm-test"] | default(false) %}
+toml.workspace = true
+{%- endif %}
+
+[lints]
+workspace = true
+'''
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'Cargo.toml'
+given.params = { organization = 'idiomatic_sh', product = 'ryo', languages = 'linked' }
+given.files.'Cargo.toml' = '''
+[package]
+name = "idiomatic-sh-ryo-distribution"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dev-dependencies]
+snapbox.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'Cargo.toml'
+given.params = { organization = 'idiomatic_sh', product = 'ryo', languages = 'linked' }
+then.findings = [
+  { rule = 'distribution-package#count', path = '.' },
+]

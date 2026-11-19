@@ -1,0 +1,27 @@
+description = "The command the bench measures: the command line crate installed by Cargo's install under a scratch root."
+why = "The bench measures the command a user installs, built as crates.io builds it."
+content = '''
+//! The command the bench measures: the command line crate installed under a scratch root by Cargo's
+//! install, in the release profile with its default features, as a user installs it from crates.io;
+//! and the runs of a command to completion that the install, the checkout and the measures share.
+'''
+
+[given]
+file = 'install.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'install.rs' = '''
+//! The command the bench measures: the command line crate installed under a scratch root by Cargo's
+//! install, in the release profile with its default features, as a user installs it from crates.io;
+//! and the runs of a command to completion that the install, the checkout and the measures share.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.files.'.gitkeep' = ''
+then.findings = [
+  { rule = 'memory-install#count', path = '.' },
+]

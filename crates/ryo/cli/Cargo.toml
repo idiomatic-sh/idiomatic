@@ -53,9 +53,6 @@ tikv-jemallocator.workspace = true
 mimalloc.workspace = true
 
 [dev-dependencies]
-sha2.workspace = true
-ignore.workspace = true
-sysinfo.workspace = true
 ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk" }
 # The crate itself with the language its tests and benches read, so the tests read that language whatever the defaults, and
 # with `fixtures`, so the replay links the languages the command links (`linked_connections`).
@@ -65,22 +62,14 @@ toml.workspace = true
 # The language with its fixtures, which the call-count test reads.
 ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../languages/rust", features = ["fixtures"] }
 ryo_toml = { package = "idiomatic-sh-ryo-toml", path = "../languages/toml" }
-cpu-time.workspace = true
 trycmd.workspace = true
 tempfile.workspace = true
 snapbox.workspace = true
-shlex = "=2.0.1"
-
-[[bench]]
-name = "commands"
-path = "benches/performance/main.rs"
-harness = false
 
 # One feature for each language: Cargo forces the list, and `build.rs` fails when a directory of `languages/` has none,
 # so the file that links them, `src/languages.rs`, is written from the directory and nothing else names a language.
 # Every language is a default: a plain `cargo install` reads all of them, and a registry's build or a check names its own set with `--no-default-features --features ...`.
 [features]
-distribution = []
 default = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = []
@@ -100,17 +89,8 @@ typescript = ["dep:ryo_typescript"]
 workspace = true
 
 [[test]]
-name = "distribution"
-path = "../distribution/smoke_test.rs"
-required-features = ["distribution"]
-test = false
-
-[[bench]]
-name = "distribution"
-path = "../distribution/benches/bench.rs"
-harness = false
-required-features = ["distribution"]
-test = false
+name = "smoke"
+test = false   # installs the crate with Cargo: run when named (tool `smoke`)
 
 # cargo-binstall's prebuilt binary: the GitHub Release of the package's own tag, `<package>-v<version>`, holds one archive
 # per target, `<package>-<target>.tar.gz` (`.zip` on Windows), with the bare command inside.

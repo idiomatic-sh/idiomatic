@@ -1,0 +1,33 @@
+description = "The crates.io smoke test, `tests/smoke.rs`: the command line crate installed from source by Cargo's install into a scratch root, its version, one real command in a scratch repository, the dry-run publish and, where it links languages, the languages its default features link. The crate's manifest declares it `[[test]] smoke`, `test = false`, run only when named (tool `smoke`)."
+why = "crates.io's package is the command line crate itself, so its proof lives in that crate's tests, beside what it proves, and every product has one."
+params = { probe = { type = "text", description = "The real command the test runs in a scratch repository, as its doc names it (`init`, then `check --format json`)." }, languages = { type = "identifier", description = "`linked` when the crate's default features link languages, which the test holds the installed command to; `none` otherwise." } }
+content = '''
+//! crates.io: the command line crate built from source by Cargo's install, which is how a user installs
+//! it from crates.io, into a scratch root, and run. It runs only when named (tool `smoke`); nothing is
+//! published. Its real command: {{ probe }}, in a scratch repository.
+{%- if languages == "linked" %}
+//! It holds the installed command to the languages the crate's default features link.
+{%- endif %}
+'''
+
+[given]
+file = 'tests/smoke.rs'
+params = { probe = '`init`, then `check --format json`', languages = 'linked' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'tests/smoke.rs' = '''
+//! crates.io: the command line crate built from source by Cargo's install, which is how a user installs
+//! it from crates.io, into a scratch root, and run. It runs only when named (tool `smoke`); nothing is
+//! published. Its real command: `init`, then `check --format json`, in a scratch repository.
+//! It holds the installed command to the languages the crate's default features link.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.files.'.gitkeep' = ''
+then.findings = [
+  { rule = 'crates-io-smoke#count', path = '.' },
+]

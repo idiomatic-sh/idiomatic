@@ -136,18 +136,11 @@ timeout-seconds = 3600
 inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "test-distribution"
+id = "smoke"
 group = "release-tests"
-# The `distribution` test target's findings: each target checked through the crate installed with its registry's languages.
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "target_test::", "targets_have_their_findings", "every_registry_is_declared"]
-timeout-seconds = 3600
-inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../.."]
-
-[[tools]]
-id = "release-smoke"
-group = "release-tests"
-# Each registry's package is built from the crate, installed in a scratch directory and run. Only the release workflow runs the `release-*` groups.
-run = ["cargo", "test", "--workspace", "--locked", "--all-features", "--test", "distribution", "--", "cargo::", "npm::", "pypi::"]
+# The crates.io package (the command line crate's `smoke` test) and, where `distribution/` holds them, the npm and PyPI
+# packages (the distribution crate's `npm` and `pypi` tests): each built, installed in a scratch directory and run.
+run = ["bash", "-c", "set -e; cargo test --locked --workspace --test smoke; if [ -f distribution/Cargo.toml ]; then cargo test --locked --manifest-path distribution/Cargo.toml --test npm --test pypi; fi"]
 timeout-seconds = 7200
 inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo", "../.."]
 
@@ -161,39 +154,20 @@ timeout-seconds = 7200
 inputs = [".", "../ryo", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "memory-distribution"
+id = "memory"
 group = "memory"
-# The memory rows of the `distribution` bench over the cargo registry's pinned target (ruff, at its pinned revision), the part a pull
-# request can afford (`--memory`): the peak memory of the cold `tm check` (`cold-peak-kib`) and the larger peak of `tm validate` over the
-# target's definitions, cold and again warm (`validate-peak-kib`), each the median of five rounds over a fresh checkout. Only these
-# deterministic measures gate a pull request; a wall time on a shared runner does not, so
-# `validate`'s times are `performance-distribution`'s, with the timings of every registry's targets. Every run is held to four processors
-# (the bench's `taskset --cpu-list 0-3`, which it refuses on a machine without them), so the command runs the same four workers on every
-# machine and the lock needs no machine. The peaks are resident sets, which move with how many workers hold their tables at once, so 5%.
-# Targets, not gates: a peak under 500 MB, 300 ms cold and 10 ms warm.
-run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-tastemaker", "--features", "distribution", "--bench", "distribution", "--", "--memory"]
+# The memory bench (cli/benches/memory) over its pinned target, ruff at its pinned revision: the peak memory of the cold `tm check`
+# (`cold-peak-kib`) and the larger peak of `tm validate` over the target's definitions, cold and again warm (`validate-peak-kib`), each
+# the median of five rounds over a fresh checkout. Only these deterministic measures gate a pull request; a wall time on a shared runner
+# does not, so the bench publishes no time. Every run is held to four processors (the bench's `taskset --cpu-list 0-3`, which it refuses
+# on a machine without them), so the command runs the same four workers on every machine and the lock needs no machine. The peaks are
+# resident sets, which move with how many workers hold their tables at once, so 5%. Target, not gate: a peak under 500 MB.
+run = ["cargo", "bench", "--locked", "--package", "idiomatic-sh-tastemaker", "--bench", "memory"]
 output = "bmf"
 tolerance-percent = { cold-peak-kib = 5, validate-peak-kib = 5 }
 timeout-seconds = 3600
 inputs = [".", "../ryo/crates", "../ryo/languages", "../../rust-toolchain.toml", "../../.cargo", "../../tastemaker/benchmarks"]
 
-[[tools]]
-id = "performance"
-group = "perf"
-# The benches print the Bencher Metric Format: the lock holds each measure's best and asymptote judges against it.
-run = ["cargo", "bench", "--locked", "--workspace", "--bench", "commands"]
-output = "bmf"
-timeout-seconds = 3600
-inputs = [".", "../ryo/crates", "../ryo/languages", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
-
-[[tools]]
-id = "performance-distribution"
-group = "perf"
-# The `distribution` bench: each registry's targets through the installed command, cold, warm and after an edit.
-run = ["cargo", "bench", "--locked", "--workspace", "--all-features", "--bench", "distribution"]
-output = "bmf"
-timeout-seconds = 7200
-inputs = [".", "../ryo/crates", "../ryo/languages", "../../rust-toolchain.toml", "../../.cargo", "../../tastemaker/benchmarks"]
 
 [[tools]]
 id = "build"

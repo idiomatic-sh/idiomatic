@@ -1,0 +1,101 @@
+description = "A file is given an execute bit only by an `executable.rs`, whose writer has a child process write it: no `from_mode` with an execute-bit literal or an `*EXECUTABLE*` constant anywhere else."
+why = "A process that writes a file and then launches it races every other thread that forks: until a forked child execs, it holds a copy of every descriptor the process had open, so the file can still be open for writing in that child when the launch comes, and Linux refuses it (ETXTBSY, \"Text file busy\"). The bug recurred (ryo-rbi3, ryo-jsa4); the one fix is a writer that never opens the file in the launching process. Making a file executable is the mark of a file about to be launched, so the mode's one place is the writer."
+
+query = '''
+let tree = select l."id" as "id", l."kind" as "kind", l."text" as "text", l."file" as "file", l."span" as "span" from "syntax-tree" as l;
+let calls = select * from "static-call" where glob_any(target, "{from_mode,*::from_mode}");
+let arguments = select l."occurrence" as "call", l."file" as "file", l."span" as "span", r."expression" as "expression" from calls as l join "call-argument" as r on l."occurrence" = r."call" where r."position" = 0;
+let literals = select * from tree where kind = "int-number" and glob_any(text, "{0o[1357]??,0o?[1357]?,0o??[1357]}");
+let parents = select l."id" as "id", c."parent" as "parent" from literals as l join "syntax-child" as c on l."id" = c."child";
+let grandparents = select l."id" as "id", c."parent" as "parent" from parents as l join "syntax-child" as c on l."parent" = c."child";
+let negations = select l."id" as "id" from grandparents as l join tree as p on l."parent" = p."id" where p."kind" = "prefix-expr";
+let setting = antijoin(left=literals, right=negations, left-on=["id"], right-on=["id"]);
+let names = select * from tree where kind = "ident" and glob_any(text, "*EXECUTABLE*");
+let setting-marks = project(from=setting, columns=["id", "kind", "text", "file", "span"]);
+let name-marks = project(from=names, columns=["id", "kind", "text", "file", "span"]);
+let marks = union(left=setting-marks, right=name-marks);
+let up = axis(from=marks, relation="syntax-child", direction=ancestor, domain=tree);
+let marked = select l."file" as "file", l."span" as "span" from arguments as l join up as r on l."expression" = r."related";
+let writers = select * from marked where glob_any(file, "{executable.rs,**/executable.rs}");
+let found = antijoin(left=marked, right=writers, left-on=["file", "span"], right-on=["file", "span"]);
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this sets an execute bit outside the child writer"
+help = "Write the file with the crate's `executable::write`, which has a child process write it and set its mode, so no fork of this process can hold it open when it is launched."
+
+[given]
+include = ['**/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'literal-mode'
+scenario = 'A test writes a script and sets 0o700 on it.'
+given.files.'src/lib.rs' = '''
+fn script(path: &std::path::Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::write(path, "#!/bin/sh\n")?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'named-mode'
+scenario = 'An adapter sets a constant named for executables.'
+given.files.'src/adapter.rs' = '''
+mod constants { pub(super) const EXECUTABLE_MODE: u32 = 0o755; }
+fn executable(path: &std::path::Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(constants::EXECUTABLE_MODE))
+}
+'''
+then.findings = [
+  { path = 'src/adapter.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'conditional-mode'
+scenario = 'An executable branch of a conditional mode.'
+given.files.'src/pins_test.rs' = '''
+fn permissions(path: &std::path::Path, executable: bool) -> std::io::Result<()> {
+    std::fs::set_permissions(
+        path,
+        <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(if executable { 0o700 } else { 0o600 }),
+    )
+}
+'''
+then.findings = [
+  { path = 'src/pins_test.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'no-execute-bit-and-the-writer-pass'
+scenario = 'Ordinary and cleared modes, a restored mode and the writer itself pass.'
+given.files.'src/store.rs' = '''
+const ORDINARY_MODE: u32 = 0o644;
+fn modes(path: &std::path::Path, kept: std::fs::Permissions) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(ORDINARY_MODE))?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o000))?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(kept.mode() & !0o111))?;
+    std::fs::set_permissions(path, kept)
+}
+'''
+given.files.'src/executable.rs' = '''
+pub(crate) fn write(path: &std::path::Path, contents: &[u8]) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let _ = contents;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
+}
+'''

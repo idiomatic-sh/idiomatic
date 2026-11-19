@@ -42,24 +42,14 @@ mimalloc.workspace = true
 nix.workspace = true
 
 [dev-dependencies]
-sha2.workspace = true
-ignore.workspace = true
-sysinfo.workspace = true
 toml.workspace = true
 asymptote_core = { package = "idiomatic-sh-asymptote-core", path = "../crates/core", features = ["fixtures"] }
-cpu-time.workspace = true
 snapbox.workspace = true
 tempfile.workspace = true
 trycmd.workspace = true
 shlex = "=2.0.1"
 
-[[bench]]
-name = "commands"
-path = "benches/performance/main.rs"
-harness = false
-
 [features]
-distribution = []
 default = []
 fixtures = ["dep:tempfile"]
 # A diagnostic build: `--timings=phases` prints the outer phases of a command and when each began and ended (Linux).
@@ -69,17 +59,8 @@ phase-diagnostic = []
 workspace = true
 
 [[test]]
-name = "distribution"
-path = "../distribution/smoke_test.rs"
-required-features = ["distribution"]
-test = false
-
-[[bench]]
-name = "distribution"
-path = "../distribution/benches/bench.rs"
-harness = false
-required-features = ["distribution"]
-test = false
+name = "smoke"
+test = false   # installs the crate with Cargo: run when named (tool `smoke`)
 
 # cargo-binstall's prebuilt binary: the GitHub Release of the package's own tag, `<package>-v<version>`, holds one archive
 # per target, `<package>-<target>.tar.gz` (`.zip` on Windows), with the bare command inside.

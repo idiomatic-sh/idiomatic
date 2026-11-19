@@ -1,0 +1,33 @@
+description = "The target's expected-findings summary: the digest of a run's whole findings document in canonical form, its exit code and its count per rule."
+why = "Expected findings stay small enough to commit and a changed answer still fails and names what changed."
+content = '''
+//! A target's expected findings as a summary: the sha256 digest of the command's whole
+//! findings document in canonical form (object keys sorted, every array's elements sorted),
+//! with only boolean `tools[].reused` cache provenance normalized to false, the exit status
+//! the run must end with, and the count per rule. A run is held to the digest exactly; on a
+//! mismatch the per-rule changes name what moved. The total is the sum of the counts, never
+//! stored beside them, and a summary with no finding has no `[rules]` table.
+'''
+
+[given]
+file = 'project/summary.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'project/summary.rs' = '''
+//! A target's expected findings as a summary: the sha256 digest of the command's whole
+//! findings document in canonical form (object keys sorted, every array's elements sorted),
+//! with only boolean `tools[].reused` cache provenance normalized to false, the exit status
+//! the run must end with, and the count per rule. A run is held to the digest exactly; on a
+//! mismatch the per-rule changes name what moved. The total is the sum of the counts, never
+//! stored beside them, and a summary with no finding has no `[rules]` table.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.files.'.gitkeep' = ''
+then.findings = [
+  { rule = 'target-summary#count', path = '.' },
+]

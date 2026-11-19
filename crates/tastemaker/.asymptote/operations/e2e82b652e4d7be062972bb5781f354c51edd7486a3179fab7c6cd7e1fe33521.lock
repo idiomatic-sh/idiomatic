@@ -1,0 +1,6 @@
+version = 1
+parents = ["75fe1551161e17e723bff663c12d7ce5a3b803a63e4fdeefbe95cc31a7abc3b1"]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "distribution/registries/npm/smoke_test.rs", level = "error", fingerprint = "b38a6c348fd3539f" },
+]
