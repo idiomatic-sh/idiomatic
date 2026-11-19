@@ -27,6 +27,7 @@ pub(crate) fn base_rows(
     let (source, select, kept) = match &plan.nodes.get(place)?.lowering {
         Lowering::Filter { source, select } => (*source, Some(select), &select.kept[..]),
         Lowering::Project { source, .. } | Lowering::Extend { source, .. } => (*source, None, &[][..]),
+        Lowering::Lookup { index, key, select } => return lookup_rows(plan, run, place, *index, key.0, select, buffers),
         _ => return None,
     };
     let select = select.filter(|select| !select.comparisons.is_empty());
@@ -115,4 +116,63 @@ fn never_holds(
             .ok()
             .and_then(|at| kinds.get(at))
             .is_some_and(|kind| matches!(kind, CellKind::Node | CellKind::Number))
+}
+
+/// A lookup guard: the rows of its relation whose key column's text hashes to its key are read in place, in row order, until
+/// one passes its comparisons; no index of the column is built.
+fn lookup_rows(
+    plan: &PhysicalPlan,
+    run: &KernelRun<'_>,
+    place: usize,
+    index: crate::domain::physical_plan::types::IndexPlace,
+    key: u64,
+    select: &crate::domain::select::types::SelectParts,
+    buffers: &mut FileBuffers,
+) -> Option<bool> {
+    use crate::domain::physical_plan::types::IndexKey;
+    use ryo_relations::domain::terms::types::Symbol;
+    if !select.bindings.is_empty() {
+        return None;
+    }
+    let shared = plan.indexes.get(index.0)?;
+    let (RowSource::Facts(relation), IndexKey::Text(column)) = (shared.source, &shared.key) else {
+        return None;
+    };
+    let Ok(view) = facts(run.inputs, relation) else {
+        return Some(true);
+    };
+    if !kept_in(&select.kept, view.kinds.len()) {
+        return None;
+    }
+    let Some(words) = view.columns.get(usize::try_from(column.0).ok()?) else {
+        return None;
+    };
+    let texts = run.resources.texts();
+    let kernel = filter(select, view.kinds, texts);
+    let decisions = buffers.decisions.get_mut(place)?;
+    readied(decisions);
+    let row = &mut buffers.row;
+    let mut last: Option<(u64, bool)> = None;
+    for (at, bits) in words.0.iter().enumerate() {
+        let hit = match last {
+            Some((word, hit)) if word == *bits => hit,
+            _ => {
+                // As `from_bits` reads a symbol cell.
+                let raw = u32::try_from(*bits).unwrap_or(u32::MAX);
+                let hit = ryo_language::domain::symbols::service::hash_in(texts.symbols, Symbol(raw))
+                    .is_some_and(|hash| hash.0 == key);
+                last = Some((*bits, hit));
+                hit
+            }
+        };
+        if !hit {
+            continue;
+        }
+        decode(&view, RowIndex(at), row);
+        match holds(kernel, run.matcher, row, decisions) {
+            Ok(PredicateOutcome::Fails) => {}
+            Ok(_) | Err(_) => return Some(true),
+        }
+    }
+    Some(false)
 }
