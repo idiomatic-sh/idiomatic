@@ -274,6 +274,7 @@ fn kernels_of(
     | Lowering::Extend { .. }
     | Lowering::TextMap { .. }
     | Lowering::Probe { .. } = lowering
+        && !(lazy() && crate::spike::held_only())
     {
         return super::pipeline::service::streamed(plan, run, node, buffers, ready);
     }
@@ -460,7 +461,22 @@ pub(super) fn made(
                 other: right_rows,
                 third: third_read.map(rows_in),
             };
-            kernels(lowering, shared, node, inputs, buffers, &mut output)
+            let answered = kernels(lowering, shared, node, inputs, buffers, &mut output);
+            // Spike (ryo-fmx3): which held kernel faulted, for the no-fusion mode's diagnosis.
+            if crate::spike::held_only()
+                && !matches!(answered, Ok(None))
+                && std::env::var_os("RYO_HELD_DEBUG").is_some()
+            {
+                eprintln!(
+                    "held fault at node {}: {:?}; input kinds {:?}; other kinds {:?}; lowering {:.400?}",
+                    node.0,
+                    answered,
+                    crate::domain::physical_plan::collections::kernels::scan_facts::item::kinds_of(inputs.input),
+                    inputs.other.map(crate::domain::physical_plan::collections::kernels::scan_facts::item::kinds_of),
+                    lowering
+                );
+            }
+            answered
         }
     };
     for (slot, count) in slots.into_iter().zip(reads) {

@@ -53,6 +53,12 @@ pub fn guards_off() -> bool {
     *OFF.get_or_init(|| std::env::var_os("RYO_NO_GUARDS").is_some())
 }
 
+/// Whether every node is made on its own, never fused into a chain, set once from `RYO_HELD`.
+pub fn held_only() -> bool {
+    static HELD: OnceLock<bool> = OnceLock::new();
+    *HELD.get_or_init(|| std::env::var_os("RYO_HELD").is_some())
+}
+
 /// Whether the recorder is on.
 pub fn on() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();

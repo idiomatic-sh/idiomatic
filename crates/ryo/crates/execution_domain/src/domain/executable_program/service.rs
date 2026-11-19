@@ -284,7 +284,14 @@ pub fn assemble(build: LogicalBuild<'_>, plan: PhysicalPlan) -> ExecutableProgra
     let plan = plan.with_layouts(
         layouts
             .iter()
-            .map(|layout| layout.as_ref().ok().cloned())
+            .zip(deferred.iter().map(Some).chain(std::iter::repeat(None)))
+            .map(|(layout, drafted)| {
+                layout
+                    .as_ref()
+                    .ok()
+                    .cloned()
+                    .or_else(|| drafted.and_then(Clone::clone))
+            })
             .collect(),
     );
     ExecutableProgram {
