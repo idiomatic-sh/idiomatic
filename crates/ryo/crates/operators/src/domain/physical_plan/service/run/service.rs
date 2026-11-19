@@ -224,7 +224,8 @@ fn guarded_empty(
     node: PlanNodeId,
     buffers: &mut FileBuffers,
 ) -> bool {
-    if !lazy() || std::env::var_os("RYO_NO_GUARDS").is_some() {
+    // Spike (ryo-fmx3): no `RYO_NO_GUARDS` switch: its `getenv` on every node run cost about 1.5 CPU-s (PM, host builder).
+    if !lazy() {
         return false;
     }
     let Some(guards) = plan
