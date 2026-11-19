@@ -152,7 +152,7 @@ fn every(
         );
     }
     walk.starts.clear();
-    walk.starts.extend(index.keys.iter().map(|run| run.first));
+    walk.starts.extend(index.every_run().map(|run| run.first));
     let near = &walk.columns.near;
     walk.starts.sort_unstable_by(|left, right| {
         near.iter()
