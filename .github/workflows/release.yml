@@ -87,10 +87,16 @@ jobs:
         run: |
           for product in $(jq -r '.[]' <<< "$PRODUCTS"); do
             tag="$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/idiomatic-sh-$product-v" --jq ".[] | select(.object.sha == \"$COMMIT\") | .ref | ltrimstr(\"refs/tags/\")")"
+            since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$tag" -f product="$product" -f publish=true
-            sleep 20
-            run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --event workflow_dispatch --branch "$tag" --limit 1 --json databaseId --jq '.[0].databaseId')"
-            gh run watch "$run" --repo "$GITHUB_REPOSITORY" --exit-status
+            run=""
+            for _ in $(seq 20); do
+              run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --event workflow_dispatch --branch "$tag" --json databaseId,headBranch,createdAt --jq "[.[] | select(.headBranch == \"$tag\" and .createdAt >= \"$since\")] | first | .databaseId // empty")"
+              [ -n "$run" ] && break
+              sleep 15
+            done
+            [ -n "$run" ] || { echo "::error::no release run for $tag started within 5 minutes"; exit 1; }
+            gh run watch "$run" --repo "$GITHUB_REPOSITORY" --interval 60 --exit-status
           done
   # A hand run's check rows for its product: `ci/groups` keeps, of the release's rows (`RELEASE_ROWS`, a group on its machine), the
   # repository root's and each whose group the product's tools declare, so no row asks a product for a group it has none of.

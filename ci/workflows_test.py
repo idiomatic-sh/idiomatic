@@ -147,9 +147,12 @@ RELEASE_STEP = "GitHub Release"
 # this workflow from each new tag, one product at a time, and waits for each run (`gh` calls over the tagged products).
 DISPATCH_STEP = "Dispatch the release"
 DISPATCH_LINE = re.compile(
-    r"for product in \$\(jq -r '\.\[\]' <<< \"\$PRODUCTS\"\); do|done"
-    r"|\s*(tag=\"\$\(gh api .*\)\"|gh workflow run release\.yml --repo \"\$GITHUB_REPOSITORY\" --ref \"\$tag\" -f product=\"\$product\" -f publish=true"
-    r"|sleep 20|run=\"\$\(gh run list .*\)\"|gh run watch \"\$run\" --repo \"\$GITHUB_REPOSITORY\" --exit-status)"
+    r"\s*(for product in \$\(jq -r '\.\[\]' <<< \"\$PRODUCTS\"\); do|done|for _ in \$\(seq 20\); do"
+    r"|tag=\"\$\(gh api .*\)\"|since=\"\$\(date -u \+%Y-%m-%dT%H:%M:%SZ\)\""
+    r"|gh workflow run release\.yml --repo \"\$GITHUB_REPOSITORY\" --ref \"\$tag\" -f product=\"\$product\" -f publish=true"
+    r"|run=\"\"|run=\"\$\(gh run list .*\)\"|\[ -n \"\$run\" \] && break|sleep 15"
+    r"|\[ -n \"\$run\" \] \|\| \{ echo \"::error::no release run for \$tag started within 5 minutes\"; exit 1; \}"
+    r"|gh run watch \"\$run\" --repo \"\$GITHUB_REPOSITORY\" --interval 60 --exit-status)"
 )
 # One release per product, over the directories of `dist/archives`, each named for its product's tag.
 RELEASE_LINE = re.compile(
@@ -852,7 +855,15 @@ def test_a_green_check_on_main_releases_the_products_whose_version_its_commit_ch
     assert publish["concurrency"] == {"group": "release-${{ matrix.product }}", "cancel-in-progress": False}
     # One product's publish at a time: the dispatch job starts each product's run after the one before finished, in the `tag`
     # job's order, so ryo's crates are on crates.io before tastemaker's publish starts.
-    assert dispatching["run"].index("sleep 20") < dispatching["run"].index("gh run watch")
+    # The run is found, not guessed: a timestamp taken before the dispatch, then up to 20 tries 15 s apart (5 minutes) for a
+    # release.yml workflow_dispatch run on the tag created since, failing the job when none appears.
+    script = dispatching["run"]
+    assert script.index("since=") < script.index("gh workflow run") < script.index("gh run list") < script.index("gh run watch")
+    assert "--event workflow_dispatch --branch \"$tag\"" in script and "sleep 15" in script and "seq 20" in script
+    assert '.headBranch == \\"$tag\\" and .createdAt >= \\"$since\\"' in script and "exit 1" in script
+    assert "sleep 20" not in script
+    # A watch polls every minute: GitHub's default 3 seconds over a release's hour or two exceeds the token's 1,000 requests an hour.
+    assert "gh run watch \"$run\" --repo \"$GITHUB_REPOSITORY\" --interval 60 --exit-status" in script
     assert PRODUCTS.index("ryo") < PRODUCTS.index("tastemaker")
     # Each build row's artifact is named for its product, and a publish downloads its product's alone, a directory per target.
     (upload,) = [step for step in jobs["build"]["steps"] if step["uses"].startswith("actions/upload-artifact@")]
