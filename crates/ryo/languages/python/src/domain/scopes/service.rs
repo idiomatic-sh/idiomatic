@@ -222,6 +222,15 @@ pub(crate) fn binding_scope(
     redirected(tree, model, lexical_scope(tree, at), name)
 }
 
+/// Whether the scope `scope` declares `name` `global`: lookups from it continue at the module.
+#[must_use]
+pub(crate) fn declares_global(tree: &Tree<'_>, model: &Declarations, scope: Position, name: Symbol) -> bool {
+    if model.declared_state.get() == QualificationState::Fresh {
+        declare(tree, model);
+    }
+    redirect_of(model, scope, name) == Some(BindingRedirect::Global)
+}
+
 /// What the expression at `at` does with what it names: in a target of an assignment, a loop, a `with`, a comprehension or an
 /// assignment expression it binds, in `del` it deletes, anywhere else it reads. A tuple, a list or a starred expression passes its place
 /// on to the elements it holds.

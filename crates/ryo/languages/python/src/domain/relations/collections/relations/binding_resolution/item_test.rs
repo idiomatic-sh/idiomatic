@@ -3,7 +3,7 @@ use super::super::fixtures::contract::check;
 use super::item::BindingResolutionItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::proposed;
-use ryo::languages::contract::Reading;
+use ryo::languages::contract::{Point, Reading, Want};
 type Input = &'static str;
 type Value = Reading;
 type Failure = ();
@@ -31,7 +31,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || "x = 1\nx\n",
         expect: Expect::Value(Reading {
-            rows: &[],
+            rows: &[&[
+                Want::Node(11),
+                Want::Node(2),
+                Want::Name("bind"),
+                Want::Node(0),
+                Want::Node(0),
+                Want::Number(0),
+                Want::Number(1),
+                Want::Name("value"),
+                Want::File("item.py"),
+                Want::Span(
+                    Point { line: 2, column: 1 },
+                    Point { line: 2, column: 2 },
+                ),
+            ]],
             causes: &[],
         }),
     },

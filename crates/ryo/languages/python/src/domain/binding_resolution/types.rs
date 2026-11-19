@@ -55,4 +55,6 @@ pub(crate) struct BindingResolutionScratch {
     pub(super) lazy: Vec<(usize, ReadContext)>,
     /// The schedule ordinal of each row's reference, for ordering lazy reads among the others.
     pub(super) order: Vec<Integer>,
+    /// Scratch for that ordering, kept between files.
+    pub(super) sorting: Vec<(Integer, Resolution)>,
 }
