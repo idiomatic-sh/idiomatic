@@ -68,15 +68,6 @@ pub fn probe_lever(name: &str) -> bool {
         .any(|off| off == name || off == "all")
 }
 
-/// Spike (ryo-fmx3): whether the base-rows lever named `name` (`RYO_BASE_OFF` lists the ones switched off, comma-separated,
-/// or `all`) is on: `lookup`, a lookup reads its column's words once instead of building a text index of them.
-pub fn base_lever(name: &str) -> bool {
-    static OFF: OnceLock<String> = OnceLock::new();
-    !OFF.get_or_init(|| std::env::var("RYO_BASE_OFF").unwrap_or_default())
-        .split(',')
-        .any(|off| off == name || off == "all")
-}
-
 /// Whether the recorder is on.
 pub fn on() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
