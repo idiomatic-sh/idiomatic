@@ -241,11 +241,20 @@ fn killed(
     if killer == u32::MAX || sure < KILLER_SURE || killer == node.0 {
         return None;
     }
-    if known(buffers, killer) == Known::Unmade
-        && buffers.rows(PlanNodeId(killer)) == NodeRows::Absent
-        && materialize(plan, run, PlanNodeId(killer), buffers).is_err()
-    {
-        return None;
+    if known(buffers, killer) == Known::Unmade && buffers.rows(PlanNodeId(killer)) == NodeRows::Absent {
+        // A killer that is a base leaf is read in place until its first row, as a guard is.
+        match super::base_guard::service::base_rows(plan, run, PlanNodeId(killer), buffers) {
+            Some(true) => return None,
+            Some(false) => {
+                marked_empty(plan, buffers, PlanNodeId(killer), killer);
+                return Some(killer);
+            }
+            None => {
+                if materialize(plan, run, PlanNodeId(killer), buffers).is_err() {
+                    return None;
+                }
+            }
+        }
     }
     (known(buffers, killer) == Known::Empty)
         .then(|| origin_of(buffers, RowSource::Node(PlanNodeId(killer))))
@@ -348,8 +357,8 @@ fn guarded_empty(
         match super::base_guard::service::base_rows(plan, run, PlanNodeId(*guard), buffers) {
             Some(true) => continue,
             Some(false) => {
-                marked_empty(plan, buffers, PlanNodeId(*guard));
-                return true;
+                marked_empty(plan, buffers, PlanNodeId(*guard), *guard);
+                return Some(*guard);
             }
             None => {}
         }
