@@ -16,6 +16,21 @@ pub(crate) struct FileRoots {
     pub(crate) lists: Vec<Vec<NodeId>>,
     /// Every tree node of the open file, in tree order.
     pub(crate) all: Vec<NodeId>,
+    /// Spike (ryo-fmx3, host3): by node, the one root kind (its place in `kinds`) it starts from, or `u32::MAX` when it starts
+    /// from several (its list is then its own, in `lists`) or from none.
+    pub(crate) single: Vec<u32>,
+    /// Spike (ryo-fmx3, host3): the open file's tree nodes of each root kind, by its place in `kinds`, filled only for the
+    /// kinds the file holds.
+    pub(crate) kind_lists: Vec<Vec<NodeId>>,
+    /// Spike (ryo-fmx3, host3): the root kinds whose list the open file filled, cleared at the next file.
+    pub(crate) kinds_filled: Vec<u32>,
+    /// Spike (ryo-fmx3, host3): the nodes of several root kinds whose own list the open file filled, cleared at the next file.
+    pub(crate) nodes_filled: Vec<u32>,
+    /// Spike (ryo-fmx3, host3): the kind names of the last file mapped, as texts, and each root kind's number among them:
+    /// a file naming the same kinds reuses the numbers.
+    pub(crate) names_seen: Vec<Box<str>>,
+    /// Spike (ryo-fmx3, host3): each root kind's number in the files named as `names_seen`, by its place in `kinds`.
+    pub(crate) numbers: Vec<Option<u16>>,
 }
 
 /// A root kind of a program, held across files: its text and the nodes that start from it.
