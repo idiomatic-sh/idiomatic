@@ -1,4 +1,5 @@
 //! The Linux meter answers the port's contract, and its reset lets go of what is no longer resident.
+#![cfg(target_os = "linux")]
 use super::adapter::ProcessMeterLinuxAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::process_meter::fixtures::contract::check;
