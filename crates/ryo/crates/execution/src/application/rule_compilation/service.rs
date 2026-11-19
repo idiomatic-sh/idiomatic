@@ -114,7 +114,33 @@ impl RuleCompilation {
                 vec![None; rules.len()];
             let mut bindings = vec![None; rules.len()];
             let mut observations = vec![Vec::new(); rules.len()];
+            // Spike (ryo-fmx3): a rule that binds no observation reads no producer's plan; those compile on the worker pool
+            // (the first one alone before, to parse the shared modules), then the others in the schedule's order.
+            let free: Vec<usize> = order
+                .iter()
+                .map(|index| index.0)
+                .filter(|index| rules[*index].observations.is_empty())
+                .collect();
+            if let Some((first, rest)) = free.split_first() {
+                let one = |index: usize| -> Result<_, RuleCompilationError> {
+                    let rule = &rules[index];
+                    let plan = self.compile_one(rule, &declared, &[])?;
+                    let bound = bind(&plan, rule)?;
+                    Ok((index, plan, bound))
+                };
+                let mut done = vec![one(*first)?];
+                let others: Result<Vec<_>, RuleCompilationError> =
+                    rest.par_iter().map(|index| one(*index)).collect();
+                done.extend(others?);
+                for (index, plan, bound) in done {
+                    bindings[index] = Some(bound);
+                    plans[index] = Some(plan);
+                }
+            }
             for index in order {
+                if rules[index.0].observations.is_empty() {
+                    continue;
+                }
                 let rule = &rules[index.0];
                 let schemas =
                     ryo_execution_domain::domain::observation_schedule::service::schemas(
