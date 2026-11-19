@@ -7,6 +7,7 @@ name = "{{ organization | kebab }}-{{ product }}-distribution"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 publish = false
 {%- if present["npm-test"] | default(false) %}
 
@@ -45,6 +46,7 @@ name = "idiomatic-sh-ryo-distribution"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 publish = false
 
 [dev-dependencies]

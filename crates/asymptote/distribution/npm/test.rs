@@ -18,6 +18,8 @@ fn prints(command: Command, expected: impl snapbox::IntoData) {
 
 /// The npm command.
 const NPM: &str = if cfg!(windows) { "npm.cmd" } else { "npm" };
+/// The child that stages the platform binary with the release's mode (0755): no writer leaks (ETXTBSY).
+const COPY_EXECUTABLE: &str = "import os, shutil, sys; shutil.copyfile(sys.argv[1], sys.argv[2]); os.chmod(sys.argv[2], 0o755)";
 
 /// What an installation leaves in its scratch directory.
 struct Installation {
@@ -60,10 +62,9 @@ fn host() -> std::io::Result<String> {
         .ok_or_else(|| std::io::Error::other("`rustc -vV` names no host"))
 }
 
-/// Builds the host wheel from PyPI's `pyproject.toml` into `directory`, as the release builds the
-/// wheel whose binary npm's packages carry, and returns it. Maturin writes the wheel into the
-/// shared target directory before the build backend copies it out, so a lock file there serializes
-/// the build and the copy across test processes, and PyPI's test takes the same lock.
+/// Builds the host wheel from PyPI's `pyproject.toml` into `directory`, as the release builds the wheel npm's
+/// packages take their binary from, and returns it. Maturin writes the wheel into the shared target directory
+/// before the build backend copies it out, so a lock file there serializes both across test processes.
 fn wheel(directory: &Path) -> std::io::Result<PathBuf> {
     let lock =
         std::fs::File::create(Path::new(env!("CARGO_TARGET_TMPDIR")).join("wheel-build.lock"))?;
@@ -100,9 +101,8 @@ fn wheel_binary(wheel: &Path, into: &Path) -> PathBuf {
     into.join(scripts)
 }
 
-/// Copies the package whose `package.json` is in `source` into `into`, stamped with the crate's
-/// version, license and repository (Cargo is the one version authority), beside the crate's LICENSE
-/// text.
+/// Copies the package whose `package.json` is in `source` into `into`, stamped with the crate's version,
+/// license and repository (Cargo is the one version authority), beside the crate's LICENSE text.
 fn stage(source: &Path, into: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(into)?;
     let _: u64 = std::fs::copy(source.join("package.json"), into.join("package.json"))?;
@@ -158,10 +158,10 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let binary = wheel_binary(&wheel(directory)?, &directory.join("wheel"));
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
-    let _: u64 = std::fs::copy(
-        &binary,
-        bin.join(format!("asymptote{}", std::env::consts::EXE_SUFFIX)),
-    )?;
+    run(Command::new("uv")
+        .args(["run", "--no-project", "python", "-c", COPY_EXECUTABLE])
+        .arg(&binary)
+        .arg(bin.join(format!("asymptote{}", std::env::consts::EXE_SUFFIX))));
 
     let staged = directory.join("package");
     stage(&npm, &staged)?;
@@ -304,7 +304,7 @@ fn installs_and_runs() {
     // The launcher passes arguments and the exit status through: an argument the command refuses
     // fails through the launcher exactly as it fails from the binary.
     let refused = "--no-such-argument";
-    let direct = std::process::Command::new(&installation.binary)
+    let direct = std::process::Command::new(&installation.installed)
         .arg(refused)
         .output()
         .unwrap();
