@@ -13,6 +13,7 @@ use ryo_values::domain::hosted::service::declarations;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::rule_requests::service::{bind, check_ids};
 use ryo_values::domain::rule_requests::types::RuleSpec;
+use rayon::prelude::*;
 use std::sync::{Arc, Mutex, PoisonError};
 
 /// The plan compiled so far for each rule id, shared by every use case built over them: a program that lints many projects with the
@@ -148,10 +149,23 @@ impl RuleCompilation {
             });
         }
         let (mut plans, mut bindings) = (Vec::new(), Vec::new());
-        for rule in rules {
-            let plan = self.compile_one(rule, &declared, &[])?;
-            bindings.push(bind(&plan, rule)?);
+        // Spike (ryo-fmx3): the first rule parses the shared modules; the rest compile on the worker pool, in rule order.
+        if let Some((first, rest)) = rules.split_first() {
+            let plan = self.compile_one(first, &declared, &[])?;
+            bindings.push(bind(&plan, first)?);
             plans.push(plan);
+            let compiled: Result<Vec<_>, RuleCompilationError> = rest
+                .par_iter()
+                .map(|rule| {
+                    let plan = self.compile_one(rule, &declared, &[])?;
+                    let bound = bind(&plan, rule)?;
+                    Ok((plan, bound))
+                })
+                .collect();
+            for (plan, bound) in compiled? {
+                bindings.push(bound);
+                plans.push(plan);
+            }
         }
         Ok(Compiled {
             plans,

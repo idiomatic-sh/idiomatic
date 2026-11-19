@@ -1442,6 +1442,7 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "libtest-mimic",
+ "rayon",
  "thiserror 2.0.20",
  "tokio",
  "tracing",

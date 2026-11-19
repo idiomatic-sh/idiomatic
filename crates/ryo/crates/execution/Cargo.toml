@@ -18,6 +18,7 @@ ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", ve
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
 ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.2.0" }
 thiserror.workspace = true
+rayon.workspace = true
 tracing.workspace = true
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }

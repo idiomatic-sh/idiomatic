@@ -98,13 +98,23 @@ pub(crate) fn validate_sources(
     if frontier_bucket(first, input) != bucket || program.frontiers(rule)?.get(input.0).is_none() {
         return Err(refuse());
     }
+    // Spike (ryo-fmx3): a required file is looked up in the sorted list by bisection, not by a scan per source.
+    let files = required.files();
+    let sorted = files.windows(2).all(|pair| pair[0] < pair[1]);
+    let is_required = |file: &FileId| {
+        if sorted {
+            files.binary_search(file).is_ok()
+        } else {
+            files.contains(file)
+        }
+    };
     let mut at = 0;
     let mut seen_files = BTreeSet::new();
     let mut affected = Vec::new();
     for source in kept.sources {
         if source.start.0 != at
             || source.length.0 == 0
-            || !required.files().contains(&source.file)
+            || !is_required(&source.file)
             || skipped.contains(&source.file)
             || !seen_files.insert(source.file)
             || source.proof.rule.0 != u32::try_from(rule.0).map_err(|_| refuse())?
@@ -128,7 +138,7 @@ pub(crate) fn validate_sources(
     let refused = required
         .refused()
         .iter()
-        .filter(|file| required.files().contains(file))
+        .filter(|file| is_required(file))
         .copied()
         .collect::<BTreeSet<_>>();
     if refused
@@ -145,7 +155,7 @@ pub(crate) fn validate_sources(
         required
             .inapplicable()
             .iter()
-            .filter(|file| required.files().contains(file))
+            .filter(|file| is_required(file))
             .copied(),
     );
     if at != kept.length.0
