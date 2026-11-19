@@ -365,13 +365,20 @@ fn warm_as_cold(scenario: &Scenario) -> Result<String, Failure> {
 /// How many file contents a check reads when nothing moved since the one before it.
 fn unread(scenario: &Scenario) -> Result<String, Failure> {
     warm(scenario)?;
-    let before = scenario.sources.contents_read();
+    let before = scenario
+        .sources
+        .reads
+        .load(std::sync::atomic::Ordering::Relaxed);
     let second = use_case(scenario).check(request())?;
     let reused = second.runs.iter().all(|run| run.reuse == Reuse::Reused);
     Ok(format!(
         "{}; {} contents read",
         if reused { "reused" } else { "ran" },
-        scenario.sources.contents_read() - before
+        scenario
+            .sources
+            .reads
+            .load(std::sync::atomic::Ordering::Relaxed)
+            - before
     ))
 }
 

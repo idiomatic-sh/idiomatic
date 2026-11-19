@@ -22,7 +22,6 @@ pub struct SourcesFake {
     // ignore: idiomatic.arch/pub-item-unreferenced-elsewhere - the fake's own record of each write, which `write` keeps and `stamps` reads as a modification time; the fake keeps one visibility for every field (clippy::partial_pub_fields)
     pub writes: Mutex<BTreeMap<RepoPath, u128>>,
     /// How many file contents were read for their digests.
-    // ignore: idiomatic.arch/pub-item-unreferenced-elsewhere - the fake's own count of digest reads, which `read` keeps and `contents_read()` answers; the fake keeps one visibility for every field (clippy::partial_pub_fields)
     pub reads: AtomicUsize,
 }
 
@@ -39,12 +38,6 @@ impl SourcesFake {
             ),
             ..Self::default()
         }
-    }
-
-    /// How many file contents the stamps read so far.
-    #[must_use]
-    pub fn contents_read(&self) -> usize {
-        self.reads.load(Ordering::Relaxed)
     }
 
     /// Writes `text` at `path`.

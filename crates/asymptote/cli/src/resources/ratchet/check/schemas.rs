@@ -663,7 +663,6 @@ pub(super) struct PerfSummarySchema {
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub(super) struct PerfSchema {
     /// The findings.
-    // ignore: idiomatic.arch/pub-item-unreferenced-elsewhere - a field of the printed wire shape: serde reads it, and the shape keeps one visibility for every field (clippy::partial_pub_fields)
     pub findings: Vec<PerfFindingSchema>,
     /// The counts.
     pub summary: PerfSummarySchema,
