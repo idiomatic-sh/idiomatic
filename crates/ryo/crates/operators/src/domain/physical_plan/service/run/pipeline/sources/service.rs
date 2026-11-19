@@ -99,6 +99,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn right_of(
         | Lowering::OrderedWalk { .. }
         | Lowering::Worklist { .. }
         | Lowering::Components { .. }
+        | Lowering::PointerChase { .. }
         | Lowering::TextMap { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }

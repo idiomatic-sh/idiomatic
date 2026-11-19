@@ -22,6 +22,8 @@ use ryo_values::domain::plan_parts::types::{InputNumber, RepeatedRows};
 /// Every rewrite, in the order the planner applies them: each an equivalence, so a plan answers the same rows with or without
 /// it.
 pub(crate) const REWRITES: &[&dyn RewritesItem] = &[
+    // Spike (ryo-fmx3): a chain of inner self probes over one key runs as one pointer chase.
+    &crate::domain::physical_plan::collections::rewrites::pointer_chase::item::PointerChaseItem,
     &crate::domain::physical_plan::collections::rewrites::keyed_select::item::KeyedSelectItem,
     &crate::domain::physical_plan::collections::rewrites::ordered_existence::item::OrderedExistenceItem,
     // Spike (ryo-fmx3): band semi matches in place of pairs formed and filtered.
@@ -268,6 +270,7 @@ fn flow_of(
         | Lowering::OrderedWalk { .. }
         | Lowering::Worklist { .. }
         | Lowering::Components { .. }
+        | Lowering::PointerChase { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }
         | Lowering::ScanBound { .. }

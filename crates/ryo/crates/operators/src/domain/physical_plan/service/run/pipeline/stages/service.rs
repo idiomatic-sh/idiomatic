@@ -136,6 +136,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
         | Lowering::OrderedWalk { .. }
         | Lowering::Worklist { .. }
         | Lowering::Components { .. }
+        | Lowering::PointerChase { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }
         | Lowering::ScanBound { .. }
@@ -247,6 +248,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
         | Lowering::OrderedWalk { .. }
         | Lowering::Worklist { .. }
         | Lowering::Components { .. }
+        | Lowering::PointerChase { .. }
         | Lowering::OrderedMatch { .. }
         | Lowering::Render { .. }
         | Lowering::ScanBound { .. }

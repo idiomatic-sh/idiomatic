@@ -146,6 +146,13 @@ pub(crate) enum Lowering {
         /// The keys, the orders and the output.
         ordered: crate::domain::ordered_match::types::OrderedParts,
     },
+    /// Spike (ryo-fmx3): `pointer_chase`: a chain of inner self probes of the source over one key, as one kernel.
+    PointerChase {
+        /// What the chain's first probe reads, as both sides.
+        source: RowSource,
+        /// The probe of every step and the steps.
+        chase: crate::domain::physical_plan::collections::kernels::pointer_chase::item::ChaseParts,
+    },
     /// `render`: one batch of renderings for every row of the source, refused whole on one unsupported answer.
     Render {
         /// What it reads.
@@ -200,6 +207,7 @@ impl Lowering {
             Self::Components { .. } => NodeKind::Components,
             Self::TextMap { .. } => NodeKind::TextMap,
             Self::OrderedMatch { .. } => NodeKind::OrderedMatch,
+            Self::PointerChase { .. } => NodeKind::Probe,
             Self::Render { .. } => NodeKind::Render,
             Self::ScanBound { .. } => NodeKind::ScanBound,
             Self::Unlowered => NodeKind::Unlowered,
@@ -214,7 +222,8 @@ impl Lowering {
             | Self::Extend { source, .. }
             | Self::Group { source, .. }
             | Self::TextMap { source, .. }
-            | Self::Render { source, .. } => (Some(*source), None, None),
+            | Self::Render { source, .. }
+            | Self::PointerChase { source, .. } => (Some(*source), None, None),
             Self::Reach { edges, .. } | Self::Components { edges, .. } => {
                 (Some(*edges), None, None)
             }

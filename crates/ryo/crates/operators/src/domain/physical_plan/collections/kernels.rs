@@ -12,6 +12,8 @@ pub(crate) mod interface;
 pub(crate) mod lookup;
 pub(crate) mod ordered_match;
 pub(crate) mod ordered_walk;
+// Spike (ryo-fmx3)
+pub(crate) mod pointer_chase;
 pub(crate) mod probe;
 pub(crate) mod probe_right;
 pub(crate) mod project;

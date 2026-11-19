@@ -66,6 +66,7 @@ pub(crate) fn minted(
         | Lowering::OrderedWalk { .. }
         | Lowering::Worklist { .. }
         | Lowering::Components { .. }
+        | Lowering::PointerChase { .. }
         | Lowering::ScanBound { .. }
         | Lowering::Unlowered => Err(PortableOperatorFault::WrongOperation),
     };
