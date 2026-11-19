@@ -109,7 +109,7 @@ fn only_read(nodes: &[PhysicalNode], source: RowSource) -> Option<OnlyRead<'_>> 
 
 /// Whether a column is proven to hold a number on every row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum NumberProof {
+pub(crate) enum NumberProof {
     /// Every row holds a number there.
     Proven,
     /// No proof was found.
@@ -272,7 +272,7 @@ fn recognised(
 
 /// Whether every row `source` answers holds a number in `column`, proven from the relations it is read from through
 /// value-preserving kernels only: a filter, a lookup, a projection, a probe and a distinct union. No other kernel proves it.
-fn numbered(
+pub(crate) fn numbered(
     nodes: &[PhysicalNode],
     indexes: &[KeyedIndex],
     source: RowSource,

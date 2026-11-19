@@ -1,6 +1,8 @@
 //! One collection: the interface every item implements and its items in order.
 
+pub(crate) mod band_existence;
 pub(crate) mod existence_probe;
+pub(crate) mod group_keys;
 pub(crate) mod interface;
 pub(crate) mod keyed_select;
 pub(crate) mod ordered_existence;

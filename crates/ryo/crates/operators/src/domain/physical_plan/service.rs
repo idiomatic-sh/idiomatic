@@ -24,6 +24,10 @@ use ryo_values::domain::plan_parts::types::{InputNumber, RepeatedRows};
 pub(crate) const REWRITES: &[&dyn RewritesItem] = &[
     &crate::domain::physical_plan::collections::rewrites::keyed_select::item::KeyedSelectItem,
     &crate::domain::physical_plan::collections::rewrites::ordered_existence::item::OrderedExistenceItem,
+    // Spike (ryo-fmx3): band semi matches in place of pairs formed and filtered.
+    &crate::domain::physical_plan::collections::rewrites::band_existence::item::BandExistenceItem,
+    // Spike (ryo-fmx3): a distinct projection of a group's keys reads the group's source.
+    &crate::domain::physical_plan::collections::rewrites::group_keys::item::GroupKeysItem,
     &crate::domain::physical_plan::collections::rewrites::existence_probe::item::ExistenceProbeItem,
     &crate::domain::physical_plan::collections::rewrites::tree_probe::item::TreeProbeItem,
 ];

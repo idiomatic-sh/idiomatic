@@ -203,9 +203,22 @@ pub(crate) fn kernels(
                 output,
             );
         }
-        Lowering::OrderedMatch { ordered, .. } => {
+        Lowering::OrderedMatch {
+            ordered,
+            left: left_source,
+            right: right_source,
+        } => {
             let right = other.ok_or(PortableOperatorFault::WrongOperation)?;
-            if let Err(fault) = matched(ordered, input, right, run.resources.texts(), output) {
+            buffers.pools.rows.refilled(&mut buffers.repeats);
+            if let Err(fault) = matched(
+                ordered,
+                input,
+                right,
+                run.resources.texts(),
+                left_source == right_source,
+                &mut buffers.repeats,
+                output,
+            ) {
                 return Ok(Some(fault));
             }
         }
