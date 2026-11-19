@@ -203,6 +203,7 @@ pub(crate) fn lowered(
                 filter,
                 bindings,
             ),
+            edge_index: None,
         }),
         Operation::GroupDigest { keys, over, .. } => first.map(|source| Lowering::Group {
             source,

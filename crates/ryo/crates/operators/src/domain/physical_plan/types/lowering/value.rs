@@ -86,6 +86,8 @@ pub(crate) enum Lowering {
         graph: ReachParts,
         /// The join over the reached rows.
         join: SeededJoin,
+        /// Spike (ryo-fmx3): the file's shared index of the edges, when other walks key the same facts the same way.
+        edge_index: Option<crate::domain::physical_plan::types::shared_index::value::IndexReader>,
     },
     /// `directed_walk`: from each start row, the entities a walk over the edges reaches in a direction that the domain
     /// admits.

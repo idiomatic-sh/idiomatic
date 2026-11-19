@@ -62,7 +62,9 @@ pub(crate) fn shared_indexes(
                 .map(|node| &mut node.lowering)
             {
                 Some(Lowering::Probe { index, .. }) => *index = ProbeIndex::Shared(reader.place),
-                Some(Lowering::Axis { edge_index, .. }) => *edge_index = Some(reader),
+                Some(
+                    Lowering::Axis { edge_index, .. } | Lowering::SeededReach { edge_index, .. },
+                ) => *edge_index = Some(reader),
                 _ => {}
             }
         }
@@ -111,6 +113,15 @@ fn reader_key(lowering: &Lowering, scope: Option<StepScope>) -> Option<IndexIden
                 key: IndexKey::Cells(vec![crate::domain::axis::service::keyed_columns(axis).from]),
             })
         }
+        // Spike (ryo-fmx3): a seeded walk over facts keys them by partition and source, as an axis keys them by its near end.
+        Lowering::SeededReach {
+            edges: edges @ RowSource::Facts(_),
+            graph,
+            ..
+        } if scope == Some(StepScope::PerFile) => Some(IndexIdentity {
+            source: *edges,
+            key: IndexKey::Cells(graph.keys.iter().copied().chain([graph.source]).collect()),
+        }),
         _ => None,
     }
 }

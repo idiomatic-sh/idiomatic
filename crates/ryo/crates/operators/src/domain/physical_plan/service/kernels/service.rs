@@ -97,7 +97,14 @@ pub(crate) fn kernels(
                 .decisions
                 .get_mut(place)
                 .ok_or(PortableOperatorFault::WrongOperation)?;
-            buffers.pools.keyed.refilled(&mut buffers.index);
+            // Spike (ryo-fmx3): a seeded walk over facts reads the file's shared index of its edges.
+            let shared = match lowering {
+                Lowering::SeededReach { edge_index, .. } => *edge_index,
+                _ => None,
+            };
+            if shared.is_none() {
+                buffers.pools.keyed.refilled(&mut buffers.index);
+            }
             buffers.pools.rows.refilled(&mut buffers.repeats);
             // The seeded join's own index, right rows and key columns, for this run.
             if let Lowering::SeededReach { join, .. } = lowering {
@@ -106,8 +113,20 @@ pub(crate) fn kernels(
                     .readied(IndexKind::of_probe(&join.probe.key), &mut buffers.pools);
             }
             let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
+            let storage = match shared {
+                Some(reader) => KeyedStorage::File {
+                    indexes: &mut buffers.shared,
+                    pools: &mut buffers.pools,
+                    reader,
+                },
+                None => KeyedStorage::Own(&mut buffers.index),
+            };
             let scratch = ReachScratch {
-                index: &mut buffers.index,
+                index: KeyedAccess {
+                    storage,
+                    #[cfg(test)]
+                    builds: &mut buffers.builds,
+                },
                 walk: &mut buffers.walk,
                 probe: ProbeScratch {
                     index: &mut buffers.second,
@@ -121,7 +140,11 @@ pub(crate) fn kernels(
                     found: &mut buffers.found,
                 },
             };
-            return reached(graph, edges, starts, run, scratch, output);
+            let answer = reached(graph, edges, starts, run, scratch, output);
+            if let Some(reader) = shared {
+                closed(buffers, reader.place);
+            }
+            return answer;
         }
         Lowering::Axis {
             axis, edge_index, ..
