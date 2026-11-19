@@ -51,6 +51,8 @@ pub(crate) struct FilePartitions {
     pub(crate) rows: Vec<u32>,
     /// A row read from the rows, for a sibling's first comparison.
     scratch: Vec<Value>,
+    /// The file whose partitions `files` holds; an earlier file's are released at the next file's first partition.
+    stamp: u32,
 }
 
 /// Which rows `rows` are: where they live and how many, so a partition made of one source is never read for another.
@@ -240,7 +242,16 @@ fn answered(
     stamp: u32,
     listed: bool,
 ) -> Option<bool> {
-    let FilePartitions { files, rows: list, scratch } = partitions;
+    let FilePartitions { files, rows: list, scratch, stamp: held } = partitions;
+    if *held != stamp {
+        // The open file's first partition: the earlier file's rows are released, so a partition holds only the open
+        // file's rows, never the room of the largest file it met.
+        for file in files.iter_mut() {
+            *file = PartitionFile::default();
+        }
+        *list = Vec::new();
+        *held = stamp;
+    }
     if !ensured(plan, place, rows, &texts, files, stamp) {
         return None;
     }

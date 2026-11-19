@@ -69,8 +69,9 @@ pub(in crate::domain::physical_plan::service::run) fn streamed(
             marked_empty(plan, buffers, tail, origin);
             return Ok(());
         }
-        // Spike (ryo-fmx3): a partitioned sibling at the chain's head whose bucket and the shared rest hold no row holds none,
-        // so neither does the chain: the head is marked empty, as having emptied itself, and the tail after it, no row read.
+        // Spike (ryo-fmx3): a partitioned sibling at the chain's head whose bucket and rest groups hold no row holds none, so
+        // neither does the chain: the head is marked empty, as having emptied itself, and the tail after it, no row read. The
+        // head becomes the tail's killer, which a later file answers from the partition (`base_rows`), never by making it.
         if crate::spike::fanout()
             && crate::domain::physical_plan::collections::kernels::partition::item::sibling_rows(plan, run, at, source, buffers, false)
                 == Some(true)

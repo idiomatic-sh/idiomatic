@@ -105,13 +105,17 @@ pub(crate) fn base_rows(
             Some(false)
         }
         // Spike (ryo-fmx3): a partitioned sibling over a node the open file holds reads only its bucket and the rest, so a
-        // killer that is one is answered without making it (a made killer that streams would be held for its reader).
+        // killer that is one is answered without making it (a made killer that streams would be held for its reader). Over a
+        // node not made yet it is not made only to be asked: it answers as guarding nothing, and the reader runs as it would.
         RowSource::Node(read) => {
             if !crate::spike::fanout() || plan.partitions.of(node).is_none() {
                 return None;
             }
             let at = usize::try_from(read.0).ok()?;
-            let width = buffers.nodes.get(at)?.as_ref()?.kinds.len();
+            let Some(Some(held)) = buffers.nodes.get(at) else {
+                return Some(true);
+            };
+            let width = held.kinds.len();
             let select = select?;
             if !kept_in(kept, width) {
                 return None;
