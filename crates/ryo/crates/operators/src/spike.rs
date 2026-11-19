@@ -47,6 +47,12 @@ pub fn entity_off() -> bool {
     *OFF.get_or_init(|| std::env::var_os("RYO_NO_ENTITY").is_some())
 }
 
+/// Spike (ryo-fmx3): whether the leaf guards are switched off, set once from `RYO_NO_GUARDS` (read once, not per node run).
+pub fn guards_off() -> bool {
+    static OFF: OnceLock<bool> = OnceLock::new();
+    *OFF.get_or_init(|| std::env::var_os("RYO_NO_GUARDS").is_some())
+}
+
 /// Whether the recorder is on.
 pub fn on() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();

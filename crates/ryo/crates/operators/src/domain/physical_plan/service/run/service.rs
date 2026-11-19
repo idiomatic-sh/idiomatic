@@ -224,7 +224,7 @@ fn guarded_empty(
     node: PlanNodeId,
     buffers: &mut FileBuffers,
 ) -> bool {
-    if !lazy() || std::env::var_os("RYO_NO_GUARDS").is_some() {
+    if !lazy() || crate::spike::guards_off() {
         return false;
     }
     let Some(guards) = plan
