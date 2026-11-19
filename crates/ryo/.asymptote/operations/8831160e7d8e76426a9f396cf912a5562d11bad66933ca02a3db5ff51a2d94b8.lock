@@ -1,0 +1,30 @@
+version = 1
+parents = ["49143fc9bb260d99217719f4dfb216f2bfe83bec10eabf1d6d0f97a4170bd856"]
+
+[[perf]]
+reasons = ["bench-per-language seed: the bench group's first run at 8d683dc73 (claude/int-batch, ryo-b1gq.66), local, taskset 0-3"]
+records = [
+  { tool = "bench/python/ruff", benchmark = "python/django", measure = "edited-peak-rss-bytes", best = 727920640.0 },
+  { tool = "bench/python/ruff", benchmark = "python/django", measure = "peak-rss-bytes", best = 2064744448.0 },
+  { tool = "bench/python/ruff", benchmark = "python/django", measure = "warm-peak-rss-bytes", best = 373641216.0 },
+  { tool = "bench/python/ruff", benchmark = "python/fastapi", measure = "edited-peak-rss-bytes", best = 669478912.0 },
+  { tool = "bench/python/ruff", benchmark = "python/fastapi", measure = "peak-rss-bytes", best = 1080733696.0 },
+  { tool = "bench/python/ruff", benchmark = "python/fastapi", measure = "warm-peak-rss-bytes", best = 289816576.0 },
+  { tool = "bench/python/ruff", benchmark = "python/pandas", measure = "edited-peak-rss-bytes", best = 805285888.0 },
+  { tool = "bench/python/ruff", benchmark = "python/pandas", measure = "peak-rss-bytes", best = 2534547456.0 },
+  { tool = "bench/python/ruff", benchmark = "python/pandas", measure = "warm-peak-rss-bytes", best = 327786496.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/clap", measure = "edited-peak-rss-bytes", best = 46387200.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/clap", measure = "warm-peak-rss-bytes", best = 38342656.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/ripgrep", measure = "edited-peak-rss-bytes", best = 50900992.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/ripgrep", measure = "peak-rss-bytes", best = 252268544.0 },
+  { tool = "bench/rust/clippy", benchmark = "rust/ripgrep", measure = "warm-peak-rss-bytes", best = 37703680.0 },
+  { tool = "bench/typescript/oxlint", benchmark = "typescript/vite", measure = "warm-peak-rss-bytes", best = 50053120.0 },
+]
+
+[[perf]]
+reasons = ["bench-per-language seed: the bench group's first run at 8d683dc73 (claude/int-batch, ryo-b1gq.66), local, taskset 0-3", "seed on ubuntu-26.04"]
+records = [
+  { tool = "bench/python/ruff", benchmark = "python/django", measure = "store-bytes", best = 68942512.0 },
+  { tool = "bench/python/ruff", benchmark = "python/fastapi", measure = "store-bytes", best = 26107537.0 },
+  { tool = "bench/python/ruff", benchmark = "python/pandas", measure = "store-bytes", best = 44889165.0 },
+]
