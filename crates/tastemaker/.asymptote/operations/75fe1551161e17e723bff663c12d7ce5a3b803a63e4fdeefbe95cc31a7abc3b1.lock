@@ -1,0 +1,6 @@
+version = 1
+parents = ["2bde3c11c2ad268365455b180adb653bdda0393ece1479499cfb2a10516b809a"]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/no-language-names", path = "cli/src/outcome/remedy.rs", level = "error", fingerprint = "512758e4898968a2" },
+]

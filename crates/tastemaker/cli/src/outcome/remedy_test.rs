@@ -52,7 +52,7 @@ fn another_tastemaker_than_the_root_names_refuses_with_the_version_to_install() 
     };
     let said = error.next().to_string();
     assert!(
-        said.contains("install tastemaker 9.9.9") && said.contains("tools/install.py"),
+        said.contains("install tastemaker 9.9.9") && said.contains("uv run --script"),
         "{said}"
     );
 }
