@@ -142,6 +142,9 @@ pub(crate) fn run_rules(
     at.answers.resize_with(program.rule_count().0, Vec::new);
     let mut live = std::mem::take(&mut scratch.live);
     unread_unrun(&mut at, intents, &mut live);
+    // Spike (ryo-8y7q): each node's last rule turn, found once for the program, for releasing nodes at their last turn.
+    let turns = pass.turns.get_or_init(|| last_turns(pass, program.rule_order()));
+    at.buffers.set_turns(turns);
     let CaptureContext {
         worker,
         arena: Arena(arena),
@@ -150,7 +153,10 @@ pub(crate) fn run_rules(
     } = capture;
     let ran = (|| {
         let mut rules = Vec::new();
+        let mut turn = 0u32;
         for rule in program.rule_order() {
+            turn += 1;
+            at.buffers.turn_begins(turn);
             let Some(FileRuleIntent::Run {
                 diagnostic,
                 observations,
@@ -158,6 +164,7 @@ pub(crate) fn run_rules(
             }) = intents.get(rule.0).copied()
             else {
                 rule_done(&mut at, rule);
+                at.buffers.turn_ended(turn);
                 continue;
             };
             let emits = diagnostic != DiagnosticDelivery::Disabled;
@@ -212,6 +219,7 @@ pub(crate) fn run_rules(
                 return (rules, FileEnd::Unfinished);
             }
             rule_done(&mut at, rule);
+            at.buffers.turn_ended(turn);
         }
         let readiness = finished_readiness(&at);
         released(&mut at);
@@ -382,4 +390,49 @@ pub(crate) fn finished_readiness(at: &PassFile<'_, '_, '_, '_>) -> FinishedReadi
         }
     }
     FinishedReadiness::Observed(Arc::new(map))
+}
+
+/// Spike (ryo-8y7q): by node, the last rule turn (from one, in `order`) whose rule can ask for it in a file: the rule's steps,
+/// emitted node and engine uses on either route, and every node they read.
+fn last_turns(
+    pass: &PassProgram,
+    order: impl IntoIterator<Item = RuleIndex>,
+) -> std::sync::Arc<[u32]> {
+    use ryo_execution_domain::domain::executable_program::service::{engine_uses, physical, rule};
+    let plan = physical(&pass.program);
+    let mut direct = vec![0u32; plan.node_count().0];
+    let mut mark = |node: ryo_operators::domain::physical_plan::types::PlanNodeId, turn: u32| {
+        if let Some(slot) = direct.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
+            *slot = (*slot).max(turn);
+        }
+    };
+    for (place, index) in order.into_iter().enumerate() {
+        let turn = u32::try_from(place + 1).unwrap_or(u32::MAX);
+        let mut routes = Vec::new();
+        if let Ok(nodes) = rule(&pass.program, index) {
+            routes.push(nodes);
+        }
+        let route = pass
+            .conditional
+            .as_ref()
+            .and_then(|selection| selection.routes.rules.get(index.0))
+            .and_then(Option::as_ref);
+        if let Some(route) = route {
+            routes.push(&route.nodes);
+            for node in &route.uses {
+                mark(*node, turn);
+            }
+        }
+        for nodes in routes {
+            for node in nodes.steps.iter().chain(std::iter::once(&nodes.emit)).flatten() {
+                mark(*node, turn);
+            }
+        }
+        if let Ok(uses) = engine_uses(&pass.program, index) {
+            for node in uses {
+                mark(*node, turn);
+            }
+        }
+    }
+    ryo_operators::domain::physical_plan::service::last_turns(plan, direct).into()
 }

@@ -13,7 +13,7 @@ use crate::domain::physical_plan::types::shared_index::value::IndexRows;
 use crate::domain::physical_plan::types::worker_meters::value::{
     ChunkMeter, EndWork, IndexBuilds, TableMeter,
 };
-use crate::domain::physical_plan::types::{EngineUses, NodeFed, NodeReaders, NodeRows, PlanNodeId, RowSource};
+use crate::domain::physical_plan::types::{EngineUses, NodeFed, NodeReaders, NodeRows, PlanNodeId};
 use crate::domain::table_scratch::types::{LazyScratch, MemoTable, SelectScratch};
 use ryo_relations::domain::relations::types::{NodeId, Value};
 
@@ -117,11 +117,12 @@ pub struct FileBuffers {
     /// Spike (ryo-fmx3): the plan these buffers were last grown for (its address, node count and index count), so `sized` costs
     /// one comparison once the buffers fit.
     pub(crate) sized_for: (usize, usize, usize),
-    /// Spike (ryo-8y7q): by node, the file (by `generation`, plus one) in which its reads of its inputs were counted done
-    /// without it reading them: it was marked empty, answered without its inputs, or every consumer of it was done first.
-    pub(crate) reads_settled: Vec<u32>,
-    /// Spike (ryo-8y7q): the nodes whose reads are still to count done, the work list of `reads_skipped`.
-    pub(crate) skip_work: Vec<u32>,
+    /// Spike (ryo-8y7q): by node, the last rule turn that can ask for it in a file (`last_turns`); none outside a file pass.
+    pub(crate) turns: Option<std::sync::Arc<[u32]>>,
+    /// Spike (ryo-8y7q): the rule turn the open file is in, from one; zero before the first.
+    pub(crate) turn: u32,
+    /// Spike (ryo-8y7q): by turn, the nodes held in the open file whose last turn that is: released when it ends.
+    pub(crate) turn_holds: Vec<Vec<u32>>,
 }
 
 /// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.
@@ -267,15 +268,7 @@ impl FileBuffers {
         }
         // A node not made yet counts the use when it is made.
         if self.nodes.get(at).is_none_or(Option::is_none) {
-            self.done.engine_done(plan, node);
-            // Spike (ryo-8y7q): a node no consumer still asks for is never made: its own reads are done now.
-            if crate::domain::physical_plan::service::run::service::known(self, node.0)
-                == crate::domain::physical_plan::service::run::service::Known::Unmade
-                && self.done.all_done(plan, node)
-            {
-                self.reads_skipped(plan, node);
-            }
-            return;
+            return self.done.engine_done(plan, node);
         }
         let Some(left) = self.engine_left.get_mut(at) else {
             return;
@@ -298,88 +291,6 @@ impl FileBuffers {
     /// ```
     pub fn unread(&mut self, plan: &PhysicalPlan, node: PlanNodeId) {
         self.done.unread(plan, node);
-    }
-
-    /// Spike (ryo-8y7q): `node` will not read its inputs in the open file (it was marked empty, answered without them, or
-    /// no consumer asks for it any more): each read it makes of an earlier node is done now, once. An input made in the file
-    /// goes when that was its last consumer; one not made counts it, and when no consumer of it is left either, it will not
-    /// be made, so its own reads are done in turn.
-    pub(crate) fn reads_skipped(&mut self, plan: &PhysicalPlan, node: PlanNodeId) {
-        use crate::domain::physical_plan::service::run::service::{Known, known};
-        if !crate::spike::lazy() || crate::spike::release_off() {
-            return;
-        }
-        if self.reads_settled.len() < plan.nodes.len() {
-            self.reads_settled.resize(plan.nodes.len(), 0);
-        }
-        let stamp = self.generation.wrapping_add(1);
-        let mut work = std::mem::take(&mut self.skip_work);
-        work.clear();
-        work.push(node.0);
-        while let Some(next) = work.pop() {
-            let at = usize::try_from(next).unwrap_or(usize::MAX);
-            match self.reads_settled.get_mut(at) {
-                Some(settled) if *settled != stamp => *settled = stamp,
-                _ => continue,
-            }
-            let Some(physical) = plan.nodes.get(at) else {
-                continue;
-            };
-            // A node no node reads and no engine use keeps was rewritten away: its sources do not count its reads.
-            if physical.readers == NodeReaders(0) && physical.engine == EngineUses(0) {
-                continue;
-            }
-            for source in physical.lowering.sources() {
-                let RowSource::Node(read) = source else {
-                    continue;
-                };
-                let place = usize::try_from(read.0).unwrap_or(usize::MAX);
-                let held = self.nodes.get(place).is_some_and(Option::is_some);
-                let state = known(self, read.0);
-                if state == Known::Full || held {
-                    // Made in the file (held, or taken by a reader now): one reader fewer; the last one releases it.
-                    let left = self.remaining.get_mut(place).map_or(0, |left| {
-                        left.0 = left.0.saturating_sub(1);
-                        left.0
-                    });
-                    if held && left == 0 && self.engine_left.get(place).is_none_or(|uses| uses.0 == 0) {
-                        self.release(read);
-                    }
-                } else {
-                    self.done.reader_done(plan, read);
-                    if state == Known::Unmade && self.done.all_done(plan, read) {
-                        work.push(read.0);
-                    }
-                }
-            }
-        }
-        self.skip_work = work;
-    }
-
-    /// Spike (ryo-8y7q): whether `node`'s reads were counted done in the open file without it reading them.
-    pub(crate) fn reads_settled(&self, node: u32) -> bool {
-        self.reads_settled.get(usize::try_from(node).unwrap_or(usize::MAX))
-            == Some(&self.generation.wrapping_add(1))
-    }
-
-    /// Spike (ryo-8y7q): `node` was made only to be looked at (a guard, a killer): when no consumer of it is left, it goes.
-    pub(crate) fn release_if_idle(&mut self, plan: &PhysicalPlan, node: PlanNodeId) {
-        if crate::spike::release_off() {
-            return;
-        }
-        let at = usize::try_from(node.0).unwrap_or(usize::MAX);
-        let Some(physical) = plan.nodes.get(at) else {
-            return;
-        };
-        if physical.readers == NodeReaders(0) && physical.engine == EngineUses(0) {
-            return;
-        }
-        if self.nodes.get(at).is_some_and(Option::is_some)
-            && self.remaining.get(at).is_none_or(|left| left.0 == 0)
-            && self.engine_left.get(at).is_none_or(|uses| uses.0 == 0)
-        {
-            self.release(node);
-        }
     }
 
     /// A node that holds no row takes `kinds` as its columns; a node with rows, or with none made, is left as it is. This is the
@@ -434,6 +345,9 @@ impl FileBuffers {
             && let Some(held) = self.nodes.get_mut(at)
         {
             if let Some(table) = held.take() {
+                if crate::spike::memstats() {
+                    crate::spike::tables_held(-((table.cells.capacity() * size_of::<Value>()) as i64));
+                }
                 #[cfg(test)]
                 self.meter.dropped(table.count);
                 self.pool.pooled(table, PoolSize(POOL_TABLES));
@@ -450,6 +364,60 @@ impl FileBuffers {
         }
         // Made or not, the node keeps nothing it was done with into the next file.
         self.done.forgotten(node);
+    }
+
+    /// Spike (ryo-8y7q): each node's last rule turn in a file, for the file pass that runs its rules in turns.
+    pub fn set_turns(&mut self, turns: &std::sync::Arc<[u32]>) {
+        if crate::spike::turns_off() || !crate::spike::lazy() {
+            return;
+        }
+        if self.turns.as_ref().is_none_or(|held| !std::sync::Arc::ptr_eq(held, turns)) {
+            self.turns = Some(std::sync::Arc::clone(turns));
+        }
+        self.turn = 0;
+    }
+
+    /// Spike (ryo-8y7q): the open file starts rule turn `turn` (from one).
+    pub fn turn_begins(&mut self, turn: u32) {
+        self.turn = turn;
+    }
+
+    /// Spike (ryo-8y7q): rule turn `turn` ended: no later turn asks for a node whose last turn it is, so each such node held
+    /// goes now, unless the engine still keeps it.
+    pub fn turn_ended(&mut self, turn: u32) {
+        let Some(list) = self.turn_holds.get_mut(turn as usize) else {
+            return;
+        };
+        let mut list = std::mem::take(list);
+        for node in list.drain(..) {
+            let at = node as usize;
+            if self.nodes.get(at).is_some_and(Option::is_some)
+                && self.engine_left.get(at).is_none_or(|uses| uses.0 == 0)
+            {
+                self.release(PlanNodeId(node));
+            }
+        }
+        if let Some(slot) = self.turn_holds.get_mut(turn as usize) {
+            *slot = list;
+        }
+    }
+
+    /// Spike (ryo-8y7q): `node` is held now: it goes when its last turn ends (or this one, when that is past).
+    pub(crate) fn held_until_turn(&mut self, node: u32) {
+        let Some(turns) = &self.turns else {
+            return;
+        };
+        let last = turns.get(node as usize).copied().unwrap_or(0);
+        if last == 0 || self.turn == 0 {
+            return;
+        }
+        let at = last.max(self.turn) as usize;
+        if self.turn_holds.len() <= at {
+            self.turn_holds.resize_with(turns.iter().copied().max().unwrap_or(0) as usize + 1, Vec::new);
+        }
+        if let Some(list) = self.turn_holds.get_mut(at) {
+            list.push(node);
+        }
     }
 }
 
@@ -501,6 +469,11 @@ impl FileBuffers {
             }
         }
         self.touched.given_back(touched);
+        // Spike (ryo-8y7q): the turns of the next file start empty.
+        for list in &mut self.turn_holds {
+            list.clear();
+        }
+        self.turn = 0;
         self.done.file_ended();
         #[cfg(test)]
         {

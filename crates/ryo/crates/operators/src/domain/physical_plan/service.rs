@@ -334,6 +334,37 @@ pub fn bind_requested_entity_sources<'a>(
         .bind(&plan.entity_queries, texts, read);
 }
 
+/// Spike (ryo-8y7q): by node, the last rule turn (its place in the rule order, from one) in which the open file can ask for
+/// it: the latest of the turns of the rules whose steps it is (`direct`, zero for none) and of the nodes that read it. Zero for
+/// a node no rule asks for.
+#[must_use]
+pub fn last_turns(plan: &crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan, mut direct: Vec<u32>) -> Vec<u32> {
+    direct.resize(plan.nodes.len(), 0);
+    // A node reads earlier nodes, so one pass from the last node settles all; a few more catch any that does not.
+    for _ in 0..4 {
+        let mut changed = false;
+        for at in (0..plan.nodes.len()).rev() {
+            let turn = direct[at];
+            if turn == 0 {
+                continue;
+            }
+            for source in plan.nodes[at].lowering.sources() {
+                if let RowSource::Node(read) = source
+                    && let Some(below) = direct.get_mut(read.0 as usize)
+                    && *below < turn
+                {
+                    *below = turn;
+                    changed |= (read.0 as usize) > at;
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    direct
+}
+
 /// Spike (ryo-fmx3): by node, the cheap leaves that must hold a row for the node to hold one, in node order, at most
 /// `GUARDS` of them.
 fn guards(nodes: &[PhysicalNode]) -> Vec<Box<[u32]>> {

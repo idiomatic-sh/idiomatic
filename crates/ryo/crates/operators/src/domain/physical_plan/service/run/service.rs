@@ -250,13 +250,9 @@ fn killed(
                 return Some(killer);
             }
             None => {
-                // Spike (ryo-8y7q): a killer whose reads were counted done is never made (its inputs may be gone).
-                if buffers.reads_settled(killer)
-                    || materialize(plan, run, PlanNodeId(killer), buffers).is_err()
-                {
+                if materialize(plan, run, PlanNodeId(killer), buffers).is_err() {
                     return None;
                 }
-                buffers.release_if_idle(plan, PlanNodeId(killer));
             }
         }
     }
@@ -284,8 +280,6 @@ pub(crate) fn marked_empty(
         *known = 0;
     }
     crate::spike::skip(node.0);
-    // Spike (ryo-8y7q): a node marked empty reads none of its inputs.
-    buffers.reads_skipped(plan, node);
 }
 
 /// Runs `node`'s kernels and holds its rows and pending fault: a streaming stage through the chain of streamed stages that
@@ -310,8 +304,6 @@ fn materialize(
     } else if let Some(table) = super::entity_queries::service::answer(plan, node, buffers) {
         sized(plan, buffers);
         hold(plan, buffers, node, table, None);
-        // Spike (ryo-8y7q): a node the entity queries answered reads none of its inputs.
-        buffers.reads_skipped(plan, node);
         Ok(())
     } else {
         kernels_of(plan, run, node, buffers)
@@ -373,8 +365,6 @@ fn guarded_empty(
         if materialize(plan, run, PlanNodeId(*guard), buffers).is_err() {
             continue;
         }
-        // Spike (ryo-8y7q): a guard no consumer still waits for goes once looked at.
-        buffers.release_if_idle(plan, PlanNodeId(*guard));
         if known(buffers, *guard) == Known::Empty {
             return Some(*guard);
         }

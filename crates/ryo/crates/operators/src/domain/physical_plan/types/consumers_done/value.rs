@@ -92,15 +92,6 @@ impl ConsumersDone {
         }
     }
 
-    /// Spike (ryo-8y7q): whether every reader and engine use of `node`, not made, is done in the open file.
-    pub(crate) fn all_done(&self, plan: &PhysicalPlan, node: PlanNodeId) -> bool {
-        let Some(physical) = plan.nodes.get(usize::try_from(node.0).unwrap_or(usize::MAX)) else {
-            return false;
-        };
-        let done = self.of(node);
-        done.readers.0 >= physical.readers.0 && done.engine.0 >= physical.engine.0
-    }
-
     /// The readers still to come of `node`, made now, of its plan's `readers`.
     pub(crate) fn readers_left(&self, node: PlanNodeId, readers: NodeReaders) -> NodeReaders {
         NodeReaders(readers.0.saturating_sub(self.of(node).readers.0))

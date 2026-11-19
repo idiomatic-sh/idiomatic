@@ -68,6 +68,9 @@ pub(crate) fn give_back(
             *pending = taken.pending;
         }
     } else {
+        if crate::spike::memstats() {
+            crate::spike::tables_held(-((taken.rows.cells.capacity() * size_of::<ryo_relations::domain::relations::types::Value>()) as i64));
+        }
         #[cfg(test)]
         buffers.meter.dropped(taken.rows.count);
         buffers.pool.pooled(taken.rows, PoolSize(POOL_TABLES));
@@ -90,6 +93,13 @@ pub(crate) fn hold(
         crate::domain::physical_plan::types::node_counters::value::MadeIn::OpenSpan,
         rows.count,
     );
+    // Spike (ryo-8y7q): a node made again in the same file was released too early: counted for the memory counters.
+    if crate::spike::memstats() && buffers.known_full.get(place) == Some(&buffers.generation.wrapping_add(1)) {
+        let last = buffers.turns.as_ref().and_then(|turns| turns.get(place).copied()).unwrap_or(0);
+        crate::spike::remade(node.0, buffers.turn, last);
+    }
+    // Spike (ryo-8y7q): the node goes when its last rule turn ends.
+    buffers.held_until_turn(node.0);
     // Spike (ryo-fmx3): what the open file knows of the node, kept past its release.
     let stamp = buffers.generation.wrapping_add(1);
     let empty = rows.count.0 == 0 && pending.is_none();
@@ -107,6 +117,10 @@ pub(crate) fn hold(
         *known = if empty { 0 } else { stamp };
     }
     if let Some(held) = buffers.nodes.get_mut(place) {
+        if crate::spike::memstats() {
+            let gone = held.as_ref().map_or(0, |old| old.cells.capacity());
+            crate::spike::tables_held(((rows.cells.capacity() as i64) - (gone as i64)) * (size_of::<ryo_relations::domain::relations::types::Value>() as i64));
+        }
         #[cfg(test)]
         buffers.meter.formed(rows.count);
         *held = Some(rows);

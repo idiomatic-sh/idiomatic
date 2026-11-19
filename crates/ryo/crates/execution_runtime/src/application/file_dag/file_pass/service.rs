@@ -259,6 +259,7 @@ pub(crate) fn conditioned_pass(
         reads,
         scratch: Mutex::new(Vec::new()),
         ids: ids.clone().into_boxed_slice(),
+        turns: std::sync::OnceLock::new(),
         hosted_steps: plans
             .iter()
             .map(|plan| {

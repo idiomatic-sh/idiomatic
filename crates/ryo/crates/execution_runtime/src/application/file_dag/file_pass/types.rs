@@ -57,6 +57,8 @@ pub(crate) struct PassProgram {
     pub(crate) ids: Box<[ryo_values::domain::runs::types::RuleId]>,
     /// Spike (ryo-fmx3): the host relations each rule's steps in a file read, in rule order, found once for the program.
     pub(crate) hosted_steps: Box<[Box<[ryo_values::domain::plan_parts::types::HostedNumber]>]>,
+    /// Spike (ryo-8y7q): by node, the last rule turn in a file that can ask for it, found at the first file.
+    pub(crate) turns: std::sync::OnceLock<std::sync::Arc<[u32]>>,
 }
 
 /// What one file's run fills and gives back to the request for the next file: the nodes' rows, the tree nodes each node starts
