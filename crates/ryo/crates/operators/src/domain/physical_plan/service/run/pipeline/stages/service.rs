@@ -42,7 +42,7 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 /// # Errors
 ///
 /// A stage's shape fault: a kept, projected or answered column past its input rows.
-pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
+pub(in crate::domain::physical_plan::service::run) fn stage_prepared(
     run: &mut KernelRun<'_>,
     buffers: &mut FileBuffers,
     stage: ChainStage<'_>,
@@ -155,7 +155,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_prepared(
     clippy::too_many_arguments,
     reason = "one chunk of one stage: the run, the buffers, the stage, its rows, its own state, its right rows, its rows, its bound"
 )]
-pub(in crate::domain::physical_plan::service::run::pipeline) fn stage_chunk(
+pub(in crate::domain::physical_plan::service::run) fn stage_chunk(
     run: &mut KernelRun<'_>,
     buffers: &mut FileBuffers,
     stage: ChainStage<'_>,

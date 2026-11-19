@@ -188,7 +188,10 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_chunk(
     if stage.fault.is_some() {
         return Ok(());
     }
-    let lowering = &physical(push.plan, *node)?.lowering;
+    let lowering = match push.bound {
+        Some((bound, lowering)) if bound == *node => lowering,
+        _ => &physical(push.plan, *node)?.lowering,
+    };
     let (head, rights) = (push.head, push.rights);
     let tail = after_nodes.is_empty();
     let bound = CellBound(if tail { usize::MAX } else { STREAM_CHUNK_CELLS });

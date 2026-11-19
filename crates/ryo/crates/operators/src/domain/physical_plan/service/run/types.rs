@@ -111,6 +111,11 @@ pub(crate) struct Push<'p, 'k, 'r> {
     /// The chain's first probe's place, if it has one.
     pub(crate) first_probe:
         Option<crate::domain::physical_plan::types::stream_scratch::value::StagePlace>,
+    /// Spike (ryo-22c7): the head probe's lowering when it reads restricted right rows through an index of its own.
+    pub(crate) bound: Option<(
+        PlanNodeId,
+        &'p crate::domain::physical_plan::types::lowering::value::Lowering,
+    )>,
 }
 
 /// Whether a chain's head stage reads on: not once a stage before the tail stopped with no probe at or before it.

@@ -127,6 +127,7 @@ pub fn leave(rows: usize) {
             stat.nanos = stat.nanos.saturating_add(own);
             stat.runs += 1;
             stat.rows += rows as u64;
+            add_held(rows as u64);
             if rows == 0 {
                 stat.empty += 1;
             }
@@ -165,6 +166,7 @@ pub fn flush() {
         return;
     }
     flush_probes();
+    flush_census();
     LOCAL.with(|local| {
         let mut local = local.borrow_mut();
         if local.touched.is_empty() {
@@ -305,10 +307,13 @@ fn flush_probes() {
 
 /// Writes the totals to the file `RYO_STATS` names, one JSON object per node that ran or was skipped.
 pub fn dump() {
+    bound_report();
     let Some(path) = std::env::var_os("RYO_STATS") else {
         return;
     };
     flush_probes();
+    flush_census();
+    dump_census();
     {
         let probes = GLOBAL_PROBES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let mut text = String::new();
@@ -341,4 +346,191 @@ pub fn dump() {
         ));
     }
     drop(std::fs::write(path, text));
+}
+
+// Spike (ryo-22c7): rows held by the node runs of this thread, for the bound census (recorder only).
+thread_local! {
+    static HELD_ROWS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    static CENSUS_DEPTH: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    static CENSUS: RefCell<Vec<[u64; 8]>> = const { RefCell::new(Vec::new()) };
+}
+static GLOBAL_CENSUS: Mutex<Vec<[u64; 8]>> = Mutex::new(Vec::new());
+
+/// Spike (ryo-22c7): rows held so far by this thread's node runs (recorder only).
+pub fn held_rows() -> u64 {
+    HELD_ROWS.with(std::cell::Cell::get)
+}
+
+/// Spike (ryo-22c7): counts `rows` held by a node run.
+pub fn add_held(rows: u64) {
+    HELD_ROWS.with(|held| held.set(held.get() + rows));
+}
+
+/// Spike (ryo-22c7): a census span starts; answers whether it is the outermost one.
+pub fn census_enter() -> bool {
+    CENSUS_DEPTH.with(|depth| {
+        let outer = depth.get() == 0;
+        if outer {
+            depth.set(1);
+        }
+        outer
+    })
+}
+
+/// Spike (ryo-22c7): a census span ends.
+pub fn census_leave() {
+    CENSUS_DEPTH.with(|depth| depth.set(depth.get().saturating_sub(1)));
+}
+
+/// Spike (ryo-22c7): one probe readied an unmade right side: [requests, left rows, left distinct keys, nanos, rows held,
+/// requests with at most 64 distinct keys, their nanos, their rows held].
+pub fn census(node: u32, left: u64, keys: u64, nanos: u64, rows: u64) {
+    CENSUS.with(|census| {
+        let mut census = census.borrow_mut();
+        let at = node as usize;
+        if census.len() <= at {
+            census.resize(at + 1, [0; 8]);
+        }
+        let slot = &mut census[at];
+        slot[0] += 1;
+        slot[1] += left;
+        slot[2] += keys;
+        slot[3] += nanos;
+        slot[4] += rows;
+        if keys <= 64 {
+            slot[5] += 1;
+            slot[6] += nanos;
+            slot[7] += rows;
+        }
+    });
+}
+
+/// Spike (ryo-22c7): writes the census beside the recorder's file.
+pub fn dump_census() {
+    let Some(path) = std::env::var_os("RYO_STATS") else {
+        return;
+    };
+    let mut global = GLOBAL_CENSUS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut text = String::new();
+    for (node, slot) in global.iter().enumerate() {
+        if slot[0] == 0 {
+            continue;
+        }
+        text.push_str(&format!(
+            "{{\"node\":{node},\"requests\":{},\"left\":{},\"keys\":{},\"nanos\":{},\"rows\":{},\"small\":{},\"small_nanos\":{},\"small_rows\":{}}}\n",
+            slot[0], slot[1], slot[2], slot[3], slot[4], slot[5], slot[6], slot[7]
+        ));
+    }
+    global.clear();
+    let mut census_path = path;
+    census_path.push(".bound");
+    drop(std::fs::write(census_path, text));
+}
+
+fn flush_census() {
+    CENSUS.with(|census| {
+        let mut census = census.borrow_mut();
+        if census.is_empty() {
+            return;
+        }
+        let mut global = GLOBAL_CENSUS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if global.len() < census.len() {
+            global.resize(census.len(), [0; 8]);
+        }
+        for (into, from) in global.iter_mut().zip(census.iter_mut()) {
+            for (a, b) in into.iter_mut().zip(from.iter_mut()) {
+                *a += *b;
+                *b = 0;
+            }
+        }
+    });
+}
+
+/// Spike (ryo-22c7): whether restricted evaluation is on (`RYO_BOUND`, on unless `0`; needs `RYO_LAZY`).
+pub fn bound_on() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| lazy() && std::env::var_os("RYO_BOUND").is_none_or(|value| value != "0"))
+}
+
+/// Spike (ryo-22c7): whether every restricted request is checked against the node made in full (`RYO_BOUND_CHECK`).
+pub fn bound_check() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RYO_BOUND_CHECK").is_some_and(|value| value != "0"))
+}
+
+/// Spike (ryo-22c7): whether restricted evaluation reaches shape `level` (`RYO_BOUND_SHAPES`, default all): 0 row-wise
+/// nodes over relations, 1 probes, 2 distinct and group.
+pub fn bound_shape(level: u32) -> bool {
+    static MOST: OnceLock<u32> = OnceLock::new();
+    level <= *MOST.get_or_init(|| std::env::var("RYO_BOUND_SHAPES").ok().and_then(|value| value.parse().ok()).unwrap_or(9))
+}
+
+static BOUND_NANOS: [std::sync::atomic::AtomicU64; 2] = [std::sync::atomic::AtomicU64::new(0), std::sync::atomic::AtomicU64::new(0)];
+
+/// Spike (ryo-22c7): adds the time since `started` to counter `at`: 0 restricted requests, 1 nodes made in full under them.
+pub fn bound_time(at: usize, started: std::time::Instant) {
+    if let Some(counter) = BOUND_NANOS.get(at) {
+        counter.fetch_add(u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX), std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+static BOUND_SERVED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static BOUND_FELL: Mutex<Vec<(&'static str, u64)>> = Mutex::new(Vec::new());
+
+/// Spike (ryo-22c7): a restricted request was served.
+pub fn bound_served() {
+    BOUND_SERVED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Spike (ryo-22c7): a node under a restricted request was made in full, by its lowering.
+pub fn bound_fell(lowering: &'static str) {
+    let mut fell = BOUND_FELL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    match fell.iter_mut().find(|(name, _)| *name == lowering) {
+        Some((_, count)) => *count += 1,
+        None => fell.push((lowering, 1)),
+    }
+}
+
+/// Spike (ryo-22c7): appends the restricted-evaluation counters to the file `RYO_BOUND_REPORT` names.
+pub fn bound_report() {
+    let Some(path) = std::env::var_os("RYO_BOUND_REPORT") else {
+        return;
+    };
+    let fell = BOUND_FELL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let fell: Vec<String> = fell.iter().map(|(name, count)| format!("\"{name}\":{count}")).collect();
+    let line = format!(
+        "{{\"restricted_requests\":{},\"restricted_s\":{:.2},\"full_under_s\":{:.2},\"fallbacks_by_lowering\":{{{}}}}}\n",
+        BOUND_SERVED.load(std::sync::atomic::Ordering::Relaxed),
+        BOUND_NANOS[0].load(std::sync::atomic::Ordering::Relaxed) as f64 / 1e9,
+        BOUND_NANOS[1].load(std::sync::atomic::Ordering::Relaxed) as f64 / 1e9,
+        fell.join(",")
+    );
+    use std::io::Write;
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        drop(file.write_all(line.as_bytes()));
+    }
+    let mut costs_path = path;
+    costs_path.push(".costs");
+    drop(std::fs::write(costs_path, crate::domain::physical_plan::service::run::bound::service::costs_text()));
+}
+
+/// Spike (ryo-22c7): a restricted-evaluation knob read once from the environment: `RYO_BOUND_KEYS` (most distinct keys,
+/// default 64), `RYO_BOUND_FULL_AT` (the request at which a node is made in full, default 3), `RYO_BOUND_READERS` (most
+/// readers of a node restricted below the top, default unbounded), `RYO_BOUND_TOP_READERS` (most readers of a top node).
+pub fn bound_knob(at: usize) -> usize {
+    static KNOBS: OnceLock<[usize; 8]> = OnceLock::new();
+    let knobs = KNOBS.get_or_init(|| {
+        let read = |name: &str, default: usize| std::env::var(name).ok().and_then(|value| value.parse().ok()).unwrap_or(default);
+        [
+            read("RYO_BOUND_KEYS", 64),
+            read("RYO_BOUND_FULL_AT", 3),
+            read("RYO_BOUND_READERS", usize::MAX),
+            read("RYO_BOUND_TOP_READERS", usize::MAX),
+            read("RYO_BOUND_LEARN", 2),
+            read("RYO_BOUND_RATIO", 80),
+            read("RYO_BOUND_WASTE", 34),
+            read("RYO_BOUND_MODES", 7),
+        ]
+    });
+    knobs.get(at).copied().unwrap_or(usize::MAX)
 }

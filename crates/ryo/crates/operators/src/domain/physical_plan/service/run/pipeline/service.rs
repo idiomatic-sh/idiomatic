@@ -120,6 +120,10 @@ fn chained(
         stage.fault = Some(PortableOperatorFault::NotRun);
     }
     let mut hard = None;
+    // Spike (ryo-22c7): the head probe's right rows restricted to its left's keys, when it reads an unmade node.
+    let mut bound_right: Option<ryo_values::domain::rows::types::Table> = None;
+    // Spike (ryo-22c7): where the restricted rows sit among the right sides: taken out before the chain gives its reads back.
+    let mut bound_place: Option<usize> = None;
     let mut head_rows: Option<ChainRows<'_>> = None;
     let mut rights: Vec<ChainRows<'_>> = Vec::new();
     // The tail's table: one the worker's pool kept, its room reused.
@@ -143,10 +147,77 @@ fn chained(
             ready(plan, run, source, buffers)?;
         }
         let right = right_of(stage.lowering);
-        if let Some(right) = right {
+        // Spike (ryo-22c7): restricted evaluation of the head probe's right side.
+        if at == 0
+            && crate::spike::bound_on()
+            && let Lowering::Probe { probe, index, .. } = stage.lowering
+            && let Some(RowSource::Node(read)) = right
+        {
+            bound_right = crate::domain::physical_plan::service::run::bound::service::bounded(
+                plan, run, *node, probe, *index, source, read, buffers,
+            );
+        }
+        let restricted = bound_right.is_some();
+        let stage = if restricted {
+            ChainStage {
+                node: *node,
+                lowering: crate::domain::physical_plan::service::run::bound::service::own_index(plan, *node, stage.lowering),
+            }
+        } else {
+            stage
+        };
+        if let Some(table) = &bound_right
+            && table.count.0 == 0
+            && matches!(
+                stage.lowering,
+                Lowering::Probe { probe, .. } if matches!(
+                    probe.mode,
+                    crate::domain::equality_join::types::ProbeMode::Inner
+                        | crate::domain::equality_join::types::ProbeMode::Semi
+                )
+            )
+        {
+            if let Some(table) = bound_right.take() {
+                buffers.pool.pooled(table, crate::domain::kept_room::types::PoolSize(crate::domain::kept_room::constants::POOL_TABLES));
+            }
+            buffers.pool.pooled(output, crate::domain::kept_room::types::PoolSize(crate::domain::kept_room::constants::POOL_TABLES));
+            crate::domain::physical_plan::service::run::service::marked_empty(plan, buffers, tail);
+            return Ok(());
+        }
+        if let Some(right) = right.filter(|_| !restricted) {
             for rows in head_rows.iter_mut().chain(rights.iter_mut()) {
                 lent(rows, buffers);
             }
+            // Spike (ryo-22c7): what making an unmade right side in full costs, for the restricted evaluation's choice.
+            let learn = if at == 0
+                && crate::spike::bound_on()
+                && matches!(
+                    stage.lowering,
+                    Lowering::Probe { probe, index, .. } if *index != crate::domain::physical_plan::types::ProbeIndex::Tree && matches!(
+                        probe.mode,
+                        crate::domain::equality_join::types::ProbeMode::Inner
+                            | crate::domain::equality_join::types::ProbeMode::Semi
+                            | crate::domain::equality_join::types::ProbeMode::Anti
+                    )
+                )
+                && let RowSource::Node(read) = right
+                && source != right
+                && buffers.rows(read) == crate::domain::physical_plan::types::NodeRows::Absent
+                && crate::domain::physical_plan::service::run::service::known(buffers, read.0)
+                    == crate::domain::physical_plan::service::run::service::Known::Unmade
+            {
+                Some((read, std::time::Instant::now()))
+            } else {
+                None
+            };
+            let learned = |learn: Option<(PlanNodeId, std::time::Instant)>| {
+                if let Some((read, started)) = learn {
+                    crate::domain::physical_plan::service::run::bound::service::full_cost(
+                        read,
+                        u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+                    );
+                }
+            };
             // Spike (ryo-fmx3): an inner or semi probe at the chain's head over a right side with no row answers no row; the
             // right side is settled before its table is asked for, and nothing is read yet.
             if at == 0
@@ -162,12 +233,50 @@ fn chained(
             {
                 crate::domain::physical_plan::service::run::service::settled(plan, run, right, buffers)?;
                 if crate::domain::physical_plan::service::run::service::held_empty(buffers, right) {
+                    learned(learn);
                     buffers.pool.pooled(output, crate::domain::kept_room::types::PoolSize(crate::domain::kept_room::constants::POOL_TABLES));
                     crate::domain::physical_plan::service::run::service::marked_empty(plan, buffers, tail);
                     return Ok(());
                 }
             }
+            // Spike (ryo-22c7): the bound census: what making an unmade right side costs, by the left's distinct keys.
+            let census = if crate::spike::on()
+                && at == 0
+                && let Lowering::Probe { probe, .. } = stage.lowering
+                && matches!(
+                    probe.mode,
+                    crate::domain::equality_join::types::ProbeMode::Inner
+                        | crate::domain::equality_join::types::ProbeMode::Semi
+                        | crate::domain::equality_join::types::ProbeMode::Anti
+                )
+                && let RowSource::Node(read) = right
+                && buffers.rows(read) == crate::domain::physical_plan::types::NodeRows::Absent
+                && crate::domain::physical_plan::service::run::service::known(buffers, read.0)
+                    == crate::domain::physical_plan::service::run::service::Known::Unmade
+                && crate::spike::census_enter()
+            {
+                let mut keys = Vec::new();
+                let left = crate::domain::physical_plan::service::run::bound::service::left_on(probe);
+                let whole = crate::domain::physical_plan::service::run::bound::service::left_keys(
+                    run, *node, source, left, buffers, 100_000, &mut keys,
+                )
+                .unwrap_or(false);
+                Some((whole.then_some(keys.len() as u64).unwrap_or(u64::MAX), std::time::Instant::now(), crate::spike::held_rows()))
+            } else {
+                None
+            };
             let readied = ready(plan, run, right, buffers);
+            learned(learn);
+            if let Some((keys, started, rows)) = census {
+                crate::spike::census(
+                    node.0,
+                    0,
+                    keys,
+                    u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+                    crate::spike::held_rows().saturating_sub(rows),
+                );
+                crate::spike::census_leave();
+            }
             for rows in head_rows.iter_mut().chain(rights.iter_mut()) {
                 retaken(rows, buffers)?;
             }
@@ -190,6 +299,13 @@ fn chained(
                 |taken| matches!(taken, ChainRows::Node(read, _) if right == RowSource::Node(*read)),
             );
             let rows = match (source, earlier) {
+                _ if bound_right.is_some() => match (bound_right.take(), right) {
+                    (Some(rows), RowSource::Node(read)) => {
+                        bound_place = Some(rights.len());
+                        Ok(ChainRows::Node(read, crate::domain::physical_plan::types::TakenRows { rows, pending: None }))
+                    }
+                    _ => Err(PortableOperatorFault::WrongOperation),
+                },
                 (RowSource::Node(read), _) if right == RowSource::Node(read) => Ok(ChainRows::Head),
                 (_, Some(earlier)) => Ok(ChainRows::Right(RightPlace(earlier))),
                 _ => reading(run, stage, right, buffers),
@@ -232,6 +348,7 @@ fn chained(
         }
     }
     let Some(head_rows) = head_rows else {
+        unbound(buffers, &mut rights, bound_place);
         given_back(buffers, ChainRows::Head, rights);
         closed_all(buffers, stages);
         return Err(hard.map_or(PortableOperatorFault::WrongOperation, |first| first.fault));
@@ -252,11 +369,17 @@ fn chained(
         hard,
         last: StagePlace(length.saturating_sub(1)),
         first_probe,
+        bound: bound_place.and_then(|_| {
+            let head = *nodes.first()?;
+            let lowering = &physical(plan, head).ok()?.lowering;
+            Some((head, crate::domain::physical_plan::service::run::bound::service::own_index(plan, head, lowering)))
+        }),
     };
     let answered = pushed_all(&mut push, nodes, row, head_chunk, stages);
     let hard = push.hard.take();
     closed_all(buffers, stages);
     let pending = pending_of(&head_rows);
+    unbound(buffers, &mut rights, bound_place);
     given_back(buffers, head_rows, rights);
     if let Some(first) = hard {
         return Err(first.fault);
@@ -264,6 +387,23 @@ fn chained(
     let fault = answered?;
     hold(plan, buffers, tail, output, fault.or(pending));
     Ok(())
+}
+
+/// Spike (ryo-22c7): takes the restricted right rows out of the chain's right sides, to the worker's pool, so they are never
+/// given back as their node's rows.
+fn unbound(buffers: &mut FileBuffers, rights: &mut [ChainRows<'_>], place: Option<usize>) {
+    let Some(slot) = place.and_then(|at| rights.get_mut(at)) else {
+        return;
+    };
+    if let ChainRows::Node(read, _) = slot {
+        let read = *read;
+        if let ChainRows::Node(_, taken) = std::mem::replace(slot, ChainRows::Untaken(read)) {
+            buffers.pool.pooled(
+                taken.rows,
+                crate::domain::kept_room::types::PoolSize(crate::domain::kept_room::constants::POOL_TABLES),
+            );
+        }
+    }
 }
 
 /// Closes every shared index a probe of the chain opened.

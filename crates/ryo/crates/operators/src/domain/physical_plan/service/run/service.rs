@@ -54,7 +54,7 @@ pub(crate) fn run(
 }
 
 /// Grows the per-node buffers to the plan's nodes, keeping what they hold.
-fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
+pub(crate) fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
     let count = plan.node_count().0;
     if buffers.nodes.len() < count {
         buffers.nodes.resize_with(count, || None);
@@ -218,7 +218,7 @@ fn materialize(
 
 /// Spike (ryo-fmx3): whether one of the cheap leaves `node` cannot hold a row without holds none in the open file; each
 /// leaf not yet made in this file is made first. A leaf that faults guards nothing.
-fn guarded_empty(
+pub(crate) fn guarded_empty(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
     node: PlanNodeId,
