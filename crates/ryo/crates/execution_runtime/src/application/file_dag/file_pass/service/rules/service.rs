@@ -38,6 +38,7 @@ use ryo_values::domain::plan_parts::types::{Input, StepScope};
 use ryo_values::domain::records::types::{
     ObservationReadinessCount, ObservationReadinessSlot, ProducerReadiness,
 };
+use ryo_values::domain::rows::types::Table;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -149,7 +150,12 @@ pub(crate) fn run_rules(
         words,
     } = capture;
     let ran = (|| {
-        let mut rules = Vec::new();
+        // Spike (ryo-fmx3, host3): room for every rule's record once, not grown rule by rule.
+        let mut rules = if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet) {
+            crate::application::file_dag::program::file_session::service::rule_room(program.rule_count().0)
+        } else {
+            Vec::new()
+        };
         for rule in program.rule_order() {
             let Some(FileRuleIntent::Run {
                 diagnostic,
@@ -173,7 +179,11 @@ pub(crate) fn run_rules(
                     RuleAfter::Stopped(FileStop::Operating(error)),
                 ),
                 (Ok(outcome), None) => {
-                    let emit = if emits {
+                    // Spike (ryo-fmx3, host3): a complete root holding no row delivers nothing: the caller renders no row
+                    // of it and notes nothing, so it is withheld rather than handed over empty.
+                    let quiet = matches!(&outcome, RootOutcome::Complete(table) if table.count.0 == 0)
+                        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet);
+                    let emit = if emits && !quiet {
                         EmittedRoot::Delivered(outcome)
                     } else {
                         EmittedRoot::Withheld
@@ -271,20 +281,45 @@ pub(crate) fn delivered_rule(
     };
     if observations == ObservationDemand::Required {
         let stated = at.request.program.rule_plan(rule)?;
-        let mut states = vec![OutputState::default(); stated.roots.len()];
-        let mut answers = vec![None; stated.roots.len()];
+        // Spike (ryo-fmx3, host3): the rule's outputs are written into the room the last file left, not into new lists.
+        let lean = ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet);
+        let (mut states, mut answers) = if lean {
+            let mut states = at.outputs.get_mut(rule.0).map(std::mem::take).unwrap_or_default();
+            states.clear();
+            states.resize(stated.roots.len(), OutputState::default());
+            let mut answers = at.answers.get_mut(rule.0).map(std::mem::take).unwrap_or_default();
+            answers.clear();
+            answers.resize(stated.roots.len(), None);
+            (states, answers)
+        } else {
+            (
+                vec![OutputState::default(); stated.roots.len()],
+                vec![None; stated.roots.len()],
+            )
+        };
         for (index, root) in stated.roots.iter().enumerate() {
             if root.phase != StepScope::PerFile {
                 continue;
             }
-            let completion =
-                CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
-            let outcome =
-                if completion.observation_admission(&root.reads) == ObservationAdmission::Ready {
+            // Spike (ryo-fmx3, host3): a file read whole admits every output, with no policy made per output.
+            let whole = lean && at.evaluation.is_empty() && at.publication.is_empty();
+            let outcome = if whole
+                || CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication)
+                    .observation_admission(&root.reads)
+                    == ObservationAdmission::Ready
+            {
                     let source = plan.observations.get(index).map(|output| output.source);
                     // A refused output is kept as its refusal: a rule bound to it reads that refusal, not a missing producer.
                     let answer = output_rows(at, symbols, rule, source);
                     let outcome = match &answer {
+                        // Spike (ryo-fmx3, host3): only the readiness is read of this outcome, so its rows are not copied.
+                        Ok(answer) if lean => match affected_files(&answer.coverage) {
+                            None => RootOutcome::Complete(Table::default()),
+                            Some(_) => RootOutcome::Partial {
+                                table: Table::default(),
+                                affected: Vec::new(),
+                            },
+                        },
                         Ok(answer) => answered(answer),
                         Err(error) => classify(error.clone()),
                     };

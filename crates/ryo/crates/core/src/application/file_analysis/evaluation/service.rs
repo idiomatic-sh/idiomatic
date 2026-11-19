@@ -135,7 +135,9 @@ impl FileAnalysis {
         );
         // The file's partiality is the run's: its sources settled it before any rule ran.
         tables.partials = ran.partials;
-        for RanRule { rule, emit, after } in ran.rules {
+        // Spike (ryo-fmx3, host3): the records are read out of their room, which goes back for the next file.
+        let mut records = ran.rules;
+        for RanRule { rule, emit, after } in records.drain(..) {
             if let EmittedRoot::Delivered(outcome) = emit {
                 Self::delivered(tables, visit, file, semantic, rule, outcome)?;
             }
@@ -179,6 +181,7 @@ impl FileAnalysis {
                 }
             }
         }
+        ryo_execution::inbound::use_cases::execution::interface::given_back_rules(records);
         tables.current_observations = match ran.end {
             FileEnd::Finished(FinishedReadiness::Observed(readiness)) => Some(readiness),
             FileEnd::Finished(FinishedReadiness::Unobserved) => None,

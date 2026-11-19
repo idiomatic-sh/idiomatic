@@ -123,7 +123,27 @@ pub(crate) fn captured_rule(
                     let deferred = node
                         .as_ref()
                         .is_ok_and(|node| deferred_layout(&at.pass.program, *node).is_some());
-                    let mut answer = node_rows(at, symbols, rule, node, step)?;
+                    // Spike (ryo-fmx3, host3): a frontier that is a named output of the rule was answered with that output
+                    // in this file, rows and coverage: it is read from there, not asked of the program again.
+                    let held = if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet) {
+                        plan.observations
+                            .iter()
+                            .position(|output| output.source == Input::Step(step))
+                            .and_then(|index| {
+                                at.answers
+                                    .get(rule.0)
+                                    .and_then(|answers| answers.get(index))
+                                    .and_then(Option::as_ref)
+                                    .and_then(|answer| answer.as_ref().ok())
+                                    .cloned()
+                            })
+                    } else {
+                        None
+                    };
+                    let mut answer = match held {
+                        Some(answer) => answer,
+                        None => node_rows(at, symbols, rule, node, step)?,
+                    };
                     // A deferred refusal holding no row is handed over with no column: the step after the files that reads it
                     // reads none, as a reader in the file does (`NodeMove::Empty`).
                     if deferred && answer.table.count.0 == 0 {
