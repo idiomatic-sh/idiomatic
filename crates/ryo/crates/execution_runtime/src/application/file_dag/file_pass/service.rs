@@ -259,6 +259,19 @@ pub(crate) fn conditioned_pass(
         reads,
         scratch: Mutex::new(Vec::new()),
         ids: ids.clone().into_boxed_slice(),
+        hosted_steps: plans
+            .iter()
+            .map(|plan| {
+                plan.steps
+                    .iter()
+                    .filter(|step| step.scope == ryo_values::domain::plan_parts::types::StepScope::PerFile)
+                    .filter_map(|step| match step.operation {
+                        ryo_values::domain::plans::types::Operation::Hosted { relation } => Some(relation),
+                        _ => None,
+                    })
+                    .collect()
+            })
+            .collect(),
     })
 }
 

@@ -89,17 +89,17 @@ pub(crate) fn in_file_bound(
 pub(crate) fn hosted_in_file(
     at: &mut PassFile<'_, '_, '_, '_>,
     symbols: &mut Symbols,
-    plan: &Plan,
+    rule: RuleIndex,
 ) {
+    let pass = at.pass;
+    let Some(hosted) = pass.hosted_steps.get(rule.0) else {
+        return;
+    };
+    if hosted.is_empty() {
+        return;
+    }
     let declared = at.request.program.hosted();
-    for step in plan
-        .steps
-        .iter()
-        .filter(|step| step.scope == StepScope::PerFile)
-    {
-        let Operation::Hosted { relation } = step.operation else {
-            continue;
-        };
+    for relation in hosted.iter().copied() {
         let at_place = usize::try_from(relation.0).unwrap_or(usize::MAX);
         let Some(host) = declared.get(at_place) else {
             continue;

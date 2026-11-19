@@ -38,7 +38,11 @@ pub(crate) fn run(
     // A node held in this file was made by a build that answered it with its index's other lookups, or by an earlier
     // request for it: its rows stand until the engine releases them at its last consumer.
     if buffers.rows(node) == NodeRows::Absent {
-        materialize(plan, run, node, buffers)?;
+        if known(buffers, node.0) != Known::Empty {
+            materialize(plan, run, node, buffers)?;
+        }
+        // Spike (ryo-fmx3): the engine reads the node's rows, so a node only marked empty is given its table now.
+        installed(plan, buffers, node);
     }
     match buffers
         .pending
@@ -60,30 +64,49 @@ fn sized(plan: &PhysicalPlan, buffers: &mut FileBuffers) {
         buffers.engine_left.resize(count, EngineUses(0));
         buffers.decisions.resize_with(count, NodeDecisions::default);
     }
+    if buffers.known_empty.len() < count {
+        buffers.known_empty.resize(count, 0);
+        buffers.known_full.resize(count, 0);
+    }
     sized_shared(plan, buffers);
 }
 
 /// Spike (ryo-fmx3): whether evaluation is demand-driven, set once from `RYO_LAZY`: a node whose driving input holds no row
 /// answers no row without readying its other inputs.
 pub(crate) fn lazy() -> bool {
-    static LAZY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *LAZY.get_or_init(|| std::env::var_os("RYO_LAZY").is_some_and(|value| value != "0"))
+    crate::spike::lazy()
 }
 
-/// Spike (ryo-fmx3): whether `source` is a held node with no row and no pending fault.
+/// Spike (ryo-fmx3): whether `source` is a node the open file made with no row and no pending fault.
 pub(crate) fn held_empty(buffers: &FileBuffers, source: RowSource) -> bool {
     let RowSource::Node(read) = source else {
         return false;
     };
-    let place = usize::try_from(read.0).unwrap_or(usize::MAX);
-    matches!(buffers.rows(read), NodeRows::Materialized(table) if table.count.0 == 0)
-        && matches!(buffers.pending.get(place), Some(None) | None)
+    known(buffers, read.0) == Known::Empty
 }
 
-/// Spike (ryo-fmx3): holds `node` with no row, in its planned layout.
-pub(crate) fn hold_empty(plan: &PhysicalPlan, buffers: &mut FileBuffers, node: PlanNodeId) {
-    let table = buffers.pool.fresh();
-    hold_empty_in(plan, buffers, node, table);
+/// Spike (ryo-fmx3): what the open file knows of a node's rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Known {
+    /// Not made in this file.
+    Unmade,
+    /// Made with no row and no pending fault.
+    Empty,
+    /// Made holding a row or a pending fault.
+    Full,
+}
+
+/// Spike (ryo-fmx3): what the open file knows of node `node`.
+pub(crate) fn known(buffers: &FileBuffers, node: u32) -> Known {
+    let place = usize::try_from(node).unwrap_or(usize::MAX);
+    let stamp = buffers.generation.wrapping_add(1);
+    if buffers.known_empty.get(place) == Some(&stamp) {
+        Known::Empty
+    } else if buffers.known_full.get(place) == Some(&stamp) {
+        Known::Full
+    } else {
+        Known::Unmade
+    }
 }
 
 /// Spike (ryo-fmx3): holds `node` with no row, in its planned layout, in the room of `table`.
@@ -104,18 +127,34 @@ pub(crate) fn hold_empty_in(
         table.kinds.extend_from_slice(kinds);
     }
     hold(plan, buffers, node, table, None);
-    crate::spike::skip(node.0);
 }
 
-/// Runs an earlier node `source` reads when it holds no rows.
+/// Runs an earlier node `source` reads when it holds no rows, and holds its table for the reader.
 pub(super) fn ready(
     plan: &PhysicalPlan,
     run: &mut KernelRun<'_>,
     source: RowSource,
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
+    settled(plan, run, source, buffers)?;
+    if let RowSource::Node(read) = source {
+        installed(plan, buffers, read);
+    }
+    Ok(())
+}
+
+/// Spike (ryo-fmx3): runs an earlier node `source` reads when the open file has not made it; a node found empty is only
+/// marked, its table held when a reader asks for it (`installed`).
+pub(crate) fn settled(
+    plan: &PhysicalPlan,
+    run: &mut KernelRun<'_>,
+    source: RowSource,
+    buffers: &mut FileBuffers,
+) -> Result<(), PortableOperatorFault> {
     match source {
-        RowSource::Node(read) if buffers.rows(read) == NodeRows::Absent => {
+        RowSource::Node(read)
+            if buffers.rows(read) == NodeRows::Absent && known(buffers, read.0) != Known::Empty =>
+        {
             materialize(plan, run, read, buffers)
         }
         RowSource::Node(_)
@@ -124,6 +163,28 @@ pub(super) fn ready(
         | RowSource::Frontier(_)
         | RowSource::Observation(_) => Ok(()),
     }
+}
+
+/// Spike (ryo-fmx3): holds the empty table of a node the open file only marked empty.
+pub(crate) fn installed(plan: &PhysicalPlan, buffers: &mut FileBuffers, node: PlanNodeId) {
+    if buffers.rows(node) == NodeRows::Absent && known(buffers, node.0) == Known::Empty {
+        let table = buffers.pool.fresh();
+        hold_empty_in(plan, buffers, node, table);
+    }
+}
+
+/// Spike (ryo-fmx3): marks `node` empty in the open file without holding a table.
+pub(crate) fn marked_empty(plan: &PhysicalPlan, buffers: &mut FileBuffers, node: PlanNodeId) {
+    sized(plan, buffers);
+    let place = usize::try_from(node.0).unwrap_or(usize::MAX);
+    let stamp = buffers.generation.wrapping_add(1);
+    if let Some(known) = buffers.known_empty.get_mut(place) {
+        *known = stamp;
+    }
+    if let Some(known) = buffers.known_full.get_mut(place) {
+        *known = 0;
+    }
+    crate::spike::skip(node.0);
 }
 
 /// Runs `node`'s kernels and holds its rows and pending fault: a streaming stage through the chain of streamed stages that
@@ -137,7 +198,10 @@ fn materialize(
 ) -> Result<(), PortableOperatorFault> {
     let span = timed(buffers);
     crate::spike::enter(node.0);
-    let made = if let Some(table) = super::entity_queries::service::answer(plan, node, buffers) {
+    let made = if guarded_empty(plan, run, node, buffers) {
+        marked_empty(plan, buffers, node);
+        Ok(())
+    } else if let Some(table) = super::entity_queries::service::answer(plan, node, buffers) {
         sized(plan, buffers);
         hold(plan, buffers, node, table, None);
         Ok(())
@@ -150,6 +214,45 @@ fn materialize(
     });
     timed_to(buffers, span, node);
     made
+}
+
+/// Spike (ryo-fmx3): whether one of the cheap leaves `node` cannot hold a row without holds none in the open file; each
+/// leaf not yet made in this file is made first. A leaf that faults guards nothing.
+fn guarded_empty(
+    plan: &PhysicalPlan,
+    run: &mut KernelRun<'_>,
+    node: PlanNodeId,
+    buffers: &mut FileBuffers,
+) -> bool {
+    if !lazy() || std::env::var_os("RYO_NO_GUARDS").is_some() {
+        return false;
+    }
+    let Some(guards) = plan
+        .guards
+        .get(usize::try_from(node.0).unwrap_or(usize::MAX))
+    else {
+        return false;
+    };
+    sized(plan, buffers);
+    // First what the file already knows of the leaves, which costs nothing; then the leaves still to make.
+    if guards
+        .iter()
+        .any(|guard| known(buffers, *guard) == Known::Empty)
+    {
+        return true;
+    }
+    for guard in guards.iter() {
+        if known(buffers, *guard) != Known::Unmade {
+            continue;
+        }
+        if materialize(plan, run, PlanNodeId(*guard), buffers).is_err() {
+            continue;
+        }
+        if known(buffers, *guard) == Known::Empty {
+            return true;
+        }
+    }
+    false
 }
 
 /// What `materialize` runs for `node`.
@@ -221,7 +324,7 @@ pub(super) fn made(
         .ok_or(PortableOperatorFault::WrongOperation)?;
     let second = sources.next();
     let third = sources.next();
-    ready(plan, run, first, buffers)?;
+    settled(plan, run, first, buffers)?;
     if lazy()
         && matches!(
             lowering,
@@ -233,12 +336,22 @@ pub(super) fn made(
         )
         && held_empty(buffers, first)
     {
-        hold_empty(plan, buffers, node);
+        marked_empty(plan, buffers, node);
         return Ok(());
     }
     if let Some(second) = second {
+        settled(plan, run, second, buffers)?;
+        if lazy()
+            && matches!(lowering, Lowering::Distinct { .. })
+            && held_empty(buffers, first)
+            && held_empty(buffers, second)
+        {
+            marked_empty(plan, buffers, node);
+            return Ok(());
+        }
         ready(plan, run, second, buffers)?;
     }
+    ready(plan, run, first, buffers)?;
     if let Some(third) = third {
         ready(plan, run, third, buffers)?;
     }

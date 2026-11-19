@@ -315,6 +315,11 @@ pub(crate) fn unread_unrun(
     intents: &[FileRuleIntent],
     live: &mut Vec<NodeInFile>,
 ) {
+    // Spike (ryo-fmx3): demand-driven, a node is made only when a root that runs asks for it, and every node goes at the
+    // file's end: nothing is read ahead for the nodes that do not run.
+    if ryo_operators::spike::lazy() {
+        return;
+    }
     let pass = at.pass;
     live.clear();
     let mut node = PlanNodeId(0);

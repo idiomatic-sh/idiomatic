@@ -259,7 +259,7 @@ pub(crate) fn delivered_rule(
     }
     let plan = at.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
     at.inputs.bound = in_file_bound(at, rule)?;
-    hosted_in_file(at, symbols, plan);
+    hosted_in_file(at, symbols, rule);
     let emit = if diagnostic == DiagnosticDelivery::Disabled {
         RootOutcome::NoQuery
     } else {

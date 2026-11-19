@@ -172,7 +172,7 @@ pub(crate) fn plan_with(
         );
     }
     Ok(PhysicalPlan {
-        entity_queries: std::sync::Arc::new(entity_queries::service::compile(&nodes, &indexes)), nodes, indexes, layouts: Vec::new() })
+        entity_queries: std::sync::Arc::new(entity_queries::service::compile(&nodes, &indexes)), guards: guards(&nodes), nodes, indexes, layouts: Vec::new() })
 }
 
 /// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them (`flow_of`). Who reads
@@ -285,4 +285,64 @@ pub fn bind_requested_entity_sources<'a>(
     buffers
         .entity_queries
         .bind(&plan.entity_queries, texts, read);
+}
+
+/// Spike (ryo-fmx3): by node, the cheap leaves that must hold a row for the node to hold one, in node order, at most
+/// `GUARDS` of them.
+fn guards(nodes: &[PhysicalNode]) -> Vec<Box<[u32]>> {
+    const GUARDS: usize = 24;
+    use crate::domain::equality_join::types::ProbeMode;
+    use crate::domain::physical_plan::types::lowering::value::Lowering;
+    let based = |source: &RowSource| matches!(source, RowSource::Facts(_) | RowSource::Tree(_));
+    let cheap = |node: &PhysicalNode| match &node.lowering {
+        Lowering::Lookup { .. } => true,
+        Lowering::Filter { source, .. }
+        | Lowering::Project { source, .. }
+        | Lowering::Extend { source, .. } => based(source),
+        _ => false,
+    };
+    let mut found: Vec<Box<[u32]>> = Vec::with_capacity(nodes.len());
+    for node in nodes {
+        let mut needed: [Option<RowSource>; 2] = [None, None];
+        match &node.lowering {
+            Lowering::Filter { source, .. }
+            | Lowering::Project { source, .. }
+            | Lowering::Extend { source, .. }
+            | Lowering::TextMap { source, .. } => needed[0] = Some(*source),
+            Lowering::Probe { left, right, probe, .. } => {
+                needed[0] = Some(*left);
+                if matches!(probe.mode, ProbeMode::Inner | ProbeMode::Semi) {
+                    needed[1] = Some(*right);
+                }
+            }
+            Lowering::SeededReach { left, .. } | Lowering::OrderedMatch { left, .. } => {
+                needed[0] = Some(*left);
+            }
+            Lowering::Axis { starts, .. } => needed[0] = Some(*starts),
+            Lowering::OrderedWalk { roots, .. } | Lowering::Worklist { roots, .. } => {
+                needed[0] = Some(*roots);
+            }
+            _ => {}
+        }
+        let mut list: Vec<u32> = Vec::new();
+        for source in needed.into_iter().flatten() {
+            let RowSource::Node(read) = source else {
+                continue;
+            };
+            let at = usize::try_from(read.0).unwrap_or(usize::MAX);
+            let Some(input) = nodes.get(at) else {
+                continue;
+            };
+            if cheap(input) {
+                list.push(read.0);
+            } else if let Some(inner) = found.get(at) {
+                list.extend_from_slice(inner);
+            }
+        }
+        list.sort_unstable();
+        list.dedup();
+        list.truncate(GUARDS);
+        found.push(list.into_boxed_slice());
+    }
+    found
 }

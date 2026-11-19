@@ -17,11 +17,13 @@ pub struct NodeStat {
     pub skips: u64,
     /// Runs that held no row.
     pub empty: u64,
+    /// Nanoseconds spent answering empty without running.
+    pub skip_nanos: u64,
 }
 
 struct Local {
     stats: Vec<NodeStat>,
-    stack: Vec<(u32, Instant, u64)>,
+    stack: Vec<(u32, Instant, u64, bool)>,
     touched: Vec<u32>,
 }
 
@@ -32,6 +34,12 @@ thread_local! {
 static GLOBAL: Mutex<Vec<NodeStat>> = Mutex::new(Vec::new());
 static DESCRIPTIONS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static OWNERS: Mutex<Vec<Vec<u32>>> = Mutex::new(Vec::new());
+
+/// Whether evaluation is demand-driven, set once from `RYO_LAZY`.
+pub fn lazy() -> bool {
+    static LAZY: OnceLock<bool> = OnceLock::new();
+    *LAZY.get_or_init(|| std::env::var_os("RYO_LAZY").is_some_and(|value| value != "0"))
+}
 
 /// Whether the recorder is on.
 pub fn on() -> bool {
@@ -64,7 +72,7 @@ fn slot(local: &mut Local, node: u32) -> &mut NodeStat {
 /// A node's kernels start.
 pub fn enter(node: u32) {
     if on() {
-        LOCAL.with(|local| local.borrow_mut().stack.push((node, Instant::now(), 0)));
+        LOCAL.with(|local| local.borrow_mut().stack.push((node, Instant::now(), 0, false)));
     }
 }
 
@@ -75,7 +83,7 @@ pub fn leave(rows: usize) {
     }
     LOCAL.with(|local| {
         let mut local = local.borrow_mut();
-        let Some((node, started, inner)) = local.stack.pop() else {
+        let Some((node, started, inner, skipped)) = local.stack.pop() else {
             return;
         };
         let whole = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX);
@@ -84,11 +92,17 @@ pub fn leave(rows: usize) {
         }
         let stat = slot(&mut local, node);
         let fresh = stat.runs == 0 && stat.skips == 0;
-        stat.nanos = stat.nanos.saturating_add(whole.saturating_sub(inner));
-        stat.runs += 1;
-        stat.rows += rows as u64;
-        if rows == 0 {
-            stat.empty += 1;
+        let own = whole.saturating_sub(inner);
+        if skipped {
+            stat.skips += 1;
+            stat.skip_nanos = stat.skip_nanos.saturating_add(own);
+        } else {
+            stat.nanos = stat.nanos.saturating_add(own);
+            stat.runs += 1;
+            stat.rows += rows as u64;
+            if rows == 0 {
+                stat.empty += 1;
+            }
         }
         if fresh {
             local.touched.push(node);
@@ -96,13 +110,19 @@ pub fn leave(rows: usize) {
     });
 }
 
-/// A node answered empty without running.
+/// The node whose kernels are running answered empty without running them.
 pub fn skip(node: u32) {
     if !on() {
         return;
     }
     LOCAL.with(|local| {
         let mut local = local.borrow_mut();
+        if let Some(top) = local.stack.last_mut()
+            && top.0 == node
+        {
+            top.3 = true;
+            return;
+        }
         let stat = slot(&mut local, node);
         let fresh = stat.runs == 0 && stat.skips == 0;
         stat.skips += 1;
@@ -136,6 +156,7 @@ pub fn flush() {
             into.rows += from.rows;
             into.skips += from.skips;
             into.empty += from.empty;
+            into.skip_nanos += from.skip_nanos;
         }
         local.touched = touched;
         local.touched.clear();
@@ -158,8 +179,8 @@ pub fn dump() {
         let description = descriptions.get(node).map_or("", String::as_str);
         let rules = owners.get(node).map_or(&[][..], Vec::as_slice);
         text.push_str(&format!(
-            "{{\"node\":{node},\"nanos\":{},\"runs\":{},\"rows\":{},\"skips\":{},\"empty\":{},\"rules\":{rules:?},\"desc\":{:?}}}\n",
-            stat.nanos, stat.runs, stat.rows, stat.skips, stat.empty, description
+            "{{\"node\":{node},\"nanos\":{},\"runs\":{},\"rows\":{},\"skips\":{},\"empty\":{},\"skip_nanos\":{},\"rules\":{rules:?},\"desc\":{:?}}}\n",
+            stat.nanos, stat.runs, stat.rows, stat.skips, stat.empty, stat.skip_nanos, description
         ));
     }
     drop(std::fs::write(path, text));

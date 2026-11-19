@@ -61,12 +61,12 @@ pub(crate) fn captured_rule(
     }
     let digest = at.request.program.rule_digest(rule)?;
     let frontiers = at.request.program.frontiers(rule)?;
+    let pass = at.pass;
     let nodes = crate::application::file_dag::file_pass::service::selection::service::file_rule(
-        at.pass,
+        pass,
         at.condition,
         rule,
-    )?
-    .clone();
+    )?;
     let plan = Arc::clone(at.pass.plans.get(rule.0).ok_or(OperatingError::NotRun)?);
     let CaptureContext {
         worker,

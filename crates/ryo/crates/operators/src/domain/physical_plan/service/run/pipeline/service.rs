@@ -36,6 +36,39 @@ pub(in crate::domain::physical_plan::service::run) fn streamed(
     buffers: &mut FileBuffers,
     ready: Readied,
 ) -> Result<(), PortableOperatorFault> {
+    // Spike (ryo-fmx3): demand-driven, the chain's head source is found and settled before any of the chain's own room is
+    // taken: a chain over a node with no row is marked empty at once.
+    if crate::domain::physical_plan::service::run::service::lazy() {
+        use crate::domain::physical_plan::service::run::service::{Known, held_empty, known, marked_empty, settled};
+        let mut at = tail;
+        let source = loop {
+            let lowering = &physical(plan, at)?.lowering;
+            let Some(first) = lowering.sources().next() else {
+                return Err(PortableOperatorFault::WrongOperation);
+            };
+            if at != tail && matches!(lowering, Lowering::Probe { .. }) {
+                break first;
+            }
+            if matches!(lowering, Lowering::Probe { .. }) {
+                break first;
+            }
+            match first {
+                RowSource::Node(read)
+                    if physical(plan, read)?.flow == crate::domain::physical_plan::types::NodeFlow::Streamed
+                        && buffers.rows(read) == crate::domain::physical_plan::types::NodeRows::Absent
+                        && known(buffers, read.0) != Known::Empty =>
+                {
+                    at = read;
+                }
+                other => break other,
+            }
+        };
+        settled(plan, run, source, buffers)?;
+        if held_empty(buffers, source) {
+            marked_empty(plan, buffers, tail);
+            return Ok(());
+        }
+    }
     let mut chain = buffers.stream.levels.pop().unwrap_or_default();
     let answered = chained(plan, run, tail, buffers, &mut chain, ready);
     chain.settled();
@@ -97,30 +130,25 @@ fn chained(
             lowering: &physical(plan, *node)?.lowering,
         };
         if at == 0 {
-            ready(plan, run, source, buffers)?;
-            // Spike (ryo-fmx3): every streamed stage answers no row over no row, so a chain whose head reads a held node with
-            // no row holds none, its right sides never readied.
-            if crate::domain::physical_plan::service::run::service::lazy()
-                && crate::domain::physical_plan::service::run::service::held_empty(buffers, source)
-            {
-                crate::domain::physical_plan::service::run::service::hold_empty_in(plan, buffers, tail, output);
-                return Ok(());
+            // Spike (ryo-fmx3): every streamed stage answers no row over no row, so a chain whose head reads a node with no
+            // row holds none: the tail is marked empty, no table held, its right sides never readied.
+            if crate::domain::physical_plan::service::run::service::lazy() {
+                crate::domain::physical_plan::service::run::service::settled(plan, run, source, buffers)?;
+                if crate::domain::physical_plan::service::run::service::held_empty(buffers, source) {
+                    buffers.pool.pooled(output, crate::domain::kept_room::types::PoolSize(crate::domain::kept_room::constants::POOL_TABLES));
+                    crate::domain::physical_plan::service::run::service::marked_empty(plan, buffers, tail);
+                    return Ok(());
+                }
             }
+            ready(plan, run, source, buffers)?;
         }
         let right = right_of(stage.lowering);
         if let Some(right) = right {
             for rows in head_rows.iter_mut().chain(rights.iter_mut()) {
                 lent(rows, buffers);
             }
-            let readied = ready(plan, run, right, buffers);
-            for rows in head_rows.iter_mut().chain(rights.iter_mut()) {
-                retaken(rows, buffers)?;
-            }
-            if let Err(fault) = readied {
-                hard = Some(ChainFault { node: *node, fault });
-                break;
-            }
-            // Spike (ryo-fmx3): an inner or semi probe over a right side with no row answers no row; nothing is read yet.
+            // Spike (ryo-fmx3): an inner or semi probe at the chain's head over a right side with no row answers no row; the
+            // right side is settled before its table is asked for, and nothing is read yet.
             if at == 0
                 && crate::domain::physical_plan::service::run::service::lazy()
                 && matches!(
@@ -131,10 +159,21 @@ fn chained(
                             | crate::domain::equality_join::types::ProbeMode::Semi
                     )
                 )
-                && crate::domain::physical_plan::service::run::service::held_empty(buffers, right)
             {
-                crate::domain::physical_plan::service::run::service::hold_empty_in(plan, buffers, tail, output);
-                return Ok(());
+                crate::domain::physical_plan::service::run::service::settled(plan, run, right, buffers)?;
+                if crate::domain::physical_plan::service::run::service::held_empty(buffers, right) {
+                    buffers.pool.pooled(output, crate::domain::kept_room::types::PoolSize(crate::domain::kept_room::constants::POOL_TABLES));
+                    crate::domain::physical_plan::service::run::service::marked_empty(plan, buffers, tail);
+                    return Ok(());
+                }
+            }
+            let readied = ready(plan, run, right, buffers);
+            for rows in head_rows.iter_mut().chain(rights.iter_mut()) {
+                retaken(rows, buffers)?;
+            }
+            if let Err(fault) = readied {
+                hard = Some(ChainFault { node: *node, fault });
+                break;
             }
         }
         if at == 0 {

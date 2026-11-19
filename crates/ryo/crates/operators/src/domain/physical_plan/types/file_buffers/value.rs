@@ -103,6 +103,12 @@ pub struct FileBuffers {
     /// The work the ends of files did: what the release-cost case reads.
     #[cfg(test)]
     pub(crate) ending: EndWork,
+    /// Spike (ryo-fmx3): by node, the file (by `generation`) in which it was last made with no row and no pending fault.
+    pub(crate) known_empty: Vec<u32>,
+    /// Spike (ryo-fmx3): by node, the file in which it was last made holding a row or a pending fault.
+    pub(crate) known_full: Vec<u32>,
+    /// Spike (ryo-fmx3): the open file's number in this worker, from one.
+    pub(crate) generation: u32,
 }
 
 /// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.
@@ -362,6 +368,7 @@ impl FileBuffers {
     /// ```
     pub fn ended(&mut self) {
         crate::spike::flush();
+        self.generation = self.generation.wrapping_add(1);
         self.entity_queries = Default::default();
         let touched = self.touched.taken();
         for node in &touched {

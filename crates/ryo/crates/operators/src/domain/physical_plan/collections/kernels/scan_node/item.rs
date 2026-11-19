@@ -90,6 +90,15 @@ pub(crate) fn hold(
         crate::domain::physical_plan::types::node_counters::value::MadeIn::OpenSpan,
         rows.count,
     );
+    // Spike (ryo-fmx3): what the open file knows of the node, kept past its release.
+    let stamp = buffers.generation.wrapping_add(1);
+    let empty = rows.count.0 == 0 && pending.is_none();
+    if let Some(known) = buffers.known_empty.get_mut(place) {
+        *known = if empty { stamp } else { 0 };
+    }
+    if let Some(known) = buffers.known_full.get_mut(place) {
+        *known = if empty { 0 } else { stamp };
+    }
     if let Some(held) = buffers.nodes.get_mut(place) {
         #[cfg(test)]
         buffers.meter.formed(rows.count);

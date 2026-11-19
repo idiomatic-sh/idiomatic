@@ -55,6 +55,8 @@ pub(crate) struct PassProgram {
     pub(crate) scratch: std::sync::Mutex<Vec<PassScratch>>,
     /// Each rule's id, in rule order: what the node counters name a node's rules by.
     pub(crate) ids: Box<[ryo_values::domain::runs::types::RuleId]>,
+    /// Spike (ryo-fmx3): the host relations each rule's steps in a file read, in rule order, found once for the program.
+    pub(crate) hosted_steps: Box<[Box<[ryo_values::domain::plan_parts::types::HostedNumber]>]>,
 }
 
 /// What one file's run fills and gives back to the request for the next file: the nodes' rows, the tree nodes each node starts

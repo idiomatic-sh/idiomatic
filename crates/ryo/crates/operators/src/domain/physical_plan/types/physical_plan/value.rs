@@ -23,6 +23,9 @@ pub struct PhysicalPlan {
     /// Spike (ryo-fmx3): each node's output cell kinds, set by the engine when it assembles the program; a lazily skipped
     /// node answers an empty table of these kinds.
     pub(crate) layouts: Vec<Option<Vec<ryo_relations::domain::relations::types::CellKind>>>,
+    /// Spike (ryo-fmx3): by node, the cheap leaves (lookups and scans of base rows) that must hold a row for the node to hold
+    /// one: a demand-driven run reads them first.
+    pub(crate) guards: Vec<Box<[u32]>>,
 }
 
 impl PhysicalPlan {
