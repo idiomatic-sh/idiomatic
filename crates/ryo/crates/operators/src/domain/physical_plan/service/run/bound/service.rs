@@ -691,6 +691,7 @@ pub(crate) fn bounded(
         checked(plan, run, right, right_key, &keys, &out, buffers);
     }
     crate::spike::bound_served();
+    crate::spike::bound_rows(out.count.0 as u64);
     Some(out)
 }
 

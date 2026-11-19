@@ -446,10 +446,11 @@ fn flush_census() {
     });
 }
 
-/// Spike (ryo-22c7): whether restricted evaluation is on (`RYO_BOUND`, on unless `0`; needs `RYO_LAZY`).
+/// Spike (ryo-22c7): whether restricted evaluation is on (`RYO_BOUND=1`; off by default, as it measured no net gain; needs
+/// `RYO_LAZY`).
 pub fn bound_on() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
-    *ON.get_or_init(|| lazy() && std::env::var_os("RYO_BOUND").is_none_or(|value| value != "0"))
+    *ON.get_or_init(|| lazy() && std::env::var_os("RYO_BOUND").is_some_and(|value| value != "0"))
 }
 
 /// Spike (ryo-22c7): whether every restricted request is checked against the node made in full (`RYO_BOUND_CHECK`).
@@ -475,6 +476,12 @@ pub fn bound_time(at: usize, started: std::time::Instant) {
 }
 
 static BOUND_SERVED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static BOUND_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Spike (ryo-22c7): rows the restricted requests answered (the recorder does not count them).
+pub fn bound_rows(rows: u64) {
+    BOUND_ROWS.fetch_add(rows, std::sync::atomic::Ordering::Relaxed);
+}
 static BOUND_FELL: Mutex<Vec<(&'static str, u64)>> = Mutex::new(Vec::new());
 
 /// Spike (ryo-22c7): a restricted request was served.
@@ -499,7 +506,8 @@ pub fn bound_report() {
     let fell = BOUND_FELL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let fell: Vec<String> = fell.iter().map(|(name, count)| format!("\"{name}\":{count}")).collect();
     let line = format!(
-        "{{\"restricted_requests\":{},\"restricted_s\":{:.2},\"full_under_s\":{:.2},\"fallbacks_by_lowering\":{{{}}}}}\n",
+        "{{\"restricted_rows\":{},\"restricted_requests\":{},\"restricted_s\":{:.2},\"full_under_s\":{:.2},\"fallbacks_by_lowering\":{{{}}}}}\n",
+        BOUND_ROWS.load(std::sync::atomic::Ordering::Relaxed),
         BOUND_SERVED.load(std::sync::atomic::Ordering::Relaxed),
         BOUND_NANOS[0].load(std::sync::atomic::Ordering::Relaxed) as f64 / 1e9,
         BOUND_NANOS[1].load(std::sync::atomic::Ordering::Relaxed) as f64 / 1e9,
