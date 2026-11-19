@@ -82,6 +82,35 @@ pub fn probe_lever(name: &str) -> bool {
         .any(|off| off == name || off == "all")
 }
 
+/// Spike (ryo-fmx3, host3): a host lever, each a mechanism of host work that scales with the file, not the rule pack.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HostLever {
+    /// `roots`: a node's tree roots listed per root kind for the kinds the file holds.
+    Roots = 0,
+    /// `quiet`: a rule whose emitted and observed nodes hold no row in the file answers the shared clean outcome.
+    Quiet = 1,
+    /// `record`: a rule's recorded frontier digest reused when its words are the ones last digested.
+    Record = 2,
+    /// `facts`: provider facts produced on the first read of a relation in the file.
+    Facts = 3,
+    /// `buffers`: buffer reset proportional to the nodes touched.
+    Buffers = 4,
+    /// `startup`: startup work made cheaper or parallel.
+    Startup = 5,
+}
+
+/// Spike (ryo-fmx3, host3): whether host lever `lever` is on; `RYO_HOST_OFF` names the ones off (comma-separated, `roots`,
+/// `quiet`, `record`, `facts`, `buffers`, `startup`, or `all`), read once.
+pub fn host_lever(lever: HostLever) -> bool {
+    static ON: OnceLock<[bool; 6]> = OnceLock::new();
+    let on = ON.get_or_init(|| {
+        let off = std::env::var("RYO_HOST_OFF").unwrap_or_default();
+        let names = ["roots", "quiet", "record", "facts", "buffers", "startup"];
+        names.map(|name| !off.split(',').any(|each| each == name || each == "all"))
+    });
+    on.get(lever as usize).copied().unwrap_or(true)
+}
+
 /// Whether the learned kill order is switched off, set once from `RYO_NO_KILLERS`.
 pub fn killers_off() -> bool {
     static OFF: OnceLock<bool> = OnceLock::new();

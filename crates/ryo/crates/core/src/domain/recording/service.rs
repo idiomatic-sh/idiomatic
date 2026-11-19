@@ -2,6 +2,7 @@
 
 use super::constants::PHYSICAL_FACTS_INCOMPLETE;
 use super::types::{BucketWords, Flat, InterfaceBytes, WordCount};
+use std::borrow::Borrow;
 use crate::domain::handing::service::stored_of;
 use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
@@ -144,8 +145,8 @@ pub(crate) fn ascending(moved: &[BucketWords]) -> bool {
 }
 
 /// [`frontier_flat`], the buckets of `rule` found by search when `ascending` says `moved` is in bucket order.
-pub(crate) fn frontier_flat_in(
-    moved: &[BucketWords],
+pub(crate) fn frontier_flat_in<W: std::borrow::Borrow<BucketWords>>(
+    moved: &[W],
     ascending: bool,
     observations: Option<
         ryo_values::domain::observations::types::validated_frontiers::value::ValidatedFrontiers<'_>,
@@ -169,13 +170,17 @@ pub(crate) fn frontier_flat_in(
             && usize::try_from(each.bucket.0 - first).is_ok_and(|place| place < places)
     };
     let window = if ascending {
-        let from = moved.partition_point(|each| each.bucket.0 < first);
-        let to = from + moved.get(from..).unwrap_or_default().partition_point(inside);
+        let from = moved.partition_point(|each| each.borrow().bucket.0 < first);
+        let to = from
+            + moved
+                .get(from..)
+                .unwrap_or_default()
+                .partition_point(|each| inside(each.borrow()));
         moved.get(from..to).unwrap_or_default()
     } else {
         moved
     };
-    for each in window.iter().filter(|each| inside(each)) {
+    for each in window.iter().map(Borrow::borrow).filter(|each| inside(each)) {
         flat.0.extend([
             u64::from(each.bucket.0),
             u64::try_from(each.word_count.0).unwrap_or(u64::MAX),
@@ -210,6 +215,31 @@ pub(crate) fn frontier_flat_in(
             }
         }
     }
+}
+
+/// Spike (ryo-fmx3, host3): the digest of `flat`, the words of rule `rule`'s frontier, remembered in this worker: words the
+/// same as the rule's last are not digested again. The digest is of the words alone, so a remembered one is the same digest.
+pub(crate) fn remembered_digest(rule: usize, flat: &Flat, digest: impl FnOnce(&[u64]) -> Digest) -> Digest {
+    thread_local! {
+        static LAST: std::cell::RefCell<Vec<(Vec<u64>, Digest)>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+    LAST.with(|last| {
+        let mut last = last.borrow_mut();
+        if last.len() <= rule {
+            last.resize_with(rule.saturating_add(1), || (Vec::new(), Digest([0; 16])));
+        }
+        let Some((words, made)) = last.get_mut(rule) else {
+            return digest(&flat.0);
+        };
+        if !words.is_empty() && *words == flat.0 {
+            return *made;
+        }
+        let fresh = digest(&flat.0);
+        words.clear();
+        words.extend_from_slice(&flat.0);
+        *made = fresh;
+        fresh
+    })
 }
 
 /// What the rules gave of the file: its findings, what it shows other files, and the words and the text it hands the steps that
