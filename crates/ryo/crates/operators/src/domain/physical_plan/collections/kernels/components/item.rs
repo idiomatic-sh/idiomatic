@@ -40,6 +40,7 @@ impl KernelsItem for ComponentsItem {
             | Lowering::Axis { .. }
             | Lowering::OrderedWalk { .. }
             | Lowering::TextMap { .. }
+            | Lowering::PointerChase { .. }
             | Lowering::OrderedMatch { .. }
             | Lowering::Render { .. }
             | Lowering::ScanBound { .. }

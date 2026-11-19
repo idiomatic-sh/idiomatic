@@ -11,7 +11,7 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_dfs::types::DfsParts;
 use crate::domain::physical_plan::types::InputRows;
 use crate::domain::physical_plan::types::Resources;
-use crate::domain::physical_plan::types::keyed_rows::value::IndexedRow;
+use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, hash_of_cells};
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
@@ -46,6 +46,7 @@ impl KernelsItem for OrderedWalkItem {
             | Lowering::Axis { .. }
             | Lowering::Components { .. }
             | Lowering::TextMap { .. }
+            | Lowering::PointerChase { .. }
             | Lowering::OrderedMatch { .. }
             | Lowering::Render { .. }
             | Lowering::ScanBound { .. }
@@ -126,7 +127,8 @@ pub(crate) fn visited(
     by_root.sort_unstable_by(|one, other| canon.root_order(*one, *other));
     // Spike (ryo-fmx3): each partition and source's run of `by_edge`, found once instead of by two searches per expansion.
     let width = canon.keys.0 + 2;
-    let mut runs: hashbrown::HashMap<&[Value], (usize, usize)> = hashbrown::HashMap::new();
+    let runs = &mut walk.edge_runs;
+    runs.clear();
     let mut first = 0;
     while first < by_edge.len() {
         let mut end = first + 1;
@@ -134,10 +136,14 @@ pub(crate) fn visited(
             end += 1;
         }
         let at = indexed(by_edge[first]).0 * width;
-        let _ = runs.insert(&canon.edges[at..at + width - 1], (first, end));
+        let hash = hash_of_cells(canon.edges[at..at + width - 1].iter().copied()).0;
+        let _ = runs.insert_unique(hash, (first as u32, end as u32), |held| {
+            let at = indexed(by_edge[held.0 as usize]).0 * width;
+            hash_of_cells(canon.edges[at..at + width - 1].iter().copied()).0
+        });
         first = end;
     }
-    let mut key: Vec<Value> = Vec::with_capacity(width - 1);
+    let key = &mut walk.run_key;
     let mut previous: Option<IndexedRow> = None;
     for root in by_root.iter().copied() {
         if previous.is_some_and(|before| canon.root_order(before, root).is_eq()) {
@@ -152,9 +158,9 @@ pub(crate) fn visited(
                 root,
                 by_edge,
                 canon,
-                runs: &runs,
+                runs,
             },
-            &mut key,
+            key,
             &mut walk.visited,
             &mut walk.frontier,
             output,
@@ -215,7 +221,7 @@ struct Sides<'a> {
     /// The canonical key cells of both.
     canon: Canon<'a>,
     /// Spike (ryo-fmx3): each partition and source's run of `by_edge`.
-    runs: &'a hashbrown::HashMap<&'a [Value], (usize, usize)>,
+    runs: &'a hashbrown::HashTable<(u32, u32)>,
 }
 
 /// The visit from one root: each edge leaving an expanded entity in order, its destination expanded after it is yielded.
@@ -288,7 +294,15 @@ fn framed(sides: Sides<'_>, key: &mut [Value], entity: Value, frames: &mut Vec<R
     if let Some(last) = key.last_mut() {
         *last = entity;
     }
-    let (first, end) = sides.runs.get(&*key).copied().unwrap_or((0, 0));
+    let canon = sides.canon;
+    let width = canon.keys.0 + 2;
+    let (first, end) = sides
+        .runs
+        .find(hash_of_cells(key.iter().copied()).0, |held| {
+            let at = indexed(sides.by_edge[held.0 as usize]).0 * width;
+            canon.edges[at..at + width - 1] == *key
+        })
+        .map_or((0, 0), |held| (held.0 as usize, held.1 as usize));
     frames.extend([RowIndex(first), RowIndex(end)]);
 }
 

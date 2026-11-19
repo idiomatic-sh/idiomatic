@@ -45,6 +45,7 @@ impl KernelsItem for QueuedWalkItem {
             | Lowering::OrderedWalk { .. }
             | Lowering::Components { .. }
             | Lowering::TextMap { .. }
+            | Lowering::PointerChase { .. }
             | Lowering::OrderedMatch { .. }
             | Lowering::Render { .. }
             | Lowering::ScanBound { .. }

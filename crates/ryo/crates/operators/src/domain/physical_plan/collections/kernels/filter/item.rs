@@ -37,6 +37,7 @@ impl KernelsItem for FilterItem {
                 | Lowering::Distinct { .. }
                 | Lowering::Group { .. }
                 | Lowering::TextMap { .. }
+                | Lowering::PointerChase { .. }
                 | Lowering::OrderedMatch { .. }
                 | Lowering::Render { .. }
                 | Lowering::Reach { .. }

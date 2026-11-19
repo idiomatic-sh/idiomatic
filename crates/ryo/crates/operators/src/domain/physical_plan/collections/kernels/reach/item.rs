@@ -47,6 +47,7 @@ impl KernelsItem for ReachItem {
             | Lowering::Worklist { .. }
             | Lowering::Components { .. }
             | Lowering::TextMap { .. }
+            | Lowering::PointerChase { .. }
             | Lowering::OrderedMatch { .. }
             | Lowering::Render { .. }
             | Lowering::ScanBound { .. }

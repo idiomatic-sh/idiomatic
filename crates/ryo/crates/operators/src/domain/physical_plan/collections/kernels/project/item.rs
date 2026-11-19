@@ -32,6 +32,7 @@ impl KernelsItem for ProjectItem {
                 | Lowering::Distinct { .. }
                 | Lowering::Group { .. }
                 | Lowering::TextMap { .. }
+                | Lowering::PointerChase { .. }
                 | Lowering::OrderedMatch { .. }
                 | Lowering::Render { .. }
                 | Lowering::Reach { .. }

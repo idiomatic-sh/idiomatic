@@ -49,6 +49,7 @@ impl KernelsItem for DirectedWalkItem {
             | Lowering::Worklist { .. }
             | Lowering::Components { .. }
             | Lowering::TextMap { .. }
+            | Lowering::PointerChase { .. }
             | Lowering::OrderedMatch { .. }
             | Lowering::Render { .. }
             | Lowering::ScanBound { .. }
