@@ -245,6 +245,15 @@ fn guarded_empty(
         if known(buffers, *guard) != Known::Unmade {
             continue;
         }
+        // Spike (ryo-fmx3): a base leaf is read in place until its first row, never made only to guard.
+        match super::base_guard::service::base_rows(plan, run, PlanNodeId(*guard), buffers) {
+            Some(true) => continue,
+            Some(false) => {
+                marked_empty(plan, buffers, PlanNodeId(*guard));
+                return true;
+            }
+            None => {}
+        }
         if materialize(plan, run, PlanNodeId(*guard), buffers).is_err() {
             continue;
         }
