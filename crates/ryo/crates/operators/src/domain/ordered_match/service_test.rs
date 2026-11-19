@@ -28,6 +28,7 @@ fn keeps_both_sides() -> bool {
         left_order: ColumnIndex(1),
         right_order: ColumnIndex(3),
         output: output.to_vec(),
+        band: None,
     }
 }
 
