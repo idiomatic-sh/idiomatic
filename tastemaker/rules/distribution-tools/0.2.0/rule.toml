@@ -135,6 +135,21 @@ then.findings = [
 ]
 
 [[scenarios]]
+id = 'pypi-not-smoked'
+scenario = 'A product ships to npm and PyPI, and its smoke tool runs the npm test but not the PyPI one.'
+given.files.'distribution/npm/package.json' = '{ "name": "@demo/demo" }'
+given.files.'distribution/pypi/pyproject.toml' = '[project]'
+given.files.'asymptote.toml' = '''
+[[tools]]
+id = "smoke"
+group = "release-tests"
+run = ["bash", "-c", "set -e; tool test --package demo --test smoke; tool test --package demo-distribution --test npm"]
+'''
+then.findings = [
+  { path = 'distribution/pypi/pyproject.toml' },
+]
+
+[[scenarios]]
 id = 'memory-bench-not-run'
 scenario = 'The CLI holds the memory bench and no memory tool runs it.'
 given.files.'cli/benches/memory/main.rs' = 'fn main() {}'
