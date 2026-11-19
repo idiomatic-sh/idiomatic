@@ -39,10 +39,7 @@ impl TouchedNodes {
     /// The nodes the file touched, ascending, each untouched again: the next file starts from none.
     pub(crate) fn taken(&mut self) -> Vec<PlanNodeId> {
         let mut nodes = std::mem::take(&mut self.nodes);
-        // Spike (ryo-fmx3, host3): released in the order touched; the order changes only which emptied table a pool keeps.
-        if !crate::spike::host_lever(crate::spike::HostLever::Buffers) {
-            nodes.sort_unstable();
-        }
+        nodes.sort_unstable();
         for node in &nodes {
             if let Some(marked) = self
                 .marked
