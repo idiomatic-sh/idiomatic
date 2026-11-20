@@ -128,6 +128,12 @@ KEY_KINDS = ("node", "symbol", "number", "span") if os.environ.get("NAV_SPAN_KEY
 KEYED_STEPS = float(os.environ.get("NAV_KEYED_STEPS", "20"))   # steps of a well-keyed call: a call ranks as its rows, or its steps over this
 
 
+# share: each of the two things kept across rules has a switch, so its effect can be measured alone (both off: every rule's
+# definitions and made tables are its own, as in the round before, in the pack's format)
+SHARE_DEFS = os.environ.get("NAV_SHARE_DEFS", "1") == "1"   # a definition is named by the compiler's node: one per pack
+SHARE_MADE = os.environ.get("NAV_SHARE_MADE", "1") == "1"   # a made table is one per node
+
+
 class Blocked(Exception):
     pass
 
@@ -259,6 +265,7 @@ class Lowerer:
         self.serial += 1
         self.new_from = len(self.shared)
         self.reused, self.planned, self.body_depth, self.body_cpu = set(), 0, 0, 0.0
+        self.mark = {n: len(getattr(self, n)) for n in self.PACK_DICTS}
 
     def ck(self, kind, s, *extra):
         """share: the pack-wide name of a definition taken from plan step `s`: the compiler's own merged-program node of the
@@ -266,21 +273,28 @@ class Lowerer:
         its union, one side of its join). Two rules that reach the same node name the same definition, so it is lowered
         once and the executor holds one table of it per file. A name that is not a function of the node alone (branch i of
         a flattening, whose shape depends on the rule's other uses and the caps) stays this attempt's own."""
-        if all(isinstance(e, str) for e in extra):
+        if SHARE_DEFS and all(isinstance(e, str) for e in extra):
             return (kind, self.step_nodes[s]) + extra
         return (kind, ("own", self.serial, s)) + extra
 
-    def forget(self):
-        """share: every definition is dropped (an attempt was cut off part-way, or is retried under smaller bounds); the
-        programs already written stay valid, later rules lower what they reach again"""
-        for m in (self.defs, self.formal, self.body_memo, self.tableable_memo, self.body_scans, self.body_pairs, self.table_memo,
-                  self.all_cols_memo, self.body_cost, self.body_branches, self.anchor_memo, self.require_memo, self.made_by_node,
-                  self.heavy_memo, self.walk_memo, self.body_serial):
-            m.clear()
+    PACK_DICTS = ("defs", "formal", "body_memo", "tableable_memo", "body_scans", "body_pairs", "table_memo", "all_cols_memo",
+                  "body_cost", "body_branches", "anchor_memo", "require_memo", "made_by_node", "heavy_memo", "walk_memo",
+                  "body_serial", "made_all")
+
+    def undo(self):
+        """share: what a failed attempt added to the pack's definitions is taken back (it was cut off part-way, or is
+        retried under smaller bounds and cuts its own definitions anew); what the rules before added stays. The tables keep
+        insertion order and nothing older than the attempt is ever removed, so its additions are the last entries. The
+        shared entries it wrote stay in the table, unreached."""
+        print("UNDO", self.rid, {n: len(getattr(self, n)) - k for n, k in self.mark.items() if len(getattr(self, n)) != k}, file=sys.stderr, flush=True)
+        for n, k in self.mark.items():
+            d = getattr(self, n)
+            while len(d) > k:
+                d.popitem()
 
     def made_hit(self, op, s):
         """share: the made table of the node of step `s` when a rule before made it: one atom over it"""
-        name = self.made_by_node.get((op, self.step_nodes[s]))
+        name = self.made_by_node.get((op, self.step_nodes[s])) if SHARE_MADE else None
         if name is None:
             return None
         ts = [("f", 0) if c["kind"] == "file" else self.fresh(c["kind"]) for c in self.schema[name]["columns"]]
@@ -2820,15 +2834,15 @@ def lower_rule(rule, nodes, schema, freq):
                 done = (X, tail, navd)
             except Blocked as x:
                 first_reason = first_reason or str(x)
+                PACK[0].undo()  # share: a failed attempt leaves no definition behind (a retry cuts its own anew)
                 if str(x) == "program-size":
-                    PACK[0].forget()  # share: the retry under smaller bounds cuts its definitions anew
                     continue
             except RecursionError:
                 first_reason = first_reason or "recursion"
-                PACK[0].forget()
+                PACK[0].undo()
             except TimeoutError:
                 first_reason = first_reason or "lowering-time"
-                PACK[0].forget()  # share: cut off part-way: nothing half-planned may be reused
+                PACK[0].undo()
                 continue
             finally:
                 signal.alarm(0)
@@ -3494,8 +3508,8 @@ def link(pack, ids=None):
                 m["right_programs"] = [tr(q) for q in m["right_programs"]]
             out_made.append(m)
     meta = pack.get("shared_meta") or []
-    return dict(kinds={k: v for k, v in pack["kinds"].items() if k in used}, made=out_made,
-                shared=[tr(table[old]) for old in sorted(keep)],
+    out_shared = [tr(table[old]) for old in sorted(keep)]  # (before the kinds: it names registers too)
+    return dict(kinds={k: v for k, v in pack["kinds"].items() if k in used}, made=out_made, shared=out_shared,
                 shared_meta=[meta[old] if old < len(meta) else [None, [], None, "sub"] for old in sorted(keep)], rules=out_rules)
 
 

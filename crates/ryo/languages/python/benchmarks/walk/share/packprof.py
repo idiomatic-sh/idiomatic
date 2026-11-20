@@ -18,7 +18,7 @@ def name(m):
     k = m[0]
     if k is None:
         return "sub"
-    return " ".join("own" if isinstance(t, list) else str(t) for t in k)
+    return " ".join(f"own:{t[1]}.{t[2]}" if isinstance(t, list) else str(t) for t in k)
 
 
 reach_memo = {}

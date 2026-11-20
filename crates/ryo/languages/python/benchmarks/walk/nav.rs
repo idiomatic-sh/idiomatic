@@ -275,6 +275,8 @@ pub(crate) struct NavProgram {
     pub keyed: Vec<(u16, Box<[u8]>)>,
     /// bind: how many distinct needs the program has (one state per file each)
     pub need_slots: usize,
+    /// share: per definition table (its shared entry), every register a build of it can write
+    pub table_regs: FxMap<u32, Box<[R]>>,
 }
 
 fn trel(name: &str) -> Option<TRel> {
@@ -317,6 +319,30 @@ struct Loader<'a> {
     /// share: the text names pack-wide shared entries, so two rules that ask the same question share the slot (it was
     /// one per rule)
     need_slots: &'a mut FxMap<String, u32>,
+    /// share: what the piece being loaded names
+    named: &'a mut Named,
+}
+
+/// share: what one piece of the pack (a shared entry, a made table) names in its own text: its registers, the shared
+/// entries it runs, the relations it reads. From these the loader derives, per definition table, every register a build
+/// of the table can write (`NavProgram::table_regs`).
+#[derive(Default)]
+struct Named {
+    regs: Vec<R>,
+    entries: Vec<u32>,
+    facts: Vec<u16>,
+}
+
+impl Named {
+    fn sorted(mut self) -> Self {
+        self.regs.sort_unstable();
+        self.regs.dedup();
+        self.entries.sort_unstable();
+        self.entries.dedup();
+        self.facts.sort_unstable();
+        self.facts.dedup();
+        self
+    }
 }
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
@@ -353,7 +379,9 @@ impl Loader<'_> {
         let k = v.as_i64().expect("var");
         let n = self.regs.len();
         let n = if self.wrap16 { (n & 0xffff) as R } else { R::try_from(n).expect("more registers than a register index holds") };
-        *self.regs.entry(k).or_insert(n)
+        let r = *self.regs.entry(k).or_insert(n);
+        self.named.regs.push(r);
+        r
     }
 
     fn var_kind(&self, v: &Value) -> &str {
@@ -400,6 +428,7 @@ impl Loader<'_> {
 
     fn fact(&mut self, name: &str) -> u16 {
         if let Some(i) = self.facts.iter().position(|f| f.name == name) {
+            self.named.facts.push(i as u16);
             return i as u16;
         }
         use ryo_relations::domain::labels::types::NameRef;
@@ -410,6 +439,7 @@ impl Loader<'_> {
         let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
         let model = if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
         self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None, made_asof: None });
+        self.named.facts.push((self.facts.len() - 1) as u16);
         (self.facts.len() - 1) as u16
     }
 
@@ -437,6 +467,7 @@ impl Loader<'_> {
         let places = |x: &Value| -> Box<[u8]> { x.as_array().unwrap().iter().map(|c| c.as_u64().unwrap() as u8).collect::<Vec<_>>().into() };
         // bind: the entry is written as the one-program list [[["shared", entry]]]
         let entry = a[0][0][0][1].as_u64().unwrap() as u32;
+        self.named.entries.push(entry);
         let (kcols, fcols) = (places(&a[2]), places(&a[3]));
         let slot = match self.table_slots.iter().position(|(e, k, f)| *e == entry && *k == kcols && *f == fcols) {
             Some(i) => i,
@@ -621,7 +652,11 @@ impl Loader<'_> {
                 }
             }
             "clos" => self.closure_ins(a),
-            "shared" => Ins::Shared { idx: a[1].as_u64().unwrap() as u32 },
+            "shared" => {
+                let idx = a[1].as_u64().unwrap() as u32;
+                self.named.entries.push(idx);
+                Ins::Shared { idx }
+            }
             "nearc" => Ins::NearDerived {
                 start: self.reg(&a[1]),
                 out: self.reg(&a[2]),
@@ -759,6 +794,10 @@ pub(crate) struct NavBuilder {
     keyed: Vec<(u16, Box<[u8]>)>,
     table_slots: Vec<(u32, Box<[u8]>, Box<[u8]>)>,
     need_slots: FxMap<String, u32>,
+    /// share: what the piece being loaded names; what each shared entry and each made table (by relation index) names
+    named: Named,
+    entry_named: Vec<Named>,
+    fact_named: FxMap<u16, Named>,
 }
 
 impl NavBuilder {
@@ -774,6 +813,7 @@ impl NavBuilder {
             table_slots: &mut self.table_slots,
             wrap16: std::env::var_os("NAV_REG16").is_some(),
             need_slots: &mut self.need_slots,
+            named: &mut self.named,
         }
     }
 
@@ -784,12 +824,22 @@ impl NavBuilder {
 
     /// share: one entry of the pack's shared table
     pub(crate) fn shared(&mut self, q: &Value, sym: &mut Symbols) {
+        self.named = Named::default();
         let p = self.loader(sym).prog(q);
         self.shared.push(p);
+        self.entry_named.push(std::mem::take(&mut self.named).sorted());
     }
 
     /// share: one made table of the pack (a rule's own before)
     pub(crate) fn made(&mut self, m: &Value, sym: &mut Symbols) {
+        self.named = Named::default();
+        self.made_table(m, sym);
+        // (the table is the last relation its loading added: the relations its programs read come before it)
+        let named = std::mem::take(&mut self.named).sorted();
+        self.fact_named.insert((self.facts.len() - 1) as u16, named);
+    }
+
+    fn made_table(&mut self, m: &Value, sym: &mut Symbols) {
         let mut loader = self.loader(sym);
         {
             use ryo_relations::domain::relations::types::CellKind;
@@ -920,6 +970,7 @@ impl NavBuilder {
             })
             .collect();
         drop(loader);
+        self.named = Named::default();
         self.out.push(NavRule {
             id: r["id"].as_str().unwrap().to_owned(),
             programs,
@@ -930,8 +981,43 @@ impl NavBuilder {
     }
 
     pub(crate) fn finish(self) -> NavProgram {
-        let NavBuilder { facts, regexes, regex_of: _, shared, out, regs, kinds: _, keyed, table_slots: _, need_slots } = self;
+        let NavBuilder { facts, regexes, regex_of: _, shared, out, regs, kinds: _, keyed, table_slots, need_slots, named: _, entry_named, fact_named } = self;
         let max_regs = regs.len();
+        // share: per definition table, the registers its build can write: those its entry names and those of every shared
+        // entry and made table it reaches
+        let mut table_regs: FxMap<u32, Box<[R]>> = FxMap::default();
+        for (entry, _, _) in &table_slots {
+            if table_regs.contains_key(entry) {
+                continue;
+            }
+            let mut seen: std::collections::HashSet<(bool, u32), std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+            let mut stack = vec![(true, *entry)];
+            let mut all: Vec<R> = Vec::new();
+            while let Some((is_entry, i)) = stack.pop() {
+                if !seen.insert((is_entry, i)) {
+                    continue;
+                }
+                let n = if is_entry { entry_named.get(i as usize) } else { fact_named.get(&(i as u16)) };
+                if let Some(n) = n {
+                    all.extend_from_slice(&n.regs);
+                    stack.extend(n.entries.iter().map(|e| (true, *e)));
+                    stack.extend(n.facts.iter().map(|f| (false, u32::from(*f))));
+                }
+            }
+            all.sort_unstable();
+            all.dedup();
+            table_regs.insert(*entry, all.into());
+        }
+        if std::env::var_os("NAV_LOAD_LOG").is_some() {
+            eprintln!(
+                "L\tregisters={}\tshared={}\ttables={}\ttable_regs={}\tlargest={}",
+                max_regs,
+                shared.len(),
+                table_regs.len(),
+                table_regs.values().map(|r| r.len()).sum::<usize>(),
+                table_regs.values().map(|r| r.len()).max().unwrap_or(0)
+            );
+        }
         let needs_provider = std::env::var_os("NAV_PROVIDER").is_some()
             || facts.iter().any(|f| {
                 f.model.is_none()
@@ -941,7 +1027,7 @@ impl NavBuilder {
                     && crate::derived::index_of(&f.name).is_none()
                     && !f.name.starts_with("filesystem.")
             });
-        NavProgram { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed, need_slots: need_slots.len() }
+        NavProgram { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed, need_slots: need_slots.len(), table_regs }
     }
 }
 
@@ -2960,11 +3046,25 @@ impl<'a, 'p> Exec<'a, 'p> {
         let saved = std::mem::take(&mut self.collect);
         let q: &'p [Ins] = &self.prog.shared[t.entry as usize];
         self.c.subs += 1;
-        // the registers are put back after the build: it runs between two steps of the waiting programs
-        let saved_regs = self.regs.clone();
+        // the registers are put back after the build: it runs between two steps of the waiting programs.
+        // share: only those the build can write (`table_regs`). It was a copy of the whole register file per attempt, and
+        // the file is the pack's now, not one rule's
+        let prog = self.prog;
+        let named = prog.table_regs.get(&t.entry);
+        let saved_regs: Vec<u64> = match named {
+            Some(rs) => rs.iter().map(|&r| self.regs[r as usize]).collect(),
+            None => self.regs.clone(),
+        };
         let (steps0, outer_child) = (self.c.steps, std::mem::take(&mut self.c.prof_child));
         self.run_inner(q, 0);
-        self.regs = saved_regs;
+        match named {
+            Some(rs) => {
+                for (&r, v) in rs.iter().zip(saved_regs) {
+                    self.regs[r as usize] = v;
+                }
+            }
+            None => self.regs = saved_regs,
+        }
         // bind (diagnostic): the build's steps are the table's, not the calling entry's own
         let incl = self.c.steps - steps0;
         if self.c.prof {
