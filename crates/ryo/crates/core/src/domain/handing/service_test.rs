@@ -66,6 +66,7 @@ fn handed() -> Handed {
         }),
         governing: GoverningRules(vec![0]),
         partials: Vec::new(),
+        clean: Vec::new(),
     }
 }
 
