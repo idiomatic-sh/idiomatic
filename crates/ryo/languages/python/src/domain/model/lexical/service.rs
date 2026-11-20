@@ -12,13 +12,39 @@ use crate::domain::model::names::service::intern;
 use crate::domain::model::names::types::{NameCode, NameTable};
 use crate::domain::syntax::constants::DOT;
 use ruff_python_ast::{Alias, AnyNodeRef, ExprContext, HasNodeIndex as _};
-use ryo::languages::node_table::{node_count, parent_of, subtree_end_of};
-use ryo::languages::{NameText, Position};
+use ruff_text_size::Ranged as _;
+use ryo::languages::{Count, NameText, Offset, Position, Span};
 
 /// The id of a node reached in place (a typed child), through the node index the walk wrote.
 #[must_use]
 pub(crate) fn id_of<'a>(node: impl Into<AnyNodeRef<'a>>) -> Position {
     Position(node.into().node_index().load().as_u32().unwrap_or(u32::MAX))
+}
+
+/// How many nodes the tree has.
+#[must_use]
+pub(crate) const fn node_count(tree: TypedTree<'_, '_>) -> Count {
+    Count(tree.nodes.len())
+}
+
+/// The parent of the node `at`; the root's is itself.
+#[must_use]
+pub(crate) fn parent_of(tree: TypedTree<'_, '_>, at: Position) -> Position {
+    tree.parents.get(usize::from(at)).copied().unwrap_or(at)
+}
+
+/// Where the subtree of the node `at` ends: the place after its last descendant.
+#[must_use]
+pub(crate) fn subtree_end_of(tree: TypedTree<'_, '_>, at: Position) -> Position {
+    tree.ends.get(usize::from(at)).copied().unwrap_or(Position(at.0.saturating_add(1)))
+}
+
+/// The bytes the node `at` is written in, as the parser read them.
+#[must_use]
+pub(crate) fn span_of(tree: TypedTree<'_, '_>, at: Position) -> Span {
+    let (start, end) =
+        node_at(tree, at).map_or((Offset(0), Offset(0)), |node| (Offset(node.start().to_u32()), Offset(node.end().to_u32())));
+    Span { start, end }
 }
 
 /// The parser's node of the id `at`.
@@ -175,14 +201,14 @@ fn first_iterable(model: &LexicalModel, tree: TypedTree<'_, '_>, clause: Positio
     if id_of(&typed.iter) != child {
         return None;
     }
-    let owner = parent_of(tree.table, clause);
-    let end = subtree_end_of(tree.table, owner);
+    let owner = parent_of(tree, clause);
+    let end = subtree_end_of(tree, owner);
     let mut first = Position(owner.0.saturating_add(1));
     while first < end {
         if entry(&model.class, first) == NodeClass::Comprehension {
             return (first == clause).then_some(owner);
         }
-        first = subtree_end_of(tree.table, first);
+        first = subtree_end_of(tree, first);
     }
     None
 }
@@ -211,7 +237,7 @@ fn import_origin(
 ) {
     let written = alias.name.as_str();
     let head = written.split(DOT).next().unwrap_or_default();
-    let (level, module) = if let Some(AnyNodeRef::StmtImportFrom(from)) = node_at(tree, parent_of(tree.table, at)) {
+    let (level, module) = if let Some(AnyNodeRef::StmtImportFrom(from)) = node_at(tree, parent_of(tree, at)) {
         (
             Some(ImportLevel(from.level)),
             from.module
@@ -303,7 +329,7 @@ fn read(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>
 /// Builds the lexical part of the model for one file.
 pub(crate) fn build(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>) {
     clear(model);
-    model.nodes = node_count(tree.table);
+    model.nodes = node_count(tree);
     let count = model.nodes.0.min(tree.nodes.len());
     model.class.extend(tree.nodes.iter().take(count).map(|node| class_of(*node)));
     model.scope_of.resize(count, MODULE);
@@ -312,7 +338,7 @@ pub(crate) fn build(model: &mut LexicalModel, names: &mut NameTable, tree: Typed
     model.annotation.resize(count, AnnotationMark::Plain);
     for number in 1..u32::try_from(count).unwrap_or(u32::MAX) {
         let at = Position(number);
-        let parent = parent_of(tree.table, at);
+        let parent = parent_of(tree, at);
         let parent_class = entry(&model.class, parent);
         let scope = if parent == MODULE {
             MODULE

@@ -12,7 +12,7 @@ use crate::domain::model::resolution::service::{proof_of, resolved_at};
 use crate::domain::model::resolution::types::OriginProof;
 use crate::domain::model::lexical::constants::MODULE;
 use crate::domain::syntax::constants::DOT;
-use crate::domain::model::lexical::service::{entry, name_of, scope_at, scope_form};
+use crate::domain::model::lexical::service::{entry, name_of, parent_of, scope_at, scope_form};
 use crate::domain::model::lexical::types::{ImportOrigin, ImportRename, NameUse, NodeClass, ScopeForm};
 use crate::domain::model::names::service::{builtin_of, held_word, name_word, text_of, word};
 use crate::domain::model::names::types::{FactWords, HeldWords, NameTable};
@@ -25,7 +25,7 @@ use crate::domain::qualification::constants::{
 use crate::domain::qualification::service::builtin_named;
 use crate::domain::relations::collections::relations::implicit_symbol::constants as implicit;
 use crate::domain::relations::collections::relations::implicit_symbol::item::{BUILTIN_ATTRIBUTES, MODULE_GLOBALS};
-use ryo::languages::node_table::{parent_of, span_of};
+use ryo::languages::node_table::span_of;
 use ryo::languages::{
     DefinesRow, FileWords, Fill, ImplicitSymbolRow, Integer, NameText, NodeId, NodeTable, Position, QualifiedNameRow,
     ReferenceRow, ResolvesRow, Rows, ScopeRow, Span, node_id,
@@ -154,7 +154,7 @@ fn reference_row(read: ModelRead<'_>, words: &mut FileWords, path: &mut Qualifie
     if !used {
         return None;
     }
-    let parent = parent_of(read.table, at);
+    let parent = parent_of(read.tree, at);
     let object_of_read = entry(&lexical.class, parent) == NodeClass::Attribute
         && parent.0.saturating_add(1) == at.0
         && entry(&lexical.usage, parent) == NameUse::Load;

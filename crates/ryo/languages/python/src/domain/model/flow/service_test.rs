@@ -3,7 +3,6 @@
 use super::service::build;
 use super::types::FlowModel;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::model::lexical::types::TypedTree;
 use crate::domain::model::reaching::types::{FlowReadState, FlowSource};
 use crate::domain::model::view::types::{ModelPart, ModelView as _};
 use crate::outbound::syntax::fixtures::model_view::{ModelFixture, viewed};
@@ -46,7 +45,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(source: Input) -> Value {
     let mut flow = FlowModel::default();
     viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
-        let tree = TypedTree { table: view.table, nodes: view.nodes };
+        let tree = view.tree;
         let model = view.semantics(ModelPart::Flow).model;
         build(
             &mut flow,

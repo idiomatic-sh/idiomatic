@@ -10,13 +10,12 @@ use crate::domain::model::frames::service::{self as frames, assign, delete, join
 use crate::domain::model::frames::types::{FrameCode, NameAbsence};
 use crate::domain::model::lexical::constants::MODULE;
 use crate::domain::model::declarations::service::{binding_scope, lexical_scope};
-use crate::domain::model::lexical::service::{entry, name_of, scope_at};
+use crate::domain::model::lexical::service::{entry, name_of, parent_of, scope_at, subtree_end_of};
 use crate::domain::model::lexical::types::{AnnotationMark, NamespaceKey, NodeClass};
 use crate::domain::model::names::constants::{NO_NAME, UNKNOWN_NAME};
 use crate::domain::model::reaching::service::{self as reaching, list_mutations, reach, refine};
 use crate::domain::model::reaching::types::{FlowReadState, FlowSource};
 use crate::domain::model::types::{BindingAction, BindingStep};
-use ryo::languages::node_table::{parent_of, subtree_end_of};
 use ryo::languages::{Count, Integer, Position};
 
 /// What the read at `at` is for: a type when it is inside an annotation of its phase.
@@ -32,7 +31,7 @@ fn read_context(source: FlowSource<'_, '_, '_>, at: Position, phase: Position, f
         if above == phase || above == MODULE {
             return fallback;
         }
-        above = parent_of(source.tree.table, above);
+        above = parent_of(source.tree, above);
     }
 }
 
@@ -113,8 +112,8 @@ fn bind(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode,
 
 /// Records the events of a `global` or `nonlocal` statement: one per name it declares.
 fn declare(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, step: BindingStep, ordinal: Integer, kind: FlowEventKind) {
-    let table = source.tree.table;
-    let end = subtree_end_of(table, step.occurrence);
+    let tree = source.tree;
+    let end = subtree_end_of(tree, step.occurrence);
     let mut child = Position(step.occurrence.0.saturating_add(1));
     while child < end {
         if entry(&source.lexical.class, child) == NodeClass::Identifier {
@@ -122,20 +121,20 @@ fn declare(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, step: BindingS
             model.events.push(FlowEvent {
                 at: child,
                 name,
-                scope: binding_scope(source.lexical, table, child, name),
+                scope: binding_scope(source.lexical, tree, child, name),
                 phase: step.phase,
                 ordinal,
                 kind,
-                lexical: lexical_scope(source.lexical, table, child),
+                lexical: lexical_scope(source.lexical, tree, child),
             });
         }
-        child = subtree_end_of(table, child);
+        child = subtree_end_of(tree, child);
     }
 }
 
 /// Interprets one step that is about a name: records its event, then what it reads or changes.
 fn observe(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode, step: BindingStep, ordinal: Integer) {
-    let table = source.tree.table;
+    let tree = source.tree;
     let definition = definition_of(source.definitions, step.occurrence).copied();
     let kind = match step.action {
         BindingAction::Read => FlowEventKind::Read,
@@ -159,14 +158,14 @@ fn observe(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCo
     let scope = if kind == FlowEventKind::Read {
         scope_at(source.lexical, step.occurrence)
     } else {
-        definition.map_or_else(|| binding_scope(source.lexical, table, step.occurrence, name), |found| found.owner)
+        definition.map_or_else(|| binding_scope(source.lexical, tree, step.occurrence, name), |found| found.owner)
     };
     let written_in_scope = kind == FlowEventKind::Read
         || matches!(
             entry(&source.lexical.class, step.occurrence),
             NodeClass::Parameter | NodeClass::TypeVar | NodeClass::TypeVarTuple | NodeClass::ParamSpec
         );
-    let lexical = if written_in_scope { scope } else { lexical_scope(source.lexical, table, step.occurrence) };
+    let lexical = if written_in_scope { scope } else { lexical_scope(source.lexical, tree, step.occurrence) };
     model.events.push(FlowEvent { at: step.occurrence, name, scope, phase: step.phase, ordinal, kind, lexical });
     let key = NamespaceKey { scope, name };
     match kind {

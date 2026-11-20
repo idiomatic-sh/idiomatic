@@ -3,7 +3,6 @@
 use super::service::list_mutations;
 use super::types::{FlowSource, ReachModel};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::model::lexical::types::TypedTree;
 use crate::domain::model::view::types::{ModelPart, ModelView as _};
 use crate::outbound::syntax::fixtures::model_view::{ModelFixture, viewed};
 use ryo::languages::{Count, FileId};
@@ -39,7 +38,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(source: Input) -> Value {
     let mut reach = ReachModel::default();
     viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
-        let tree = TypedTree { table: view.table, nodes: view.nodes };
+        let tree = view.tree;
         let model = view.semantics(ModelPart::Flow).model;
         list_mutations(
             &mut reach,

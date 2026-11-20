@@ -7,11 +7,10 @@ use crate::domain::model::types::{
 };
 use crate::domain::model::definitions::service::definition_of;
 use crate::domain::model::lexical::constants::MODULE;
-use crate::domain::model::lexical::service::{entry, id_of, node_at, syntax_form};
+use crate::domain::model::lexical::service::{entry, id_of, node_at, subtree_end_of, syntax_form};
 use crate::domain::model::lexical::types::{AnnotationMark, NameUse, NodeClass, SyntaxForm};
 use ruff_python_ast::{AnyNodeRef, Comprehension, Expr, Stmt};
 use ryo::languages::Position;
-use ryo::languages::node_table::subtree_end_of;
 
 /// Writes one step.
 fn push(model: &mut BindingSchedule, at: Position, phase: Position, action: BindingAction) {
@@ -37,11 +36,11 @@ fn walk_body(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, bo
 
 /// Walks every child of the node `at`, in source order.
 fn walk_children(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Position, phase: Position) {
-    let end = subtree_end_of(source.tree.table, at);
+    let end = subtree_end_of(source.tree, at);
     let mut child = first_child(at);
     while child < end {
         walk(model, source, child, phase);
-        child = subtree_end_of(source.tree.table, child);
+        child = subtree_end_of(source.tree, child);
     }
 }
 
@@ -51,11 +50,11 @@ fn parameter_values(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, 
         walk(model, source, at, phase);
         return;
     }
-    let end = subtree_end_of(source.tree.table, at);
+    let end = subtree_end_of(source.tree, at);
     let mut child = first_child(at);
     while child < end {
         parameter_values(model, source, child, phase);
-        child = subtree_end_of(source.tree.table, child);
+        child = subtree_end_of(source.tree, child);
     }
 }
 
@@ -69,11 +68,11 @@ fn parameters(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, a
     if syntax_form(class) == SyntaxForm::Expression {
         return;
     }
-    let end = subtree_end_of(source.tree.table, at);
+    let end = subtree_end_of(source.tree, at);
     let mut child = first_child(at);
     while child < end {
         parameters(model, source, child, phase);
-        child = subtree_end_of(source.tree.table, child);
+        child = subtree_end_of(source.tree, child);
     }
 }
 
@@ -144,11 +143,11 @@ fn callable(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at:
         AnyNodeRef::ExprLambda(lambda) => Some(id_of(&*lambda.body)),
         _ => None,
     };
-    let end = subtree_end_of(source.tree.table, at);
+    let end = subtree_end_of(source.tree, at);
     let mut child = first_child(at);
     while child < end && Some(child) != body {
         parameter_values(model, source, child, phase);
-        child = subtree_end_of(source.tree.table, child);
+        child = subtree_end_of(source.tree, child);
     }
     if entry(&source.lexical.class, at) == NodeClass::FunctionDef {
         push(model, at, phase, BindingAction::Bind);

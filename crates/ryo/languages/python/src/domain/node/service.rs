@@ -4,6 +4,7 @@
 use super::types::{FixedWords, Numbered, SyntaxFile};
 use crate::domain::labels::service::field_bits;
 use crate::domain::labels::types::Field;
+use crate::domain::model::lexical::types::TypedTree;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -23,6 +24,17 @@ pub(crate) const fn field_code(field: Field) -> FieldCode {
 #[must_use]
 pub(crate) fn id_of<'t>(node: impl Into<AnyNodeRef<'t>>) -> Option<Position> {
     node.into().node_index().load().as_u32().map(Position)
+}
+
+/// The file as the semantic model reads it: the typed nodes with their parents and the ends of their subtrees.
+#[must_use]
+pub(crate) const fn typed_tree<'f>(file: &SyntaxFile<'f>) -> TypedTree<'f, 'f> {
+    TypedTree {
+        parents: file.parents,
+        ends: file.ends,
+        nodes: file.nodes,
+        annotations: file.annotations,
+    }
 }
 
 /// The typed node of a syntax node id; none for a token and for an id the file does not have.

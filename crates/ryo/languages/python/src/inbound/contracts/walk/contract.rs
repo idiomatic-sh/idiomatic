@@ -65,6 +65,9 @@ impl Walk for PythonWalk<WalkPorts> {
                     syntax: SyntaxFile {
                         table,
                         nodes: &tree.nodes,
+                        parents: &tree.parents,
+                        ends: &tree.ends,
+                        annotations: tree.annotations,
                         text: tree.text,
                         file: request.file,
                         completeness: tree.completeness,

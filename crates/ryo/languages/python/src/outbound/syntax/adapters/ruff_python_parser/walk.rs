@@ -6,6 +6,7 @@ use super::future::module_future_annotations;
 use super::lexical::{complete, offset, readable};
 use super::options::options;
 use super::types::{ByteIndex, FutureAnnotations, Readable, TokenIndex, Walker};
+use crate::domain::model::types::BindingAnnotationTiming;
 use crate::domain::node::types::{WalkedTree, Wholeness};
 use crate::outbound::syntax::types::{PythonSourceKind, ReportedSyntax, SourceText};
 use crate::settings::PythonParserSettings;
@@ -117,6 +118,8 @@ pub(super) fn walked(
         future_annotations,
         length: offset(ByteIndex(text.0.len())),
         nodes: Vec::new(),
+        parents: Vec::new(),
+        subtree_ends: Vec::new(),
         open: Vec::new(),
         fields: Vec::new(),
     };
@@ -124,6 +127,8 @@ pub(super) fn walked(
     let Walker {
         builder,
         nodes,
+        parents,
+        subtree_ends,
         refused,
         ..
     } = walker;
@@ -223,6 +228,13 @@ pub(super) fn walked(
         builder,
         WalkedTree {
             nodes,
+            parents,
+            ends: subtree_ends,
+            annotations: if future_annotations.0 {
+                BindingAnnotationTiming::Deferred
+            } else {
+                BindingAnnotationTiming::Immediate
+            },
             text: NameText(&source),
             completeness: Wholeness { syntax, lexical },
         },

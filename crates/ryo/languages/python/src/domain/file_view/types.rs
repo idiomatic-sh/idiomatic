@@ -9,6 +9,7 @@ use crate::domain::layout_facts::types::FileLines;
 use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::model::view::service::built;
 use crate::domain::model::view::types::{Built, ModelPart, ModelRead, ModelView, SemanticModel};
+use crate::domain::node::service::typed_tree;
 use crate::domain::node::types::{FixedWords, SyntaxFile};
 use crate::domain::standard_library::types::TargetVersion;
 use crate::domain::token_links::types::Opener;
@@ -40,16 +41,12 @@ pub(crate) struct PythonFile<'f> {
 
 impl ModelView for PythonFile<'_> {
     fn semantics(&mut self, part: ModelPart) -> ModelRead<'_> {
-        built(
-            self.model,
-            &mut self.built,
-            part,
-            self.syntax.table,
-            self.syntax.nodes,
-        );
+        let tree = typed_tree(&self.syntax);
+        built(self.model, &mut self.built, part, tree);
         ModelRead {
             model: self.model,
             table: self.syntax.table,
+            tree,
             file: self.syntax.file,
         }
     }

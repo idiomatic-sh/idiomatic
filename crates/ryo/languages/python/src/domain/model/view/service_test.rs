@@ -45,7 +45,7 @@ fn subject(parts: Input) -> Value {
     let mut state = Built::default();
     viewed(&mut ModelFixture::default(), "x = y\n", FileId(0), &mut |view| {
         for part in parts {
-            built(&mut model, &mut state, *part, view.table, view.nodes);
+            built(&mut model, &mut state, *part, view.tree);
         }
     });
     (state, model.schedule.steps.len())

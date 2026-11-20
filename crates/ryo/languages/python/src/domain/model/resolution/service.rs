@@ -12,31 +12,30 @@ use crate::domain::model::definitions::service::{definition_of, definitions_of, 
 use crate::domain::model::definitions::types::DefinitionModel;
 use crate::domain::model::lexical::constants::{MODULE, NO_NODE};
 use crate::domain::model::declarations::service::redirected;
-use crate::domain::model::lexical::service::{entry, name_of, scope_at, scope_form};
-use crate::domain::model::lexical::types::{LexicalModel, NameUse, NodeClass, ScopeForm};
+use crate::domain::model::lexical::service::{entry, name_of, parent_of, scope_at, scope_form, subtree_end_of};
+use crate::domain::model::lexical::types::{LexicalModel, NameUse, NodeClass, ScopeForm, TypedTree};
 use crate::domain::model::names::constants::NO_NAME;
 use crate::domain::model::names::service::builtin_of;
 use crate::domain::model::names::types::{NameCode, NameTable};
-use ryo::languages::node_table::{parent_of, subtree_end_of};
-use ryo::languages::{NodeTable, Position};
+use ryo::languages::Position;
 
 /// Whether the definition `binding` is in effect at `occurrence`: an assignment's value is evaluated before its targets are
 /// bound, and a definition's own decorators, defaults and bases before its name.
-fn bound(lexical: &LexicalModel, table: &NodeTable, binding: Position, occurrence: Position) -> Bound {
+fn bound(lexical: &LexicalModel, tree: TypedTree<'_, '_>, binding: Position, occurrence: Position) -> Bound {
     let mut above = binding;
     loop {
         let class = entry(&lexical.class, above);
         let evaluating = matches!(class, NodeClass::Assign | NodeClass::AnnAssign | NodeClass::NamedExpr)
             || (above == binding && matches!(class, NodeClass::FunctionDef | NodeClass::ClassDef));
         if evaluating {
-            return if occurrence >= subtree_end_of(table, above) || occurrence < above { Bound::Yes } else { Bound::NotYet };
+            return if occurrence >= subtree_end_of(tree, above) || occurrence < above { Bound::Yes } else { Bound::NotYet };
         }
         if matches!(class, NodeClass::Module | NodeClass::FunctionDef | NodeClass::ClassDef | NodeClass::Lambda)
             || above == MODULE
         {
             return Bound::Yes;
         }
-        above = parent_of(table, above);
+        above = parent_of(tree, above);
     }
 }
 
@@ -45,7 +44,7 @@ fn bound(lexical: &LexicalModel, table: &NodeTable, binding: Position, occurrenc
 pub(crate) fn resolve(
     model: &DefinitionModel,
     lexical: &LexicalModel,
-    table: &NodeTable,
+    tree: TypedTree<'_, '_>,
     at: Position,
     name: NameCode,
 ) -> Option<Position> {
@@ -72,7 +71,7 @@ pub(crate) fn resolve(
                 range.partition_point(|code| place_of(model, *code) < at)
             };
             let found = range.get(..before).unwrap_or_default().iter().rev().find(|code| {
-                delayed || local || bound(lexical, table, place_of(model, **code), at) == Bound::Yes
+                delayed || local || bound(lexical, tree, place_of(model, **code), at) == Bound::Yes
             });
             if let Some(code) = found {
                 return Some(place_of(model, *code));
@@ -146,14 +145,14 @@ pub(crate) fn proof_of(
 }
 
 /// Resolves every name expression of the file that is read.
-pub(crate) fn build(model: &mut ResolutionModel, definitions: &DefinitionModel, lexical: &LexicalModel, table: &NodeTable) {
+pub(crate) fn build(model: &mut ResolutionModel, definitions: &DefinitionModel, lexical: &LexicalModel, tree: TypedTree<'_, '_>) {
     model.resolved.clear();
     let count = lexical.class.len();
     model.resolved.resize(count, NO_NODE);
     for number in 0..u32::try_from(count).unwrap_or(u32::MAX) {
         let at = Position(number);
         if entry(&lexical.class, at) == NodeClass::Name && entry(&lexical.usage, at) == NameUse::Load {
-            let found = resolve(definitions, lexical, table, at, name_of(lexical, at));
+            let found = resolve(definitions, lexical, tree, at, name_of(lexical, at));
             if let Some(slot) = model.resolved.get_mut(usize::from(at)) {
                 *slot = found.unwrap_or(NO_NODE);
             }

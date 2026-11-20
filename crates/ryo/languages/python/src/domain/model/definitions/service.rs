@@ -5,14 +5,13 @@ use super::types::{DefinitionCode, DefinitionModel, DefinitionRange, DefinitionW
 use crate::domain::model::lexical::constants::{NO_NODE, WILDCARD};
 use crate::domain::syntax::constants::DOT;
 use crate::domain::model::declarations::service::binding_scope;
-use crate::domain::model::lexical::service::{entry, id_of, name_of, node_at, scope_at};
+use crate::domain::model::lexical::service::{entry, id_of, name_of, node_at, parent_of, scope_at, span_of};
 use crate::domain::model::lexical::types::{LexicalModel, NameUse, NamespaceKey, NodeClass, TypedTree};
 use crate::domain::model::names::constants::UNKNOWN_NAME;
 use crate::domain::model::names::service::find;
 use crate::domain::model::names::types::{NameCode, NameTable};
 use ruff_python_ast::{AnyNodeRef, Identifier, ParameterWithDefault};
-use ryo::languages::node_table::{parent_of, span_of};
-use ryo::languages::{Count, DeclarationKind, NameText, NodeTable, Offset, Position, Span};
+use ryo::languages::{Count, DeclarationKind, NameText, Offset, Position, Span};
 
 /// The definition of the node `at`, when it defines a name.
 #[must_use]
@@ -22,15 +21,14 @@ pub(crate) fn definition_of(model: &DefinitionModel, at: Position) -> Option<&Na
 }
 
 /// The bytes of the node `at`.
-fn span_at(table: &NodeTable, at: Position) -> Span {
-    let span = span_of(table, at);
-    Span { start: span.start, end: span.end }
+fn span_at(tree: TypedTree<'_, '_>, at: Position) -> Span {
+    span_of(tree, at)
 }
 
 /// A definition named by the identifier `identifier`, owned by the namespace the node `at` binds in.
 fn named(
     lexical: &LexicalModel,
-    table: &NodeTable,
+    tree: TypedTree<'_, '_>,
     at: Position,
     identifier: &Identifier,
     kind: DeclarationKind,
@@ -38,14 +36,14 @@ fn named(
 ) -> NameDefinition {
     let place = id_of(identifier);
     let name = name_of(lexical, place);
-    NameDefinition { at, name, owner: binding_scope(lexical, table, at, name), kind, word, named: span_at(table, place) }
+    NameDefinition { at, name, owner: binding_scope(lexical, tree, at, name), kind, word, named: span_at(tree, place) }
 }
 
 /// How the parameter `at` takes its argument, and the callable it belongs to.
 fn placed(lexical: &LexicalModel, tree: TypedTree<'_, '_>, at: Position) -> Option<PlacedParameter> {
-    let holder = parent_of(tree.table, at);
+    let holder = parent_of(tree, at);
     let element = if entry(&lexical.class, holder) == NodeClass::ParameterWithDefault { holder } else { at };
-    let parameters = parent_of(tree.table, element);
+    let parameters = parent_of(tree, element);
     let Some(AnyNodeRef::Parameters(typed)) = node_at(tree, parameters) else {
         return None;
     };
@@ -63,13 +61,13 @@ fn placed(lexical: &LexicalModel, tree: TypedTree<'_, '_>, at: Position) -> Opti
     } else {
         return None;
     };
-    Some(PlacedParameter { word, callable: parent_of(tree.table, parameters) })
+    Some(PlacedParameter { word, callable: parent_of(tree, parameters) })
 }
 
 /// The definition a type parameter makes: its owner is the definition the parameters belong to.
 fn type_parameter(
     lexical: &LexicalModel,
-    table: &NodeTable,
+    tree: TypedTree<'_, '_>,
     at: Position,
     identifier: &Identifier,
     word: DefinitionWord,
@@ -78,10 +76,10 @@ fn type_parameter(
     NameDefinition {
         at,
         name: name_of(lexical, place),
-        owner: parent_of(table, parent_of(table, at)),
+        owner: parent_of(tree, parent_of(tree, at)),
         kind: DeclarationKind::TypeParameter,
         word,
-        named: span_at(table, place),
+        named: span_at(tree, place),
     }
 }
 
@@ -93,7 +91,7 @@ fn imported(
     at: Position,
     alias: &ruff_python_ast::Alias,
 ) -> Option<NameDefinition> {
-    let from = entry(&lexical.class, parent_of(tree.table, at)) == NodeClass::ImportFrom;
+    let from = entry(&lexical.class, parent_of(tree, at)) == NodeClass::ImportFrom;
     let word = if from { DefinitionWord::FromImport } else { DefinitionWord::Import };
     let written = alias.name.as_str();
     let start = Offset(alias.name.range.start().to_u32());
@@ -101,7 +99,7 @@ fn imported(
         (UNKNOWN_NAME, Span { start, end: Offset(alias.name.range.end().to_u32()) })
     } else if let Some(renamed) = &alias.asname {
         let place = id_of(renamed);
-        (name_of(lexical, place), span_at(tree.table, place))
+        (name_of(lexical, place), span_at(tree, place))
     } else {
         let head = written.split(DOT).next().unwrap_or_default();
         let length = u32::try_from(head.len()).unwrap_or(u32::MAX);
@@ -110,7 +108,7 @@ fn imported(
     Some(NameDefinition {
         at,
         name,
-        owner: binding_scope(lexical, tree.table, at, name),
+        owner: binding_scope(lexical, tree, at, name),
         kind: DeclarationKind::Import,
         word,
         named: span,
@@ -123,7 +121,6 @@ fn imported(
     reason = "eleven of the parser's node kinds define a name; every other defines none"
 )]
 fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>, at: Position) -> Option<NameDefinition> {
-    let table = tree.table;
     match node_at(tree, at)? {
         AnyNodeRef::StmtFunctionDef(function) => {
             let method = entry(&lexical.class, scope_at(lexical, at)) == NodeClass::ClassDef;
@@ -133,14 +130,14 @@ fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>
                 (false, true) => (DeclarationKind::Function, DefinitionWord::AsyncFunction),
                 (false, false) => (DeclarationKind::Function, DefinitionWord::Function),
             };
-            Some(named(lexical, table, at, &function.name, kind, word))
+            Some(named(lexical, tree, at, &function.name, kind, word))
         }
         AnyNodeRef::StmtClassDef(class) => {
-            Some(named(lexical, table, at, &class.name, DeclarationKind::Class, DefinitionWord::Class))
+            Some(named(lexical, tree, at, &class.name, DeclarationKind::Class, DefinitionWord::Class))
         }
         AnyNodeRef::ExceptHandlerExceptHandler(handler) => Some(named(
             lexical,
-            table,
+            tree,
             at,
             handler.name.as_ref()?,
             DeclarationKind::Variable,
@@ -148,7 +145,7 @@ fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>
         )),
         AnyNodeRef::PatternMatchAs(pattern) => Some(named(
             lexical,
-            table,
+            tree,
             at,
             pattern.name.as_ref()?,
             DeclarationKind::Variable,
@@ -156,7 +153,7 @@ fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>
         )),
         AnyNodeRef::PatternMatchStar(pattern) => Some(named(
             lexical,
-            table,
+            tree,
             at,
             pattern.name.as_ref()?,
             DeclarationKind::Variable,
@@ -164,7 +161,7 @@ fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>
         )),
         AnyNodeRef::PatternMatchMapping(pattern) => Some(named(
             lexical,
-            table,
+            tree,
             at,
             pattern.rest.as_ref()?,
             DeclarationKind::Variable,
@@ -176,7 +173,7 @@ fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>
                 return None;
             }
             let name = name_of(lexical, at);
-            let parent = parent_of(table, at);
+            let parent = parent_of(tree, at);
             let alias = entry(&lexical.class, parent) == NodeClass::TypeAlias && parent.0.saturating_add(1) == at.0;
             let (kind, word) = if alias {
                 (DeclarationKind::TypeAlias, DefinitionWord::TypeAlias)
@@ -186,10 +183,10 @@ fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>
             Some(NameDefinition {
                 at,
                 name,
-                owner: binding_scope(lexical, table, at, name),
+                owner: binding_scope(lexical, tree, at, name),
                 kind,
                 word,
-                named: span_at(table, at),
+                named: span_at(tree, at),
             })
         }
         AnyNodeRef::Parameter(parameter) => {
@@ -201,17 +198,17 @@ fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>
                 owner: callable,
                 kind: DeclarationKind::Parameter,
                 word,
-                named: span_at(table, place),
+                named: span_at(tree, place),
             })
         }
         AnyNodeRef::TypeParamTypeVar(typed) => {
-            Some(type_parameter(lexical, table, at, &typed.name, DefinitionWord::TypeVar))
+            Some(type_parameter(lexical, tree, at, &typed.name, DefinitionWord::TypeVar))
         }
         AnyNodeRef::TypeParamTypeVarTuple(typed) => {
-            Some(type_parameter(lexical, table, at, &typed.name, DefinitionWord::TypeVarTuple))
+            Some(type_parameter(lexical, tree, at, &typed.name, DefinitionWord::TypeVarTuple))
         }
         AnyNodeRef::TypeParamParamSpec(typed) => {
-            Some(type_parameter(lexical, table, at, &typed.name, DefinitionWord::ParamSpec))
+            Some(type_parameter(lexical, tree, at, &typed.name, DefinitionWord::ParamSpec))
         }
         _ => None,
     }

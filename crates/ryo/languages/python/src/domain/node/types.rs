@@ -3,6 +3,7 @@
 //! typed node of each id is kept beside the engine's node table.
 
 use crate::domain::labels::types::Field;
+use crate::domain::model::types::BindingAnnotationTiming;
 use ruff_python_ast::AnyNodeRef;
 use ryo::languages::{FileId, NameText, NodeTable, Position, SyntaxCompleteness};
 
@@ -20,6 +21,12 @@ pub(crate) struct Wholeness {
 pub(crate) struct WalkedTree<'t> {
     /// The typed node of each syntax node, by its id.
     pub(crate) nodes: Vec<AnyNodeRef<'t>>,
+    /// The parent of each syntax node, by its id; the root is its own.
+    pub(crate) parents: Vec<Position>,
+    /// Where the subtree of each syntax node ends, by its id: the id after its last descendant.
+    pub(crate) ends: Vec<Position>,
+    /// Whether the module postpones the evaluation of its annotations.
+    pub(crate) annotations: BindingAnnotationTiming,
     /// The text the parser read: the file's own bytes when they are UTF-8.
     pub(crate) text: NameText<'t>,
     /// Whether the file was read whole.
@@ -33,6 +40,12 @@ pub(crate) struct SyntaxFile<'f> {
     pub(crate) table: &'f NodeTable,
     /// The typed node of each syntax node, by its id.
     pub(crate) nodes: &'f [AnyNodeRef<'f>],
+    /// The parent of each syntax node, by its id.
+    pub(crate) parents: &'f [Position],
+    /// Where the subtree of each syntax node ends, by its id.
+    pub(crate) ends: &'f [Position],
+    /// Whether the module postpones the evaluation of its annotations.
+    pub(crate) annotations: BindingAnnotationTiming,
     /// The text the parser read.
     pub(crate) text: NameText<'f>,
     /// The number the run gave the file.

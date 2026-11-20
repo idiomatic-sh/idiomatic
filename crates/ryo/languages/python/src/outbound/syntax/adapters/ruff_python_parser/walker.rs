@@ -21,7 +21,8 @@ use ruff_python_ast::visitor::source_order::{SourceOrderVisitor, TraversalSignal
 use ruff_python_ast::{AnyNodeRef, HasNodeIndex as _, InterpolatedStringElement, NodeIndex};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{
-    DiagnosticMetadata, DiagnosticPhase, FieldCode, NameText, Offset, TreeImpact, node_table,
+    DiagnosticMetadata, DiagnosticPhase, FieldCode, NameText, Offset, Position, TreeImpact,
+    node_table,
 };
 
 impl Walker<'_, '_, '_> {
@@ -150,6 +151,10 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             );
         }
         self.nodes.push(node);
+        let at = Position(id);
+        self.parents
+            .push(self.open.last().map_or(at, |open| open.at));
+        self.subtree_ends.push(Position(id.saturating_add(1)));
         let from = FieldIndex(self.fields.len());
         child_fields(
             Placed {
@@ -161,6 +166,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         );
         self.open.push(OpenWalked {
             node,
+            at,
             from,
             next: from,
         });
@@ -210,6 +216,10 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         self.fill(end);
         if let Some(open) = self.open.pop() {
             self.fields.truncate(open.from.0);
+            let after = Position(u32::try_from(self.nodes.len()).unwrap_or(u32::MAX));
+            if let Some(subtree_end) = self.subtree_ends.get_mut(usize::from(open.at)) {
+                *subtree_end = after;
+            }
         }
         node_table::leave_node(self.builder, end);
     }

@@ -75,6 +75,9 @@ impl SyntaxPort for SyntaxFake {
             builder,
             WalkedTree {
                 nodes: Vec::new(),
+                parents: Vec::new(),
+                ends: Vec::new(),
+                annotations: crate::domain::model::types::BindingAnnotationTiming::Immediate,
                 text: languages::NameText(std::str::from_utf8(text.0).unwrap_or_default()),
                 completeness: Wholeness {
                     syntax: SyntaxCompleteness::Complete,

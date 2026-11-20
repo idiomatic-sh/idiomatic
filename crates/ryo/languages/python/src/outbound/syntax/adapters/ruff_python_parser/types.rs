@@ -218,6 +218,8 @@ pub(super) struct FieldIndex(pub usize);
 pub(super) struct OpenWalked<'t> {
     /// The node.
     pub node: ruff_python_ast::AnyNodeRef<'t>,
+    /// The id the walk gave it.
+    pub at: languages::Position,
     /// Where the fields of its children start among the walk's fields.
     pub from: FieldIndex,
     /// The field of its next child, when its children open in the order the fields were read.
@@ -249,6 +251,10 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub future_annotations: FutureAnnotations,
     /// The typed node of each id written so far.
     pub nodes: Vec<ruff_python_ast::AnyNodeRef<'t>>,
+    /// The parent of each id written so far; the root is its own.
+    pub parents: Vec<languages::Position>,
+    /// Where the subtree of each id written so far ends; a node still open ends after itself.
+    pub subtree_ends: Vec<languages::Position>,
     /// The open nodes, the innermost last.
     pub open: Vec<OpenWalked<'t>>,
     /// The fields the open nodes hand their children, one run for each open node.
