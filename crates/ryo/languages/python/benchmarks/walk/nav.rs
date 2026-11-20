@@ -561,16 +561,24 @@ pub(crate) fn fuse(p: Vec<Ins>) -> Vec<Ins> {
         rest.clear();
         match ins {
             Ins::IterValue { rel, col, val, out: o } if matches!(rel, TRel::Ss | TRel::Sl) => {
-                let Some(Ins::Read { rel: TRel::Sl, col: 5, row, out: st }) = it.peek() else {
+                // the reads of the row that follow (any order), one of them its start, then range tests on the start
+                let mut kept: Vec<Ins> = Vec::new();
+                let mut st: Option<R> = None;
+                while let Some(Ins::Read { row, .. }) = it.peek() {
+                    if *row != o {
+                        break;
+                    }
+                    let r = it.next().unwrap();
+                    if let Ins::Read { rel: TRel::Sl, col: 5, out, .. } = &r {
+                        st = Some(*out);
+                    }
+                    kept.push(r);
+                }
+                let Some(st) = st else {
                     out.push(Ins::IterValue { rel, col, val, out: o });
+                    out.extend(kept);
                     continue;
                 };
-                if *row != o {
-                    out.push(Ins::IterValue { rel, col, val, out: o });
-                    continue;
-                }
-                let st = *st;
-                it.next();
                 let (mut lo, mut hi) = (None, None);
                 while let Some(Ins::Test { test, l: Opd::Reg(a), r: Opd::Reg(b), text: false, .. }) = it.peek() {
                     let (test, a, b) = (*test, *a, *b);
@@ -592,7 +600,10 @@ pub(crate) fn fuse(p: Vec<Ins>) -> Vec<Ins> {
                     *slot = Some(bound.1);
                     it.next();
                 }
+                // the start read is answered by the range walk itself
+                kept.retain(|r| !matches!(r, Ins::Read { rel: TRel::Sl, col: 5, .. }));
                 out.push(Ins::IterRange { rel, col, val, out: o, start: st, lo, hi });
+                out.extend(kept);
             }
             Ins::IterChildren { parent, out: o } => {
                 let fused = match it.peek() {
