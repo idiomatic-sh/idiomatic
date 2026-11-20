@@ -18,6 +18,10 @@ pub(crate) type R = u16;
 thread_local! {
     static CPU_CLOCK: bool = std::env::var_os("NAV_CPUCLOCK").is_some();
     static SORTED_INDEX: bool = !std::env::var("NAV_SORTED_INDEX").is_ok_and(|v| v == "0");
+    /// the whole-or-per-key choice: 0 never whole by choice; 1 (default, the measured runs) whole when the plan fills it whole
+    /// in most files; 2 also by a count-based cost (tried: it gains 0.02-0.03 thread-s and mis-chooses two relations whose
+    /// early files are not typical; the engine should measure each relation's two costs, not assume a ratio)
+    static KEY_POLICY: u8 = std::env::var("NAV_PERKEY_POLICY").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
     static REUSE_FACTS: bool = !std::env::var("NAV_REUSE_FACTS").is_ok_and(|v| v == "0");
 }
 static EPOCH: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
@@ -2709,6 +2713,25 @@ impl Provider {
     }
 }
 
+/// What the choice between a relation's whole fill and its per-key fills is made from, per worker over the run (facts).
+#[derive(Default, Clone, Copy)]
+pub(crate) struct KeyStat {
+    /// files that read the relation
+    files: u32,
+    /// of them, those read in per-key mode, and those of these the plan filled whole anyway (a scan, a constant probe)
+    a_files: u32,
+    a_whole: u32,
+    /// per-key mode files never filled whole: their ids, and their cost in row units (KEY_FILL_UNITS a fill, one a row)
+    a_nodes: u64,
+    a_units: u64,
+    /// files filled whole: their ids and the rows written
+    b_nodes: u64,
+    b_rows: u64,
+}
+
+/// A per-key fill costs about as much as writing this many rows of a whole fill (measured: 130-430 ns against 20-80 ns).
+const KEY_FILL_UNITS: u64 = 4;
+
 impl FileCache {
     /// a new file (facts): the relations' column buffers are emptied and kept (their memory serves the next file's rows);
     /// nothing is loaded, no index stands
@@ -2812,8 +2835,11 @@ pub(crate) struct FileCache {
     /// it whole); a relation filled whole in most files that read it is filled whole at its first probe (its per-key fills
     /// before the whole fill would be paid twice)
     pub key_used: Vec<bool>,
-    pub key_stats: Vec<(u32, u32)>,
+    pub key_stats: Vec<KeyStat>,
     pub key_whole: Vec<bool>,
+    /// per file: per-key fills and the rows they wrote, per relation
+    pub key_fills_file: Vec<u32>,
+    pub key_rows_file: Vec<u32>,
     pub acct_touched: Vec<Vec<u64>>,
     /// the rows a register probe yielded (what a plan that never probed by constant would read)
     pub acct_keyed: Vec<Vec<u64>>,
@@ -3022,20 +3048,47 @@ impl<'a, 'p> Exec<'a, 'p> {
         if self.cache.key_cols.is_empty() {
             return;
         }
-        let policy = !std::env::var("NAV_PERKEY_POLICY").is_ok_and(|v| v == "0");
+        let policy = KEY_POLICY.with(|x| *x);
         let Some(facts) = self.cache.facts.as_ref() else { return };
+        let nodes = self.f.view.len() as u64;
         for rel in 0..self.cache.key_stats.len().min(facts.loaded.len()) {
             if self.cache.key_cols[rel] == 0 {
                 continue;
             }
             let used = std::mem::take(&mut self.cache.key_used[rel]);
+            let fills = u64::from(std::mem::take(&mut self.cache.key_fills_file[rel]));
+            let rows = u64::from(std::mem::take(&mut self.cache.key_rows_file[rel]));
             let whole = facts.loaded[rel];
-            if used || whole {
-                let s = &mut self.cache.key_stats[rel];
-                s.0 += 1;
-                s.1 += u32::from(whole);
-                self.cache.key_whole[rel] = policy && s.0 >= 4 && s.1 * 2 >= s.0;
+            if !(used || whole) {
+                continue;
             }
+            let was_whole_mode = self.cache.key_whole[rel];
+            let s = &mut self.cache.key_stats[rel];
+            s.files += 1;
+            if whole {
+                s.b_nodes += nodes;
+                s.b_rows += facts.cols[rel].first().map_or(0, Vec::len) as u64 - u64::from(facts.whole_from[rel]);
+            }
+            if !was_whole_mode {
+                s.a_files += 1;
+                s.a_whole += u32::from(whole);
+                if !whole {
+                    s.a_nodes += nodes;
+                    s.a_units += KEY_FILL_UNITS * fills + rows;
+                }
+            }
+            // the next file's mode: whole when the plan fills the relation whole in most files anyway (its per-key fills before
+            // that are paid twice); else by cost: rows per id of a whole fill against fills and rows per id of per-key fills,
+            // with a whole fill and a per-key file now and then (one in 64 each) to learn and keep both current
+            self.cache.key_whole[rel] = match policy {
+                0 => false,
+                _ if s.a_files < 4 => false,
+                _ if s.a_whole * 2 >= s.a_files => true,
+                1 => false,
+                _ if s.b_nodes == 0 || s.files % 64 == 32 => true,
+                _ if s.files % 64 == 0 => false,
+                _ => s.b_rows as u128 * s.a_nodes as u128 <= s.a_units as u128 * s.b_nodes as u128 && s.a_nodes > 0,
+            };
         }
     }
 
@@ -3711,7 +3764,9 @@ impl<'a, 'p> Exec<'a, 'p> {
             cols.push(0);
         }
         self.cache.key_used = vec![false; cols.len()];
-        self.cache.key_stats = vec![(0, 0); cols.len()];
+        self.cache.key_stats = vec![KeyStat::default(); cols.len()];
+        self.cache.key_fills_file = vec![0; cols.len()];
+        self.cache.key_rows_file = vec![0; cols.len()];
         self.cache.key_whole = vec![false; cols.len()];
         self.cache.key_cols = cols;
         self.cache.key_fn = fns;
@@ -3756,6 +3811,8 @@ impl<'a, 'p> Exec<'a, 'p> {
         let end = self.cache.facts.as_ref().unwrap().cols[rel as usize].first().map_or(0, Vec::len) as u32;
         self.c.key_fills += 1;
         self.c.key_rows += u64::from(end - start);
+        self.cache.key_fills_file[rel as usize] += 1;
+        self.cache.key_rows_file[rel as usize] += end - start;
         // a clocked fill: without the clock's own cost and without a whole-file analysis it started (those are clocked one by
         // one, in the provider's state)
         // nor a part of the model it was the first to ask for (clocked on its own line)
