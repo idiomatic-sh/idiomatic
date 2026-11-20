@@ -15,8 +15,7 @@ let assignment_nodes = select id from nodes where kind = "assign" or kind = "ann
 let assignment_scopes = axis(from=assignment_nodes,relation="semantic-child",direction=nearest-ancestor,domain=scopes);
 let module_assignments = select l.id as statement from assignment_scopes as l join modules as r on l.related = r.id;
 let target_fields = select parent as statement, child as target, ordinal from "semantic-child" where field = "targets" or field = "target";
-let later_targets = select l.statement as statement, l.target as target from target_fields as l join target_fields as r on l.statement = r.statement where l.ordinal > r.ordinal;
-let initial_targets = antijoin(left=target_fields,right=later_targets,left-on=["statement","target"],right-on=["statement","target"]);
+let initial_targets = group-min(from=target_fields, keys=["statement"], order="ordinal");
 let export_names = select id from "identifier" where name = "__all__";
 let export_targets = select l.statement as statement from initial_targets as l join export_names as r on l.target = r.id;
 let export_statements = select l.statement as statement from module_assignments as l join export_targets as r on l.statement = r.statement;

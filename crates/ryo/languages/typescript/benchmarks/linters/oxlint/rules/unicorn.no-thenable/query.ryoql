@@ -94,8 +94,7 @@ let elements = select parent as array, child as element, ordinal from "semantic-
 let entries = select l.element as entry from elements as l join entry_arrays as r on l.array = r.list;
 let entry_rows = select l.entry as entry from entries as l join nodes as r on l.entry = r.id where r.kind = "array-expression";
 let entry_elements = select l.array as array, l.element as element, l.ordinal as ordinal from elements as l join entry_rows as r on l.array = r.entry;
-let trailing_elements = select l.array as array, l.element as element from entry_elements as l join entry_elements as r on l.array = r.array where r.ordinal < l.ordinal;
-let entry_keys = antijoin(left=entry_elements, right=trailing_elements, left-on=["array", "element"], right-on=["array", "element"]);
+let entry_keys = group-min(from=entry_elements, keys=["array"], order="ordinal");
 let valued_entries = select l.element as id, r.reported as reported from entry_keys as l join thens as r on l.element = r.node;
 let valued_a = union(left=valued_keys, right=valued_assigned);
 let valued_b = union(left=valued_a, right=valued_defines);

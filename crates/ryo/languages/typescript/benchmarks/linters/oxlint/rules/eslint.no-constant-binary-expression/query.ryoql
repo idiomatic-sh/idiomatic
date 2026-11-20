@@ -27,8 +27,7 @@ let callee_names = select l.parent as call, r.name as name from "semantic-child"
 let named_calls = select l.id as id, r.name as name from calls as l join callee_names as r on l.id = r.call;
 let boolean_calls = select id from named_calls where name = "Boolean";
 let call_arguments = select l.parent as parent, l.child as child, l.ordinal as ordinal from "semantic-child" as l join boolean_calls as r on l.parent = r.id where l.field = "arguments";
-let later_arguments = select l.child as child from call_arguments as l join call_arguments as r on l.parent = r.parent where l.ordinal > r.ordinal;
-let first_arguments = antijoin(left=call_arguments, right=later_arguments, left-on=["child"], right-on=["child"]);
+let first_arguments = group-min(from=call_arguments, keys=["parent"], order="ordinal");
 let not_arguments = select l.child as child from "semantic-child" as l join nots as r on l.parent = r.id where l.field = "argument";
 let logicals = select parent as id, operator from operated where kind = "logical-expression" and field = "operator";
 let short_lefts = select l.child as child, l.parent as parent from operated as l join logicals as r on l.parent = r.id where l.field = "left" and (r.operator = "||" or r.operator = "&&");
@@ -50,8 +49,7 @@ let wrap_edges = select l.parent as outer, l.child as inner from "semantic-child
 let coalesce_edges = select parent as outer, child as inner from operated where kind = "logical-expression" and operator = "??" and field = "right";
 let assign_edges = select parent as outer, child as inner from operated where kind = "assignment-expression" and operator = "=" and field = "right";
 let sequence_parts = select parent, child, ordinal from children where kind = "sequence-expression" and field = "expressions";
-let earlier_parts = select l.child as child from sequence_parts as l join sequence_parts as r on l.parent = r.parent where l.ordinal < r.ordinal;
-let last_parts = antijoin(left=sequence_parts, right=earlier_parts, left-on=["child"], right-on=["child"]);
+let last_parts = group-max(from=sequence_parts, keys=["parent"], order="ordinal");
 let sequence_edges = select parent as outer, child as inner from last_parts;
 let plain_edges = union(left=assign_edges, right=sequence_edges);
 let nullish_a = union(left=wrap_edges, right=coalesce_edges);

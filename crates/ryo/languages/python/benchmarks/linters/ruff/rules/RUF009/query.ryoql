@@ -34,8 +34,7 @@ let late_classvar_bases = select l.statement as statement, r.value as base, l.fi
 let late_classvar_named = select l.statement as statement, l.base as base, l.file as file from late_classvar_bases as l join "identifier" as r on l.base = r.id and l.file = r.file where r.name = "ClassVar";
 let classvar_reads = select l.statement as statement, l.base as context, r.scope as initial_scope, l.file as file from late_classvar_named as l join "binding-read" as r on l.base = r.reference and l.file = r.file;
 let event_ordinals = select ordinal as point, file from "binding-event";
-let older_ordinals = select l.point as point, l.file as file from event_ordinals as l join event_ordinals as r on l.file = r.file where l.point < r.point;
-let final_ordinals = antijoin(left=event_ordinals, right=older_ordinals, left-on=["point","file"], right-on=["point","file"]);
+let final_ordinals = group-max(from=event_ordinals, keys=["file"], order="point");
 let classvar_points = select l.statement as statement, l.context as context, l.initial_scope as initial_scope, r.point as point, r.point as header_point, l.file as file from classvar_reads as l join final_ordinals as r on l.file = r.file;
 let classvar_contexts0 = extend(from=classvar_points, values={stage: 0});
 let classvar_contexts = select context, initial_scope, point, header_point, stage, file from classvar_contexts0;

@@ -476,8 +476,7 @@ let slices = select l.id as id, r.child as slice, l.file as file from subscript_
 let tuple_nodes = select id, file from nodes where kind = "tuple";
 let tuple_slices = select l.id as id, l.slice as slice, l.file as file from slices as l join tuple_nodes as r on l.slice = r.id and l.file = r.file;
 let tuple_elements = select parent as tuple, child as element, ordinal, file from "semantic-child" where field = "elts";
-let later_elements = select l.tuple as tuple, l.element as element, l.file as file from tuple_elements as l join tuple_elements as r on l.tuple = r.tuple and l.file = r.file where r.ordinal < l.ordinal;
-let first_elements = antijoin(left=tuple_elements, right=later_elements, left-on=["tuple", "element", "file"], right-on=["tuple", "element", "file"]);
+let first_elements = group-min(from=tuple_elements, keys=["tuple", "file"], order="ordinal");
 let optional_edges = select l.check as check, l.id as source, r.slice as destination, l.file as file from optional_subscripts as l join slices as r on l.id = r.id and l.file = r.file;
 let valid_union_roots = select l.check as check, l.id as id, r.slice as slice, l.file as file from union_subscripts as l join tuple_slices as r on l.id = r.id and l.file = r.file;
 let union_edges = select l.check as check, l.id as source, r.element as destination, l.file as file from valid_union_roots as l join tuple_elements as r on l.slice = r.tuple and l.file = r.file;

@@ -51,8 +51,7 @@ let implicit_origins = select name, file from "implicit-symbol" as catalog where
 let target_spellings = select l.loop as loop, r.name as name, l.file as file from target_names as l join "identifier" as r on l.id = r.id and l.file = r.file;
 let implicit_targets = select l.loop as id, l.file as file from target_spellings as l join implicit_origins as r on l.name = r.name and l.file = r.file;
 let name_locations = select l.loop as loop, l.id as id, l.file as file, r."start-byte" as start from target_names as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let later_names = select l.loop as loop, l.id as id, l.file as file from name_locations as l join name_locations as r on l.loop = r.loop and l.file = r.file where l.start > r.start;
-let first_names = antijoin(left=name_locations, right=later_names, left-on=["loop","id","file"], right-on=["loop","id","file"]);
+let first_names = group-min(from=name_locations, keys=["loop", "file"], order="start");
 let bind_events = select occurrence as id, phase, ordinal, file from "binding-event" where kind = "bind";
 let loop_bindings = select l.loop as loop, l.file as file, r.phase as phase, r.ordinal as ordinal from first_names as l join bind_events as r on l.id = r.id and l.file = r.file;
 let loop_ranges = select l.loop as loop, l.phase as phase, l.ordinal as ordinal, l.file as file, r."start-byte" as start, r."end-byte" as end from loop_bindings as l join "source-location" as r on l.loop = r.id and l.file = r.file;
@@ -65,8 +64,7 @@ let prior_events = select l.loop as context, l.initial_scope as initial_scope, l
 let zero_prior_rows = select loop as context, initial_scope, file from scoped_loops;
 let zero_prior = extend(from=zero_prior_rows, values={point: 0});
 let all_prior = union(left=prior_events, right=zero_prior);
-let earlier_prior = select l.context as context, l.point as point, l.file as file from all_prior as l join all_prior as r on l.context = r.context and l.file = r.file where l.point < r.point;
-let last_prior = antijoin(left=all_prior, right=earlier_prior, left-on=["context","point","file"], right-on=["context","point","file"]);
+let last_prior = group-max(from=all_prior, keys=["context", "file"], order="point");
 let prior_rows = select context, initial_scope, point, point as header_point, file from last_prior;
 let prior_stages = extend(from=prior_rows, values={stage: 0});
 let prior_contexts = select context, initial_scope, point, header_point, stage, file from prior_stages;
@@ -107,8 +105,7 @@ let prior_directives = select l.context as id, l.file as file from prior_lookups
 let prior_known_values = union(left=prior_same_namespace, right=prior_history);
 let prior_bound = union(left=prior_known_values, right=prior_directives);
 let inner_events = select l.loop as context, l.initial_scope as initial_scope, l.file as file, r.ordinal as point from scoped_loops as l join event_locations as r on l.file = r.file and l.phase = r.phase where r.ordinal >= l.ordinal and r.start >= l.start and r.end <= l.end;
-let earlier_inner = select l.context as context, l.point as point, l.file as file from inner_events as l join inner_events as r on l.context = r.context and l.file = r.file where l.point < r.point;
-let last_inner = antijoin(left=inner_events, right=earlier_inner, left-on=["context","point","file"], right-on=["context","point","file"]);
+let last_inner = group-max(from=inner_events, keys=["context", "file"], order="point");
 let post_rows = select context, initial_scope, point, point as header_point, file from last_inner;
 let post_stages = extend(from=post_rows, values={stage: 0});
 let post_contexts = select context, initial_scope, point, header_point, stage, file from post_stages;

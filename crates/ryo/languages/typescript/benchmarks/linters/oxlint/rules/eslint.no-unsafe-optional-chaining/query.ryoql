@@ -8,8 +8,7 @@ let await_edges = select inner, outer from edges_all where field = "argument" an
 let logical_edges = select l.inner as inner, l.outer as outer from edges_all as l join operators as r on l.outer = r.id where l.kind = "logical-expression" and ((r.operator = "&&" and (l.field = "left" or l.field = "right")) or ((r.operator = "||" or r.operator = "??") and l.field = "right"));
 let branch_edges = select inner, outer from edges_all where kind = "conditional-expression" and (field = "consequent" or field = "alternate");
 let sequence_parts = select inner, outer, ordinal from edges_all where kind = "sequence-expression" and field = "expressions";
-let earlier_parts = select l.inner as inner from sequence_parts as l join sequence_parts as r on l.outer = r.outer where l.ordinal < r.ordinal;
-let last_parts = antijoin(left=sequence_parts, right=earlier_parts, left-on=["inner"], right-on=["inner"]);
+let last_parts = group-max(from=sequence_parts, keys=["outer"], order="ordinal");
 let sequence_edges = select inner, outer from last_parts;
 let edges_a = union(left=wrapper_edges, right=await_edges);
 let edges_b = union(left=edges_a, right=logical_edges);
