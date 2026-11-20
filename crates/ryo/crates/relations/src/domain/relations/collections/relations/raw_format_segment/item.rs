@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for RawFormatSegment {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! raw_format_segment {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item RawFormatSegment,
             row { /// One source-local raw format fact.
                 RawFormatSegmentRow },
@@ -24,6 +25,7 @@ macro_rules! raw_format_segment {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// Enclosing original visible string expression.
                 id Id: NodeId => Node;

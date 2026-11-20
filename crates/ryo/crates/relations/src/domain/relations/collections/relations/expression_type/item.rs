@@ -11,8 +11,9 @@ impl super::super::interface::sealed::Sealed for ExpressionType {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! expression_type {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item ExpressionType,
             row {
                 /// One basic expression type classification.
@@ -29,6 +30,7 @@ macro_rules! expression_type {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// Original expression node.
                 id Id: NodeId => Node;

@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for Resolves {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! resolves {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Resolves,
             row {
                 /// One row of `resolves`.
@@ -32,6 +33,7 @@ macro_rules! resolves {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Unique(Occurrence)),
             columns {
                 /// The name occurrence: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

@@ -5,6 +5,9 @@ mod parse;
 #[path = "../src/inbound/use_cases/project/acceptance.rs"]
 mod project;
 
+#[path = "../src/inbound/use_cases/walk/acceptance.rs"]
+mod walk;
+
 /// What a scenario's steps share: the input a given step names and what a when step answers for a then step.
 #[derive(Debug, Default, cucumber::World)]
 struct Behavior {

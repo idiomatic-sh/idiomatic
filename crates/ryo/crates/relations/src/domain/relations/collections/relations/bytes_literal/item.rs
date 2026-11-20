@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for BytesLiteral {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! bytes_literal {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item BytesLiteral,
             row { /// One decoded byte-string literal.
                 BytesLiteralRow },
@@ -22,6 +23,7 @@ macro_rules! bytes_literal {
             class Literal,
             scope File,
             notes Unneeded,
+            form Filled(Unique(Occurrence)),
             columns {
                 /// The literal occurrence, including adjacent joined pieces.
                 occurrence Occurrence: NodeId => Node;

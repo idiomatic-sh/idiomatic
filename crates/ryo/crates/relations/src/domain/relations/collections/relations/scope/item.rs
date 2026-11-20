@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for Scope {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! scope {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Scope,
             row {
                 /// One row of `scope`.
@@ -32,6 +33,7 @@ macro_rules! scope {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Parent)),
             columns {
                 /// The enclosing scope: its file and where it starts; the module of the file, which no scope encloses, is its own.
                 parent Parent: NodeId => Node;

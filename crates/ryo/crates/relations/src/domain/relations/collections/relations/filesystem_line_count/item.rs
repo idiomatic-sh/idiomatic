@@ -13,8 +13,9 @@ impl super::super::interface::sealed::Sealed for FilesystemLineCount {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! filesystem_line_count {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FilesystemLineCount,
             row {
                 /// One row of `filesystem_line_count`.
@@ -31,6 +32,7 @@ macro_rules! filesystem_line_count {
             class Engine,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The file.
                 path Path: FileId => File;

@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for AnalyzedSource {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! analyzed_source {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item AnalyzedSource,
             row {
                 /// One row of `analyzed_source`.
@@ -32,6 +33,7 @@ macro_rules! analyzed_source {
             class Manifest,
             scope Project,
             notes Needed,
+            form Filled(Whole),
             columns {
                 /// The file.
                 path Path: FileId => File;

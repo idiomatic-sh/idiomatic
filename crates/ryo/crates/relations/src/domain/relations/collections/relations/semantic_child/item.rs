@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for SemanticChild {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! semantic_child {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item SemanticChild,
             row {
                 /// One row of `semantic_child`.
@@ -32,6 +33,7 @@ macro_rules! semantic_child {
             class Structure,
             scope File,
             notes Unneeded,
+            form NodeTable { Parent => Parent, Child => Id, Ordinal => Ordinal, Field => Field, File => File },
             columns {
                 /// The parent node: its file and where it starts.
                 parent Parent: NodeId => Node;

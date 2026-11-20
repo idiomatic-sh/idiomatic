@@ -15,8 +15,9 @@ impl super::super::interface::sealed::Sealed for SourceDependency {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! source_dependency {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item SourceDependency,
             row {
                 /// One row of `source_dependency`.
@@ -33,6 +34,7 @@ macro_rules! source_dependency {
             class Manifest,
             scope Project,
             notes Needed,
+            form Filled(Whole),
             columns {
                 /// The file the path is written in.
                 source Source: FileId => File;

@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for StaticCall {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! static_call {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item StaticCall,
             row {
                 /// One row of `static_call`.
@@ -32,6 +33,7 @@ macro_rules! static_call {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Unique(Occurrence)),
             columns {
                 /// The call: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

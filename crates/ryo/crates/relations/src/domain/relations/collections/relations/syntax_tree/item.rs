@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for SyntaxTree {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! syntax_tree {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item SyntaxTree,
             row {
                 /// One row of `syntax_tree`.
@@ -32,6 +33,7 @@ macro_rules! syntax_tree {
             class Structure,
             scope File,
             notes Unneeded,
+            form NodeTable { Id => Id, Kind => Kind, Text => Text, File => File, Span => Span },
             columns {
                 /// The element: its file and where it starts.
                 id Id: NodeId => Node;

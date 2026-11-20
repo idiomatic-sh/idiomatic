@@ -16,8 +16,9 @@ impl super::super::interface::sealed::Sealed for Parameter {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! parameter {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Parameter,
             row {
                 /// One row of `parameter`.
@@ -34,6 +35,7 @@ macro_rules! parameter {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The parameter: its file and where it starts.
                 id Id: NodeId => Node;

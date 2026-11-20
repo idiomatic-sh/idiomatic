@@ -11,8 +11,9 @@ impl super::super::interface::sealed::Sealed for FunctionTerminal {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! function_terminal {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FunctionTerminal,
             row {
                 /// One function terminal outcome.
@@ -29,6 +30,7 @@ macro_rules! function_terminal {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// Function or async-function syntax node.
                 id Id: NodeId => Node;

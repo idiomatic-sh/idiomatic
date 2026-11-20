@@ -15,8 +15,9 @@ impl super::super::interface::sealed::Sealed for Prose {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! prose {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Prose,
             row {
                 /// One row of `prose`.
@@ -33,6 +34,7 @@ macro_rules! prose {
             class Document,
             scope File,
             notes Unneeded,
+            form Filled(Unique(Id)),
             columns {
                 /// The run: its file and where it starts.
                 id Id: NodeId => Node;

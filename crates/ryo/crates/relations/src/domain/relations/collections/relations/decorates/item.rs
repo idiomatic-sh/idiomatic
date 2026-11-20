@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for Decorates {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! decorates {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Decorates,
             row {
                 /// One row of `decorates`.
@@ -32,6 +33,7 @@ macro_rules! decorates {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Occurrence)),
             columns {
                 /// The attribute: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

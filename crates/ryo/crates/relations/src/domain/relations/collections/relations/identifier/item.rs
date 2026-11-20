@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for Identifier {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! identifier {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Identifier,
             row { /// One lexical identifier occurrence.
                 IdentifierRow },
@@ -22,6 +23,7 @@ macro_rules! identifier {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The syntax occurrence carrying the identifier, not its raw token.
                 id Id: NodeId => Node;

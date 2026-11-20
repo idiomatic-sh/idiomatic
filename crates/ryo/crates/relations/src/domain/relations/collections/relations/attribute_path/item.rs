@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for AttributePath {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! attribute_path {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item AttributePath,
             row { /// One path an attribute writes.
                 AttributePathRow },
@@ -24,6 +25,7 @@ macro_rules! attribute_path {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The element the path starts at: the path node of an attribute's meta, or the first token of a path written in an
                 /// attribute's token tree.

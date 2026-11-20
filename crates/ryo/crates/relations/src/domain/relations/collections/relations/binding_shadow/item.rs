@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for BindingShadow {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! binding_shadow {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
         item BindingShadow,
         row { /// One explicit binding-analysis observation.
         BindingShadowRow },
@@ -22,6 +23,7 @@ macro_rules! binding_shadow {
         class Code,
         scope File,
         notes Unneeded,
+        form Filled(Many(Binding)),
         columns {
         /// Current actual defines.id.
         binding Binding: NodeId => Node;

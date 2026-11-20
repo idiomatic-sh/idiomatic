@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for LiteralExpressionParse {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! literal_expression_parse {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item LiteralExpressionParse,
             row { /// One source-local expression parse outcome.
                 LiteralExpressionParseRow },
@@ -24,6 +25,7 @@ macro_rules! literal_expression_parse {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// Existing original string-expression identity.
                 id Id: NodeId => Node;

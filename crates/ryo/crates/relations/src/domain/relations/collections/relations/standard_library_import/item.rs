@@ -13,8 +13,9 @@ impl super::super::interface::sealed::Sealed for StandardLibraryImport {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! standard_library_import {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item StandardLibraryImport,
             row { /// A module import recognized by the selected language catalog.
                 StandardLibraryImportRow },
@@ -25,6 +26,7 @@ macro_rules! standard_library_import {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Occurrence)),
             columns {
                 /// The imported alias in the parser's actual syntax tree.
                 occurrence Occurrence: NodeId => Node;

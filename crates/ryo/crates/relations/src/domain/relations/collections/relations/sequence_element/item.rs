@@ -16,8 +16,9 @@ impl super::super::interface::sealed::Sealed for SequenceElement {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! sequence_element {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item SequenceElement,
             row {
                 /// One row of `sequence_element`.
@@ -34,6 +35,7 @@ macro_rules! sequence_element {
             class Keyed,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The value decoded when it is text, otherwise empty. Free text: a decoded string is whatever the file says.
                 decoded Decoded: Symbol => Symbol;

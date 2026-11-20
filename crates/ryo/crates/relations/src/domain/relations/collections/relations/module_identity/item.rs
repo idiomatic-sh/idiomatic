@@ -9,8 +9,9 @@ impl super::super::interface::sealed::Sealed for ModuleIdentity {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! module_identity {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item ModuleIdentity,
             row { /// One known importable source module.
                 ModuleIdentityRow },
@@ -21,6 +22,7 @@ macro_rules! module_identity {
             class Manifest,
             scope Project,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// Actual requested source file.
                 file File: FileId => File;

@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for EmbeddedExpression {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! embedded_expression {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item EmbeddedExpression,
             row { /// One separately parsed expression.
                 EmbeddedExpressionRow },
@@ -22,6 +23,7 @@ macro_rules! embedded_expression {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Root)),
             columns {
                 /// The parsed expression's root occurrence.
                 root Root: NodeId => Node;

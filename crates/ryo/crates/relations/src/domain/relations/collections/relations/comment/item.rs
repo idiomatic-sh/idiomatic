@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for Comment {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! comment {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Comment,
             row {
                 /// One row of `comment`.
@@ -32,6 +33,7 @@ macro_rules! comment {
             class Lexical,
             scope File,
             notes Unneeded,
+            form Filled(Unique(Id)),
             columns {
                 /// The comment: its file and where it starts.
                 id Id: NodeId => Node;

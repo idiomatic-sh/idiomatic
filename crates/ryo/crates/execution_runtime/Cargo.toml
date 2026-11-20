@@ -14,6 +14,7 @@ name = "ryo_execution_runtime"
 
 [dependencies]
 ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.2.0" }
+ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../engine", version = "0.2.0" }
 ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.2.0" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }

@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for LiteralProperties {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! literal_properties {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item LiteralProperties,
             row {
                 /// One row of `literal-properties`.
@@ -32,6 +33,7 @@ macro_rules! literal_properties {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The original primitive literal occurrence.
                 id Id: NodeId => Node;

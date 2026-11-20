@@ -13,8 +13,9 @@ impl super::super::interface::sealed::Sealed for FilesystemFile {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! filesystem_file {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FilesystemFile,
             row {
                 /// One row of `filesystem_file`.
@@ -31,6 +32,7 @@ macro_rules! filesystem_file {
             class Engine,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The file.
                 path Path: FileId => File;

@@ -39,3 +39,14 @@ pub struct Given {
     /// Its value.
     pub value: ParameterBinding,
 }
+
+/// A rule's place in the sorted list of the selected rules: the engine's name for a rule, in its programs and its found rows.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+/// assert!(SelectedRuleOrdinal(0) < SelectedRuleOrdinal(1));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SelectedRuleOrdinal(pub u32);

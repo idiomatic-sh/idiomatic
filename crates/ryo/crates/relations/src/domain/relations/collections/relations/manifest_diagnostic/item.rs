@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for ManifestDiagnostic {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! manifest_diagnostic {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item ManifestDiagnostic,
             row { /// One metadata diagnostic.
                 ManifestDiagnosticRow },
@@ -22,6 +23,7 @@ macro_rules! manifest_diagnostic {
             class Manifest,
             scope Project,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The real manifest identity.
                 file File: FileId => File;

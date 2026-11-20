@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for BindingEvent {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! binding_event {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
         item BindingEvent,
         row { /// One explicit binding-analysis observation.
         BindingEventRow },
@@ -22,6 +23,7 @@ macro_rules! binding_event {
         class Code,
         scope File,
         notes Unneeded,
+        form Filled(Many(Occurrence)),
         columns {
         /// Real syntax occurrence; declaration events reuse defines.id and cleanup uses its handler.
         occurrence Occurrence: NodeId => Node;

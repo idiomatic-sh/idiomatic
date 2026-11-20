@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for SyntaxChild {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! syntax_child {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item SyntaxChild,
             row {
                 /// One row of `syntax_child`.
@@ -32,6 +33,7 @@ macro_rules! syntax_child {
             class Structure,
             scope File,
             notes Unneeded,
+            form NodeTable { Parent => Parent, Child => Id, Ordinal => Ordinal, Field => Field, File => File },
             columns {
                 /// The parent node: its file and where it starts.
                 parent Parent: NodeId => Node;

@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for RawFormatField {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! raw_format_field {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item RawFormatField,
             row { /// One source-local raw format fact.
                 RawFormatFieldRow },
@@ -24,6 +25,7 @@ macro_rules! raw_format_field {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// Enclosing original visible string expression.
                 id Id: NodeId => Node;

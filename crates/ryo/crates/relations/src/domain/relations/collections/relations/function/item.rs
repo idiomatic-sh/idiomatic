@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for Function {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! function {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Function,
             row {
                 /// One row of `function`.
@@ -32,6 +33,7 @@ macro_rules! function {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Unique(Id)),
             columns {
                 /// The function: its file and where it starts.
                 id Id: NodeId => Node;

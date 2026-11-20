@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for PatternSyntax {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! pattern_syntax {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item PatternSyntax,
             row { /// One element of a parsed pattern.
                 PatternSyntaxRow },
@@ -24,6 +25,7 @@ macro_rules! pattern_syntax {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The pattern element.
                 id Id: NodeId => Node;

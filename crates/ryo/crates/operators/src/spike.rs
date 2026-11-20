@@ -680,3 +680,103 @@ pub fn dense_levers() -> &'static [bool; 6] {
         [on("words"), on("repeats"), on("cellword"), on("slots"), on("walks"), on("visited")]
     })
 }
+
+/// Spike (ryo-fmx3.1): which engine runs the file phase, from `RYO_ENGINE`, for the harness only (scope-engine2 2.9): the old
+/// engine (unset or `old`), the new engine alone (`new`), or both, comparing the rules the new engine's `load` accepts (`both`).
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::spike::EngineMode;
+///
+/// assert_ne!(EngineMode::Old, EngineMode::Both);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EngineMode {
+    /// Today's engine alone.
+    Old,
+    /// The new engine alone, on the rules its `load` accepts.
+    New,
+    /// Both engines; the run fails on any difference of the rules the new engine accepts.
+    Both,
+}
+
+/// Spike (ryo-fmx3.1): the engine `RYO_ENGINE` selects, read once; an unknown value is the old engine.
+///
+/// # Examples
+///
+/// ```
+/// let _mode = ryo_operators::spike::engine_mode();
+/// ```
+pub fn engine_mode() -> EngineMode {
+    static MODE: OnceLock<EngineMode> = OnceLock::new();
+    *MODE.get_or_init(|| match std::env::var("RYO_ENGINE").as_deref() {
+        Ok("new") => EngineMode::New,
+        Ok("both") => EngineMode::Both,
+        _ => EngineMode::Old,
+    })
+}
+
+/// Spike (ryo-fmx3.1): the harness's mode as `RYO_ENGINE` spells it.
+fn engine_name(mode: EngineMode) -> &'static str {
+    match mode {
+        EngineMode::Old => "old",
+        EngineMode::New => "new",
+        EngineMode::Both => "both",
+    }
+}
+
+/// Spike (ryo-fmx3.1): writes to stderr what the new engine's `load` accepted of the selected rules, the refused ones by why.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::spike::{EngineMode, engine_loaded};
+///
+/// engine_loaded(EngineMode::Both, 0, 3, 3, 0);
+/// ```
+pub fn engine_loaded(mode: EngineMode, accepted: usize, selected: usize, unlowerable: usize, over_budget: usize) {
+    let refused = selected.saturating_sub(accepted);
+    eprintln!(
+        "ryo engine {}: load accepted {accepted} of {selected} rules; refused {refused} ({unlowerable} unlowerable, {over_budget} over budget)",
+        engine_name(mode)
+    );
+}
+
+/// Spike (ryo-fmx3.1): writes to stderr how many accepted rules `both` compared, all equal.
+///
+/// # Examples
+///
+/// ```
+/// ryo_operators::spike::engine_compared(0);
+/// ```
+pub fn engine_compared(rules: usize) {
+    eprintln!("ryo engine both: compared {rules} rules, 0 differences");
+}
+
+/// Spike (ryo-fmx3.1): why the harness stops a run the new engine would have to run files for, before its file scan lands.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::spike::{EngineMode, engine_refusal};
+///
+/// assert!(engine_refusal(EngineMode::New, 0).starts_with("RYO_ENGINE=new"));
+/// ```
+pub fn engine_refusal(mode: EngineMode, accepted: usize) -> String {
+    format!(
+        "RYO_ENGINE={}: the new engine accepts {accepted} rules and runs no file yet (the file scan is track H's)",
+        engine_name(mode)
+    )
+}
+
+/// Spike (ryo-fmx3.1): why the harness stops a run whose engines' rows differ.
+///
+/// # Examples
+///
+/// ```
+/// assert!(ryo_operators::spike::engine_difference(&3).ends_with('3'));
+/// ```
+pub fn engine_difference(difference: &dyn std::fmt::Debug) -> String {
+    format!("rows differ: {difference:?}")
+}

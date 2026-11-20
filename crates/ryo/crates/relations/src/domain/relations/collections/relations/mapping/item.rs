@@ -15,8 +15,9 @@ impl super::super::interface::sealed::Sealed for Mapping {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! mapping {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Mapping,
             row {
                 /// One row of `mapping`.
@@ -33,6 +34,7 @@ macro_rules! mapping {
             class Keyed,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The mapping: its file and where it starts.
                 id Id: NodeId => Node;

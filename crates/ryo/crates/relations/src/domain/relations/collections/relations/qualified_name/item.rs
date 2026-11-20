@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for QualifiedName {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! qualified_name {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item QualifiedName,
             row { /// One expression's lexical origin.
                 QualifiedNameRow },
@@ -22,6 +23,7 @@ macro_rules! qualified_name {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The load expression, including nested attribute prefixes.
                 id Id: NodeId => Node;

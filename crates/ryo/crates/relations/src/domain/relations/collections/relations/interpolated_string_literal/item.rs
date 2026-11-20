@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for InterpolatedStringLiteral {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! interpolated_string_literal {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item InterpolatedStringLiteral,
             row { /// One decoded literal fragment and its owning interpolated string.
                 InterpolatedStringLiteralRow },
@@ -26,6 +27,7 @@ macro_rules! interpolated_string_literal {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The literal element occurrence.
                 id Id: NodeId => Node;

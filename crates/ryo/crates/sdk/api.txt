@@ -37,6 +37,7 @@ pub use ryo::languages::BraceFormatParse
 pub use ryo::languages::BraceFormatParseColumn
 pub use ryo::languages::BraceFormatParseRow
 pub use ryo::languages::ByteSlice
+pub use ryo::languages::ByteSpan
 pub use ryo::languages::Bytes
 pub use ryo::languages::BytesLiteral
 pub use ryo::languages::BytesLiteralColumn
@@ -46,6 +47,7 @@ pub use ryo::languages::CallArgumentColumn
 pub use ryo::languages::CallArgumentRow
 pub use ryo::languages::CatalogRelation
 pub use ryo::languages::CellKind
+pub use ryo::languages::CellWord
 pub use ryo::languages::ChildOrdinal
 pub use ryo::languages::Children
 pub use ryo::languages::Column
@@ -84,7 +86,9 @@ pub use ryo::languages::EmbeddedExpression
 pub use ryo::languages::EmbeddedExpressionColumn
 pub use ryo::languages::EmbeddedExpressionRow
 pub use ryo::languages::EmbeddedMapping
+pub use ryo::languages::EmbeddedRoot
 pub use ryo::languages::EmbeddedSource
+pub use ryo::languages::EmbeddedText
 pub use ryo::languages::Entry
 pub use ryo::languages::EntryColumn
 pub use ryo::languages::EntryRow
@@ -98,13 +102,19 @@ pub use ryo::languages::ExpressionTypeColumn
 pub use ryo::languages::ExpressionTypeRow
 pub use ryo::languages::Extent
 pub use ryo::languages::FLOAT_TEXT_BYTES
+pub use ryo::languages::FactAnswer
+pub use ryo::languages::FactSource
+pub use ryo::languages::FieldCode
 pub use ryo::languages::FieldId
 pub use ryo::languages::FieldRequest
+pub use ryo::languages::FileFacts
 pub use ryo::languages::FileId
 pub use ryo::languages::FilePackage
 pub use ryo::languages::FilePackageColumn
 pub use ryo::languages::FilePackageRow
 pub use ryo::languages::FilePath
+pub use ryo::languages::FileVisit
+pub use ryo::languages::FileWords
 pub use ryo::languages::FilesystemExecutable
 pub use ryo::languages::FilesystemExecutableColumn
 pub use ryo::languages::FilesystemExecutableRow
@@ -117,6 +127,12 @@ pub use ryo::languages::FilesystemLineCountRow
 pub use ryo::languages::FilesystemReadFailure
 pub use ryo::languages::FilesystemReadFailureColumn
 pub use ryo::languages::FilesystemReadFailureRow
+pub use ryo::languages::Fill
+pub use ryo::languages::FillItem
+pub use ryo::languages::FilledColumn
+pub use ryo::languages::FilledColumns
+pub use ryo::languages::FillerSentence
+pub use ryo::languages::Fillers
 pub use ryo::languages::Flag
 pub use ryo::languages::Flags
 pub use ryo::languages::FloatBits
@@ -179,6 +195,7 @@ pub use ryo::languages::KeyState
 pub use ryo::languages::KindBits
 pub use ryo::languages::KindName
 pub use ryo::languages::KindNames
+pub use ryo::languages::KindsPresent
 pub use ryo::languages::LanguageTarget
 pub use ryo::languages::LanguageTargetColumn
 pub use ryo::languages::LanguageTargetRow
@@ -218,6 +235,8 @@ pub use ryo::languages::NameNote
 pub use ryo::languages::NameStart
 pub use ryo::languages::NameText
 pub use ryo::languages::NodeId
+pub use ryo::languages::NodeTable
+pub use ryo::languages::NodeTableBuilder
 pub use ryo::languages::NoteRequest
 pub use ryo::languages::Noted
 pub use ryo::languages::NumericLiteral
@@ -238,6 +257,7 @@ pub use ryo::languages::Parse
 pub use ryo::languages::ParseConfigurationIdentity
 pub use ryo::languages::ParseError
 pub use ryo::languages::ParseRequest
+pub use ryo::languages::PartialRows
 pub use ryo::languages::PatternChild
 pub use ryo::languages::PatternChildColumn
 pub use ryo::languages::PatternChildRow
@@ -248,6 +268,7 @@ pub use ryo::languages::PatternSyntax
 pub use ryo::languages::PatternSyntaxColumn
 pub use ryo::languages::PatternSyntaxRow
 pub use ryo::languages::Position
+pub use ryo::languages::PresenceWord
 pub use ryo::languages::PrimaryFileRole
 pub use ryo::languages::Project
 pub use ryo::languages::ProjectEntries
@@ -281,6 +302,7 @@ pub use ryo::languages::ReferenceColumn
 pub use ryo::languages::ReferenceRow
 pub use ryo::languages::Refused
 pub use ryo::languages::Relation
+pub use ryo::languages::RelationNeeds
 pub use ryo::languages::RenderContext
 pub use ryo::languages::RenderOutcome
 pub use ryo::languages::RenderRequest
@@ -378,6 +400,9 @@ pub use ryo::languages::VisibilityColumn
 pub use ryo::languages::VisibilityRow
 pub use ryo::languages::Visiting
 pub use ryo::languages::WRITTEN_DIGITS_BYTES
+pub use ryo::languages::Walk
+pub use ryo::languages::WalkError
+pub use ryo::languages::WalkRequest
 pub use ryo::languages::Why
 pub use ryo::languages::WorkspaceMember
 pub use ryo::languages::WorkspaceMemberColumn
@@ -419,9 +444,11 @@ pub use ryo::languages::entry_state
 pub use ryo::languages::exact_digits
 pub use ryo::languages::expanded_semantic_child
 pub use ryo::languages::expanded_semantic_syntax
+pub use ryo::languages::facts
 pub use ryo::languages::field_at
 pub use ryo::languages::field_name_at
 pub use ryo::languages::fill_to
+pub use ryo::languages::fillers
 pub use ryo::languages::first_token_text
 pub use ryo::languages::flags_at
 pub use ryo::languages::flow_edge_word
@@ -453,6 +480,7 @@ pub use ryo::languages::node_id
 pub use ryo::languages::node_position
 pub use ryo::languages::node_property
 pub use ryo::languages::node_property_fmt
+pub use ryo::languages::node_table
 pub use ryo::languages::note_of
 pub use ryo::languages::note_word
 pub use ryo::languages::ordinal_at
@@ -3671,6 +3699,7 @@ pub fn ryo::relation::UnknownName::hash<__H: core::hash::Hasher>(&self, &mut __H
 impl core::marker::StructuralPartialEq for ryo::relation::UnknownName
 pub fn ryo::relation::describe(ryo::linter::Languages, ryo::relation::DescribeRequest) -> core::result::Result<ryo::relation::DescribeReport, ryo::relation::DescribeError>
 pub fn ryo::relation::list() -> core::result::Result<ryo::relation::ListReport, ryo::relation::ListError>
+pub macro ryo::fills!
 pub macro ryo::link!
 pub macro ryo::reads!
 pub macro ryo::selects!

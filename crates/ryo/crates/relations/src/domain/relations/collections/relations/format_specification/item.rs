@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for FormatSpecification {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! format_specification {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FormatSpecification,
             row { /// One field's format specification.
                 FormatSpecificationRow },
@@ -22,6 +23,7 @@ macro_rules! format_specification {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                     /// Original enclosing string occurrence.
                     id Id: NodeId => Node;

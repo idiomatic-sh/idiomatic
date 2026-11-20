@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for BindingUse {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! binding_use {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
         item BindingUse,
         row { /// One explicit binding-analysis observation.
         BindingUseRow },
@@ -22,6 +23,7 @@ macro_rules! binding_use {
         class Code,
         scope File,
         notes Unneeded,
+        form Filled(Many(Reference)),
         columns {
         /// Real semantic read, write or deletion occurrence.
         reference Reference: NodeId => Node;

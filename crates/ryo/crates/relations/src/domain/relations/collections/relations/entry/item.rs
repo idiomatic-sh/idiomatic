@@ -16,8 +16,9 @@ impl super::super::interface::sealed::Sealed for Entry {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! entry {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Entry,
             row {
                 /// One row of `entry`.
@@ -34,6 +35,7 @@ macro_rules! entry {
             class Keyed,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The value decoded when it is text, otherwise empty. Free text: a decoded string is whatever the file says.
                 decoded Decoded: Symbol => Symbol;

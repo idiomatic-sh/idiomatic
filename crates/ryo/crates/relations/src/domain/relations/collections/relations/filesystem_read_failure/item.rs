@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for FilesystemReadFailure {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! filesystem_read_failure {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FilesystemReadFailure,
             row {
                 /// One row of `filesystem_read_failure`.
@@ -32,6 +33,7 @@ macro_rules! filesystem_read_failure {
             class Engine,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The file.
                 path Path: FileId => File;

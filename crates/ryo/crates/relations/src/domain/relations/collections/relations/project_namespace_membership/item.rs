@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for ProjectNamespaceMembership {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! project_namespace_membership {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item ProjectNamespaceMembership,
             row { /// One observed dotted prefix of an imported project path.
                 ProjectNamespaceMembershipRow },
@@ -22,6 +23,7 @@ macro_rules! project_namespace_membership {
             class Manifest,
             scope Project,
             notes Needed,
+            form Filled(Whole),
             columns {
                 /// The file that imports the root.
                 file File: FileId => File;

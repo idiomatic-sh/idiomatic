@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for TokenLink {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! token_link {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item TokenLink,
             row { /// One directed lexical edge.
                 TokenLinkRow },
@@ -24,6 +25,7 @@ macro_rules! token_link {
             class Lexical,
             scope File,
             notes Unneeded,
+            form Filled(Many(Source)),
             columns {
                 /// Existing native source token identity.
                 source Source: NodeId => Node;

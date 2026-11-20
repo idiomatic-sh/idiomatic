@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for BindingRead {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! binding_read {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
         item BindingRead,
         row { /// One explicit binding-analysis observation.
         BindingReadRow },
@@ -22,6 +23,7 @@ macro_rules! binding_read {
         class Code,
         scope File,
         notes Unneeded,
+        form Filled(Many(Reference)),
         columns {
         /// Real semantic read, write or deletion occurrence.
         reference Reference: NodeId => Node;

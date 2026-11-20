@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for ImplicitSymbol {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! implicit_symbol {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
         item ImplicitSymbol,
         row { /// One provider catalog entry, independent of the file's expressions.
         ImplicitSymbolRow },
@@ -22,6 +23,7 @@ macro_rules! implicit_symbol {
         class Code,
         scope File,
         notes Unneeded,
+        form Filled(Whole),
         columns {
         /// Canonical bare name potentially supplied by the language environment.
         name Name: Symbol => Symbol;

@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for PatternParse {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! pattern_parse {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item PatternParse,
             row { /// One outcome for a pattern carrier.
                 PatternParseRow },
@@ -24,6 +25,7 @@ macro_rules! pattern_parse {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Carrier)),
             columns {
                 /// The source element that carries the pattern, such as a pattern literal or the string a pattern constructor takes; or,
                 /// when a call gives flags but no pattern text, the flags it gives.

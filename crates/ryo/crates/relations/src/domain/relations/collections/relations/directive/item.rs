@@ -15,8 +15,9 @@ impl super::super::interface::sealed::Sealed for Directive {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! directive {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Directive,
             row {
                 /// One row of `directive`.
@@ -33,6 +34,7 @@ macro_rules! directive {
             class Literal,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The file it is in.
                 file File: FileId => File;

@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for FilePackage {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! file_package {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FilePackage,
             row {
                 /// One row of `file_package`.
@@ -32,6 +33,7 @@ macro_rules! file_package {
             class Manifest,
             scope Project,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The file.
                 path Path: FileId => File;

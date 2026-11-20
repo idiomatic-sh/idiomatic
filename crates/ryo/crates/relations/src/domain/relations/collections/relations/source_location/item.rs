@@ -13,8 +13,9 @@ impl super::super::interface::sealed::Sealed for SourceLocation {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! source_location {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item SourceLocation,
             row { /// One source location.
                 SourceLocationRow },
@@ -25,6 +26,7 @@ macro_rules! source_location {
             class Structure,
             scope File,
             notes Unneeded,
+            form Filled(Unique(Id)),
             columns {
                 /// The node or token.
                 id Id: NodeId => Node;

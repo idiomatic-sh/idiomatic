@@ -9,8 +9,9 @@ impl super::super::interface::sealed::Sealed for ExpressionShape {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! expression_shape {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
          item ExpressionShape,
          row { /// One known expression class.
           ExpressionShapeRow },
@@ -21,6 +22,7 @@ macro_rules! expression_shape {
          class Code,
          scope File,
          notes Unneeded,
+         form Filled(Many(Id)),
          columns {
           /// The original expression occurrence.
           id Id: NodeId=>Node;

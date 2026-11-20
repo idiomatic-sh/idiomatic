@@ -2,6 +2,7 @@
 
 use crate::domain::catalog::types::{RelationNotes, RowScope};
 use crate::domain::relations::types::{Bits, CellKind, Class, Relation};
+use crate::domain::relations::types::{FactForm, NodeColumn};
 
 /// Seals [`RelationsItem`]: only the catalog's own relations implement it, because a language defines no shape of its own.
 #[expect(
@@ -37,6 +38,14 @@ pub trait RelationsItem: sealed::Sealed + 'static {
     /// Whether the relation's rows are made from the notes the languages write of the files. A relation added to the catalog says it,
     /// or it does not compile.
     const NOTES: RelationNotes;
+
+    /// How the engine reaches the relation's rows: read in place from the node table, or filled by the language once per file and
+    /// indexed by its key. A relation added to the catalog says it, or it does not compile.
+    const FORM: FactForm;
+
+    /// For a `NodeTable` relation, the node-table column each of its columns is read from, every column once; empty for a filled
+    /// relation.
+    const NODE_COLUMNS: &'static [(Self::Column, NodeColumn)];
 
     /// Which relation this is.
     fn relation() -> Relation;

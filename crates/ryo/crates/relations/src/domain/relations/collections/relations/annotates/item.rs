@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for Annotates {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! annotates {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Annotates,
             row {
                 /// One row of `annotates`.
@@ -32,6 +33,7 @@ macro_rules! annotates {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Occurrence)),
             columns {
                 /// The annotation: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

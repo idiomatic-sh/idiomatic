@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for CallArgument {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! call_argument {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item CallArgument,
             row {
                 /// One row of `call_argument`.
@@ -32,6 +33,7 @@ macro_rules! call_argument {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Unique(Expression)),
             columns {
                 /// The call: the `occurrence` of its `static_call` row.
                 call Call: NodeId => Node;

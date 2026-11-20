@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for LanguageTarget {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! language_target {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item LanguageTarget,
             row { /// One parser target configured for a source file.
                 LanguageTargetRow },
@@ -24,6 +25,7 @@ macro_rules! language_target {
             class Engine,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The source file whose parser configuration is described.
                 file File: FileId => File;

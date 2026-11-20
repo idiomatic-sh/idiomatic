@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for SyntaxError {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! syntax_error {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item SyntaxError,
             row {
                 /// One row of `syntax_error`.
@@ -32,6 +33,7 @@ macro_rules! syntax_error {
             class Structure,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The error: its file and where it is.
                 id Id: NodeId => Node;

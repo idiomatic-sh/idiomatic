@@ -21,6 +21,13 @@ pub enum OperatingError {
     /// A semantic request named a stale or foreign syntax node.
     #[error(transparent)]
     SemanticRender(#[from] SemanticsError),
+    /// The build branch's `RYO_ENGINE` harness stopped the run: the new engine's rows differ from the old engine's, or it
+    /// cannot run the files alone yet.
+    #[error("engine harness: {reason}")]
+    EngineHarness {
+        /// What the harness found.
+        reason: String,
+    },
     /// The provider returned a different number of answers than requested.
     #[error("semantic renderer returned a malformed batch")]
     SemanticBatchShape,

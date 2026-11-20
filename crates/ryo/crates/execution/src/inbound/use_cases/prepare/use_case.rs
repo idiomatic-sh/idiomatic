@@ -31,6 +31,8 @@ impl PrepareUseCase for PrepareUseCaseImpl {
             }
             PlanSource::Compiled(queries) => queries.inner,
         };
+        // The `RYO_ENGINE` harness of the build branch, before any file: nothing for the old engine.
+        ryo_execution_runtime::application::file_scan::service::harnessed(&compiled.plans)?;
         ryo_execution_runtime::application::file_dag::service::prepare(
             compiled,
             &request.rules,

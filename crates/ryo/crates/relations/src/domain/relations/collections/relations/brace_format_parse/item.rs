@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for BraceFormatParse {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! brace_format_parse {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item BraceFormatParse,
             row { /// One outcome for a decoded brace-format occurrence.
                 BraceFormatParseRow },
@@ -24,6 +25,7 @@ macro_rules! brace_format_parse {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// Original decoded string occurrence.
                 id Id: NodeId => Node;

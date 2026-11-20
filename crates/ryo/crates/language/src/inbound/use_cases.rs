@@ -2,3 +2,4 @@
 
 pub mod parse;
 pub mod project;
+pub mod walk;

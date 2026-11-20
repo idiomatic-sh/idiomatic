@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for BindingResolution {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! binding_resolution {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
         item BindingResolution,
         row { /// One namespace's answer for one read or deletion.
         BindingResolutionRow },
@@ -22,6 +23,7 @@ macro_rules! binding_resolution {
         class Code,
         scope File,
         notes Unneeded,
+        form Filled(Many(Reference)),
         columns {
         /// Read or deletion occurrence (a binding-event of kind read or delete).
         reference Reference: NodeId => Node;

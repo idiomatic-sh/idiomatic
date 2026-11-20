@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for CompilerFeature {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! compiler_feature {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item CompilerFeature,
             row { /// One explicitly known feature value for a source file.
                 CompilerFeatureRow },
@@ -22,6 +23,7 @@ macro_rules! compiler_feature {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The source file whose compiler mode was computed.
                 file File: FileId => File;

@@ -32,9 +32,17 @@ The language domain's `elements` concept: the element table of a file.
 
 The language domain's `expansions` concept: the trees a language reads under a macro call, and the marks on the elements they make.
 
+### facts
+
+The fact contract: the engine asks a language to fill a relation's rows for one file, once, on first use; the words of a file.
+
 ### files
 
 The language domain's `files` concept: the path every part of the engine names a file of the repository by.
+
+### fillers
+
+What a language implements for the engine, one filler per filled relation, and the fact source the engine reads them through.
 
 ### flow
 
@@ -59,6 +67,10 @@ Indexed source byte offsets, physical lines, and columns shared by every languag
 ### names
 
 The language domain's `names` concept: a name made of pieces, and a name that leaves its file as a place.
+
+### `node_table`
+
+One file's node table in the engine's id space (nodes in pre-order, then tokens, then embedded segments), the calls a walk writes it through and its readers.
 
 ### notes
 

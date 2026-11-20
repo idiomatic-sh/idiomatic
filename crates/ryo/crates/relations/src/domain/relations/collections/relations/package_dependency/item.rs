@@ -17,8 +17,9 @@ impl super::super::interface::sealed::Sealed for PackageDependency {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! package_dependency {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item PackageDependency,
             row {
                 /// One row of `package_dependency`.
@@ -35,6 +36,7 @@ macro_rules! package_dependency {
             class Manifest,
             scope Project,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The package that depends: its manifest.
                 source Source: FileId => File;

@@ -24,8 +24,9 @@ impl super::super::interface::sealed::Sealed for FlowStep {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! flow_step {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FlowStep,
             row { /// One row of `flow-step`.
                 FlowStepRow },
@@ -36,6 +37,7 @@ macro_rules! flow_step {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The block the step is in, by its number in the file.
                 block Block: Integer => Number;

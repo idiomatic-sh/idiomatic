@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for SemanticSyntax {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! semantic_syntax {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item SemanticSyntax,
             row {
                 /// One row of `semantic_syntax`.
@@ -32,6 +33,7 @@ macro_rules! semantic_syntax {
             class Structure,
             scope File,
             notes Unneeded,
+            form NodeTable { Id => Id, Kind => Kind, Text => Text, File => File, Span => Span },
             columns {
                 /// The element: its file and where it starts.
                 id Id: NodeId => Node;

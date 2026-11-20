@@ -10,8 +10,9 @@ impl super::super::interface::sealed::Sealed for IndentRegion {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! indent_region {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
         item IndentRegion,
         row { /// One lexical indentation interval.
         IndentRegionRow },
@@ -22,6 +23,7 @@ macro_rules! indent_region {
         class Lexical,
         scope File,
         notes Unneeded,
+        form Filled(Many(Id)),
         columns {
         /// The module node for the root, otherwise the actual INDENT token.
         id Id: NodeId => Node;

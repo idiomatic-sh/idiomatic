@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the catalog's one vocabulary of every relation (its relations, columns, cells and row writer) and the form the engine reaches each by: the form names the relations' own columns and the relation items declare it, so moving it out makes a cycle between the catalog's concepts
 // the catalog's vocabulary of cells, kinds and names is one list a relation is described by
 //! The types of the `relations` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl. Every name, id, span and cell the engine handles is one of
@@ -383,4 +384,80 @@ pub enum Locatedness {
     Located,
     /// The parser supplied no source interval.
     Absent,
+}
+
+/// How the engine reaches a relation's rows: the one fact the catalog states for each relation, so the engine never names one.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::catalog::service::fact_form;
+/// use ryo_relations::domain::relations::types::FactForm;
+/// use ryo_relations::domain::relations::types::Relation;
+///
+/// assert_eq!(fact_form(Relation::SyntaxChild), FactForm::NodeTable);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FactForm {
+    /// Every column is a column of the node table, read in place (`NodeColumn`); the language fills nothing.
+    NodeTable,
+    /// The language fills the file's rows once, on first use; the key says how the engine indexes them.
+    Filled(FilledKey),
+}
+
+/// How the engine indexes a filled relation's rows.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::catalog::service::fact_form;
+/// use ryo_relations::domain::relations::types::{FactForm, FilledKey};
+/// use ryo_relations::domain::relations::types::Relation;
+///
+/// assert_eq!(fact_form(Relation::LanguageTarget), FactForm::Filled(FilledKey::Whole));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FilledKey {
+    /// At most one row per value of the column.
+    Unique(Column),
+    /// Any number of rows per value of the column.
+    Many(Column),
+    /// No node key: read whole (a key that is not a node is a made table's `Many`).
+    Whole,
+}
+
+/// The column of the node table a column of a `NodeTable` relation is read from.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::catalog::service::node_column;
+/// use ryo_relations::domain::relations::types::NodeColumn;
+/// use ryo_relations::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+/// use ryo_relations::domain::relations::types::Column;
+///
+/// assert_eq!(node_column(Column::SyntaxTree(SyntaxTreeColumn::Span)), Some(NodeColumn::Span));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum NodeColumn {
+    /// The element itself.
+    Id,
+    /// Its kind, as the word of its kind's name.
+    Kind,
+    /// Its parent (the root is its own).
+    Parent,
+    /// The field it fills in its parent, as the word of the field's name.
+    Field,
+    /// Its place among its parent's children, nodes and tokens merged in source order.
+    Ordinal,
+    /// Its first byte.
+    Start,
+    /// The byte after its last.
+    End,
+    /// Its first byte and the byte after its last, as one span cell.
+    Span,
+    /// The file it is in: the file the table is of.
+    File,
+    /// A token's text as the file's word (its decoded text when it has one); nothing for a node.
+    Text,
 }

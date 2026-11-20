@@ -13,8 +13,9 @@ impl super::super::interface::sealed::Sealed for FilesystemExecutable {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! filesystem_executable {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FilesystemExecutable,
             row {
                 /// One row of `filesystem_executable`.
@@ -31,6 +32,7 @@ macro_rules! filesystem_executable {
             class Engine,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The file.
                 path Path: FileId => File;

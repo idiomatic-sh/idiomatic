@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for StringLiteral {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! string_literal {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item StringLiteral,
             row {
                 /// One row of `string_literal`.
@@ -32,6 +33,7 @@ macro_rules! string_literal {
             class Literal,
             scope File,
             notes Unneeded,
+            form Filled(Unique(Occurrence)),
             columns {
                 /// The literal: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

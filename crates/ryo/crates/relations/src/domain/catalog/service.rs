@@ -166,7 +166,8 @@ macro_rules! kept_relations {
 
 /// Declares one relation of the catalog from its columns, which its module names once, in the macro it calls (the fixtures' typed rows
 /// are made from the same columns): its row, its columns and the numbers a row is stored as, with its class, its scope (`File` or
-/// `Project`) and whether it needs the languages' notes (`Needed` or `Unneeded`). A column is its name, the name of its
+/// `Project`), whether it needs the languages' notes (`Needed` or `Unneeded`) and how the engine reaches its rows (`form`: `NodeTable`
+/// with the node-table column of each of its columns, or `Filled` with the key the engine indexes filled rows by). A column is its name, the name of its
 /// variant, the type a row holds, what the store holds for it (a `CellKind` and the `Value` of the same name) and, when the type is
 /// not that already, the function that turns it into that.
 #[macro_export]
@@ -175,6 +176,7 @@ macro_rules! relation_row {
     (
         item $item:ident, row { $( #[$row_doc:meta] )* $row:ident }, column { $( #[$column_doc:meta] )* $column:ident },
         expected { $( #[$expected_doc:meta] )* $expected:ident }, class $class:ident, scope $scope:ident, notes $notes:ident,
+        form $form:ident $( ( $( $key:tt )* ) )? $( { $( $node_column:ident => $node_source:ident ),* $(,)? } )?,
         columns { $( $( #[$doc:meta] )* $field:ident $variant:ident : $ty:ty => $kind:ident $( ( $convert:path ) )? ; )* }
     ) => {
         $( #[$row_doc] )*
@@ -199,6 +201,10 @@ macro_rules! relation_row {
             const CLASS: $crate::domain::relations::types::Class = $crate::domain::relations::types::Class::$class;
             const SCOPE: $crate::domain::catalog::types::RowScope = $crate::domain::catalog::types::RowScope::$scope;
             const NOTES: $crate::domain::catalog::types::RelationNotes = $crate::domain::catalog::types::RelationNotes::$notes;
+            const FORM: $crate::domain::relations::types::FactForm =
+                $crate::relation_row!(@form $item $column $form $( ( $( $key )* ) )?);
+            const NODE_COLUMNS: &'static [($column, $crate::domain::relations::types::NodeColumn)] =
+                &[ $( $( ($column::$node_column, $crate::domain::relations::types::NodeColumn::$node_source) ),* )? ];
 
             fn relation() -> $crate::domain::relations::types::Relation {
                 $crate::domain::relations::types::Relation::$item
@@ -222,6 +228,17 @@ macro_rules! relation_row {
                 [ $( $crate::relation_row!(@word (row.$field) $kind $( $convert )?) ),* ]
             }
         }
+    };
+    (@form $item:ident $column:ident NodeTable) => {
+        $crate::domain::relations::types::FactForm::NodeTable
+    };
+    (@form $item:ident $column:ident Filled (Whole)) => {
+        $crate::domain::relations::types::FactForm::Filled($crate::domain::relations::types::FilledKey::Whole)
+    };
+    (@form $item:ident $column:ident Filled ($shape:ident ($key:ident))) => {
+        $crate::domain::relations::types::FactForm::Filled($crate::domain::relations::types::FilledKey::$shape(
+            $crate::domain::relations::types::Column::$item($column::$key),
+        ))
     };
     (@word ($value:expr) $kind:ident) => {
         $crate::domain::relations::service::to_bits($crate::domain::relations::types::Value::$kind($value))
@@ -251,6 +268,56 @@ macro_rules! declared_lookups {
         ) -> crate::domain::catalog::types::RowScope {
             match relation {
                 $( $( crate::domain::relations::types::Relation::$variant => <crate::domain::relations::collections::relations::$module::item::$variant as crate::domain::relations::collections::relations::interface::RelationsItem>::SCOPE, )* )*
+            }
+        }
+
+        /// How the engine reaches a relation's rows, as its item declares it: read in place from the node table, or filled by the
+        /// language once per file and indexed by its key.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use ryo_relations::domain::catalog::service::fact_form;
+        /// use ryo_relations::domain::relations::types::{FactForm, FilledKey};
+        /// use ryo_relations::domain::relations::collections::relations::function::item::FunctionColumn;
+        /// use ryo_relations::domain::relations::types::{Column, Relation};
+        ///
+        /// assert_eq!(fact_form(Relation::SyntaxTree), FactForm::NodeTable);
+        /// assert_eq!(fact_form(Relation::Function), FactForm::Filled(FilledKey::Unique(Column::Function(FunctionColumn::Id))));
+        /// ```
+        #[must_use]
+        pub fn fact_form(
+            relation: crate::domain::relations::types::Relation,
+        ) -> crate::domain::relations::types::FactForm {
+            match relation {
+                $( $( crate::domain::relations::types::Relation::$variant => <crate::domain::relations::collections::relations::$module::item::$variant as crate::domain::relations::collections::relations::interface::RelationsItem>::FORM, )* )*
+            }
+        }
+
+        /// The node-table column a column of a `NodeTable` relation is read from, as its item declares it; nothing for a column of a
+        /// filled relation.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use ryo_relations::domain::catalog::service::node_column;
+        /// use ryo_relations::domain::relations::types::NodeColumn;
+        /// use ryo_relations::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+        /// use ryo_relations::domain::relations::collections::relations::function::item::FunctionColumn;
+        /// use ryo_relations::domain::relations::types::Column;
+        ///
+        /// assert_eq!(node_column(Column::SyntaxChild(SyntaxChildColumn::Child)), Some(NodeColumn::Id));
+        /// assert_eq!(node_column(Column::Function(FunctionColumn::Id)), None);
+        /// ```
+        #[must_use]
+        pub fn node_column(
+            column: crate::domain::relations::types::Column,
+        ) -> Option<crate::domain::relations::types::NodeColumn> {
+            match column {
+                $( $( crate::domain::relations::types::Column::$variant(own) => <crate::domain::relations::collections::relations::$module::item::$variant as crate::domain::relations::collections::relations::interface::RelationsItem>::NODE_COLUMNS
+                    .iter()
+                    .find(|(declared, _)| *declared == own)
+                    .map(|(_, source)| *source), )* )*
             }
         }
 

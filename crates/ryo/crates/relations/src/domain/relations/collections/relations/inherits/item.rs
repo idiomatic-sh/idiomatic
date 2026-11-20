@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for Inherits {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! inherits {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Inherits,
             row {
                 /// One row of `inherits`.
@@ -32,6 +33,7 @@ macro_rules! inherits {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Occurrence)),
             columns {
                 /// The base or contract: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

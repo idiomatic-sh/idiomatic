@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for FormatParse {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! format_parse {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FormatParse,
             row { /// One outcome for a parsed format-string occurrence.
                 FormatParseRow },
@@ -24,6 +25,7 @@ macro_rules! format_parse {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The original literal occurrence.
                 id Id: NodeId => Node;

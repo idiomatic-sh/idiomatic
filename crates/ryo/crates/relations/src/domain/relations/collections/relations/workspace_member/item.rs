@@ -13,8 +13,9 @@ impl super::super::interface::sealed::Sealed for WorkspaceMember {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! workspace_member {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item WorkspaceMember,
             row {
                 /// One row of `workspace_member`.
@@ -31,6 +32,7 @@ macro_rules! workspace_member {
             class Manifest,
             scope Project,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The workspace: its manifest.
                 workspace Workspace: FileId => File;

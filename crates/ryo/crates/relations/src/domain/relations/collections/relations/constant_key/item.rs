@@ -13,8 +13,9 @@ impl super::super::interface::sealed::Sealed for ConstantKey {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! constant_key {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item ConstantKey,
             row {
                 /// One row of `constant-key`.
@@ -31,6 +32,7 @@ macro_rules! constant_key {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// An original supported constant-expression occurrence.
                 id Id: NodeId => Node;

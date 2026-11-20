@@ -15,8 +15,9 @@ impl super::super::interface::sealed::Sealed for Visibility {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! visibility {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Visibility,
             row {
                 /// One row of `visibility`.
@@ -33,6 +34,7 @@ macro_rules! visibility {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Occurrence)),
             columns {
                 /// The visibility: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

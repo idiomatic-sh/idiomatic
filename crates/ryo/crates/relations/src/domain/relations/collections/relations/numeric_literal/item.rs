@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for NumericLiteral {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! numeric_literal {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item NumericLiteral,
             row {
                 /// One row of `numeric-literal`.
@@ -32,6 +33,7 @@ macro_rules! numeric_literal {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// Original numeric literal occurrence; unary operators remain separate syntax.
                 id Id: NodeId => Node;

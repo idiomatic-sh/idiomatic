@@ -24,8 +24,9 @@ impl super::super::interface::sealed::Sealed for FlowEdge {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! flow_edge {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FlowEdge,
             row { /// One row of `flow-edge`.
                 FlowEdgeRow },
@@ -36,6 +37,7 @@ macro_rules! flow_edge {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The block the edge leaves, by its number in the file.
                 source Source: Integer => Number;

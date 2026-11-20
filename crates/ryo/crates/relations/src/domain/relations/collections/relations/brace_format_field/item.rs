@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for BraceFormatField {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! brace_format_field {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item BraceFormatField,
             row { /// One field occurrence in parser traversal order.
                 BraceFormatFieldRow },
@@ -24,6 +25,7 @@ macro_rules! brace_format_field {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// Original string occurrence, joining to `brace-format-parse.id`.
                 id Id: NodeId => Node;

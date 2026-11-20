@@ -23,8 +23,9 @@ impl super::super::interface::sealed::Sealed for FlowBlock {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! flow_block {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FlowBlock,
             row { /// One row of `flow-block`.
                 FlowBlockRow },
@@ -35,6 +36,7 @@ macro_rules! flow_block {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Whole),
             columns {
                 /// The block, by its number in the file.
                 block Block: Integer => Number;

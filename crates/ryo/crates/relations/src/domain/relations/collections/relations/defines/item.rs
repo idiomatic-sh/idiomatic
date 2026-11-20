@@ -16,8 +16,9 @@ impl super::super::interface::sealed::Sealed for Defines {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! defines {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Defines,
             row {
                 /// One row of `defines`.
@@ -34,6 +35,7 @@ macro_rules! defines {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The declaration: its file and where it starts.
                 id Id: NodeId => Node;

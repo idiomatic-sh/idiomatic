@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for FormatField {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! format_field {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item FormatField,
             row { /// One conversion field in a parsed format string.
                 FormatFieldRow },
@@ -24,6 +25,7 @@ macro_rules! format_field {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Id)),
             columns {
                 /// The original format-string occurrence, joining this row to `format-parse`.
                 id Id: NodeId => Node;

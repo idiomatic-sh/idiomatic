@@ -1426,6 +1426,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-engine"
+version = "0.2.0"
+dependencies = [
+ "cargo_metadata",
+ "cucumber",
+ "idiomatic-sh-ryo-engine",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "thiserror 2.0.20",
+ "tokio",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-execution"
 version = "0.2.0"
 dependencies = [
@@ -1472,6 +1486,7 @@ dependencies = [
  "dhat",
  "divan",
  "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-engine",
  "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",

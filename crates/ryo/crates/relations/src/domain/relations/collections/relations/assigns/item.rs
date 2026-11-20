@@ -13,8 +13,9 @@ impl super::super::interface::sealed::Sealed for Assigns {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! assigns {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item Assigns,
             row {
                 /// One row of `assigns`.
@@ -31,6 +32,7 @@ macro_rules! assigns {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Occurrence)),
             columns {
                 /// The assignment: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

@@ -12,8 +12,9 @@ impl super::super::interface::sealed::Sealed for PatternChild {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! pattern_child {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item PatternChild,
             row { /// One edge of a parsed pattern.
                 PatternChildRow },
@@ -24,6 +25,7 @@ macro_rules! pattern_child {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Parent)),
             columns {
                 /// The parent pattern element.
                 parent Parent: NodeId => Node;

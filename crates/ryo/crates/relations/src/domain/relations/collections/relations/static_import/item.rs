@@ -14,8 +14,9 @@ impl super::super::interface::sealed::Sealed for StaticImport {}
 #[macro_export]
 #[doc(hidden)]
 macro_rules! static_import {
-    ($callback:path) => {
+    ($callback:path $(, $($extra:tt)*)?) => {
         $callback! {
+            $( $($extra)* )?
             item StaticImport,
             row {
                 /// One row of `static_import`.
@@ -32,6 +33,7 @@ macro_rules! static_import {
             class Code,
             scope File,
             notes Unneeded,
+            form Filled(Many(Occurrence)),
             columns {
                 /// The import: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;
