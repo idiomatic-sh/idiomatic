@@ -1,6 +1,8 @@
 //! The `plan_expansion` service's cases: the one shape each expanded kind is written as, and that the plan around an
 //! expansion names the same rows after it. That this engine's planner still recognises the shapes is `lowering_test`.
 use super::service::{LADDER_LINKS, expanded};
+use super::widths::service::width_of;
+use super::widths::types::StepWidths;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::observations::types::{
@@ -31,6 +33,8 @@ enum Ask {
     Names(fn() -> Plan),
     /// Whether the expanded plan is the plan.
     Unchanged(fn() -> Plan),
+    /// How many of the expanded plan's steps a count of its last step's width counts, beside how many it has.
+    Widths(fn() -> Plan),
 }
 type Input = Ask;
 type Value = Cow<'static, str>;
@@ -236,6 +240,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("the_widths_under_a_ladder_of_twenty_links_are_counted_once_a_step"),
+        word: Word::Succeeds,
+        input: || Ask::Widths(follow),
+        expect: Expect::Value(Cow::Borrowed(
+            "22 of 22 steps counted; the last has Some(3) columns",
+        )),
+    },
+    Case {
         name: CaseName("emit_frontier_and_observations_name_the_same_rows_after_an_expansion"),
         word: Word::Succeeds,
         input: || Ask::Names(renumbered),
@@ -268,6 +280,19 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             } else {
                 "changed".to_owned()
             }
+        }
+        Ask::Widths(plan) => {
+            let plan = expanded(&plan());
+            let last =
+                StepId(u32::try_from(plan.steps.len().saturating_sub(1)).unwrap_or(u32::MAX));
+            let mut widths = StepWidths::default();
+            let width = width_of(&plan, &plan.steps, Source::Step(last), &mut widths);
+            format!(
+                "{} of {} steps counted; the last has {:?} columns",
+                widths.counted.0,
+                plan.steps.len(),
+                width.map(|counted| counted.0),
+            )
         }
         Ask::Kinds(plan) => kinds(&expanded(&plan())),
         Ask::Tests(plan) => expanded(&plan())

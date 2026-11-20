@@ -3,14 +3,20 @@
 //! (`operation_schema::schema_of`) answers the same number, and the service's cases hold the two together, but it reads column
 //! kinds, bindings and the host's declarations, which a plan does not hold.
 
+use super::types::{StepWidth, StepWidths, StepsCounted};
 use ryo_values::domain::plan_parts::types::{Input, RowWidth};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use ryo_values::domain::query_plans::types::Plan;
 
 /// How many columns the rows of `input` have among `steps`, the steps of `plan` written so far; none where the plan does not
-/// say: the host's rows, whose columns the host declares.
-pub(crate) fn width_of(plan: &Plan, steps: &[PlanStep], input: Input) -> Option<RowWidth> {
+/// say: the host's rows, whose columns the host declares. Each step is counted once and kept in `widths`.
+pub(crate) fn width_of(
+    plan: &Plan,
+    steps: &[PlanStep],
+    input: Input,
+    widths: &mut StepWidths,
+) -> Option<RowWidth> {
     match input {
         Input::Relation(relation) => Some(RowWidth(
             ryo_relations::domain::relations::service::kinds(relation).len(),
@@ -20,16 +26,30 @@ pub(crate) fn width_of(plan: &Plan, steps: &[PlanStep], input: Input) -> Option<
             .get(usize::from(id))
             .map(|bound| RowWidth(bound.columns.len())),
         Input::Step(id) => {
-            let step = steps.get(usize::try_from(id.0).unwrap_or(usize::MAX))?;
+            let at = usize::try_from(id.0).unwrap_or(usize::MAX);
+            if let Some(StepWidth::Counted(width)) = widths.known.get(at) {
+                return *width;
+            }
+            let step = steps.get(at)?;
             let mut inputs = [None; 3];
             let read = ryo_values::domain::plans::service::inputs_of(&step.operation);
             for (width, read) in inputs
                 .iter_mut()
                 .zip(ryo_values::domain::plans::service::named(&read))
             {
-                *width = width_of(plan, steps, *read);
+                *width = width_of(plan, steps, *read, widths);
             }
-            width_after(&step.operation, inputs)
+            let width = width_after(&step.operation, inputs);
+            if widths.known.len() <= at {
+                widths
+                    .known
+                    .resize(at.saturating_add(1), StepWidth::Uncounted);
+            }
+            if let Some(known) = widths.known.get_mut(at) {
+                *known = StepWidth::Counted(width);
+            }
+            widths.counted = StepsCounted(widths.counted.0.saturating_add(1));
+            width
         }
     }
 }
