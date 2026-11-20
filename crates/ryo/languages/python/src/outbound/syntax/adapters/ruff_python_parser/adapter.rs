@@ -190,6 +190,24 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         // The session of this file, if one is begun, renders from this tree: the file is parsed once.
         languages::retain_for_semantics(builder, Box::new(parsed));
     }
+
+    fn walk(
+        &self,
+        text: SourceText<'_>,
+        source_kind: PythonSourceKind,
+        reported: crate::outbound::syntax::types::ReportedSyntax,
+        builder: &mut languages::NodeTableBuilder<'_>,
+        lend: &mut dyn FnMut(
+            &mut languages::NodeTableBuilder<'_>,
+            crate::domain::node::types::WalkedTree<'_>,
+        ),
+    ) {
+        #[cfg(test)]
+        let _previous = self
+            .file_parses
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        super::walk::walked(&self.settings, text, source_kind, reported, builder, lend);
+    }
 }
 
 /// Write native parser and target-version diagnostics without changing their ordering.

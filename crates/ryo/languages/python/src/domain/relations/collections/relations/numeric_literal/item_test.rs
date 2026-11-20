@@ -20,6 +20,20 @@ use std::sync::Arc;
 /// Deliberately incomplete parser scalar payload, retaining a real numeric token and interval.
 struct MissingPayload(Option<&'static str>, Option<&'static str>);
 impl SyntaxPort for MissingPayload {
+    fn walk(
+        &self,
+        _text: SourceText<'_>,
+        _source_kind: PythonSourceKind,
+        _reported: crate::outbound::syntax::types::ReportedSyntax,
+        _builder: &mut languages::NodeTableBuilder<'_>,
+        _lend: &mut dyn FnMut(
+            &mut languages::NodeTableBuilder<'_>,
+            crate::domain::node::types::WalkedTree<'_>,
+        ),
+    ) {
+        unreachable!("this syntax fixture is read, never walked");
+    }
+
     fn expand_annotations(
         &self,
         _source: SourceText<'_>,

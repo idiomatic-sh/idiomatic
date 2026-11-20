@@ -185,6 +185,20 @@ fn refuses() {
 struct CapturingSyntax(Arc<Mutex<Vec<PythonSourceKind>>>);
 
 impl SyntaxPort for CapturingSyntax {
+    fn walk(
+        &self,
+        _text: SourceText<'_>,
+        _source_kind: PythonSourceKind,
+        _reported: crate::outbound::syntax::types::ReportedSyntax,
+        _builder: &mut languages::NodeTableBuilder<'_>,
+        _lend: &mut dyn FnMut(
+            &mut languages::NodeTableBuilder<'_>,
+            crate::domain::node::types::WalkedTree<'_>,
+        ),
+    ) {
+        unreachable!("this syntax fixture is read, never walked");
+    }
+
     fn expand_annotations(
         &self,
         _source: SourceText<'_>,

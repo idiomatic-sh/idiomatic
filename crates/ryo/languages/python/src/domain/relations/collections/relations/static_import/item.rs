@@ -2,9 +2,17 @@
 //! dots of a relative import kept; `from m import *` imports the module `m`, its target, and binds names it cannot list: its binding is the
 //! unknown value of a wildcard import.
 
+use crate::domain::file_view::types::PythonWalk;
 use crate::domain::imports::service::{import_binding, import_target};
+use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::model::types::Declarations;
+use crate::domain::name_facts::service::imported as imported_names;
+use crate::domain::names::service::unknown;
+use crate::domain::names::types::Unresolved;
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
+use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
+use crate::domain::owner_facts::service::{owner_of, owners};
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -25,6 +33,30 @@ ryo::reads! {
             target: value(target),
             file: file,
             span: span(at),
+        }
+    }
+}
+
+// The engine fills `static-import` from the walked file: every row of the file, once.
+ryo::fills! {
+    StaticImportItem => languages::StaticImport, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::StaticImport as languages::CatalogRelation>::Row;
+        let owned = owners(&file.syntax, file.owners);
+        let mut names = TextBuffer::default();
+        for Numbered { id, .. } in nodes_of_kind(&file.syntax, Kind::Node(Node::Alias)) {
+            if let Some(found) = imported_names(&file.syntax, id, &mut names) {
+                rows.write(Row {
+                    occurrence: node_cell(&file.syntax, id),
+                    owner: node_cell(&file.syntax, owner_of(owned, id)),
+                    binding: found
+                        .binding
+                        .map_or(unknown(Unresolved::WildcardImport), |name| word(words, name)),
+                    target: word(words, found.target),
+                    file: file.syntax.file,
+                    span: span_at(&file.syntax, id),
+                });
+            }
         }
     }
 }

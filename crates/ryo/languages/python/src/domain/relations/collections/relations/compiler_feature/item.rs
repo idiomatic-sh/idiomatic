@@ -1,4 +1,7 @@
 //! Project the frontend-owned module flag; no linter visitation or source-order snapshots.
+use crate::domain::file_view::types::PythonWalk;
+use crate::domain::node::service::word;
+use crate::domain::node::types::PostponedAnnotations;
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -34,5 +37,21 @@ ryo::reads! {
             }
             None => { partial super::constants::INCOMPLETE => languages::Missing::Any; }
         }
+    }
+}
+
+// The engine fills `compiler-feature` from the walked file: every row of the file, once.
+ryo::fills! {
+    CompilerFeatureItem => languages::CompilerFeature, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::CompilerFeature as languages::CatalogRelation>::Row;
+        rows.write(Row {
+            file: file.syntax.file,
+            feature: word(words, languages::NameText(super::constants::FUTURE_ANNOTATIONS)),
+            enabled: match file.syntax.annotations {
+                PostponedAnnotations::Postponed => languages::Flag::Raised,
+                PostponedAnnotations::Evaluated => languages::Flag::Lowered,
+            },
+        });
     }
 }

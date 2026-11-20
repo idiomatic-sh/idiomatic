@@ -41,6 +41,49 @@ impl SyntaxPort for SyntaxFake {
         languages::leave_node(builder, end);
         languages::leave_node(builder, end);
     }
+
+    fn walk(
+        &self,
+        text: SourceText<'_>,
+        _source_kind: PythonSourceKind,
+        _reported: crate::outbound::syntax::types::ReportedSyntax,
+        builder: &mut languages::NodeTableBuilder<'_>,
+        lend: &mut dyn FnMut(
+            &mut languages::NodeTableBuilder<'_>,
+            crate::domain::node::types::WalkedTree<'_>,
+        ),
+    ) {
+        use crate::domain::node::types::{Wholeness, PostponedAnnotations, WalkedTree};
+        use languages::{FieldCode, SyntaxCompleteness, node_table};
+        let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
+        let start = languages::Offset(0);
+        let none = FieldCode(0);
+        node_table::enter_node(builder, kind_bits(Kind::Node(Node::Module)), none, start);
+        node_table::enter_node(builder, kind_bits(Kind::Node(Node::Expr)), none, start);
+        node_table::enter_node(builder, kind_bits(Kind::Node(Node::Name)), none, start);
+        node_table::token(
+            builder,
+            kind_bits(Kind::Token(Token::Name)),
+            none,
+            start,
+            end,
+        );
+        node_table::leave_node(builder, end);
+        node_table::leave_node(builder, end);
+        node_table::leave_node(builder, end);
+        lend(
+            builder,
+            WalkedTree {
+                nodes: Vec::new(),
+                text: languages::NameText(std::str::from_utf8(text.0).unwrap_or_default()),
+                completeness: Wholeness {
+                    syntax: SyntaxCompleteness::Complete,
+                    lexical: SyntaxCompleteness::Complete,
+                },
+                annotations: PostponedAnnotations::Evaluated,
+            },
+        );
+    }
 }
 
 #[cfg(test)]

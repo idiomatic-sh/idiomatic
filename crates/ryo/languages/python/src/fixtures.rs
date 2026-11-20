@@ -12,6 +12,11 @@ pub(crate) mod projects;
 pub(crate) mod reading;
 #[cfg(not(bless))]
 mod relations;
+#[cfg(test)]
+pub(crate) mod syntax_files;
+pub mod table_laws;
+pub mod today;
+pub mod walking;
 #[cfg(not(bless))]
 mod workspace;
 

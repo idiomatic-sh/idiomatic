@@ -4,9 +4,17 @@
 use crate::domain::semantic_syntax::types::Visibility;
 
 use crate::domain::fact_notes::service::specifier;
+use crate::domain::file_view::types::PythonWalk;
+use crate::domain::literal_facts::service::{specifier as loaded, string_value};
+use crate::domain::literal_facts::types::{StringValue, TextBuffer};
 use crate::domain::model::types::Declarations;
 use crate::domain::names::service::string_or_unknown;
+use crate::domain::names::service::unknown;
+use crate::domain::names::types::Unresolved;
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
+use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
+use crate::domain::owner_facts::service::{owner_of, owners};
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::service::{kind, literal, standing};
@@ -30,6 +38,33 @@ ryo::reads! {
             file: file,
             span: span(at),
             import: value(specifier(tree, at)),
+        }
+    }
+}
+
+// The engine fills `string-literal` from the walked file: every row of the file, once.
+ryo::fills! {
+    StringLiteralItem => languages::StringLiteral, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::StringLiteral as languages::CatalogRelation>::Row;
+        let owned = owners(&file.syntax, file.owners);
+        let mut joined = TextBuffer::default();
+        for kind in [Node::Constant, Node::JoinedStr, Node::TemplateStr] {
+            for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(kind)) {
+                let value = match string_value(node, &mut joined) {
+                    Some(StringValue::Known(text)) => word(words, text),
+                    Some(StringValue::Interpolated) => unknown(Unresolved::InterpolatedString),
+                    None => continue,
+                };
+                rows.write(Row {
+                    occurrence: node_cell(&file.syntax, id),
+                    owner: node_cell(&file.syntax, owner_of(owned, id)),
+                    value,
+                    file: file.syntax.file,
+                    span: span_at(&file.syntax, id),
+                    import: loaded(&file.syntax, id),
+                });
+            }
         }
     }
 }

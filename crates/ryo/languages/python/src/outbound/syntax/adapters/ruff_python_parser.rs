@@ -14,6 +14,8 @@ mod options;
 mod schemas;
 mod scopes;
 pub(crate) mod types;
+mod walk;
+mod walker;
 
 #[cfg(test)]
 mod adapter_test;

@@ -70,6 +70,7 @@ pub(crate) fn check(adapter: &impl SyntaxPort) {
     run(CASES, Word::Succeeds, |text| {
         Ok(well_formed(&table_of(adapter, text)))
     });
+    run(CASES, Word::Succeeds, |text| Ok(walked_well(adapter, text)));
     drop(adapter.begin_semantics(
         &Elements::default(),
         PythonSourceKind::Python,
@@ -81,6 +82,28 @@ pub(crate) fn check(adapter: &impl SyntaxPort) {
         adapter.expand_annotations(SourceText(&[]), &[], &mut builder);
     }
     assert_eq!(end_of(&elements), end_of(&Elements::default()));
+}
+
+/// Whether the adapter walks `text` into a table that keeps the laws of the engine's node table, and lends its tree once.
+fn walked_well(adapter: &impl SyntaxPort, text: &str) -> bool {
+    use crate::fixtures::table_laws::broken_laws;
+    use ryo::languages::{Count, NodeTable, Offset, node_table};
+    let kinds = Count(crate::domain::syntax::service::kinds().count());
+    let length = Offset(u32::try_from(text.len()).unwrap_or(u32::MAX));
+    let mut table = NodeTable::default();
+    let mut builder = node_table::builder(&mut table, kinds);
+    let (mut lent, mut broken) = (0_usize, 0_usize);
+    adapter.walk(
+        SourceText(text.as_bytes()),
+        PythonSourceKind::Python,
+        crate::outbound::syntax::types::ReportedSyntax::Every,
+        &mut builder,
+        &mut |written, _tree| {
+            lent += 1;
+            broken += broken_laws(node_table::finished(written), kinds, length).len();
+        },
+    );
+    lent == 1 && broken == 0
 }
 
 /// The table the adapter reads `text` into.

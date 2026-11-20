@@ -38,3 +38,13 @@ pub(crate) fn observed(
         ..Default::default()
     }
 }
+
+/// Every Python source the language's fixtures pin, with its path under them: what the walk is held to today's reading over.
+///
+/// # Errors
+///
+/// When a fixture folder or file cannot be read.
+#[cfg(test)]
+pub(crate) fn fixture_sources() -> std::io::Result<Vec<(String, Vec<u8>)>> {
+    crate::outbound::syntax::adapters::ruff_python_parser::fixtures::sources::fixture_sources()
+}

@@ -4,5 +4,7 @@
 pub(crate) mod diagnostics;
 pub(crate) mod oracle;
 pub(crate) mod pinned;
+#[cfg(test)]
+pub(crate) mod sources;
 pub(crate) mod standard;
 pub(crate) mod walk;

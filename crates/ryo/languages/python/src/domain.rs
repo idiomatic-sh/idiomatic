@@ -1,20 +1,29 @@
 //! The python domain: its nodes, tokens and extras, its files, its scopes and its names, and the readers of its relations.
 
+pub(crate) mod binding_facts;
 pub(crate) mod bindings;
 pub(crate) mod definitions;
 pub(crate) mod dependencies;
+pub(crate) mod expression_fields;
 pub(crate) mod extras;
 pub(crate) mod fact_notes;
 pub(crate) mod fields;
+pub(crate) mod file_view;
 pub(crate) mod imports;
 pub(crate) mod labels;
 pub(crate) mod language;
+pub(crate) mod layout_facts;
+pub(crate) mod lexical_facts;
 pub(crate) mod links;
 pub(crate) mod manifests;
 pub(crate) mod merging;
 pub(crate) mod model;
+pub(crate) mod name_facts;
 pub(crate) mod names;
+pub(crate) mod node;
+pub(crate) mod node_fields;
 pub(crate) mod nodes;
+pub(crate) mod owner_facts;
 pub(crate) mod packages;
 pub(crate) mod patterns;
 pub(crate) mod relations;
@@ -38,6 +47,7 @@ pub(crate) mod constant_numbers;
 /// Structural expression identity.
 pub(crate) mod expression_shapes;
 /// Parsed primitive categories and narrow value predicates.
+pub(crate) mod literal_facts;
 pub(crate) mod literal_properties;
 pub(crate) mod numeric_literals;
 
