@@ -28,6 +28,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             round_trip(
                 ChildrenWord {
+                    flag: WordFlag(0x80),
                     parent: Register(0x0001_0001),
                     out: Register(0x0002_0002),
                 },
@@ -43,6 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             round_trip(
                 ChildrenOfFieldWord {
+                    flag: WordFlag(0x80),
                     field: FieldCode(0x1234),
                     parent: Register(0x0001_0001),
                     out: Register(0x0002_0002),
@@ -59,7 +61,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             round_trip(
                 AxisWord {
-                    direction: WordFlag(0x85),
+                    flag: WordFlag(0x80),
+                    direction: WordFlag(0x04),
                     start: Register(0x0001_0001),
                     out: Register(0x0002_0002),
                 },
@@ -75,6 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             round_trip(
                 WithinWord {
+                    flag: WordFlag(0x80),
                     ancestor: Register(0x0001_0001),
                     descendant: Register(0x0002_0002),
                 },

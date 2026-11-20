@@ -56,20 +56,23 @@ pub(crate) enum ProgramStep {
     },
     /// Each row of a source.
     EachRow { source: StepRows, out: Register },
-    /// Each child of a node, of one field when given.
+    /// Each child of a node, of one field when given, among the node rows `relation` covers (as `EachKind`'s).
     Children {
+        relation: Relation,
         parent: Register,
         field: Option<FieldCode>,
         out: Register,
     },
-    /// Each element along a tree axis from a node; never the start itself.
+    /// Each element along a tree axis from a node, among the node rows `relation` covers; never the start itself.
     Axis {
+        relation: Relation,
         direction: AxisDirection,
         start: Register,
         out: Register,
     },
-    /// The test that one node is a proper ancestor of another.
+    /// The test that one node is a proper ancestor of another, in the tree of the node rows `relation` covers.
     Within {
+        relation: Relation,
         ancestor: Register,
         descendant: Register,
     },
@@ -223,8 +226,8 @@ pub(crate) enum BoundKind {
 /// What `Nearest` walks.
 #[derive(Debug)]
 pub(crate) enum NearestEdges {
-    /// The syntax tree, toward the root.
-    Tree,
+    /// The tree of the node rows a relation of the node-table form covers, toward the root.
+    Tree(Relation),
     /// Edges a body yields: the element whose edges are asked is in `from`, a row is the next element.
     Derived { edges: StepBody, from: Register },
 }

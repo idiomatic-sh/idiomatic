@@ -109,11 +109,13 @@ pub(crate) fn step_touched(step: &ProgramStep) -> Touched<'_> {
             touched.writes.push(*out);
         }
         ProgramStep::Children {
+            relation: _,
             parent: read,
             field: _,
             out,
         }
         | ProgramStep::Axis {
+            relation: _,
             direction: _,
             start: read,
             out,
@@ -133,6 +135,7 @@ pub(crate) fn step_touched(step: &ProgramStep) -> Touched<'_> {
             touched.writes.push(*out);
         }
         ProgramStep::Within {
+            relation: _,
             ancestor,
             descendant,
         } => touched.reads.extend([*ancestor, *descendant]),
@@ -146,7 +149,7 @@ pub(crate) fn step_touched(step: &ProgramStep) -> Touched<'_> {
         } => {
             touched.reads.push(*start);
             match edges {
-                NearestEdges::Tree => {}
+                NearestEdges::Tree(_) => {}
                 NearestEdges::Derived { edges, from } => {
                     body_touched(edges, &mut touched);
                     touched.writes.push(*from);
@@ -292,6 +295,7 @@ pub(crate) fn stage_touched(stage: &FillStage) -> Touched<'_> {
             out,
         }
         | FillStage::Walk {
+            relation: _,
             walk: _,
             start: read,
             out,
