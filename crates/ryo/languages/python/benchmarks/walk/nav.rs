@@ -879,6 +879,8 @@ pub(crate) struct Counters {
     /// time in made-table builds (their programs' steps included, nested builds counted once) and in value-index builds
     pub made_ns: u64,
     pub index_ns: u64,
+    /// index_ns split: [tree value index, constant scans, fact column index]
+    pub index_split: [u64; 3],
     /// per made table (fact index): (builds, exclusive ns, input rows, steps)
     pub made_by: FxMap<u16, (u64, u64, u64, u64)>,
     pub kind_index_ns: u64,
@@ -910,6 +912,20 @@ pub(crate) struct Facts {
     pub loaded: Vec<bool>,
     pub provider_done: bool,
     pub idx: FxMap<(u16, u8), Rc<FIdx>>,
+}
+
+/// A tree relation column's value index: ids sorted by (value, start, id).
+pub(crate) struct TIdx {
+    vals: Vec<u32>,
+    ids: Vec<u32>,
+}
+
+impl TIdx {
+    fn get(&self, v: u32) -> &[u32] {
+        let a = self.vals.partition_point(|&x| x < v);
+        let b = a + self.vals[a..].partition_point(|&x| x == v);
+        &self.ids[a..b]
+    }
 }
 
 /// A fact column's index: by view id (dense head/next chains) for node columns, hashed otherwise.
@@ -946,7 +962,13 @@ pub(crate) struct FileCache {
     pub kind_ids: Vec<u32>,
     /// identifier text code per AST node id (NULL when the node is neither an identifier nor a name)
     pub ident: Option<Vec<u32>>,
-    pub tree_idx: FxMap<(u8, u8), Rc<FxMap<u32, Vec<u32>>>>,
+    pub tree_idx: FxMap<(u8, u8), Rc<TIdx>>,
+    /// a constant value set's ids (by the instruction's value address), in start order: one linear scan per file
+    pub const_idx: FxMap<usize, Rc<Vec<u32>>>,
+    /// the same lists by content (relation, column, values), shared by every instruction naming that set
+    pub const_by: FxMap<(u8, u8, Vec<u64>), Rc<Vec<u32>>>,
+    /// per tree column: ids bucketed by base-symbol value (counting sort, each bucket in start order)
+    pub csr: FxMap<(u8, u8), Rc<(Vec<u32>, Vec<u32>)>>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
     pub model_lex: bool,
@@ -1094,25 +1116,6 @@ impl<'a, 'p> Exec<'a, 'p> {
         })
     }
 
-    /// a tree relation's value index with each list in start order (for range walks)
-    fn tree_index_sorted(&mut self, rel: TRel, col: u8) -> Rc<FxMap<u32, Vec<u32>>> {
-        let key = (rel as u8 | 0x80, col);
-        if let Some(i) = self.cache.tree_idx.get(&key) {
-            return i.clone();
-        }
-        let base = self.tree_index(rel, col);
-        let v = self.f.view;
-        let mut m: FxMap<u32, Vec<u32>> = FxMap::default();
-        for (k, list) in base.iter() {
-            let mut l = list.clone();
-            l.sort_by_key(|&id| (v.start[id as usize], id));
-            m.insert(*k, l);
-        }
-        let m = Rc::new(m);
-        self.cache.tree_idx.insert(key, m.clone());
-        m
-    }
-
     fn row_exists(&mut self, rel: TRel, id: u32) -> bool {
         match rel {
             TRel::Ss | TRel::Sl => (id as usize) < self.f.view.len(),
@@ -1121,23 +1124,117 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
     }
 
-    fn tree_index(&mut self, rel: TRel, col: u8) -> Rc<FxMap<u32, Vec<u32>>> {
+    /// the ids whose tree column holds one of a constant set of values, in start order (one scan, memoised per file)
+    fn const_list(&mut self, rel: TRel, col: u8, val: &Val) -> Rc<Vec<u32>> {
+        let key = val as *const Val as usize;
+        if let Some(l) = self.cache.const_idx.get(&key) {
+            return l.clone();
+        }
+        let t0 = Instant::now();
+        let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+        let wanted: Vec<u64> = match val {
+            Val::Syms(s) => s.iter().map(|&x| u64::from(x)).collect(),
+            Val::Nums(v) => v.iter().map(|&x| u64::from(x as u32)).collect(),
+            Val::Reg(_) => unreachable!(),
+        };
+        let ckey = (rel as u8, col, wanted.clone());
+        if let Some(l) = self.cache.const_by.get(&ckey) {
+            let l = l.clone();
+            self.cache.const_idx.insert(key, l.clone());
+            return l;
+        }
+        let v = self.f.view;
+        let csr = self.col_csr(rel, col);
+        let (off, ids) = (&csr.0, &csr.1);
+        let mut out: Vec<u32> = Vec::new();
+        for &w in &wanted {
+            let w = w as usize;
+            if w + 1 < off.len() {
+                out.extend_from_slice(&ids[off[w] as usize..off[w + 1] as usize]);
+            }
+        }
+        let _ = n;
+        if wanted.len() > 1 {
+            out.sort_by_key(|&id| (v.start[id as usize], id));
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += out.len() as u64;
+        self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.index_split[1] += t0.elapsed().as_nanos() as u64;
+        let l = Rc::new(out);
+        self.cache.const_idx.insert(key, l.clone());
+        self.cache.const_by.insert(ckey, l.clone());
+        l
+    }
+
+    /// a tree column's ids bucketed by value for base-symbol values (the pack's literals are base symbols): one counting sort
+    fn col_csr(&mut self, rel: TRel, col: u8) -> Rc<(Vec<u32>, Vec<u32>)> {
+        if let Some(c) = self.cache.csr.get(&(rel as u8, col)) {
+            return c.clone();
+        }
+        let nb = self.sym.base_count();
+        let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+        let v = self.f.view;
+        let mut vals: Vec<u32> = Vec::with_capacity(n);
+        match (rel, col) {
+            (TRel::Sc, 3) => vals.extend((0..n).map(|i| if v.parent[i] == u32::MAX { u32::MAX } else { v.field[i] })),
+            (TRel::Ss, 2) => vals.extend_from_slice(&v.text[..n]),
+            _ => {
+                for id in 0..n as u32 {
+                    vals.push(self.tread(rel, col, id).map_or(u32::MAX, |x| x as u32));
+                }
+            }
+        }
+        let mut off = vec![0u32; nb + 2];
+        for &x in &vals {
+            if (x as usize) < nb {
+                off[x as usize + 1] += 1;
+            }
+        }
+        for i in 0..=nb {
+            off[i + 1] += off[i];
+        }
+        let mut fill = off.clone();
+        let mut ids = vec![0u32; off[nb] as usize];
+        for (id, &x) in vals.iter().enumerate() {
+            if (x as usize) < nb {
+                ids[fill[x as usize] as usize] = id as u32;
+                fill[x as usize] += 1;
+            }
+        }
+        // buckets in start order (ids are pre-order nodes, then tokens)
+        for b in 0..nb {
+            let s = &mut ids[off[b] as usize..off[b + 1] as usize];
+            if s.windows(2).any(|w| v.start[w[0] as usize] > v.start[w[1] as usize]) {
+                s.sort_by_key(|&id| (v.start[id as usize], id));
+            }
+        }
+        let c = Rc::new((off, ids));
+        self.cache.csr.insert((rel as u8, col), c.clone());
+        c
+    }
+
+    /// a tree relation's value index: (value, start, id) sorted once per file; a value's ids are a slice in start order
+    fn tree_index(&mut self, rel: TRel, col: u8) -> Rc<TIdx> {
         let key = (rel as u8, col);
         if let Some(i) = self.cache.tree_idx.get(&key) {
             return i.clone();
         }
         let t0 = Instant::now();
-        let mut m: FxMap<u32, Vec<u32>> = FxMap::default();
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+        let mut pairs: Vec<(u64, u32)> = Vec::with_capacity(n);
         for id in 0..n as u32 {
             if let Some(v) = self.tread(rel, col, id) {
-                m.entry(v as u32).or_default().push(id);
+                pairs.push(((u64::from(v as u32) << 32) | u64::from(self.f.view.start[id as usize]), id));
             }
         }
+        pairs.sort_unstable();
+        let idx = TIdx { vals: pairs.iter().map(|p| (p.0 >> 32) as u32).collect(), ids: pairs.iter().map(|p| p.1).collect() };
         self.c.made_tables += 1;
         self.c.made_rows += n as u64;
         self.c.index_ns += t0.elapsed().as_nanos() as u64;
-        let m = Rc::new(m);
+        self.c.index_split[0] += t0.elapsed().as_nanos() as u64;
+        let m = Rc::new(idx);
         self.cache.tree_idx.insert(key, m.clone());
         m
     }
@@ -1173,33 +1270,43 @@ impl<'a, 'p> Exec<'a, 'p> {
             let rows = std::mem::replace(&mut self.outs[slot], saved.1);
             let rows_len = rows.len();
             self.cur_rule = saved.0;
-            let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
-            let mut groups: FxMap<Vec<u64>, u64> = FxMap::default();
-            let mut order: Vec<Vec<u64>> = Vec::new();
-            for row in rows.chunks((*width).max(1)) {
-                let key: Vec<u64> = keys.iter().map(|&k| row[k]).collect();
-                let identity: Vec<u64> = match distinct {
-                    Some(d) => key.iter().copied().chain(std::iter::once(row[*d])).collect(),
-                    None => row.to_vec(),
-                };
-                if !seen.insert(identity) {
-                    continue;
-                }
-                let e = groups.entry(key.clone()).or_insert_with(|| {
-                    order.push(key);
-                    0
-                });
-                *e += 1;
-            }
+            // group count by sorting fixed-width identities (keys first, then the distinct column or the rest of the row):
+            // equal identities collapse, runs of equal keys are the groups
+            let w = (*width).max(1);
+            let rest: Vec<usize> = match distinct {
+                Some(d) => vec![*d],
+                None => (0..*width).filter(|c| !keys.contains(c)).collect(),
+            };
+            let t = keys.len() + rest.len();
+            assert!(t <= 8, "made identity wider than 8");
+            let mut ids: Vec<[u64; 8]> = rows
+                .chunks(w)
+                .map(|row| {
+                    let mut x = [0u64; 8];
+                    for (i, &k) in keys.iter().chain(rest.iter()).enumerate() {
+                        x[i] = row[k];
+                    }
+                    x
+                })
+                .collect();
+            ids.sort_unstable();
+            ids.dedup();
             let facts = self.cache.facts.as_mut().unwrap();
             let cols = &mut facts.cols[rel as usize];
-            for key in order {
-                let n = groups[&key];
-                for (c, v) in key.iter().enumerate() {
-                    cols[c].push(*v);
+            let nk = keys.len();
+            let mut i = 0;
+            while i < ids.len() {
+                let mut j = i + 1;
+                while j < ids.len() && ids[j][..nk] == ids[i][..nk] {
+                    j += 1;
                 }
-                cols[*nkeys].push(n);
+                for c in 0..nk {
+                    cols[c].push(ids[i][c]);
+                }
+                cols[*nkeys].push((j - i) as u64);
+                i = j;
             }
+            let _ = t;
             self.c.made_tables += 1;
             self.c.made_rows += cols[*nkeys].len() as u64;
             facts.loaded[rel as usize] = true;
@@ -1390,6 +1497,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.c.made_tables += 1;
         self.c.made_rows += c.len() as u64;
         self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.index_split[2] += t0.elapsed().as_nanos() as u64;
         let m = Rc::new(idx);
         facts.idx.insert((rel, col), m.clone());
         m
@@ -1582,6 +1690,17 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                     return false;
                 }
+                Ins::IterValue { rel, col, val, out } if !matches!(val, Val::Reg(_)) => {
+                    let list = self.const_list(*rel, *col, val);
+                    for &id in list.iter() {
+                        self.regs[*out as usize] = id as u64;
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
                 Ins::IterValue { rel, col, val, out } => {
                     let idx = self.tree_index(*rel, *col);
                     let keys: Vec<u32> = match val {
@@ -1590,13 +1709,11 @@ impl<'a, 'p> Exec<'a, 'p> {
                         Val::Nums(n) => n.iter().map(|&x| x as u32).collect(),
                     };
                     for k in keys {
-                        if let Some(list) = idx.get(&k) {
-                            for &id in list {
-                                self.regs[*out as usize] = id as u64;
-                                self.c.visits += 1;
-                                if self.run_inner(p, pc + 1) {
-                                    return true;
-                                }
+                        for &id in idx.get(k) {
+                            self.regs[*out as usize] = id as u64;
+                            self.c.visits += 1;
+                            if self.run_inner(p, pc + 1) {
+                                return true;
                             }
                         }
                     }
@@ -1705,17 +1822,23 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                 }
                 Ins::IterRange { rel, col, val, out, start, lo, hi } => {
-                    let idx = self.tree_index_sorted(*rel, *col);
-                    let keys: Vec<u32> = match val {
-                        Val::Reg(r) => vec![self.regs[*r as usize] as u32],
-                        Val::Syms(s) => s.to_vec(),
-                        Val::Nums(n) => n.iter().map(|&x| x as u32).collect(),
-                    };
                     let v = self.f.view;
                     let lo = lo.map(|(r, incl)| (self.regs[r as usize] as i64, incl));
                     let hi = hi.map(|(r, incl)| (self.regs[r as usize] as i64, incl));
+                    let (tidx, clist) = match val {
+                        Val::Reg(_) => (Some(self.tree_index(*rel, *col)), None),
+                        _ => (None, Some(self.const_list(*rel, *col, val))),
+                    };
+                    let keys: Vec<u32> = match val {
+                        Val::Reg(r) => vec![self.regs[*r as usize] as u32],
+                        _ => vec![0],
+                    };
                     for k in keys {
-                        let Some(list) = idx.get(&k) else { continue };
+                        let list: &[u32] = match (&tidx, &clist) {
+                            (Some(t), _) => t.get(k),
+                            (_, Some(c)) => c,
+                            _ => &[],
+                        };
                         let first = match lo {
                             Some((x, true)) => list.partition_point(|&id| (v.start[id as usize] as i64) < x),
                             Some((x, false)) => list.partition_point(|&id| (v.start[id as usize] as i64) <= x),

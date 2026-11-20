@@ -28,6 +28,10 @@ impl Symbols {
         id
     }
 
+    pub(crate) fn base_count(&self) -> usize {
+        self.base_text.len()
+    }
+
     /// every base symbol, in id order (the compiled pack's constant pool)
     pub(crate) fn base_texts(&self) -> &[String] {
         &self.base_text
