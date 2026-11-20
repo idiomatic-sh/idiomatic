@@ -720,7 +720,7 @@ impl<'p> State<'p> {
         if self.provider.is_none() && nav.needs_provider {
             self.provider = Some(crate::nav::Provider::new());
         }
-        self.cache.facts = None;
+        self.cache.reset_facts();
         self.cache.model_lex = false;
         self.cache.model_flow = false;
         self.cache.model_res = false;

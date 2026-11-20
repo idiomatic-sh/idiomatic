@@ -1537,6 +1537,8 @@ fn ins_free_reads(i: &Ins) -> Vec<R> {
 
 thread_local! {
     static SKI: bool = !std::env::var("NAV_SKI").is_ok_and(|v| v == "0");
+    static SORTED_INDEX: bool = !std::env::var("NAV_SORTED_INDEX").is_ok_and(|v| v == "0");
+    static REUSE_FACTS: bool = !std::env::var("NAV_REUSE_FACTS").is_ok_and(|v| v == "0");
     static PROVIDER_ALL: bool = std::env::var_os("NAV_PROVIDER").is_some();
     static HOIST_CONST: bool = !std::env::var("NAV_HOIST_CONST").is_ok_and(|v| v == "0");
     static HOIST_DEFER: bool = !std::env::var("NAV_HOIST_DEFER").is_ok_and(|v| v == "0");
@@ -2680,6 +2682,9 @@ impl TIdx {
 pub(crate) enum FIdx {
     Dense { head: Vec<u32>, next: Vec<u32> },
     Hash(FxMap<u64, Vec<u32>>),
+    /// facts: a node column of a relation with few rows for the file's size: (key, row) pairs in key order, found by binary
+    /// search (a dense head array costs the file's size per index)
+    Sorted { keys: Vec<u32>, rows: Vec<u32> },
 }
 
 pub(crate) struct Provider {
@@ -2703,8 +2708,38 @@ impl Provider {
     }
 }
 
+impl FileCache {
+    /// a new file (facts): the relations' column buffers are emptied and kept (their memory serves the next file's rows);
+    /// nothing is loaded, no index stands
+    pub(crate) fn reset_facts(&mut self) {
+        if !REUSE_FACTS.with(|x| *x) {
+            self.facts = None;
+            return;
+        }
+        if let Some(f) = self.facts.as_mut() {
+            for rel in 0..f.cols.len() {
+                if f.loaded[rel] || f.cols[rel].iter().any(|c| !c.is_empty()) {
+                    for c in &mut f.cols[rel] {
+                        c.clear();
+                    }
+                    f.loaded[rel] = false;
+                    f.whole_from[rel] = 0;
+                }
+            }
+            f.idx.clear();
+            f.provider_done = false;
+        }
+    }
+
+    /// the derived relation's index among the provider's (set with the per-relation classes)
+    fn key_fn_di(&self, rel: u16) -> usize {
+        self.rel_di[rel as usize] as usize
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct FileCache {
+    pub rel_di: Vec<u32>,
     /// kind code -> ids of that kind (nodes and tokens), a CSR over the view's kind column
     pub kind_off: Vec<u32>,
     pub kind_ids: Vec<u32>,
@@ -2759,6 +2794,12 @@ pub(crate) struct FileCache {
     /// them; the relation's index among the provider's per-key fillers (derived: 0.., model: 1000..)
     pub key_cols: Vec<u16>,
     pub key_fn: Vec<u32>,
+    /// per relation, read once per worker: how it is served (0 the old provider, 1 a host relation of the file, 2 rows of the
+    /// view, 3 a derived relation) and, for a derived relation, the fact computed in the same pass (u32::MAX: none) and
+    /// whether its rows read the lexical model
+    pub rel_class: Vec<u8>,
+    pub rel_partner: Vec<(u32, u32)>,
+    pub rel_model: Vec<bool>,
     /// per file: (relation, column, key) -> the row range its per-key fill wrote
     pub key_rows: FxMap<u64, (u32, u32)>,
     pub key_tick: u32,
@@ -3218,6 +3259,15 @@ impl<'a, 'p> Exec<'a, 'p> {
                 v
             }
             FIdx::Hash(m) => m.get(&value).cloned().unwrap_or_default(),
+            FIdx::Sorted { keys, rows } => {
+                if value >= u64::from(u32::MAX) {
+                    Vec::new()
+                } else {
+                    let a = keys.partition_point(|&k| k < value as u32);
+                    let b = a + keys[a..].partition_point(|&k| k == value as u32);
+                    rows[a..b].to_vec()
+                }
+            }
         };
         let facts = self.cache.facts.as_mut().unwrap();
         let width = facts.cols[rel as usize].len();
@@ -3553,6 +3603,34 @@ impl<'a, 'p> Exec<'a, 'p> {
         let only = std::env::var("NAV_PERKEY_ONLY").ok();
         let mut cols = Vec::new();
         let mut fns = Vec::new();
+        let prog = self.prog;
+        let (mut class, mut partner, mut model) = (Vec::new(), Vec::new(), Vec::new());
+        for f in &prog.facts {
+            let di = crate::derived::index_of(&f.name);
+            class.push(if f.model.is_some() || f.made.is_some() || f.made_om.is_some() {
+                0
+            } else if f.name.starts_with("filesystem.") {
+                1
+            } else if f.name == "comment" || f.name == "indent-region" {
+                2
+            } else if di.is_some() {
+                3
+            } else {
+                0
+            });
+            partner.push(match di.and_then(crate::derived::partner) {
+                Some(p) => match prog.facts.iter().position(|g| g.name == crate::derived::RELATIONS[p] && g.made.is_none() && g.model.is_none()) {
+                    Some(pi) => (p as u32, pi as u32),
+                    None => (u32::MAX, u32::MAX),
+                },
+                None => (u32::MAX, u32::MAX),
+            });
+            model.push(crate::derived::needs_model(&f.name));
+            self.cache.rel_di.push(di.map_or(u32::MAX, |d| d as u32));
+        }
+        self.cache.rel_class = class;
+        self.cache.rel_partner = partner;
+        self.cache.rel_model = model;
         for f in &self.prog.facts {
             let mut c = 0u16;
             let mut k = u32::MAX;
@@ -3807,9 +3885,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 self.c.model_rows_ns += ns;
                 self.acct_fill(rel, ns);
             }
-            None if !PROVIDER_ALL.with(|p| *p)
-                && (crate::derived::index_of(&prog.facts[rel as usize].name).is_some() || prog.facts[rel as usize].name.starts_with("filesystem.")) =>
-            {
+            None if !PROVIDER_ALL.with(|p| *p) && self.rel_class(rel) != 0 => {
                 self.load_derived(rel);
             }
             None => {
@@ -3967,7 +4043,11 @@ impl<'a, 'p> Exec<'a, 'p> {
         let t0 = Tick::now();
         let c = &facts.cols[rel as usize][col as usize];
         let from = facts.whole_from[rel as usize] as usize;
-        let idx = if dense {
+        let idx = if dense && (c.len() - from) * 8 < n_view && SORTED_INDEX.with(|x| *x) {
+            let mut pairs: Vec<(u32, u32)> = c.iter().enumerate().skip(from).filter(|(_, v)| (**v as usize) < n_view).map(|(row, &v)| (v as u32, row as u32)).collect();
+            pairs.sort_unstable();
+            FIdx::Sorted { keys: pairs.iter().map(|p| p.0).collect(), rows: pairs.iter().map(|p| p.1).collect() }
+        } else if dense {
             let mut head = vec![u32::MAX; n_view + 1];
             let mut next = vec![u32::MAX; c.len()];
             for (row, &v) in c.iter().enumerate().skip(from).rev() {
@@ -4085,6 +4165,25 @@ impl<'a, 'p> Exec<'a, 'p> {
                             return true;
                         }
                         row = next[row as usize];
+                    }
+                }
+                FIdx::Sorted { keys, rows } => {
+                    if k >= u64::from(u32::MAX) {
+                        continue;
+                    }
+                    let a = keys.partition_point(|&x| x < k as u32);
+                    let mut i = a;
+                    while i < keys.len() && keys[i] == k as u32 {
+                        let row = rows[i];
+                        self.regs[out as usize] = row as u64;
+                        self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(rel, u64::from(row), false);
+                        }
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                        i += 1;
                     }
                 }
                 FIdx::Hash(m) => {
@@ -5366,14 +5465,22 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.acct_fill(rel, ns);
     }
 
+    fn rel_class(&mut self, rel: u16) -> u8 {
+        if self.cache.key_cols.is_empty() {
+            self.declare_keys();
+        }
+        self.cache.rel_class[rel as usize]
+    }
+
     fn load_derived_inner(&mut self, rel: u16) {
         let prog = self.prog;
         let name = prog.facts[rel as usize].name.as_str();
-        if crate::derived::needs_model(name) {
+        let class = self.rel_class(rel);
+        if self.cache.rel_model[rel as usize] {
             self.ensure_model(0);
         }
         let t = Tick::now();
-        if name.starts_with("filesystem.") {
+        if class == 1 {
             // the host's relations of the file (derived.rs has file and executable; a read failure never reaches a rule here)
             let cols = host_filesystem(name, prog.facts[rel as usize].kinds.len(), self.f.path);
             let facts = self.cache.facts.as_mut().unwrap();
@@ -5382,7 +5489,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.derived_ns += t.elapsed().as_nanos() as u64;
             return;
         }
-        if name == "comment" || name == "indent-region" {
+        if class == 2 {
             // served from the run's own view (derived.rs reads the same view type, built a second time)
             let cols = self.view_rows(name, prog.facts[rel as usize].kinds.len());
             let facts = self.cache.facts.as_mut().unwrap();
@@ -5393,21 +5500,21 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.derived_ns += t.elapsed().as_nanos() as u64;
             return;
         }
-        let di = crate::derived::index_of(name).unwrap();
-        let mut targets: Vec<(usize, u16)> = vec![(di, rel)];
-        if let Some(p) = crate::derived::partner(di) {
-            if let Some(pi) = prog.facts.iter().position(|f| f.name == crate::derived::RELATIONS[p] && f.made.is_none() && f.model.is_none()) {
-                // the relation computed in the same pass comes along only when it has no per-key function or is filled whole in
-                // most files anyway (facts); a relation read at keys is not filled for being a neighbour
-                if self.cache.key_cols.is_empty() {
-                    self.declare_keys();
-                }
-                let already = self.cache.facts.as_ref().is_some_and(|f| f.loaded[pi]);
-                if !already && (self.cache.key_cols[pi] == 0 || self.cache.key_whole[pi]) {
-                    targets.push((p, pi as u16));
-                }
+        let di = self.cache.key_fn_di(rel);
+        let mut targets = [(di, rel), (usize::MAX, 0)];
+        let mut ntargets = 1;
+        let (p, pi) = self.cache.rel_partner[rel as usize];
+        if p != u32::MAX {
+            // the relation computed in the same pass comes along only when it has no per-key function or is filled whole in
+            // most files anyway (facts); a relation read at keys is not filled for being a neighbour
+            let pi = pi as usize;
+            let already = self.cache.facts.as_ref().is_some_and(|f| f.loaded[pi]);
+            if !already && (self.cache.key_cols[pi] == 0 || self.cache.key_whole[pi]) {
+                targets[1] = (p as usize, pi as u16);
+                ntargets = 2;
             }
         }
+        let targets = &targets[..ntargets];
         let wanted = targets.iter().fold(0u64, |m, (d, _)| m | (1 << d));
         // the host's relations of the file are answered above; no derived relation reads the path
         let ctx = crate::derived::Ctx {

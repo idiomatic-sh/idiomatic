@@ -19,6 +19,8 @@ pub(crate) struct Symbols {
     /// symbols at the next file boundary (never inside a file: the file may already hold the text under a file id)
     word_map: FxMap<(usize, usize), u32>,
     pending: Vec<&'static str>,
+    /// the last words looked up, direct-mapped by address: (address, length, code)
+    word_last: Vec<(usize, usize, u32)>,
 }
 
 impl Symbols {
@@ -58,7 +60,18 @@ impl Symbols {
     /// A word fixed in the provider's code (a kind, an outcome, a label): its code without hashing the text (facts).
     #[inline]
     pub(crate) fn word(&mut self, w: &'static str) -> u32 {
-        if let Some(&id) = self.word_map.get(&(w.as_ptr() as usize, w.len())) {
+        let (p, n) = (w.as_ptr() as usize, w.len());
+        let slot = (p >> 2) & 255;
+        if let Some(&(lp, ln, code)) = self.word_last.get(slot) {
+            if lp == p && ln == n {
+                return code;
+            }
+        }
+        if let Some(&id) = self.word_map.get(&(p, n)) {
+            if self.word_last.is_empty() {
+                self.word_last.resize(256, (0, 0, 0));
+            }
+            self.word_last[slot] = (p, n, id);
             return id;
         }
         self.word_slow(w)

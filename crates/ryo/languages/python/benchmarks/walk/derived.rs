@@ -3107,7 +3107,24 @@ impl State {
 }
 
 pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State, only: Option<u32>) {
-    let want = |name: &str| index_of(name).filter(|i| wanted & (1 << i) != 0);
+    // each relation's index, found once (facts: a whole fill no longer searches the name list per relation)
+    static INDEX: std::sync::OnceLock<Vec<(&'static str, usize)>> = std::sync::OnceLock::new();
+    let index = INDEX.get_or_init(|| RELATIONS.iter().enumerate().map(|(i, n)| (*n, i)).collect());
+    if wanted == 0 {
+        return;
+    }
+    let want = |name: &'static str| -> Option<usize> {
+        // only the wanted relations' names are compared: one or two per fill
+        let mut m = wanted;
+        while m != 0 {
+            let i = m.trailing_zeros() as usize;
+            if index[i].0.as_ptr() == name.as_ptr() || index[i].0 == name {
+                return Some(i);
+            }
+            m &= m - 1;
+        }
+        None
+    };
     if let Some(r) = want("identifier") {
         rows_identifier(c, sink, r, only);
     }
