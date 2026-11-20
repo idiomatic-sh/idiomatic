@@ -1,6 +1,7 @@
 //! The `lineage` service: free functions named by verb over the relation column a column of a step's rows was read from, and the
 //! per-file steps its values come from.
 
+use super::types::Followed;
 use super::types::LineageMemo;
 use super::types::StepColumn;
 use super::types::ValueOrigin;
@@ -48,6 +49,7 @@ pub(crate) fn column_kind(
     }
     let found = step_kind(steps, memo, id, column);
     let _first = memo.kinds.insert(StepColumn { step: id, column }, found);
+    memo.kinds_followed = Followed(memo.kinds_followed.0.saturating_add(1));
     found
 }
 
@@ -163,6 +165,7 @@ pub(crate) fn value_origins(
     let _first = memo
         .origins
         .insert(StepColumn { step: id, column }, found.clone());
+    memo.origins_followed = Followed(memo.origins_followed.0.saturating_add(1));
     found
 }
 
@@ -278,5 +281,6 @@ pub(crate) fn file_lineage(steps: &[PlanStep], memo: &mut LineageMemo, input: In
         (Some(StepScope::CrossFile) | None, _) | (Some(StepScope::PerFile), None) => Lineage::Mixed,
     };
     let _first = memo.lineages.insert(id, found.clone());
+    memo.lineages_followed = Followed(memo.lineages_followed.0.saturating_add(1));
     found
 }

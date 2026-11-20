@@ -1,12 +1,16 @@
 //! Request-graph dependencies: the producers a rule may read, their schemas and the plans linked beneath them.
 use std::borrow::Cow;
 
-use super::fixtures::{binding, bound_input, column, export, exporting, observing, plan, rule};
+use super::fixtures::{
+    binding, bound_input, column, export, exporting, ladder, observing, plan, rule,
+};
+use super::service::frontiers::service::frontier_purposes;
 use super::service::link::{service::following, service::link};
 use super::service::{schedule, schemas};
 use super::types::{ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::rule_intent::errors::RuleIntentError;
+use crate::domain::rule_intent::types::FrontierPurpose;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::observations::types::{
@@ -36,6 +40,9 @@ enum Ask {
     Shared(Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>),
     /// The steps the first plan linked beneath its bindings keeps, and the room its step list holds.
     Pruned(Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>),
+    /// The steps linking keeps of a ladder of so many unions, each of the step before with itself and each beside a step nothing
+    /// reads, and of one of twice as many; and the entries of their frontiers, which hand over every step, their named output reads.
+    Ladder(usize),
 }
 
 /// Whether a linked plan is the plan it was given.
@@ -67,6 +74,9 @@ enum Answer {
     Plans(Cow<'static, [Kept]>),
     /// The steps a linked plan keeps, and the room its step list holds.
     Steps { kept: usize, room: usize },
+    /// What a walk of a ladder reached at a depth and at twice it, beside how many steps each has: the walk marks a step the
+    /// first time it reaches it and follows the inputs of a marked step no more, so it follows each step it reaches once.
+    Counted(Cow<'static, str>),
 }
 
 type Input = Ask;
@@ -202,6 +212,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(Answer::Steps { kept: 2, room: 2 }),
     },
+    Case {
+        name: CaseName("linking_a_ladder_and_reading_its_frontier_walk_it_once_a_step"),
+        word: Word::Succeeds,
+        input: || Ask::Ladder(16),
+        expect: Expect::Value(Answer::Counted(Cow::Borrowed(
+            "16 levels, 33 steps: 17 kept by linking, 17 of 33 entries observed; 32 levels, 65 steps: 33 kept by linking, 33 of 65 entries observed",
+        ))),
+    },
 ];
 fn subject(ask: Input) -> Result<Value, Failure> {
     Ok(match ask {
@@ -241,6 +259,11 @@ fn subject(ask: Input) -> Result<Value, Failure> {
                     .collect(),
             )
         }
+        Ask::Ladder(levels) => Answer::Counted(Cow::Owned(format!(
+            "{}; {}",
+            walked_ladder(levels)?,
+            walked_ladder(levels.saturating_mul(2))?
+        ))),
         Ask::Pruned(plans, bindings) => {
             let linked = link(
                 plans.into_iter().map(std::sync::Arc::new).collect(),
@@ -256,6 +279,22 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             }
         }
     })
+}
+
+/// How many steps of a ladder of `levels` levels linking keeps, and how many entries of its frontier its named output reads.
+fn walked_ladder(levels: usize) -> Result<String, RuleIntentError> {
+    let ladder = ladder(levels);
+    let written = ladder.steps.len();
+    let observed = frontier_purposes(std::slice::from_ref(&ladder))
+        .concat()
+        .into_iter()
+        .filter(|purpose| *purpose == FrontierPurpose::Observation)
+        .count();
+    let linked = link(vec![std::sync::Arc::new(ladder)], vec![vec![]])?;
+    let kept = linked.plans.first().map_or(0, |plan| plan.steps.len());
+    Ok(format!(
+        "{levels} levels, {written} steps: {kept} kept by linking, {observed} of {written} entries observed"
+    ))
 }
 
 /// A producer whose every step is kept, exporting its first step, and a consumer that reads the export in one step: linking
