@@ -2758,6 +2758,8 @@ pub(crate) struct FileCache {
     /// per file: (relation, column, key) -> the row range its per-key fill wrote
     pub key_rows: FxMap<u64, (u32, u32)>,
     pub key_tick: u32,
+    /// per worker: the rows of the relations that are the same in every file
+    pub const_rel: FxMap<u16, Vec<Vec<u64>>>,
     /// what a clock read pair costs on this thread (calibrated once; taken off every clocked per-key fill)
     pub key_clock_ns: u64,
     /// per file: relations a per-key fill ran for. Per worker over the run: (files that read the relation, files that filled
@@ -3699,13 +3701,40 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         match prog.facts[rel as usize].model {
             Some(mi) => {
-                self.ensure_model(mi >= 6);
+                let t = Tick::now();
+                // a relation the provider declares the same in every file: its rows are kept for the run once every word in
+                // them is a base symbol (the same code in every file)
+                let constant = crate::semrows::constant(mi);
+                if constant {
+                    if let Some(kept) = self.cache.const_rel.get(&rel) {
+                        let facts = self.cache.facts.as_mut().unwrap();
+                        facts.cols[rel as usize].clone_from(kept);
+                        facts.loaded[rel as usize] = true;
+                        self.c.fact_rows += kept.first().map_or(0, Vec::len) as u64;
+                        let ns = t.elapsed().as_nanos() as u64;
+                        self.c.model_rows_ns += ns;
+                        self.c.fact_ns += ns;
+                        self.acct_fill(rel, ns);
+                        return;
+                    }
+                } else {
+                    self.ensure_model(mi >= 6);
+                }
                 let t = Tick::now();
                 let facts = self.cache.facts.as_mut().unwrap();
                 let mut cols = std::mem::take(&mut facts.cols[rel as usize]);
                 let from = cols.first().map_or(0, Vec::len);
                 facts.whole_from[rel as usize] = from as u32;
                 crate::semrows::produce(self.model, self.f.table, mi, self.sym, &mut cols, &mut self.scratch, None);
+                if constant && from == 0 {
+                    let kinds = &prog.facts[rel as usize].kinds;
+                    let stable = cols.iter().zip(kinds.iter()).all(|(col, k)| {
+                        !matches!(k, ryo_relations::domain::relations::types::CellKind::Symbol) || col.iter().all(|&v| v == u64::from(NULL) || Symbols::is_base(v as u32))
+                    });
+                    if stable {
+                        self.cache.const_rel.insert(rel, cols.clone());
+                    }
+                }
                 self.c.fact_rows += (cols.first().map_or(0, Vec::len) - from) as u64;
                 let facts = self.cache.facts.as_mut().unwrap();
                 facts.cols[rel as usize] = cols;
@@ -5298,11 +5327,10 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         }
         let wanted = targets.iter().fold(0u64, |m, (d, _)| m | (1 << d));
-        let root = std::env::args().nth(3).unwrap_or_default();
-        let full = std::path::Path::new(&root).join(self.f.path);
+        // the host's relations of the file are answered above; no derived relation reads the path
         let ctx = crate::derived::Ctx {
             parsed: self.f.parsed,
-            path: &full,
+            path: std::path::Path::new(""),
             table: self.f.table,
             source: self.f.source,
             model: self.model,
@@ -5353,9 +5381,14 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         };
         if name == "comment" {
-            let k = self.sym.get_base("comment");
-            for id in v.n_nodes..v.len() {
-                if Some(v.kind[id]) == k {
+            // the comment tokens are a kind bucket (facts: no pass over every token)
+            if let Some(k) = self.sym.get_base("comment") {
+                let (a, b) = match self.cache.kind_off.get(k as usize + 1) {
+                    Some(&b) => (self.cache.kind_off[k as usize] as usize, b as usize),
+                    None => (0, 0),
+                };
+                for &id in &self.cache.kind_ids[a..b] {
+                    let id = id as usize;
                     let text = &self.f.source[v.start[id] as usize + 1..v.stop[id] as usize];
                     let t = u64::from(self.sym.text(text));
                     push(&mut cols, &[id as u64, t, 0, span(v.start[id], v.stop[id]), 0]);
@@ -5740,17 +5773,7 @@ impl crate::derived::Sink for DSink<'_> {
                     u64::from(self.at.get(&(a, b, kc)).copied().unwrap_or(u32::MAX - 1))
                 }
                 Cell::Text(t) => u64::from(self.sym.text(t)),
-                Cell::Word(t) => match self.kinds.get(&(t.as_ptr() as usize | (1 << 63), t.len())) {
-                    Some(&c) => u64::from(c),
-                    None => {
-                        // a base symbol's code is the same in every file; a file text's is not (not kept)
-                        let c = self.sym.text(t);
-                        if (c as usize) < self.sym.base_count() {
-                            self.kinds.insert((t.as_ptr() as usize | (1 << 63), t.len()), c);
-                        }
-                        u64::from(c)
-                    }
-                },
+                Cell::Word(t) => u64::from(self.sym.word(t)),
                 Cell::Null => u64::from(NULL),
                 Cell::Num(n) => n as u64,
                 Cell::Flag(f) => u64::from(f),

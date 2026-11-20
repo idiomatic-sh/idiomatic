@@ -15,6 +15,10 @@ pub(crate) struct Symbols {
     file_map: FxMap<u64, u32>,
     arena: String,
     spans: Vec<(u32, u32)>,
+    /// facts: a word fixed in the provider's code (by address) -> its base symbol; words first met as a file text become base
+    /// symbols at the next file boundary (never inside a file: the file may already hold the text under a file id)
+    word_map: FxMap<(usize, usize), u32>,
+    pending: Vec<&'static str>,
 }
 
 impl Symbols {
@@ -45,6 +49,34 @@ impl Symbols {
         self.file_map.clear();
         self.arena.clear();
         self.spans.clear();
+        while let Some(w) = self.pending.pop() {
+            let id = self.base(w);
+            self.word_map.insert((w.as_ptr() as usize, w.len()), id);
+        }
+    }
+
+    /// A word fixed in the provider's code (a kind, an outcome, a label): its code without hashing the text (facts).
+    #[inline]
+    pub(crate) fn word(&mut self, w: &'static str) -> u32 {
+        if let Some(&id) = self.word_map.get(&(w.as_ptr() as usize, w.len())) {
+            return id;
+        }
+        self.word_slow(w)
+    }
+
+    #[inline(never)]
+    fn word_slow(&mut self, w: &'static str) -> u32 {
+        let id = self.text(w);
+        if id < FILE_BASE {
+            self.word_map.insert((w.as_ptr() as usize, w.len()), id);
+        } else {
+            self.pending.push(w);
+        }
+        id
+    }
+
+    pub(crate) fn is_base(id: u32) -> bool {
+        id < FILE_BASE
     }
 
     fn file_str(&self, index: usize) -> &str {

@@ -21,6 +21,32 @@ fn t(sym: &mut Symbols, text: Option<&str>) -> u64 {
     }
 }
 
+/// A word fixed in the provider's code: its code by address, no hashing of the text (facts).
+fn w(sym: &mut Symbols, word: &'static str) -> u64 {
+    u64::from(sym.word(word))
+}
+
+/// A name the model interned: its code in the run's symbols, hashed once per file per distinct name (facts).
+fn nm(model: &mut Model, sym: &mut Symbols, name: u32) -> u64 {
+    const UNSET: u32 = u32::MAX - 2;
+    let i = name as usize;
+    if i >= model.sym_span.len() {
+        return t(sym, model.text(name));
+    }
+    if model.run_sym.len() < model.sym_span.len() {
+        model.run_sym.resize(model.sym_span.len(), UNSET);
+    }
+    if model.run_sym[i] == UNSET {
+        model.run_sym[i] = t(sym, model.text(name)) as u32;
+    }
+    u64::from(model.run_sym[i])
+}
+
+/// The relations whose rows are the same in every file (the language's implicit symbols).
+pub(crate) fn constant(rel: usize) -> bool {
+    rel == 5
+}
+
 /// The columns of relation `rel` with a per-key function (facts): a scope by its node (column 1); a reference, a resolution and a
 /// qualified name by the name or attribute expression (column 0). The flow relations are arrays of the model, filled whole.
 pub(crate) fn key_columns(rel: usize) -> u16 {
@@ -90,9 +116,9 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                 };
                 let cells = [
                     u64::from(d.at),
-                    t(sym, Some(kind)),
-                    t(sym, Some(d.word)),
-                    t(sym, model.text(d.name)),
+                    w(sym, kind),
+                    w(sym, d.word),
+                    nm(model, sym, d.name),
                     u64::from(d.owner),
                     0,
                     (u64::from(d.named_start) << 32) | u64::from(d.named_stop),
@@ -124,14 +150,14 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                         let r = model.resolve_memo(table, id);
                         if r != NONE {
                             let name = model.sym[i];
-                            let cells = [u64::from(id), u64::from(model.scope_of[i]), t(sym, model.text(name)), u64::from(r), 0, sp(table, id)];
+                            let cells = [u64::from(id), u64::from(model.scope_of[i]), nm(model, sym, name), u64::from(r), 0, sp(table, id)];
                             push(cols, &cells);
                         }
                     }
                     if rel == 4 && !model.incomplete {
                         let (label, since, has_path) = crate::rows::qualify_pub(model, table, id, scratch);
                         let path = if has_path { t(sym, Some(scratch)) } else { u64::from(NULL) };
-                        let cells = [u64::from(id), path, t(sym, Some(label)), since.0 as u64, since.1 as u64, 0, sp(table, id)];
+                        let cells = [u64::from(id), path, w(sym, label), since.0 as u64, since.1 as u64, 0, sp(table, id)];
                         push(cols, &cells);
                     }
                 }
@@ -139,7 +165,7 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
         }
         5 => {
             for (name, kind, major, minor) in crate::builtins::IMPLICIT {
-                let cells = [t(sym, Some(*name)), t(sym, Some(*kind)), 0, *major as u64, *minor as u64, 0];
+                let cells = [w(sym, name), w(sym, kind), 0, *major as u64, *minor as u64, 0];
                 push(cols, &cells);
             }
         }
@@ -149,10 +175,10 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                 let e = model.events[k];
                 let cells = [
                     u64::from(e.at),
-                    t(sym, model.text(e.name)),
+                    nm(model, sym, e.name),
                     u64::from(e.scope),
                     u64::from(e.phase),
-                    t(sym, Some(e.kind.word())),
+                    w(sym, e.kind.word()),
                     e.ordinal as u64,
                     0,
                     sp(table, e.at),
@@ -167,11 +193,11 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                 let (a, b) = r.state.since();
                 let cells = [
                     u64::from(r.at),
-                    t(sym, model.text(r.name)),
+                    nm(model, sym, r.name),
                     u64::from(r.scope),
                     u64::from(r.phase),
-                    t(sym, Some(r.context.word())),
-                    t(sym, Some(r.state.word())),
+                    w(sym, r.context.word()),
+                    w(sym, r.state.word()),
                     a as u64,
                     b as u64,
                     0,
@@ -188,8 +214,8 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                     u64::from(u.binding),
                     u64::from(u.scope),
                     u64::from(u.phase),
-                    t(sym, Some(u.context.word())),
-                    t(sym, Some(if u.unique { "unique" } else { "alternative" })),
+                    w(sym, u.context.word()),
+                    w(sym, if u.unique { "unique" } else { "alternative" }),
                     0,
                     sp(table, u.at),
                 ];
@@ -205,7 +231,7 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                     u64::from(s.scope),
                     u64::from(s.previous_scope),
                     u64::from(s.phase),
-                    t(sym, Some(if s.lexical { "lexical" } else { "replacement" })),
+                    w(sym, if s.lexical { "lexical" } else { "replacement" }),
                     0,
                 ];
                 push(cols, &cells);
@@ -217,12 +243,12 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                 let cells = [
                     u64::from(r.at),
                     u64::from(r.event),
-                    t(sym, Some(r.kind.word())),
+                    w(sym, r.kind.word()),
                     u64::from(r.scope),
                     u64::from(r.lexical),
                     r.depth as u64,
                     r.ordinal as u64,
-                    t(sym, Some(r.context.word())),
+                    w(sym, r.context.word()),
                     0,
                     sp(table, r.at),
                 ];

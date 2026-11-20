@@ -376,7 +376,7 @@ fn rows_literal_properties(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, onl
     for k in LITERAL_KINDS {
         for &id in ids(c, k, &only) {
             if let Some(p) = literal_properties(c.table.node[id as usize]) {
-                sink.row(rel, &[Cell::Node(id), Cell::Text(p.kind), Cell::Flag(p.zero), Cell::Flag(p.empty), Cell::Flag(p.boolean), Cell::File, c.span(id)]);
+                sink.row(rel, &[Cell::Node(id), Cell::Word(p.kind), Cell::Flag(p.zero), Cell::Flag(p.empty), Cell::Flag(p.boolean), Cell::File, c.span(id)]);
             }
         }
     }
@@ -543,7 +543,7 @@ pub(crate) fn numeric_literal<'n>(c: &Ctx<'_, '_>, id: u32, buf: &'n mut String)
 fn rows_numeric_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, only: Option<u32>) {
     for &id in ids(c, NodeKind::ExprNumberLiteral, &only) {
         if let Some((kind, value, exact)) = numeric_literal(c, id, buf) {
-            sink.row(rel, &[Cell::Node(id), Cell::Text(kind), Cell::Text(value), Cell::Flag(exact), Cell::File, c.span(id)]);
+            sink.row(rel, &[Cell::Node(id), Cell::Word(kind), Cell::Text(value), Cell::Flag(exact), Cell::File, c.span(id)]);
         }
     }
 }
@@ -711,7 +711,7 @@ fn rows_parameter(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option
     for &id in ids(c, NodeKind::Parameter, &only) {
         let AnyNodeRef::Parameter(p) = c.table.node[id as usize] else { continue };
         if let Some((kind, word, ordinal, callable)) = parameter_place(c, id) {
-            sink.row(rel, &[Cell::Node(id), Cell::Text(kind), Cell::Text(word), Cell::Text(p.name.as_str()), Cell::Num(ordinal), Cell::Node(callable), Cell::File, c.span(id)]);
+            sink.row(rel, &[Cell::Node(id), Cell::Word(kind), Cell::Word(word), Cell::Text(p.name.as_str()), Cell::Num(ordinal), Cell::Node(callable), Cell::File, c.span(id)]);
         }
     }
 }
@@ -1458,7 +1458,7 @@ fn rows_expression_type(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, types:
         if !is_expression(c.table.node[id as usize]) {
             continue;
         }
-        let row = |sink: &mut dyn Sink, res: &'static str, t: &'static str| sink.row(rel, &[Cell::Node(id), Cell::Text(res), Cell::Text(t), Cell::File, c.span(id)]);
+        let row = |sink: &mut dyn Sink, res: &'static str, t: &'static str| sink.row(rel, &[Cell::Node(id), Cell::Word(res), Cell::Word(t), Cell::File, c.span(id)]);
         match types.res[id as usize] {
             Res::Atom(t) => row(sink, "atom", TYPES[t as usize]),
             Res::Union(m) => {
@@ -1782,7 +1782,7 @@ fn rows_function_terminal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, t: &
         return;
     }
     for &id in ids(c, NodeKind::StmtFunctionDef, &only) {
-        sink.row(rel, &[Cell::Node(id), Cell::Text(t.outcome(id)), Cell::File, c.span(id)]);
+        sink.row(rel, &[Cell::Node(id), Cell::Word(t.outcome(id)), Cell::File, c.span(id)]);
     }
 }
 
@@ -2501,12 +2501,15 @@ fn rows_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usize>, f
     for k in [NodeKind::ExprStringLiteral, NodeKind::ExprFString] {
         for &id in ids(c, k, &only) {
             let Some(input) = format_input(c.table.node[id as usize], buf) else { continue };
-            let head = [Cell::Node(id), Cell::Text("percent-string"), Cell::Text("decoded-string")];
-            let tail = |sink: &mut dyn Sink, outcome: &str, cat: &str, ch: Option<char>, idx: usize, s: cformat::Summary| {
+            let head = [Cell::Node(id), Cell::Word("percent-string"), Cell::Word("decoded-string")];
+            let tail = |sink: &mut dyn Sink, outcome: &'static str, cat: &'static str, ch: Option<char>, idx: usize, s: cformat::Summary| {
                 if let Some(r) = parse_rel {
                     let mut b = [0u8; 4];
-                    let ch = ch.map_or("", |x| &*x.encode_utf8(&mut b));
-                    sink.row(r, &[head[0], head[1], head[2], Cell::Text(outcome), Cell::Text(cat), Cell::Text(ch), Cell::Num(idx as i64), Cell::Num(s.positional as i64), Cell::Flag(s.mapping), Cell::Flag(s.dynamic_width), Cell::Flag(s.dynamic_precision), Cell::File, c.span(id)]);
+                    let ch = match ch {
+                        Some(x) => Cell::Text(x.encode_utf8(&mut b)),
+                        None => Cell::Word(""),
+                    };
+                    sink.row(r, &[head[0], head[1], head[2], Cell::Word(outcome), Cell::Word(cat), ch, Cell::Num(idx as i64), Cell::Num(s.positional as i64), Cell::Flag(s.mapping), Cell::Flag(s.dynamic_width), Cell::Flag(s.dynamic_precision), Cell::File, c.span(id)]);
                 }
             };
             match input {
@@ -2517,7 +2520,7 @@ fn rows_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usize>, f
                         if let Some(r) = field_rel {
                             for f in fields.iter() {
                                 let mut b = [0u8; 4];
-                                sink.row(r, &[Cell::Node(id), Cell::Num(f.ordinal as i64), Cell::Text(if f.key.is_some() { "mapping" } else { "positional" }), Cell::Text(f.key.as_deref().unwrap_or("")), Cell::Text(f.conversion.encode_utf8(&mut b)), Cell::Text(f.width.word()), Cell::Text(f.precision.word()), Cell::File, c.span(id)]);
+                                sink.row(r, &[Cell::Node(id), Cell::Num(f.ordinal as i64), Cell::Word(if f.key.is_some() { "mapping" } else { "positional" }), Cell::Text(f.key.as_deref().unwrap_or("")), Cell::Text(f.conversion.encode_utf8(&mut b)), Cell::Word(f.width.word()), Cell::Word(f.precision.word()), Cell::File, c.span(id)]);
                             }
                         }
                     }
@@ -2765,10 +2768,10 @@ fn rows_brace_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usi
                 }
                 _ => string_value(node, buf),
             };
-            let row = |sink: &mut dyn Sink, outcome: &str, err: &str, p: Option<&braceformat::Parsed>| {
+            let row = |sink: &mut dyn Sink, outcome: &'static str, err: &'static str, p: Option<&braceformat::Parsed>| {
                 if let Some(r) = parse_rel {
                     let n = |f: fn(&braceformat::Parsed) -> usize| Cell::Num(p.map_or(0, f) as i64);
-                    sink.row(r, &[Cell::Node(id), Cell::Text("decoded-string"), Cell::Text(outcome), Cell::Text(err), n(|p| p.automatic), n(|p| p.indexed), n(|p| p.keyword), n(|p| p.nested), Cell::File, c.span(id)]);
+                    sink.row(r, &[Cell::Node(id), Cell::Word("decoded-string"), Cell::Word(outcome), Cell::Word(err), n(|p| p.automatic), n(|p| p.indexed), n(|p| p.keyword), n(|p| p.nested), Cell::File, c.span(id)]);
                 }
             };
             match input {
@@ -2784,7 +2787,7 @@ fn rows_brace_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usi
                                     braceformat::Selector::Index(i, t) => ("index", i64::try_from(*i).unwrap_or(0), t.as_str()),
                                     braceformat::Selector::Keyword(n) => ("keyword", 0, n.as_str()),
                                 };
-                                sink.row(r, &[Cell::Node(id), Cell::Num(f.ordinal as i64), Cell::Text(if f.parent.is_some() { "format-spec" } else { "literal" }), Cell::Num(f.parent.map_or(-1, |p| p as i64)), Cell::Text(kind), Cell::Num(index), Cell::Flag(false), Cell::Text(name), Cell::File, c.span(id)]);
+                                sink.row(r, &[Cell::Node(id), Cell::Num(f.ordinal as i64), Cell::Word(if f.parent.is_some() { "format-spec" } else { "literal" }), Cell::Num(f.parent.map_or(-1, |p| p as i64)), Cell::Text(kind), Cell::Num(index), Cell::Flag(false), Cell::Text(name), Cell::File, c.span(id)]);
                             }
                         }
                     }
@@ -2851,7 +2854,7 @@ fn rows_literal_expression(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf
     }
     for &id in ids(c, NodeKind::ExprStringLiteral, &only) {
         if let Some(o) = literal_expression(c, id, buf, &mut st.carriers) {
-            sink.row(rel, &[Cell::Node(id), Cell::Text("python-string-annotation"), Cell::Text(o), Cell::File, c.span(id)]);
+            sink.row(rel, &[Cell::Node(id), Cell::Word("python-string-annotation"), Cell::Word(o), Cell::File, c.span(id)]);
         }
     }
 }
@@ -2905,7 +2908,7 @@ fn rows_raw_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, seg_rel: Option<usize>,
             if let (Some(rel), true, Ok(_)) = (field_rel, complete, r) {
                 for f in fs {
                     let mut b = [0u8; 4];
-                    sink.row(rel, &[Cell::Node(id), seg, Cell::Num(ordinal as i64), Cell::Num((first_field + f.ordinal) as i64), Cell::Num(f.ordinal as i64), Cell::Text(if f.key.is_some() { "mapping" } else { "positional" }), Cell::Text(f.key.as_deref().unwrap_or("")), Cell::Text(f.conversion.encode_utf8(&mut b)), Cell::Text(f.width.word()), Cell::Text(f.precision.word()), Cell::File, Cell::Span(*ps, *pe), Cell::Text(FLAG_SPELLINGS[f.flags as usize & 31])]);
+                    sink.row(rel, &[Cell::Node(id), seg, Cell::Num(ordinal as i64), Cell::Num((first_field + f.ordinal) as i64), Cell::Num(f.ordinal as i64), Cell::Word(if f.key.is_some() { "mapping" } else { "positional" }), Cell::Text(f.key.as_deref().unwrap_or("")), Cell::Text(f.conversion.encode_utf8(&mut b)), Cell::Word(f.width.word()), Cell::Word(f.precision.word()), Cell::File, Cell::Span(*ps, *pe), Cell::Word(FLAG_SPELLINGS[f.flags as usize & 31])]);
                 }
             }
             if r.is_ok() {
