@@ -9,7 +9,7 @@ use crate::domain::findings::types::{
 use crate::domain::programs::service::scratch_for;
 use crate::domain::programs::types::Programs;
 use ryo_language::domain::facts::types::{
-    FactAnswer, FactSource, FileFacts, FileWords, FilledColumns,
+    FactAnswer, FactSource, FileFacts, FileWords, FilledColumns, Wanted,
 };
 use ryo_language::domain::node_table::service::{builder, finished};
 use ryo_language::domain::node_table::types::NodeTable;
@@ -26,6 +26,7 @@ impl FactSource for Counting {
     fn fill(
         &mut self,
         _relation: Relation,
+        _wanted: Wanted,
         _words: &mut FileWords,
         _out: &mut FilledColumns,
     ) -> FactAnswer {

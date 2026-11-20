@@ -1,9 +1,12 @@
 //! The fake of the `language` port: what the core's tests stand in for it with.
 
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
+use ryo_language::domain::fillers::types::{Fillers as _, WalkVocabulary};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::terms::types::NameText;
-use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary};
+use ryo_values::domain::descriptions::types::{
+    FieldWord, FixedName, KindVocabularies, KindVocabulary, KindWord,
+};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder};
@@ -73,10 +76,6 @@ pub enum FakeWalk {
     /// The language crate's fixture walk of files of words (`*.walk`), with its kinds.
     Words,
 }
-
-/// The kinds of the fixture walk of files of words, in the order of their codes: the kind no element has, the sentence, the
-/// word.
-const WORD_KINDS: [&str; 3] = ["blank", "sentence", "word"];
 
 /// What the fake's catalog answers.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -150,15 +149,31 @@ impl LanguagePort for LanguageFake {
     }
 
     fn kind_vocabularies(&self) -> KindVocabularies {
+        // The names of the fake's one language are its walk's, as the adapter over linked languages reads them.
+        let names = match self.walk {
+            FakeWalk::NotLinked => WalkVocabulary::default(),
+            FakeWalk::Words => ryo_language::domain::fillers::fixtures::Walking::vocabulary(),
+        };
         KindVocabularies(vec![KindVocabulary {
             language: LanguageName("fake".into()),
-            kinds: match self.walk {
-                FakeWalk::NotLinked => Vec::new(),
-                FakeWalk::Words => WORD_KINDS
-                    .iter()
-                    .map(|kind| ryo_values::domain::descriptions::types::KindWord((*kind).into()))
-                    .collect(),
-            },
+            kinds: names
+                .kinds
+                .0
+                .iter()
+                .map(|name| KindWord(name.0.into()))
+                .collect(),
+            fields: names
+                .fields
+                .0
+                .iter()
+                .map(|name| FieldWord(name.0.into()))
+                .collect(),
+            fixed: names
+                .fixed
+                .0
+                .iter()
+                .map(|name| FixedName(name.0.into()))
+                .collect(),
         }])
     }
 

@@ -1,12 +1,12 @@
 //! The `node_table` service's cases: the id-space laws (nodes in pre-order, then tokens in source order, then embedded segments),
 //! subtree ends, children merged in source order, kinds present past the fourth word, and texts kept by id after tokens are
-//! numbered, and which nodes the parser implied.
+//! numbered, which nodes the parser implied, and where the file's own tree ends and each embedded segment is.
 
 use super::service::{
-    acceptance_of, builder, children_of, decoded_of, decoded_token, diagnose, embed,
-    enter_implied_node, enter_node, finished, ids_of_kind, implied_of, kind_of, kinds_present,
-    leave_node, node_count, node_property, ordinal_of, parent_of, property_of,
-    set_syntax_acceptance, span_of, subtree_end_of, syntax_error_count, token,
+    acceptance_of, builder, children_of, decoded_of, decoded_token, diagnose, element_count, embed,
+    embedded_segments, enter_implied_node, enter_node, finished, ids_of_kind, implied_of, kind_of,
+    kinds_present, leave_node, node_count, node_property, ordinal_of, own_end, parent_of,
+    property_of, set_syntax_acceptance, span_of, subtree_end_of, syntax_error_count, token,
 };
 use super::types::{EmbeddedText, FieldCode, Implied, NodeTable, NodeTableBuilder};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -30,6 +30,11 @@ enum Law {
     Decoded,
     /// An embedded segment: its root's id and parent, its token's start in the file and its logical text's length.
     Embedded,
+    /// A table with no embedded segment: the id after its own tree, its elements, and how many segments it has.
+    OwnTree,
+    /// A table with two embedded segments: the id after its own tree, its elements, and the second segment's host, root and
+    /// end, then how many segments it has.
+    Segments,
     /// The other readers: the second node's ordinal, the ids of the first token's kind, the root's property's length, whether the
     /// parser rejected the file, and how many diagnostics it reported.
     Readers,
@@ -117,6 +122,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Law::Embedded,
         expect: Expect::Value([5, 1, 4, 2, 1, 0]),
+    },
+    Case {
+        name: CaseName("a_table_with_no_embedded_segment_ends_its_own_tree_at_its_last_element"),
+        word: Word::Succeeds,
+        input: || Law::OwnTree,
+        expect: Expect::Value([5, 5, 0, 0, 0, 0]),
+    },
+    Case {
+        name: CaseName("the_own_tree_ends_where_the_first_embedded_segment_starts"),
+        word: Word::Succeeds,
+        input: || Law::Segments,
+        expect: Expect::Value([5, 9, 0, 7, 9, 2]),
     },
     Case {
         name: CaseName("the_readers_answer_ordinal_kind_ids_property_acceptance_and_errors"),
@@ -208,6 +225,44 @@ fn subject(law: Input) -> Result<Value, Failure> {
                 u32::try_from(decoded_of(read, token_id).map_or(0, |text| text.0.len()))
                     .unwrap_or(0),
                 u32::try_from(children_of(read, Position(1)).len()).unwrap_or(0),
+            ]
+        }
+        Law::OwnTree => {
+            let mut writer = small(&mut table, 16);
+            let read = finished(&mut writer);
+            vec![
+                own_end(read).0,
+                u32::try_from(element_count(read).0).unwrap_or(0),
+                u32::try_from(embedded_segments(read).count()).unwrap_or(0),
+            ]
+        }
+        Law::Segments => {
+            let mut writer = small(&mut table, 16);
+            for host in [Position(1), Position(0)] {
+                let text = EmbeddedText {
+                    text: NameText("xy"),
+                    mapping: EmbeddedMapping::Exact(Offset(4)),
+                };
+                let _root = embed(&mut writer, host, text);
+                enter_node(&mut writer, KindBits(2), FieldCode(0), Offset(0));
+                token(
+                    &mut writer,
+                    KindBits(10),
+                    FieldCode(0),
+                    Offset(0),
+                    Offset(2),
+                );
+                leave_node(&mut writer, Offset(2));
+            }
+            let read = finished(&mut writer);
+            let second = embedded_segments(read).nth(1);
+            vec![
+                own_end(read).0,
+                u32::try_from(element_count(read).0).unwrap_or(0),
+                second.map_or(0, |each| each.host.0),
+                second.map_or(0, |each| each.root.0),
+                second.map_or(0, |each| each.end.0),
+                u32::try_from(embedded_segments(read).count()).unwrap_or(0),
             ]
         }
         Law::Implied => {

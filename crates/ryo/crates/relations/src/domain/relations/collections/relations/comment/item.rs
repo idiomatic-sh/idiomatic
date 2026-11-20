@@ -34,6 +34,8 @@ macro_rules! comment {
             scope File,
             notes Unneeded,
             form Filled(Unique(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The comment: its file and where it starts.
                 id Id: NodeId => Node;

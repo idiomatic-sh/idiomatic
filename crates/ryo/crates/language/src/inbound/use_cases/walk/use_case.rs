@@ -4,7 +4,7 @@
 use super::errors::WalkError;
 use super::interface::WalkUseCase;
 use super::types::{FileVisit, RelationNeeds, WalkEngine, WalkRequest};
-use crate::domain::fillers::types::Fillers;
+use crate::domain::fillers::types::{Fillers, WalkVocabulary};
 use crate::domain::node_table::service::builder;
 use crate::domain::node_table::types::{NodeTable, NodeTableBuilder};
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -68,6 +68,10 @@ impl Fillers for WalkUseCaseImpl {
 impl<W: WalkUseCase> WalkEngine for W {
     fn kind_count(&self) -> Count {
         W::KIND_COUNT
+    }
+
+    fn vocabulary(&self) -> WalkVocabulary {
+        <W as Fillers>::vocabulary()
     }
 
     fn buffers(&self) -> Box<dyn std::any::Any + Send> {

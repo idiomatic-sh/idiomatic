@@ -35,6 +35,8 @@ macro_rules! directive {
             scope File,
             notes Unneeded,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The file it is in.
                 file File: FileId => File;

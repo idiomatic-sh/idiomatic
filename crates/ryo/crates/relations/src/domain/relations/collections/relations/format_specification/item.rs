@@ -24,6 +24,8 @@ macro_rules! format_specification {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                     /// Original enclosing string occurrence.
                     id Id: NodeId => Node;

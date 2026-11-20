@@ -85,6 +85,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
     let plan = named("one tree rule");
     let rules = [SelectedRule {

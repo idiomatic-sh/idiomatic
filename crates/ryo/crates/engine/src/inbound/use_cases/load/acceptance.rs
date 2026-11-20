@@ -31,6 +31,8 @@ fn kinds() -> KindVocabulary {
     KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     }
 }
 

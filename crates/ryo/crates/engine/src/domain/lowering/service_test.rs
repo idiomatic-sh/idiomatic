@@ -45,6 +45,8 @@ fn subject(count: Input) -> Result<Value, Failure> {
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
     lowered(SelectedRules(&rules), &kinds).map(|programs| accepted(&programs).len())
 }

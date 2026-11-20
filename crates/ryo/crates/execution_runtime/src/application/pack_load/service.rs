@@ -40,7 +40,7 @@ use ryo_values::domain::stores::types::{PackKey, StoredPack};
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
 /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
-/// let kinds = |word: &str| KindVocabulary { language: LanguageName::default(), kinds: vec![KindWord(word.into())] };
+/// let kinds = |word: &str| KindVocabulary { language: LanguageName::default(), kinds: vec![KindWord(word.into())], fields: Vec::new(), fixed: Vec::new() };
 /// assert_ne!(pack_key(&digest, Digest([0; 16]), &kinds("call")), pack_key(&digest, Digest([0; 16]), &kinds("name")));
 /// assert_ne!(pack_key(&digest, Digest([0; 16]), &kinds("call")), pack_key(&digest, Digest([1; 16]), &kinds("call")));
 /// ```
@@ -88,7 +88,7 @@ pub(super) fn keyed(
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
-/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
+/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
 /// let request = KeptRequest { given: Digest([0; 16]), kinds: &kinds, stored: &[] };
 /// assert!(kept(&engine, &digest, request).is_none());
 /// ```
@@ -134,7 +134,7 @@ pub fn kept(
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
-/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
+/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
 /// let given = Digest([0; 16]);
 /// let cold = loaded(&engine, &digest, LoadRequest { plans: &[], given, kinds: &kinds, stored: &[] });
 /// let stored = [cold.pack];

@@ -1,13 +1,16 @@
-//! The `catalog` service's cases: the one list names every relation of the catalog once, and each relation's form agrees with its
-//! node columns and its keys.
+//! The `catalog` service's cases: the one list names every relation of the catalog once, each relation's form agrees with its
+//! node columns and its keys, and each declares what its form requires: a node-table relation its extent and nothing else, a
+//! filled relation its size and its key columns, which are columns of its own, each once.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::catalog::service::{fact_form, needs_notes, node_column, scope_of};
+use crate::domain::catalog::service::{
+    fact_form, key_columns, needs_notes, node_column, node_extent, relation_size, scope_of,
+};
 use crate::domain::catalog::types::{RelationNotes, RowScope};
 use crate::domain::relations::collections::relations::interface::RelationsItem;
-use crate::domain::relations::service::{all, is_key};
+use crate::domain::relations::service::{all, columns, is_key, relation_of};
 use crate::domain::relations::types::{Column, ColumnKeyness};
-use crate::domain::relations::types::{FactForm, FilledKey, NodeColumn};
+use crate::domain::relations::types::{FactForm, FilledKey, NodeColumn, NodeExtent, RelationSize};
 
 /// How many relations the one list of the catalog names, counted by the macro that every crate of the engine calls.
 macro_rules! listed_relations {
@@ -95,6 +98,95 @@ fn every_catalog_relation_declares_whether_it_needs_notes() -> usize {
         .count()
 }
 
+/// The relations whose declarations disagree with their form: a node-table relation with no extent, with a size or with a key
+/// column; a filled relation with an extent or with no size.
+fn every_relation_declares_what_its_form_requires() -> usize {
+    all()
+        .iter()
+        .filter(|relation| {
+            let (extent, size, keys) = (
+                node_extent(**relation),
+                relation_size(**relation),
+                key_columns(**relation),
+            );
+            match fact_form(**relation) {
+                FactForm::NodeTable => extent.is_none() || size.is_some() || !keys.is_empty(),
+                FactForm::Filled(_) => extent.is_some() || size.is_none(),
+            }
+        })
+        .count()
+}
+
+/// How many relations of the catalog declare a size of this class.
+fn sized(size: RelationSize) -> usize {
+    all()
+        .iter()
+        .filter(|relation| relation_size(**relation) == Some(size))
+        .count()
+}
+
+/// How many relations declare at most one row for a file.
+fn relations_of_one_row_for_a_file() -> usize {
+    sized(RelationSize::PerFile)
+}
+
+/// How many relations declare a bounded number of rows for each element.
+fn relations_of_rows_for_each_element() -> usize {
+    sized(RelationSize::PerElement)
+}
+
+/// How many relations declare a row for a pair of elements.
+fn relations_of_a_row_for_a_pair() -> usize {
+    sized(RelationSize::PerPair)
+}
+
+/// How many relations promise a fill by key for at least one column.
+fn relations_that_promise_a_fill_by_key() -> usize {
+    all()
+        .iter()
+        .filter(|relation| !key_columns(**relation).is_empty())
+        .count()
+}
+
+/// How many key columns the catalog declares in all.
+fn declared_key_columns() -> usize {
+    all()
+        .iter()
+        .map(|relation| key_columns(*relation).len())
+        .sum()
+}
+
+/// The declared key columns that are not a column of their own relation, or are declared twice.
+fn key_columns_that_are_not_their_relations_own_once() -> usize {
+    all()
+        .iter()
+        .flat_map(|relation| {
+            let keys = key_columns(*relation);
+            keys.iter().filter(move |key| {
+                relation_of(**key) != *relation
+                    || !columns(*relation).contains(key)
+                    || keys.iter().filter(|other| other == key).count() != 1
+            })
+        })
+        .count()
+}
+
+/// How many node-table relations have rows for the file's own tree alone.
+fn node_table_relations_of_the_own_tree() -> usize {
+    all()
+        .iter()
+        .filter(|relation| node_extent(**relation) == Some(NodeExtent::Own))
+        .count()
+}
+
+/// How many node-table relations have rows for the embedded segments too.
+fn node_table_relations_of_the_embedded_segments_too() -> usize {
+    all()
+        .iter()
+        .filter(|relation| node_extent(**relation) == Some(NodeExtent::Embedded))
+        .count()
+}
+
 /// A scenario: what a row asks of the catalog's list.
 type Input = fn() -> usize;
 /// What a scenario answers: a count.
@@ -138,6 +230,60 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || every_key_column_is_a_form_key,
         expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("every_relation_declares_what_its_form_requires"),
+        word: Word::Succeeds,
+        input: || every_relation_declares_what_its_form_requires,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("relations_of_one_row_for_a_file"),
+        word: Word::Succeeds,
+        input: || relations_of_one_row_for_a_file,
+        expect: Expect::Value(8),
+    },
+    Case {
+        name: CaseName("relations_of_rows_for_each_element"),
+        word: Word::Succeeds,
+        input: || relations_of_rows_for_each_element,
+        expect: Expect::Value(66),
+    },
+    Case {
+        name: CaseName("relations_of_a_row_for_a_pair"),
+        word: Word::Succeeds,
+        input: || relations_of_a_row_for_a_pair,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("relations_that_promise_a_fill_by_key"),
+        word: Word::Succeeds,
+        input: || relations_that_promise_a_fill_by_key,
+        expect: Expect::Value(12),
+    },
+    Case {
+        name: CaseName("declared_key_columns"),
+        word: Word::Succeeds,
+        input: || declared_key_columns,
+        expect: Expect::Value(13),
+    },
+    Case {
+        name: CaseName("key_columns_that_are_not_their_relations_own_once"),
+        word: Word::Succeeds,
+        input: || key_columns_that_are_not_their_relations_own_once,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("node_table_relations_of_the_own_tree"),
+        word: Word::Succeeds,
+        input: || node_table_relations_of_the_own_tree,
+        expect: Expect::Value(2),
+    },
+    Case {
+        name: CaseName("node_table_relations_of_the_embedded_segments_too"),
+        word: Word::Succeeds,
+        input: || node_table_relations_of_the_embedded_segments_too,
+        expect: Expect::Value(2),
     },
 ];
 

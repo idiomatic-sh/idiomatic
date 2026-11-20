@@ -37,6 +37,8 @@ macro_rules! package_dependency {
             scope Project,
             notes Unneeded,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The package that depends: its manifest.
                 source Source: FileId => File;

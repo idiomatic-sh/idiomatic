@@ -13,7 +13,7 @@ use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service::{column_named, columns};
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::descriptions::types::{
-    KindVocabularies, KindVocabulary, KindWord, LanguageName,
+    FieldWord, FixedName, KindVocabularies, KindVocabulary, KindWord, LanguageName,
 };
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Heading, Input, LiteralText, Operand, PlanComparison,
@@ -24,9 +24,6 @@ use ryo_values::domain::query_plans::types::{Emit, Plan};
 use std::sync::Arc;
 
 pub mod contract;
-
-/// The kinds of the fixture language, in the order of their codes: the kind no element has, the sentence, the word.
-const KINDS: [&str; 3] = ["blank", "sentence", WORD];
 
 /// What the fixture language calls the kind of a word.
 const WORD: &str = "word";
@@ -92,6 +89,8 @@ pub enum Edge {
 #[must_use]
 pub fn composed(edge: Edge) -> (FileScanUseCaseImpl, Arc<EngineFake>) {
     let fake = Arc::new(EngineFake::default());
+    // The names of the fixture language, as its walk states them.
+    let names = WalkEngine::vocabulary(&Walking);
     let words: Arc<dyn WalkEngine> = match edge {
         Edge::NoWalk => Arc::new(WalkUseCaseImpl::new()),
         Edge::Old | Edge::New | Edge::Both | Edge::NoEngine => Arc::new(Walking),
@@ -107,7 +106,24 @@ pub fn composed(edge: Edge) -> (FileScanUseCaseImpl, Arc<EngineFake>) {
         walks: vec![words],
         vocabularies: KindVocabularies(vec![KindVocabulary {
             language: LanguageName("words".into()),
-            kinds: KINDS.map(|kind| KindWord(kind.into())).to_vec(),
+            kinds: names
+                .kinds
+                .0
+                .iter()
+                .map(|name| KindWord(name.0.into()))
+                .collect(),
+            fields: names
+                .fields
+                .0
+                .iter()
+                .map(|name| FieldWord(name.0.into()))
+                .collect(),
+            fixed: names
+                .fixed
+                .0
+                .iter()
+                .map(|name| FixedName(name.0.into()))
+                .collect(),
         }]),
         language: ScanLanguage::EveryLinked,
         mode: match edge {

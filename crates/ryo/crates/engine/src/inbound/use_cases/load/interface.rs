@@ -17,7 +17,7 @@ use ryo_values::domain::descriptions::types::KindVocabulary;
 /// use ryo_engine::inbound::use_cases::load::use_case::LoadUseCaseImpl;
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 ///
-/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
+/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
 /// assert!(LoadUseCaseImpl::new().load(LoadSource::Plans(SelectedRules(&[])), &kinds).is_ok());
 /// ```
 pub trait LoadUseCase: Send + Sync {
