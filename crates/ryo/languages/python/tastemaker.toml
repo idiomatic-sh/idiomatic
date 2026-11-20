@@ -1,8 +1,8 @@
 closed = false
 # The python language's own placement (paths are directory-relative).
-# The parser crates python reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the language's
-# allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and nothing else does.
-variables = { domain-libraries = ["indexmap::*", "unicode_properties::*"], libraries = ["ruff_python_parser::*", "ruff_python_ast::*", "ruff_text_size::*", "toml::*", "serde::*", "postcard::*"] }
+# The parser python reads with is declared here, once, in the variable `libraries`: `imports-allow` allows it, and its own `client-at-adapter`
+# below keeps it in its syntax adapter. The parser's tree types are domain libraries: the domain reads the tree in place. Its own Cargo.toml names them.
+variables = { domain-libraries = ["indexmap::*", "unicode_properties::*", "ruff_python_ast::*", "ruff_text_size::*"], libraries = ["ruff_python_parser::*", "toml::*", "serde::*", "postcard::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["tastemaker.toml", "src/tastemaker.toml"] },
