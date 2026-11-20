@@ -113,6 +113,8 @@ pub(crate) enum Ins {
     NearDerived { start: R, out: R, xin: R, edges: Box<[Prog]>, domain: Box<[Prog]> },
     /// the next (or previous) sibling in the tree, when there is one
     Sibling { next: bool, start: R, out: R },
+    /// an absence/existence test reading no candidate register: answered once per file
+    SubMemo { negate: bool, subs: Box<[Prog]> },
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -482,6 +484,10 @@ impl Loader<'_> {
                 edges: a[5].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 domain: a[6].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
             },
+            "neg-memo" | "exists-memo" => Ins::SubMemo {
+                negate: a[0] == "neg-memo",
+                subs: a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+            },
             "sib" => Ins::Sibling { next: a[1].as_bool().unwrap(), start: self.reg(&a[2]), out: self.reg(&a[3]) },
             "let" => Ins::Let { from: self.opd(&a[1]), out: self.reg(&a[2]) },
             "or" => Ins::Union {
@@ -763,6 +769,8 @@ pub(crate) struct Exec<'a, 'p> {
     pub collect: Vec<u64>,
     /// per-file rows of unions that read no bound variable, by their sub-program list (navwide)
     pub union_memo: FxMap<usize, Rc<Vec<u64>>>,
+    /// per-file answers of absence/existence tests that read no candidate register (navwide)
+    pub sub_memo: FxMap<usize, bool>,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -993,7 +1001,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 self.c.model_rows_ns += t.elapsed().as_nanos() as u64;
             }
             None if std::env::var_os("NAV_PROVIDER").is_none()
-                && crate::derived::index_of(&prog.facts[rel as usize].name).is_some() =>
+                && (crate::derived::index_of(&prog.facts[rel as usize].name).is_some() || prog.facts[rel as usize].name.starts_with("filesystem.")) =>
             {
                 self.load_derived(rel);
             }
@@ -1509,6 +1517,23 @@ impl<'a, 'p> Exec<'a, 'p> {
                 Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
                 Ins::Union { outs, subs, memo } => return self.union(p, pc, outs, subs, *memo),
                 Ins::Let { from, out } => self.regs[*out as usize] = self.opd(from),
+                Ins::SubMemo { negate, subs } => {
+                    let key = subs.as_ptr() as usize;
+                    let any = match self.sub_memo.get(&key) {
+                        Some(&v) => v,
+                        None => {
+                            let v = subs.iter().any(|q| {
+                                self.c.subs += 1;
+                                self.run_inner(q, 0)
+                            });
+                            self.sub_memo.insert(key, v);
+                            v
+                        }
+                    };
+                    if any == *negate {
+                        return false;
+                    }
+                }
                 Ins::Sibling { next, start, out } => {
                     let s = self.regs[*start as usize] as u32;
                     let v = self.f.view;
@@ -1772,6 +1797,26 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         let prog = self.prog;
         let name = prog.facts[rel as usize].name.as_str();
+        if name.starts_with("filesystem.") {
+            // the host's relations of the file (derived.rs has file and executable; a read failure never reaches a rule here)
+            let cols = host_filesystem(name, prog.facts[rel as usize].kinds.len(), self.f.path);
+            let facts = self.cache.facts.as_mut().unwrap();
+            facts.cols[rel as usize] = cols;
+            facts.loaded[rel as usize] = true;
+            self.c.derived_ns += t.elapsed().as_nanos() as u64;
+            return;
+        }
+        if name == "comment" || name == "indent-region" {
+            // served from the run's own view (derived.rs reads the same view type, built a second time)
+            let cols = self.view_rows(name, prog.facts[rel as usize].kinds.len());
+            let facts = self.cache.facts.as_mut().unwrap();
+            self.c.fact_rows += cols.first().map_or(0, Vec::len) as u64;
+            facts.cols[rel as usize] = cols;
+            facts.loaded[rel as usize] = true;
+            self.c.derived_files += 1;
+            self.c.derived_ns += t.elapsed().as_nanos() as u64;
+            return;
+        }
         let di = crate::derived::index_of(name).unwrap();
         let mut targets: Vec<(usize, u16)> = vec![(di, rel)];
         if let Some(p) = crate::derived::partner(di) {
@@ -1812,6 +1857,33 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         self.c.derived_files += 1;
         self.c.derived_ns += t.elapsed().as_nanos() as u64;
+    }
+
+    /// navwide: `comment` and `indent-region` rows from the run's view, as derived.rs's rows_view writes them
+    fn view_rows(&mut self, name: &str, width: usize) -> Vec<Vec<u64>> {
+        let v = self.f.view;
+        let mut cols = vec![Vec::new(); width];
+        let mut push = |cols: &mut Vec<Vec<u64>>, row: &[u64]| {
+            for (c, x) in row.iter().enumerate().take(width) {
+                cols[c].push(*x);
+            }
+        };
+        if name == "comment" {
+            let k = self.sym.get_base("comment");
+            for id in v.n_nodes..v.len() {
+                if Some(v.kind[id]) == k {
+                    let text = &self.f.source[v.start[id] as usize + 1..v.stop[id] as usize];
+                    let t = u64::from(self.sym.text(text));
+                    push(&mut cols, &[id as u64, t, 0, span(v.start[id], v.stop[id]), 0]);
+                }
+            }
+        } else {
+            for r in &v.regions {
+                let [rid, parent, ind, s, e] = *r;
+                push(&mut cols, &[u64::from(rid), u64::from(parent), u64::from(ind), u64::from(s), u64::from(e), 0, span(s, e)]);
+            }
+        }
+        cols
     }
 
     /// Ins::NearDerived (navwide)

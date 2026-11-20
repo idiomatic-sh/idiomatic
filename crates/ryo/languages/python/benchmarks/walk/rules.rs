@@ -659,6 +659,7 @@ impl<'p> State<'p> {
                 cur_rule: 0,
                 collect: Vec::new(),
                 union_memo: FxMap::default(),
+                sub_memo: FxMap::default(),
             };
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {
