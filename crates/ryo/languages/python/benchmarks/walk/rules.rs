@@ -657,11 +657,16 @@ impl<'p> State<'p> {
                 outs,
                 cur_rule: 0,
             };
+            if ex.c.prof.is_none() && std::env::var("NAV_PROFILE").is_ok() {
+                ex.c.prof = Some(FxMap::default());
+            }
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {
                 ex.c.rule_steps = vec![0; nrules + 1];
                 ex.c.rule_visits = vec![0; nrules + 1];
                 ex.c.rule_starts = vec![0; nrules + 1];
+                ex.c.rule_made_rows = vec![0; nrules + 1];
+                ex.c.rule_made_steps = vec![0; nrules + 1];
             }
             // per-file anchor choice: for each branch, the alternative with the least expected work given the real bucket sizes
             let mut dispatch = std::mem::take(&mut ex.cache.dispatch);
@@ -726,14 +731,22 @@ impl<'p> State<'p> {
                         }
                         ex.c.visits += 1;
                         ex.cur_rule = ri as usize;
+                        let s0 = ex.c.steps;
                         ex.run(p, 1);
+                        let e = ex.c.branch_steps.entry((ri, bi)).or_default();
+                        e.0 += 1;
+                        e.1 += ex.c.steps - s0;
                     }
                 }
             }
             for &(ri, bi, ai) in &other {
                 let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[bi as usize][ai as usize].prog;
                 ex.cur_rule = ri as usize;
+                let s0 = ex.c.steps;
                 ex.run(p, 0);
+                let e = ex.c.branch_steps.entry((ri, bi)).or_default();
+                e.0 += 1;
+                e.1 += ex.c.steps - s0;
             }
             ex.cache.dispatch = dispatch;
             ex.cache.dispatch_used = used;
@@ -966,13 +979,24 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"visits\":{},\"per_rule\":{{{}}}}}}}",
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
                 self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, self.tail_ns, self.tail_files, c.steps,
                 c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.visits,
+                crate::nav::INS_NAMES.iter().enumerate().map(|(i, n)| format!("\"{n}\":{}", c.op_steps[i])).collect::<Vec<_>>().join(","),
                 self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
-                    .map(|(i, r)| format!("\"{}\":[{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i]))
+                    .map(|(i, r)| format!("\"{}\":[{},{},{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i], c.rule_made_rows[i], c.rule_made_steps[i]))
                     .collect::<Vec<_>>().join(",")
             );
+        }
+        if self.program.nav.is_some() {
+            let mut b: Vec<_> = self.nc.branch_steps.iter().map(|(&k, &v)| (k, v)).collect();
+            b.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+            let nav = self.program.nav.as_ref().unwrap();
+            let top: Vec<String> = b.iter().take(60).map(|((r, br), (n, st))| format!("[\"{}\",{br},{n},{st}]", nav.rules[*r as usize].id)).collect();
+            eprintln!("{{\"branches\":[{}]}}", top.join(","));
+            if let Some(prof) = &self.nc.prof {
+                eprintln!("PROFILE\n{}", crate::nav::profile_report(nav, prof));
+            }
         }
         let ops: Vec<String> = OP_NAMES
             .iter()

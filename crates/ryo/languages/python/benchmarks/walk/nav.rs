@@ -78,6 +78,8 @@ pub(crate) enum Ins {
     ReadFact { rel: u16, col: u8, row: R, out: R },
     Test { test: T, l: Opd, r: Opd, text: bool, num: bool, regex: Box<[usize]> },
     Axis { dir: Dir, start: R, out: R },
+    /// `anc` is a proper ancestor of `desc` (both bound): one walk up the parent chain
+    Within { anc: R, desc: R },
     Near { start: R, out: R, subs: Box<[Prog]> },
     Sub { negate: bool, subs: Box<[Prog]> },
     Emit { cols: Box<[Opd]> },
@@ -88,6 +90,38 @@ pub(crate) enum Ins {
 }
 
 pub(crate) type Prog = Box<[Ins]>;
+
+pub(crate) const INS_NAMES: [&str; 19] = [
+    "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
+    "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within",
+];
+
+impl Ins {
+    #[inline]
+    pub(crate) fn code(&self) -> usize {
+        match self {
+            Ins::IterKind { .. } => 0,
+            Ins::IterValue { .. } => 1,
+            Ins::IterChildren { .. } => 2,
+            Ins::IterScan { .. } => 3,
+            Ins::IterFact { .. } => 4,
+            Ins::IterFactScan { .. } => 5,
+            Ins::Row { .. } => 6,
+            Ins::Read { .. } => 7,
+            Ins::ReadFact { .. } => 8,
+            Ins::Test { .. } => 9,
+            Ins::Axis { .. } => 10,
+            Ins::Near { .. } => 11,
+            Ins::Sub { .. } => 12,
+            Ins::Emit { .. } => 13,
+            Ins::Yield => 14,
+            Ins::SpanBetween { .. } => 15,
+            Ins::SpanBounds { .. } => 16,
+            Ins::SourceMatches { .. } => 17,
+            Ins::Within { .. } => 18,
+        }
+    }
+}
 
 pub(crate) struct Alt {
     pub prog: Prog,
@@ -361,6 +395,7 @@ impl Loader<'_> {
                 };
                 Ins::Axis { dir, start: self.reg(&a[2]), out: self.reg(&a[3]) }
             }
+            "within" => Ins::Within { anc: self.reg(&a[1]), desc: self.reg(&a[2]) },
             "near" => {
                 let start = self.reg(&a[1]);
                 let out = self.reg(&a[2]);
@@ -499,6 +534,15 @@ pub(crate) struct Counters {
     pub rule_steps: Vec<u64>,
     pub rule_visits: Vec<u64>,
     pub rule_starts: Vec<u64>,
+    /// made-table rows and the steps spent building made tables, per rule that demanded them
+    pub rule_made_rows: Vec<u64>,
+    pub rule_made_steps: Vec<u64>,
+    /// steps per instruction kind (index: Ins::code)
+    pub op_steps: [u64; 24],
+    /// (rule, branch) -> (runs, steps)
+    pub branch_steps: FxMap<(u32, u32), (u64, u64)>,
+    /// NAV_PROFILE: steps per instruction site (its address)
+    pub prof: Option<FxMap<usize, u64>>,
 }
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
@@ -732,6 +776,8 @@ impl<'a, 'p> Exec<'a, 'p> {
         let t = Instant::now();
         if let Some((progs, keys, distinct, width)) = &prog.facts[rel as usize].made {
             let nkeys = &keys.len();
+            let steps0 = self.c.steps;
+            let owner = self.cur_rule;
             let slot = self.outs.len() - 1;
             let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
             self.cur_rule = slot;
@@ -739,6 +785,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 self.run_inner(q, 0);
             }
             let rows = std::mem::replace(&mut self.outs[slot], saved.1);
+            let rows_len = rows.len();
             self.cur_rule = saved.0;
             let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
             let mut groups: FxMap<Vec<u64>, u64> = FxMap::default();
@@ -770,6 +817,10 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.made_tables += 1;
             self.c.made_rows += cols[*nkeys].len() as u64;
             facts.loaded[rel as usize] = true;
+            if owner < self.c.rule_made_rows.len() {
+                self.c.rule_made_rows[owner] += cols[*nkeys].len() as u64 + (rows_len / width.max(&1)) as u64;
+                self.c.rule_made_steps[owner] += self.c.steps - steps0;
+            }
             return;
         }
         match prog.facts[rel as usize].model {
@@ -1073,6 +1124,10 @@ impl<'a, 'p> Exec<'a, 'p> {
         let mut pc = pc;
         loop {
             self.c.steps += 1;
+            self.c.op_steps[p[pc].code()] += 1;
+            if let Some(prof) = self.c.prof.as_mut() {
+                *prof.entry(&p[pc] as *const Ins as usize).or_default() += 1;
+            }
             match &p[pc] {
                 Ins::Read { rel, col, row, out } => {
                     let id = self.regs[*row as usize] as u32;
@@ -1254,6 +1309,20 @@ impl<'a, 'p> Exec<'a, 'p> {
                         }
                     }
                 }
+                Ins::Within { anc, desc } => {
+                    let (a, d) = (self.regs[*anc as usize] as u32, self.regs[*desc as usize] as u32);
+                    let v = self.f.view;
+                    if d as usize >= v.len() || a as usize >= v.len() {
+                        return false;
+                    }
+                    let mut x = v.parent[d as usize];
+                    while x != u32::MAX && x != a {
+                        x = v.parent[x as usize];
+                    }
+                    if x != a {
+                        return false;
+                    }
+                }
                 Ins::Near { start, out, subs } => {
                     let s = self.regs[*start as usize] as u32;
                     let v = self.f.view;
@@ -1356,4 +1425,40 @@ impl<'a, 'p> Exec<'a, 'p> {
             pc += 1;
         }
     }
+}
+
+/// NAV_PROFILE report: the hottest instruction sites, each with its rule, branch, path and instruction.
+pub(crate) fn profile_report(prog: &NavProgram, prof: &FxMap<usize, u64>) -> String {
+    let mut sites: FxMap<usize, String> = FxMap::default();
+    fn walk(p: &[Ins], path: String, sites: &mut FxMap<usize, String>) {
+        for (pc, ins) in p.iter().enumerate() {
+            let here = format!("{path}.{pc}");
+            let text = format!("{ins:?}");
+            let text: String = text.chars().take(160).collect();
+            sites.insert(ins as *const Ins as usize, format!("{here} {text}"));
+            match ins {
+                Ins::Sub { subs, .. } | Ins::Near { subs, .. } => {
+                    for (k, q) in subs.iter().enumerate() {
+                        walk(q, format!("{here}/{k}"), sites);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    for r in &prog.rules {
+        for (b, alts) in r.programs.iter().enumerate() {
+            walk(&alts[0].prog, format!("{} b{b}", r.id), &mut sites);
+        }
+    }
+    for f in &prog.facts {
+        if let Some((progs, ..)) = &f.made {
+            for (k, q) in progs.iter().enumerate() {
+                walk(q, format!("{} p{k}", f.name), &mut sites);
+            }
+        }
+    }
+    let mut v: Vec<(usize, u64)> = prof.iter().map(|(&k, &n)| (k, n)).collect();
+    v.sort_by(|a, b| b.1.cmp(&a.1));
+    v.iter().take(5000).map(|(k, n)| format!("{n:>12} {}", sites.get(k).map_or("?", String::as_str))).collect::<Vec<_>>().join("\n")
 }
