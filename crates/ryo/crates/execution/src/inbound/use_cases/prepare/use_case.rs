@@ -79,7 +79,7 @@ impl PrepareUseCase for PrepareUseCaseImpl {
             },
         )?;
         for load in &loads {
-            // `both` while no linked language walks: the new engine ran no file, so its report is empty, and so are the old
+            // `both` while the host runs no file through the new engine: it ran no file, so its report is empty, and so are the old
             // engine's rows of the rules it accepted, which are none.
             let _compared = both(
                 &HarnessRows::default(),

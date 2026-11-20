@@ -158,7 +158,7 @@ fn lowered_against<'a>(
 /// # Errors
 ///
 /// `EngineHarness` when the edge composed no engine, when there is no language to lower against, and when the new engine would
-/// have to run files no linked language walks yet.
+/// have to run files the host does not run through it yet.
 ///
 /// # Examples
 ///

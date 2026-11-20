@@ -771,7 +771,7 @@ pub fn engine_compared(rules: usize) {
     eprintln!("ryo engine both: compared {rules} rules, 0 differences");
 }
 
-/// Spike (ryo-fmx3.1): why the harness stops a run the new engine would have to run files for, while no linked language walks.
+/// Spike (ryo-fmx3.1): why the harness stops a run the new engine would have to run files for, while the host runs none through it.
 ///
 /// # Examples
 ///
@@ -782,7 +782,7 @@ pub fn engine_compared(rules: usize) {
 /// ```
 pub fn engine_refusal(mode: EngineMode, accepted: usize) -> String {
     format!(
-        "RYO_ENGINE={}: the new engine accepts {accepted} rules and runs no file yet (no linked language walks its files: the link holds parse and project only)",
+        "RYO_ENGINE={}: the new engine accepts {accepted} rules and runs no file yet (the host does not run the files through the new engine yet)",
         engine_name(mode)
     )
 }

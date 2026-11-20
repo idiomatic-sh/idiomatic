@@ -125,19 +125,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed("[\"words\", \"signs\"]; the rule set's pack")),
     },
     Case {
-        name: CaseName("new_stops_a_run_no_linked_language_walks"),
+        name: CaseName("new_stops_a_run_the_host_cannot_scan_yet"),
         word: Word::Refuses,
         input: || Scenario::NewEngine,
         expect: Expect::Error(Cow::Borrowed(
-            "engine harness: RYO_ENGINE=new: the new engine accepts 1 rules and runs no file yet (no linked language walks its files: the link holds parse and project only)",
+            "engine harness: RYO_ENGINE=new: the new engine accepts 1 rules and runs no file yet (the host does not run the files through the new engine yet)",
         )),
     },
     Case {
-        name: CaseName("both_with_an_accepted_rule_stops_a_run_no_linked_language_walks"),
+        name: CaseName("both_with_an_accepted_rule_stops_a_run_the_host_cannot_scan_yet"),
         word: Word::Refuses,
         input: || Scenario::BothAccepted,
         expect: Expect::Error(Cow::Borrowed(
-            "engine harness: RYO_ENGINE=both: the new engine accepts 1 rules and runs no file yet (no linked language walks its files: the link holds parse and project only)",
+            "engine harness: RYO_ENGINE=both: the new engine accepts 1 rules and runs no file yet (the host does not run the files through the new engine yet)",
         )),
     },
     Case {
