@@ -61,6 +61,7 @@ pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::la
             Arc::new(postcard()),
         )),
         project: Arc::new(ProjectContract::new(adapters, Arc::new(postcard()), Arc::new(outbound::module_context::factory::filesystem()))),
+        walk: Arc::new(walk_with_settings(settings)),
     )
 }
 
