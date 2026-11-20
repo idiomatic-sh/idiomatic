@@ -1004,7 +1004,7 @@ impl<'p> Exec<'_, 'p> {
 
     /// the generic test (nav.rs `test` over the encoded operands)
     #[inline(never)]
-    fn xtest(&self, i: XIns) -> bool {
+    fn xtest(&self, i: &XIns) -> bool {
         let x = &self.prog.x;
         let at = i.x as usize;
         let (l, r) = (tagged(x, at), tagged(x, at + 2));
@@ -1485,7 +1485,7 @@ impl<'p> Exec<'_, 'p> {
 
     /// Ins::Closure: breadth-first from the start over the edge sub-programs; the reached rows go to the tuple arena
     #[inline(never)]
-    fn xclosure<const D: bool>(&mut self, i: XIns) -> (u32, u32) {
+    fn xclosure<const D: bool>(&mut self, i: &XIns) -> (u32, u32) {
         let prog = self.prog;
         let p = &prog.x.pool[i.x as usize..];
         let (nkeys, subs) = (p[0] as usize, p[3]);
@@ -1553,7 +1553,7 @@ impl<'p> Exec<'_, 'p> {
 
     /// Ins::NearDerived
     #[inline(never)]
-    fn xnear_derived<const D: bool>(&mut self, i: XIns) -> Option<u64> {
+    fn xnear_derived<const D: bool>(&mut self, i: &XIns) -> Option<u64> {
         let prog = self.prog;
         let (edges, domain) = (prog.x.pool[i.x as usize], prog.x.pool[i.x as usize + 1]);
         let ne = prog.x.pool[edges as usize] as usize;
@@ -1593,7 +1593,7 @@ impl<'p> Exec<'_, 'p> {
 
     /// Ins::SourceMatches: every match of the regex inside the span continues the program
     #[inline(never)]
-    fn xsource_matches<const D: bool>(&mut self, i: XIns, pc: u32) -> bool {
+    fn xsource_matches<const D: bool>(&mut self, i: &XIns, pc: u32) -> bool {
         let prog = self.prog;
         let p = &prog.x.pool[i.x as usize..];
         let sp = self.xv(p[0]);
@@ -1652,7 +1652,7 @@ impl<'p> Exec<'_, 'p> {
 
     /// Ins::CaptureText
     #[inline(never)]
-    fn xcapture_text<const D: bool>(&mut self, i: XIns, pc: u32) -> bool {
+    fn xcapture_text<const D: bool>(&mut self, i: &XIns, pc: u32) -> bool {
         let prog = self.prog;
         let at = i.x as usize;
         let text = tagged(&prog.x, at);
@@ -1796,6 +1796,24 @@ impl<'p> Exec<'_, 'p> {
                 visits = 0;
             };
         }
+        // an iteration needs a frame: past the local frames, the rest of the program (from this instruction) runs as a
+        // nested call; first statement of every arm that pushes a frame, before any work
+        macro_rules! need_frame {
+            ($l:lifetime, $i:expr) => {
+                if fr.is_full() {
+                    steps -= 1;
+                    if D {
+                        self.c.op_steps[x.xcode[$i.op as usize] as usize] -= 1;
+                        self.cache.x.xsteps[$i.op as usize] -= 1;
+                    }
+                    sync!();
+                    if self.xrun::<D>(pc as u32) {
+                        return true;
+                    }
+                    break $l;
+                }
+            };
+        }
         macro_rules! frame {
             ($kind:expr, $out:expr, $cur:expr, $end:expr, $src:expr, $x:expr, $flag:expr) => {
                 fr.push(Frame { kind: $kind, flag: $flag, out: $out, pc: pc as u32, cur: $cur, end: $end, src: $src, x: $x })
@@ -1803,17 +1821,8 @@ impl<'p> Exec<'_, 'p> {
         }
         'run: loop {
             'fail: {
-                let i = code[pc];
+                let i: &XIns = &code[pc];
                 steps += 1;
-                // an iteration needs a frame: past the local frames, the rest of the program runs as a nested call
-                if fr.is_full() {
-                    steps -= 1;
-                    sync!();
-                    if self.xrun::<D>(pc as u32) {
-                        return true;
-                    }
-                    break 'fail;
-                }
                 if D {
                     let c = &mut *self.c;
                     if c.op_steps.len() < crate::nav::NINS {
@@ -2019,6 +2028,7 @@ impl<'p> Exec<'_, 'p> {
                         r!(i.b) = val;
                     }
                     op::ITER_CHILDREN | op::AXIS_CHILD => {
+                        need_frame!('fail, i);
                         let p0 = r!(i.b) as u32 as usize;
                         if p0 >= n {
                             break 'fail;
@@ -2027,6 +2037,7 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail;
                     }
                     op::ITER_FIELD => {
+                        need_frame!('fail, i);
                         let p0 = r!(i.b) as u32 as usize;
                         if p0 >= n {
                             break 'fail;
@@ -2035,16 +2046,19 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail;
                     }
                     op::ITER_KIND => {
+                        need_frame!('fail, i);
                         frame!(K_KINDS, i.a, 0, 0, 0, (u64::from(i.x) << 32) | u64::from(i.y), 0);
                         break 'fail;
                     }
                     op::ITER_VALUE_C => {
+                        need_frame!('fail, i);
                         sync!();
                         let len = self.xconst(i.x);
                         frame!(K_CONST, i.a, 0, len, i.x, 0, 0);
                         break 'fail;
                     }
                     op::ITER_VALUE_R => {
+                        need_frame!('fail, i);
                         sync!();
                         let key = r!(i.b) as u32;
                         let (a, b) = self.xtree_range(i.x, key);
@@ -2068,6 +2082,7 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail;
                     }
                     op::ITER_FACT_KEYED => {
+                        need_frame!('fail, i);
                         sync!();
                         let key = r!(i.b);
                         let (a, b) = self.keyed_rows(i.x as u16, key);
@@ -2075,6 +2090,7 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail;
                     }
                     op::ITER_FACT_R | op::ITER_FACT_C => {
+                        need_frame!('fail, i);
                         sync!();
                         self.xfact_index(i.c);
                         let key = if i.op == op::ITER_FACT_R { r!(i.b) } else { k64[i.y as usize] };
@@ -2125,6 +2141,7 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail;
                     }
                     op::ITER_FACT2 => {
+                        need_frame!('fail, i);
                         sync!();
                         self.xfact_index2(i.c);
                         let Some(&(o, l)) = self.cache.x.f2[i.c as usize].at.get(&(k64[i.y as usize], k64[i.y as usize + 1])) else { break 'fail };
@@ -2132,6 +2149,7 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail;
                     }
                     op::ITER_FACT_SCAN => {
+                        need_frame!('fail, i);
                         sync!();
                         self.ensure(i.x as u16);
                         let cnt = self.cache.facts.as_ref().unwrap().cols[i.x as usize].first().map_or(0, Vec::len);
@@ -2150,6 +2168,7 @@ impl<'p> Exec<'_, 'p> {
                         r!(i.a) = u64::from(p0);
                     }
                     op::AXIS_ANC => {
+                        need_frame!('fail, i);
                         let s = r!(i.b) as u32 as usize;
                         if s >= n {
                             break 'fail;
@@ -2212,6 +2231,7 @@ impl<'p> Exec<'_, 'p> {
                         r!(i.a) = u64::from(y);
                     }
                     op::ITER_RANGE => {
+                        need_frame!('fail, i);
                         let at = i.x as usize;
                         let (src, lr, hr, tid) = (pool[at], pool[at + 1], pool[at + 2], pool[at + 3]);
                         let lo = (i.f & 1 != 0).then(|| (r!(lr) as i64, i.f & 2 != 0));
@@ -2406,10 +2426,12 @@ impl<'p> Exec<'_, 'p> {
                             }
                             break 'fail;
                         }
+                        need_frame!('fail, i);
                         frame!(K_FORK, 0, 0, i.y, i.x, 0, 0);
                         break 'fail;
                     }
                     op::HOIST => {
+                        need_frame!('fail, i);
                         sync!();
                         let at = i.x as usize;
                         let (o, l, loose) = self.xhoist::<D>(at);
@@ -2418,6 +2440,7 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail;
                     }
                     op::HOIST_PROBE => {
+                        need_frame!('fail, i);
                         sync!();
                         let at = i.x as usize;
                         let Some((o, l)) = self.xhoist_probe::<D>(at) else { break 'fail };
@@ -2426,6 +2449,7 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail;
                     }
                     op::UNION | op::UNION_KEY => {
+                        need_frame!('fail, i);
                         sync!();
                         let (o, l, loose) = if i.op == op::UNION {
                             self.xunion::<D>(i.x, i.f != 0)
@@ -2438,6 +2462,7 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail;
                     }
                     op::CLOSURE => {
+                        need_frame!('fail, i);
                         sync!();
                         let (o, l) = self.xclosure::<D>(i);
                         let at = i.x as usize;

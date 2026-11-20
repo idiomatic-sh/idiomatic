@@ -2865,6 +2865,9 @@ pub(crate) struct Exec<'a, 'p> {
     pub cap_buf: Vec<u64>,
     /// set by a failing SubFirst: the enclosing range walk stops
     pub first_fail: bool,
+    /// exec: registers saved around made-table builds, and a keyed build's grouped rows
+    pub save: Vec<u64>,
+    pub grouped: Vec<u64>,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -3117,7 +3120,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         let f = &prog.facts[rel as usize];
         let (progs, keys, distinct, width) = f.made.as_ref().unwrap();
         let (_, param) = f.keyed.unwrap();
-        let t0 = Instant::now();
+        // exec: the clock is read in the counter build only (three reads per keyed build were 2-3% of the run)
+        let timed = self.c.diag;
+        let t0 = if timed { Some(Instant::now()) } else { None };
         let made_before = self.c.made_ns;
         let fact_before = self.c.fact_ns;
         let steps0 = self.c.steps;
@@ -3129,7 +3134,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         let slot = self.outs.len() - 1;
         let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
         let nr = f.nregs;
-        let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
+        // exec: the caller's registers go to a save stack (was a vector allocated per build)
+        let save_at = self.save.len();
+        self.save.extend_from_slice(&self.regs[..nr]);
         self.cur_rule = slot;
         self.regs[param as usize] = value;
         if prog.x.on {
@@ -3140,11 +3147,27 @@ impl<'a, 'p> Exec<'a, 'p> {
         for q in progs {
             self.run_inner(q, 0);
         }
-        self.regs[..nr].copy_from_slice(&saved_regs);
+        self.regs[..nr].copy_from_slice(&self.save[save_at..]);
+        self.save.truncate(save_at);
         let rows = std::mem::replace(&mut self.outs[slot], saved.1);
         self.cur_rule = saved.0;
-        let grouped = Self::group_rows(&rows, keys, *distinct, *width);
         let nk = keys.len();
+        // exec: no rows is no group, one row is one group of one (no sort, no allocation)
+        let one;
+        let grouped: &[u64] = if rows.is_empty() {
+            &[]
+        } else if rows.len() == (*width).max(1) && nk < 8 {
+            let mut g = [0u64; 9];
+            for (i, &k) in keys.iter().enumerate() {
+                g[i] = rows[k];
+            }
+            g[nk] = 1;
+            one = g;
+            &one[..nk + 1]
+        } else {
+            self.grouped = Self::group_rows(&rows, keys, *distinct, *width);
+            &self.grouped
+        };
         let facts = self.cache.facts.as_mut().unwrap();
         let cols = &mut facts.cols[rel as usize];
         let start = cols[nk].len() as u32;
@@ -3156,14 +3179,16 @@ impl<'a, 'p> Exec<'a, 'p> {
         let end = cols[nk].len() as u32;
         self.c.made_tables += 1;
         self.c.made_rows += u64::from(end - start) + (rows.len() / width.max(&1)) as u64;
-        let excl = t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before) - (self.c.made_ns - made_before);
-        self.c.charge_made(excl);
-        self.c.made_ns = made_before + t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before);
-        let e = self.c.made_by.entry(rel).or_default();
-        e.0 += 1;
-        e.1 += excl;
-        e.2 += (rows.len() / width.max(&1)) as u64;
-        e.3 += self.c.steps - steps0;
+        if let Some(t0) = t0 {
+            let excl = t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before) - (self.c.made_ns - made_before);
+            self.c.charge_made(excl);
+            self.c.made_ns = made_before + t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before);
+            let e = self.c.made_by.entry(rel).or_default();
+            e.0 += 1;
+            e.1 += excl;
+            e.2 += (rows.len() / width.max(&1)) as u64;
+            e.3 += self.c.steps - steps0;
+        }
         self.c.made_depth -= 1;
         if self.c.made_depth == 0 {
             self.c.made_steps_total += self.c.steps - steps0;

@@ -666,6 +666,7 @@ pub(crate) struct State<'p> {
     outs: Vec<Vec<u64>>,
     model: crate::model::Model,
     mem: MemProbe,
+    save: Vec<u64>,
 }
 
 /// NAV_MEM: the worker's peak live heap (jemalloc's per-thread counters) after a file's programs ran, and what it held then
@@ -714,6 +715,7 @@ impl<'p> State<'p> {
             outs: Vec::new(),
             model: crate::model::Model::default(),
             mem: MemProbe::default(),
+            save: Vec::new(),
         }
     }
 
@@ -802,6 +804,8 @@ impl<'p> State<'p> {
                 sub_memo: FxMap::default(),
                 cap_buf: Vec::new(),
                 first_fail: false,
+                save: std::mem::take(&mut self.save),
+                grouped: Vec::new(),
             };
             if ex.c.prof.is_none() && (std::env::var("NAV_PROFILE").is_ok() || std::env::var_os("NAV_PLAN_STATS").is_some()) {
                 ex.c.prof = Some(FxMap::default());
@@ -977,6 +981,7 @@ impl<'p> State<'p> {
             ex.cache.other = other;
             regs = ex.regs;
             outs = ex.outs;
+            self.save = std::mem::take(&mut ex.save);
         }
         let t2 = Instant::now();
         self.nav_cpu_ns += thread_cpu_ns() - cpu1;
