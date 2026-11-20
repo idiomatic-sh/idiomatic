@@ -1441,6 +1441,7 @@ thread_local! {
     static HOIST_DEFER: bool = !std::env::var("NAV_HOIST_DEFER").is_ok_and(|v| v == "0");
     static HOIST_PROBE: bool = !std::env::var("NAV_HOIST_PROBE").is_ok_and(|v| v == "0");
     static HOIST_SHARE: bool = !std::env::var("NAV_HOIST_SHARE").is_ok_and(|v| v == "0");
+    static HOIST_OUTER: bool = !std::env::var("NAV_HOIST_OUTER").is_ok_and(|v| v == "0");
     static HOIST_IDS: std::cell::RefCell<FxMap<String, u32>> = std::cell::RefCell::new(FxMap::default());
 }
 
@@ -1468,8 +1469,11 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
         let full = if is_iter(&v[s]) { reads.clone() } else { Vec::new() };
         // a constant iteration (no register read) inside a loop or a repeatedly run sub-program: once per file (NAV_HOIST_CONST)
         let konst = is_iter(&v[s]) && full.is_empty() && HOIST_CONST.with(|h| *h) && (nested || (0..s).any(|j| is_iter(&v[j])));
+        // registers the program never defines before here are bound outside it (a fork child's parent, a sub-program's
+        // caller): the program runs again for every outer binding, so an iteration keyed on them repeats (NAV_HOIST_OUTER)
+        let outer_any = HOIST_OUTER.with(|h| *h) && reads.iter().any(|r| !def_at.contains_key(r));
         let candidate = konst
-            || is_iter(&v[s]) && !reads.is_empty() && reads.iter().all(|r| def_at.contains_key(r)) && {
+            || is_iter(&v[s]) && !reads.is_empty() && (outer_any || reads.iter().all(|r| def_at.contains_key(r))) && {
                 let mut k = reads.clone();
                 k.sort_unstable();
                 k.dedup();
@@ -1481,7 +1485,7 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
             // loop at all: the runtime turns a site's memo off when its keys do not repeat
             // a hoist's replay is a loop too
             let is_loop = |i: &Ins| is_iter(i) || matches!(i, Ins::Hoist { .. } | Ins::HoistProbe { .. });
-            let enclosing = konst || (d + 1..s).any(|j| is_loop(&v[j])) || (HOIST_ANY.with(|h| *h) && (0..s).any(|j| is_loop(&v[j])));
+            let enclosing = konst || outer_any || (d + 1..s).any(|j| is_loop(&v[j])) || (HOIST_ANY.with(|h| *h) && (0..s).any(|j| is_loop(&v[j])));
             if enclosing {
                 // grow the segment while each step reads only the key or what the segment defined
                 let key: Vec<R> = if konst {
@@ -1502,6 +1506,10 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
                         break;
                     }
                     let r2 = ins_free_reads(&v[t]);
+                    // an iteration that reads nothing of the segment is hoisted on its own (with fewer keys)
+                    if !key.is_empty() && is_iter(&v[t]) && r2.iter().all(|r| !key.contains(r) && !local.contains(r)) {
+                        break;
+                    }
                     if !r2.iter().all(|r| key.contains(r) || local.contains(r)) {
                         if is_test(&v[t]) && HOIST_DEFER.with(|h| *h) {
                             deferred.push(t);
