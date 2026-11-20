@@ -83,7 +83,7 @@ pub fn probe_lever(name: &str) -> bool {
 }
 
 /// Spike (ryo-vhuy): whether the typed mechanism `name` (`RYO_TYPED_OFF` lists the ones switched off, comma-separated, or
-/// `all`) is on: `chains` (typed filter/projection chains), `joins` (id-keyed probes at a chain head, by position), read once.
+/// `all`) is on: `chains` (typed filter/projection chains), `joins` (id-keyed probes at a chain head, by position), `repeats` (a typed tail drops repeats by cell words), read once.
 pub fn typed_lever(name: &str) -> bool {
     static OFF: OnceLock<String> = OnceLock::new();
     !OFF.get_or_init(|| std::env::var("RYO_TYPED_OFF").unwrap_or_default())

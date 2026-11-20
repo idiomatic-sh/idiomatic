@@ -171,6 +171,8 @@ struct Scratch {
     /// By comparison slot: the generation each symbol was decided in, and its verdict.
     memo: Vec<(Vec<u32>, Vec<bool>)>,
     index: Positions,
+    /// Spike (ryo-vhuy, `repeats`): the tail rows kept so far, by their cells' words and each cell's variant.
+    seen: rustc_hash::FxHashSet<([u64; 4], u32)>,
 }
 
 thread_local! {
@@ -226,6 +228,23 @@ impl<'h> Rows<'h> {
                 }
             }
         }
+    }
+}
+
+/// Spike (ryo-vhuy, `repeats`): a cell as one word and its variant; none for a cell that is no word (a name from another file).
+#[inline]
+fn word(value: Value) -> Option<(u64, u32)> {
+    match value {
+        Value::Node(id) => Some((id.0, 1)),
+        Value::Symbol(symbol) => Some((u64::from(symbol.0), 2)),
+        Value::File(file) => Some((u64::from(file.0), 3)),
+        Value::Span(span) => Some(((u64::from(span.start.0) << 32) | u64::from(span.end.0), 4)),
+        Value::Number(number) => Some((number.0.cast_unsigned(), 5)),
+        Value::Flag(flag) => Some((
+            u64::from(flag == ryo_relations::domain::relations::types::Flag::Lowered),
+            6,
+        )),
+        Value::Name(_) => None,
     }
 }
 
@@ -550,8 +569,50 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
                 scratch.right.push(*pair);
             }
         }
-        // Pass two: the tail's cells of each selected pair, repeats dropped as the tail's own repeat set drops them.
+        // Pass two: the tail's cells of each selected pair, repeats dropped as the tail's own repeat set drops them. Spike
+        // (ryo-vhuy, `repeats`): a tail of at most four columns whose every selected cell is one word drops its repeats by
+        // those words in the worker's set instead, keeping the same first rows.
         let output = &mut *push.tail;
+        let words = tail_distinct
+            && map.len() <= 4
+            && crate::spike::typed_lever("repeats")
+            && scratch
+                .left
+                .iter()
+                .zip(&scratch.right)
+                .all(|(left_row, right_row)| {
+                    map.iter().all(|entry| {
+                        pair_cell(head, right, *left_row as usize, *right_row, *entry)
+                            .and_then(word)
+                            .is_some()
+                    })
+                });
+        if words {
+            scratch.seen.clear();
+            for (left_row, right_row) in scratch.left.iter().zip(&scratch.right) {
+                let mut key = ([0_u64; 4], 0_u32);
+                for (slot, entry) in map.iter().enumerate() {
+                    let (bits, variant) =
+                        pair_cell(head, right, *left_row as usize, *right_row, *entry)
+                            .and_then(word)?;
+                    key.0[slot] = bits;
+                    key.1 |= variant << (3 * slot);
+                }
+                if scratch.seen.insert(key) {
+                    for entry in &map {
+                        output.cells.push(pair_cell(
+                            head,
+                            right,
+                            *left_row as usize,
+                            *right_row,
+                            *entry,
+                        )?);
+                    }
+                    output.count = RowCount(output.count.0 + 1);
+                }
+            }
+            return Some(scratch.left.len());
+        }
         let repeats = &mut stages.get_mut(last)?.own.repeats;
         for (left_row, right_row) in scratch.left.iter().zip(&scratch.right) {
             let start = CellStart(output.cells.len());
