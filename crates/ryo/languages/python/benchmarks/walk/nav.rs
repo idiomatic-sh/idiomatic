@@ -78,6 +78,9 @@ pub(crate) enum Ins {
     IterScan { rel: TRel, out: R },
     IterFact { rel: u16, col: u8, val: Val, out: R },
     IterFactScan { rel: u16, out: R },
+    /// cut: the rows of a fact relation (a made table included) whose `cols` cells equal the values: a composite index
+    /// over those columns, built once per file per column set
+    IterFactMulti { rel: u16, cols: Box<[u8]>, vals: Box<[Opd]>, out: R },
     Row { rel: TRel, key: R },
     Read { rel: TRel, col: u8, row: R, out: R },
     ReadFact { rel: u16, col: u8, row: R, out: R },
@@ -382,6 +385,12 @@ impl Loader<'_> {
                             Ins::IterFact { rel: f, col, val, out }
                         }
                         "scan" => Ins::IterFactScan { rel: f, out },
+                        "bym" => Ins::IterFactMulti {
+                            rel: f,
+                            cols: a[3][0].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
+                            vals: a[3][1].as_array().unwrap().iter().map(|x| self.opd(x)).collect::<Vec<_>>().into(),
+                            out,
+                        },
                         k => panic!("iter fact {k}"),
                     }
                 }
@@ -754,6 +763,8 @@ pub(crate) struct Facts {
     pub loaded: Vec<bool>,
     pub provider_done: bool,
     pub idx: FxMap<(u16, u8), Rc<FIdx>>,
+    /// cut: composite indexes, by relation and column set: hash of the cells -> rows
+    pub midx: FxMap<(u16, Box<[u8]>), Rc<FxMap<u64, Vec<u32>>>>,
 }
 
 /// A fact column's index: by view id (dense head/next chains) for node columns, hashed otherwise.
@@ -987,6 +998,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             loaded: vec![false; prog.facts.len()],
             provider_done: false,
             idx: FxMap::default(),
+            midx: FxMap::default(),
         });
         if facts.loaded[rel as usize] {
             return;
@@ -1222,6 +1234,31 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.c.made_rows += c.len() as u64;
         let m = Rc::new(idx);
         facts.idx.insert((rel, col), m.clone());
+        m
+    }
+
+    /// cut: the composite index of a fact relation over a column set (hash of the cells -> rows; a hit checks the cells)
+    fn fact_multi_index(&mut self, rel: u16, cols: &[u8]) -> Rc<FxMap<u64, Vec<u32>>> {
+        use std::hash::Hasher;
+        self.ensure(rel);
+        let facts = self.cache.facts.as_mut().unwrap();
+        if let Some(i) = facts.midx.get(&(rel, cols.into())) {
+            return i.clone();
+        }
+        let f = &facts.cols[rel as usize];
+        let n = f.first().map_or(0, Vec::len);
+        let mut m: FxMap<u64, Vec<u32>> = FxMap::default();
+        for row in 0..n {
+            let mut h = crate::sema::Fx::default();
+            for &c in cols {
+                h.write_u64(f[c as usize][row]);
+            }
+            m.entry(h.finish()).or_default().push(row as u32);
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += n as u64;
+        let m = Rc::new(m);
+        facts.midx.insert((rel, cols.into()), m.clone());
         m
     }
 
@@ -1464,6 +1501,38 @@ impl<'a, 'p> Exec<'a, 'p> {
                     };
                     let keys = keys.to_vec();
                     return self.iter_fact_list(p, pc, &idx, &keys, *out);
+                }
+                Ins::IterFactMulti { rel, cols, vals, out } => {
+                    use std::hash::Hasher;
+                    let idx = self.fact_multi_index(*rel, cols);
+                    let mut key = std::mem::take(&mut self.kbuf);
+                    key.clear();
+                    let mut h = crate::sema::Fx::default();
+                    for v in vals.iter() {
+                        let x = self.opd(v);
+                        key.push(x);
+                        h.write_u64(x);
+                    }
+                    let mut flow = false;
+                    if let Some(list) = idx.get(&h.finish()) {
+                        for &row in list {
+                            let same = {
+                                let f = &self.cache.facts.as_ref().unwrap().cols[*rel as usize];
+                                cols.iter().zip(key.iter()).all(|(&c, &k)| f[c as usize][row as usize] == k)
+                            };
+                            if !same {
+                                continue;
+                            }
+                            self.regs[*out as usize] = u64::from(row);
+                            self.c.visits += 1;
+                            if self.run_inner(p, pc + 1) {
+                                flow = true;
+                                break;
+                            }
+                        }
+                    }
+                    self.kbuf = key;
+                    return flow;
                 }
                 Ins::IterFactScan { rel, out } => {
                     self.ensure(*rel);

@@ -83,6 +83,18 @@ CLOS_COST = os.environ.get("NAV_CLOS_COST", "1") == "1"
 # edges through nodes the domain does not admit (the only starts whose nearest admitted node can be the reached one), each
 # such start then checked by the forward walk. Before, the start had to come from another atom (every token of the file).
 NEARC_INV = os.environ.get("NAV_NEARC_INV", "1") == "1"
+# an equality between two variables of which one is bound binds the other at once (a `let`), before any atom is reached through
+# a scan and tested after (an identity edge walked from its destination scanned every node per closure step)
+EAGER_EQ = os.environ.get("NAV_EAGER_EQ", "1") == "1"
+# a closure whose two ends are both bound walks from the cheaper end (up the tree rather than over all descendants)
+CLOS_BOTH = os.environ.get("NAV_CLOS_BOTH", "1") == "1"
+# a fact relation (a made table included) reached with two or more of its columns bound is looked up through a composite
+# index over all of them (executor: IterFactMulti), not through one column's index with the others tested per row
+MULTI_KEY = os.environ.get("NAV_MULTI_KEY", "1") == "1"
+# a made table (a group count) holds one row per value of its key columns: reached with every key column bound it is one row
+# (1.0); with only some of them it is several rows of unknown number (MADE_PARTIAL, dearer than a walk up the tree). Before,
+# any bound node column cost 1.3, so "every descendant of this root" looked like one row.
+MADE_PARTIAL = float(os.environ.get("NAV_MADE_PARTIAL", "10"))
 KEYED_STEPS = float(os.environ.get("NAV_KEYED_STEPS", "20"))   # steps of a well-keyed call: a call ranks as its rows, or its steps over this
 
 
@@ -183,6 +195,7 @@ class Lowerer:
         self.last_card = 1.0     # rows the last planned program ends with
         self.top_cost = self.top_card = 0.0
         self.made_cost = {}      # made table -> steps to build it once per file
+        self.made_keys = {}      # made table (group count) -> its key columns
         self.anchor_memo = {}
         self.require_memo = {}
 
@@ -437,6 +450,7 @@ class Lowerer:
             cols = [dict(name=f"k{i}", kind=k, key=False) for i, k in enumerate(kk)] + [dict(name="count", kind="number", key=False)]
             self.schema[name] = dict(columns=cols, rows=2873 * 5)
             self.made_size(name, mcost, mrows)
+            self.made_keys[name] = set(i for i, k in enumerate(kk) if k != "file")
             self.made.append(dict(name=name, programs=progs, keys=list(p["keys"]), distinct=p["distinct"], width=len(sub[0].out) if sub else 0,
                                   kinds=[c["kind"] for c in cols]))
             ts = [("f", 0) if c["kind"] == "file" else self.fresh(c["kind"]) for c in cols]
@@ -1409,6 +1423,8 @@ class Lowerer:
                         continue
                     if kind == "by" and c == arg[0] and (not is_var(arg[1]) or arg[1] == t) and (is_var(t) and t in bound or not is_var(t)):
                         continue
+                    if kind == "bym" and c in arg[0] and arg[1][arg[0].index(c)] == t and tbound(t):
+                        continue
                     if is_var(t) and t not in bound:
                         prog.append(["read", rel, c, row, t])
                         bound.add(t)
@@ -1421,6 +1437,13 @@ class Lowerer:
                 lit_var = ts[arg[0]]
                 filt[:] = [f for f in filt if not (f[0] in ("=", "in") and f[1] == lit_var and f[2] == arg[1])]
                 prog[:] = [x for x in prog if not (x[0] == "test" and x[1] in ("=", "in") and x[2] == lit_var and x[3] == arg[1])]
+            if kind == "bym":
+                # cut: the composite key's literal columns are implied by the access
+                for c0, v0 in zip(arg[0], arg[1]):
+                    if not is_var(v0) and is_var(ts[c0]):
+                        lit_var = ts[c0]
+                        filt[:] = [f for f in filt if not (f[0] == "=" and f[1] == lit_var and f[2] == v0)]
+                        prog[:] = [x for x in prog if not (x[0] == "test" and x[1] == "=" and x[2] == lit_var and x[3] == v0)]
             atoms.remove(i)
             flush_filters()
 
@@ -1480,11 +1503,32 @@ class Lowerer:
                     if tbound(t) and cols[c]["kind"] in ("node", "symbol", "number"):
                         if is_var(t) or t[0] in ("t", "n"):
                             cost = 1.0 if cols[c]["key"] else (1.3 if cols[c]["kind"] == "node" else 6.0)
+                            if MADE_PARTIAL and rel in self.made_keys and c in self.made_keys[rel] and len(self.made_keys[rel]) > 1:
+                                cost = MADE_PARTIAL
                             out.append((cost, "by", [c, t]))
                     elif is_var(t):
                         lit = lit_on(t)
                         if lit is not None:
                             out.append((self.est_bucket(rel, c, lit), "by", [c, lit]))
+                if MULTI_KEY:
+                    # cut: every bound column (and every column fixed to one literal) as one composite key
+                    mc, mv, single, nvar = [], [], [], 0
+                    for c, t in enumerate(ts):
+                        if cols[c]["kind"] not in ("node", "symbol", "number"):
+                            continue
+                        if tbound(t) and (is_var(t) or t[0] in ("t", "n")):
+                            mc.append(c); mv.append(t); nvar += 1 if is_var(t) else 0
+                            single.append(1.0 if cols[c]["key"] else (1.3 if cols[c]["kind"] == "node" else 6.0))
+                        elif is_var(t):
+                            lit = lit_on(t)
+                            if lit is not None and lit[0] in ("t", "n"):
+                                mc.append(c); mv.append(lit)
+                    if len(mc) >= 2 and nvar >= 1:
+                        # ranked just before the best single column of the same atom, never before another atom's keyed read
+                        mcost = min(single) * 0.99
+                        if MADE_PARTIAL and rel in self.made_keys and len(self.made_keys[rel]) > 1:
+                            mcost = 1.29 if self.made_keys[rel] <= set(mc) else MADE_PARTIAL * 0.99
+                        out.append((mcost, "bym", [mc, mv]))
                 out.append((self.schema[rel]["rows"] / 2873.0 + 50, "scan", None))
             return out
 
@@ -1503,6 +1547,15 @@ class Lowerer:
 
         flush_filters()
         while atoms or specials or negs:
+            if EAGER_EQ:
+                eq = next((f for f in filt if f[0] == "=" and is_var(f[1]) and is_var(f[2]) and (f[1] in bound) != (f[2] in bound)), None)
+                if eq is not None:
+                    src, dst = (eq[1], eq[2]) if eq[1] in bound else (eq[2], eq[1])
+                    prog.append(["let", src, dst])
+                    bound.add(dst)
+                    filt.remove(eq)
+                    flush_filters()
+                    continue
             best = None
             best_fan = 0.0
             for i in atoms:
@@ -1680,7 +1733,7 @@ class Lowerer:
                     bound.update(free)
                 elif s[0] == "clos":
                     _, a, bb, kv, x, y, kx, D = s
-                    if tbound(a):
+                    if tbound(a) and not (CLOS_BOTH and tbound(bb) and self.clos_cost(s, False) < self.clos_cost(s, True)):
                         src, dst, xin, yout = a, bb, x, y
                     else:
                         src, dst, xin, yout = bb, a, y, x
@@ -2543,6 +2596,8 @@ def uses(ins):
         arg = ins[3]
         if ins[2] == "children":
             return [arg] if is_var(arg) else []
+        if ins[2] == "bym":
+            return [t for t in arg[1] if is_var(t)]
         if isinstance(arg, list) and len(arg) == 2 and is_var(arg[1]):
             return [arg[1]]
         return []
@@ -2615,6 +2670,8 @@ def substitute(p, m):
             arg = ins[3]
             if ins[2] == "children":
                 arg = f(arg)
+            elif ins[2] == "bym":
+                arg = [arg[0], [f(t) for t in arg[1]]]
             elif isinstance(arg, list) and len(arg) == 2 and is_var(arg[1]):
                 arg = [arg[0], f(arg[1])]
             ins = ["iter", ins[1], ins[2], arg, ins[4]]
