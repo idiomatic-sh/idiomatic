@@ -8,7 +8,7 @@ let logging_functions = select id from "qualified-name" where matches(path, "^lo
 let direct_logging_calls = select l.call as call from call_functions as l join logging_functions as r on l.function = r.id;
 let attribute_fields = select parent, child from "semantic-child" where field = "attr";
 let identifiers = select id, name from "identifier";
-let logger_method_nodes = select l.parent as function from attribute_fields as l join identifiers as r on l.child = r.id where r.name = "debug" or r.name = "info" or r.name = "warn" or r.name = "warning" or r.name = "error" or r.name = "critical" or r.name = "exception" or r.name = "log";
+let logger_method_nodes = select l.parent as function from attribute_fields as l join identifiers as r on l.child = r.id where r.name in ["debug", "info", "warn", "warning", "error", "critical", "exception", "log"];
 let logger_attribute_calls = select l.call as call, l.function as function from call_functions as l join logger_method_nodes as r on l.function = r.function;
 let receiver_fields = select parent, child from "semantic-child" where field = "value";
 let receiver_names = select l.call as call, r.child as reference from logger_attribute_calls as l join receiver_fields as r on l.function = r.parent;
@@ -39,7 +39,7 @@ let dict_key_edges = select parent as dictionary, child as key from "semantic-ch
 let dict_keys = select l.call as call, l.keyword as keyword, r.key as key from dict_extras as l join dict_key_edges as r on l.dictionary = r.dictionary;
 let strings = select occurrence, value from "string-literal";
 let literal_keys = select l.call as call, l.keyword as keyword, l.key as key, r.value as value from dict_keys as l join strings as r on l.key = r.occurrence;
-let reserved = select * from literal_keys where value = "args" or value = "asctime" or value = "created" or value = "exc_info" or value = "exc_text" or value = "filename" or value = "funcName" or value = "levelname" or value = "levelno" or value = "lineno" or value = "module" or value = "msecs" or value = "message" or value = "msg" or value = "name" or value = "pathname" or value = "process" or value = "processName" or value = "relativeCreated" or value = "stack_info" or value = "thread" or value = "threadName";
+let reserved = select * from literal_keys where value in ["args", "asctime", "created", "exc_info", "exc_text", "filename", "funcName", "levelname", "levelno", "lineno", "module", "msecs", "message", "msg", "name", "pathname", "process", "processName", "relativeCreated", "stack_info", "thread", "threadName"];
 let key_locations = select l.key as id, r.file as file, r.span as span from reserved as l join "semantic-syntax" as r on l.key = r.id;
 let dict_call_extras = select l.call as call, l.keyword as keyword, r.id as dictionary_call from selected_extra_values as l join calls as r on l.value = r.id;
 let dict_call_functions = select l.dictionary_call as dictionary_call, r.child as function from dict_call_extras as l join function_fields as r on l.dictionary_call = r.parent;
@@ -49,7 +49,7 @@ let dict_call_wrappers = select l.dictionary_call as dictionary_call, r.wrapper 
 let dict_call_keyword_edges = select l.dictionary_call as dictionary_call, r.child as keyword from dict_call_wrappers as l join keyword_fields as r on l.wrapper = r.parent;
 let dict_call_keywords = select l.dictionary_call as dictionary_call, l.keyword as keyword from dict_call_keyword_edges as l join keyword_nodes as r on l.keyword = r.id;
 let dict_kwarg_names = select l.keyword as keyword, r.name as name from keyword_arg_edges as l join identifiers as r on l.identifier = r.id;
-let reserved_dict_keywords = select l.dictionary_call as dictionary_call, l.keyword as keyword from dict_call_keywords as l join dict_kwarg_names as r on l.keyword = r.keyword where r.name = "args" or r.name = "asctime" or r.name = "created" or r.name = "exc_info" or r.name = "exc_text" or r.name = "filename" or r.name = "funcName" or r.name = "levelname" or r.name = "levelno" or r.name = "lineno" or r.name = "module" or r.name = "msecs" or r.name = "message" or r.name = "msg" or r.name = "name" or r.name = "pathname" or r.name = "process" or r.name = "processName" or r.name = "relativeCreated" or r.name = "stack_info" or r.name = "thread" or r.name = "threadName";
+let reserved_dict_keywords = select l.dictionary_call as dictionary_call, l.keyword as keyword from dict_call_keywords as l join dict_kwarg_names as r on l.keyword = r.keyword where r.name in ["args", "asctime", "created", "exc_info", "exc_text", "filename", "funcName", "levelname", "levelno", "lineno", "module", "msecs", "message", "msg", "name", "pathname", "process", "processName", "relativeCreated", "stack_info", "thread", "threadName"];
 let valid_dict_call_keywords = select l.dictionary_call as dictionary_call, l.keyword as keyword from dict_call_keywords as l join builtin_dict_calls as r on l.dictionary_call = r.dictionary_call;
 let reserved_dict_call_candidates = select l.keyword as id from valid_dict_call_keywords as l join reserved_dict_keywords as k on l.dictionary_call = k.dictionary_call and l.keyword = k.keyword;
 let dict_call_candidates = select l.id as id, r.file as file, r.span as span from reserved_dict_call_candidates as l join "semantic-syntax" as r on l.id = r.id;

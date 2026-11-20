@@ -1,7 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
 import deferred_class_origins from "python/ruff/deferred-class-origins";
 let nodes = select id, kind, file from "semantic-syntax";
-let statement_nodes = select id, file from nodes where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "return" or kind = "delete" or kind = "assign" or kind = "type-alias" or kind = "aug-assign" or kind = "ann-assign" or kind = "for" or kind = "async-for" or kind = "while" or kind = "if" or kind = "with" or kind = "async-with" or kind = "match" or kind = "raise" or kind = "try" or kind = "try-star" or kind = "assert" or kind = "import" or kind = "import-from" or kind = "global" or kind = "nonlocal" or kind = "expr" or kind = "pass" or kind = "break" or kind = "continue";
+let statement_nodes = select id, file from nodes where kind in ["function-def", "async-function-def", "class-def", "return", "delete", "assign", "type-alias", "aug-assign", "ann-assign", "for", "async-for", "while", "if", "with", "async-with", "match", "raise", "try", "try-star", "assert", "import", "import-from", "global", "nonlocal", "expr", "pass", "break", "continue"];
 let body_edges = select parent as owner, child as statement, field, ordinal, file from "semantic-child" where field = "body" or field = "orelse" or field = "finalbody";
 let suites = select l.owner as owner, l.statement as statement, l.field as field, l.ordinal as ordinal, l.file as file from body_edges as l join statement_nodes as r on l.statement = r.id and l.file = r.file;
 let suite_counts = group-count(from=suites, keys=["owner", "field", "file"], count="count", distinct="statement");

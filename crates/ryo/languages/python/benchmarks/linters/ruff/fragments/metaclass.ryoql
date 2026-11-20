@@ -68,7 +68,7 @@ let labelled_yes_classes = replace(from=typed_yes_classes, text="kind", pattern=
 let yes_classes = select context, class, certainty, file from labelled_yes_classes;
 let call_maybe_rows = select l.context as context, l.class as class, l.file as file from successful_classes as l join maybe_classes as r on l.context = r.context and l.class = r.class and l.file = r.file;
 let function_nodes = select id, file from nodes where kind = "function-def" or kind = "async-function-def";
-let statement_parents = select id, file from nodes where kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "if" or kind = "for" or kind = "async-for" or kind = "while" or kind = "with" or kind = "async-with" or kind = "try" or kind = "try-star" or kind = "match";
+let statement_parents = select id, file from nodes where kind in ["class-def", "function-def", "async-function-def", "if", "for", "async-for", "while", "with", "async-with", "try", "try-star", "match"];
 let nearest_statement_parents = axis(from=function_nodes, relation="semantic-child", direction=nearest-ancestor, domain=statement_parents);
 let class_nodes = select id, file from nodes where kind = "class-def";
 let direct_class_functions = select l.id as function, l.related as class, l.file as file from nearest_statement_parents as l join class_nodes as r on l.related = r.id and l.file = r.file;

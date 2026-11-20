@@ -39,7 +39,7 @@ let unique_import_reads = select l.reference as head, r.occurrence as binding, l
 let imported_expressions = select l.expression as id, l.file as file from heads as l join unique_import_reads as r on l.head = r.head and l.file = r.file;
 let imported_origins = select l.id as id, r.path as path, l.file as file from imported_expressions as l join "qualified-name" as r on l.id = r.id and l.file = r.file;
 let origins = union(left=builtin_origins, right=imported_origins);
-let factory_origins = select id, file from origins where path = "builtins.open" or path = "io.open" or path = "io.open_code" or path = "os.fdopen" or path = "io.IOBase" or path = "io.RawIOBase" or path = "io.BufferedIOBase" or path = "io.TextIOBase" or path = "io.BytesIO" or path = "io.StringIO" or path = "io.BufferedReader" or path = "io.BufferedWriter" or path = "io.BufferedRandom" or path = "io.BufferedRWPair" or path = "io.TextIOWrapper" or path = "io.FileIO";
+let factory_origins = select id, file from origins where path in ["builtins.open", "io.open", "io.open_code", "os.fdopen", "io.IOBase", "io.RawIOBase", "io.BufferedIOBase", "io.TextIOBase", "io.BytesIO", "io.StringIO", "io.BufferedReader", "io.BufferedWriter", "io.BufferedRandom", "io.BufferedRWPair", "io.TextIOWrapper", "io.FileIO"];
 let direct = select l.call as id, l.file as file from functions as l join factory_origins as r on l.function = r.id and l.file = r.file;
 let path_origins = select l.call as id, l.file as file, r.path as path from constructors as l join origins as r on l.constructor = r.id and l.file = r.file;
 let paths = select id, file from path_origins where path = "pathlib.Path" or path = "pathlib.PosixPath" or path = "pathlib.WindowsPath";

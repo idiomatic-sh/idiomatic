@@ -12,7 +12,7 @@ let bad_tuple_descendants = antijoin(left=tuple_descendants, right=constant_or_t
 let bad_tuples = select origin as id from bad_tuple_descendants;
 let good_tuples = antijoin(left=tuples, right=bad_tuples, left-on=["id"], right-on=["id"]);
 let constant_exprs = union(left=nonsingleton_literals, right=good_tuples);
-let mutable_literals = select id, file from "semantic-syntax" where kind = "list" or kind = "set" or kind = "dict" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp";
+let mutable_literals = select id, file from "semantic-syntax" where kind in ["list", "set", "dict", "list-comp", "set-comp", "dict-comp"];
 let bad_operands = union(left=constant_exprs, right=mutable_literals);
 let left_fields = select parent, child from "semantic-child" where field = "left";
 let comparator_fields = select parent, child from "semantic-child" where field = "comparators";

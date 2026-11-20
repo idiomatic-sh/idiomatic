@@ -19,7 +19,7 @@ let heads = union(left=direct_heads, right=nested_heads);
 let import_reads = select l.reference as head, l.file as file from "binding-use" as l join "static-import" as r on l.binding = r.occurrence and l.file = r.file where l.certainty = "unique";
 let imported_functions = select l.function as id, l.file as file from heads as l join import_reads as r on l.head = r.head and l.file = r.file;
 let imported_names = select l.id as id, l.file as file, r.path as path from imported_functions as l join "qualified-name" as r on l.id = r.id and l.file = r.file;
-let lock_factories = select id, file from imported_names where path = "threading.Lock" or path = "threading.RLock" or path = "threading.Condition" or path = "threading.Semaphore" or path = "threading.BoundedSemaphore";
+let lock_factories = select id, file from imported_names where path in ["threading.Lock", "threading.RLock", "threading.Condition", "threading.Semaphore", "threading.BoundedSemaphore"];
 let fresh_locks = select l.call as id, l.file as file from functions as l join lock_factories as r on l.id = r.id and l.file = r.file;
 let unique_locks = group-count(from=fresh_locks, keys=["id","file"], count="count");
 let candidate_locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from unique_locks as l join "source-location" as r on l.id = r.id and l.file = r.file;

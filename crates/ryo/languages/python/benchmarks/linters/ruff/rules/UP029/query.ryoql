@@ -1,7 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
 import line_located from "python/ruff/candidate-locations";
 let imports = select occurrence as alias, binding, target, file from "static-import";
-let allowed = select * from imports where matches(target, "^(?:builtins|six\.moves\.builtins)\.(?:\*|ascii|bytes|chr|dict|filter|hex|input|int|isinstance|list|map|max|min|next|object|oct|open|pow|range|round|str|super|zip)$") or target = "builtins" or target = "io.open" or target = "six.callable" or target = "six.next" or target = "six.moves.filter" or target = "six.moves.input" or target = "six.moves.map" or target = "six.moves.range" or target = "six.moves.zip";
+let allowed = select * from imports where matches(target, "^(?:builtins|six\.moves\.builtins)\.(?:\*|ascii|bytes|chr|dict|filter|hex|input|int|isinstance|list|map|max|min|next|object|oct|open|pow|range|round|str|super|zip)$") or target in ["builtins", "io.open", "six.callable", "six.next", "six.moves.filter", "six.moves.input", "six.moves.map", "six.moves.range", "six.moves.zip"];
 let aliases_with_asname = select parent as alias from "semantic-child" where field = "asname";
 let unaliased = antijoin(left=allowed,right=aliases_with_asname,left-on=["alias"],right-on=["alias"]);
 let alias_bindings = select alias, target, file, alias as binding from unaliased;

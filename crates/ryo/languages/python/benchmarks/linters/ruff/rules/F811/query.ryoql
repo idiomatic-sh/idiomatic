@@ -50,7 +50,7 @@ let inherited_uses = select r.binding as binding, r.file as file from latest_use
 let used_binding_rows = union(left=actual_uses, right=inherited_uses);
 let used_bindings = select binding from used_binding_rows;
 let unused = antijoin(left=bindings,right=used_bindings,left-on=["binding"],right-on=["binding"]);
-let branch_kinds = select id from nodes where kind = "if" or kind = "try" or kind = "try-star" or kind = "with" or kind = "async-with" or kind = "match-case" or kind = "if-exp";
+let branch_kinds = select id from nodes where kind in ["if", "try", "try-star", "with", "async-with", "match-case", "if-exp"];
 let child_to_parent = select child as origin, parent as destination from "semantic-child";
 let ancestry = closure(edges=child_to_parent,source="origin",destination="destination");
 let event_branch_ancestors = select l.occurrence as binding, r.destination as owner from events as l join ancestry as r on l.occurrence = r.origin;
@@ -86,7 +86,7 @@ let with_target_descendants = select member, file from with_target_paths;
 let direct_with_targets = select target as member, file from with_target_roots;
 let all_with_targets = union(left=direct_with_targets, right=with_target_descendants);
 let with_variable_bindings = select l.binding as binding from bindings as l join all_with_targets as r on l.binding = r.member and l.file = r.file;
-let eligible_previous0 = select * from unused where declaration_kind = "variable" or declaration_kind = "function" or declaration_kind = "method" or declaration_kind = "class" or declaration_kind = "import";
+let eligible_previous0 = select * from unused where declaration_kind in ["variable", "function", "method", "class", "import"];
 let future_imports = select l.binding as binding, l.file as file from definitions as l join import_origins as r on l.binding = r.id and l.file = r.file where l.refinement = "from-import" and starts_with(r.target, "__future__.");
 let eligible_previous00 = antijoin(left=eligible_previous0, right=loop_variable_bindings, left-on=["binding"], right-on=["binding"]);
 let eligible_previous1 = antijoin(left=eligible_previous00, right=with_variable_bindings, left-on=["binding"], right-on=["binding"]);

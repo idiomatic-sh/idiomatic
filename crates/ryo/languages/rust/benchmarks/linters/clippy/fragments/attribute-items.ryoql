@@ -13,9 +13,9 @@ let preceding = select l.child as child, r.separator as separator, r.at as at, l
 let farther = select l.child as child, l.separator as separator from preceding as l join preceding as r on l.child = r.child where r.at > l.at;
 let nearest = antijoin(left=preceding, right=farther, left-on=["child", "separator"], right-on=["child", "separator"]);
 let placed = select l.tree as tree, l.attribute as attribute, l.child as child, l.ordinal as ordinal, l.kind as kind, l.text as text, l.span as span, r.separator as item, l.file as file from members as l join nearest as r on l.child = r.child;
-let path_members = select tree, attribute, child, ordinal, span, item, file from placed where kind = "ident" or kind = "colon" or kind = "self-kw" or kind = "super-kw" or kind = "crate-kw";
+let path_members = select tree, attribute, child, ordinal, span, item, file from placed where kind in ["ident", "colon", "self-kw", "super-kw", "crate-kw"];
 let tails = antijoin(left=placed, right=path_members, left-on=["child"], right-on=["child"]);
-let literal_members = select child from placed where kind = "string" or kind = "byte-string" or kind = "c-string" or kind = "char" or kind = "byte" or kind = "int-number" or kind = "float-number" or kind = "true-kw" or kind = "false-kw";
+let literal_members = select child from placed where kind in ["string", "byte-string", "c-string", "char", "byte", "int-number", "float-number", "true-kw", "false-kw"];
 let later_tails = select l.child as child from tails as l join tails as r on l.item = r.item where r.ordinal < l.ordinal;
 let first_tails = antijoin(left=tails, right=later_tails, left-on=["child"], right-on=["child"]);
 let second_tails = antijoin(left=tails, right=first_tails, left-on=["child"], right-on=["child"]);

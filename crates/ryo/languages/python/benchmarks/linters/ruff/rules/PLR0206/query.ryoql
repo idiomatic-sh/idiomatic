@@ -17,7 +17,7 @@ let called_decorator_origins = select l.function as function, l.file as file, r.
 let decorator_origins = union(left=direct_decorator_origins, right=called_decorator_origins);
 let static_decorators = select function, file from decorator_origins where path = "builtins.staticmethod" or path = "abc.abstractstaticmethod";
 let class_decorators = select function, file from decorator_origins where path = "builtins.classmethod" or path = "abc.abstractclassmethod";
-let property_decorators = select function, file from decorator_origins where path = "builtins.property" or path = "enum.property" or path = "functools.cached_property" or path = "abc.abstractproperty" or path = "types.DynamicClassAttribute";
+let property_decorators = select function, file from decorator_origins where path in ["builtins.property", "enum.property", "functools.cached_property", "abc.abstractproperty", "types.DynamicClassAttribute"];
 let parameter_counts = group-count(from="parameter", keys=["owner","file"], count="count", distinct="id");
 let extra_parameters = select l.function as function, l.file as file from property_decorators as l join parameter_counts as r on l.function = r.owner and l.file = r.file where r.count > 1;
 let candidates = select l.name_id as id, l.file as file, l.name_span as span from named_functions as l join extra_parameters as r on l.function = r.function and l.file = r.file;

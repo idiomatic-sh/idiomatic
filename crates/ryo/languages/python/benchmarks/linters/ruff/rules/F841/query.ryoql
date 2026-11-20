@@ -10,7 +10,7 @@ import call_syntax from "python/ruff/calls";
 import line_located from "python/ruff/candidate-locations";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let statements = select id from nodes where glob_any(kind, "{function-def,async-function-def,class-def,return,delete,assign,type-alias,aug-assign,ann-assign,for,async-for,while,if,with,async-with,match,raise,try,assert,import,import-from,global,nonlocal,expr,pass,break,continue}");
-let lexical_scopes = select id from nodes where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
+let lexical_scopes = select id from nodes where kind in ["module", "function-def", "async-function-def", "class-def", "lambda"];
 let functions = select id from nodes where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
 let named_definitions = select l.id as binding, r.id as id, l.name as name, l.file as file, l.span as span from "defines" as l join "identifier" as r on l.file = r.file and l.span = r.span and l.name = r.name;
 let namespace = namespace_events();
@@ -47,7 +47,7 @@ let declaration_statement_roots = select l.id as binding, r.id as statement from
 let direct_source_statements = select l.binding as binding, l.statement as statement, r.kind as kind from declaration_statement_roots as l join nodes as r on l.statement = r.id;
 let nonroot_source_statements = antijoin(left=ancestor_source_statements, right=direct_source_statements, left-on=["binding"], right-on=["binding"]);
 let source_statements = union(left=direct_source_statements, right=nonroot_source_statements);
-let plain_assignments = select binding from source_statements where kind = "assign" or kind = "aug-assign" or kind = "ann-assign" or kind = "with" or kind = "async-with";
+let plain_assignments = select binding from source_statements where kind in ["assign", "aug-assign", "ann-assign", "with", "async-with"];
 let named_expressions = select id from nodes where kind = "named-expr";
 let targets = select parent, child from "semantic-child" where field = "target";
 let named_targets = select r.child as binding from named_expressions as l join targets as r on l.id = r.parent;

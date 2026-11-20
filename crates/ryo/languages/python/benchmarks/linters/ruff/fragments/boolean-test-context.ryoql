@@ -1,7 +1,7 @@
 input expressions: relation<id: node, file: file>;
 output relation<id: node, file: file>;
 let nodes = select id, kind, file from "semantic-syntax";
-let statement_test_owners = select id, file from nodes where kind = "if" or kind = "elif-else-clause" or kind = "while" or kind = "assert" or kind = "if-exp";
+let statement_test_owners = select id, file from nodes where kind in ["if", "elif-else-clause", "while", "assert", "if-exp"];
 let statement_tests = select r.child as id, l.file as file from statement_test_owners as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "test";
 let guards = select child as id, file from "semantic-child" where field = "guard" or field = "ifs";
 let unary_nodes = select id, file from nodes where kind = "unary-op";

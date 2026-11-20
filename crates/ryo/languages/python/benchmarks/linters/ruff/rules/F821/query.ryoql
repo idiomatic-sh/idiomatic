@@ -67,7 +67,7 @@ let class_removal_ids = select id, file from class_removal_owners;
 let outer_removals = antijoin(left=unconditional_removals, right=class_removal_ids, left-on=["id", "file"], right-on=["id", "file"]);
 let removal_events = select name, scope, phase, ordinal, file from outer_removals;
 let class_removals = select l.name as name, r.owner as owner, l.phase as phase, l.ordinal as ordinal, l.file as file from unconditional_removals as l join class_removal_owners as r on l.id = r.id and l.file = r.file;
-let function_scopes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "lambda" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
+let function_scopes = select id, file from "semantic-syntax" where kind in ["function-def", "async-function-def", "lambda", "list-comp", "set-comp", "dict-comp", "generator-exp"];
 let missing_read_events = select l.id as id, r.ordinal as ordinal, r.scope as scope, r.phase as phase, r.name as name, r.file as file from ordinary_missing as l join read_events as r on l.id = r.id and l.name = r.name and l.scope = r.scope and l.phase = r.phase and l.file = r.file;
 let outer_prior_removals = select l.id as id from missing_read_events as l join removal_events as d on l.name = d.name and l.phase = d.phase and l.file = d.file where d.ordinal < l.ordinal;
 let class_prior_removals = select l.id as id from missing_read_events as l join class_removals as d on l.name = d.name and l.scope = d.owner and l.file = d.file where d.ordinal < l.ordinal;

@@ -36,7 +36,7 @@ let builtin_replacements = select l.binding as binding, l.file as file from modu
 let single_binding_iterations = antijoin(left=unreplaced_iterations, right=builtin_replacements, left-on=["binding", "file"], right-on=["binding", "file"]);
 let read_events = select occurrence as reference, phase, ordinal, file from "binding-event" where kind = "read";
 let iteration_phases = select l.loop as loop, r.phase as phase, l.file as file from inferred_iterations as l join read_events as r on l.dict_name = r.reference and l.file = r.file;
-let scope_nodes = select id, file from nodes where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda";
+let scope_nodes = select id, file from nodes where kind in ["module", "class-def", "function-def", "async-function-def", "lambda"];
 let loop_scope_axes = axis(from=loops, relation="semantic-child", direction=nearest-ancestor, domain=scope_nodes);
 let loop_scopes = select id as loop, related as initial_scope, file from loop_scope_axes;
 let all_edges = select parent, child, file from "semantic-child";

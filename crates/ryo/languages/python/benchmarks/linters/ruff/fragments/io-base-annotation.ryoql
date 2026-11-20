@@ -14,7 +14,7 @@ let direct_roots = select id as annotation, id as root, file from annotations;
 let root_rows = union(left=direct_roots, right=nested_roots);
 let root_expressions = select root as id, file from root_rows;
 let origins = annotation_origins(expressions=root_expressions);
-let root_matches = select l.annotation as id, l.file as file from root_rows as l join origins as r on l.root = r.id and l.file = r.file where r.path = "typing.IO" or r.path = "typing.BinaryIO" or r.path = "typing.TextIO" or r.path = "typing_extensions.IO" or r.path = "typing_extensions.BinaryIO" or r.path = "typing_extensions.TextIO" or r.path = "io.IOBase" or r.path = "io.RawIOBase" or r.path = "io.BufferedIOBase" or r.path = "io.TextIOBase" or r.path = "io.BytesIO" or r.path = "io.StringIO" or r.path = "io.BufferedReader" or r.path = "io.BufferedWriter" or r.path = "io.BufferedRandom" or r.path = "io.BufferedRWPair" or r.path = "io.TextIOWrapper" or r.path = "io.FileIO" or r.path = "_typeshed.IO" or r.path = "_typeshed.BinaryIO" or r.path = "_typeshed.TextIO";
+let root_matches = select l.annotation as id, l.file as file from root_rows as l join origins as r on l.root = r.id and l.file = r.file where r.path in ["typing.IO", "typing.BinaryIO", "typing.TextIO", "typing_extensions.IO", "typing_extensions.BinaryIO", "typing_extensions.TextIO", "io.IOBase", "io.RawIOBase", "io.BufferedIOBase", "io.TextIOBase", "io.BytesIO", "io.StringIO", "io.BufferedReader", "io.BufferedWriter", "io.BufferedRandom", "io.BufferedRWPair", "io.TextIOWrapper", "io.FileIO", "_typeshed.IO", "_typeshed.BinaryIO", "_typeshed.TextIO"];
 let unique_matches = group-count(from=root_matches, keys=["id","file"], count="count");
 let results = select id, file from unique_matches;
 return results;

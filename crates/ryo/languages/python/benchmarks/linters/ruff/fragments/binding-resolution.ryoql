@@ -37,7 +37,7 @@ let cut_after = select l.reference as reference, r.after as depth, l.file as fil
 let cut_modules = select l.reference as reference, l.depth as depth, r.id as scope, l.file as file from cut_after as l join modules as r on l.file = r.file;
 let module_spaces = select l.reference as reference, l.name as name, l.home as home, l.asking as asking, l.point as point, l.context as context, r.scope as scope, r.depth as depth, l.start as start, l.file as file from probes as l join cut_modules as r on l.reference = r.reference and l.file = r.file;
 let spaces = union(left=spaces_kept, right=module_spaces);
-let own_events = select occurrence, name, scope as space, kind, ordinal as at, ordinal, lexical, file from events where kind = "bind" or kind = "annotation" or kind = "cleanup" or kind = "delete" or kind = "global" or kind = "nonlocal";
+let own_events = select occurrence, name, scope as space, kind, ordinal as at, ordinal, lexical, file from events where kind in ["bind", "annotation", "cleanup", "delete", "global", "nonlocal"];
 let declarations = select occurrence, name, lexical as space, kind, ordinal as at, ordinal, lexical, scope, file from events where kind = "global" or kind = "nonlocal";
 let routed = select occurrence, name, space, kind, at, ordinal, lexical, file from declarations where space != scope;
 let later_routed = select l.occurrence as occurrence, l.space as space, l.name as name, l.at as at, l.file as file from routed as l join routed as r on l.space = r.space and l.name = r.name and l.file = r.file where r.at < l.at;

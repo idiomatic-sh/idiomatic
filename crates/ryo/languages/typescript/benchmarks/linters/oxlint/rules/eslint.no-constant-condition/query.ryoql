@@ -1,7 +1,7 @@
 import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
 import constness from "typescript/oxlint/constness";
-let owners = select id, kind from "semantic-syntax" where kind = "if-statement" or kind = "conditional-expression" or kind = "while-statement" or kind = "do-while-statement" or kind = "for-statement";
+let owners = select id, kind from "semantic-syntax" where kind in ["if-statement", "conditional-expression", "while-statement", "do-while-statement", "for-statement"];
 let tests = select l.parent as owner, r.kind as kind, l.child as id from "semantic-child" as l join owners as r on l.parent = r.id where l.field = "test";
 let test_rows = select l.id as id, r.file as file, r.span as span from tests as l join "semantic-syntax" as r on l.id = r.id;
 let constant = constness(candidates=test_rows);
