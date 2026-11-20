@@ -130,6 +130,8 @@ pub(crate) const RELATIONS: &[&str] = &[
     "function-terminal",
     "constant-key",
     "token-link",
+    "format-parse",
+    "format-field",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -1933,6 +1935,237 @@ fn rows_token_link(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
     });
 }
 
+// ------------------------------------------------------------------------------------------------ format-parse, format-field
+/// The provider's percent-format grammar (`outbound/format_syntax/adapters/ruff_literal_cformat`, itself adapted from Ruff 0.16.5's
+/// `ruff_python_literal::cformat`, MIT), copied because the adapter is crate-private: the conversion specifications of a decoded
+/// string, Python's `str % args` mini-language.
+pub(crate) mod cformat {
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub enum Quantity {
+        None,
+        Fixed,
+        Star,
+        Dot,
+    }
+    impl Quantity {
+        pub fn word(self) -> &'static str {
+            match self {
+                Quantity::None => "none",
+                Quantity::Fixed => "fixed",
+                Quantity::Star => "star",
+                Quantity::Dot => "dot",
+            }
+        }
+    }
+    #[derive(Clone)]
+    pub struct Field {
+        pub ordinal: usize,
+        pub key: Option<String>,
+        pub conversion: char,
+        pub width: Quantity,
+        pub precision: Quantity,
+        pub flags: u8,
+    }
+    #[derive(Clone, Copy, Default)]
+    pub struct Summary {
+        pub positional: usize,
+        pub mapping: bool,
+        pub dynamic_width: bool,
+        pub dynamic_precision: bool,
+    }
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub enum ErrorKind {
+        UnmatchedKeyParentheses,
+        IncompleteFormat,
+        UnsupportedFormatCharacter,
+        WidthOrPrecisionTooLarge,
+    }
+    impl ErrorKind {
+        pub fn word(self) -> &'static str {
+            match self {
+                ErrorKind::UnmatchedKeyParentheses => "unmatched-key-parentheses",
+                ErrorKind::IncompleteFormat => "incomplete-format",
+                ErrorKind::UnsupportedFormatCharacter => "unsupported-format-character",
+                ErrorKind::WidthOrPrecisionTooLarge => "width-or-precision-too-large",
+            }
+        }
+    }
+    #[derive(Clone, Copy)]
+    pub struct Error {
+        pub kind: ErrorKind,
+        pub character: Option<char>,
+        pub index: usize,
+    }
+    struct Cursor<'a> {
+        chars: std::iter::Enumerate<std::str::Chars<'a>>,
+        peeked: Option<(usize, char)>,
+    }
+    impl Cursor<'_> {
+        fn peek(&mut self) -> Option<(usize, char)> {
+            if self.peeked.is_none() {
+                self.peeked = self.chars.next();
+            }
+            self.peeked
+        }
+        fn advance(&mut self) -> Option<(usize, char)> {
+            self.peeked.take().or_else(|| self.chars.next())
+        }
+    }
+    fn err(kind: ErrorKind, index: usize, character: Option<char>) -> Error {
+        Error { kind, character, index }
+    }
+    fn mapping_key(c: &mut Cursor<'_>) -> Result<Option<String>, Error> {
+        let Some(open) = c.peek() else { return Ok(None) };
+        if open.1 != '(' {
+            return Ok(None);
+        }
+        c.advance();
+        let mut depth = 1usize;
+        let mut key = String::new();
+        while let Some((_, ch)) = c.advance() {
+            match ch {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+            if depth == 0 {
+                return Ok(Some(key));
+            }
+            key.push(ch);
+        }
+        Err(err(ErrorKind::UnmatchedKeyParentheses, open.0, None))
+    }
+    fn quantity(c: &mut Cursor<'_>) -> Result<Quantity, Error> {
+        match c.peek() {
+            Some((_, '*')) => {
+                c.advance();
+                Ok(Quantity::Star)
+            }
+            Some((_, d)) if d.is_ascii_digit() => {
+                let mut amount = 0i32;
+                while let Some((i, d)) = c.peek().filter(|x| x.1.is_ascii_digit()) {
+                    let digit = d.to_digit(10).unwrap_or(0) as i32;
+                    amount = amount.checked_mul(10).and_then(|n| n.checked_add(digit)).ok_or_else(|| err(ErrorKind::WidthOrPrecisionTooLarge, i, None))?;
+                    c.advance();
+                }
+                Ok(Quantity::Fixed)
+            }
+            _ => Ok(Quantity::None),
+        }
+    }
+    fn field(c: &mut Cursor<'_>, ordinal: usize) -> Result<Field, Error> {
+        let key = mapping_key(c)?;
+        let mut flags = 0u8;
+        while let Some((_, ch)) = c.peek() {
+            let bit = match ch {
+                ' ' => 1,
+                '#' => 2,
+                '+' => 4,
+                '-' => 8,
+                '0' => 16,
+                _ => break,
+            };
+            flags |= bit;
+            c.advance();
+        }
+        let width = quantity(c)?;
+        let precision = if c.peek().is_some_and(|x| x.1 == '.') {
+            c.advance();
+            match quantity(c)? {
+                Quantity::None => Quantity::Dot,
+                m => m,
+            }
+        } else {
+            Quantity::None
+        };
+        if c.peek().is_some_and(|x| matches!(x.1, 'h' | 'l' | 'L')) {
+            c.advance();
+        }
+        let Some((ci, conversion)) = c.advance() else {
+            let index = c.peek().map_or(0, |x| x.0);
+            return Err(err(ErrorKind::IncompleteFormat, index, None));
+        };
+        if !matches!(conversion, 'd' | 'i' | 'u' | 'o' | 'x' | 'X' | 'e' | 'E' | 'f' | 'F' | 'g' | 'G' | 'c' | 'r' | 's' | 'a') {
+            return Err(err(ErrorKind::UnsupportedFormatCharacter, ci, Some(conversion)));
+        }
+        Ok(Field { ordinal, key, conversion, width, precision, flags })
+    }
+    pub fn parse(input: &str, fields: &mut Vec<Field>) -> Result<Summary, Error> {
+        let mut c = Cursor { chars: input.chars().enumerate(), peeked: None };
+        fields.clear();
+        let mut summary = Summary::default();
+        while let Some((i, ch)) = c.advance() {
+            if ch != '%' {
+                continue;
+            }
+            let Some(next) = c.peek() else {
+                return Err(err(ErrorKind::IncompleteFormat, i + 1, None));
+            };
+            if next.1 == '%' {
+                c.advance();
+                continue;
+            }
+            let f = field(&mut c, fields.len())?;
+            if f.key.is_some() {
+                summary.mapping = true;
+            } else {
+                summary.positional += 1;
+            }
+            if f.width == Quantity::Star {
+                summary.positional += 1;
+                summary.dynamic_width = true;
+            }
+            if f.precision == Quantity::Star {
+                summary.positional += 1;
+                summary.dynamic_precision = true;
+            }
+            fields.push(f);
+        }
+        Ok(summary)
+    }
+}
+
+/// `format_parsing::decoded_into`: the decoded value of a string occurrence (a string, or an f-string with no interpolation);
+/// None when it interpolates (the input is unknown).
+pub(crate) fn format_input<'n>(node: AnyNodeRef<'n>, buf: &'n mut String) -> Option<Option<&'n str>> {
+    match node {
+        AnyNodeRef::ExprStringLiteral(_) | AnyNodeRef::ExprFString(_) => Some(string_value(node, buf)),
+        _ => None,
+    }
+}
+
+fn rows_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usize>, field_rel: Option<usize>, buf: &mut String, st: &mut State) {
+    let fields = &mut st.cfields;
+    for k in [NodeKind::ExprStringLiteral, NodeKind::ExprFString] {
+        for &id in c.kind(k) {
+            let Some(input) = format_input(c.table.node[id as usize], buf) else { continue };
+            let head = [Cell::Node(id), Cell::Text("percent-string"), Cell::Text("decoded-string")];
+            let tail = |sink: &mut dyn Sink, outcome: &str, cat: &str, ch: Option<char>, idx: usize, s: cformat::Summary| {
+                if let Some(r) = parse_rel {
+                    let mut b = [0u8; 4];
+                    let ch = ch.map_or("", |x| &*x.encode_utf8(&mut b));
+                    sink.row(r, &[head[0], head[1], head[2], Cell::Text(outcome), Cell::Text(cat), Cell::Text(ch), Cell::Num(idx as i64), Cell::Num(s.positional as i64), Cell::Flag(s.mapping), Cell::Flag(s.dynamic_width), Cell::Flag(s.dynamic_precision), Cell::File, c.span(id)]);
+                }
+            };
+            match input {
+                None => tail(sink, "unknown-input", "none", None, 0, cformat::Summary::default()),
+                Some(text) => match cformat::parse(text, fields) {
+                    Ok(summary) => {
+                        tail(sink, "parsed", "none", None, 0, summary);
+                        if let Some(r) = field_rel {
+                            for f in fields.iter() {
+                                let mut b = [0u8; 4];
+                                sink.row(r, &[Cell::Node(id), Cell::Num(f.ordinal as i64), Cell::Text(if f.key.is_some() { "mapping" } else { "positional" }), Cell::Text(f.key.as_deref().unwrap_or("")), Cell::Text(f.conversion.encode_utf8(&mut b)), Cell::Text(f.width.word()), Cell::Text(f.precision.word()), Cell::File, c.span(id)]);
+                            }
+                        }
+                    }
+                    Err(e) => tail(sink, "malformed", e.kind.word(), e.character, e.index, cformat::Summary::default()),
+                },
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
@@ -1945,6 +2178,7 @@ pub(crate) struct State {
     pub kind_names: Vec<&'static str>,
     pub terminals: Terminals,
     pub constant_keys: ConstantKeys,
+    pub cfields: Vec<cformat::Field>,
 }
 
 pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
@@ -2021,6 +2255,10 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     }
     if let Some(r) = want("token-link") {
         rows_token_link(c, sink, r);
+    }
+    let (fp, ff) = (want("format-parse"), want("format-field"));
+    if fp.is_some() || ff.is_some() {
+        rows_format(c, sink, fp, ff, buf, st);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
