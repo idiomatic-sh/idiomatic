@@ -501,7 +501,9 @@ fn source_val(plan: &PhysicalPlan, run: &KernelRun<'_>, reader: u32, source: Row
             buffers.bitmap.rel_val[number] = val;
             val
         }
-        RowSource::Tree(_) => leaf(plan, run, reader, source, None, &[], buffers),
+        // An unfiltered tree relation is the whole element table: read row by row per reader it cost ripgrep 5x its scan, and
+        // it narrows nothing a select would not; it answers "maybe".
+        RowSource::Tree(_) => buffers.bitmap.maybe(),
         RowSource::Frontier(_) | RowSource::Observation(_) => buffers.bitmap.maybe(),
     }
 }
