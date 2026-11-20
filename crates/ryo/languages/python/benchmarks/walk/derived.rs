@@ -122,6 +122,7 @@ pub(crate) const RELATIONS: &[&str] = &[
     "filesystem.executable",
     "expression-shape",
     "expression-type",
+    "syntax-child",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -130,6 +131,7 @@ pub(crate) fn index_of(name: &str) -> Option<usize> {
 
 /// The per-file inputs: the flat table of the parser's nodes, the source, the lexical model (for owners), parse completeness.
 pub(crate) struct Ctx<'c, 'a> {
+    pub parsed: &'c ruff_python_parser::Parsed<ast::Mod>,
     pub path: &'c std::path::Path,
     pub table: &'c Table<'a>,
     pub source: &'c str,
@@ -1339,12 +1341,46 @@ fn rows_expression_type(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, types:
     }
 }
 
+// ------------------------------------------------------------------------------------------------ syntax-child
+/// `syntax_child`: the lossless tree's edges (parent, child, ordinal among nodes and tokens, field), from walk's view of the
+/// parser's nodes and tokens (`view.rs`), one whitespace leaf per gap; identical rows to `semantic-child` on Python.
+fn rows_syntax_child(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, st: &mut State) {
+    st.sym.reset_file();
+    st.view.build(c.table, c.parsed, c.source, &mut st.sym);
+    let v = &st.view;
+    let sym = &st.sym;
+    let key = |id: usize| Cell::Key(kind_static(sym.str(v.kind[id]).unwrap_or("?")), v.start[id], v.stop[id]);
+    for id in 0..v.len() {
+        let p = v.parent[id];
+        if p == u32::MAX {
+            continue;
+        }
+        let field = sym.str(v.field[id]).unwrap_or("none");
+        sink.row(rel, &[key(p as usize), key(id), Cell::Num(i64::from(v.ordinal[id])), Cell::Text(field), Cell::File]);
+    }
+}
+
+/// Kind names are base symbols that live as long as the worker; leaked once per distinct name for the `Key` cell.
+fn kind_static(name: &str) -> &'static str {
+    use std::sync::Mutex;
+    static NAMES: Mutex<Vec<&'static str>> = Mutex::new(Vec::new());
+    let mut names = NAMES.lock().expect("names");
+    if let Some(n) = names.iter().find(|n| **n == name) {
+        return n;
+    }
+    let leaked: &'static str = Box::leak(name.to_owned().into_boxed_str());
+    names.push(leaked);
+    leaked
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
 pub(crate) struct State {
     pub shapes: Shapes,
     pub types: Types,
+    pub view: crate::view::View,
+    pub sym: crate::symbols::Symbols,
 }
 
 pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
@@ -1404,6 +1440,9 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     }
     if let Some(r) = want("expression-type") {
         rows_expression_type(c, sink, r, &mut st.types);
+    }
+    if let Some(r) = want("syntax-child") {
+        rows_syntax_child(c, sink, r, st);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)

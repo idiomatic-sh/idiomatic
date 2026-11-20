@@ -272,7 +272,7 @@ impl<'p> Worker<'p> {
             self.model.build_lexical(&table, incomplete);
             totals.ns[2].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
             let full = self.root.join(path);
-            let ctx = derived::Ctx { path: &full, table: &table, source, model: &self.model, incomplete };
+            let ctx = derived::Ctx { parsed: &parsed, path: &full, table: &table, source, model: &self.model, incomplete };
             let wanted: u64 = std::env::var("DERIVED_WANT").ok().map_or(u64::MAX, |w| {
                 w.split(',').filter_map(derived::index_of).fold(0, |m, i| m | (1 << i))
             });

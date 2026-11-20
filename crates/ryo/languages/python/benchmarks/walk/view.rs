@@ -472,6 +472,67 @@ fn fields<'a>(parent: AnyNodeRef<'a>, out: &mut dyn FnMut(&'static str, AnyNodeR
             }
         }
         N::Decorator(d) => e(out, "none", &d.expression),
+        // f-strings, interpolations and patterns (bead ryo-ger6, proven against the provider's syntax-child)
+        N::ExprFString(f) => f.value.iter().for_each(|p| match p {
+            ruff_python_ast::FStringPartRef::Literal(l) => out("values", l.into()),
+            ruff_python_ast::FStringPartRef::FString(x) => out("none", x.into()),
+        }),
+        N::ExprTString(t) => t.value.iter().for_each(|x| out("values", x.into())),
+        N::FString(f) => f.elements.iter().for_each(|x| out("values", x.into())),
+        N::TString(f) => f.elements.iter().for_each(|x| out("values", x.into())),
+        N::InterpolatedStringFormatSpec(f) => f.elements.iter().for_each(|x| out("values", x.into())),
+        N::InterpolatedElement(i) => {
+            e(out, "value", &i.expression);
+            if let Some(f) = &i.format_spec {
+                out("format-spec", f.as_ref().into());
+            }
+        }
+        N::StmtMatch(m) => {
+            e(out, "subject", &m.subject);
+            m.cases.iter().for_each(|c| out("cases", c.into()));
+        }
+        N::MatchCase(c) => {
+            out("pattern", (&c.pattern).into());
+            if let Some(g) = &c.guard {
+                e(out, "guard", g);
+            }
+            c.body.iter().for_each(|s| out("body", s.into()));
+        }
+        N::PatternMatchValue(v) => e(out, "value", &v.value),
+        N::PatternMatchClass(c) => {
+            e(out, "cls", &c.cls);
+            out("none", (&c.arguments).into());
+        }
+        N::PatternArguments(a) => {
+            a.patterns.iter().for_each(|x| out("patterns", x.into()));
+            a.keywords.iter().for_each(|x| out("keywords", x.into()));
+        }
+        N::PatternKeyword(k) => {
+            out("attr", (&k.attr).into());
+            out("pattern", (&k.pattern).into());
+        }
+        N::PatternMatchOr(o) => o.patterns.iter().for_each(|x| out("patterns", x.into())),
+        N::PatternMatchSequence(o) => o.patterns.iter().for_each(|x| out("patterns", x.into())),
+        N::PatternMatchMapping(m) => {
+            m.keys.iter().for_each(|k| e(out, "keys", k));
+            m.patterns.iter().for_each(|x| out("patterns", x.into()));
+            if let Some(r) = &m.rest {
+                out("rest", r.into());
+            }
+        }
+        N::PatternMatchAs(a) => {
+            if let Some(p) = &a.pattern {
+                out("pattern", p.as_ref().into());
+            }
+            if let Some(n) = &a.name {
+                out("name", n.into());
+            }
+        }
+        N::PatternMatchStar(a) => {
+            if let Some(n) = &a.name {
+                out("name", n.into());
+            }
+        }
         _ => {}
     }
 }
@@ -578,6 +639,11 @@ impl View {
         let k_name = sym.base("name");
         let k_const = sym.base("constant");
         let k_comp = sym.base("comprehension");
+        let k_from = sym.base("import-from");
+        let k_fv = sym.base("formatted-value");
+        let k_single = sym.base("match-singleton");
+        let conversion = sym.base("conversion");
+        let level = sym.base("level");
         let k_part = sym.base("string-part");
         let k_bpart = sym.base("bytes-part");
         let ordinal_node = |this: &mut Self, id: usize| {
@@ -596,7 +662,8 @@ impl View {
         let leaves = std::mem::take(&mut self.leaves);
         for (t, &(token_kind, ts, te)) in leaves.iter().enumerate() {
             // enter every node starting at or before this token (the stack follows the table's parent links)
-            while next_node < n && table.start[next_node] <= ts {
+            // a zero-width token (dedent) at a node's start is written before the node is entered, as the provider's writer does
+            while next_node < n && table.start[next_node] <= ts && (table.start[next_node] < te || table.start[next_node] < ts) {
                 let p = table.parent[next_node];
                 while let Some(&top) = self.stack.last() {
                     if top != p && self.stack.contains(&p) {
@@ -649,8 +716,14 @@ impl View {
                     self.field[id] = op;
                 } else if pk == k_cmp && is_operator_token(kind) {
                     self.field[id] = ops;
-                } else if pk == k_const && !matches!(kind, TokenKind::Lpar | TokenKind::Rpar) {
+                } else if pk == k_const && !matches!(kind, TokenKind::Lpar | TokenKind::Rpar | TokenKind::NonLogicalNewline | TokenKind::Comment) {
                     self.field[id] = value;
+                } else if pk == k_single && token_kind_name(kind) == "name-token" {
+                    self.field[id] = value;
+                } else if pk == k_fv && token_kind_name(kind) == "name-token" {
+                    self.field[id] = conversion;
+                } else if pk == k_from && matches!(kind, TokenKind::Dot | TokenKind::Ellipsis) {
+                    self.field[id] = level;
                 } else if pk == k_comp && matches!(kind, TokenKind::Async) {
                     self.field[id] = is_async;
                 } else if pk == k_part || pk == k_bpart {
