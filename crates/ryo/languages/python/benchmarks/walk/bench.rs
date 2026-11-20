@@ -14,6 +14,7 @@
     reason = "throwaway bake-off prototype, never landed (bead ryo-i8o1)"
 )]
 
+mod nav;
 mod rules;
 mod sema;
 mod symbols;
@@ -51,7 +52,7 @@ fn main() {
         .map(|f| f.as_str().unwrap().to_owned())
         .collect();
     let threads: usize = std::env::var("WALK_THREADS").ok().and_then(|t| t.parse().ok()).unwrap_or(4);
-    let program = if mode == "rules" {
+    let program = if mode == "rules" || mode == "nav" {
         Some(rules::Program::load(&args[4]))
     } else {
         None
@@ -194,7 +195,7 @@ impl<'p> Worker<'p> {
             return;
         }
         if let Some(state) = &mut self.rules {
-            state.file(path, source, &parsed, &table, &self.sema, totals, out);
+            state.file(index, path, source, &parsed, &table, &self.sema, totals, out);
         }
     }
 

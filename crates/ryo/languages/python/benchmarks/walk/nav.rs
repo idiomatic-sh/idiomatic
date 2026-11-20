@@ -1,0 +1,1041 @@
+//! Navigation programs (bead ryo-lxty, throwaway): each rule's core, lowered by `nav.py` from its own logical plan, runs per
+//! candidate node as a flat array of steps over the node table (the walk's view): an anchor (a kind bucket, a literal bucket of
+//! a relation column, a scan), field reads keyed on bound ids, tests on interned codes, absence/existence sub-programs with
+//! early exit, an emit of the core's row. No step writes a row of a relation. Dispatch is nodes outer, rules inner: one pass
+//! over the file's kind buckets, each bucket carrying the programs anchored on it. Relations outside the tree (semantic and
+//! derived) come from the provider's own readers, run once per file on the first step that needs them.
+
+use crate::sema::FxMap;
+use crate::symbols::{NULL, Symbols};
+use crate::view::View;
+use regex_automata::meta::Regex;
+use serde_json::Value;
+use std::rc::Rc;
+use std::time::Instant;
+
+pub(crate) type R = u16;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum TRel {
+    Ss,
+    Sc,
+    Sl,
+    Id,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum Opd {
+    Reg(R),
+    Num(i64),
+    Sym(u32),
+    Syms(Box<[u32]>),
+    Nums(Box<[i64]>),
+    File,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum Val {
+    Reg(R),
+    Syms(Box<[u32]>),
+    Nums(Box<[i64]>),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum T {
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    In,
+    NotIn,
+    Matches,
+    Glob,
+    NotGlob,
+    Starts,
+    Ends,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Dir {
+    Parent,
+    Child,
+    Ancestor,
+    Descendant,
+}
+
+#[derive(Debug)]
+pub(crate) enum Ins {
+    IterKind { kinds: Box<[u32]>, out: R },
+    IterValue { rel: TRel, col: u8, val: Val, out: R },
+    IterChildren { parent: R, out: R },
+    IterScan { rel: TRel, out: R },
+    IterFact { rel: u16, col: u8, val: Val, out: R },
+    IterFactScan { rel: u16, out: R },
+    Row { rel: TRel, key: R },
+    Read { rel: TRel, col: u8, row: R, out: R },
+    ReadFact { rel: u16, col: u8, row: R, out: R },
+    Test { test: T, l: Opd, r: Opd, text: bool, num: bool, regex: Box<[usize]> },
+    Axis { dir: Dir, start: R, out: R },
+    Near { start: R, out: R, subs: Box<[Prog]> },
+    Sub { negate: bool, subs: Box<[Prog]> },
+    Emit { cols: Box<[Opd]> },
+    Yield,
+}
+
+pub(crate) type Prog = Box<[Ins]>;
+
+pub(crate) struct NavRule {
+    pub id: String,
+    pub programs: Vec<Prog>,
+    pub xmerged: u32,
+    pub kinds: Vec<u8>,
+    pub nregs: usize,
+}
+
+pub(crate) struct FactRel {
+    pub name: String,
+    pub relation: ryo_relations::domain::relations::types::Relation,
+    pub kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
+}
+
+pub(crate) struct NavProgram {
+    pub rules: Vec<NavRule>,
+    pub facts: Vec<FactRel>,
+    pub regexes: Vec<Regex>,
+    /// kind code -> (rule, program) anchored on that kind bucket (the program's first step is an IterKind)
+    pub by_kind: FxMap<u32, Vec<(u32, u32)>>,
+    /// programs anchored otherwise
+    pub other: Vec<(u32, u32)>,
+    pub max_regs: usize,
+}
+
+fn trel(name: &str) -> Option<TRel> {
+    Some(match name {
+        "semantic-syntax" | "syntax-tree" => TRel::Ss,
+        "semantic-child" | "syntax-child" => TRel::Sc,
+        "source-location" => TRel::Sl,
+        "identifier" => TRel::Id,
+        _ => return None,
+    })
+}
+
+pub(crate) fn cell_kind(name: &str) -> u8 {
+    match name {
+        "node" => 0,
+        "symbol" => 1,
+        "file" => 2,
+        "span" => 3,
+        "number" => 4,
+        _ => 5,
+    }
+}
+
+struct Loader<'a> {
+    sym: &'a mut Symbols,
+    regs: FxMap<i64, R>,
+    kinds: &'a serde_json::Map<String, Value>,
+    facts: &'a mut Vec<FactRel>,
+    regexes: &'a mut Vec<Regex>,
+    regex_of: FxMap<(String, bool), usize>,
+}
+
+pub(crate) fn glob_to_regex(glob: &str) -> String {
+    let mut out = String::from("^");
+    let chars: Vec<char> = glob.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            '*' if chars.get(i + 1) == Some(&'*') => {
+                out.push_str(".*");
+                i += 1;
+                if chars.get(i + 1) == Some(&'/') {
+                    out.push_str("/?");
+                    i += 1;
+                }
+            }
+            '*' => out.push_str("[^/]*"),
+            '?' => out.push_str("[^/]"),
+            c => {
+                if "\\.+*?()|[]{}^$#&-~".contains(c) {
+                    out.push('\\');
+                }
+                out.push(c);
+            }
+        }
+        i += 1;
+    }
+    out.push('$');
+    out
+}
+
+impl Loader<'_> {
+    fn reg(&mut self, v: &Value) -> R {
+        let k = v.as_i64().expect("var");
+        let n = self.regs.len() as R;
+        *self.regs.entry(k).or_insert(n)
+    }
+
+    fn var_kind(&self, v: &Value) -> &str {
+        v.as_i64().and_then(|k| self.kinds.get(&k.to_string())).and_then(Value::as_str).unwrap_or("node")
+    }
+
+    fn opd(&mut self, v: &Value) -> Opd {
+        if v.is_i64() || v.is_u64() {
+            return Opd::Reg(self.reg(v));
+        }
+        let a = v.as_array().expect("const");
+        let tag = a[0].as_str().unwrap();
+        match tag {
+            "t" => match a[1].as_str() {
+                Some(s) => Opd::Sym(self.sym.base(s)),
+                None => Opd::Sym(NULL),
+            },
+            "n" => Opd::Num(a[1].as_i64().unwrap()),
+            "f" => Opd::File,
+            "ts" => {
+                let mut v: Vec<u32> = a[1].as_array().unwrap().iter().map(|x| x.as_str().map_or(NULL, |s| self.sym.base(s))).collect();
+                v.sort_unstable();
+                Opd::Syms(v.into())
+            }
+            "ns" => {
+                let mut v: Vec<i64> = a[1].as_array().unwrap().iter().map(|x| x.as_i64().unwrap()).collect();
+                v.sort_unstable();
+                Opd::Nums(v.into())
+            }
+            t => panic!("const {t}"),
+        }
+    }
+
+    fn val(&mut self, v: &Value) -> Val {
+        match self.opd(v) {
+            Opd::Reg(r) => Val::Reg(r),
+            Opd::Sym(s) => Val::Syms(vec![s].into()),
+            Opd::Syms(s) => Val::Syms(s),
+            Opd::Num(n) => Val::Nums(vec![n].into()),
+            Opd::Nums(n) => Val::Nums(n),
+            Opd::File => Val::Nums(vec![0].into()),
+        }
+    }
+
+    fn fact(&mut self, name: &str) -> u16 {
+        if let Some(i) = self.facts.iter().position(|f| f.name == name) {
+            return i as u16;
+        }
+        use ryo_relations::domain::labels::types::NameRef;
+        use ryo_relations::domain::relations::service::{kinds, relation_named};
+        let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
+        self.facts.push(FactRel { name: name.to_owned(), relation, kinds: kinds(relation).to_vec() });
+        (self.facts.len() - 1) as u16
+    }
+
+    fn regex(&mut self, text: &str, glob: bool) -> usize {
+        if let Some(&i) = self.regex_of.get(&(text.to_owned(), glob)) {
+            return i;
+        }
+        let pattern = if glob { glob_to_regex(text) } else { text.to_owned() };
+        self.regexes.push(Regex::new(&pattern).unwrap_or_else(|e| panic!("regex {pattern}: {e}")));
+        self.regex_of.insert((text.to_owned(), glob), self.regexes.len() - 1);
+        self.regexes.len() - 1
+    }
+
+    fn prog(&mut self, p: &Value) -> Prog {
+        p.as_array().unwrap().iter().map(|i| self.ins(i)).collect::<Vec<_>>().into()
+    }
+
+    fn ins(&mut self, i: &Value) -> Ins {
+        let a = i.as_array().unwrap();
+        match a[0].as_str().unwrap() {
+            "iter" => {
+                let rel = a[1].as_str().unwrap();
+                let kind = a[2].as_str().unwrap();
+                let out = self.reg(&a[4]);
+                if let Some(t) = trel(rel) {
+                    match kind {
+                        "kind" => {
+                            let Opd::Syms(k) = (match self.opd(&a[3][1]) {
+                                Opd::Sym(s) => Opd::Syms(vec![s].into()),
+                                o => o,
+                            }) else {
+                                panic!("kind literal")
+                            };
+                            Ins::IterKind { kinds: k, out }
+                        }
+                        "value" => {
+                            let col = a[3][0].as_u64().unwrap() as u8;
+                            let val = self.val(&a[3][1]);
+                            Ins::IterValue { rel: t, col, val, out }
+                        }
+                        "children" => Ins::IterChildren { parent: self.reg(&a[3]), out },
+                        "scan" => Ins::IterScan { rel: t, out },
+                        k => panic!("iter {k}"),
+                    }
+                } else {
+                    let f = self.fact(rel);
+                    match kind {
+                        "by" => {
+                            let col = a[3][0].as_u64().unwrap() as u8;
+                            let val = self.val(&a[3][1]);
+                            Ins::IterFact { rel: f, col, val, out }
+                        }
+                        "scan" => Ins::IterFactScan { rel: f, out },
+                        k => panic!("iter fact {k}"),
+                    }
+                }
+            }
+            "row" => Ins::Row { rel: trel(a[1].as_str().unwrap()).expect("row rel"), key: self.reg(&a[2]) },
+            "read" => {
+                let rel = a[1].as_str().unwrap();
+                let col = a[2].as_u64().unwrap() as u8;
+                let row = self.reg(&a[3]);
+                let out = self.reg(&a[4]);
+                match trel(rel) {
+                    Some(t) => Ins::Read { rel: t, col, row, out },
+                    None => {
+                        let f = self.fact(rel);
+                        Ins::ReadFact { rel: f, col, row, out }
+                    }
+                }
+            }
+            "test" => {
+                let test = match a[1].as_str().unwrap() {
+                    "=" => T::Eq,
+                    "!=" => T::Ne,
+                    "<" => T::Lt,
+                    "<=" => T::Le,
+                    ">" => T::Gt,
+                    ">=" => T::Ge,
+                    "in" => T::In,
+                    "not-in" => T::NotIn,
+                    "matches" => T::Matches,
+                    "glob-any" => T::Glob,
+                    "not-glob-any" => T::NotGlob,
+                    "starts-with" => T::Starts,
+                    "ends-with" => T::Ends,
+                    t => panic!("test {t}"),
+                };
+                let kl = if a[2].is_i64() { self.var_kind(&a[2]).to_owned() } else { String::new() };
+                let kr = if a[3].is_i64() { self.var_kind(&a[3]).to_owned() } else { String::new() };
+                let l = self.opd(&a[2]);
+                let r = self.opd(&a[3]);
+                let text = kl == "symbol" || kr == "symbol" || matches!(l, Opd::Sym(_)) || matches!(r, Opd::Sym(_));
+                let num = kl == "number" || kr == "number" || kl == "flag" || kr == "flag" || matches!(l, Opd::Num(_)) || matches!(r, Opd::Num(_));
+                let mut regex = Vec::new();
+                if matches!(test, T::Matches | T::Glob | T::NotGlob) {
+                    let glob = test != T::Matches;
+                    let texts: Vec<String> = match &a[3] {
+                        Value::Array(c) if c[0] == "t" => vec![c[1].as_str().unwrap_or("").to_owned()],
+                        Value::Array(c) if c[0] == "ts" => c[1].as_array().unwrap().iter().map(|x| x.as_str().unwrap_or("").to_owned()).collect(),
+                        _ => panic!("regex operand"),
+                    };
+                    for t in texts {
+                        regex.push(self.regex(&t, glob));
+                    }
+                }
+                Ins::Test { test, l, r, text, num, regex: regex.into() }
+            }
+            "axis" => {
+                let dir = match a[1].as_str().unwrap() {
+                    "parent" => Dir::Parent,
+                    "child" => Dir::Child,
+                    "ancestor" => Dir::Ancestor,
+                    "descendant" => Dir::Descendant,
+                    d => panic!("axis {d}"),
+                };
+                Ins::Axis { dir, start: self.reg(&a[2]), out: self.reg(&a[3]) }
+            }
+            "near" => {
+                let start = self.reg(&a[1]);
+                let out = self.reg(&a[2]);
+                let subs = a[3].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into();
+                Ins::Near { start, out, subs }
+            }
+            "neg" | "exists" => {
+                let negate = a[0] == "neg";
+                let subs = a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into();
+                Ins::Sub { negate, subs }
+            }
+            "emit" => Ins::Emit { cols: a[1].as_array().unwrap().iter().map(|c| self.opd(c)).collect::<Vec<_>>().into() },
+            "yield" => Ins::Yield,
+            o => panic!("ins {o}"),
+        }
+    }
+}
+
+impl NavProgram {
+    pub(crate) fn load(rules: &[Value], sym: &mut Symbols) -> Self {
+        let mut facts = Vec::new();
+        let mut regexes = Vec::new();
+        let mut out = Vec::new();
+        let mut max_regs = 0;
+        for r in rules {
+            let nav = &r["nav"];
+            let kinds = nav["kinds"].as_object().unwrap();
+            let mut loader = Loader { sym, regs: FxMap::default(), kinds, facts: &mut facts, regexes: &mut regexes, regex_of: FxMap::default() };
+            let programs: Vec<Prog> = nav["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+            let nregs = loader.regs.len();
+            max_regs = max_regs.max(nregs);
+            out.push(NavRule {
+                id: r["id"].as_str().unwrap().to_owned(),
+                programs,
+                xmerged: nav["xmerged"].as_u64().unwrap() as u32,
+                kinds: nav["columns"].as_array().unwrap().iter().map(|c| cell_kind(c.as_str().unwrap())).collect(),
+                nregs,
+            });
+        }
+        let mut by_kind: FxMap<u32, Vec<(u32, u32)>> = FxMap::default();
+        let mut other = Vec::new();
+        for (ri, rule) in out.iter().enumerate() {
+            for (pi, p) in rule.programs.iter().enumerate() {
+                if let Some(Ins::IterKind { kinds, .. }) = p.first() {
+                    for &k in kinds.iter() {
+                        by_kind.entry(k).or_default().push((ri as u32, pi as u32));
+                    }
+                } else {
+                    other.push((ri as u32, pi as u32));
+                }
+            }
+        }
+        Self { rules: out, facts, regexes, by_kind, other, max_regs }
+    }
+}
+
+// ------------------------------------------------------------------ per-file state
+
+#[derive(Default)]
+pub(crate) struct Counters {
+    pub steps: u64,
+    pub candidates: u64,
+    pub starts: u64,
+    pub emitted: u64,
+    pub subs: u64,
+    pub made_tables: u64,
+    pub made_rows: u64,
+    pub fact_files: u64,
+    pub fact_rows: u64,
+    pub fact_ns: u64,
+    pub provider_build_ns: u64,
+    pub kind_index_ns: u64,
+}
+
+/// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
+#[derive(Default)]
+pub(crate) struct Facts {
+    pub cols: Vec<Vec<Vec<u64>>>,
+    pub idx: FxMap<(u16, u8), Rc<FxMap<u64, Vec<u32>>>>,
+}
+
+pub(crate) struct Provider {
+    pub engine: std::sync::Arc<dyn ryo_language::inbound::use_cases::parse::types::ParseEngine>,
+    pub elements: ryo_language::domain::elements::types::Elements,
+    pub symbols: ryo_language::domain::symbols::types::Symbols,
+    pub columns: Vec<Vec<ryo_relations::domain::relations::types::FactColumn>>,
+}
+
+impl Provider {
+    pub(crate) fn new() -> Self {
+        let language = ryo_python::linked_with_settings(ryo_python::settings::PythonParserSettings::new(
+            ryo_python::settings::PythonTargetVersion::Py310,
+        ));
+        Self {
+            engine: language.parse_engine(),
+            elements: Default::default(),
+            symbols: Default::default(),
+            columns: Vec::new(),
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct FileCache {
+    /// kind code -> ids of that kind (nodes and tokens), a CSR over the view's kind column
+    pub kind_off: Vec<u32>,
+    pub kind_ids: Vec<u32>,
+    /// identifier text code per AST node id (NULL when the node is neither an identifier nor a name)
+    pub ident: Option<Vec<u32>>,
+    pub tree_idx: FxMap<(u8, u8), Rc<FxMap<u32, Vec<u32>>>>,
+    pub facts: Option<Facts>,
+    pub sub_memo: FxMap<usize, bool>,
+}
+
+pub(crate) struct File<'a> {
+    pub view: &'a View,
+    pub table: &'a crate::table::Table<'a>,
+    pub source: &'a str,
+    pub path: &'a str,
+    pub file: usize,
+}
+
+pub(crate) struct Exec<'a, 'p> {
+    pub prog: &'p NavProgram,
+    pub f: &'a File<'a>,
+    pub sym: &'a mut Symbols,
+    pub cache: &'a mut FileCache,
+    pub provider: &'a mut Provider,
+    pub c: &'a mut Counters,
+    pub regs: Vec<u64>,
+    pub outs: Vec<Vec<u64>>,
+    pub cur_rule: usize,
+}
+
+fn span(s: u32, e: u32) -> u64 {
+    (u64::from(s) << 32) | u64::from(e)
+}
+
+impl<'a, 'p> Exec<'a, 'p> {
+    pub(crate) fn build_kinds(&mut self) {
+        let t = Instant::now();
+        let v = self.f.view;
+        let maxk = v.kind.iter().copied().max().unwrap_or(0) as usize + 2;
+        let off = &mut self.cache.kind_off;
+        off.clear();
+        off.resize(maxk + 1, 0);
+        for &k in &v.kind {
+            off[k as usize + 1] += 1;
+        }
+        for i in 0..maxk {
+            off[i + 1] += off[i];
+        }
+        let mut fill = off.clone();
+        self.cache.kind_ids.clear();
+        self.cache.kind_ids.resize(v.kind.len(), 0);
+        for (id, &k) in v.kind.iter().enumerate() {
+            let s = &mut fill[k as usize];
+            self.cache.kind_ids[*s as usize] = id as u32;
+            *s += 1;
+        }
+        self.c.kind_index_ns += t.elapsed().as_nanos() as u64;
+    }
+
+    pub(crate) fn bucket(&self, k: u32) -> &[u32] {
+        let k = k as usize;
+        if k + 1 >= self.cache.kind_off.len() {
+            return &[];
+        }
+        &self.cache.kind_ids[self.cache.kind_off[k] as usize..self.cache.kind_off[k + 1] as usize]
+    }
+
+    fn ident(&mut self, id: u32) -> u32 {
+        if self.cache.ident.is_none() {
+            let n = self.f.view.n_nodes;
+            let mut col = vec![NULL; n];
+            for (i, node) in self.f.table.node.iter().enumerate() {
+                let text = match node {
+                    ruff_python_ast::AnyNodeRef::Identifier(x) => x.as_str(),
+                    ruff_python_ast::AnyNodeRef::ExprName(x) => x.id.as_str(),
+                    _ => continue,
+                };
+                col[i] = self.sym.text(text);
+            }
+            self.cache.ident = Some(col);
+        }
+        let col = self.cache.ident.as_ref().unwrap();
+        col.get(id as usize).copied().unwrap_or(NULL)
+    }
+
+    /// A tree relation's column at a row (the row is the relation's key id); None when the row does not exist.
+    fn tread(&mut self, rel: TRel, col: u8, id: u32) -> Option<u64> {
+        let v = self.f.view;
+        let i = id as usize;
+        if i >= v.len() {
+            return None;
+        }
+        Some(match rel {
+            TRel::Ss => match col {
+                0 => id as u64,
+                1 => v.kind[i] as u64,
+                2 => v.text[i] as u64,
+                3 => 0,
+                _ => span(v.start[i], v.stop[i]),
+            },
+            TRel::Sc => {
+                let p = v.parent[i];
+                if p == u32::MAX {
+                    return None;
+                }
+                match col {
+                    0 => p as u64,
+                    1 => id as u64,
+                    2 => v.ordinal[i] as u64,
+                    3 => v.field[i] as u64,
+                    _ => 0,
+                }
+            }
+            TRel::Sl => {
+                let (s, e) = (v.start[i], v.stop[i]);
+                match col {
+                    0 => id as u64,
+                    1 => 0,
+                    2 => span(s, e),
+                    3 => v.line_of(s) as u64,
+                    4 => v.line_of(e) as u64,
+                    5 => s as u64,
+                    6 => e as u64,
+                    7 => v.column_of(s) as u64,
+                    _ => v.column_of(e) as u64,
+                }
+            }
+            TRel::Id => {
+                let t = self.ident(id);
+                if t == NULL {
+                    return None;
+                }
+                match col {
+                    0 => id as u64,
+                    1 => t as u64,
+                    2 => 0,
+                    _ => span(v.start[i], v.stop[i]),
+                }
+            }
+        })
+    }
+
+    fn row_exists(&mut self, rel: TRel, id: u32) -> bool {
+        match rel {
+            TRel::Ss | TRel::Sl => (id as usize) < self.f.view.len(),
+            TRel::Sc => (id as usize) < self.f.view.len() && self.f.view.parent[id as usize] != u32::MAX,
+            TRel::Id => self.tread(TRel::Id, 0, id).is_some(),
+        }
+    }
+
+    fn tree_index(&mut self, rel: TRel, col: u8) -> Rc<FxMap<u32, Vec<u32>>> {
+        let key = (rel as u8, col);
+        if let Some(i) = self.cache.tree_idx.get(&key) {
+            return i.clone();
+        }
+        let mut m: FxMap<u32, Vec<u32>> = FxMap::default();
+        let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+        for id in 0..n as u32 {
+            if let Some(v) = self.tread(rel, col, id) {
+                m.entry(v as u32).or_default().push(id);
+            }
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += n as u64;
+        let m = Rc::new(m);
+        self.cache.tree_idx.insert(key, m.clone());
+        m
+    }
+
+    // ---- facts from the provider, once per file on first demand
+    fn facts(&mut self) -> &Facts {
+        if self.cache.facts.is_none() {
+            let t = Instant::now();
+            let facts = self.load_facts();
+            self.cache.facts = Some(facts);
+            self.c.fact_ns += t.elapsed().as_nanos() as u64;
+            self.c.fact_files += 1;
+        }
+        self.cache.facts.as_ref().unwrap()
+    }
+
+    fn load_facts(&mut self) -> Facts {
+        use ryo_language::domain::elements::service::{end_at, kind_at, kind_names, start_at};
+        use ryo_language::domain::symbols::service::{clear_symbols, text_of};
+        use ryo_language::domain::symbols::types::ByteSlice;
+        use ryo_language::inbound::use_cases::parse::types::{FieldRequest, NoteRequest, ParseRequest};
+        use ryo_relations::domain::relations::types::{CellKind, FactColumn, FileId, Position};
+        use ryo_relations::domain::terms::types::Symbol;
+        let prog = self.prog;
+        let wanted: Vec<_> = prog.facts.iter().map(|f| f.relation).collect();
+        let p = &mut *self.provider;
+        if p.columns.len() != prog.facts.len() {
+            p.columns = prog.facts.iter().map(|f| (0..f.kinds.len()).map(|_| FactColumn(Vec::new())).collect()).collect();
+        }
+        for rel in &mut p.columns {
+            for c in rel.iter_mut() {
+                c.0.clear();
+            }
+        }
+        let bytes = self.f.source.as_bytes();
+        let t = Instant::now();
+        clear_symbols(&mut p.symbols);
+        let request = ParseRequest {
+            path: ryo_language::domain::files::types::SourcePath(self.f.path),
+            file: FileId(self.f.file as u32),
+            bytes: ByteSlice(bytes),
+            notes: NoteRequest::Unwanted,
+            fields: FieldRequest::Wanted,
+        };
+        let mut out = Facts::default();
+        if p.engine.build_file(request, &mut p.elements, &mut p.symbols, &wanted).is_err() {
+            out.cols = prog.facts.iter().map(|f| vec![Vec::new(); f.kinds.len()]).collect();
+            return out;
+        }
+        self.c.provider_build_ns += t.elapsed().as_nanos() as u64;
+        {
+            let mut cols: ryo_execution_runtime::outbound::facts::types::ColumnsMut<'_> =
+                prog.facts.iter().zip(p.columns.iter_mut()).map(|(f, c)| (f.relation, c.as_mut_slice())).collect();
+            p.engine.walk_file(&mut p.elements, &mut p.symbols, ByteSlice(bytes), FileId(self.f.file as u32), &wanted, &mut cols);
+        }
+        // decode: provider positions -> view ids by (start, end, kind name); provider symbols -> the run's codes
+        let v = self.f.view;
+        let mut at: FxMap<(u32, u32, u32), u32> = FxMap::default();
+        for id in 0..v.len() {
+            at.insert((v.start[id], v.stop[id], v.kind[id]), id as u32);
+        }
+        // a node and its first descendant can share span and kind only through tokens: keep the AST node (lower id)
+        for id in (0..v.n_nodes).rev() {
+            at.insert((v.start[id], v.stop[id], v.kind[id]), id as u32);
+        }
+        let names: Vec<u32> = kind_names(&p.elements)
+            .iter()
+            .map(|s| text_of(&p.symbols, ByteSlice(bytes), *s).and_then(|t| self.sym.get_base(t.0)).unwrap_or(NULL))
+            .collect();
+        let mut pos_memo: FxMap<u32, u32> = FxMap::default();
+        let mut sym_memo: FxMap<u32, u32> = FxMap::default();
+        for (fi, f) in prog.facts.iter().enumerate() {
+            let mut rel_cols = Vec::with_capacity(f.kinds.len());
+            for (ci, kind) in f.kinds.iter().enumerate() {
+                let src = &p.columns[fi][ci].0;
+                let col: Vec<u64> = match kind {
+                    CellKind::Node => src
+                        .iter()
+                        .map(|&w| {
+                            let pos = (w & 0xffff_ffff) as u32;
+                            *pos_memo.entry(pos).or_insert_with(|| {
+                                let position = Position(pos);
+                                if (pos as usize) >= ryo_language::domain::elements::service::element_count(&p.elements).0 {
+                                    return u32::MAX - 1;
+                                }
+                                let k = kind_at(&p.elements, position).0 as usize;
+                                let name = names.get(k).copied().unwrap_or(NULL);
+                                at.get(&(start_at(&p.elements, position).0, end_at(&p.elements, position).0, name)).copied().unwrap_or(u32::MAX - 1)
+                            }) as u64
+                        })
+                        .collect(),
+                    CellKind::Symbol => src
+                        .iter()
+                        .map(|&w| {
+                            let s = w as u32;
+                            *sym_memo.entry(s).or_insert_with(|| match text_of(&p.symbols, ByteSlice(bytes), Symbol(s)) {
+                                Some(t) => self.sym.text(t.0),
+                                None => NULL,
+                            }) as u64
+                        })
+                        .collect(),
+                    CellKind::File => vec![0; src.len()],
+                    _ => src.clone(),
+                };
+                self.c.fact_rows += if ci == 0 { col.len() as u64 } else { 0 };
+                rel_cols.push(col);
+            }
+            out.cols.push(rel_cols);
+        }
+        out
+    }
+
+    fn fact_index(&mut self, rel: u16, col: u8) -> Rc<FxMap<u64, Vec<u32>>> {
+        self.facts();
+        let facts = self.cache.facts.as_mut().unwrap();
+        if let Some(i) = facts.idx.get(&(rel, col)) {
+            return i.clone();
+        }
+        let mut m: FxMap<u64, Vec<u32>> = FxMap::default();
+        let c = &facts.cols[rel as usize][col as usize];
+        for (row, &v) in c.iter().enumerate() {
+            m.entry(v).or_default().push(row as u32);
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += c.len() as u64;
+        let m = Rc::new(m);
+        facts.idx.insert((rel, col), m.clone());
+        m
+    }
+
+    // ---- tests
+    fn opd(&self, o: &Opd) -> u64 {
+        match o {
+            Opd::Reg(r) => self.regs[*r as usize],
+            Opd::Num(n) => *n as u64,
+            Opd::Sym(s) => *s as u64,
+            Opd::File => 0,
+            _ => 0,
+        }
+    }
+
+    fn text_of(&self, o: &Opd, v: u64) -> Option<&str> {
+        if matches!(o, Opd::File) {
+            return Some(self.f.path);
+        }
+        self.sym.str(v as u32)
+    }
+
+    fn test(&self, test: T, l: &Opd, r: &Opd, text: bool, num: bool, regex: &[usize]) -> bool {
+        let lv = self.opd(l);
+        match test {
+            T::Eq | T::Ne | T::Lt | T::Le | T::Gt | T::Ge => {
+                let rv = self.opd(r);
+                if test == T::Eq {
+                    return lv == rv;
+                }
+                if test == T::Ne {
+                    return lv != rv;
+                }
+                let ord = if text {
+                    if lv == rv {
+                        std::cmp::Ordering::Equal
+                    } else {
+                        match (self.sym.str(lv as u32), self.sym.str(rv as u32)) {
+                            (Some(a), Some(b)) => a.cmp(b),
+                            _ => lv.cmp(&rv),
+                        }
+                    }
+                } else if num {
+                    (lv as i64).cmp(&(rv as i64))
+                } else {
+                    lv.cmp(&rv)
+                };
+                match test {
+                    T::Lt => ord.is_lt(),
+                    T::Le => ord.is_le(),
+                    T::Gt => ord.is_gt(),
+                    _ => ord.is_ge(),
+                }
+            }
+            T::In | T::NotIn => {
+                let inside = match r {
+                    Opd::Syms(s) => s.binary_search(&(lv as u32)).is_ok(),
+                    Opd::Nums(n) => n.binary_search(&(lv as i64)).is_ok(),
+                    _ => lv == self.opd(r),
+                };
+                inside == (test == T::In)
+            }
+            T::Matches | T::Glob | T::NotGlob => {
+                let hit = self.text_of(l, lv).is_some_and(|t| regex.iter().any(|&i| self.prog.regexes[i].is_match(t)));
+                if test == T::NotGlob { !hit } else { hit }
+            }
+            T::Starts | T::Ends => {
+                let rv = self.opd(r);
+                match (self.text_of(l, lv), self.text_of(r, rv)) {
+                    (Some(a), Some(b)) => {
+                        if test == T::Starts { a.starts_with(b) } else { a.ends_with(b) }
+                    }
+                    _ => false,
+                }
+            }
+        }
+    }
+
+    /// Runs `p` from `pc`; returns true when a sub-program reached Yield (the caller stops enumerating).
+    pub(crate) fn run(&mut self, p: &'p [Ins], pc: usize) -> bool {
+        let mut pc = pc;
+        loop {
+            self.c.steps += 1;
+            match &p[pc] {
+                Ins::Read { rel, col, row, out } => {
+                    let id = self.regs[*row as usize] as u32;
+                    match self.tread(*rel, *col, id) {
+                        Some(v) => self.regs[*out as usize] = v,
+                        None => return false,
+                    }
+                }
+                Ins::Test { test, l, r, text, num, regex } => {
+                    if !self.test(*test, l, r, *text, *num, regex) {
+                        return false;
+                    }
+                }
+                Ins::Row { rel, key } => {
+                    let id = self.regs[*key as usize] as u32;
+                    if !self.row_exists(*rel, id) {
+                        return false;
+                    }
+                }
+                Ins::ReadFact { rel, col, row, out } => {
+                    let r = self.regs[*row as usize] as usize;
+                    let v = self.cache.facts.as_ref().unwrap().cols[*rel as usize][*col as usize][r];
+                    self.regs[*out as usize] = v;
+                }
+                Ins::IterChildren { parent, out } => {
+                    let par = self.regs[*parent as usize] as u32;
+                    let v = self.f.view;
+                    if par as usize >= v.len() {
+                        return false;
+                    }
+                    let (s, e) = (v.child_off[par as usize] as usize, v.child_off[par as usize + 1] as usize);
+                    for k in s..e {
+                        self.regs[*out as usize] = v.children[k] as u64;
+                        if self.run(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterKind { kinds, out } => {
+                    for &k in kinds.iter() {
+                        let (s, e) = {
+                            let kk = k as usize;
+                            if kk + 1 >= self.cache.kind_off.len() {
+                                continue;
+                            }
+                            (self.cache.kind_off[kk] as usize, self.cache.kind_off[kk + 1] as usize)
+                        };
+                        for i in s..e {
+                            self.regs[*out as usize] = self.cache.kind_ids[i] as u64;
+                            if self.run(p, pc + 1) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterValue { rel, col, val, out } => {
+                    let idx = self.tree_index(*rel, *col);
+                    let keys: Vec<u32> = match val {
+                        Val::Reg(r) => vec![self.regs[*r as usize] as u32],
+                        Val::Syms(s) => s.to_vec(),
+                        Val::Nums(n) => n.iter().map(|&x| x as u32).collect(),
+                    };
+                    for k in keys {
+                        if let Some(list) = idx.get(&k) {
+                            for &id in list {
+                                self.regs[*out as usize] = id as u64;
+                                if self.run(p, pc + 1) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterScan { rel, out } => {
+                    let n = if *rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+                    for id in 0..n {
+                        if !self.row_exists(*rel, id as u32) {
+                            continue;
+                        }
+                        self.regs[*out as usize] = id as u64;
+                        if self.run(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterFact { rel, col, val, out } => {
+                    let idx = self.fact_index(*rel, *col);
+                    let keys: Vec<u64> = match val {
+                        Val::Reg(r) => vec![self.regs[*r as usize]],
+                        Val::Syms(s) => s.iter().map(|&x| x as u64).collect(),
+                        Val::Nums(n) => n.iter().map(|&x| x as u64).collect(),
+                    };
+                    for k in keys {
+                        if let Some(list) = idx.get(&k) {
+                            for &row in list {
+                                self.regs[*out as usize] = row as u64;
+                                if self.run(p, pc + 1) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterFactScan { rel, out } => {
+                    let n = self.facts().cols[*rel as usize].first().map_or(0, Vec::len);
+                    for row in 0..n {
+                        self.regs[*out as usize] = row as u64;
+                        if self.run(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::Axis { dir, start, out } => {
+                    let s = self.regs[*start as usize] as u32;
+                    let v = self.f.view;
+                    if s as usize >= v.len() {
+                        return false;
+                    }
+                    match dir {
+                        Dir::Parent => {
+                            let par = v.parent[s as usize];
+                            if par == u32::MAX {
+                                return false;
+                            }
+                            self.regs[*out as usize] = par as u64;
+                        }
+                        Dir::Ancestor => {
+                            let mut a = v.parent[s as usize];
+                            while a != u32::MAX {
+                                self.regs[*out as usize] = a as u64;
+                                if self.run(p, pc + 1) {
+                                    return true;
+                                }
+                                a = v.parent[a as usize];
+                            }
+                            return false;
+                        }
+                        Dir::Child => {
+                            let (b, e) = (v.child_off[s as usize] as usize, v.child_off[s as usize + 1] as usize);
+                            for k in b..e {
+                                self.regs[*out as usize] = v.children[k] as u64;
+                                if self.run(p, pc + 1) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
+                        Dir::Descendant => {
+                            let mut stack: Vec<u32> = Vec::new();
+                            let (b, e) = (v.child_off[s as usize] as usize, v.child_off[s as usize + 1] as usize);
+                            stack.extend(v.children[b..e].iter().rev());
+                            while let Some(d) = stack.pop() {
+                                self.regs[*out as usize] = d as u64;
+                                if self.run(p, pc + 1) {
+                                    return true;
+                                }
+                                let (b, e) = (v.child_off[d as usize] as usize, v.child_off[d as usize + 1] as usize);
+                                stack.extend(v.children[b..e].iter().rev());
+                            }
+                            return false;
+                        }
+                    }
+                }
+                Ins::Near { start, out, subs } => {
+                    let s = self.regs[*start as usize] as u32;
+                    let v = self.f.view;
+                    if s as usize >= v.len() {
+                        return false;
+                    }
+                    let mut a = v.parent[s as usize];
+                    let mut found = false;
+                    while a != u32::MAX {
+                        self.regs[*out as usize] = a as u64;
+                        if subs.iter().any(|q| {
+                            self.c.subs += 1;
+                            self.run(q, 0)
+                        }) {
+                            found = true;
+                            break;
+                        }
+                        a = v.parent[a as usize];
+                    }
+                    if !found {
+                        return false;
+                    }
+                    self.regs[*out as usize] = a as u64;
+                }
+                Ins::Sub { negate, subs } => {
+                    let any = subs.iter().any(|q| {
+                        self.c.subs += 1;
+                        self.run(q, 0)
+                    });
+                    if any == *negate {
+                        return false;
+                    }
+                }
+                Ins::Emit { cols } => {
+                    for c in cols.iter() {
+                        let v = self.opd(c);
+                        self.outs[self.cur_rule].push(v);
+                    }
+                    self.c.emitted += 1;
+                    return false;
+                }
+                Ins::Yield => return true,
+            }
+            pc += 1;
+        }
+    }
+}

@@ -93,6 +93,8 @@ enum Op {
     Capture { from: Input, path: usize, pattern: String },
     Replace { from: Input, text: usize, regex: Regex, replacement: String },
     OrderedMatch { left: Input, right: Input, left_on: Vec<usize>, right_on: Vec<usize>, left_order: usize, right_order: usize, output: Vec<(bool, usize)> },
+    /// The rule's core, answered by its navigation programs (nav mode): its rows are put in the memo before the tail runs.
+    Injected { kinds: Vec<u8> },
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -119,6 +121,7 @@ pub(crate) struct Program {
     rules: Vec<Rule>,
     symbols: Symbols,
     census: Vec<Census>,
+    pub(crate) nav: Option<crate::nav::NavProgram>,
 }
 
 /// Only what the kinds-present skip needs, for every rule of the pack (covered or not).
@@ -395,6 +398,9 @@ impl Loader<'_> {
                 right_order: s["right_order"].as_u64().unwrap() as usize,
                 output: Self::output(&s["output"]),
             },
+            "injected" => Op::Injected {
+                kinds: s["kinds"].as_array().unwrap().iter().map(|k| crate::nav::cell_kind(k.as_str().unwrap())).collect(),
+            },
             o => return Err(format!("op {o}")),
         };
         Ok((built, anchors))
@@ -406,6 +412,7 @@ impl Program {
         let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
         let mut symbols = Symbols::default();
         let mut rules = Vec::new();
+        let mut nav_rules: Vec<Value> = Vec::new();
         for r in v["rules"].as_array().unwrap() {
             let mut loader = Loader { sym: &mut symbols, pos: FxMap::default() };
             let steps_v = r["steps"].as_array().unwrap();
@@ -435,6 +442,9 @@ impl Program {
             let root = loader.pos[&r["root"].as_u64().unwrap()];
             let nodes = steps_v.iter().map(|s| s["merged"].as_u64().unwrap() as u32).collect();
             rules.push(Rule { id, steps, anchors, nodes, root, emit_key: Loader::cols(&r["emit_key"]) });
+            if r.get("nav").is_some() {
+                nav_rules.push(r.clone());
+            }
         }
         let mut census = Vec::new();
         if let Some(all) = v["census"].as_array() {
@@ -456,7 +466,14 @@ impl Program {
                 census.push(Census { steps, root: pos[&r["root"].as_u64().unwrap()] });
             }
         }
-        Self { rules, symbols, census }
+        // node kind names are base symbols before any literal (the view interns them as base symbols per file otherwise)
+        let nav = if nav_rules.is_empty() {
+            None
+        } else {
+            assert_eq!(nav_rules.len(), rules.len(), "every nav rule's tail loads");
+            Some(crate::nav::NavProgram::load(&nav_rules, &mut symbols))
+        };
+        Self { rules, symbols, census, nav }
     }
 }
 
@@ -522,6 +539,14 @@ pub(crate) struct State<'p> {
     pub eval_ns: u64,
     pub views: u64,
     pub files: u64,
+    provider: Option<crate::nav::Provider>,
+    cache: crate::nav::FileCache,
+    pub nc: crate::nav::Counters,
+    pub nav_ns: u64,
+    pub tail_ns: u64,
+    pub tail_files: u64,
+    regs: Vec<u64>,
+    outs: Vec<Vec<u64>>,
 }
 
 impl<'p> State<'p> {
@@ -550,7 +575,140 @@ impl<'p> State<'p> {
             eval_ns: 0,
             views: 0,
             files: 0,
+            provider: None,
+            cache: crate::nav::FileCache::default(),
+            nc: crate::nav::Counters::default(),
+            nav_ns: 0,
+            tail_ns: 0,
+            tail_files: 0,
+            regs: Vec::new(),
+            outs: Vec::new(),
         }
+    }
+
+    /// Nav mode: the cores run as navigation programs (nodes outer, rules inner); a rule with core rows in the file runs its
+    /// tail (the pack's suppression fragment and the emit) on the walk interpreter with the core injected.
+    #[allow(clippy::too_many_arguments)]
+    fn file_nav(
+        &mut self,
+        index: usize,
+        path: &str,
+        source: &str,
+        parsed: &ruff_python_parser::Parsed<ruff_python_ast::Mod>,
+        table: &Table<'_>,
+        out: &mut Vec<String>,
+    ) {
+        let program = self.program;
+        let nav = program.nav.as_ref().unwrap();
+        self.files += 1;
+        self.sym.reset_file();
+        let t0 = Instant::now();
+        let mut view = std::mem::take(&mut self.view);
+        view.build(table, parsed, source, &mut self.sym);
+        self.views += 1;
+        let t1 = Instant::now();
+        self.view_ns += (t1 - t0).as_nanos() as u64;
+        if self.provider.is_none() {
+            self.provider = Some(crate::nav::Provider::new());
+        }
+        self.cache.facts = None;
+        self.cache.ident = None;
+        self.cache.tree_idx.clear();
+        self.cache.sub_memo.clear();
+        let nrules = nav.rules.len();
+        let mut outs = std::mem::take(&mut self.outs);
+        outs.resize_with(nrules, Vec::new);
+        for o in &mut outs {
+            o.clear();
+        }
+        let mut regs = std::mem::take(&mut self.regs);
+        regs.resize(nav.max_regs.max(1), 0);
+        let fact_before = self.nc.fact_ns;
+        {
+            let f = crate::nav::File { view: &view, table, source, path, file: index };
+            let mut ex = crate::nav::Exec {
+                prog: nav,
+                f: &f,
+                sym: &mut self.sym,
+                cache: &mut self.cache,
+                provider: self.provider.as_mut().unwrap(),
+                c: &mut self.nc,
+                regs,
+                outs,
+                cur_rule: 0,
+            };
+            ex.build_kinds();
+            for (&k, list) in &nav.by_kind {
+                let n = ex.bucket(k).len();
+                if n == 0 {
+                    continue;
+                }
+                ex.c.starts += list.len() as u64;
+                ex.c.candidates += (n * list.len()) as u64;
+                for i in 0..n {
+                    let id = ex.bucket(k)[i];
+                    for &(ri, pi) in list {
+                        let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[pi as usize];
+                        if let crate::nav::Ins::IterKind { out, .. } = &p[0] {
+                            ex.regs[*out as usize] = u64::from(id);
+                        }
+                        ex.cur_rule = ri as usize;
+                        ex.run(p, 1);
+                    }
+                }
+            }
+            for &(ri, pi) in &nav.other {
+                let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[pi as usize];
+                ex.c.starts += 1;
+                ex.cur_rule = ri as usize;
+                ex.run(p, 0);
+            }
+            regs = ex.regs;
+            outs = ex.outs;
+        }
+        let t2 = Instant::now();
+        self.nav_ns += (t2 - t1).as_nanos() as u64 - (self.nc.fact_ns - fact_before);
+        let ctx = Ctx { view: &view, table, source, file: 0, path };
+        self.memo.clear();
+        self.scans.clear();
+        let mut any = false;
+        for (r, rows) in outs.iter().enumerate() {
+            if rows.is_empty() {
+                continue;
+            }
+            any = true;
+            let nr = &nav.rules[r];
+            let rel = Rel { kinds: nr.kinds.clone(), data: rows.clone() };
+            self.memo.insert(nr.xmerged, std::rc::Rc::new(rel));
+            let rule = &program.rules[r];
+            self.cur = r;
+            let emit = self.demand(rule.root, &ctx);
+            self.memo.remove(&nr.xmerged);
+            if emit.arity() == 0 {
+                continue;
+            }
+            let span_col = (0..emit.arity()).find(|&c| emit.kinds[c] == K_SPAN);
+            let mut seen: FxMap<K, ()> = FxMap::default();
+            for row in emit.rows() {
+                let key: K = rule.emit_key.iter().map(|&k| row[k]).collect();
+                if seen.insert(key, ()).is_some() {
+                    continue;
+                }
+                if let Some(sc) = span_col {
+                    let s = row[sc];
+                    out.push(format!("{}\t{}\t{}\t{}", rule.id, path, s >> 32, s & 0xffff_ffff));
+                }
+            }
+        }
+        if any {
+            self.tail_files += 1;
+        }
+        self.memo.clear();
+        self.scans.clear();
+        self.tail_ns += t2.elapsed().as_nanos() as u64;
+        self.view = view;
+        self.regs = regs;
+        self.outs = outs;
     }
 
     /// Provider kind names present in the file, from the table's kinds-present bitset (no view needed). Token kinds are taken
@@ -620,6 +778,7 @@ impl<'p> State<'p> {
                 | Op::GroupCount { from, .. }
                 | Op::Capture { from, .. }
                 | Op::Replace { from, .. } => get(from, &self.may),
+                Op::Injected { .. } => true,
                 Op::Closure { edges, .. } => get(edges, &self.may),
                 Op::OrderedMatch { left, right, .. } => get(left, &self.may) && get(right, &self.may),
                 Op::Axis { from, domain, .. } => get(from, &self.may) && get(domain, &self.may),
@@ -660,6 +819,7 @@ impl<'p> State<'p> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn file(
         &mut self,
+        index: usize,
         path: &str,
         source: &str,
         parsed: &ruff_python_parser::Parsed<ruff_python_ast::Mod>,
@@ -668,6 +828,9 @@ impl<'p> State<'p> {
         totals: &Totals,
         out: &mut Vec<String>,
     ) {
+        if self.program.nav.is_some() {
+            return self.file_nav(index, path, source, parsed, table, out);
+        }
         self.files += 1;
         self.sym.reset_file();
         self.kinds_present(table);
@@ -725,6 +888,14 @@ impl<'p> State<'p> {
         totals.extra[5].fetch_add(self.eval_ns, Ordering::Relaxed);
         totals.extra[6].fetch_add(self.views, Ordering::Relaxed);
         totals.extra[7].fetch_add(self.files * self.program.rules.len() as u64, Ordering::Relaxed);
+        if self.program.nav.is_some() {
+            let c = &self.nc;
+            eprintln!(
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{}}}}}",
+                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, self.tail_ns, self.tail_files, c.steps,
+                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows
+            );
+        }
         let ops: Vec<String> = OP_NAMES
             .iter()
             .enumerate()
@@ -976,6 +1147,7 @@ impl<'p> State<'p> {
 
     fn eval(&mut self, op: &Op, ctx: &Ctx<'_>) -> Rel {
         match op {
+            Op::Injected { kinds } => Rel::new(kinds.clone()),
             Op::Select { from, comps, kept } => {
                 if let Input::Rel(r) = from {
                     let all = self.scan(*r, ctx, comps);
@@ -1804,11 +1976,12 @@ fn op_index(op: &Op) -> usize {
         Op::Capture { .. } => 16,
         Op::Replace { .. } => 17,
         Op::OrderedMatch { .. } => 18,
+        Op::Injected { .. } => 19,
     }
 }
 
-pub(crate) const OP_NAMES: [&str; 19] = [
+pub(crate) const OP_NAMES: [&str; 20] = [
     "select(relation)", "select(step)", "project", "union", "intersection", "difference", "join(relation)", "join(step)",
     "antijoin", "extend", "axis", "source_matches", "span_bounds", "span_between", "group_count", "closure", "capture",
-    "replace", "ordered_match",
+    "replace", "ordered_match", "injected",
 ];
