@@ -2720,6 +2720,7 @@ pub(crate) struct FileCache {
     pub csr_count: Vec<u32>,
     /// per token kind (256: a gap) the last short text looked up among the base symbols: (length, bytes, code)
     pub csr_last: Vec<(u32, u64, u32)>,
+    pub csr_short: Vec<(u32, u64, u32)>,
     /// keyed twin rows per (fact, key value): the row range in the twin's columns
     pub keyed_memo: FxMap<(u16, u64), (u32, u32)>,
     /// ski rental per keyed twin in this file: steps spent in keyed builds, and the twins switched to their base
@@ -2745,6 +2746,7 @@ pub(crate) struct FileCache {
     pub dkind: FxMap<(usize, usize), u32>,
     pub model_lex: bool,
     pub model_flow: bool,
+    pub model_res: bool,
     /// per-file dispatch: kind code -> (rule, branch, alternative) anchored on it
     pub dispatch: Vec<Vec<(u32, u32, u32)>>,
     pub dispatch_used: Vec<u32>,
@@ -3384,7 +3386,14 @@ impl<'a, 'p> Exec<'a, 'p> {
                 let last = &mut self.cache.csr_last;
                 last.clear();
                 last.resize(257, (u32::MAX, 0, u32::MAX));
+                // per worker: short texts (8 bytes at most) already looked up, direct-mapped by their bytes; an entry saying
+                // "no base symbol" may outlive a word's promotion at a file boundary, and no pack constant is such a word
+                let memo = &mut self.cache.csr_short;
+                if memo.is_empty() {
+                    memo.resize(8192, (u32::MAX, 0, u32::MAX));
+                }
                 vals.resize(v.n_nodes.min(n), u32::MAX);
+                let mut long_last: (usize, usize, u32) = (0, 0, u32::MAX);
                 for i in v.n_nodes..n {
                     let t = v.text[i].get();
                     if t != crate::view::TEXT_UNSET {
@@ -3393,18 +3402,33 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                     let (s, e) = (v.start[i] as usize, v.stop[i] as usize);
                     let len = (e - s) as u32;
-                    let slot = v.leaves[i - v.n_nodes].0.map_or(256, |k| k as u8 as usize);
                     if len <= 8 {
-                        let mut w = [0u8; 8];
-                        w[..len as usize].copy_from_slice(&src[s..e]);
-                        let word = u64::from_le_bytes(w);
+                        // the text's bytes as one word (read in place when eight bytes follow, the rest masked off)
+                        let word = if s + 8 <= src.len() {
+                            let w = u64::from_le_bytes([src[s], src[s + 1], src[s + 2], src[s + 3], src[s + 4], src[s + 5], src[s + 6], src[s + 7]]);
+                            if len == 8 { w } else { w & ((1u64 << (8 * len)) - 1) }
+                        } else {
+                            let mut w = [0u8; 8];
+                            w[..len as usize].copy_from_slice(&src[s..e]);
+                            u64::from_le_bytes(w)
+                        };
+                        let slot = v.leaves[i - v.n_nodes].0.map_or(256, |k| k as u8 as usize);
                         let l = &mut last[slot];
                         if l.0 != len || l.1 != word {
-                            *l = (len, word, self.sym.get_base(&self.f.source[s..e]).unwrap_or(u32::MAX));
+                            let h = ((word ^ u64::from(len)).wrapping_mul(0x9e37_79b9_7f4a_7c15) >> 51) as usize;
+                            let m = &mut memo[h];
+                            if m.0 != len || m.1 != word {
+                                *m = (len, word, self.sym.get_base(&self.f.source[s..e]).unwrap_or(u32::MAX));
+                            }
+                            *l = *m;
                         }
                         vals.push(l.2);
                     } else {
-                        vals.push(self.sym.get_base(&self.f.source[s..e]).unwrap_or(u32::MAX));
+                        // a long text repeating the last long one (a run of equal indentation) is compared, not looked up
+                        if long_last.1 - long_last.0 != e - s || src[long_last.0..long_last.1] != src[s..e] {
+                            long_last = (s, e, self.sym.get_base(&self.f.source[s..e]).unwrap_or(u32::MAX));
+                        }
+                        vals.push(long_last.2);
                     }
                 }
             }
@@ -3484,7 +3508,8 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     /// the semantic model's parts on first demand in the file: the lexical part (scopes, definitions, resolved loads), and the
     /// flow part (events, reads, uses, shadows, resolution) only for the relations that read it
-    fn ensure_model(&mut self, flow: bool) {
+    fn ensure_model(&mut self, level: u8) {
+        let flow = level >= 1;
         if !self.cache.model_lex {
             let t = Tick::now();
             self.model.build_lexical(self.f.table, self.f.incomplete);
@@ -3496,10 +3521,16 @@ impl<'a, 'p> Exec<'a, 'p> {
         if flow && !self.cache.model_flow {
             let t = Tick::now();
             self.model.build_flow(self.f.table);
-            self.model.build_resolution(self.f.table);
             self.cache.model_flow = true;
             self.c.model_flow_ns += t.elapsed().as_nanos() as u64;
             self.c.flow_files += 1;
+        }
+        // the resolution pass over the flow facts: only for the relation that reads it
+        if level >= 2 && !self.cache.model_res {
+            let t = Tick::now();
+            self.model.build_resolution(self.f.table);
+            self.cache.model_res = true;
+            self.c.model_flow_ns += t.elapsed().as_nanos() as u64;
         }
     }
 
@@ -3574,7 +3605,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         let code = self.cache.key_fn[rel as usize];
         if code >= 1000 {
             let mi = (code - 1000) as usize;
-            self.ensure_model(mi >= 6);
+            self.ensure_model(crate::semrows::model_level(mi));
             let facts = self.cache.facts.as_mut().unwrap();
             let mut cols = std::mem::take(&mut facts.cols[rel as usize]);
             crate::semrows::produce(self.model, self.f.table, mi, self.sym, &mut cols, &mut self.scratch, Some((col, key as u32)));
@@ -3610,7 +3641,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     fn fill_key_derived(&mut self, rel: u16, di: usize, col: u8, key: u32) {
         let prog = self.prog;
         if crate::derived::needs_model(&prog.facts[rel as usize].name) {
-            self.ensure_model(false);
+            self.ensure_model(0);
         }
         let ctx = crate::derived::Ctx {
             parsed: self.f.parsed,
@@ -3751,7 +3782,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         return;
                     }
                 } else {
-                    self.ensure_model(mi >= 6);
+                    self.ensure_model(crate::semrows::model_level(mi));
                 }
                 let t = Tick::now();
                 let facts = self.cache.facts.as_mut().unwrap();
@@ -4447,6 +4478,25 @@ impl<'a, 'p> Exec<'a, 'p> {
                         }
                     };
                     return self.iter_fact_list(p, pc, *rel, &idx, keys, *out);
+                }
+                Ins::IterFact2 { rel, c1, v1, c2, v2, out } if self.key_fillable(*rel, *c1) || self.key_fillable(*rel, *c2) => {
+                    // a keyed column probed by a constant: the per-key function's rows, the other constant tested on each
+                    let ((kc, kv), (oc, ov)) = if self.key_fillable(*rel, *c1) { ((*c1, *v1), (*c2, *v2)) } else { ((*c2, *v2), (*c1, *v1)) };
+                    let (a, b) = self.key_rows(*rel, kc, kv);
+                    for row in a..b {
+                        if self.cache.facts.as_ref().unwrap().cols[*rel as usize][oc as usize][row as usize] != ov {
+                            continue;
+                        }
+                        self.regs[*out as usize] = u64::from(row);
+                        self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(*rel, u64::from(row), false);
+                        }
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
                 }
                 Ins::IterFact2 { rel, c1, v1, c2, v2, out } => {
                     let idx = self.fact_index2(*rel, *c1, *c2);
@@ -5320,7 +5370,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         let prog = self.prog;
         let name = prog.facts[rel as usize].name.as_str();
         if crate::derived::needs_model(name) {
-            self.ensure_model(false);
+            self.ensure_model(0);
         }
         let t = Tick::now();
         if name.starts_with("filesystem.") {

@@ -1225,13 +1225,20 @@ impl Shapes {
 }
 
 /// A whole-file analysis runs once per file (facts): 0 not yet, 1 built, 2 built and empty.
-fn once(flag: &mut u8, build: impl FnOnce() -> bool) -> bool {
+fn once(flag: &mut u8, which: usize, build: impl FnOnce() -> bool) -> bool {
     if *flag == 0 {
         let t = crate::nav::Tick::now();
         *flag = if build() { 1 } else { 2 };
-        BUILD_NS.with(|b| b.set(b.get() + t.elapsed().as_nanos() as u64));
+        let ns = t.elapsed().as_nanos() as u64;
+        BUILD_NS.with(|b| b.set(b.get() + ns));
+        BUILD_BY.with(|b| b[which].set(b[which].get() + ns));
     }
     *flag == 1
+}
+
+/// Time in each whole-file analysis on this thread: shapes, types, terminals, constant keys, token brackets, class members.
+pub(crate) fn build_clocks() -> [u64; 6] {
+    BUILD_BY.with(|b| std::array::from_fn(|k| b[k].get()))
 }
 
 /// A whole fill's caller clocks all of it: the analyses' own clock is dropped.
@@ -1242,10 +1249,11 @@ pub(crate) fn drop_build_clock() {
 thread_local! {
     /// time in the whole-file analyses on this thread (read into the state after each call)
     static BUILD_NS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    static BUILD_BY: [std::cell::Cell<u64>; 6] = const { [const { std::cell::Cell::new(0) }; 6] };
 }
 
 fn rows_expression_shape(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, shapes: &mut Shapes, flag: &mut u8, only: Option<u32>) {
-    if !once(flag, || shapes.build(c)) {
+    if !once(flag, 0, || shapes.build(c)) {
         return;
     }
     for id in all_ids(c, only) {
@@ -1451,7 +1459,7 @@ impl Types {
 }
 
 fn rows_expression_type(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, types: &mut Types, flag: &mut u8, only: Option<u32>) {
-    if !once(flag, || types.build(c)) {
+    if !once(flag, 1, || types.build(c)) {
         return;
     }
     for id in all_ids(c, only) {
@@ -1778,7 +1786,7 @@ impl Terminals {
 }
 
 fn rows_function_terminal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, t: &mut Terminals, flag: &mut u8, only: Option<u32>) {
-    if !once(flag, || t.build(c)) {
+    if !once(flag, 2, || t.build(c)) {
         return;
     }
     for &id in ids(c, NodeKind::StmtFunctionDef, &only) {
@@ -1994,7 +2002,7 @@ impl ConstantKeys {
 }
 
 fn rows_constant_key(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, k: &mut ConstantKeys, flag: &mut u8, only: Option<u32>) {
-    once(flag, || {
+    once(flag, 3, || {
         k.build(c);
         true
     });
@@ -2147,7 +2155,7 @@ fn token_link_key(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, col: u8, key
     if t == NO_TOKEN {
         return;
     }
-    once(flag, || links.build(c));
+    once(flag, 4, || links.build(c));
     let tokens = c.parsed.tokens();
     let t = t as usize;
     if !links.live[t] {
@@ -2198,7 +2206,7 @@ pub(crate) fn produce_key(c: &Ctx<'_, '_>, di: usize, col: u8, key: u32, sink: &
 /// `expression-shape` by class (column 1): the members of the class `key` names, from a chain per class built in one pass over
 /// the class array on the first such probe in the file.
 fn shape_members(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, key: u32, st: &mut State) {
-    if !once(&mut st.built[0], || st.shapes.build(c)) {
+    if !once(&mut st.built[0], 0, || st.shapes.build(c)) {
         return;
     }
     let n = c.table.len();
@@ -2216,7 +2224,9 @@ fn shape_members(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, key: u32, st:
             }
         }
         st.class_built = true;
-        BUILD_NS.with(|b| b.set(b.get() + t.elapsed().as_nanos() as u64));
+        let ns = t.elapsed().as_nanos() as u64;
+        BUILD_NS.with(|b| b.set(b.get() + ns));
+        BUILD_BY.with(|b| b[5].set(b[5].get() + ns));
     }
     if (key as usize) >= n {
         return;

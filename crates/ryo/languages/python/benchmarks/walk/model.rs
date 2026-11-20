@@ -416,6 +416,12 @@ impl Model {
         Some(&self.sym_text[a as usize..b as usize])
     }
 
+    /// The interned id of a name the file uses (facts: a probe by name), None when the file never names it.
+    pub(crate) fn name_id(&self, text: &str) -> Option<u32> {
+        let s = *self.sym_map.get(&hash_text(text))?;
+        (self.text(s) == Some(text)).then_some(s)
+    }
+
     fn intern(&mut self, text: &str) -> u32 {
         let h = hash_text(text);
         if let Some(&s) = self.sym_map.get(&h) {

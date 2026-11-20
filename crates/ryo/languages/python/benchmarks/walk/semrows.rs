@@ -53,7 +53,18 @@ pub(crate) fn key_columns(rel: usize) -> u16 {
     match rel {
         0 => 1 << 1,
         2..=4 => 1,
+        // a read by the name it reads (a word, not a node): the model's reads of that name, no row of any other
+        7 => 1 << 1,
         _ => 0,
+    }
+}
+
+/// How much of the model relation `rel` reads: 0 the lexical part, 1 the flow part, 2 the resolution pass over it.
+pub(crate) fn model_level(rel: usize) -> u8 {
+    match rel {
+        0..=5 => 0,
+        10 => 2,
+        _ => 1,
     }
 }
 
@@ -66,6 +77,39 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
         }
     };
     let n = table.len();
+    if let (7, Some((_, code))) = (rel, only) {
+        // binding-read by name: the key is the name's code in the run's symbols
+        if model.flow_incomplete {
+            return;
+        }
+        scratch.clear();
+        match sym.str(code) {
+            Some(text) => scratch.push_str(text),
+            None => return,
+        }
+        let Some(name) = model.name_id(scratch) else { return };
+        for k in 0..model.reads.len() {
+            if model.reads[k].name != name {
+                continue;
+            }
+            let r = model.reads[k].clone();
+            let (a, b) = r.state.since();
+            let cells = [
+                u64::from(r.at),
+                u64::from(code),
+                u64::from(r.scope),
+                u64::from(r.phase),
+                w(sym, r.context.word()),
+                w(sym, r.state.word()),
+                a as u64,
+                b as u64,
+                0,
+                sp(table, r.at),
+            ];
+            push(cols, &cells);
+        }
+        return;
+    }
     let one = only.map(|(_, id)| id).filter(|id| (*id as usize) < n);
     if only.is_some() && one.is_none() {
         return;
