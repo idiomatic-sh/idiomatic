@@ -32,6 +32,23 @@ impl Symbols {
         self.base_text.len()
     }
 
+    /// exec: a text code as a dense index (base symbols, then the file's symbols in the order they were met), and the
+    /// number of such indexes; None for a code that is neither (the null text)
+    pub(crate) fn dense(&self, id: u32) -> Option<usize> {
+        if id == NULL {
+            None
+        } else if id >= FILE_BASE {
+            let k = (id - FILE_BASE) as usize;
+            (k < self.spans.len()).then(|| self.base_text.len() + k)
+        } else {
+            ((id as usize) < self.base_text.len()).then_some(id as usize)
+        }
+    }
+
+    pub(crate) fn dense_count(&self) -> usize {
+        self.base_text.len() + self.spans.len()
+    }
+
     /// every base symbol, in id order (the compiled pack's constant pool)
     pub(crate) fn base_texts(&self) -> &[String] {
         &self.base_text

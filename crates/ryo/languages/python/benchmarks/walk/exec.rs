@@ -888,6 +888,7 @@ pub(crate) struct XState {
     fat: FxMap<(u16, u64), u32>,
     tidx: Vec<XTIdx>,
     pairs: Vec<(u64, u32)>,
+    count: Vec<u32>,
     /// two-column fact indexes: generation and the chain's run; (index, value, value) -> first row
     f2: Vec<(u32, u32)>,
     f2at: FxMap<(u16, u64, u64), u32>,
@@ -972,6 +973,11 @@ impl XState {
             ("index_tables", self.clist.len() * 12 + self.fidx.len() * 20 + self.tidx.len() * 16 + self.f2.len() * 8),
         ]
     }
+}
+
+thread_local! {
+    /// NAV_TREE_SORT=1: tree indexes by the comparison sort (the counting sort off)
+    static DENSE_OFF: bool = std::env::var_os("NAV_TREE_SORT").is_some();
 }
 
 #[derive(Clone, Copy)]
@@ -1313,21 +1319,80 @@ impl<'p> Exec<'_, 'p> {
             let (relc, col) = self.prog.x.tidx[id as usize];
             let rel = RELS[relc as usize];
             let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+            // (value, id) of every row, in id order
             let mut pairs = std::mem::take(&mut self.cache.x.pairs);
             pairs.clear();
             for nid in 0..n as u32 {
                 if let Some(v) = self.tread(rel, col, nid) {
-                    pairs.push(((u64::from(v as u32) << 32) | u64::from(self.f.view.start[nid as usize]), nid));
+                    pairs.push((u64::from(v as u32), nid));
                 }
             }
-            pairs.sort_unstable();
+            // Values that are text codes are dense (base symbols, then the file's, then the null text): a counting sort
+            // by value, each value's ids then checked to be in (start, id) order and sorted when they are not. Any other
+            // value: the comparison sort of (value, start, id).
+            let nd = self.sym.dense_count();
+            let start = &self.f.view.start;
+            let mut count = std::mem::take(&mut self.cache.x.count);
+            count.clear();
+            count.resize(nd + 2, 0);
+            let mut dense = !DENSE_OFF.with(|d| *d);
+            if dense {
+                for p in &pairs {
+                    let d = if p.0 as u32 == NULL { Some(nd) } else { self.sym.dense(p.0 as u32) };
+                    match d {
+                        Some(d) => count[d + 1] += 1,
+                        None => {
+                            dense = false;
+                            break;
+                        }
+                    }
+                }
+            }
             let xs = &mut self.cache.x;
-            let vals = xs.ia.len() as u32;
-            xs.ia.extend(pairs.iter().map(|p| (p.0 >> 32) as u32));
-            let ids = xs.ia.len() as u32;
-            xs.ia.extend(pairs.iter().map(|p| p.1));
-            xs.tidx[id as usize] = XTIdx { generation, vals, ids, len: pairs.len() as u32 };
+            let vals = xs.ia.len();
+            let ids = vals + pairs.len();
+            xs.ia.resize(ids + pairs.len(), 0);
+            if dense {
+                for d in 0..=nd {
+                    count[d + 1] += count[d];
+                }
+                for p in &pairs {
+                    let d = if p.0 as u32 == NULL { nd } else { self.sym.dense(p.0 as u32).unwrap_or(nd) };
+                    let at = count[d] as usize;
+                    count[d] += 1;
+                    xs.ia[vals + at] = p.0 as u32;
+                    xs.ia[ids + at] = p.1;
+                }
+                // each run of equal values in (start, id) order
+                let mut a = 0;
+                let len = pairs.len();
+                while a < len {
+                    let val = xs.ia[vals + a];
+                    let mut b = a + 1;
+                    let mut sorted = true;
+                    while b < len && xs.ia[vals + b] == val {
+                        let (p, q) = (xs.ia[ids + b - 1], xs.ia[ids + b]);
+                        sorted &= (start[p as usize], p) <= (start[q as usize], q);
+                        b += 1;
+                    }
+                    if !sorted {
+                        xs.ia[ids + a..ids + b].sort_unstable_by_key(|&i| (start[i as usize], i));
+                    }
+                    a = b;
+                }
+            } else {
+                for p in &mut pairs {
+                    p.0 = (p.0 << 32) | u64::from(start[p.1 as usize]);
+                }
+                pairs.sort_unstable();
+                for (k, p) in pairs.iter().enumerate() {
+                    xs.ia[vals + k] = (p.0 >> 32) as u32;
+                    xs.ia[ids + k] = p.1;
+                }
+            }
+            xs.tidx[id as usize] = XTIdx { generation, vals: vals as u32, ids: ids as u32, len: pairs.len() as u32 };
             xs.pairs = pairs;
+            xs.count = count;
             self.c.made_tables += 1;
             self.c.made_rows += n as u64;
             let ns = t0.elapsed().as_nanos() as u64;
