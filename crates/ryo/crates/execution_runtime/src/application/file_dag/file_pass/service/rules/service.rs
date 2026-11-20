@@ -227,7 +227,9 @@ pub(crate) fn run_rules(
         ryo_operators::codegen::rt::run_file(rels, bridged, &*symbols, input.source.0, at.inputs.lookup.tree(), path, &|rule| {
             let plan = pass.plans.get(rule)?;
             let id = pass.ids.get(rule)?;
-            Some((plan.emit.key.iter().map(|c| c.0 as usize).collect(), plan.emit.subject.0 as usize, id.0.to_string()))
+            // A finding is the row's one column headed `span`, as the benchmark adapter reads it (`diagnostic_findings`).
+            let span = plan.emit.headings.iter().position(|heading| &*heading.0 == "span")?;
+            Some((vec![span], plan.emit.subject.0 as usize, id.0.to_string()))
         });
     }
     let CaptureContext {

@@ -13,6 +13,8 @@ use std::hash::Hasher;
 /// No symbol of the file holds the literal: a code no cell holds.
 pub const ABSENT: u64 = u64::MAX;
 const UNRESOLVED: u64 = u64::MAX - 1;
+/// The first code of a literal text the file holds no symbol of.
+pub const MINTED: u64 = 1 << 40;
 
 /// Rows by key: a permutation of the rows grouped by key, and each key's stretch of it.
 #[derive(Default)]
@@ -112,6 +114,7 @@ pub struct Cx<'a> {
     mats: Vec<OnceCell<Vec<u64>>>,
     kidx: Vec<OnceCell<KeyIndex>>,
     bridged: Vec<Vec<u64>>,
+    minted: std::cell::RefCell<Vec<(u64, String)>>,
     /// Base rows visited that passed their view's tests: the candidates.
     pub visits: Cell<u64>,
 }
@@ -135,6 +138,7 @@ impl<'a> Cx<'a> {
             mats: (0..sizes[2]).map(|_| OnceCell::new()).collect(),
             kidx: (0..sizes[3]).map(|_| OnceCell::new()).collect(),
             visits: Cell::new(0),
+            minted: std::cell::RefCell::new(Vec::new()),
             bridged,
         }
     }
@@ -158,19 +162,27 @@ impl<'a> Cx<'a> {
         if held != UNRESOLVED {
             return held;
         }
+        // A text the file holds no symbol of has a code of its own, the same at every use in the file, which no cell of the
+        // file holds: the engine would mint it once and compare it by its text.
         let code = find_symbol(self.symbols, ByteSlice(self.source), ByteSlice(text.as_bytes()))
-            .map_or(ABSENT, |symbol| u64::from(symbol.0));
+            .map_or(MINTED + k as u64, |symbol| u64::from(symbol.0));
+        if code >= MINTED {
+            self.minted.borrow_mut().push((code, text.to_string()));
+        }
         self.lits[k].set(code);
         code
     }
 
     /// The text of a symbol cell.
     #[inline]
-    pub fn text(&self, cell: u64) -> &str {
+    pub fn text(&self, cell: u64) -> std::borrow::Cow<'_, str> {
+        if cell >= MINTED {
+            return std::borrow::Cow::Owned(self.minted.borrow().iter().find(|(code, _)| *code == cell).map_or(String::new(), |(_, text)| text.clone()));
+        }
         u32::try_from(cell)
             .ok()
             .and_then(|code| text_of(self.symbols, ByteSlice(self.source), Symbol(code)))
-            .map_or("", |text| text.0)
+            .map_or(std::borrow::Cow::Borrowed(""), |text| std::borrow::Cow::Borrowed(text.0))
     }
 
     /// The shared index of a relation's column.
@@ -286,9 +298,9 @@ fn timing() -> bool {
     *ON.get_or_init(|| std::env::var_os("RYO_CODEGEN_STATS").is_some())
 }
 
-/// Where a finding row is: the first key column, then the subject, that is a located stretch or a node.
-fn place(row: &[u64], kinds: &[u8], key: &[usize], subject: usize, tree: &Elements) -> Option<(u32, u32)> {
-    key.iter().chain(std::iter::once(&subject)).find_map(|&c| {
+/// Where a finding row is: its column headed `span` (the host passes that column as the one key), a located stretch.
+fn place(row: &[u64], kinds: &[u8], key: &[usize], _subject: usize, tree: &Elements) -> Option<(u32, u32)> {
+    key.iter().find_map(|&c| {
         let bits = *row.get(c)?;
         match kinds.get(c)? {
             3 => match from_bits(CellKind::Span, Bits(bits)) {
@@ -408,5 +420,36 @@ pub fn span_ok(bits: u64) -> bool {
     match from_bits(CellKind::Span, Bits(bits)) {
         Value::Span(span) => span != ryo_relations::domain::relations::constants::NO_SPAN && span.start <= span.end,
         _ => false,
+    }
+}
+
+/// The entities a walk reaches from `start`, in the engine's walk order (`hash_index::keyed_walk`): `mode` 0 follows one step
+/// (parent or child), 1 every entity breadth first with a visited set (ancestors, descendants), 2 stops at the first entity
+/// `member` admits (the nearest ancestor). `follow(entity, into)` appends the far end of each edge keyed by the entity.
+pub fn walk(start: u64, mode: u8, follow: &dyn Fn(u64, &mut Vec<u64>), member: &dyn Fn(u64) -> bool, reached: &mut Vec<u64>) {
+    if mode == 0 {
+        follow(start, reached);
+        return;
+    }
+    let mut visited = rustc_hash::FxHashSet::default();
+    let mut entities = Vec::new();
+    let mut next = Vec::new();
+    follow(start, &mut entities);
+    while !entities.is_empty() {
+        next.clear();
+        for &entity in &entities {
+            if !visited.insert(entity) {
+                continue;
+            }
+            if mode == 2 && member(entity) {
+                reached.push(entity);
+                return;
+            }
+            follow(entity, &mut next);
+            if mode == 1 {
+                reached.push(entity);
+            }
+        }
+        std::mem::swap(&mut entities, &mut next);
     }
 }

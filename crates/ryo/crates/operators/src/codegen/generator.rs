@@ -32,6 +32,7 @@ enum Op {
     Num(i64),
     Text(String),
     Texts(Vec<String>),
+    Fn(ryo_values::domain::plan_parts::types::Function, Vec<Op>),
 }
 
 struct Gen<'a, 'p> {
@@ -52,6 +53,8 @@ struct Gen<'a, 'p> {
     bridge_why: BTreeMap<usize, String>,
     /// Regex literals, each compiled once per process.
     regexes: Vec<String>,
+    /// How many printed callers each node's push function has: one caller is inlined generically, more take a `dyn` sink.
+    readers: HashMap<usize, usize>,
 }
 
 fn name(op: &Operation) -> &'static str {
@@ -97,8 +100,44 @@ fn kind_code(kind: CellKind) -> u8 {
     }
 }
 
-/// The generated pack's source and a report of the rules it covers and what blocked the rest.
+/// The generated pack's source and a report of the rules it covers and what blocked the rest: a first pass finds the rules
+/// the generator expresses, a second prints only those, so nothing of a refused rule (relations, slots, functions) remains.
 pub fn generate(program: &LogicalProgram<'_>) -> (String, String) {
+    let (_, first) = generate_only(program, None);
+    let shared: usize = std::env::var("RYO_CODEGEN_SHARED").ok().and_then(|n| n.parse().ok()).unwrap_or(0);
+    let mut reach: HashMap<String, usize> = HashMap::new();
+    let mut lists: Vec<(u32, Vec<String>)> = Vec::new();
+    for line in first.lines() {
+        let fields: Vec<&str> = line.split('\t').collect();
+        if fields.first() == Some(&"COVERED") {
+            if let Some(Ok(rule)) = fields.get(1).map(|f| f.parse::<u32>()) {
+                let bridges: Vec<String> = fields
+                    .get(3)
+                    .map(|list| list.split(',').filter(|b| !b.is_empty()).map(|b| b.split(':').next().unwrap_or("").to_string()).collect())
+                    .unwrap_or_default();
+                for bridge in &bridges {
+                    *reach.entry(bridge.clone()).or_default() += 1;
+                }
+                lists.push((rule, bridges));
+            }
+        }
+    }
+    let mut covered = BTreeSet::new();
+    let mut narrowed = String::new();
+    for (rule, bridges) in &lists {
+        if bridges.iter().all(|b| reach.get(b).copied().unwrap_or(0) >= shared) {
+            let _ = covered.insert(*rule);
+        } else {
+            let _ = writeln!(narrowed, "BLOCKED\t{rule}\tbridge: a node only {} rules reach", bridges.iter().map(|b| reach.get(b).copied().unwrap_or(0)).min().unwrap_or(0));
+        }
+    }
+    let (source, second) = generate_only(program, Some(&covered));
+    let blocked: String = first.lines().filter(|line| line.starts_with("BLOCKED") || line.starts_with("BLOCKER")).map(|line| format!("{line}\n")).collect();
+    let kept: String = second.lines().filter(|line| !line.starts_with("BLOCKED") && !line.starts_with("BLOCKER")).map(|line| format!("{line}\n")).collect();
+    (source, format!("{kept}{blocked}{narrowed}"))
+}
+
+fn generate_only(program: &LogicalProgram<'_>, only: Option<&BTreeSet<u32>>) -> (String, String) {
     let nodes = program.nodes();
     let mut generator = Gen {
         nodes,
@@ -114,15 +153,31 @@ pub fn generate(program: &LogicalProgram<'_>) -> (String, String) {
         bridges: BTreeMap::new(),
         bridge_why: BTreeMap::new(),
         regexes: Vec::new(),
+        readers: HashMap::new(),
     };
     for at in 0..nodes.len() {
         generator.kinds[at] = generator.node_kinds(at).ok().or_else(|| generator.known.get(&at).cloned());
     }
     let bridging = !generator.known.is_empty();
+    if let Some(only) = only {
+        // The second pass knows its rules: count each node's callers among the nodes they reach, so a node read from more
+        // than one place is printed once with a `dyn` sink instead of once per caller's closure type.
+        let _ = bridging;
+        let mut seen = BTreeSet::new();
+        for (rule, emit) in program.emits() {
+            if only.contains(&rule) {
+                *generator.readers.entry(emit.0 as usize).or_default() += 1;
+                generator.count_readers(emit.0 as usize, &mut seen, bridging, rule as usize);
+            }
+        }
+    }
     let mut rules = Vec::new();
     let mut report = String::new();
     let mut blocked: BTreeMap<String, usize> = BTreeMap::new();
     for (rule, emit) in program.emits() {
+        if only.is_some_and(|only| !only.contains(&rule)) {
+            continue;
+        }
         let emit = emit.0 as usize;
         let before = generator.bridges.clone();
         let checked = generator.native_check(emit).and_then(|()| generator.check(emit, &mut BTreeSet::new(), bridging, rule as usize));
@@ -239,10 +294,30 @@ impl Gen<'_, '_> {
                 for value in values {
                     ks.push(match value {
                         Operand::Literal(QueryLiteral::Number(_)) => CellKind::Number,
-                        Operand::Literal(QueryLiteral::Text(_)) => return Err("Extend: text (minted)".into()),
+                        Operand::Literal(QueryLiteral::Text(_)) => CellKind::Symbol,
                         _ => return Err("Extend: parameter or function".into()),
                     });
                 }
+                ks
+            }
+            Operation::Axis { direction, parent, child, domain_filter, domain_view, .. } => {
+                use ryo_values::domain::plan_parts::types::Direction;
+                if !domain_filter.is_empty() || !domain_view.is_empty() {
+                    return Err("Axis: domain filter or view".into());
+                }
+                if !matches!(direction, Direction::Parent | Direction::Child | Direction::Ancestor | Direction::Descendant | Direction::NearestAncestor) {
+                    return Err(format!("Axis: {direction:?}"));
+                }
+                if let Some(PlanInput::Relation(rel)) = self.inputs(at).get(1) {
+                    if crate::domain::tree_cells::service::native_form(*rel).is_some() {
+                        return Err("Axis: over the native tree".into());
+                    }
+                }
+                let up = matches!(direction, Direction::Parent | Direction::Ancestor | Direction::NearestAncestor);
+                let to = if up { parent } else { child };
+                let mut ks = input(0)?;
+                let edges = input(1)?;
+                ks.push(*edges.get(to.0 as usize).ok_or("axis column")?);
                 ks
             }
             Operation::Join { output, view, .. } => {
@@ -331,6 +406,27 @@ impl Gen<'_, '_> {
         Ok(())
     }
 
+    fn count_readers(&mut self, at: usize, seen: &mut BTreeSet<usize>, bridging: bool, rule: usize) {
+        if !seen.insert(at) {
+            return;
+        }
+        let _ = self.check(at, &mut BTreeSet::new(), bridging, rule);
+        if self.bridges.contains_key(&at) {
+            return;
+        }
+        for input in self.inputs(at).to_vec() {
+            if let PlanInput::Node(n) = input {
+                *self.readers.entry(n.0 as usize).or_default() += 1;
+                self.count_readers(n.0 as usize, seen, bridging, rule);
+            }
+        }
+    }
+
+    /// Whether a node's push function takes a `dyn` sink.
+    fn shared(&self, at: usize) -> bool {
+        self.readers.get(&at).copied().unwrap_or(0) > 1
+    }
+
     fn bridged_under(&self, at: usize, seen: &mut BTreeSet<usize>, out: &mut Vec<usize>) {
         if !seen.insert(at) {
             return;
@@ -413,7 +509,17 @@ impl Gen<'_, '_> {
                 Some(ParameterBinding::Texts(ts)) => Op::Texts(ts.iter().map(|t| t.0.to_string()).collect()),
                 _ => return Err("test: parameter operand".into()),
             },
-            Operand::Function(_) => return Err("test: function operand".into()),
+            Operand::Function(applied) => {
+                use ryo_values::domain::plan_parts::types::Function;
+                if !matches!(applied.function, Function::Concat | Function::Lower) {
+                    return Err(format!("test: function {:?}", applied.function));
+                }
+                let args = applied.arguments.iter().map(|a| self.operand(a, bindings)).collect::<Res<Vec<_>>>()?;
+                if args.iter().any(|a| matches!(a, Op::Fn(..) | Op::Texts(_) | Op::Num(_))) {
+                    return Err("test: function of a function, set or number".into());
+                }
+                Op::Fn(applied.function, args)
+            }
         })
     }
 
@@ -422,8 +528,29 @@ impl Gen<'_, '_> {
         let kind = |op: &Op| match op {
             Op::Col(c) => ks.get(*c).copied(),
             Op::Num(_) => Some(CellKind::Number),
-            Op::Text(_) | Op::Texts(_) => Some(CellKind::Symbol),
+            Op::Text(_) | Op::Texts(_) | Op::Fn(..) => Some(CellKind::Symbol),
         };
+        if matches!(left, Op::Fn(..)) || matches!(right, Op::Fn(..)) {
+            if !matches!(comparison.test, Test::Equal | Test::NotEqual) {
+                return Err("test: a function outside equality".into());
+            }
+            for op in [&left, &right] {
+                if let Op::Fn(_, args) = op {
+                    for arg in args {
+                        if let Op::Col(c) = arg {
+                            if ks.get(*c) != Some(&CellKind::Symbol) {
+                                return Err("test: a function of a non-text".into());
+                            }
+                        }
+                    }
+                } else if let Op::Col(c) = op {
+                    if ks.get(*c) != Some(&CellKind::Symbol) {
+                        return Err("test: a function against a non-text".into());
+                    }
+                }
+            }
+            return Ok((comparison.test, left, right));
+        }
         if matches!(left, Op::Texts(_)) || (matches!(right, Op::Texts(_)) && !matches!(comparison.test, Test::In | Test::NotIn)) {
             return Err("test: a set outside membership".into());
         }
@@ -473,11 +600,33 @@ impl Gen<'_, '_> {
                 let k = self.lit(t);
                 format!("cx.lit({k}, {t:?})")
             }
-            Op::Texts(_) => "0".into(),
+            Op::Texts(_) | Op::Fn(..) => "0".into(),
+        }
+    }
+
+    /// The text of an operand, as a `String` expression.
+    fn text_expr(&mut self, op: &Op, cell: &dyn Fn(usize) -> String) -> String {
+        use ryo_values::domain::plan_parts::types::Function;
+        match op {
+            Op::Col(c) => format!("cx.text({}).to_string()", cell(*c)),
+            Op::Text(t) => format!("{t:?}.to_string()"),
+            Op::Fn(Function::Lower, args) => {
+                let inner = args.first().map_or("String::new()".to_string(), |a| self.text_expr(a, cell));
+                format!("({inner}).to_lowercase()")
+            }
+            Op::Fn(_, args) => {
+                let parts: Vec<String> = args.iter().map(|a| self.text_expr(a, cell)).collect();
+                format!("[{}].concat()", parts.join(", "))
+            }
+            Op::Num(_) | Op::Texts(_) => "String::new()".into(),
         }
     }
 
     fn test_expr(&mut self, (test, left, right): &(Test, Op, Op), cell: &dyn Fn(usize) -> String) -> String {
+        if matches!(left, Op::Fn(..)) || matches!(right, Op::Fn(..)) {
+            let (l, r) = (self.text_expr(left, cell), self.text_expr(right, cell));
+            return if *test == Test::Equal { format!("({l} == {r})") } else { format!("({l} != {r})") };
+        }
         let (l, r) = (self.op_expr(left, cell), self.op_expr(right, cell));
         match test {
             Test::Equal => format!("({l} == {r})"),
@@ -495,7 +644,7 @@ impl Gen<'_, '_> {
                 let Op::Text(t) = right else { return "false".into() };
                 let k = self.regexes.len();
                 self.regexes.push(t.clone());
-                format!("super::rt::matches(&RE[{k}], {t:?}, cx.text({l}))")
+                format!("super::rt::matches(&RE[{k}], {t:?}, &cx.text({l}))")
             }
             Test::In | Test::NotIn => {
                 let Op::Texts(ts) = right else { return "false".into() };
@@ -531,10 +680,8 @@ impl Gen<'_, '_> {
                 let ks = self.input_kinds(at, 0).ok()?;
                 for comparison in comparisons {
                     let (test, l, r) = self.comparison(comparison, &ks, node.bindings.0).ok()?;
-                    let map = |op: Op| match op {
-                        Op::Col(c) => Op::Col(v.cols[c]),
-                        other => other,
-                    };
+                    let cols = v.cols.clone();
+                    let map = move |op: Op| remap(op, &cols);
                     let mapped = (test, map(l), map(r));
                     v.tests.push(mapped);
                 }
@@ -614,12 +761,49 @@ impl Gen<'_, '_> {
         } else {
             self.push_body(at)?
         };
-        let _ = writeln!(self.out, "#[inline]\nfn p{at}<F: FnMut(&[u64; {k}])>(cx: &Cx<'_>, f: &mut F) {{\n    {body}\n}}");
+        if self.shared(at) {
+            let _ = writeln!(self.out, "#[inline(never)]\nfn p{at}(cx: &Cx<'_>, f: &mut dyn FnMut(&[u64; {k}])) {{\n    {body}\n}}");
+        } else {
+            let _ = writeln!(self.out, "#[inline]\nfn p{at}<F: FnMut(&[u64; {k}]) + ?Sized>(cx: &Cx<'_>, f: &mut F) {{\n    {body}\n}}");
+        }
         let _ = self.done.insert(at);
         Ok(())
     }
 
+    /// The view of a node's input `i` when it reads one relation in place: the relation itself, or a node that is a view.
+    fn input_view(&self, at: usize, i: usize) -> Option<View> {
+        match self.inputs(at).get(i)? {
+            PlanInput::Relation(rel) => Some(View { rel: *rel, cols: (0..kinds(*rel).len()).collect(), tests: Vec::new() }),
+            PlanInput::Node(n) => self.view(n.0 as usize),
+            _ => None,
+        }
+    }
+
+    /// Code that pushes every row of input `i` into `f`.
+    fn push_input(&mut self, at: usize, i: usize) -> Res<String> {
+        if let Some(PlanInput::Relation(rel)) = self.inputs(at).get(i) {
+            let v = View { rel: *rel, cols: (0..kinds(*rel).len()).collect(), tests: Vec::new() };
+            let r = self.rel(v.rel);
+            let cells: Vec<String> = v.cols.iter().map(|c| format!("cx.c({r}, {c}, i)")).collect();
+            return Ok(self.view_loop(&v, &format!("f(&[{}]);", cells.join(", "))));
+        }
+        let input = self.input_node(at, i)?;
+        self.push_fn(input)?;
+        if self.shared(input) {
+            let k = self.arity(input);
+            return Ok(format!("p{input}(cx, &mut |r: &[u64; {k}]| f(r));"));
+        }
+        Ok(format!("p{input}(cx, f);"))
+    }
+
     fn drive(&mut self, at: usize, i: usize, row: &str, body: &str) -> Res<String> {
+        if let Some(PlanInput::Relation(rel)) = self.inputs(at).get(i) {
+            let v = View { rel: *rel, cols: (0..kinds(*rel).len()).collect(), tests: Vec::new() };
+            let r = self.rel(v.rel);
+            let cells: Vec<String> = v.cols.iter().map(|c| format!("cx.c({r}, {c}, i)")).collect();
+            let k = cells.len();
+            return Ok(self.view_loop(&v, &format!("let {row}: &[u64; {k}] = &[{}]; {body}", cells.join(", "))));
+        }
         let input = self.input_node(at, i)?;
         self.push_fn(input)?;
         let k = self.arity(input);
@@ -635,9 +819,8 @@ impl Gen<'_, '_> {
         keys: &[(usize, usize)],
         hit: &dyn Fn(&dyn Fn(usize) -> String) -> String,
     ) -> Res<(String, String)> {
-        let right = self.input_node(at, 1)?;
-        let rk = self.kinds[right].clone().ok_or("kinds")?;
-        if let Some(v) = self.view(right) {
+        let rk = self.input_kinds(at, 1)?;
+        if let Some(v) = self.input_view(at, 1) {
             let rel = self.rel(v.rel);
             let ks = kinds(v.rel);
             let rc = |c: usize| format!("cx.c({rel}, {}, i)", v.cols[c]);
@@ -662,6 +845,7 @@ impl Gen<'_, '_> {
             };
             return Ok((format!("if cx.lens[{rel}] == 0 {{ EMPTY }}"), code));
         }
+        let right = self.input_node(at, 1)?;
         self.push_fn(right)?;
         let kr = rk.len();
         let next = self.mats.len();
@@ -733,22 +917,23 @@ impl Gen<'_, '_> {
                 self.drive(at, 0, "r", &format!("f(&[{}]);", cs.join(", ")))?
             }
             Operation::Extend { values, .. } => {
-                let k = self.arity(self.input_node(at, 0)?);
+                let k = self.input_kinds(at, 0)?.len();
                 let mut cs: Vec<String> = (0..k).map(|c| format!("r[{c}]")).collect();
                 for value in values {
                     cs.push(match value {
                         Operand::Literal(QueryLiteral::Number(n)) => format!("{}u64", n.0 as u64),
-                        Operand::Literal(QueryLiteral::Text(_)) => return Err("Extend: text (minted)".into()),
+                        Operand::Literal(QueryLiteral::Text(t)) => {
+                            let k = self.lit(&t.0);
+                            format!("cx.lit({k}, {:?})", t.0)
+                        }
                         _ => return Err("Extend: parameter or function".into()),
                     });
                 }
                 self.drive(at, 0, "r", &format!("f(&[{}]);", cs.join(", ")))?
             }
             Operation::Union { .. } => {
-                let (a, b) = (self.input_node(at, 0)?, self.input_node(at, 1)?);
-                self.push_fn(a)?;
-                self.push_fn(b)?;
-                format!("p{a}(cx, f); p{b}(cx, f);")
+                let (a, b) = (self.push_input(at, 0)?, self.push_input(at, 1)?);
+                format!("{a} {b}")
             }
             Operation::Join { left_on, right_on, output, .. } => {
                 let keys = self.key_pairs(at, left_on, right_on)?;
@@ -765,14 +950,41 @@ impl Gen<'_, '_> {
                 };
                 let (empty, code) = self.right_side(at, &keys, &hit)?;
                 let drive = self.drive(at, 0, "l", &code)?;
-                format!("{} {drive}", empty.replace("EMPTY", "return;"))
+                let plain = format!("{} {drive}", empty.replace("EMPTY", "return;"));
+                match self.swapped(at, &keys, output)? {
+                    Some((sizes, swapped)) => format!("{sizes} if rsz < lsz {{ {swapped} }} else {{ {plain} }}"),
+                    None => plain,
+                }
             }
             Operation::Antijoin { left_on, right_on, .. } => {
                 let keys = self.key_pairs(at, left_on, right_on)?;
                 self.absence(at, &keys, false)?
             }
+            Operation::Axis { direction, id, parent, child, domain_id, .. } => {
+                use ryo_values::domain::plan_parts::types::Direction;
+                let up = matches!(direction, Direction::Parent | Direction::Ancestor | Direction::NearestAncestor);
+                let (from, to) = if up { (parent.0 as usize, child.0 as usize) } else { (child.0 as usize, parent.0 as usize) };
+                let (from, to) = (to, from);
+                // `from` is the column an edge is keyed by from the entity in hand, `to` its far end.
+                let follow = self.keyed(at, 1, from, &|rc| format!("into.push({});", rc(to)))?;
+                let member = self.keyed(at, 2, domain_id.0 as usize, &|_| "return true;".to_string())?;
+                let k = self.input_kinds(at, 0)?.len();
+                let cs: Vec<String> = (0..k).map(|c| format!("r[{c}]")).collect();
+                let mode = match direction {
+                    Direction::Parent | Direction::Child => 0,
+                    Direction::NearestAncestor => 2,
+                    _ => 1,
+                };
+                let body = format!(
+                    "let follow = |key: u64, into: &mut Vec<u64>| {{ let l = [key]; {follow} }}; let member = |key: u64| -> bool {{ let l = [key]; {member} false }}; let mut reached = Vec::new(); super::rt::walk(r[{}], {mode}, &follow, &member, &mut reached); for c in reached {{ if member(c) {{ f(&[{}, c]); if {} {{ break; }} }} }}",
+                    id.0,
+                    cs.join(", "),
+                    mode == 2
+                );
+                self.drive(at, 0, "r", &body)?
+            }
             Operation::SpanBounds { span, .. } => {
-                let k = self.arity(self.input_node(at, 0)?);
+                let k = self.input_kinds(at, 0)?.len();
                 let cs: Vec<String> = (0..k).map(|c| format!("r[{c}]")).collect();
                 self.drive(at, 0, "r", &format!("let s = r[{}]; if super::rt::span_ok(s) {{ f(&[{}, s >> 32, s & 0xffff_ffff]); }}", span.0, cs.join(", ")))?
             }
@@ -803,17 +1015,110 @@ impl Gen<'_, '_> {
         })
     }
 
+    /// Code that, with `l[0]` the key in hand, runs `hit` for each row of input `i` whose column `col` holds it, with `rc(c)`
+    /// that row's column `c`: a lookup in the shared index of a relation's column (a view's tests inline) or in a node's
+    /// materialised rows.
+    fn keyed(&mut self, at: usize, i: usize, col: usize, hit: &dyn Fn(&dyn Fn(usize) -> String) -> String) -> Res<String> {
+        let ks = self.input_kinds(at, i)?;
+        let node = ks.get(col) == Some(&CellKind::Node);
+        if let Some(v) = self.input_view(at, i) {
+            let rel = self.rel(v.rel);
+            let rc = |c: usize| format!("cx.c({rel}, {}, i)", v.cols[c]);
+            let cell = move |c: usize| format!("cx.c({rel}, {c}, i)");
+            let conds: Vec<String> = v.tests.clone().iter().map(|t| self.test_expr(t, &cell)).collect();
+            let cond = if conds.is_empty() { "true".into() } else { conds.join(" && ") };
+            let rcol = v.cols[col];
+            let next = self.bidx.len();
+            let slot = *self.bidx.entry((rel, rcol)).or_insert(next);
+            return Ok(format!("for &i in cx.bidx({slot}, {rel}, {rcol}, {node}).get(l[0]) {{ if {cond} {{ {} }} }}", hit(&rc)));
+        }
+        let input = self.input_node(at, i)?;
+        self.push_fn(input)?;
+        let kr = ks.len();
+        let next = self.mats.len();
+        let ms = *self.mats.entry(input).or_insert(next);
+        let next = self.kidx.len();
+        let kslot = *self.kidx.entry((input, vec![col])).or_insert(next);
+        let rc = |c: usize| format!("m[j + {c}]");
+        Ok(format!(
+            "let m = cx.mat({ms}, |v| p{input}(cx, &mut |r: &[u64; {kr}]| v.extend_from_slice(r))); for &ri in cx.kidx({kslot}, m, {kr}, &[{col}], {node}).get(l[0]) {{ let j = ri as usize * {kr}; {} }}",
+            hit(&rc)
+        ))
+    }
+
+    /// The candidates a view's loop visits, as an expression: its literal bucket's length, or its relation's rows.
+    fn view_size(&mut self, v: &View) -> String {
+        let rel = self.rel(v.rel);
+        let ks = kinds(v.rel);
+        let bucket = v.tests.iter().find(|(test, l, r)| {
+            *test == Test::Equal
+                && matches!(l, Op::Col(c) if matches!(ks[*c], CellKind::Symbol | CellKind::Number))
+                && matches!(r, Op::Text(_) | Op::Num(_))
+        });
+        match bucket.cloned() {
+            Some((_, Op::Col(col), lit)) => {
+                let cell = move |c: usize| format!("cx.c({rel}, {c}, i)");
+                let key = self.op_expr(&lit, &cell);
+                let next = self.bidx.len();
+                let slot = *self.bidx.entry((rel, col)).or_insert(next);
+                format!("(if cx.lens[{rel}] == 0 {{ 0 }} else {{ cx.bidx({slot}, {rel}, {col}, false).get({key}).len() }})")
+            }
+            _ => format!("cx.lens[{rel}]"),
+        }
+    }
+
+    /// The join driven from its right side, probing the left relation's shared index, with the code that sizes both sides
+    /// (`lsz`, `rsz`); none when the left input is not read in place or the join has no key.
+    fn swapped(&mut self, at: usize, keys: &[(usize, usize)], output: &[ryo_values::domain::plan_parts::types::JoinColumn]) -> Res<Option<(String, String)>> {
+        let Some(lv) = self.input_view(at, 0) else { return Ok(None) };
+        let Some(&(l0, r0)) = keys.first() else { return Ok(None) };
+        let lrel = self.rel(lv.rel);
+        let lcol = lv.cols[l0];
+        let node = kinds(lv.rel)[lcol] == CellKind::Node;
+        let next = self.bidx.len();
+        let lslot = *self.bidx.entry((lrel, lcol)).or_insert(next);
+        let cell = move |c: usize| format!("cx.c({lrel}, {c}, i)");
+        let mut conds: Vec<String> = lv.tests.clone().iter().map(|t| self.test_expr(t, &cell)).collect();
+        for &(l, r) in &keys[1..] {
+            conds.push(format!("(cx.c({lrel}, {}, i) == r[{r}])", lv.cols[l]));
+        }
+        let cond = if conds.is_empty() { "true".to_string() } else { conds.join(" && ") };
+        let cs: Vec<String> = output
+            .iter()
+            .map(|c| match c.side {
+                Side::Left => format!("cx.c({lrel}, {}, i)", lv.cols[c.column.0 as usize]),
+                Side::Right => format!("r[{}]", c.column.0),
+            })
+            .collect();
+        let probe = format!("for &i in cx.bidx({lslot}, {lrel}, {lcol}, {node}).get(r[{r0}]) {{ if {cond} {{ f(&[{}]); }} }}", cs.join(", "));
+        let lsz = self.view_size(&lv);
+        if let Some(rv) = self.input_view(at, 1) {
+            let rsz = self.view_size(&rv);
+            let drive = self.drive(at, 1, "r", &probe)?;
+            return Ok(Some((format!("let lsz = {lsz}; let rsz = {rsz};"), drive)));
+        }
+        let right = self.input_node(at, 1)?;
+        self.push_fn(right)?;
+        let kr = self.arity(right);
+        let next = self.mats.len();
+        let ms = *self.mats.entry(right).or_insert(next);
+        let sizes = format!(
+            "let lsz = {lsz}; let mr = cx.mat({ms}, |v| p{right}(cx, &mut |r: &[u64; {kr}]| v.extend_from_slice(r))); let rsz = mr.len() / {kr};"
+        );
+        let drive = format!("for j in (0..mr.len()).step_by({kr}) {{ let r = &mr[j..j + {kr}]; {probe} }}");
+        Ok(Some((sizes, drive)))
+    }
+
     /// A left row kept when the right side holds a match on every key (`present`) or none.
     fn absence(&mut self, at: usize, keys: &[(usize, usize)], present: bool) -> Res<String> {
         let hit = |_: &dyn Fn(usize) -> String| "found = true; break;".to_string();
         let (empty, code) = self.right_side(at, keys, &hit)?;
         let keep = if present { "found" } else { "!found" };
         let drive = self.drive(at, 0, "l", &format!("let mut found = false; {code} if {keep} {{ f(l); }}"))?;
-        let left = self.input_node(at, 0)?;
         let on_empty = if present {
             "return;".to_string()
         } else {
-            format!("p{left}(cx, f); return;")
+            format!("{} return;", self.push_input(at, 0)?)
         };
         Ok(format!("{} {drive}", empty.replace("EMPTY", &on_empty)))
     }
@@ -849,4 +1154,13 @@ fn read_known() -> HashMap<usize, Vec<CellKind>> {
 pub fn kinds_line(node: usize, kinds: &[CellKind]) -> String {
     let codes: Vec<String> = kinds.iter().map(|k| kind_code(*k).to_string()).collect();
     format!("{node}\t{}\n", codes.join(","))
+}
+
+/// An operand over a node's columns as the same operand over the relation columns a view reads them from.
+fn remap(op: Op, cols: &[usize]) -> Op {
+    match op {
+        Op::Col(c) => Op::Col(cols[c]),
+        Op::Fn(function, args) => Op::Fn(function, args.into_iter().map(|a| remap(a, cols)).collect()),
+        other => other,
+    }
 }
