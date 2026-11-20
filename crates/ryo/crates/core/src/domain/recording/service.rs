@@ -217,11 +217,19 @@ pub(crate) fn frontier_flat_in<W: std::borrow::Borrow<BucketWords>>(
     }
 }
 
+/// Spike (ryo-fmx3, host3): the longest words a worker remembers a digest of.
+const REMEMBERED_WORDS: usize = 64;
+
 /// Spike (ryo-fmx3, host3): the digest of `flat`, the words of rule `rule`'s frontier, remembered in this worker: words the
 /// same as the rule's last are not digested again. The digest is of the words alone, so a remembered one is the same digest.
 pub(crate) fn remembered_digest(rule: usize, flat: &Flat, digest: impl FnOnce(&[u64]) -> Digest) -> Digest {
     thread_local! {
         static LAST: std::cell::RefCell<Vec<(Vec<u64>, Digest)>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+    // Words longer than a frame of no row change from file to file: they are digested, never kept, so the memory held for
+    // remembering stays a few small frames per rule.
+    if flat.0.len() > REMEMBERED_WORDS {
+        return digest(&flat.0);
     }
     LAST.with(|last| {
         let mut last = last.borrow_mut();
