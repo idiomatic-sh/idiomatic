@@ -2,7 +2,7 @@
 //! sources of the relation's fixture are the rows the fixture states, and the fill answers in full.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::fixtures::today::{Read, as_stated, read, read_keys, stated_rows};
+use crate::fixtures::today::{Read, as_stated, read, read_keys_all, stated_rows};
 use crate::fixtures::walking::{Seen, walked, walked_keys, walked_rows};
 use crate::outbound::syntax::fixtures::library::fixture_sources;
 use ryo::languages::{self, NodeTable, Relation, WalkError};
@@ -214,6 +214,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Relation::FormatSpecification, "format_specification"),
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("the_filler_of_embedded_expression_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::EmbeddedExpression, "embedded_expression"),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 /// The rows of one side the other lacks, shown.
@@ -281,7 +287,7 @@ fn row_differences(relation: Relation, folder: &str) -> Result<String, WalkError
             &mut today,
         )
         .map_err(|_refused| WalkError::Library)?;
-        let wanted = stated_rows(&of_source, bytes, &read_keys(&today.elements), reasons);
+        let wanted = stated_rows(&of_source, bytes, &read_keys_all(&today.elements), reasons);
         let (mut table, mut scratch) = (NodeTable::default(), Default::default());
         walked(
             &crate::walk(),

@@ -98,6 +98,34 @@ pub fn walked_keys(table: &NodeTable) -> Keys {
     }))
 }
 
+/// How many elements the file's own tree has in the walk's table: its nodes, then its tokens; the first node after them is the
+/// root of an embedded segment.
+#[must_use]
+pub fn walked_own_count(table: &NodeTable) -> usize {
+    use crate::domain::extras::types::Extra;
+    use crate::domain::syntax::service::kind_of;
+    use crate::domain::syntax::types::Kind;
+    let nodes = node_table::node_count(table).0;
+    let count = node_table::element_count(table).0;
+    (nodes..count)
+        .find(|id| {
+            let at = Position(u32::try_from(*id).unwrap_or(u32::MAX));
+            !matches!(
+                kind_of(node_table::kind_of(table, at)),
+                Kind::Token(_) | Kind::Extra(Extra::Whitespace)
+            )
+        })
+        .unwrap_or(count)
+}
+
+/// The key of each element of the file's own tree in the walk's table.
+#[must_use]
+pub fn walked_own_keys(table: &NodeTable) -> Keys {
+    let mut keys = walked_keys(table);
+    keys.0.truncate(walked_own_count(table));
+    keys
+}
+
 /// Where each element of the walk's table stands, sorted.
 #[must_use]
 pub fn walked_placements(table: &NodeTable, keys: &Keys) -> Vec<Placement> {

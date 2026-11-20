@@ -3,7 +3,7 @@
 use crate::domain::model::names::types::{KeyHasher, NameCode};
 use crate::domain::model::types::BindingAnnotationTiming;
 use ruff_python_ast::AnyNodeRef;
-use ryo::languages::{Count, Position};
+use ryo::languages::{Count, EmbeddedMapping, Position};
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 
@@ -11,6 +11,9 @@ use std::hash::BuildHasherDefault;
 /// is the node's id for a node of the file's own tree; the walk hands the three columns over before its table is finished.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TypedTree<'t, 'a> {
+    /// The embedded segments among the places, in the order of their first place: a place before the first of them is a node
+    /// of the file's own tree, and its id.
+    pub(crate) segments: &'t [EmbeddedSite],
     /// The parent of each node, by its place; the root is its own.
     pub(crate) parents: &'t [Position],
     /// Where the subtree of each node ends, by its place: the place after its last descendant.
@@ -19,6 +22,20 @@ pub(crate) struct TypedTree<'t, 'a> {
     pub(crate) nodes: &'t [AnyNodeRef<'a>],
     /// Whether the module postpones the evaluation of its annotations (`from __future__ import annotations`).
     pub(crate) annotations: BindingAnnotationTiming,
+}
+
+/// An embedded segment the walk wrote: the expression of a string the language reads as a type expression. The nodes of a
+/// segment have consecutive places after the file's own nodes, and consecutive ids in the table from its root's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EmbeddedSite {
+    /// The place of the string literal that holds the expression.
+    pub(crate) host: Position,
+    /// The place of the segment's root: its first node.
+    pub(crate) first: Position,
+    /// The id the table gave the segment's root.
+    pub(crate) root: Position,
+    /// How the segment's bytes map to the file's.
+    pub(crate) mapping: EmbeddedMapping,
 }
 
 /// What a node is to the language's name rules.

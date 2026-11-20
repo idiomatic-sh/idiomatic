@@ -4,6 +4,7 @@
 
 use super::types::{LinePlace, FileLines, TokenAt};
 use crate::domain::indentation::types::IndentationRegion;
+use crate::domain::node::service::own_end;
 use crate::domain::node::types::SyntaxFile;
 use crate::domain::syntax::service::kind_of;
 use crate::domain::syntax::types::Kind;
@@ -11,12 +12,12 @@ use crate::domain::token_links::types::{LinkKind, Opener, Pairing, TokenLink};
 use crate::domain::tokens::types::Token;
 use ryo::languages::{Integer, Offset, Position, Span, SyntaxCompleteness, node_table};
 
-/// The tokens of the file, in the order of the file: the ids after its nodes. The white space between tokens is no token of the
-/// language's.
+/// The tokens of the file's own tree, in the order of the file: the ids after its nodes. The white space between tokens is no
+/// token of the language's.
 pub(crate) fn tokens<'f>(file: &SyntaxFile<'f>) -> impl Iterator<Item = TokenAt> + use<'f> {
     let table = file.table;
     let from = u32::try_from(node_table::node_count(table).0).unwrap_or(u32::MAX);
-    let to = u32::try_from(node_table::element_count(table).0).unwrap_or(u32::MAX);
+    let to = own_end(file).0;
     (from..to).filter_map(
         move |id| match kind_of(node_table::kind_of(table, Position(id))) {
             Kind::Token(token) => Some(TokenAt {

@@ -1,11 +1,13 @@
 //! The `walk` contract's cases against today's reading: over the corpus the language's fixtures pin (real modules of the standard
 //! library and of two libraries), every relation the walk fills has the rows today's reading writes, and answers in part exactly
-//! where today's does. Today's table also embeds the expressions of strings it may read as annotations, after the file's own
-//! tree; the walk embeds none yet, so today's rows on those elements are left out and counted.
+//! where today's does. Today's table embeds the expression of every string it may read as a type expression, after the file's
+//! own tree, and its readers leave out the ones it does not; the walk embeds only the ones the language reads as one.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::fixtures::today::{Read, read, read_keys, read_rows, rows_by_relation};
-use crate::fixtures::walking::{Seen, walked, walked_keys, walked_rows};
+use crate::fixtures::today::{
+    Read, read, read_keys_all, read_own_count, read_rows, rows_by_relation,
+};
+use crate::fixtures::walking::{ElementKey, Seen, walked, walked_keys, walked_rows};
 use crate::outbound::syntax::fixtures::library::fixture_sources;
 use ryo::languages::{self, FactAnswer, NodeTable, Relation, WalkError};
 
@@ -24,6 +26,7 @@ const FILLED: &[Relation] = &[
     Relation::ConstantKey,
     Relation::Decorates,
     Relation::Defines,
+    Relation::EmbeddedExpression,
     Relation::ExpressionShape,
     Relation::ExpressionType,
     Relation::FormatField,
@@ -69,10 +72,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     expect: Expect::Value(String::new()),
 }];
 
+/// The relations whose rows on the nodes of embedded expressions the walk writes: for the others today's rows on those nodes
+/// are left out and the walk's are held to the file's own tree.
+const EMBEDDED: &[Relation] = &[Relation::EmbeddedExpression, Relation::QualifiedName];
+
 /// Whether a row names an element today's table holds outside the file's own tree: an embedded expression's.
-fn embedded(row: &[Seen]) -> bool {
+fn embedded(row: &[Seen], outside: &[ElementKey]) -> bool {
     row.iter()
-        .any(|cell| matches!(cell, Seen::Other(id) if *id < u64::from(u32::MAX / 2)))
+        .any(|cell| matches!(cell, Seen::Element(key) if outside.contains(key)))
 }
 
 /// What differs between today's rows and the walk's for one source.
@@ -87,7 +94,12 @@ fn differences(path: &str, bytes: &[u8]) -> Result<String, WalkError> {
         &mut today,
     )
     .map_err(|_refused| WalkError::Library)?;
-    let today_keys = read_keys(&today.elements);
+    let today_keys = read_keys_all(&today.elements);
+    let outside: Vec<ElementKey> = today_keys
+        .0
+        .get(read_own_count(&today.elements)..)
+        .unwrap_or_default()
+        .to_vec();
     let today_rows = rows_by_relation(&today);
     let (mut table, mut scratch) = (NodeTable::default(), Default::default());
     let mut found = String::new();
@@ -105,7 +117,7 @@ fn differences(path: &str, bytes: &[u8]) -> Result<String, WalkError> {
                 let (before, left_out): (Vec<Vec<Seen>>, Vec<Vec<Seen>>) =
                     read_rows(&today, &today_rows, bytes, &today_keys, *relation)
                         .into_iter()
-                        .partition(|row| !embedded(row));
+                        .partition(|row| EMBEDDED.contains(relation) || !embedded(row, &outside));
                 let (after, answer) = walked_rows(&mut file, &keys, *relation, &mut words);
                 // A row today's reading names by an embedded element (a class named by its last member) is left out on both
                 // sides: the walk names the same element's class by a member of the file's own tree.

@@ -1,6 +1,7 @@
 //! A walked file for the tests of the concepts that read one: the source walked into a table by the language's own walk, and the
 //! typed nodes of a second parse numbered in the same order, which stand for the nodes the walk lends only inside a visit.
 
+use crate::domain::model::lexical::types::TypedTree;
 use crate::domain::model::types::BindingAnnotationTiming;
 use crate::domain::node::types::{SyntaxFile, Wholeness};
 use ruff_python_ast::visitor::source_order::{SourceOrderVisitor, TraversalSignal};
@@ -80,9 +81,13 @@ pub(crate) fn with_file(source: &str, read: &mut dyn FnMut(&SyntaxFile<'_>)) {
     read(&SyntaxFile {
         table: &table,
         nodes: &nodes,
-        parents: &parents,
-        ends: &ends,
-        annotations: BindingAnnotationTiming::Immediate,
+        tree: TypedTree {
+            segments: &[],
+            parents: &parents,
+            ends: &ends,
+            nodes: &nodes,
+            annotations: BindingAnnotationTiming::Immediate,
+        },
         text: NameText(source),
         file: FileId(0),
         completeness: Wholeness {

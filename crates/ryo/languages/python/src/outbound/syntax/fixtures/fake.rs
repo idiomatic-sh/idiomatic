@@ -48,10 +48,7 @@ impl SyntaxPort for SyntaxFake {
         _source_kind: PythonSourceKind,
         _reported: crate::outbound::syntax::types::ReportedSyntax,
         builder: &mut languages::NodeTableBuilder<'_>,
-        lend: &mut dyn FnMut(
-            &mut languages::NodeTableBuilder<'_>,
-            crate::domain::node::types::WalkedTree<'_>,
-        ),
+        read: &mut dyn FnMut(crate::domain::node::types::Walked<'_, '_, '_>) -> Vec<languages::Position>,
     ) {
         use crate::domain::node::types::{Wholeness, WalkedTree};
         use languages::{FieldCode, SyntaxCompleteness, node_table};
@@ -71,10 +68,13 @@ impl SyntaxPort for SyntaxFake {
         node_table::leave_node(builder, end);
         node_table::leave_node(builder, end);
         node_table::leave_node(builder, end);
-        lend(
+        let _nothing = read(crate::domain::node::types::Walked::Whole(
             builder,
             WalkedTree {
                 nodes: Vec::new(),
+                strings: Vec::new(),
+                imports: Vec::new(),
+                segments: Vec::new(),
                 parents: Vec::new(),
                 ends: Vec::new(),
                 annotations: crate::domain::model::types::BindingAnnotationTiming::Immediate,
@@ -84,7 +84,7 @@ impl SyntaxPort for SyntaxFake {
                     lexical: SyntaxCompleteness::Complete,
                 },
             },
-        );
+        ));
     }
 }
 

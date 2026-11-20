@@ -26,10 +26,9 @@ impl SyntaxPort for MissingPayload {
         _source_kind: PythonSourceKind,
         _reported: crate::outbound::syntax::types::ReportedSyntax,
         _builder: &mut languages::NodeTableBuilder<'_>,
-        _lend: &mut dyn FnMut(
-            &mut languages::NodeTableBuilder<'_>,
-            crate::domain::node::types::WalkedTree<'_>,
-        ),
+        _read: &mut dyn FnMut(
+            crate::domain::node::types::Walked<'_, '_, '_>,
+        ) -> Vec<languages::Position>,
     ) {
         unreachable!("this syntax fixture is read, never walked");
     }

@@ -14,6 +14,7 @@ mod options;
 mod schemas;
 mod scopes;
 pub(crate) mod types;
+mod embedded;
 mod walk;
 mod walker;
 

@@ -257,6 +257,52 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub subtree_ends: Vec<languages::Position>,
     /// The open nodes, the innermost last.
     pub open: Vec<OpenWalked<'t>>,
+    /// Where the text being walked starts among the offsets the library gives: zero for a file, the start of the expression
+    /// for a string read in place.
+    pub origin: Offset,
+    /// The node that holds the expression being walked, for the expression of a string; none for a file.
+    pub host: Option<languages::Position>,
+    /// How many annotations are open: a string literal under one stands where the language writes a type.
+    pub annotating: Depth,
+    /// The string literals met.
+    pub literals: Vec<crate::domain::node::types::StringSite>,
+    /// The imported names met: the places of the aliases.
+    pub imports: Vec<languages::Position>,
     /// The fields the open nodes hand their children, one run for each open node.
     pub fields: Vec<crate::domain::node::types::ChildField<'t>>,
+}
+
+/// A string the language reads as a type expression, parsed: the library's parse of it, the text its offsets are of, and where
+/// its expression is in that text.
+pub(super) struct ParsedString<'p> {
+    /// The place of the string literal.
+    pub host: languages::Position,
+    /// The parse.
+    pub parsed: StringParse,
+    /// The text the parse's offsets are of: the text of the string's own tree when it is read in place, its decoded value
+    /// otherwise.
+    pub text: languages::NameText<'p>,
+    /// Where the expression starts in that text.
+    pub start: Offset,
+    /// Where it ends.
+    pub end: Offset,
+    /// How the segment's bytes map to the file's.
+    pub mapping: languages::EmbeddedMapping,
+}
+
+/// The library's parse of a string as a type expression.
+pub(super) enum StringParse {
+    /// Read in place: the offsets are the string's own.
+    InPlace(ruff_python_parser::typing::ParsedAnnotation),
+    /// Read from the decoded value: the string has escapes or is written in parts.
+    Decoded(ruff_python_parser::Parsed<ruff_python_ast::ModExpression>),
+}
+
+/// The text the offsets of a string's nodes are of, and how its bytes map to the file's.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct TextAround<'p> {
+    /// The text.
+    pub text: languages::NameText<'p>,
+    /// How its bytes map to the file's.
+    pub mapping: languages::EmbeddedMapping,
 }

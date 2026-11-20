@@ -67,6 +67,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         constant_key: ConstantKey => crate::domain::relations::collections::relations::constant_key::item::ConstantKeyItem;
         compiler_feature: CompilerFeature => crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem;
         decorates: Decorates => crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
+        embedded_expression: EmbeddedExpression => crate::domain::relations::collections::relations::embedded_expression::item::EmbeddedExpressionItem;
         expression_shape: ExpressionShape => crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem;
         expression_type: ExpressionType => crate::domain::relations::collections::relations::expression_type::item::ExpressionTypeItem;
         format_field: FormatField => crate::inbound::contracts::parse::readers::format::composition::FormatFieldItem;
@@ -113,7 +114,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NoSuchConstruct;
         directive: Directive => NoSuchConstruct;
-        embedded_expression: EmbeddedExpression => NotYetRead;
         entry: Entry => NotAKeyedDocument;
         file_package: FilePackage => NotYetRead;
         filesystem_executable: FilesystemExecutable => NotYetRead;

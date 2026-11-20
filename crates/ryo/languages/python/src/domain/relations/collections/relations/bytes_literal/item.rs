@@ -4,7 +4,7 @@ use crate::domain::file_view::types::PythonWalk;
 use crate::domain::literal_facts::service::bytes_hex;
 use crate::domain::model::view::service::built;
 use crate::domain::model::view::types::ModelPart;
-use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, typed_tree, word};
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::{
     literal_properties::{service::classify, types::LiteralClassification},
@@ -76,7 +76,7 @@ ryo::fills! {
         /// One row of the relation.
         type Row = <languages::BytesLiteral as languages::CatalogRelation>::Row;
         // The owner of a node is the scope the model says it is evaluated in.
-        built(file.model, &mut file.built, ModelPart::Lexical, typed_tree(&file.syntax));
+        built(file.model, &mut file.built, ModelPart::Lexical, file.syntax.tree);
         let owned = &file.model.lexical.scope_of;
         let hex = &mut file.buffers.text;
         for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(Node::Constant)) {

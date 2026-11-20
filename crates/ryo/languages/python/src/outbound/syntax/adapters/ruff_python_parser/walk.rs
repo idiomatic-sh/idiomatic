@@ -2,20 +2,23 @@
 //! language said of the file, and lend the walked tree while the parse lives.
 use super::constants::{INVALID_UTF8, NOT_UTF8, PARSER_ERROR, UNSUPPORTED_SYNTAX};
 use super::declaration::semantic_syntax_errors;
+use super::embedded::embedded;
 use super::future::module_future_annotations;
 use super::lexical::{complete, offset, readable};
 use super::options::options;
-use super::types::{ByteIndex, FutureAnnotations, Readable, TokenIndex, Walker};
+use super::types::{ByteIndex, Depth, FutureAnnotations, Readable, TokenIndex, Walker};
 use crate::domain::model::types::BindingAnnotationTiming;
+use crate::domain::node::types::Walked;
 use crate::domain::node::types::{WalkedTree, Wholeness};
 use crate::outbound::syntax::types::{PythonSourceKind, ReportedSyntax, SourceText};
 use crate::settings::PythonParserSettings;
 use ruff_python_ast::Mod;
 use ruff_python_ast::visitor::source_order::SourceOrderVisitor as _;
 use ruff_python_parser::parse_unchecked;
+use ruff_text_size::TextRange;
 use ryo::languages::{
-    self, DiagnosticMetadata, DiagnosticPhase, NameText, Offset, SyntaxCompleteness, TreeImpact,
-    node_table,
+    self, DiagnosticMetadata, DiagnosticPhase, NameText, Offset, Position, SyntaxCompleteness,
+    TreeImpact, node_table,
 };
 use std::borrow::Cow;
 
@@ -24,7 +27,7 @@ fn report(
     builder: &mut languages::NodeTableBuilder<'_>,
     metadata: DiagnosticMetadata,
     said: NameText<'_>,
-    at: ruff_text_size::TextRange,
+    at: TextRange,
 ) {
     node_table::diagnose_with_metadata(
         builder,
@@ -74,7 +77,8 @@ const fn parse_impact(lexical: SyntaxCompleteness) -> TreeImpact {
 
 /// Walks `text` into `builder`'s table, reports what was said of it in the order the language's reader reports it (bytes that are
 /// no text, the library's errors, the language's own validation when `reported` asks for every report, then what `CPython`
-/// refuses), and lends the walked tree to `lend` while the parse lives.
+/// refuses), embeds the expressions of the strings `read` says are type expressions, and hands `read` the walked tree while the parses
+/// live.
 #[expect(
     clippy::trivially_copy_pass_by_ref,
     reason = "the shared syntax adapter carries immutable parser settings by reference"
@@ -85,7 +89,7 @@ pub(super) fn walked(
     source_kind: PythonSourceKind,
     reported: ReportedSyntax,
     builder: &mut languages::NodeTableBuilder<'_>,
-    lend: &mut dyn FnMut(&mut languages::NodeTableBuilder<'_>, WalkedTree<'_>),
+    read: &mut dyn FnMut(Walked<'_, '_, '_>) -> Vec<Position>,
 ) {
     let Readable(source) = readable(text);
     let parsed = parse_unchecked(&source, options(source_kind, settings));
@@ -122,6 +126,11 @@ pub(super) fn walked(
         subtree_ends: Vec::new(),
         open: Vec::new(),
         fields: Vec::new(),
+        origin: Offset(0),
+        host: None,
+        annotating: Depth(0),
+        literals: Vec::new(),
+        imports: Vec::new(),
     };
     walker.visit_mod(parsed.syntax());
     let Walker {
@@ -130,6 +139,8 @@ pub(super) fn walked(
         parents,
         subtree_ends,
         refused,
+        literals,
+        imports,
         ..
     } = walker;
     let unreadable = if source.len() == text.0.len() && !utf8 {
@@ -224,19 +235,20 @@ pub(super) fn walked(
     } else {
         SyntaxCompleteness::Incomplete
     };
-    lend(
-        builder,
-        WalkedTree {
-            nodes,
-            parents,
-            ends: subtree_ends,
-            annotations: if future_annotations.0 {
-                BindingAnnotationTiming::Deferred
-            } else {
-                BindingAnnotationTiming::Immediate
-            },
-            text: NameText(&source),
-            completeness: Wholeness { syntax, lexical },
+    let tree = WalkedTree {
+        nodes,
+        parents,
+        ends: subtree_ends,
+        annotations: if future_annotations.0 {
+            BindingAnnotationTiming::Deferred
+        } else {
+            BindingAnnotationTiming::Immediate
         },
-    );
+        strings: literals,
+        imports,
+        segments: Vec::new(),
+        text: NameText(&source),
+        completeness: Wholeness { syntax, lexical },
+    };
+    embedded(builder, tree, Vec::new(), read);
 }

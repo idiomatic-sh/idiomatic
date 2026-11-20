@@ -125,3 +125,6 @@ pub(crate) mod shape_facts;
 
 /// The format specifications a file writes, from the parser's own nodes.
 pub(crate) mod spec_facts;
+
+/// Which strings the language reads as type expressions, from the parser's own nodes and the model's resolution.
+pub(crate) mod string_annotations;

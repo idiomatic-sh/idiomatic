@@ -61,7 +61,8 @@ fn node_laws(table: &NodeTable, found: &mut Vec<String>) {
 /// The laws of the tokens: they follow the nodes in the order of the file, each under a node, and read back the whole file.
 fn token_laws(table: &NodeTable, length: Offset, found: &mut Vec<String>) {
     let nodes = node_table::node_count(table).0;
-    let count = node_table::element_count(table).0;
+    // The tokens of the file's own tree read back the file; an embedded segment's are mapped into the string that holds it.
+    let count = super::walking::walked_own_count(table);
     let mut reached = Offset(0);
     for index in nodes..count {
         let at = id(index);
@@ -113,10 +114,27 @@ fn children_laws(table: &NodeTable, found: &mut Vec<String>) {
             before = start;
         }
     }
-    if count > 0 && listed + 1 != count {
+    // Every element is a child of its parent but the root and the root of each embedded segment, which follows the file's own
+    // elements.
+    let own = super::walking::walked_own_count(table);
+    let unlisted = (1..count)
+        .filter(|index| {
+            let at = id(*index);
+            let place = usize::try_from(node_table::ordinal_of(table, at).0).unwrap_or(usize::MAX);
+            node_table::children_of(table, node_table::parent_of(table, at)).get(place) != Some(&at)
+        })
+        .collect::<Vec<usize>>();
+    if count > 0 && listed + 1 + unlisted.len() != count {
         found.push(format!(
             "{listed} elements are listed as children, of {count} elements"
         ));
+    }
+    if let Some(first) = unlisted.iter().find(|index| **index < own) {
+        broken(
+            found,
+            "an element of the file's own tree is no child of its parent",
+            id(*first),
+        );
     }
 }
 

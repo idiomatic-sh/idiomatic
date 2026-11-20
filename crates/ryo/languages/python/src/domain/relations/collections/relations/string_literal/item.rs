@@ -13,7 +13,7 @@ use crate::domain::model::view::types::ModelPart;
 use crate::domain::names::service::string_or_unknown;
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
-use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, typed_tree, word};
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::owner;
@@ -49,7 +49,7 @@ ryo::fills! {
         /// One row of the relation.
         type Row = <languages::StringLiteral as languages::CatalogRelation>::Row;
         // The owner of a node is the scope the model says it is evaluated in.
-        built(file.model, &mut file.built, ModelPart::Lexical, typed_tree(&file.syntax));
+        built(file.model, &mut file.built, ModelPart::Lexical, file.syntax.tree);
         let owned = &file.model.lexical.scope_of;
         let joined = &mut file.buffers.text;
         for kind in [Node::Constant, Node::JoinedStr, Node::TemplateStr] {
