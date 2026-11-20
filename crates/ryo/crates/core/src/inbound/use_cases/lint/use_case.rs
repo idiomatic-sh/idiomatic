@@ -185,7 +185,7 @@ impl LintUseCase for LintUseCaseImpl {
             hosted: &request.hosted,
             vocabularies: &self.language.kind_vocabularies(),
         })?;
-        let plans: Vec<&ryo_values::domain::plans::types::Plan> = compiled.plans().collect();
+        let plans: Vec<&ryo_values::domain::query_plans::types::Plan> = compiled.plans().collect();
         let ids = ids_of(&rules);
         let Wanting { placed, wants } = wanting(
             self.matching.as_ref(),

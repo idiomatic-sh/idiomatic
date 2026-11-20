@@ -7,7 +7,7 @@ use crate::domain::executable_program::types::executable_program::value::Executa
 use crate::domain::operating::errors::OperatingError;
 use ryo_operators::domain::physical_plan::types::PlanNodeId;
 use ryo_values::domain::plan_parts::types::{StepId, StepScope};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 
 /// The scope the step `step` of `plan` runs in; a step the plan does not hold runs in each file.
 pub(in crate::domain::executable_program) fn scope_at(plan: &Plan, step: StepId) -> StepScope {

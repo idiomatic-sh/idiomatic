@@ -29,7 +29,8 @@ use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 
 /// A file of the corpus at `path`, holding one function.
 fn file(path: &str) -> CorpusFile {

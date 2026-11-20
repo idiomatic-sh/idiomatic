@@ -49,7 +49,7 @@ use ryo_execution_runtime::outbound::observer::types::FedTotals;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_values::domain::files::types::Glob;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::records::types::Freshness;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;

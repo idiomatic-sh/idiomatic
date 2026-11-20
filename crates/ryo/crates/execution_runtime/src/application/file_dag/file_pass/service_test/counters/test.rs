@@ -13,7 +13,8 @@ use ryo_operators::inbound::use_cases::run::fixtures::{TableInputs, TextResource
 use ryo_relations::domain::relations::types::{Integer, Offset, Relation, Span, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, StepId, StepScope};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 use ryo_values::domain::runs::types::RuleId;
 use std::borrow::Cow;
 use std::fmt::Write as _;

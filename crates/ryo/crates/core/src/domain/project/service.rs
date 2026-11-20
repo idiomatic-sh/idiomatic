@@ -4,7 +4,7 @@ use super::types::PlanReads;
 use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
 use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::records::types::Freshness;
 use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::run_metadata::types::{ProjectRead, RuleRunMetadata};

@@ -11,7 +11,8 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as StepInput, JoinColumn, Operand, PlanComparison,
     RepeatedRows, Side, StepId, StepScope, Test,
 };
-use ryo_values::domain::plans::types::{Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_plans::types::Plan;
 use std::borrow::Cow;
 use std::sync::PoisonError;
 

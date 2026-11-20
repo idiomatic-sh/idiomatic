@@ -27,7 +27,7 @@ use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::runs::types::RuleId;
 
 /// The place of the `kind` column of a relation, when it has one.
@@ -84,7 +84,7 @@ pub(crate) fn admits(comparison: &PlanComparison, kind: &LackingKind) -> Passage
 ///
 /// ```
 /// use ryo_execution_domain::domain::trust::service::needs_of;
-/// use ryo_values::domain::plans::types::Plan;
+/// use ryo_values::domain::query_plans::types::Plan;
 /// fn steps(plan: &Plan) -> usize {
 ///     needs_of(plan).len()
 /// }
@@ -312,7 +312,7 @@ pub fn observed_reads(plan: &Plan) -> Vec<RelationRead> {
 /// use ryo_execution_domain::domain::trust::service::step_read_sets;
 /// use ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets;
 /// use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-/// use ryo_values::domain::plans::types::{Emit, Plan};
+/// use ryo_values::domain::query_plans::types::{Emit, Plan};
 /// let plan = Plan {
 ///     observation_inputs: Vec::new(),
 ///     parameters: Vec::new(),

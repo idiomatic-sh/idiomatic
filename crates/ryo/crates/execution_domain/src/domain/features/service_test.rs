@@ -15,8 +15,9 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::service::kind_of;
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 use ryo_values::domain::run_metadata::types::Feature;
 
 /// What a row asks of the features of a run.

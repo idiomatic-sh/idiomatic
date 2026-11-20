@@ -63,7 +63,7 @@ pub(crate) struct PassProgram {
     /// The operators that run its nodes.
     pub(crate) operators: std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
     /// Each rule's compiled plan, shared with the compilation, in rule order.
-    pub(crate) plans: Box<[std::sync::Arc<ryo_values::domain::plans::types::Plan>]>,
+    pub(crate) plans: Box<[std::sync::Arc<ryo_values::domain::query_plans::types::Plan>]>,
     /// What each step of each rule reads, in rule order.
     pub(crate) reads: Box<[ryo_execution_domain::domain::trust::types::read_sets::value::PlanReadSets]>,
     /// What files ran in and gave back, for the next files: one per file running at once.
@@ -251,7 +251,7 @@ pub(crate) struct NodeAnswer {
 #[derive(Debug)]
 pub(crate) struct PassSource {
     /// Each rule's compiled plan, shared with the compilation, in rule order.
-    pub(crate) plans: Vec<std::sync::Arc<ryo_values::domain::plans::types::Plan>>,
+    pub(crate) plans: Vec<std::sync::Arc<ryo_values::domain::query_plans::types::Plan>>,
     /// What each rule binds its parameters to.
     pub(crate) bindings: Vec<Vec<ryo_values::domain::query_bindings::types::ParameterBinding>>,
     /// The operators that plan and run the program.

@@ -7,6 +7,7 @@ use ryo_relations::domain::relations::types::*;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::*;
 use ryo_values::domain::plans::types::*;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
 pub(crate) fn selected_join(distinct: bool) -> Plan {

@@ -8,7 +8,7 @@ use crate::domain::observation_schedule::types::{
 use crate::domain::rule_intent::types::FrontierPurpose;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepScope};
 use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::records::types::ObservationIndex;
 use std::collections::{HashMap, HashSet};
 

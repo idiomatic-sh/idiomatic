@@ -12,7 +12,7 @@ use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_relations::domain::relations::types::{Offset, Span};
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types as hosted;
-use ryo_values::domain::plans::types as plans;
+use ryo_values::domain::query_plans::types::Plan;
 
 use super::types::{CompileCalled, TypecheckCalled};
 
@@ -63,7 +63,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
         bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-    ) -> Result<plans::Plan, QueryLanguageError> {
+    ) -> Result<Plan, QueryLanguageError> {
         let report = self
             .compile
             .0
@@ -85,7 +85,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
         modules: &mut ryo_values::domain::program::types::ParsedModules,
         hosted: &[hosted::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-    ) -> Result<plans::Plan, QueryLanguageError> {
+    ) -> Result<Plan, QueryLanguageError> {
         let report = self
             .compile
             .0

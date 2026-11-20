@@ -28,7 +28,7 @@ use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plans::service::reads_of;
+use ryo_values::domain::query_plans::service::reads_of;
 
 pub(crate) mod inputs;
 pub(crate) mod occurrence;

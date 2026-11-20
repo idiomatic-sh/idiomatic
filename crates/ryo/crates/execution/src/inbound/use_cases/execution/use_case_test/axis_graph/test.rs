@@ -22,7 +22,8 @@ use ryo_values::{
     domain::{
         files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
         plan_parts::types::{ColumnIndex, Direction, HostedNumber, Input as Source, StepId},
-        plans::types::{Operation, Plan},
+        plans::types::Operation,
+        query_plans::types::Plan,
         query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
         rows::types::Table,
         rule_requests::types::{RuleParameters, RuleSpec},

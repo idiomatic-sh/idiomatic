@@ -313,7 +313,7 @@ pub(in crate::inbound::use_cases::compile::use_case_test) fn span_plan(
     root: &str,
     module: Option<&str>,
     hosted: &[ryo_values::domain::hosted::types::HostedRelation],
-) -> Result<ryo_values::domain::plans::types::Plan, String> {
+) -> Result<ryo_values::domain::query_plans::types::Plan, String> {
     use ryo_values::domain::query_tokens::types::{
         QueryBundle, QueryDocumentSource, QuerySourceId,
     };

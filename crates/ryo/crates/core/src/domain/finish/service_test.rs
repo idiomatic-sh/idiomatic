@@ -17,7 +17,7 @@ use super::types::{Arenas, ColumnNumber, FileLine, Loaded, Point, Resolving};
 use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::row_texts::types::RenderedText;
 
 /// What a row of the cases does with the rows.

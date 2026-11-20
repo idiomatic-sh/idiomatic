@@ -25,7 +25,7 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, StepId};
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::row_texts::types::{Cell, RowsTextView};
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;

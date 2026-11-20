@@ -25,7 +25,7 @@ use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::row_texts::types::Cell as Typed;
 use ryo_values::domain::row_texts::types::RowTotal;

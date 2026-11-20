@@ -8,7 +8,7 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::CorpusInput;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// What is read of the rules and the relations the host declares (as their lines, spelled once per run however many rules

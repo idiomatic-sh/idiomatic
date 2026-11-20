@@ -34,7 +34,7 @@ The values domain's `plan_parts` concept: the numbers, text and comparisons a qu
 
 ### plans
 
-The values domain's `plans` concept: a compiled query, its steps and what each reads.
+The values domain's `plans` concept: the steps of a compiled query, the operations they are and what each reads.
 
 ### program
 
@@ -47,6 +47,10 @@ The values domain's `query_bindings` concept: The immutable bindings a host hand
 ### `query_operators`
 
 The values domain's `query_operators` concept: the operators of the engine, the kinds of operation a plan holds and the output choices of their steps.
+
+### `query_plans`
+
+The values domain's `query_plans` concept: a compiled query whole, what it emits and the relations it reads.
 
 ### `query_requests`
 

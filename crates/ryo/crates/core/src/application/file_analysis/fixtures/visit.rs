@@ -23,8 +23,8 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::StepId;
-use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Emit;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::runs::types::RuleId;
 use std::sync::Arc;
 /// Visits each file at `paths` of a fake corpus, the way a lint does, with the language `language`: the worker that visited them, and

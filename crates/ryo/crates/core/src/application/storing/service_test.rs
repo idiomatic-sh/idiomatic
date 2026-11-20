@@ -16,7 +16,7 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::{CorpusFile, ExecutablePermission, FileBytes};
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::Digest;

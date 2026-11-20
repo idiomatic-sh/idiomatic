@@ -58,4 +58,4 @@ pub(crate) fn settle(
     observations
 }
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;

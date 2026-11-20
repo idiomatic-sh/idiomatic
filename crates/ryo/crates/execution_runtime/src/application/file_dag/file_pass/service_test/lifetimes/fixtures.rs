@@ -16,7 +16,7 @@ use ryo_operators::domain::physical_plan::types::physical_plan::value::PhysicalP
 use ryo_operators::domain::physical_plan::types::{NodeRows, PlanInputs, PlanNodeId, Resources};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::HostedNumber;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use std::fmt::Write as _;
 use std::sync::{Arc, Mutex, PoisonError};
 

@@ -89,7 +89,7 @@ pub(crate) fn mixed_program_with(
 
 /// A plan whose file step selects Function's file, whose project step selects `relation`'s first column, and whose emitted root
 /// joins the two after the files; both inputs are its frontier.
-pub(crate) fn mixed_plan(relation: Relation) -> ryo_values::domain::plans::types::Plan {
+pub(crate) fn mixed_plan(relation: Relation) -> ryo_values::domain::query_plans::types::Plan {
     let mut input = authored_request(1);
     let file_column = kinds(Relation::Function)
         .iter()

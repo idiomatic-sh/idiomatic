@@ -213,7 +213,7 @@ pub(crate) struct Scanning<'a> {
     /// The rule sets loaded for the request.
     pub session: ryo_execution::inbound::use_cases::file_scan::types::ScanSession,
     /// What a row of each rule emits, in rule order: its subject, its key and its headings.
-    pub emits: Vec<ryo_values::domain::plans::types::Emit>,
+    pub emits: Vec<ryo_values::domain::query_plans::types::Emit>,
     /// The rules' ids.
     pub ids: &'a [ryo_values::domain::runs::types::RuleId],
     /// Which rule governs which file.
@@ -278,7 +278,7 @@ pub(crate) struct ScanRequest<'a, 'l> {
     /// The language the request says reads every file, when it names one.
     pub named: Option<&'l ryo_values::domain::descriptions::types::LanguageName>,
     /// The plan of each rule, in rule order: read while the rule sets are loaded.
-    pub plans: &'l [&'l ryo_values::domain::plans::types::Plan],
+    pub plans: &'l [&'l ryo_values::domain::query_plans::types::Plan],
     /// The digest of each rule, in rule order: read while the rule sets are loaded.
     pub digests: &'l [ryo_values::domain::stored_facts::types::Digest],
     /// The rules' ids.

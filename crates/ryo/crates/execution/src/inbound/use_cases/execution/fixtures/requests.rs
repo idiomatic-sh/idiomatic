@@ -27,8 +27,8 @@ use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};

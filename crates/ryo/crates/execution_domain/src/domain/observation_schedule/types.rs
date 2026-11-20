@@ -1,6 +1,6 @@
 //! The request-level observation schedule: which rules produce what others read, how their bound inputs resolve, and the
 //! plans linked beneath them.
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 
 /// A linked request owns its remapped plans and typed producer references. Cached plans are untouched.
 ///

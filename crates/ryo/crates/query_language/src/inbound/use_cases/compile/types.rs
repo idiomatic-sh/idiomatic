@@ -3,7 +3,7 @@
 //! column is a position, a step is a number, a test is an enum. Text stays only in the literals
 //! the query wrote and in the headings of the rows it answers.
 
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 
 /// The plan the engine walks.
 #[derive(Clone, Debug, PartialEq)]

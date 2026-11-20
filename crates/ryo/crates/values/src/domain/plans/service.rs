@@ -1,6 +1,6 @@
 //! The `plans` service: free functions named by verb over a compiled plan, with no IO and no ports.
 
-use super::types::{Operation, Plan, RuleReads};
+use super::types::Operation;
 use crate::domain::plan_parts::types::Input;
 use crate::domain::plan_parts::types::PlanComparison;
 use crate::domain::plan_parts::types::StepId;
@@ -63,32 +63,6 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
 #[must_use]
 pub fn named(inputs: &Inputs) -> &[Input] {
     inputs.list.get(..inputs.used.0).unwrap_or(&inputs.list)
-}
-
-/// The relations `plan`'s steps read, each once, in the order a step first reads it: the one walk of a rule's read set.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_values::domain::plans::service::reads_of;
-/// use ryo_values::domain::plans::types::Plan;
-/// fn reads(plan: &Plan) -> usize {
-///     reads_of(plan).0.len()
-/// }
-/// ```
-#[must_use]
-pub fn reads_of(plan: &Plan) -> RuleReads {
-    let mut reads = Vec::new();
-    for step in &plan.steps {
-        for input in named(&inputs_of(&step.operation)) {
-            if let Input::Relation(relation) = *input
-                && !reads.contains(&relation)
-            {
-                reads.push(relation);
-            }
-        }
-    }
-    RuleReads(reads.into_boxed_slice())
 }
 
 /// Gives `visit` each input the operation reads.

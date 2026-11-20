@@ -11,7 +11,8 @@ use ryo_values::{
         plan_parts::types::{
             ColumnIndex, HostedNumber, Input as PlanInput, RepeatedRows, StepId, StepScope,
         },
-        plans::types::{Emit, Operation, Plan, PlanStep},
+        plans::types::{Operation, PlanStep},
+        query_plans::types::{Emit, Plan},
         rows::errors::RowsError,
     },
 };

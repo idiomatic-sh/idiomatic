@@ -10,7 +10,8 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as PlanInput, LiteralText, Operand, PlanComparison,
     QueryLiteral, StepId, StepScope, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 use std::borrow::Cow;
 
 /// What a row asks of the read sets.

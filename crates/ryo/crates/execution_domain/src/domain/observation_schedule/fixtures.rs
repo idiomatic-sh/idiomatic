@@ -7,6 +7,7 @@ use ryo_values::domain::observations::types::{
 use ryo_values::domain::plan_parts::types::Input as InputSource;
 use ryo_values::domain::plan_parts::types::*;
 use ryo_values::domain::plans::types::*;
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};

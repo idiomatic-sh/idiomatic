@@ -9,8 +9,9 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, LiteralText, ObservationBindingId, Operand, ParameterId,
     StepId, StepScope, Test,
 };
-use ryo_values::domain::plans::types::{Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::types::Plan;
 use std::sync::Arc;
 
 mod source_projections;

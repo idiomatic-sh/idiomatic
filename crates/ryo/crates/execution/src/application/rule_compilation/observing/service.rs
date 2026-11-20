@@ -13,8 +13,9 @@ use ryo_values::domain::plan_parts::{
     service::remapped_comparison,
     types::{ColumnIndex, Input, PlanComparison, RepeatedRows},
 };
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// A relation identity, ordered predicates over its original columns, and a composed output projection.

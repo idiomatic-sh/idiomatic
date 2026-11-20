@@ -3,8 +3,8 @@
 use super::errors::QueryLanguageError;
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types::HostedRelation;
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::program::types::ParsedModules;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 
 /// What every `query_language` adapter implements.

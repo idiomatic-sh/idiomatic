@@ -26,7 +26,7 @@ use {
 
 use crate::domain::value_cells::service::value_cell;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, RowWidth};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::records::service::{keep, lent};
 use ryo_values::domain::row_texts::types::RenderedText;
 use ryo_values::domain::row_texts::types::{

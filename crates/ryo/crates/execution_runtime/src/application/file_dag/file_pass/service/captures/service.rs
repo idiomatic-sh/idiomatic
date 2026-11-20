@@ -37,8 +37,10 @@ use ryo_relations::domain::catalog::types::RowScope;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepScope};
-use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::{FrontierCoverage, FrontierOrdinal, FrontierProof, ProducerRule};
+use ryo_values::domain::query_plans::types::Plan;
+use ryo_values::domain::records::types::{
+    FrontierCoverage, FrontierOrdinal, FrontierProof, ProducerRule,
+};
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::runs::types::{FileHandover, ParsedRows, RowsHanded, RuleNumber};
 use ryo_values::domain::stored_facts::service::frontier_bucket;
@@ -67,7 +69,11 @@ pub(crate) fn captured_rule(
         rule,
     )?;
     // Spike (ryo-fmx3): borrowed from the pass, not cloned: the count every worker bumps per rule per file was contended.
-    let plan: &Plan = pass.plans.get(rule.0).map(|plan| &**plan).ok_or(OperatingError::NotRun)?;
+    let plan: &Plan = pass
+        .plans
+        .get(rule.0)
+        .map(|plan| &**plan)
+        .ok_or(OperatingError::NotRun)?;
     let CaptureContext {
         worker,
         arena: Arena(arena),
@@ -125,7 +131,9 @@ pub(crate) fn captured_rule(
                         .is_ok_and(|node| deferred_layout(&at.pass.program, *node).is_some());
                     // Spike (ryo-fmx3, host3): a frontier that is a named output of the rule was answered with that output
                     // in this file, rows and coverage: it is read from there, not asked of the program again.
-                    let held = if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietFrontier) {
+                    let held = if ryo_operators::spike::host_lever(
+                        ryo_operators::spike::HostLever::QuietFrontier,
+                    ) {
                         plan.observations
                             .iter()
                             .position(|output| output.source == Input::Step(step))
@@ -180,7 +188,9 @@ pub(crate) fn captured_rule(
                 && coverage == FrontierCoverage::Complete
                 && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Frames);
             let proof = FrontierProof {
-                rule: ProducerRule(u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?),
+                rule: ProducerRule(
+                    u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,
+                ),
                 input: FrontierOrdinal(
                     u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
                 ),

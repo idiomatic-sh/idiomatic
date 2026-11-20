@@ -7,7 +7,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::{FilePartial, Partia
 use ryo_execution::inbound::use_cases::metadata::interface::Bearing;
 use ryo_relations::domain::relations::types::CellKind;
 
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 
 /// Whether an emitted finding can have a place in a file: a stretch, a node or a name among its columns.
 #[must_use]

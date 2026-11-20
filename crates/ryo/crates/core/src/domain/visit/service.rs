@@ -13,8 +13,10 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
-use ryo_values::domain::plans::service::{inputs_of, named, reads_of};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_plans::service::reads_of;
+use ryo_values::domain::query_plans::types::Plan;
 
 /// The relations the plans read, each once, in the order they are first read.
 ///
