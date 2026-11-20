@@ -16,6 +16,9 @@ pub use ryo::languages::AttributePathRow
 pub use ryo::languages::BindingEvent
 pub use ryo::languages::BindingEventColumn
 pub use ryo::languages::BindingEventRow
+pub use ryo::languages::BindingLookup
+pub use ryo::languages::BindingLookupColumn
+pub use ryo::languages::BindingLookupRow
 pub use ryo::languages::BindingRead
 pub use ryo::languages::BindingReadColumn
 pub use ryo::languages::BindingReadRow
@@ -533,6 +536,7 @@ pub use ryo::languages::contract::AnnotatesExpectedRow
 pub use ryo::languages::contract::AssignsExpectedRow
 pub use ryo::languages::contract::AttributePathExpectedRow
 pub use ryo::languages::contract::BindingEventExpectedRow
+pub use ryo::languages::contract::BindingLookupExpectedRow
 pub use ryo::languages::contract::BindingReadExpectedRow
 pub use ryo::languages::contract::BindingResolutionExpectedRow
 pub use ryo::languages::contract::BindingShadowExpectedRow

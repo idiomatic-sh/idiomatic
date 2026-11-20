@@ -54,6 +54,9 @@ pub(crate) mod binding_use;
 /// Schedule-order name resolution.
 pub(crate) mod binding_resolution;
 
+/// Schedule-order lookup: the binding in effect and later events.
+pub(crate) mod binding_lookup;
+
 /// Generic static binding analysis.
 pub(crate) mod binding_shadow;
 
