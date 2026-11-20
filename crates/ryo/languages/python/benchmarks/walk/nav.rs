@@ -13,7 +13,10 @@ use serde_json::Value;
 use std::rc::Rc;
 use std::time::Instant;
 
-pub(crate) type R = u16;
+/// bind: a register index. It was `u16` and the loader numbered registers with `len() as R`: a rule with more than 65,536
+/// variables (F821 has 112,707) wrapped, so two variables shared one register and one clobbered the other. That is the
+/// F821 fault of rounds 4 and 5 (`NAV_REG16=1` puts the wrap back, to reproduce it).
+pub(crate) type R = u32;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum TRel {
@@ -78,6 +81,9 @@ pub(crate) enum Ins {
     IterScan { rel: TRel, out: R },
     IterFact { rel: u16, col: u8, val: Val, out: R },
     IterFactScan { rel: u16, out: R },
+    /// cut: the rows of a fact relation (a made table included) whose `cols` cells equal the values: a composite index
+    /// over those columns, built once per file per column set
+    IterFactMulti { rel: u16, cols: Box<[u8]>, vals: Box<[Opd]>, out: R },
     Row { rel: TRel, key: R },
     Read { rel: TRel, col: u8, row: R, out: R },
     ReadFact { rel: u16, col: u8, row: R, out: R },
@@ -117,13 +123,21 @@ pub(crate) enum Ins {
     SubMemo { negate: bool, subs: Box<[Prog]> },
     /// lower: a call of a definition's sub-program that binds rows (as `Union`), its distinct rows memoised per file by the
     /// values of the `keys` registers (the formals the call wrote): the same call with the same args runs once per file
-    UnionKeyed { outs: Box<[R]>, subs: Box<[Prog]>, keys: Box<[R]>, table: Option<TableUse> },
+    /// cut: `args`, when given, are written into the `keys` registers by the instruction itself (the call passes its
+    /// arguments in one step instead of one `let` each); asof: `table`, how the call reads its definition's table
+    UnionKeyed { outs: Box<[R]>, subs: Box<[Prog]>, keys: Box<[R]>, args: Box<[Opd]>, table: Option<TableUse> },
     /// lower: an absence/existence test of a definition, its answer memoised per file by the values of the `keys` registers
     /// (the formals the call wrote): nested correlated tests asked again with the same args answer from the memo
-    SubKeyed { negate: bool, subs: Box<[Prog]>, keys: Box<[R]>, table: Option<TableUse> },
+    SubKeyed { negate: bool, subs: Box<[Prog]>, keys: Box<[R]>, args: Box<[Opd]>, table: Option<TableUse> },
     /// asof: the rows of a relation whose `cols` hold the values of `vals`, through a per-file hash of those columns
     /// (index `slot` of the program's keyed-index table, built on first use in the file)
     IterFactKeyed { rel: u16, slot: u32, cols: Box<[u8]>, vals: Box<[Opd]>, out: R },
+    /// cut: a call of a definition entered from the definition's side: its uncorrelated sub-program's rows (`width` cells
+    /// each) are collected once per file and indexed by the `kcols` cells; the call looks up the values of `keys` and
+    /// continues with each distinct tuple of the `ocols` cells in `outs` (a hash join whose build side is the definition)
+    Probe { outs: Box<[R]>, subs: Box<[Prog]>, kcols: Box<[u8]>, keys: Box<[Opd]>, ocols: Box<[u8]>, width: u8 },
+    /// cut: an absence/existence test of a definition answered from the same per-file index of its uncorrelated rows
+    ProbeTest { negate: bool, subs: Box<[Prog]>, kcols: Box<[u8]>, keys: Box<[Opd]>, width: u8 },
 }
 
 /// asof: how a keyed call reads its definition's own table of the file: the shared entry of the definition's uncorrelated
@@ -173,6 +187,11 @@ pub(crate) struct AsOfShape {
     pub events_first: bool,
     /// rows kept: node is a probe, target is an event, node is an event, target is a probe
     pub restrict: [bool; 4],
+}
+
+/// cut: a definition's uncorrelated rows indexed by some of their cells: key cells -> the distinct tuples of the wanted cells
+pub(crate) struct ProbeIndex {
+    pub map: FxMap<Box<[u64]>, Vec<u64>>,
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -284,6 +303,8 @@ struct Loader<'a> {
     keyed: &'a mut Vec<(u16, Box<[u8]>)>,
     /// asof: the program's definition-table index slots: (entry, key places, collected places)
     table_slots: &'a mut Vec<(u32, Box<[u8]>, Box<[u8]>)>,
+    /// bind (diagnostic, NAV_REG16): registers numbered modulo 65,536, as before the fix
+    wrap16: bool,
 }
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
@@ -318,7 +339,8 @@ pub(crate) fn glob_to_regex(glob: &str) -> String {
 impl Loader<'_> {
     fn reg(&mut self, v: &Value) -> R {
         let k = v.as_i64().expect("var");
-        let n = self.regs.len() as R;
+        let n = self.regs.len();
+        let n = if self.wrap16 { (n & 0xffff) as R } else { R::try_from(n).expect("more registers than a register index holds") };
         *self.regs.entry(k).or_insert(n)
     }
 
@@ -393,7 +415,8 @@ impl Loader<'_> {
     fn table_use(&mut self, v: Option<&Value>) -> Option<TableUse> {
         let a = v?.as_array()?;
         let places = |x: &Value| -> Box<[u8]> { x.as_array().unwrap().iter().map(|c| c.as_u64().unwrap() as u8).collect::<Vec<_>>().into() };
-        let entry = (self.shared_base + a[0].as_u64().unwrap() as usize) as u32;
+        // bind: the entry is written as the one-program list [[["shared", entry]]]
+        let entry = (self.shared_base + a[0][0][0][1].as_u64().unwrap() as usize) as u32;
         let (kcols, fcols) = (places(&a[2]), places(&a[3]));
         let slot = match self.table_slots.iter().position(|(e, k, f)| *e == entry && *k == kcols && *f == fcols) {
             Some(i) => i,
@@ -457,6 +480,12 @@ impl Loader<'_> {
                             Ins::IterFact { rel: f, col, val, out }
                         }
                         "scan" => Ins::IterFactScan { rel: f, out },
+                        "bym" => Ins::IterFactMulti {
+                            rel: f,
+                            cols: a[3][0].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
+                            vals: a[3][1].as_array().unwrap().iter().map(|x| self.opd(x)).collect::<Vec<_>>().into(),
+                            out,
+                        },
                         k => panic!("iter fact {k}"),
                     }
                 }
@@ -595,13 +624,32 @@ impl Loader<'_> {
                 negate: a[0] == "neg-keyed",
                 subs: a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 keys: a[2].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
-                table: self.table_use(a.get(3)),
+                args: a.get(3).and_then(Value::as_array).map(|v| v.iter().map(|x| self.opd(x)).collect::<Vec<_>>()).unwrap_or_default().into(),
+                table: self.table_use(a.get(4)),
             },
             "or-keyed" => Ins::UnionKeyed {
                 outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
                 subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 keys: a[3].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
-                table: self.table_use(a.get(4)),
+                args: a.get(4).and_then(Value::as_array).map(|v| v.iter().map(|x| self.opd(x)).collect::<Vec<_>>()).unwrap_or_default().into(),
+                table: self.table_use(a.get(5)),
+            },
+            // cut: ["or-probe", outs, subs, key columns, key values, out columns, row width]
+            "or-probe" => Ins::Probe {
+                outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
+                subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+                kcols: a[3].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
+                keys: a[4].as_array().unwrap().iter().map(|x| self.opd(x)).collect::<Vec<_>>().into(),
+                ocols: a[5].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
+                width: a[6].as_u64().unwrap() as u8,
+            },
+            // cut: ["neg-probe" | "exists-probe", subs, key columns, key values, row width]
+            "neg-probe" | "exists-probe" => Ins::ProbeTest {
+                negate: a[0] == "neg-probe",
+                subs: a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+                kcols: a[2].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
+                keys: a[3].as_array().unwrap().iter().map(|x| self.opd(x)).collect::<Vec<_>>().into(),
+                width: a[4].as_u64().unwrap() as u8,
             },
             "collect" => Ins::Collect { regs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into() },
             o => panic!("ins {o}"),
@@ -643,6 +691,7 @@ impl NavProgram {
                 shared_base: shared.len(),
                 keyed: &mut keyed,
                 table_slots: &mut table_slots,
+                wrap16: std::env::var_os("NAV_REG16").is_some(),
             };
             for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
                 use ryo_relations::domain::relations::types::CellKind;
@@ -824,29 +873,32 @@ pub(crate) struct Counters {
     pub rule_steps: Vec<u64>,
     pub rule_visits: Vec<u64>,
     pub rule_starts: Vec<u64>,
-    /// asof (diagnostic, NAV_PROF): per shared entry (then one slot for the top-level programs and one for made-table
-    /// builds): runs, exclusive steps, exclusive visits
-    pub prof: Vec<[u64; 3]>,
-    pub prof_cur: usize,
-    pub prof_mark: (u64, u64),
-    /// asof: keyed memo lookups and hits (or-keyed, neg-keyed, exists-keyed)
+    /// cut (diagnostic, NAV_PROF): per shared entry, calls, inclusive steps and own steps (inclusive minus the shared
+    /// entries it ran); `prof_child` is the inclusive steps of the entries run under the current one
+    pub prof: bool,
+    pub prof_child: u64,
+    /// cut: thread-ns grouping made tables (after their programs ran) and building fact, composite and probe indexes;
+    /// keyed memo lookups and misses
+    pub made_group_ns: u64,
+    pub index_ns: u64,
+    pub index_builds: u64,
     pub keyed_calls: u64,
+    pub keyed_misses: u64,
+    pub shared_calls: Vec<u64>,
+    pub shared_incl: Vec<u64>,
+    pub shared_self: Vec<u64>,
+    /// bind (diagnostic, NAV_PROF): per shared entry named by a keyed call, test or probe: calls, misses (distinct keys
+    /// evaluated), rows those evaluations produced, table builds, abandoned builds, table rows, steps in builds, rows a
+    /// probe collected
+    pub kprof: Vec<[u64; 8]>,
+    /// bind (diagnostic, NAV_PROF): per made table (fact index): builds, steps of its programs, rows
+    pub made_prof: Vec<[u64; 3]>,
+    /// bind (diagnostic, NAV_FILE_LOG=<steps>): files that took at least that many steps are printed with their memo sizes
+    pub file_log: u64,
+    /// asof: keyed memo hits; definition tables built and abandoned (budget)
     pub keyed_hits: u64,
-    /// asof: definition tables built and abandoned (budget)
     pub table_builds: u64,
     pub table_fails: u64,
-}
-
-impl Counters {
-    /// asof (diagnostic): the steps and visits since the last switch go to the current slot; `to` becomes current
-    pub(crate) fn prof_switch(&mut self, to: usize) -> usize {
-        let cur = self.prof_cur;
-        self.prof[cur][1] += self.steps - self.prof_mark.0;
-        self.prof[cur][2] += self.visits - self.prof_mark.1;
-        self.prof_mark = (self.steps, self.visits);
-        self.prof_cur = to;
-        cur
-    }
 }
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
@@ -858,6 +910,8 @@ pub(crate) struct Facts {
     pub idx: FxMap<(u16, u8), Rc<FIdx>>,
     /// asof: the keyed indexes of the file, by slot: hash of the key columns' values -> rows
     pub kidx: Vec<Option<Rc<FxMap<u64, Vec<u32>>>>>,
+    /// cut: composite indexes, by relation and column set: hash of the cells -> rows
+    pub midx: FxMap<(u16, Box<[u8]>), Rc<FxMap<u64, Vec<u32>>>>,
 }
 
 /// A fact column's index: by view id (dense head/next chains) for node columns, hashed otherwise.
@@ -951,6 +1005,11 @@ pub(crate) struct Exec<'a, 'p> {
     pub no_budget: bool,
     /// diagnostic (NAV_TRACE_KEYED)
     pub trace: bool,
+    /// cut: per-file uncorrelated rows of definitions (by shared entry, or by sub-program list) and the indexes over them
+    /// (by the probing instruction)
+    pub def_rows: FxMap<usize, Rc<Vec<u64>>>,
+    pub probe_idx: FxMap<usize, Rc<ProbeIndex>>,
+    pub kbuf: Vec<u64>,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -1101,6 +1160,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             provider_done: false,
             idx: FxMap::default(),
             kidx: vec![None; prog.keyed.len()],
+            midx: FxMap::default(),
         });
         if facts.loaded[rel as usize] {
             return;
@@ -1110,24 +1170,36 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     fn ensure_inner(&mut self, rel: u16, t: Instant) {
+        if !self.c.prof {
+            return self.ensure_inner2(rel, t);
+        }
+        // bind (diagnostic): a made table's build is the table's, not the entry's that first read it
+        let (steps0, outer_child) = (self.c.steps, std::mem::take(&mut self.c.prof_child));
+        self.ensure_inner2(rel, t);
+        let incl = self.c.steps - steps0;
+        self.c.prof_child = outer_child + incl;
+        let f = &self.prog.facts[rel as usize];
+        if f.made.is_some() || f.made_om.is_some() || f.made_asof.is_some() {
+            if self.c.made_prof.len() < self.prog.facts.len() {
+                self.c.made_prof.resize(self.prog.facts.len(), [0; 3]);
+            }
+            let rows = self.cache.facts.as_ref().map_or(0, |x| x.cols[rel as usize].first().map_or(0, Vec::len)) as u64;
+            let m = &mut self.c.made_prof[rel as usize];
+            m[0] += 1;
+            m[1] += incl;
+            m[2] += rows;
+        }
+    }
+
+    fn ensure_inner2(&mut self, rel: u16, t: Instant) {
         let prog = self.prog;
         if let Some(a) = &prog.facts[rel as usize].made_asof {
-            let prev = if self.c.prof.is_empty() { 0 } else { self.c.prof_switch(prog.shared.len() + 1) };
             self.asof_table(rel, a);
-            if !self.c.prof.is_empty() {
-                self.c.prof[prog.shared.len() + 1][0] += 1;
-                self.c.prof_switch(prev);
-            }
             self.c.fact_ns += t.elapsed().as_nanos() as u64;
             return;
         }
         if let Some(om) = &prog.facts[rel as usize].made_om {
-            let prev = if self.c.prof.is_empty() { 0 } else { self.c.prof_switch(prog.shared.len() + 1) };
             self.ordered_match(rel, om);
-            if !self.c.prof.is_empty() {
-                self.c.prof[prog.shared.len() + 1][0] += 1;
-                self.c.prof_switch(prev);
-            }
             self.c.fact_ns += t.elapsed().as_nanos() as u64;
             return;
         }
@@ -1144,23 +1216,42 @@ impl<'a, 'p> Exec<'a, 'p> {
             if self.aborted {
                 return;
             }
+            let tg = Instant::now();
+            // cut: one scratch key per row, an owned copy only for a new group or a new distinct value (it was four
+            // allocations per row)
             let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+            let mut seen_rows: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
             let mut groups: FxMap<Vec<u64>, u64> = FxMap::default();
             let mut order: Vec<Vec<u64>> = Vec::new();
+            let mut key: Vec<u64> = Vec::with_capacity(keys.len() + 1);
             for row in rows.chunks((*width).max(1)) {
-                let key: Vec<u64> = keys.iter().map(|&k| row[k]).collect();
-                let identity: Vec<u64> = match distinct {
-                    Some(d) => key.iter().copied().chain(std::iter::once(row[*d])).collect(),
-                    None => row.to_vec(),
-                };
-                if !seen.insert(identity) {
-                    continue;
+                key.clear();
+                key.extend(keys.iter().map(|&k| row[k]));
+                match distinct {
+                    Some(d) => {
+                        key.push(row[*d]);
+                        let fresh = !seen.contains(&key[..]);
+                        if fresh {
+                            seen.insert(key.clone());
+                        }
+                        key.pop();
+                        if !fresh {
+                            continue;
+                        }
+                    }
+                    None => {
+                        if !seen_rows.insert(row) {
+                            continue;
+                        }
+                    }
                 }
-                let e = groups.entry(key.clone()).or_insert_with(|| {
-                    order.push(key);
-                    0
-                });
-                *e += 1;
+                match groups.get_mut(&key[..]) {
+                    Some(e) => *e += 1,
+                    None => {
+                        groups.insert(key.clone(), 1);
+                        order.push(key.clone());
+                    }
+                }
             }
             let facts = self.cache.facts.as_mut().unwrap();
             let cols = &mut facts.cols[rel as usize];
@@ -1174,6 +1265,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.made_tables += 1;
             self.c.made_rows += cols[*nkeys].len() as u64;
             facts.loaded[rel as usize] = true;
+            self.c.made_group_ns += tg.elapsed().as_nanos() as u64;
             return;
         }
         match prog.facts[rel as usize].model {
@@ -1347,6 +1439,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if !facts.loaded[rel as usize] {
             return Rc::new(FIdx::Hash(FxMap::default()));
         }
+        let ti = Instant::now();
         let c = &facts.cols[rel as usize][col as usize];
         let idx = if dense {
             let mut head = vec![u32::MAX; n_view + 1];
@@ -1366,8 +1459,42 @@ impl<'a, 'p> Exec<'a, 'p> {
         };
         self.c.made_tables += 1;
         self.c.made_rows += c.len() as u64;
+        self.c.index_builds += 1;
+        self.c.index_ns += ti.elapsed().as_nanos() as u64;
         let m = Rc::new(idx);
         facts.idx.insert((rel, col), m.clone());
+        m
+    }
+
+    /// cut: the composite index of a fact relation over a column set (hash of the cells -> rows; a hit checks the cells)
+    fn fact_multi_index(&mut self, rel: u16, cols: &[u8]) -> Rc<FxMap<u64, Vec<u32>>> {
+        use std::hash::Hasher;
+        self.ensure(rel);
+        let facts = self.cache.facts.as_mut().unwrap();
+        if let Some(i) = facts.midx.get(&(rel, cols.into())) {
+            return i.clone();
+        }
+        if !facts.loaded[rel as usize] {
+            // bind: a made table whose build was abandoned (asof's budget) has no index yet
+            return Rc::new(FxMap::default());
+        }
+        let ti = Instant::now();
+        let f = &facts.cols[rel as usize];
+        let n = f.first().map_or(0, Vec::len);
+        let mut m: FxMap<u64, Vec<u32>> = FxMap::default();
+        for row in 0..n {
+            let mut h = crate::sema::Fx::default();
+            for &c in cols {
+                h.write_u64(f[c as usize][row]);
+            }
+            m.entry(h.finish()).or_default().push(row as u32);
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += n as u64;
+        self.c.index_builds += 1;
+        self.c.index_ns += ti.elapsed().as_nanos() as u64;
+        let m = Rc::new(m);
+        facts.midx.insert((rel, cols.into()), m.clone());
         m
     }
 
@@ -1639,6 +1766,38 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                     return false;
                 }
+                Ins::IterFactMulti { rel, cols, vals, out } => {
+                    use std::hash::Hasher;
+                    let idx = self.fact_multi_index(*rel, cols);
+                    let mut key = std::mem::take(&mut self.kbuf);
+                    key.clear();
+                    let mut h = crate::sema::Fx::default();
+                    for v in vals.iter() {
+                        let x = self.opd(v);
+                        key.push(x);
+                        h.write_u64(x);
+                    }
+                    let mut flow = false;
+                    if let Some(list) = idx.get(&h.finish()) {
+                        for &row in list {
+                            let same = {
+                                let f = &self.cache.facts.as_ref().unwrap().cols[*rel as usize];
+                                cols.iter().zip(key.iter()).all(|(&c, &k)| f[c as usize][row as usize] == k)
+                            };
+                            if !same {
+                                continue;
+                            }
+                            self.regs[*out as usize] = u64::from(row);
+                            self.c.visits += 1;
+                            if self.run_inner(p, pc + 1) {
+                                flow = true;
+                                break;
+                            }
+                        }
+                    }
+                    self.kbuf = key;
+                    return flow;
+                }
                 Ins::IterFactScan { rel, out } => {
                     self.ensure(*rel);
                     let n = self.cache.facts.as_ref().unwrap().cols[*rel as usize].first().map_or(0, Vec::len);
@@ -1757,9 +1916,60 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
                 Ins::Union { outs, subs, memo } => return self.union(p, pc, outs, subs, *memo),
-                Ins::UnionKeyed { outs, subs, keys, table } => return self.union_keyed(p, pc, outs, subs, keys, table.as_ref()),
-                Ins::SubKeyed { negate, subs, keys, table } => {
+                Ins::UnionKeyed { outs, subs, keys, args, table } => {
+                    for (k, a) in keys.iter().zip(args.iter()) {
+                        self.regs[*k as usize] = self.opd(a);
+                    }
+                    return self.union_keyed(p, pc, outs, subs, keys, table.as_ref());
+                }
+                Ins::SubKeyed { negate, subs, keys, args, table } => {
+                    for (k, a) in keys.iter().zip(args.iter()) {
+                        self.regs[*k as usize] = self.opd(a);
+                    }
                     let any = self.sub_keyed(subs, keys, table.as_ref());
+                    if self.aborted {
+                        return true;
+                    }
+                    if any == *negate {
+                        return false;
+                    }
+                }
+                Ins::Probe { outs, subs, kcols, keys, ocols, width } => {
+                    self.kp(subs, 0, 1);
+                    let idx = self.probe_index(subs, kcols, ocols, *width as usize, keys.as_ptr() as usize);
+                    let mut key = std::mem::take(&mut self.kbuf);
+                    key.clear();
+                    for k in keys.iter() {
+                        key.push(self.opd(k));
+                    }
+                    let hit = idx.map.get(&key[..]);
+                    self.kbuf = key;
+                    if self.aborted {
+                        return true;
+                    }
+                    let Some(rows) = hit else { return false };
+                    let w = outs.len().max(1);
+                    for row in rows.chunks(w) {
+                        for (i, r) in outs.iter().enumerate() {
+                            self.regs[*r as usize] = row[i];
+                        }
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::ProbeTest { negate, subs, kcols, keys, width } => {
+                    self.kp(subs, 0, 1);
+                    let idx = self.probe_index(subs, kcols, &[], *width as usize, keys.as_ptr() as usize);
+                    let mut key = std::mem::take(&mut self.kbuf);
+                    key.clear();
+                    for k in keys.iter() {
+                        key.push(self.opd(k));
+                    }
+                    let any = idx.map.contains_key(&key[..]);
+                    self.kbuf = key;
                     if self.aborted {
                         return true;
                     }
@@ -1769,7 +1979,14 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Let { from, out } => self.regs[*out as usize] = self.opd(from),
                 Ins::SubMemo { negate, subs } => {
-                    let key = subs.as_ptr() as usize;
+                    // cut: one shared entry is keyed by the entry (every test site of the definition shares its answer)
+                    let key = match &subs[..] {
+                        [q] => match &q[..] {
+                            [Ins::Shared { idx }] => 0x8000_0000_0000_0000usize | ((*idx as usize) << 1),
+                            _ => subs.as_ptr() as usize,
+                        },
+                        _ => subs.as_ptr() as usize,
+                    };
                     let any = match self.sub_memo.get(&key) {
                         Some(&v) => v,
                         None => {
@@ -1844,14 +2061,25 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Shared { idx } => {
                     let q: &'p [Ins] = &self.prog.shared[*idx as usize];
-                    if self.c.prof.is_empty() {
+                    if !self.c.prof {
                         return self.run_inner(q, 0);
                     }
-                    let prev = self.c.prof_switch(*idx as usize);
-                    self.c.prof[*idx as usize][0] += 1;
-                    let r = self.run_inner(q, 0);
-                    self.c.prof_switch(prev);
-                    return r;
+                    let i = *idx as usize;
+                    if self.c.shared_calls.len() <= i {
+                        let n = self.prog.shared.len();
+                        self.c.shared_calls.resize(n, 0);
+                        self.c.shared_incl.resize(n, 0);
+                        self.c.shared_self.resize(n, 0);
+                    }
+                    let outer = std::mem::take(&mut self.c.prof_child);
+                    let s0 = self.c.steps;
+                    let flow = self.run_inner(q, 0);
+                    let incl = self.c.steps - s0;
+                    self.c.shared_calls[i] += 1;
+                    self.c.shared_incl[i] += incl;
+                    self.c.shared_self[i] += incl - self.c.prof_child;
+                    self.c.prof_child = outer + incl;
+                    return flow;
                 }
                 Ins::SpanBetween { a, b, out } => {
                     let (x, y) = (self.opd(a), self.opd(b));
@@ -1969,7 +2197,14 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// Ins::Union (navwide): every sub-program's collected tuples, distinct, each continuing the program
     fn union(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], memo: bool) -> bool {
         let w = outs.len();
-        let key = subs.as_ptr() as usize;
+        // cut: a memoised union of one shared entry is keyed by the entry (every call site of the definition shares its rows)
+        let key = match subs {
+            [q] if memo => match &q[..] {
+                [Ins::Shared { idx }] => 0x8000_0000_0000_0000usize | ((*idx as usize) << 1),
+                _ => subs.as_ptr() as usize,
+            },
+            _ => subs.as_ptr() as usize,
+        };
         let rows: Rc<Vec<u64>> = match self.union_memo.get(&key) {
             Some(r) if memo => r.clone(),
             _ => {
@@ -2017,11 +2252,112 @@ impl<'a, 'p> Exec<'a, 'p> {
         false
     }
 
+    /// bind (diagnostic): adds to slot `i` of the keyed profile of the shared entry `subs` names
+    fn kp(&mut self, subs: &[Prog], i: usize, v: u64) {
+        if !self.c.prof {
+            return;
+        }
+        if let Some(Ins::Shared { idx }) = subs.first().and_then(|q| q.first()) {
+            self.kp_entry(*idx, i, v);
+        }
+    }
+
+    fn kp_entry(&mut self, idx: u32, i: usize, v: u64) {
+        if !self.c.prof {
+            return;
+        }
+        let n = self.prog.shared.len();
+        if self.c.kprof.len() < n {
+            self.c.kprof.resize(n, [0; 8]);
+        }
+        self.c.kprof[idx as usize][i] += v;
+    }
+
+    /// cut: what names a memoised sub-program list: its shared entry when it is one (every call site of the same definition
+    /// program with the same args then shares the answer), else the list itself
+    fn memo_seed(subs: &[Prog]) -> u64 {
+        match subs {
+            [q] => match &q[..] {
+                [Ins::Shared { idx }] => 0x5bd1_e995_0000_0000u64 | u64::from(*idx),
+                _ => subs.as_ptr() as u64,
+            },
+            _ => subs.as_ptr() as u64,
+        }
+    }
+
+    /// cut: the uncorrelated rows of a definition's sub-programs, collected once per file (shared by every instruction that
+    /// names the same shared entry)
+    fn definition_rows(&mut self, subs: &'p [Prog]) -> Rc<Vec<u64>> {
+        let key = match subs {
+            [q] => match &q[..] {
+                [Ins::Shared { idx }] => (*idx as usize) << 1 | 1,
+                _ => subs.as_ptr() as usize & !1,
+            },
+            _ => subs.as_ptr() as usize & !1,
+        };
+        if let Some(r) = self.def_rows.get(&key) {
+            return r.clone();
+        }
+        let saved = std::mem::take(&mut self.collect);
+        for q in subs {
+            self.c.subs += 1;
+            self.run_inner(q, 0);
+        }
+        let rows = Rc::new(std::mem::replace(&mut self.collect, saved));
+        if !self.aborted {
+            // bind: an abandoned table build (asof's budget) keeps nothing
+            self.def_rows.insert(key, rows.clone());
+        }
+        rows
+    }
+
+    /// cut: the index of a definition's uncorrelated rows for one probing instruction (`at`): key cells -> distinct tuples
+    /// of the wanted cells
+    fn probe_index(&mut self, subs: &'p [Prog], kcols: &[u8], ocols: &[u8], width: usize, at: usize) -> Rc<ProbeIndex> {
+        if let Some(i) = self.probe_idx.get(&at) {
+            return i.clone();
+        }
+        let rows = self.definition_rows(subs);
+        if self.aborted {
+            return Rc::new(ProbeIndex { map: FxMap::default() });
+        }
+        let ti = Instant::now();
+        let mut map: FxMap<Box<[u64]>, Vec<u64>> = FxMap::default();
+        let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+        let mut key: Vec<u64> = Vec::with_capacity(kcols.len());
+        for row in rows.chunks(width.max(1)) {
+            key.clear();
+            key.extend(kcols.iter().map(|&c| row[c as usize]));
+            if ocols.is_empty() {
+                if !map.contains_key(&key[..]) {
+                    map.insert(key.clone().into(), Vec::new());
+                }
+                continue;
+            }
+            let mut full = key.clone();
+            full.extend(ocols.iter().map(|&c| row[c as usize]));
+            if seen.insert(full) {
+                let e = match map.get_mut(&key[..]) {
+                    Some(e) => e,
+                    None => map.entry(key.clone().into()).or_default(),
+                };
+                e.extend(ocols.iter().map(|&c| row[c as usize]));
+            }
+        }
+        let idx = Rc::new(ProbeIndex { map });
+        self.kp(subs, 7, (rows.len() / width.max(1)) as u64);
+        self.c.index_builds += 1;
+        self.c.index_ns += ti.elapsed().as_nanos() as u64;
+        self.probe_idx.insert(at, idx.clone());
+        idx
+    }
+
     /// Ins::UnionKeyed (lower): as `union`, memoised per file in `union_memo` under an odd key (a hash of the sub-program
     /// list and the key registers' values; plain union keys are pointers, so even); the stored rows start with the key
     /// values, checked on a hit (a hash collision recomputes)
     fn union_keyed(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], keys: &[R], table: Option<&'p TableUse>) -> bool {
         use std::hash::Hasher;
+        self.kp(subs, 0, 1);
         if let Some(t) = table {
             if let Some((rows, idx)) = self.def_table(t) {
                 let mut h = crate::sema::Fx::default();
@@ -2104,16 +2440,16 @@ impl<'a, 'p> Exec<'a, 'p> {
         let w = outs.len().max(1);
         let nk = keys.len();
         let mut h = crate::sema::Fx::default();
-        h.write_u64(subs.as_ptr() as u64);
+        h.write_u64(Self::memo_seed(subs));
         for k in keys {
             h.write_u64(self.regs[*k as usize]);
         }
         let key = (h.finish() as usize) | 1;
-        self.c.keyed_calls += 1;
         let hit = match self.union_memo.get(&key) {
             Some(r) if r.len() >= nk && keys.iter().enumerate().all(|(i, k)| r[i] == self.regs[*k as usize]) => Some(r.clone()),
             _ => None,
         };
+        self.c.keyed_calls += 1;
         let rows = match hit {
             Some(r) => {
                 self.c.keyed_hits += 1;
@@ -2156,6 +2492,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                 r
             }
             None => {
+                self.c.keyed_misses += 1;
+                self.kp(subs, 1, 1);
                 let saved = std::mem::take(&mut self.collect);
                 let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
                 let steps0 = self.c.steps;
@@ -2167,14 +2505,20 @@ impl<'a, 'p> Exec<'a, 'p> {
                 if self.aborted {
                     return true;
                 }
-                let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
                 let mut distinct: Vec<u64> = vals.clone();
-                for row in rows.chunks(w) {
-                    if seen.insert(row) {
-                        distinct.extend_from_slice(row);
+                if rows.len() <= w {
+                    // cut: none or one row is distinct as it stands (no set)
+                    distinct.extend_from_slice(&rows);
+                } else {
+                    let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+                    for row in rows.chunks(w) {
+                        if seen.insert(row) {
+                            distinct.extend_from_slice(row);
+                        }
                     }
                 }
                 let r = Rc::new(distinct);
+                self.kp(subs, 2, ((r.len() - nk) / w) as u64);
                 self.union_memo.insert(key, r.clone());
                 if self.trace {
                     let mut b: Vec<Vec<u64>> = r[nk..].chunks(w).map(<[u64]>::to_vec).collect();
@@ -2210,6 +2554,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// the sub-program list and the key registers' values); the stored entry is the key values then the answer
     fn sub_keyed(&mut self, subs: &'p [Prog], keys: &[R], table: Option<&'p TableUse>) -> bool {
         use std::hash::Hasher;
+        self.kp(subs, 0, 1);
         if let Some(t) = table {
             if let Some((rows, idx)) = self.def_table(t) {
                 let mut h = crate::sema::Fx::default();
@@ -2272,7 +2617,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         let nk = keys.len();
         let mut h = crate::sema::Fx::default();
-        h.write_u64(subs.as_ptr() as u64 ^ 0x9e37_79b9_7f4a_7c15);
+        h.write_u64(Self::memo_seed(subs) ^ 0x9e37_79b9_7f4a_7c15);
         for k in keys {
             h.write_u64(self.regs[*k as usize]);
         }
@@ -2307,12 +2652,15 @@ impl<'a, 'p> Exec<'a, 'p> {
                 return r[nk] != 0;
             }
         }
+        self.c.keyed_misses += 1;
+        self.kp(subs, 1, 1);
         let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
         let steps0 = self.c.steps;
         let any = subs.iter().any(|q| {
             self.c.subs += 1;
             self.run_inner(q, 0)
         });
+        self.kp(subs, 2, u64::from(any));
         if self.aborted {
             return any;
         }
@@ -2386,14 +2734,15 @@ impl<'a, 'p> Exec<'a, 'p> {
         let saved = std::mem::take(&mut self.collect);
         let q: &'p [Ins] = &self.prog.shared[t.entry as usize];
         self.c.subs += 1;
-        let prev = if self.c.prof.is_empty() { 0 } else { self.c.prof_switch(self.prog.shared.len() + 1) };
         // the registers are put back after the build: it runs between two steps of the waiting programs
         let saved_regs = self.regs.clone();
+        let (steps0, outer_child) = (self.c.steps, std::mem::take(&mut self.c.prof_child));
         self.run_inner(q, 0);
         self.regs = saved_regs;
-        if !self.c.prof.is_empty() {
-            self.c.prof_switch(prev);
-        }
+        // bind (diagnostic): the build's steps are the table's, not the calling entry's own
+        let incl = self.c.steps - steps0;
+        self.c.prof_child = outer_child + incl;
+        self.kp_entry(t.entry, 6, incl);
         let rows = std::mem::replace(&mut self.collect, saved);
         self.budget_end = outer;
         if self.trace {
@@ -2403,6 +2752,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             // abandoned; an enclosing build past its own budget stays stopped
             self.aborted = self.c.steps > outer;
             self.c.table_fails += 1;
+            self.kp_entry(t.entry, 4, 1);
             return;
         }
         let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
@@ -2414,6 +2764,8 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         self.c.table_builds += 1;
         self.c.made_rows += (distinct.len() / t.width.max(1)) as u64;
+        self.kp_entry(t.entry, 3, 1);
+        self.kp_entry(t.entry, 5, (distinct.len() / t.width.max(1)) as u64);
         if self.trace {
             let mut b: Vec<Vec<u64>> = distinct.chunks(t.width.max(1)).map(<[u64]>::to_vec).collect();
             b.sort_unstable();

@@ -592,7 +592,11 @@ impl<'p> State<'p> {
             files: 0,
             provider: None,
             cache: crate::nav::FileCache::default(),
-            nc: crate::nav::Counters::default(),
+            nc: crate::nav::Counters {
+                prof: std::env::var_os("NAV_PROF").is_some(),
+                file_log: std::env::var("NAV_FILE_LOG").ok().and_then(|v| v.parse().ok()).unwrap_or(0),
+                ..Default::default()
+            },
             nav_ns: 0,
             tail_ns: 0,
             tail_files: 0,
@@ -669,16 +673,16 @@ impl<'p> State<'p> {
                 check_depth: 0,
                 no_budget: std::env::var_os("NAV_TABLE_NO_BUDGET").is_some(),
                 trace: std::env::var_os("NAV_TRACE_KEYED").is_some(),
+                def_rows: FxMap::default(),
+                probe_idx: FxMap::default(),
+                kbuf: Vec::new(),
             };
             ex.build_kinds();
+            let steps_file = ex.c.steps;
             if ex.c.rule_steps.len() != nrules + 1 {
                 ex.c.rule_steps = vec![0; nrules + 1];
                 ex.c.rule_visits = vec![0; nrules + 1];
                 ex.c.rule_starts = vec![0; nrules + 1];
-            }
-            if ex.c.prof.is_empty() && std::env::var_os("NAV_PROF").is_some() {
-                ex.c.prof = vec![[0; 3]; nav.shared.len() + 2];
-                ex.c.prof_cur = nav.shared.len();
             }
             // per-file anchor choice: for each branch, the alternative with the least expected work given the real bucket sizes
             let mut dispatch = std::mem::take(&mut ex.cache.dispatch);
@@ -762,6 +766,20 @@ impl<'p> State<'p> {
             ex.cache.dispatch = dispatch;
             ex.cache.dispatch_used = used;
             ex.cache.other = other;
+            if ex.c.file_log > 0 && ex.c.steps - steps_file >= ex.c.file_log {
+                // bind (diagnostic, NAV_FILE_LOG): the file's steps and what its memos hold
+                eprintln!(
+                    "F\t{}\t{}\tnodes={}\tmemo_entries={}\tmemo_cells={}\tdef_rows_cells={}\tprobe_indexes={}\ttable_cells={}",
+                    path,
+                    ex.c.steps - steps_file,
+                    view.len(),
+                    ex.union_memo.len(),
+                    ex.union_memo.values().map(|r| r.len()).sum::<usize>(),
+                    ex.def_rows.values().map(|r| r.len()).sum::<usize>(),
+                    ex.probe_idx.len(),
+                    ex.tables.values().map(|t| t.rows.as_ref().map_or(0, |r| r.len())).sum::<usize>()
+                );
+            }
             regs = ex.regs;
             outs = ex.outs;
         }
@@ -995,29 +1013,34 @@ impl<'p> State<'p> {
         totals.extra[6].fetch_add(self.views, Ordering::Relaxed);
         totals.extra[7].fetch_add(self.files * self.program.rules.len() as u64, Ordering::Relaxed);
         if self.program.nav.is_some() {
-            if !self.nc.prof.is_empty() {
-                let cur = self.nc.prof_cur;
-                self.nc.prof_switch(cur);
-                let rows: Vec<String> =
-                    self.nc.prof.iter().enumerate().filter(|(_, v)| v[1] > 0).map(|(i, v)| format!("[{},{},{},{}]", i, v[0], v[1], v[2])).collect();
-                eprintln!(
-                    "{{\"prof\":[{}],\"keyed_calls\":{},\"keyed_hits\":{},\"table_builds\":{},\"table_fails\":{}}}",
-                    rows.join(","),
-                    self.nc.keyed_calls,
-                    self.nc.keyed_hits,
-                    self.nc.table_builds,
-                    self.nc.table_fails
-                );
-            }
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"per_rule\":{{{}}}}}}}",
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"made_group_ns\":{},\"index_ns\":{},\"index_builds\":{},\"keyed_calls\":{},\"keyed_misses\":{},\"keyed_hits\":{},\"table_builds\":{},\"table_fails\":{},\"per_rule\":{{{}}}}}}}",
                 self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, self.tail_ns, self.tail_files, c.steps,
-                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits,
+                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits, c.made_group_ns, c.index_ns, c.index_builds, c.keyed_calls, c.keyed_misses, c.keyed_hits, c.table_builds, c.table_fails,
                 self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
                     .map(|(i, r)| format!("\"{}\":[{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i]))
                     .collect::<Vec<_>>().join(",")
             );
+            if c.prof {
+                // bind (diagnostic): keyed calls per shared entry, and made-table builds
+                eprintln!(
+                    "{{\"navkprof\":[{}],\"navmade\":[{}]}}",
+                    c.kprof.iter().enumerate().filter(|(_, v)| v.iter().any(|x| *x > 0))
+                        .map(|(i, v)| format!("[{},{}]", i, v.iter().map(u64::to_string).collect::<Vec<_>>().join(",")))
+                        .collect::<Vec<_>>().join(","),
+                    c.made_prof.iter().enumerate().filter(|(_, v)| v[0] > 0)
+                        .map(|(i, v)| format!("[\"{}\",{},{},{}]", self.program.nav.as_ref().unwrap().facts[i].name, v[0], v[1], v[2]))
+                        .collect::<Vec<_>>().join(",")
+                );
+                // cut (diagnostic): shared entries that ran, as [index, calls, inclusive steps, own steps]
+                eprintln!(
+                    "{{\"navprof\":[{}]}}",
+                    (0..c.shared_calls.len()).filter(|&i| c.shared_calls[i] > 0)
+                        .map(|i| format!("[{},{},{},{}]", i, c.shared_calls[i], c.shared_incl[i], c.shared_self[i]))
+                        .collect::<Vec<_>>().join(",")
+                );
+            }
         }
         let ops: Vec<String> = OP_NAMES
             .iter()
