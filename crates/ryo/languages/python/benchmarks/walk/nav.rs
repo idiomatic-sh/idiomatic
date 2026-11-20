@@ -115,6 +115,9 @@ pub(crate) enum Ins {
     Sibling { next: bool, start: R, out: R },
     /// an absence/existence test reading no candidate register: answered once per file
     SubMemo { negate: bool, subs: Box<[Prog]> },
+    /// lower: a call of a definition's sub-program that binds rows (as `Union`), its distinct rows memoised per file by the
+    /// values of the `keys` registers (the formals the call wrote): the same call with the same args runs once per file
+    UnionKeyed { outs: Box<[R]>, subs: Box<[Prog]>, keys: Box<[R]> },
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -496,6 +499,11 @@ impl Loader<'_> {
                 outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
                 subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 memo: a.len() > 3,
+            },
+            "or-keyed" => Ins::UnionKeyed {
+                outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
+                subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+                keys: a[3].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
             },
             "collect" => Ins::Collect { regs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into() },
             o => panic!("ins {o}"),
@@ -1523,6 +1531,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
                 Ins::Union { outs, subs, memo } => return self.union(p, pc, outs, subs, *memo),
+                Ins::UnionKeyed { outs, subs, keys } => return self.union_keyed(p, pc, outs, subs, keys),
                 Ins::Let { from, out } => self.regs[*out as usize] = self.opd(from),
                 Ins::SubMemo { negate, subs } => {
                     let key = subs.as_ptr() as usize;
@@ -1737,6 +1746,56 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         };
         for row in rows.chunks(w.max(1)) {
+            for (i, r) in outs.iter().enumerate() {
+                self.regs[*r as usize] = row[i];
+            }
+            self.c.visits += 1;
+            if self.run_inner(p, pc + 1) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Ins::UnionKeyed (lower): as `union`, memoised per file in `union_memo` under an odd key (a hash of the sub-program
+    /// list and the key registers' values; plain union keys are pointers, so even); the stored rows start with the key
+    /// values, checked on a hit (a hash collision recomputes)
+    fn union_keyed(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], keys: &[R]) -> bool {
+        use std::hash::Hasher;
+        let w = outs.len().max(1);
+        let nk = keys.len();
+        let mut h = crate::sema::Fx::default();
+        h.write_u64(subs.as_ptr() as u64);
+        for k in keys {
+            h.write_u64(self.regs[*k as usize]);
+        }
+        let key = (h.finish() as usize) | 1;
+        let hit = match self.union_memo.get(&key) {
+            Some(r) if r.len() >= nk && keys.iter().enumerate().all(|(i, k)| r[i] == self.regs[*k as usize]) => Some(r.clone()),
+            _ => None,
+        };
+        let rows = match hit {
+            Some(r) => r,
+            None => {
+                let saved = std::mem::take(&mut self.collect);
+                for q in subs {
+                    self.c.subs += 1;
+                    self.run_inner(q, 0);
+                }
+                let rows = std::mem::replace(&mut self.collect, saved);
+                let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+                let mut distinct: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                for row in rows.chunks(w) {
+                    if seen.insert(row) {
+                        distinct.extend_from_slice(row);
+                    }
+                }
+                let r = Rc::new(distinct);
+                self.union_memo.insert(key, r.clone());
+                r
+            }
+        };
+        for row in rows[nk..].chunks(w) {
             for (i, r) in outs.iter().enumerate() {
                 self.regs[*r as usize] = row[i];
             }
