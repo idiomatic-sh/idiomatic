@@ -171,8 +171,11 @@ struct Scratch {
     /// By comparison slot: the generation each symbol was decided in, and its verdict.
     memo: Vec<(Vec<u32>, Vec<bool>)>,
     index: Positions,
-    /// Spike (ryo-vhuy, `repeats`): the tail rows kept so far, by their cells' words and each cell's variant.
-    seen: rustc_hash::FxHashSet<([u64; 4], u32)>,
+    /// The column map, its next state, the rows each stage read, and one head row's candidates: kept across runs.
+    map: Vec<usize>,
+    tmp: Vec<usize>,
+    reads: Vec<usize>,
+    candidates: Vec<u32>,
 }
 
 thread_local! {
@@ -180,6 +183,7 @@ thread_local! {
 }
 
 /// One comparison of the chain, on the head's and the right rows' columns.
+#[derive(Clone, Copy)]
 struct Compiled<'c> {
     fast: FastComparison<'c>,
     /// The stage it belongs to.
@@ -228,23 +232,6 @@ impl<'h> Rows<'h> {
                 }
             }
         }
-    }
-}
-
-/// Spike (ryo-vhuy, `repeats`): a cell as one word and its variant; none for a cell that is no word (a name from another file).
-#[inline]
-fn word(value: Value) -> Option<(u64, u32)> {
-    match value {
-        Value::Node(id) => Some((id.0, 1)),
-        Value::Symbol(symbol) => Some((u64::from(symbol.0), 2)),
-        Value::File(file) => Some((u64::from(file.0), 3)),
-        Value::Span(span) => Some(((u64::from(span.start.0) << 32) | u64::from(span.end.0), 4)),
-        Value::Number(number) => Some((number.0.cast_unsigned(), 5)),
-        Value::Flag(flag) => Some((
-            u64::from(flag == ryo_relations::domain::relations::types::Flag::Lowered),
-            6,
-        )),
-        Value::Name(_) => None,
     }
 }
 
@@ -305,8 +292,18 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
     let width = head.width();
     let last = nodes.len().checked_sub(1)?;
     // Each stage's columns as the head's (or the head probe's right rows') columns, and the comparisons on them.
-    let mut map: Vec<usize> = (0..width).collect();
-    let mut compiled: Vec<Compiled<'_>> = Vec::new();
+    let (mut map, mut tmp, mut reads) = SCRATCH.with(|scratch| {
+        let scratch = &mut *scratch.borrow_mut();
+        (
+            std::mem::take(&mut scratch.map),
+            std::mem::take(&mut scratch.tmp),
+            std::mem::take(&mut scratch.reads),
+        )
+    });
+    map.clear();
+    map.extend(0..width);
+    let mut compiled: [Option<Compiled<'_>>; 8] = [None; 8];
+    let mut compiled_len = 0;
     let mut tail_distinct = false;
     let mut probe: Option<HeadProbe<'_>> = None;
     for (at, node) in nodes.iter().enumerate() {
@@ -346,22 +343,23 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
                         },
                         FastComparison::Generic => return None,
                     };
-                    compiled.push(Compiled { fast, stage: at });
+                    *compiled.get_mut(compiled_len)? = Some(Compiled { fast, stage: at });
+                    compiled_len += 1;
                 }
                 if !select.kept.is_empty() {
-                    map = select
-                        .kept
-                        .iter()
-                        .map(|column| mapped(&map, column.0))
-                        .collect::<Option<_>>()?;
+                    tmp.clear();
+                    for column in &select.kept {
+                        tmp.push(mapped(&map, column.0)?);
+                    }
+                    std::mem::swap(&mut map, &mut tmp);
                 }
             }
             Lowering::Project { project, .. } => {
-                map = project
-                    .columns
-                    .iter()
-                    .map(|column| mapped(&map, column.0))
-                    .collect::<Option<_>>()?;
+                tmp.clear();
+                for column in &project.columns {
+                    tmp.push(mapped(&map, column.0)?);
+                }
+                std::mem::swap(&mut map, &mut tmp);
                 if project.distinct == RepeatedRows::Dropped {
                     if at != last {
                         count_reason(14, 0);
@@ -396,17 +394,17 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
                     tail_distinct = true;
                 }
                 if parts.mode == ProbeMode::Inner {
-                    map = parts
-                        .output
-                        .iter()
-                        .map(|column| match column.side {
-                            Side::Left => mapped(&map, column.column.0),
+                    tmp.clear();
+                    for column in &parts.output {
+                        tmp.push(match column.side {
+                            Side::Left => mapped(&map, column.column.0)?,
                             Side::Right => usize::try_from(column.column.0)
                                 .ok()
                                 .filter(|c| *c < RIGHT)
-                                .map(|c| c | RIGHT),
-                        })
-                        .collect::<Option<_>>()?;
+                                .map(|c| c | RIGHT)?,
+                        });
+                    }
+                    std::mem::swap(&mut map, &mut tmp);
                 }
                 probe = Some(HeadProbe {
                     mode: parts.mode,
@@ -423,7 +421,9 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
     let first = usize::from(probe.is_some());
     let texts = push.run.resources.texts();
     let span = timed(push.buffers);
-    let mut reads = vec![0_usize; nodes.len()];
+    reads.clear();
+    reads.resize(nodes.len(), 0);
+    let compiled = &compiled[..compiled_len];
     let decided = SCRATCH.with(|scratch| {
         let scratch = &mut *scratch.borrow_mut();
         scratch.left.clear();
@@ -473,7 +473,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
                 index.head[at] = u32::try_from(row).ok()?;
             }
         }
-        let mut candidates: Vec<u32> = Vec::new();
+        let mut candidates = std::mem::take(&mut scratch.candidates);
         // Pass one: the selection of (head row, right row) pairs every stage keeps.
         for row in 0..count {
             candidates.clear();
@@ -515,7 +515,7 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
                 if stage <= last {
                     reads[stage] += 1;
                 }
-                for (slot, comparison) in compiled.iter().enumerate() {
+                for (slot, comparison) in compiled.iter().flatten().enumerate() {
                     while stage < comparison.stage {
                         stage += 1;
                         reads[stage] += 1;
@@ -569,50 +569,9 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
                 scratch.right.push(*pair);
             }
         }
-        // Pass two: the tail's cells of each selected pair, repeats dropped as the tail's own repeat set drops them. Spike
-        // (ryo-vhuy, `repeats`): a tail of at most four columns whose every selected cell is one word drops its repeats by
-        // those words in the worker's set instead, keeping the same first rows.
+        // Pass two: the tail's cells of each selected pair, repeats dropped as the tail's own repeat set drops them. (A
+        // typed repeat check by cell words, `84f3f9513`, measured slower than the row set: removed.)
         let output = &mut *push.tail;
-        let words = tail_distinct
-            && map.len() <= 4
-            && crate::spike::typed_lever("repeats")
-            && scratch
-                .left
-                .iter()
-                .zip(&scratch.right)
-                .all(|(left_row, right_row)| {
-                    map.iter().all(|entry| {
-                        pair_cell(head, right, *left_row as usize, *right_row, *entry)
-                            .and_then(word)
-                            .is_some()
-                    })
-                });
-        if words {
-            scratch.seen.clear();
-            for (left_row, right_row) in scratch.left.iter().zip(&scratch.right) {
-                let mut key = ([0_u64; 4], 0_u32);
-                for (slot, entry) in map.iter().enumerate() {
-                    let (bits, variant) =
-                        pair_cell(head, right, *left_row as usize, *right_row, *entry)
-                            .and_then(word)?;
-                    key.0[slot] = bits;
-                    key.1 |= variant << (3 * slot);
-                }
-                if scratch.seen.insert(key) {
-                    for entry in &map {
-                        output.cells.push(pair_cell(
-                            head,
-                            right,
-                            *left_row as usize,
-                            *right_row,
-                            *entry,
-                        )?);
-                    }
-                    output.count = RowCount(output.count.0 + 1);
-                }
-            }
-            return Some(scratch.left.len());
-        }
         let repeats = &mut stages.get_mut(last)?.own.repeats;
         for (left_row, right_row) in scratch.left.iter().zip(&scratch.right) {
             let start = CellStart(output.cells.len());
@@ -631,10 +590,20 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
                 output.count = RowCount(output.count.0 + 1);
             }
         }
+        scratch.candidates = candidates;
         Some(scratch.left.len())
     });
     timed_to(push.buffers, span, nodes[0]);
+    let finished = |map: Vec<usize>, tmp: Vec<usize>, reads: Vec<usize>| {
+        SCRATCH.with(|scratch| {
+            let scratch = &mut *scratch.borrow_mut();
+            scratch.map = map;
+            scratch.tmp = tmp;
+            scratch.reads = reads;
+        });
+    };
     let Some(kept) = decided else {
+        finished(map, tmp, reads);
         // Pass one stopped before any cell was written (pass two never fails on a pair pass one kept): nothing to undo.
         count_reason(12, 0);
         return None;
@@ -659,5 +628,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed(
         }
     }
     count_reason(ELIGIBLE, count);
+    finished(map, tmp, reads);
     Some(Ok(None))
 }

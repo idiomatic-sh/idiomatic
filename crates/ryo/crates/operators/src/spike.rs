@@ -83,12 +83,15 @@ pub fn probe_lever(name: &str) -> bool {
 }
 
 /// Spike (ryo-vhuy): whether the typed mechanism `name` (`RYO_TYPED_OFF` lists the ones switched off, comma-separated, or
-/// `all`) is on: `chains` (typed filter/projection chains), `joins` (id-keyed probes at a chain head, by position), `repeats` (a typed tail drops repeats by cell words), read once.
+/// `all`) is on: `chains` (typed filter/projection chains), `joins` (id-keyed probes at a chain head, by position), read once.
 pub fn typed_lever(name: &str) -> bool {
-    static OFF: OnceLock<String> = OnceLock::new();
-    !OFF.get_or_init(|| std::env::var("RYO_TYPED_OFF").unwrap_or_default())
-        .split(',')
-        .any(|off| off == name || off == "all")
+    const NAMES: [&str; 2] = ["chains", "joins"];
+    static ON: OnceLock<[bool; 2]> = OnceLock::new();
+    let on = ON.get_or_init(|| {
+        let off = std::env::var("RYO_TYPED_OFF").unwrap_or_default();
+        NAMES.map(|name| !off.split(',').any(|item| item == name || item == "all"))
+    });
+    NAMES.iter().position(|known| *known == name).is_none_or(|at| on[at])
 }
 
 /// Spike (ryo-vhuy): typed-path counts by reason (0 = covered), each with the head rows it read; the last slot is rows kept.
@@ -97,8 +100,8 @@ static TYPED: [std::sync::atomic::AtomicU64; 34] = [const { std::sync::atomic::A
 /// Spike (ryo-vhuy): counts one chain by `reason` with the `rows` it read, when the recorder is on.
 pub fn typed_count(reason: usize, rows: u64) {
     if on() && reason < 17 {
-        TYPED[2 * reason].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        TYPED[2 * reason + 1].fetch_add(rows, std::sync::atomic::Ordering::Relaxed);
+        let _calls = TYPED[2 * reason].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let _rows = TYPED[2 * reason + 1].fetch_add(rows, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
