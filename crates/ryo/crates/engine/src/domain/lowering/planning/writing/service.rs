@@ -7,7 +7,7 @@ use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
 use crate::domain::lowering::planning::emitting::service::{atom_written, operand, uses_of};
 use crate::domain::lowering::planning::types::{
-    Emitted, Emitter, Environment, PlannedBranch, UnitRole,
+    WrittenAccess, Emitter, Environment, PlannedBranch, UnitRole,
 };
 use crate::domain::steps::stages::types::{FillStage, Pipeline, PlacedStage, TreeWalk, UseMode};
 use crate::domain::steps::types::{
@@ -24,7 +24,7 @@ fn accesses<'a>(
     branch: &FlatBranch,
     plan: &PlannedBranch,
     unit: (UnitRole, Option<DefinitionId>),
-    start: (Environment, Vec<Emitted>, Option<&ColumnMask>),
+    start: (Environment, Vec<WrittenAccess>, Option<&ColumnMask>),
 ) -> Emitter<'a> {
     let mut environment = start.0;
     environment.pins = pins_of(branch);
@@ -40,7 +40,7 @@ fn accesses<'a>(
         missed: 0,
     };
     for at in &plan.order {
-        if let Some(atom) = branch.atoms.get(*at) {
+        if let Some(atom) = branch.atoms.get(at.0) {
             atom_written(&mut emitter, atom);
         }
     }
@@ -48,9 +48,9 @@ fn accesses<'a>(
 }
 
 /// One access as a step of a program.
-fn step_of(access: Emitted) -> ProgramStep {
+fn step_of(access: WrittenAccess) -> ProgramStep {
     match access {
-        Emitted::Rows {
+        WrittenAccess::Rows {
             source,
             columns,
             values,
@@ -70,7 +70,7 @@ fn step_of(access: Emitted) -> ProgramStep {
                 out,
             },
         },
-        Emitted::Use {
+        WrittenAccess::Use {
             definition,
             bound,
             collected,
@@ -102,7 +102,7 @@ fn step_of(access: Emitted) -> ProgramStep {
                 },
             }
         }
-        Emitted::Latest {
+        WrittenAccess::Latest {
             table,
             key,
             bound,
@@ -115,7 +115,7 @@ fn step_of(access: Emitted) -> ProgramStep {
             side,
             out,
         },
-        Emitted::Read {
+        WrittenAccess::Read {
             source,
             column,
             row,
@@ -126,8 +126,8 @@ fn step_of(access: Emitted) -> ProgramStep {
             row,
             out,
         },
-        Emitted::Test { test, left, right } => ProgramStep::Test { test, left, right },
-        Emitted::Axis {
+        WrittenAccess::Test { test, left, right } => ProgramStep::Test { test, left, right },
+        WrittenAccess::Axis {
             relation,
             direction,
             start,
@@ -138,7 +138,7 @@ fn step_of(access: Emitted) -> ProgramStep {
             start,
             out,
         },
-        Emitted::Children {
+        WrittenAccess::Children {
             relation,
             parent,
             out,
@@ -148,7 +148,7 @@ fn step_of(access: Emitted) -> ProgramStep {
             field: None,
             out,
         },
-        Emitted::Within {
+        WrittenAccess::Within {
             relation,
             ancestor,
             descendant,
@@ -157,7 +157,7 @@ fn step_of(access: Emitted) -> ProgramStep {
             ancestor,
             descendant,
         },
-        Emitted::Nearest {
+        WrittenAccess::Nearest {
             relation,
             domain,
             column,
@@ -177,7 +177,7 @@ fn step_of(access: Emitted) -> ProgramStep {
             out,
             memo: StepMemo::None,
         },
-        Emitted::Let { from, out } => ProgramStep::Let { from, out },
+        WrittenAccess::Let { from, out } => ProgramStep::Let { from, out },
     }
 }
 
@@ -235,7 +235,7 @@ pub(crate) struct PatternColumns<'a> {
 pub(crate) fn pattern_start(
     branch: &FlatBranch,
     pattern: PatternColumns<'_>,
-) -> (Environment, Vec<Emitted>) {
+) -> (Environment, Vec<WrittenAccess>) {
     let (mut environment, mut tests) = (Environment::default(), Vec::new());
     for column in &pattern.bound.0 {
         let place = usize::from(column.0);
@@ -247,7 +247,7 @@ pub(crate) fn pattern_start(
             (FlatTerm::Variable(variable), None) => {
                 let _new = environment.registers.insert(variable, *formal);
             }
-            (_, Some(right)) => tests.push(Emitted::Test {
+            (_, Some(right)) => tests.push(WrittenAccess::Test {
                 test: TestOperation::Equal,
                 left: StepOperand::Register(*formal),
                 right,
@@ -317,9 +317,9 @@ pub(crate) fn pattern_whole(mut branches: Vec<Vec<ProgramStep>>) -> StepProgram 
 
 /// One access as a stage of a pipeline: the first enumeration is the scan; a later read by a register is a probe, and one
 /// with no register is every row of its source, a product. None for a `Let`, which no pipeline holds.
-fn stage_of(access: Emitted, first: bool) -> Option<FillStage> {
+fn stage_of(access: WrittenAccess, first: bool) -> Option<FillStage> {
     Some(match access {
-        Emitted::Rows {
+        WrittenAccess::Rows {
             source,
             columns,
             values,
@@ -348,7 +348,7 @@ fn stage_of(access: Emitted, first: bool) -> Option<FillStage> {
                 (false, false) => FillStage::Product { source, out },
             }
         }
-        Emitted::Use {
+        WrittenAccess::Use {
             definition,
             bound,
             collected,
@@ -363,7 +363,7 @@ fn stage_of(access: Emitted, first: bool) -> Option<FillStage> {
             mode,
             outputs,
         },
-        Emitted::Latest {
+        WrittenAccess::Latest {
             table,
             key,
             bound,
@@ -376,7 +376,7 @@ fn stage_of(access: Emitted, first: bool) -> Option<FillStage> {
             side,
             out,
         },
-        Emitted::Read {
+        WrittenAccess::Read {
             source,
             column,
             row,
@@ -387,8 +387,8 @@ fn stage_of(access: Emitted, first: bool) -> Option<FillStage> {
             row,
             out,
         },
-        Emitted::Test { test, left, right } => FillStage::Keep { test, left, right },
-        Emitted::Axis {
+        WrittenAccess::Test { test, left, right } => FillStage::Keep { test, left, right },
+        WrittenAccess::Axis {
             relation,
             direction,
             start,
@@ -399,7 +399,7 @@ fn stage_of(access: Emitted, first: bool) -> Option<FillStage> {
             start,
             out,
         },
-        Emitted::Children {
+        WrittenAccess::Children {
             relation,
             parent,
             out,
@@ -410,7 +410,7 @@ fn stage_of(access: Emitted, first: bool) -> Option<FillStage> {
             out,
         },
         // A pipeline holds no test of containment, no walk with a condition and no `Let`.
-        Emitted::Within { .. } | Emitted::Nearest { .. } | Emitted::Let { .. } => return None,
+        WrittenAccess::Within { .. } | WrittenAccess::Nearest { .. } | WrittenAccess::Let { .. } => return None,
     })
 }
 

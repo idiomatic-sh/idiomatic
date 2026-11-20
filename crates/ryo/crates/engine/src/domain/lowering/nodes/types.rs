@@ -13,7 +13,7 @@ pub(crate) struct StepShape(pub(crate) Vec<CellKind>);
 
 /// One accepted rule as the lowering reads it: its plan, each step's digest, and the shape of every step its emit reaches.
 #[derive(Clone, Debug)]
-pub(crate) struct RuleNodes<'a> {
+pub(crate) struct AdmittedRule<'a> {
     /// The rule.
     pub(crate) rule: SelectedRule<'a>,
     /// The digest of every step, in step order.

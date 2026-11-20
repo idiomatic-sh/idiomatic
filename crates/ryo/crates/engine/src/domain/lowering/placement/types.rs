@@ -60,7 +60,7 @@ pub(crate) enum FormChoice {
 
 /// What the rule answers: the form, and whether the shape of the pattern's plans left it open.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Placement {
+pub(crate) struct PatternPlacement {
     /// The form.
     pub(crate) form: FormChoice,
     /// `Open` for a flip candidate: the only patterns a sample may flip.

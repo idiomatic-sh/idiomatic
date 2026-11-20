@@ -3,7 +3,7 @@
 //! there, each by name, and refused as the step that cannot be evaluated. A rule is never refused for its cost or its size.
 
 use crate::domain::lowering::nodes::service::{digested, input_shape, reached};
-use crate::domain::lowering::nodes::types::{RuleNodes, StepShape};
+use crate::domain::lowering::nodes::types::{AdmittedRule, StepShape};
 use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
 use crate::domain::lowering::tables::types::TreeAxis;
 use crate::domain::steps::types::{AxisDirection, TestOperation};
@@ -286,7 +286,7 @@ fn shaped(
 /// A rule as the lowering reads it: every step its emit reaches has a shape. Refused, naming the first step in step order
 /// that cannot be evaluated (an operation not lowered, a step that hands rows over to the project pass, a step out of
 /// order), or the columns of a step when they are past the width a table's columns are counted in.
-pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<RuleNodes<'a>, LoadRefusal> {
+pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, LoadRefusal> {
     let plan = rule.plan;
     let unlowerable = |step: usize| {
         LoadRefusal::Unlowerable(PlanNode(u32::try_from(step).unwrap_or(u32::MAX)))
@@ -308,7 +308,7 @@ pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<RuleNodes<'a>, Load
             *slot = Some(shape);
         }
     }
-    Ok(RuleNodes {
+    Ok(AdmittedRule {
         digests: digested(&rule),
         rule,
         shapes,

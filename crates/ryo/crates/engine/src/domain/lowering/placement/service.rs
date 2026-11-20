@@ -3,13 +3,13 @@
 //! product stage, made once.
 
 use super::constants::CALL_PATTERNS;
-use super::types::{CallForm, FormChoice, PatternFacts, Placement, SampleStage, TableForm};
+use super::types::{CallForm, FormChoice, PatternFacts, PatternPlacement, SampleStage, TableForm};
 use crate::domain::code::types::{MeasuredForm, UnitKey};
 use crate::domain::statistics::types::{LearnStage, ShapeChoice, Statistics};
 
 /// A form the shape of a pattern's plans decides: no sample flips it.
-const fn decided(form: FormChoice) -> Placement {
-    Placement {
+const fn decided(form: FormChoice) -> PatternPlacement {
+    PatternPlacement {
         form,
         shape: ShapeChoice::Decided,
     }
@@ -20,7 +20,7 @@ const fn decided(form: FormChoice) -> Placement {
 /// candidate (its table holds no product stage) and the statistics say Table: every candidate after a first run, the form
 /// written for it after a second.
 #[must_use]
-pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> Placement {
+pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> PatternPlacement {
     if facts.binds == 0 {
         return decided(FormChoice::Table);
     }
@@ -38,7 +38,7 @@ pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> Placement
     }
     match facts.table {
         TableForm::Product | TableForm::Calls => decided(FormChoice::Call),
-        TableForm::Keyed => Placement {
+        TableForm::Keyed => PatternPlacement {
             form: match (stage, facts.measured) {
                 (SampleStage::Absent, _)
                 | (SampleStage::Second, None | Some(MeasuredForm::Call)) => FormChoice::Call,

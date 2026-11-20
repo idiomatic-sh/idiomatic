@@ -2,13 +2,13 @@
 //! a load's statistics are read as.
 
 use super::service::{placed, sampled};
-use super::types::{CallForm, FormChoice, PatternFacts, Placement, SampleStage, TableForm};
+use super::types::{CallForm, FormChoice, PatternFacts, PatternPlacement, SampleStage, TableForm};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::MeasuredForm;
 use crate::domain::statistics::types::{LearnStage, ShapeChoice, Statistics};
 
 type Input = (PatternFacts, SampleStage);
-type Value = Placement;
+type Value = PatternPlacement;
 type Failure = ();
 
 /// A pattern that binds one column, has a program, and whose definition's table is keyed throughout: a flip candidate.
@@ -21,7 +21,7 @@ const CANDIDATE: PatternFacts = PatternFacts {
 };
 
 const fn answer(form: FormChoice, shape: ShapeChoice) -> Expect<Value, Failure> {
-    Expect::Value(Placement { form, shape })
+    Expect::Value(PatternPlacement { form, shape })
 }
 
 /// The rows of this part's cases.
