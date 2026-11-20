@@ -12,6 +12,7 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
+use std::borrow::Cow;
 
 /// What a row asks of the service.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -20,10 +21,21 @@ enum Scenario {
     AnUnreadStepGoes,
     /// A step reads a step past the plan.
     ReadPastThePlan,
+    /// A ladder of so many joins, each of the step before with itself and each beside a step nothing reads, and one of twice as many.
+    Ladder(usize),
 }
 
-/// A number the answer is.
-type Value = usize;
+/// What a row answers.
+#[derive(Debug, PartialEq, Eq)]
+enum Answer {
+    /// A number the answer is.
+    Number(usize),
+    /// How many steps of a ladder were kept at a depth and at twice it, beside how many steps each has: the walk marks a step the
+    /// first time it reaches it and follows the inputs of a marked step no more, so it follows each kept step once.
+    Counted(Cow<'static, str>),
+}
+
+type Value = Answer;
 type Failure = ();
 /// What a row asks of the service.
 type Input = Scenario;
@@ -95,10 +107,53 @@ fn crash_of(work: impl FnOnce()) -> String {
     )
 }
 
+/// How many steps of a ladder of `levels` joins, each of the step before with itself and each beside a step nothing reads, are kept.
+fn ladder_kept(levels: usize) -> String {
+    let mut steps = vec![step(Operation::Select {
+        from: Reads::Relation(Relation::Function),
+        comparisons: Vec::new(),
+        kept: Vec::new(),
+    })];
+    let mut before = StepId(0);
+    for _ in 0..levels {
+        steps.push(step(Operation::Project {
+            from: Reads::Step(before),
+            columns: vec![column(0)],
+            distinct: RepeatedRows::Dropped,
+        }));
+        steps.push(step(Operation::Join {
+            left: Reads::Step(before),
+            right: Reads::Step(before),
+            left_on: vec![column(0)],
+            right_on: vec![column(0)],
+            output: Vec::new(),
+            filter: Vec::new(),
+            view: Vec::new(),
+            reach: None,
+        }));
+        before = StepId(u32::try_from(steps.len().saturating_sub(1)).unwrap_or(u32::MAX));
+    }
+    let written = steps.len();
+    let Planned {
+        steps: kept,
+        emitted,
+    } = without_unused(steps, before);
+    format!(
+        "{levels} levels, {written} steps: {} kept, the last emitted as {}",
+        kept.len(),
+        emitted.0
+    )
+}
+
 fn subject(scenario: Input) -> Value {
     match scenario {
-        Scenario::AnUnreadStepGoes => an_unread_step_goes(),
-        Scenario::ReadPastThePlan => a_read_past_the_plan_crashes(),
+        Scenario::AnUnreadStepGoes => Answer::Number(an_unread_step_goes()),
+        Scenario::ReadPastThePlan => Answer::Number(a_read_past_the_plan_crashes()),
+        Scenario::Ladder(levels) => Answer::Counted(Cow::Owned(format!(
+            "{}; {}",
+            ladder_kept(levels),
+            ladder_kept(levels.saturating_mul(2))
+        ))),
     }
 }
 
@@ -108,13 +163,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_step_nothing_reads_goes_and_the_steps_after_it_are_renumbered"),
         word: Word::Succeeds,
         input: || Scenario::AnUnreadStepGoes,
-        expect: Expect::Value(1),
+        expect: Expect::Value(Answer::Number(1)),
     },
     Case {
         name: CaseName("a_step_reading_past_the_plan_crashes_instead_of_being_dropped"),
         word: Word::Succeeds,
         input: || Scenario::ReadPastThePlan,
-        expect: Expect::Value(1),
+        expect: Expect::Value(Answer::Number(1)),
+    },
+    Case {
+        name: CaseName("a_ladder_of_joins_of_a_step_with_itself_is_walked_once_a_step"),
+        word: Word::Succeeds,
+        input: || Scenario::Ladder(16),
+        expect: Expect::Value(Answer::Counted(Cow::Borrowed(
+            "16 levels, 33 steps: 17 kept, the last emitted as 16; 32 levels, 65 steps: 33 kept, the last emitted as 32",
+        ))),
     },
 ];
 
