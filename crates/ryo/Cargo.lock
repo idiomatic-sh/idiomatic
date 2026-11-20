@@ -1610,6 +1610,7 @@ dependencies = [
  "pep508_rs",
  "postcard",
  "pyproject-toml",
+ "regex-automata",
  "ruff_python_ast",
  "ruff_python_parser",
  "ruff_text_size",
