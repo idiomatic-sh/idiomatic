@@ -87,7 +87,7 @@ pub(crate) struct BitmapScratch {
     rel_val: Vec<u32>,
     /// By node, across this worker's files: how often the pass was asked for it and how often it proved it empty.
     tries: Vec<(u16, u16)>,
-    /// Nodes on the evaluation stack, so a cycle answers "maybe".
+    /// By node, the file in which it is on the evaluation stack, so a cycle answers "maybe".
     busy: Vec<u32>,
     /// What the pass cost and proved, for the recorder: evaluations, nodes proved empty.
     pub(crate) evaluated: u64,
@@ -111,7 +111,6 @@ impl BitmapScratch {
         self.dense.clear();
         self.items.clear();
         self.open = 0;
-        self.busy.clear();
     }
 
     /// Opens a set to build; its handle is a number below `TOP` until `close`.
@@ -395,6 +394,18 @@ pub(crate) fn proved_empty(plan: &PhysicalPlan, run: &KernelRun<'_>, node: PlanN
     if buffers.bitmap.tries.len() <= place {
         buffers.bitmap.tries.resize(plan.nodes.len().max(place + 1), (0, 0));
     }
+    // Only a node with an input still to make can save anything: a leaf or a node over made inputs runs its kernel anyway.
+    let Some(physical) = plan.nodes.get(place) else { return false };
+    let unmade = physical.lowering.sources().any(|source| match source {
+        RowSource::Node(read) => {
+            matches!(buffers.nodes.get(read.0 as usize), Some(None) | None)
+                && super::super::service::known(buffers, read.0) == super::super::service::Known::Unmade
+        }
+        RowSource::Facts(_) | RowSource::Tree(_) | RowSource::Frontier(_) | RowSource::Observation(_) => false,
+    });
+    if !unmade {
+        return false;
+    }
     // A node the pass seldom proves empty in this worker's files is no longer asked about (learned, as the kill order is).
     let (tries, wins) = buffers.bitmap.tries[place];
     if crate::spike::bitmap_learn() && tries >= LEARN_AFTER && u32::from(wins) * LEARN_RATIO < u32::from(tries) {
@@ -412,6 +423,9 @@ pub(crate) fn proved_empty(plan: &PhysicalPlan, run: &KernelRun<'_>, node: PlanN
     }
     empty
 }
+
+/// The most rows of a made table the pass reads; a bigger one answers "maybe".
+const TABLE_MOST: usize = 2048;
 
 /// How many asks before a node's record decides whether it is asked again.
 const LEARN_AFTER: u16 = 24;
@@ -437,7 +451,7 @@ fn node_val(plan: &PhysicalPlan, run: &KernelRun<'_>, node: u32, buffers: &mut F
     if matches!(buffers.pending.get(place), Some(None)) && matches!(buffers.nodes.get(place), Some(Some(_))) {
         let FileBuffers { bitmap, nodes, .. } = buffers;
         let Some(Some(table)) = nodes.get(place) else { return bitmap.maybe() };
-        let val = tabled(bitmap, table);
+        let val = if table.count.0 <= TABLE_MOST { tabled(bitmap, table) } else { bitmap.maybe() };
         bitmap.tabled[place] = stamp;
         bitmap.stamp[place] = stamp;
         bitmap.val[place] = val;
@@ -446,12 +460,15 @@ fn node_val(plan: &PhysicalPlan, run: &KernelRun<'_>, node: u32, buffers: &mut F
     if buffers.bitmap.stamp[place] == stamp {
         return buffers.bitmap.val[place];
     }
-    if buffers.bitmap.busy.contains(&node) {
+    if buffers.bitmap.busy.len() <= place {
+        buffers.bitmap.busy.resize(buffers.bitmap.stamp.len(), 0);
+    }
+    if buffers.bitmap.busy[place] == stamp {
         return buffers.bitmap.maybe();
     }
-    buffers.bitmap.busy.push(node);
+    buffers.bitmap.busy[place] = stamp;
     let val = evaluated(plan, run, node, buffers);
-    drop(buffers.bitmap.busy.pop());
+    buffers.bitmap.busy[place] = 0;
     buffers.bitmap.evaluated += 1;
     buffers.bitmap.stamp[place] = stamp;
     buffers.bitmap.val[place] = val;
