@@ -15,6 +15,7 @@
 )]
 
 mod builtins;
+mod derived;
 mod model;
 mod rows;
 mod rules;
@@ -42,6 +43,10 @@ pub(crate) struct Totals {
     pub rows: [AtomicU64; 11],
     /// thread-ns per stage: 0 parse, 1 table, 2 lexical model, 3 flow model, 4 policy, 5.. rows per relation, 16 lexical resolution of every name load
     pub ns: [AtomicU64; 17],
+    /// derived relations: rows and thread-ns per relation (derived::RELATIONS order)
+    pub drows: [AtomicU64; 32],
+    pub dns: [AtomicU64; 32],
+    pub touch: AtomicU64,
 }
 
 /// Thread CPU time (CLOCK_THREAD_CPUTIME_ID): a stage's own CPU, not counting time the thread is preempted.
@@ -97,6 +102,33 @@ fn main() {
             .collect();
         handles.into_iter().map(|h| h.join().expect("worker")).collect()
     });
+    if let Some(dir) = mode.strip_prefix("ddump:") {
+        let mut files: Vec<std::io::BufWriter<std::fs::File>> = derived::RELATIONS
+            .iter()
+            .map(|r| std::io::BufWriter::new(std::fs::File::create(format!("{dir}/{r}.tsv")).expect("create")))
+            .collect();
+        use std::io::Write as _;
+        for line in outputs.iter().flatten() {
+            let (i, rest) = line.split_once('\t').expect("tag");
+            writeln!(files[i.parse::<usize>().unwrap()], "{rest}").ok();
+        }
+    }
+    if mode == "derived" || mode.starts_with("ddump:") {
+        let rows: Vec<String> = derived::RELATIONS
+            .iter()
+            .enumerate()
+            .map(|(i, r)| format!("\"{r}\":[{},{}]", totals.drows[i].load(Ordering::Relaxed), totals.dns[i].load(Ordering::Relaxed)))
+            .collect();
+        eprintln!(
+            "{{\"mode\":\"{mode}\",\"ns\":{:?},\"files\":{},\"nodes\":{},\"touch\":{},\"relations\":{{{}}}}}",
+            totals.ns.iter().map(|x| x.load(Ordering::Relaxed)).collect::<Vec<_>>(),
+            files.len(),
+            totals.nodes.load(Ordering::Relaxed),
+            totals.touch.load(Ordering::Relaxed),
+            rows.join(",")
+        );
+        return;
+    }
     if let Some(dir) = mode.strip_prefix("dump:") {
         // per-relation files, lines tagged "<relation index>\t" by the workers
         let mut files: Vec<std::io::BufWriter<std::fs::File>> = rows::RELATIONS
@@ -227,6 +259,41 @@ impl<'p> Worker<'p> {
         totals.nodes.fetch_add(table.len() as u64, Ordering::Relaxed);
         totals.kinds_present.fetch_add(u64::from(table.present.count_ones()), Ordering::Relaxed);
         if self.mode == "table" {
+            return;
+        }
+        if self.mode == "derived" || self.mode.starts_with("ddump:") {
+            let incomplete = !parsed.errors().is_empty();
+            let t = Clock::now();
+            self.model.build_lexical(&table, incomplete);
+            totals.ns[2].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            let ctx = derived::Ctx { table: &table, source, model: &self.model, incomplete };
+            let wanted: u64 = std::env::var("DERIVED_WANT").ok().map_or(u64::MAX, |w| {
+                w.split(',').filter_map(derived::index_of).fold(0, |m, i| m | (1 << i))
+            });
+            let n = derived::RELATIONS.len();
+            if self.mode == "derived" {
+                let mut sink = derived::Count { counts: vec![0; n], touch: 0 };
+                for i in 0..n {
+                    if wanted & (1 << i) != 0 {
+                        let t = Clock::now();
+                        derived::produce(&ctx, 1 << i, &mut sink, &mut self.scratch);
+                        totals.dns[i].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                    }
+                }
+                for (i, c) in sink.counts.iter().enumerate() {
+                    totals.drows[i].fetch_add(*c, Ordering::Relaxed);
+                }
+                totals.touch.fetch_add(sink.touch, Ordering::Relaxed);
+            } else {
+                let mut sink = derived::Dump { table: &table, file: index, lines: vec![Vec::new(); n], counts: vec![0; n] };
+                derived::produce(&ctx, wanted, &mut sink, &mut self.scratch);
+                for (i, c) in sink.counts.iter().enumerate() {
+                    totals.drows[i].fetch_add(*c, Ordering::Relaxed);
+                }
+                for (i, v) in sink.lines.into_iter().enumerate() {
+                    out.extend(v.into_iter().map(|l| format!("{i}\t{l}")));
+                }
+            }
             return;
         }
         if matches!(self.mode.as_str(), "lex" | "model" | "policy" | "rows" | "rows-lex") || self.mode.starts_with("dump:") {
