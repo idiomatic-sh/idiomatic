@@ -11,7 +11,7 @@ let deferred_references = select id as reference, file from deferred_types;
 let end_points0 = extend(from=deferred_references, values={point: 2147483647});
 let end_points = select reference, point, file from end_points0;
 let end_decisions = decisions_of(reads=end_points);
-let end_answers = select reference, event, kind, scope, depth, file from end_decisions where via != "declaration";
+let end_answers = select reference, event, kind, scope, depth, file from end_decisions;
 let farther_end_answers = select l.reference as reference, l.depth as depth, l.file as file from end_answers as l join end_answers as r on l.reference = r.reference and l.file = r.file where r.depth < l.depth;
 let nearest_end_answers = antijoin(left=end_answers, right=farther_end_answers, left-on=["reference", "depth", "file"], right-on=["reference", "depth", "file"]);
 let deferred_bound = select reference as id, file from nearest_end_answers where kind = "bind";
@@ -19,7 +19,7 @@ let deferred_declared = select reference as id, file from nearest_end_answers wh
 let deferred_module_bound = select l.reference as id, l.file as file from end_decisions as l join modules as r on l.scope = r.id and l.file = r.file where l.kind = "bind";
 let read_points = select l.id as reference, r.ordinal as point, l.file as file from missing as l join "binding-event" as r on l.id = r.occurrence and l.file = r.file where r.kind = "read";
 let decisions = decisions_of(reads=read_points);
-let answers = select reference, event, kind, scope, depth, file from decisions where via != "declaration";
+let answers = select reference, event, kind, scope, depth, file from decisions;
 let farther_answers = select l.reference as reference, l.depth as depth, l.file as file from answers as l join answers as r on l.reference = r.reference and l.file = r.file where r.depth < l.depth;
 let nearest_answers = antijoin(left=answers, right=farther_answers, left-on=["reference", "depth", "file"], right-on=["reference", "depth", "file"]);
 let type_parameters = select id, file from "defines" where refinement = "type-var" or refinement = "type-var-tuple" or refinement = "param-spec";

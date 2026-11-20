@@ -39,7 +39,7 @@ let first_stored_points = antijoin(left=stored_points, right=later_stored_points
 let variable_points = select l.id as reference, r.point as point, l.file as file from variable_reads as l join first_stored_points as r on l.owner = r.owner and l.file = r.file;
 let definition_points = union(left=signature_points, right=variable_points);
 let decisions = decisions_of(reads=definition_points);
-let answers = select reference, event, kind, scope, depth, file from decisions where via != "declaration";
+let answers = select reference, event, kind, scope, depth, file from decisions;
 let farther_answers = select l.reference as reference, l.depth as depth, l.file as file from answers as l join answers as r on l.reference = r.reference and l.file = r.file where r.depth < l.depth;
 let nearest_answers = antijoin(left=answers, right=farther_answers, left-on=["reference", "depth", "file"], right-on=["reference", "depth", "file"]);
 let eager_bound = select l.id as id, l.file as file from eager_reads as l join nearest_answers as r on l.id = r.reference and l.file = r.file where r.kind = "bind";
