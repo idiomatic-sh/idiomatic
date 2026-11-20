@@ -644,7 +644,7 @@ impl<'p> State<'p> {
         let fact_before = self.nc.fact_ns;
         let mut aux_rows: Vec<(usize, Vec<(u32, Vec<u8>, Vec<u64>)>)> = Vec::new();
         {
-            let f = crate::nav::File { view: &view, table, source, path, file: index, incomplete: !parsed.errors().is_empty() };
+            let f = crate::nav::File { view: &view, table, source, path, file: index, incomplete: !parsed.errors().is_empty(), parsed };
             let mut ex = crate::nav::Exec {
                 prog: nav,
                 f: &f,
@@ -983,9 +983,9 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"visits\":{},\"per_rule\":{{{}}}}}}}",
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"per_rule\":{{{}}}}}}}",
                 self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, self.tail_ns, self.tail_files, c.steps,
-                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.visits,
+                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits,
                 self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
                     .map(|(i, r)| format!("\"{}\":[{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i]))
                     .collect::<Vec<_>>().join(",")

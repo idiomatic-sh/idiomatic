@@ -58,6 +58,8 @@ pub(crate) enum T {
     /// navwide: `numeric>=` (numbers and canonical numeric text) and `natural<` (natural text order)
     NumGe,
     NatLt,
+    /// `integer-successor`: the right side is the left plus one (export README correction)
+    Succ,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -109,6 +111,8 @@ pub(crate) enum Ins {
     /// nearest ancestor over derived edges: breadth-first up the edge sub-programs (each collects the reached node with
     /// `xin` bound) until a level holds a node the domain sub-programs admit; the first such node goes on
     NearDerived { start: R, out: R, xin: R, edges: Box<[Prog]>, domain: Box<[Prog]> },
+    /// the next (or previous) sibling in the tree, when there is one
+    Sibling { next: bool, start: R, out: R },
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -390,6 +394,7 @@ impl Loader<'_> {
                     "ends-with" => T::Ends,
                     "numeric>=" => T::NumGe,
                     "natural<" => T::NatLt,
+                    "integer-successor" => T::Succ,
                     t => panic!("test {t}"),
                 };
                 let kl = if a[2].is_i64() { self.var_kind(&a[2]).to_owned() } else { String::new() };
@@ -477,6 +482,7 @@ impl Loader<'_> {
                 edges: a[5].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 domain: a[6].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
             },
+            "sib" => Ins::Sibling { next: a[1].as_bool().unwrap(), start: self.reg(&a[2]), out: self.reg(&a[3]) },
             "let" => Ins::Let { from: self.opd(&a[1]), out: self.reg(&a[2]) },
             "or" => Ins::Union {
                 outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
@@ -665,6 +671,9 @@ pub(crate) struct Counters {
     pub model_files: u64,
     pub flow_files: u64,
     pub provider_files: u64,
+    /// navwide: thread-ns and files of the derived relations served from the node table
+    pub derived_ns: u64,
+    pub derived_files: u64,
     pub visits: u64,
     pub rule_steps: Vec<u64>,
     pub rule_visits: Vec<u64>,
@@ -717,6 +726,8 @@ pub(crate) struct FileCache {
     pub tree_idx: FxMap<(u8, u8), Rc<FxMap<u32, Vec<u32>>>>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
+    /// navwide: reusable state of the derived relations (derived.rs)
+    pub dstate: crate::derived::State,
     pub model_lex: bool,
     pub model_flow: bool,
     /// per-file dispatch: kind code -> (rule, branch, alternative) anchored on it
@@ -732,6 +743,8 @@ pub(crate) struct File<'a> {
     pub path: &'a str,
     pub file: usize,
     pub incomplete: bool,
+    /// navwide: the parse, for the derived relations served from the node table (derived.rs)
+    pub parsed: &'a ruff_python_parser::Parsed<ruff_python_ast::Mod>,
 }
 
 pub(crate) struct Exec<'a, 'p> {
@@ -979,11 +992,16 @@ impl<'a, 'p> Exec<'a, 'p> {
                 facts.loaded[rel as usize] = true;
                 self.c.model_rows_ns += t.elapsed().as_nanos() as u64;
             }
+            None if std::env::var_os("NAV_PROVIDER").is_none()
+                && crate::derived::index_of(&prog.facts[rel as usize].name).is_some() =>
+            {
+                self.load_derived(rel);
+            }
             None => {
                 let loaded = self.load_facts();
                 let facts = self.cache.facts.as_mut().unwrap();
                 for (i, cols) in loaded.into_iter().enumerate() {
-                    if prog.facts[i].model.is_none() && prog.facts[i].made.is_none() {
+                    if prog.facts[i].model.is_none() && prog.facts[i].made.is_none() && !facts.loaded[i] {
                         facts.cols[i] = cols;
                         facts.loaded[i] = true;
                     }
@@ -1194,7 +1212,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 let hit = self.text_of(l, lv).is_some_and(|t| regex.iter().any(|&i| self.prog.regexes[i].is_match(t)));
                 if test == T::NotGlob { !hit } else { hit }
             }
-            T::NumGe | T::NatLt => self.test_numeric(test, l, r, lv, text, num),
+            T::NumGe | T::NatLt | T::Succ => self.test_numeric(test, l, r, lv, text, num),
             T::Starts | T::Ends => {
                 let rv = self.opd(r);
                 match (self.text_of(l, lv), self.text_of(r, rv)) {
@@ -1491,6 +1509,21 @@ impl<'a, 'p> Exec<'a, 'p> {
                 Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
                 Ins::Union { outs, subs, memo } => return self.union(p, pc, outs, subs, *memo),
                 Ins::Let { from, out } => self.regs[*out as usize] = self.opd(from),
+                Ins::Sibling { next, start, out } => {
+                    let s = self.regs[*start as usize] as u32;
+                    let v = self.f.view;
+                    if s as usize >= v.len() || v.parent[s as usize] == u32::MAX {
+                        return false;
+                    }
+                    let p = v.parent[s as usize] as usize;
+                    let kids = &v.children[v.child_off[p] as usize..v.child_off[p + 1] as usize];
+                    let Some(i) = kids.iter().position(|&k| k == s) else { return false };
+                    let j = if *next { i + 1 } else { i.wrapping_sub(1) };
+                    match kids.get(j) {
+                        Some(&k) => self.regs[*out as usize] = u64::from(k),
+                        None => return false,
+                    }
+                }
                 Ins::TextFn { lower, args, out } => {
                     let mut t = String::new();
                     for a in args.iter() {
@@ -1700,6 +1733,8 @@ impl<'a, 'p> Exec<'a, 'p> {
             read_numeric(self.text_of(o, v)?)
         };
         match (read(l, lv), read(r, rv)) {
+            (Some(Numeric::Int(a)), Some(Numeric::Int(b))) if test == T::Succ => b == a + 1,
+            (Some(_), Some(_)) if test == T::Succ => false,
             (Some(a), Some(b)) => numeric_cmp(a, b).is_some_and(|o| o.is_ge()),
             _ => false,
         }
@@ -1721,6 +1756,62 @@ impl<'a, 'p> Exec<'a, 'p> {
             out.push((*merged, kinds.clone(), rows));
         }
         out
+    }
+
+    /// navwide: one derived relation (and the relation computed in the same pass) from derived.rs's rows form over the node
+    /// table, decoded into the view's ids and the run's text codes
+    fn load_derived(&mut self, rel: u16) {
+        let t = Instant::now();
+        if !self.cache.model_lex {
+            let t = Instant::now();
+            self.model.build_lexical(self.f.table, self.f.incomplete);
+            self.model.resolve_loads(self.f.table);
+            self.cache.model_lex = true;
+            self.c.model_lex_ns += t.elapsed().as_nanos() as u64;
+            self.c.model_files += 1;
+        }
+        let prog = self.prog;
+        let name = prog.facts[rel as usize].name.as_str();
+        let di = crate::derived::index_of(name).unwrap();
+        let mut targets: Vec<(usize, u16)> = vec![(di, rel)];
+        if let Some(p) = crate::derived::partner(di) {
+            if let Some(pi) = prog.facts.iter().position(|f| f.name == crate::derived::RELATIONS[p] && f.made.is_none() && f.model.is_none()) {
+                targets.push((p, pi as u16));
+            }
+        }
+        let wanted = targets.iter().fold(0u64, |m, (d, _)| m | (1 << d));
+        let root = std::env::args().nth(3).unwrap_or_default();
+        let full = std::path::Path::new(&root).join(self.f.path);
+        let ctx = crate::derived::Ctx {
+            parsed: self.f.parsed,
+            path: &full,
+            table: self.f.table,
+            source: self.f.source,
+            model: self.model,
+            incomplete: self.f.incomplete,
+        };
+        let mut sink = DSink {
+            targets: targets.iter().map(|(d, r)| (*d, prog.facts[*r as usize].kinds.len())).collect(),
+            out: targets.iter().map(|(_, r)| vec![Vec::new(); prog.facts[*r as usize].kinds.len()]).collect(),
+            sym: self.sym,
+            view: self.f.view,
+            at: None,
+        };
+        let mut st = std::mem::take(&mut self.cache.dstate);
+        st.view_file = None;
+        let mut buf = std::mem::take(&mut self.scratch);
+        crate::derived::produce(&ctx, wanted, &mut sink, &mut buf, &mut st);
+        self.scratch = buf;
+        self.cache.dstate = st;
+        let out = sink.out;
+        let facts = self.cache.facts.as_mut().unwrap();
+        for ((_, r), cols) in targets.iter().zip(out) {
+            self.c.fact_rows += cols.first().map_or(0, Vec::len) as u64;
+            facts.cols[*r as usize] = cols;
+            facts.loaded[*r as usize] = true;
+        }
+        self.c.derived_files += 1;
+        self.c.derived_ns += t.elapsed().as_nanos() as u64;
     }
 
     /// Ins::NearDerived (navwide)
@@ -2034,4 +2125,46 @@ fn host_filesystem(name: &str, width: usize, file: &str) -> Vec<Vec<u64>> {
         _ => {}
     }
     cols
+}
+
+/// navwide: derived.rs rows into nav's columns (node ids are the view's: AST nodes share the table's ids; keyed elements by span
+/// and kind name; texts as the run's codes)
+struct DSink<'s> {
+    targets: Vec<(usize, usize)>,
+    out: Vec<Vec<Vec<u64>>>,
+    sym: &'s mut Symbols,
+    view: &'s View,
+    at: Option<FxMap<(u32, u32, u32), u32>>,
+}
+
+impl crate::derived::Sink for DSink<'_> {
+    fn row(&mut self, rel: usize, cells: &[crate::derived::Cell<'_>]) {
+        use crate::derived::Cell;
+        let Some(slot) = self.targets.iter().position(|(d, _)| *d == rel) else { return };
+        let width = self.targets[slot].1;
+        for (c, cell) in cells.iter().enumerate().take(width) {
+            let v = match *cell {
+                Cell::Node(n) => u64::from(n),
+                Cell::Key(k, a, b) => {
+                    let v = self.view;
+                    let at = self.at.get_or_insert_with(|| {
+                        let mut m: FxMap<(u32, u32, u32), u32> = FxMap::default();
+                        for id in (0..v.len()).rev() {
+                            m.insert((v.start[id], v.stop[id], v.kind[id]), id as u32);
+                        }
+                        m
+                    });
+                    let kc = self.sym.get_base(k).unwrap_or(NULL);
+                    u64::from(at.get(&(a, b, kc)).copied().unwrap_or(u32::MAX - 1))
+                }
+                Cell::Text(t) => u64::from(self.sym.text(t)),
+                Cell::Null => u64::from(NULL),
+                Cell::Num(n) => n as u64,
+                Cell::Flag(f) => u64::from(f),
+                Cell::Span(a, b) => span(a, b),
+                Cell::File => 0,
+            };
+            self.out[slot][c].push(v);
+        }
+    }
 }
