@@ -82,6 +82,9 @@ pub(crate) enum Ins {
     Sub { negate: bool, subs: Box<[Prog]> },
     Emit { cols: Box<[Opd]> },
     Yield,
+    SpanBetween { a: Opd, b: Opd, out: R },
+    SpanBounds { s: Opd, start: R, end: R },
+    SourceMatches { span: Opd, base: Option<Opd>, regex: usize, group: Option<usize>, outs: Box<[R]>, capture_text: bool, capture_line: bool },
 }
 
 pub(crate) type Prog = Box<[Ins]>;
@@ -363,13 +366,38 @@ impl Loader<'_> {
             }
             "emit" => Ins::Emit { cols: a[1].as_array().unwrap().iter().map(|c| self.opd(c)).collect::<Vec<_>>().into() },
             "yield" => Ins::Yield,
+            "fn" => {
+                let args: Vec<Opd> = a[2].as_array().unwrap().iter().map(|x| self.opd(x)).collect();
+                let outs: Vec<R> = a[3].as_array().unwrap().iter().map(|x| self.reg(x)).collect();
+                match a[1].as_str().unwrap() {
+                    "span_between" => Ins::SpanBetween { a: args[0].clone(), b: args[1].clone(), out: outs[0] },
+                    "span_bounds" => Ins::SpanBounds { s: args[0].clone(), start: outs[0], end: outs[1] },
+                    "source_matches" => {
+                        let p = &a[4];
+                        let regex = self.regex(p["pattern"].as_str().unwrap(), false);
+                        let group = p["capture"]
+                            .as_str()
+                            .and_then(|name| self.regexes[regex].group_info().to_index(regex_automata::PatternID::ZERO, name));
+                        Ins::SourceMatches {
+                            span: args[0].clone(),
+                            base: args.get(1).cloned(),
+                            regex,
+                            group,
+                            outs: outs.into(),
+                            capture_text: p["capture_text"].as_bool().unwrap_or(false),
+                            capture_line: p["capture_line"].as_bool().unwrap_or(false),
+                        }
+                    }
+                    f => panic!("fn {f}"),
+                }
+            }
             o => panic!("ins {o}"),
         }
     }
 }
 
 impl NavProgram {
-    pub(crate) fn load(rules: &[Value], sym: &mut Symbols) -> Self {
+    pub(crate) fn load(rules: &[&Value], sym: &mut Symbols) -> Self {
         let mut facts = Vec::new();
         let mut regexes = Vec::new();
         let mut out = Vec::new();
@@ -434,7 +462,13 @@ pub(crate) struct Counters {
 #[derive(Default)]
 pub(crate) struct Facts {
     pub cols: Vec<Vec<Vec<u64>>>,
-    pub idx: FxMap<(u16, u8), Rc<FxMap<u64, Vec<u32>>>>,
+    pub idx: FxMap<(u16, u8), Rc<FIdx>>,
+}
+
+/// A fact column's index: by view id (dense head/next chains) for node columns, hashed otherwise.
+pub(crate) enum FIdx {
+    Dense { head: Vec<u32>, next: Vec<u32> },
+    Hash(FxMap<u64, Vec<u32>>),
 }
 
 pub(crate) struct Provider {
@@ -741,20 +775,34 @@ impl<'a, 'p> Exec<'a, 'p> {
         out
     }
 
-    fn fact_index(&mut self, rel: u16, col: u8) -> Rc<FxMap<u64, Vec<u32>>> {
+    fn fact_index(&mut self, rel: u16, col: u8) -> Rc<FIdx> {
         self.facts();
+        let n_view = self.f.view.len();
+        let dense = matches!(self.prog.facts[rel as usize].kinds[col as usize], ryo_relations::domain::relations::types::CellKind::Node);
         let facts = self.cache.facts.as_mut().unwrap();
         if let Some(i) = facts.idx.get(&(rel, col)) {
             return i.clone();
         }
-        let mut m: FxMap<u64, Vec<u32>> = FxMap::default();
         let c = &facts.cols[rel as usize][col as usize];
-        for (row, &v) in c.iter().enumerate() {
-            m.entry(v).or_default().push(row as u32);
-        }
+        let idx = if dense {
+            let mut head = vec![u32::MAX; n_view + 1];
+            let mut next = vec![u32::MAX; c.len()];
+            for (row, &v) in c.iter().enumerate().rev() {
+                let k = (v as usize).min(n_view);
+                next[row] = head[k];
+                head[k] = row as u32;
+            }
+            FIdx::Dense { head, next }
+        } else {
+            let mut m: FxMap<u64, Vec<u32>> = FxMap::default();
+            for (row, &v) in c.iter().enumerate() {
+                m.entry(v).or_default().push(row as u32);
+            }
+            FIdx::Hash(m)
+        };
         self.c.made_tables += 1;
         self.c.made_rows += c.len() as u64;
-        let m = Rc::new(m);
+        let m = Rc::new(idx);
         facts.idx.insert((rel, col), m.clone());
         m
     }
@@ -831,6 +879,39 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
             }
         }
+    }
+
+    fn iter_fact_list(&mut self, p: &'p [Ins], pc: usize, idx: &FIdx, keys: &[u64], out: R) -> bool {
+        for &k in keys {
+            match idx {
+                FIdx::Dense { head, next } => {
+                    if k as usize >= head.len() - 1 {
+                        continue;
+                    }
+                    let mut row = head[k as usize];
+                    while row != u32::MAX {
+                        self.regs[out as usize] = row as u64;
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                        row = next[row as usize];
+                    }
+                }
+                FIdx::Hash(m) => {
+                    if let Some(list) = m.get(&k) {
+                        for &row in list {
+                            self.regs[out as usize] = row as u64;
+                            self.c.visits += 1;
+                            if self.run_inner(p, pc + 1) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
     }
 
     /// Runs `p` from `pc`; returns true when a sub-program reached Yield (the caller stops enumerating).
@@ -945,23 +1026,25 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::IterFact { rel, col, val, out } => {
                     let idx = self.fact_index(*rel, *col);
-                    let keys: Vec<u64> = match val {
-                        Val::Reg(r) => vec![self.regs[*r as usize]],
-                        Val::Syms(s) => s.iter().map(|&x| x as u64).collect(),
-                        Val::Nums(n) => n.iter().map(|&x| x as u64).collect(),
-                    };
-                    for k in keys {
-                        if let Some(list) = idx.get(&k) {
-                            for &row in list {
-                                self.regs[*out as usize] = row as u64;
-                                self.c.visits += 1;
-                                if self.run_inner(p, pc + 1) {
-                                    return true;
-                                }
-                            }
+                    let one;
+                    let keys: &[u64] = match val {
+                        Val::Reg(r) => {
+                            one = [self.regs[*r as usize]];
+                            &one
                         }
-                    }
-                    return false;
+                        Val::Syms(s) => {
+                            one = [0];
+                            let _ = one;
+                            return self.iter_fact_list(p, pc, &idx, &s.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
+                        }
+                        Val::Nums(n) => {
+                            one = [0];
+                            let _ = one;
+                            return self.iter_fact_list(p, pc, &idx, &n.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
+                        }
+                    };
+                    let keys = keys.to_vec();
+                    return self.iter_fact_list(p, pc, &idx, &keys, *out);
                 }
                 Ins::IterFactScan { rel, out } => {
                     let n = self.facts().cols[*rel as usize].first().map_or(0, Vec::len);
@@ -1071,6 +1154,61 @@ impl<'a, 'p> Exec<'a, 'p> {
                     return false;
                 }
                 Ins::Yield => return true,
+                Ins::SpanBetween { a, b, out } => {
+                    let (x, y) = (self.opd(a), self.opd(b));
+                    self.regs[*out as usize] = (x & !0xffff_ffff) | (y & 0xffff_ffff);
+                }
+                Ins::SpanBounds { s, start, end } => {
+                    let x = self.opd(s);
+                    self.regs[*start as usize] = x >> 32;
+                    self.regs[*end as usize] = x & 0xffff_ffff;
+                }
+                Ins::SourceMatches { span, base, regex, group, outs, capture_text, capture_line } => {
+                    let sp = self.opd(span);
+                    let base_line = base.as_ref().map(|b| self.opd(b));
+                    let bytes = self.f.source.as_bytes();
+                    let (s, e) = ((sp >> 32) as usize, (sp & 0xffff_ffff) as usize);
+                    if e > bytes.len() || s > e {
+                        return false;
+                    }
+                    let re = &self.prog.regexes[*regex];
+                    let mut caps = re.create_captures();
+                    let mut at = 0usize;
+                    let hay = &bytes[s..e];
+                    let line_at = |off: usize| -> u64 { base_line.unwrap_or(0) + bytes[s..off].iter().filter(|&&b| b == b'\n').count() as u64 };
+                    while at <= hay.len() {
+                        re.search_captures(&regex_automata::Input::new(hay).range(at..), &mut caps);
+                        let Some(m) = caps.get_match() else { break };
+                        let (ms, me) = (s + m.start(), s + m.end());
+                        at = if m.end() > m.start() { m.end() } else { m.end() + 1 };
+                        let mut k = 0;
+                        self.regs[outs[k] as usize] = span(ms as u32, me as u32);
+                        k += 1;
+                        if base_line.is_some() {
+                            self.regs[outs[k] as usize] = line_at(ms);
+                            k += 1;
+                        }
+                        if let Some(g) = group {
+                            let Some(cg) = caps.get_group(*g) else { continue };
+                            let (cs, ce) = (s + cg.start, s + cg.end);
+                            self.regs[outs[k] as usize] = span(cs as u32, ce as u32);
+                            k += 1;
+                            if *capture_text {
+                                let t = String::from_utf8_lossy(&bytes[cs..ce]).to_string();
+                                self.regs[outs[k] as usize] = self.sym.minted(t) as u64;
+                                k += 1;
+                            }
+                            if *capture_line {
+                                self.regs[outs[k] as usize] = line_at(cs);
+                            }
+                        }
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
             }
             pc += 1;
         }

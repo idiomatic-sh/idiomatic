@@ -156,6 +156,20 @@ fn rel_kinds(rel: RelId) -> Vec<u8> {
     }
 }
 
+thread_local! {
+    static RX: std::cell::RefCell<FxMap<String, Regex>> = std::cell::RefCell::new(FxMap::default());
+}
+
+/// One compiled regex per pattern for the whole load (a rule pack repeats the suppression fragment's patterns in every rule).
+fn rx(pattern: &str) -> Result<Regex, regex_automata::meta::BuildError> {
+    if let Some(r) = RX.with(|m| m.borrow().get(pattern).cloned()) {
+        return Ok(r);
+    }
+    let r = Regex::new(pattern)?;
+    RX.with(|m| m.borrow_mut().insert(pattern.to_owned(), r.clone()));
+    Ok(r)
+}
+
 fn glob_to_regex(glob: &str) -> String {
     let mut out = String::from("^");
     let chars: Vec<char> = glob.chars().collect();
@@ -253,12 +267,12 @@ impl Loader<'_> {
             };
             if matches!(test, Test::Glob | Test::NotGlob) {
                 for g in texts(self.sym, &right) {
-                    regex.push(Regex::new(&glob_to_regex(&g)).map_err(|e| e.to_string())?);
+                    regex.push(rx(&glob_to_regex(&g)).map_err(|e| e.to_string())?);
                 }
             }
             if test == Test::Matches {
                 for g in texts(self.sym, &right) {
-                    regex.push(Regex::new(&g).map_err(|e| e.to_string())?);
+                    regex.push(rx(&g).map_err(|e| e.to_string())?);
                 }
             }
             out.push(Comparison { test, left, right, regex });
@@ -356,7 +370,7 @@ impl Loader<'_> {
                 from: self.input(&s["from"])?,
                 span: s["span"].as_u64().unwrap() as usize,
                 base_line: s["base_line"].as_u64().map(|x| x as usize),
-                regex: Regex::new(s["pattern"].as_str().unwrap()).map_err(|e| e.to_string())?,
+                regex: rx(s["pattern"].as_str().unwrap()).map_err(|e| e.to_string())?,
                 capture: s["capture"].as_str().map(str::to_owned),
                 capture_text: s["capture_text"].as_bool().unwrap_or(false),
                 capture_line: s["capture_line"].as_bool().unwrap_or(false),
@@ -386,7 +400,7 @@ impl Loader<'_> {
             "replace" => Op::Replace {
                 from: self.input(&s["from"])?,
                 text: s["text"].as_u64().unwrap() as usize,
-                regex: Regex::new(s["pattern"].as_str().unwrap()).map_err(|e| e.to_string())?,
+                regex: rx(s["pattern"].as_str().unwrap()).map_err(|e| e.to_string())?,
                 replacement: s["replacement"].as_str().unwrap().to_owned(),
             },
             "ordered_match" => Op::OrderedMatch {
@@ -412,7 +426,7 @@ impl Program {
         let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
         let mut symbols = Symbols::default();
         let mut rules = Vec::new();
-        let mut nav_rules: Vec<Value> = Vec::new();
+        let mut nav_rules: Vec<&Value> = Vec::new();
         for r in v["rules"].as_array().unwrap() {
             let mut loader = Loader { sym: &mut symbols, pos: FxMap::default() };
             let steps_v = r["steps"].as_array().unwrap();
@@ -443,7 +457,7 @@ impl Program {
             let nodes = steps_v.iter().map(|s| s["merged"].as_u64().unwrap() as u32).collect();
             rules.push(Rule { id, steps, anchors, nodes, root, emit_key: Loader::cols(&r["emit_key"]) });
             if r.get("nav").is_some() {
-                nav_rules.push(r.clone());
+                nav_rules.push(r);
             }
         }
         let mut census = Vec::new();
