@@ -1189,9 +1189,9 @@ impl<'p> State<'p> {
                 let reads: Vec<String> = c.read_cols.iter().map(|((r, col), n)| format!("[\"{}\",{col},{n}]", nav.facts[*r as usize].name)).collect();
                 eprintln!("{{\"acct_cols\":{{\"probes\":[{}],\"reads\":[{}]}}}}", probes.join(","), reads.join(","));
                 eprintln!(
-                    "{{\"acct\":{{\"rel\":{{{}}},\"view_reads\":{:?},\"view_files\":{:?},\"view_ids\":{},\"view_tokens\":{},\"text_distinct\":{},\"view_passes\":[{}],\"model_read_files\":{:?},\"view_split_ns\":{:?},\"extra\":{{\"key_fills\":{},\"key_rows\":{},\"key_lookups\":{},\"key_fill_ns\":{},\"analysis_ns\":{},\"analysis_by\":{:?}}}}}}}",
+                    "{{\"acct\":{{\"rel\":{{{}}},\"view_reads\":{:?},\"view_files\":{:?},\"view_ids\":{},\"view_tokens\":{},\"text_distinct\":{},\"view_passes\":[{}],\"model_read_files\":{:?},\"view_split_ns\":{:?},\"extra\":{{\"key_fills\":{},\"key_rows\":{},\"key_lookups\":{},\"key_fill_ns\":{},\"analysis_ns\":{},\"analysis_by\":{:?},\"clock_read_ns\":{}}}}}}}",
                     rels.join(","), c.view_reads, c.view_files, c.view_ids, c.view_tokens, c.text_distinct, passes.join(","), c.model_read_files, self.view.split_ns,
-                    c.key_fills, c.key_rows, c.key_lookups, c.key_fill_ns, self.cache.dstate.build_total_ns, crate::derived::build_clocks()
+                    c.key_fills, c.key_rows, c.key_lookups, c.key_fill_ns, self.cache.dstate.build_total_ns, crate::derived::build_clocks(), self.cache.key_clock_ns
                 );
             }
             let mut db: Vec<_> = self.nc.derived_by.iter().map(|(&k, &v)| (k, v)).collect();
