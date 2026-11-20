@@ -638,31 +638,86 @@ impl<'p> State<'p> {
                 cur_rule: 0,
             };
             ex.build_kinds();
-            for (&k, list) in &nav.by_kind {
-                let n = ex.bucket(k).len();
-                if n == 0 {
-                    continue;
+            if ex.c.rule_steps.len() != nrules {
+                ex.c.rule_steps = vec![0; nrules];
+                ex.c.rule_visits = vec![0; nrules];
+                ex.c.rule_starts = vec![0; nrules];
+            }
+            // per-file anchor choice: for each branch, the alternative with the least expected work given the real bucket sizes
+            let mut dispatch = std::mem::take(&mut ex.cache.dispatch);
+            let mut used = std::mem::take(&mut ex.cache.dispatch_used);
+            let mut other = std::mem::take(&mut ex.cache.other);
+            for &k in &used {
+                dispatch[k as usize].clear();
+            }
+            used.clear();
+            other.clear();
+            for (ri, rule) in nav.rules.iter().enumerate() {
+                for (bi, alts) in rule.programs.iter().enumerate() {
+                    // every atom of a branch must hold, so one alternative anchored on an empty bucket proves the branch empty in this
+                    // file; otherwise the planner's cheapest alternative runs (its static cost model ranks plans better than bucket
+                    // sizes alone, measured: per-file choice by size times static work cost 2x the steps)
+                    if alts.iter().any(|a| a.anchor.as_ref().is_some_and(|k| k.iter().all(|&k| ex.bucket(k).is_empty()))) {
+                        continue;
+                    }
+                    let ai = 0usize;
+                    let size = alts[0].anchor.as_ref().map_or(1, |k| k.iter().map(|&k| ex.bucket(k).len()).sum::<usize>());
+                    let a = &alts[ai];
+                    match &a.anchor {
+                        Some(kinds) => {
+                            if size == 0 {
+                                continue;
+                            }
+                            for &k in kinds.iter() {
+                                let n = ex.bucket(k).len();
+                                if n == 0 {
+                                    continue;
+                                }
+                                if dispatch.len() <= k as usize {
+                                    dispatch.resize_with(k as usize + 1, Vec::new);
+                                }
+                                if dispatch[k as usize].is_empty() {
+                                    used.push(k);
+                                }
+                                dispatch[k as usize].push((ri as u32, bi as u32, ai as u32));
+                                ex.c.candidates += n as u64;
+                            }
+                            ex.c.starts += 1;
+                            ex.c.rule_starts[ri] += 1;
+                        }
+                        None => {
+                            other.push((ri as u32, bi as u32, ai as u32));
+                            ex.c.starts += 1;
+                            ex.c.rule_starts[ri] += 1;
+                        }
+                    }
                 }
-                ex.c.starts += list.len() as u64;
-                ex.c.candidates += (n * list.len()) as u64;
+            }
+            // nodes outer, rules inner
+            for &k in &used {
+                let list = &dispatch[k as usize];
+                let n = ex.bucket(k).len();
                 for i in 0..n {
                     let id = ex.bucket(k)[i];
-                    for &(ri, pi) in list {
-                        let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[pi as usize];
+                    for &(ri, bi, ai) in list {
+                        let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[bi as usize][ai as usize].prog;
                         if let crate::nav::Ins::IterKind { out, .. } = &p[0] {
                             ex.regs[*out as usize] = u64::from(id);
                         }
+                        ex.c.visits += 1;
                         ex.cur_rule = ri as usize;
                         ex.run(p, 1);
                     }
                 }
             }
-            for &(ri, pi) in &nav.other {
-                let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[pi as usize];
-                ex.c.starts += 1;
+            for &(ri, bi, ai) in &other {
+                let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[bi as usize][ai as usize].prog;
                 ex.cur_rule = ri as usize;
                 ex.run(p, 0);
             }
+            ex.cache.dispatch = dispatch;
+            ex.cache.dispatch_used = used;
+            ex.cache.other = other;
             regs = ex.regs;
             outs = ex.outs;
         }
@@ -891,9 +946,12 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{}}}}}",
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"visits\":{},\"per_rule\":{{{}}}}}}}",
                 self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, self.tail_ns, self.tail_files, c.steps,
-                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows
+                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.visits,
+                self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
+                    .map(|(i, r)| format!("\"{}\":[{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i]))
+                    .collect::<Vec<_>>().join(",")
             );
         }
         let ops: Vec<String> = OP_NAMES

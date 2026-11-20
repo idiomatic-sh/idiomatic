@@ -86,9 +86,18 @@ pub(crate) enum Ins {
 
 pub(crate) type Prog = Box<[Ins]>;
 
+pub(crate) struct Alt {
+    pub prog: Prog,
+    /// the anchor's kinds when the program starts with a kind bucket
+    pub anchor: Option<Box<[u32]>>,
+    pub est: f64,
+    pub per: f64,
+}
+
 pub(crate) struct NavRule {
     pub id: String,
-    pub programs: Vec<Prog>,
+    /// branches, each with its anchor alternatives (chosen per file by the anchor bucket's size)
+    pub programs: Vec<Vec<Alt>>,
     pub xmerged: u32,
     pub kinds: Vec<u8>,
     pub nregs: usize,
@@ -104,10 +113,6 @@ pub(crate) struct NavProgram {
     pub rules: Vec<NavRule>,
     pub facts: Vec<FactRel>,
     pub regexes: Vec<Regex>,
-    /// kind code -> (rule, program) anchored on that kind bucket (the program's first step is an IterKind)
-    pub by_kind: FxMap<u32, Vec<(u32, u32)>>,
-    /// programs anchored otherwise
-    pub other: Vec<(u32, u32)>,
     pub max_regs: usize,
 }
 
@@ -373,7 +378,22 @@ impl NavProgram {
             let nav = &r["nav"];
             let kinds = nav["kinds"].as_object().unwrap();
             let mut loader = Loader { sym, regs: FxMap::default(), kinds, facts: &mut facts, regexes: &mut regexes, regex_of: FxMap::default() };
-            let programs: Vec<Prog> = nav["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+            let programs: Vec<Vec<Alt>> = nav["programs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|alts| {
+                    alts.as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|a| {
+                            let prog = loader.prog(&a["prog"]);
+                            let anchor = if let Some(Ins::IterKind { kinds, .. }) = prog.first() { Some(kinds.clone()) } else { None };
+                            Alt { prog, anchor, est: a["est"].as_f64().unwrap(), per: a["per"].as_f64().unwrap() }
+                        })
+                        .collect()
+                })
+                .collect();
             let nregs = loader.regs.len();
             max_regs = max_regs.max(nregs);
             out.push(NavRule {
@@ -384,20 +404,7 @@ impl NavProgram {
                 nregs,
             });
         }
-        let mut by_kind: FxMap<u32, Vec<(u32, u32)>> = FxMap::default();
-        let mut other = Vec::new();
-        for (ri, rule) in out.iter().enumerate() {
-            for (pi, p) in rule.programs.iter().enumerate() {
-                if let Some(Ins::IterKind { kinds, .. }) = p.first() {
-                    for &k in kinds.iter() {
-                        by_kind.entry(k).or_default().push((ri as u32, pi as u32));
-                    }
-                } else {
-                    other.push((ri as u32, pi as u32));
-                }
-            }
-        }
-        Self { rules: out, facts, regexes, by_kind, other, max_regs }
+        Self { rules: out, facts, regexes, max_regs }
     }
 }
 
@@ -417,6 +424,10 @@ pub(crate) struct Counters {
     pub fact_ns: u64,
     pub provider_build_ns: u64,
     pub kind_index_ns: u64,
+    pub visits: u64,
+    pub rule_steps: Vec<u64>,
+    pub rule_visits: Vec<u64>,
+    pub rule_starts: Vec<u64>,
 }
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
@@ -457,6 +468,10 @@ pub(crate) struct FileCache {
     pub tree_idx: FxMap<(u8, u8), Rc<FxMap<u32, Vec<u32>>>>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
+    /// per-file dispatch: kind code -> (rule, branch, alternative) anchored on it
+    pub dispatch: Vec<Vec<(u32, u32, u32)>>,
+    pub dispatch_used: Vec<u32>,
+    pub other: Vec<(u32, u32, u32)>,
 }
 
 pub(crate) struct File<'a> {
@@ -821,6 +836,18 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// Runs `p` from `pc`; returns true when a sub-program reached Yield (the caller stops enumerating).
     pub(crate) fn run(&mut self, p: &'p [Ins], pc: usize) -> bool {
         let mut pc = pc;
+        let steps0 = self.c.steps;
+        let visits0 = self.c.visits;
+        let flow = self.run_inner(p, pc);
+        let r = self.cur_rule;
+        self.c.rule_steps[r] += self.c.steps - steps0;
+        self.c.rule_visits[r] += self.c.visits - visits0;
+        let _ = &mut pc;
+        flow
+    }
+
+    fn run_inner(&mut self, p: &'p [Ins], pc: usize) -> bool {
+        let mut pc = pc;
         loop {
             self.c.steps += 1;
             match &p[pc] {
@@ -856,7 +883,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                     let (s, e) = (v.child_off[par as usize] as usize, v.child_off[par as usize + 1] as usize);
                     for k in s..e {
                         self.regs[*out as usize] = v.children[k] as u64;
-                        if self.run(p, pc + 1) {
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
                             return true;
                         }
                     }
@@ -873,7 +901,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                         };
                         for i in s..e {
                             self.regs[*out as usize] = self.cache.kind_ids[i] as u64;
-                            if self.run(p, pc + 1) {
+                            self.c.visits += 1;
+                            if self.run_inner(p, pc + 1) {
                                 return true;
                             }
                         }
@@ -891,7 +920,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                         if let Some(list) = idx.get(&k) {
                             for &id in list {
                                 self.regs[*out as usize] = id as u64;
-                                if self.run(p, pc + 1) {
+                                self.c.visits += 1;
+                                if self.run_inner(p, pc + 1) {
                                     return true;
                                 }
                             }
@@ -906,7 +936,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                             continue;
                         }
                         self.regs[*out as usize] = id as u64;
-                        if self.run(p, pc + 1) {
+                                self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
                             return true;
                         }
                     }
@@ -923,7 +954,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                         if let Some(list) = idx.get(&k) {
                             for &row in list {
                                 self.regs[*out as usize] = row as u64;
-                                if self.run(p, pc + 1) {
+                                self.c.visits += 1;
+                                if self.run_inner(p, pc + 1) {
                                     return true;
                                 }
                             }
@@ -935,7 +967,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                     let n = self.facts().cols[*rel as usize].first().map_or(0, Vec::len);
                     for row in 0..n {
                         self.regs[*out as usize] = row as u64;
-                        if self.run(p, pc + 1) {
+                                self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
                             return true;
                         }
                     }
@@ -959,7 +992,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                             let mut a = v.parent[s as usize];
                             while a != u32::MAX {
                                 self.regs[*out as usize] = a as u64;
-                                if self.run(p, pc + 1) {
+                                self.c.visits += 1;
+                                if self.run_inner(p, pc + 1) {
                                     return true;
                                 }
                                 a = v.parent[a as usize];
@@ -970,7 +1004,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                             let (b, e) = (v.child_off[s as usize] as usize, v.child_off[s as usize + 1] as usize);
                             for k in b..e {
                                 self.regs[*out as usize] = v.children[k] as u64;
-                                if self.run(p, pc + 1) {
+                        self.c.visits += 1;
+                                if self.run_inner(p, pc + 1) {
                                     return true;
                                 }
                             }
@@ -982,7 +1017,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                             stack.extend(v.children[b..e].iter().rev());
                             while let Some(d) = stack.pop() {
                                 self.regs[*out as usize] = d as u64;
-                                if self.run(p, pc + 1) {
+                                self.c.visits += 1;
+                                if self.run_inner(p, pc + 1) {
                                     return true;
                                 }
                                 let (b, e) = (v.child_off[d as usize] as usize, v.child_off[d as usize + 1] as usize);
@@ -1002,9 +1038,10 @@ impl<'a, 'p> Exec<'a, 'p> {
                     let mut found = false;
                     while a != u32::MAX {
                         self.regs[*out as usize] = a as u64;
+                        self.c.visits += 1;
                         if subs.iter().any(|q| {
                             self.c.subs += 1;
-                            self.run(q, 0)
+                            self.run_inner(q, 0)
                         }) {
                             found = true;
                             break;
@@ -1019,7 +1056,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 Ins::Sub { negate, subs } => {
                     let any = subs.iter().any(|q| {
                         self.c.subs += 1;
-                        self.run(q, 0)
+                        self.run_inner(q, 0)
                     });
                     if any == *negate {
                         return false;
