@@ -1,5 +1,6 @@
 //! The authored rows and expectations of the kinds this engine never runs (`EXPANDED`): what each means, stated over small
-//! inputs. This engine registers the kinds and is prepared from their expansion; the proofs that run a fixture skip them.
+//! inputs. This engine registers the kinds and is prepared from their expansion; the proofs that run a fixture skip them, and
+//! this file's own cases hold each fixture's rows equal to what the kind's one meaning answers.
 use super::expectations::{Expected, cells};
 use super::values::{FROM, RIGHT, matrix, n};
 use ryo_values::domain::plan_orders::types::{GroupEnd, OrderBound};
@@ -78,3 +79,7 @@ pub fn follow() -> (Operation, Vec<Table>, Vec<Vec<Expected>>) {
         cells(vec![vec![n(1), n(2)], vec![n(2), n(2)]]),
     )
 }
+
+#[cfg(test)]
+#[path = "expanded_test.rs"]
+mod tests;

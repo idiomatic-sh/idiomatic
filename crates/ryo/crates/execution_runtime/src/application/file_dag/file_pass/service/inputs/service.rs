@@ -18,8 +18,6 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::AfterTheFiles;
 use ryo_language::domain::symbols::types::{QuerySymbols, Symbols};
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_plans::types::Plan;
 use std::sync::Arc;
 
 /// The tables `rule`'s bound observations in the open file are bound to: each binding's producers' rows in this file, in
