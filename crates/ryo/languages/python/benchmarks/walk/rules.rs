@@ -656,6 +656,7 @@ impl<'p> State<'p> {
                 regs,
                 outs,
                 cur_rule: 0,
+                collect: Vec::new(),
             };
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {

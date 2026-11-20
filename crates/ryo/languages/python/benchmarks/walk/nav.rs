@@ -55,6 +55,9 @@ pub(crate) enum T {
     NotGlob,
     Starts,
     Ends,
+    /// navwide: `numeric>=` (numbers and canonical numeric text) and `natural<` (natural text order)
+    NumGe,
+    NatLt,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -85,6 +88,38 @@ pub(crate) enum Ins {
     SpanBetween { a: Opd, b: Opd, out: R },
     SpanBounds { s: Opd, start: R, end: R },
     SourceMatches { span: Opd, base: Option<Opd>, regex: usize, group: Option<usize>, outs: Box<[R]>, capture_text: bool, capture_line: bool },
+    /// transitive closure from the node in `src`, one or more edges, each edge a sub-program run with `xin` bound that collects
+    /// the reached node (and the partition keys when they are not bound before); per (keys, node) distinct; `out` and `kout`
+    /// receive each reached node and its keys
+    Closure { src: R, out: R, xin: R, kout: Box<[R]>, nkeys: usize, subs: Box<[Prog]> },
+    /// a closure edge sub-program's answer: the registers are pushed to the collect buffer
+    Collect { regs: Box<[R]> },
+    /// a union as one step: each sub-program collects the free output registers; the distinct tuples continue the program
+    Union { outs: Box<[R]>, subs: Box<[Prog]> },
+    /// a register takes a value (an equality whose one side nothing else binds)
+    Let { from: Opd, out: R },
+    /// runs entry `idx` of the shared sub-program table in place (a sub-program used more than once in a rule)
+    Shared { idx: u32 },
+    /// `concat` / `lower` of texts into a minted text
+    TextFn { lower: bool, args: Box<[Opd]>, out: R },
+    /// RyoQL `capture`: every split of the text by the slot pattern, the slots' texts into `outs`
+    Capture { text: Opd, pattern: Box<str>, outs: Box<[R]> },
+    /// RyoQL `replace`: the text with every regex match replaced by the literal
+    Replace { text: Opd, regex: usize, replacement: Box<str>, out: R },
+}
+
+/// a made table answered by an ordered match of two inputs' rows (navwide)
+pub(crate) struct OrderedMatch {
+    pub left: Vec<Prog>,
+    pub right: Vec<Prog>,
+    pub lw: usize,
+    pub rw: usize,
+    pub left_on: Vec<usize>,
+    pub right_on: Vec<usize>,
+    pub lo: usize,
+    pub ro: usize,
+    pub number: bool,
+    pub output: Vec<(bool, usize)>,
 }
 
 pub(crate) type Prog = Box<[Ins]>;
@@ -114,10 +149,14 @@ pub(crate) struct FactRel {
     pub kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
     /// a made table (group count): its input's programs, the number of key columns, and whether it counts distinct values
     pub made: Option<(Vec<Prog>, Vec<usize>, Option<usize>, usize)>,
+    /// navwide: a made table answered by an ordered match
+    pub made_om: Option<OrderedMatch>,
 }
 
 pub(crate) struct NavProgram {
     pub rules: Vec<NavRule>,
+    /// shared sub-programs of every rule (navwide)
+    pub shared: Vec<Prog>,
     pub facts: Vec<FactRel>,
     pub regexes: Vec<Regex>,
     pub max_regs: usize,
@@ -151,6 +190,8 @@ struct Loader<'a> {
     facts: &'a mut Vec<FactRel>,
     regexes: &'a mut Vec<Regex>,
     regex_of: FxMap<(String, bool), usize>,
+    /// the rule's first entry in the shared sub-program table (navwide)
+    shared_base: usize,
 }
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
@@ -242,7 +283,7 @@ impl Loader<'_> {
         }
         let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
         let model = if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
-        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None });
+        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None });
         (self.facts.len() - 1) as u16
     }
 
@@ -329,6 +370,8 @@ impl Loader<'_> {
                     "not-glob-any" => T::NotGlob,
                     "starts-with" => T::Starts,
                     "ends-with" => T::Ends,
+                    "numeric>=" => T::NumGe,
+                    "natural<" => T::NatLt,
                     t => panic!("test {t}"),
                 };
                 let kl = if a[2].is_i64() { self.var_kind(&a[2]).to_owned() } else { String::new() };
@@ -396,11 +439,39 @@ impl Loader<'_> {
                             capture_line: p["capture_line"].as_bool().unwrap_or(false),
                         }
                     }
+                    "text" => Ins::TextFn { lower: a[4]["function"] == "lower", args: args.into(), out: outs[0] },
+                    "capture" => Ins::Capture { text: args[0].clone(), pattern: a[4]["pattern"].as_str().unwrap().into(), outs: outs.into() },
+                    "replace" => Ins::Replace {
+                        text: args[0].clone(),
+                        regex: self.regex(a[4]["pattern"].as_str().unwrap(), false),
+                        replacement: a[4]["replacement"].as_str().unwrap().into(),
+                        out: outs[0],
+                    },
                     f => panic!("fn {f}"),
                 }
             }
+            "clos" => self.closure_ins(a),
+            "shared" => Ins::Shared { idx: (self.shared_base + a[1].as_u64().unwrap() as usize) as u32 },
+            "let" => Ins::Let { from: self.opd(&a[1]), out: self.reg(&a[2]) },
+            "or" => Ins::Union {
+                outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
+                subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+            },
+            "collect" => Ins::Collect { regs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into() },
             o => panic!("ins {o}"),
         }
+    }
+
+    /// `["clos", src, out, xin, yout, kcol, kout, progs]` (navwide)
+    fn closure_ins(&mut self, a: &[Value]) -> Ins {
+        let src = self.reg(&a[1]);
+        let out = self.reg(&a[2]);
+        let xin = self.reg(&a[3]);
+        let _yout = self.reg(&a[4]);
+        let nkeys = a[5].as_array().unwrap().len();
+        let kout = a[6].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into();
+        let subs = a[7].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into();
+        Ins::Closure { src, out, xin, kout, nkeys, subs }
     }
 }
 
@@ -408,12 +479,21 @@ impl NavProgram {
     pub(crate) fn load(rules: &[&Value], sym: &mut Symbols) -> Self {
         let mut facts = Vec::new();
         let mut regexes = Vec::new();
+        let mut shared: Vec<Prog> = Vec::new();
         let mut out = Vec::new();
         let mut max_regs = 0;
         for r in rules {
             let nav = &r["nav"];
             let kinds = nav["kinds"].as_object().unwrap();
-            let mut loader = Loader { sym, regs: FxMap::default(), kinds, facts: &mut facts, regexes: &mut regexes, regex_of: FxMap::default() };
+            let mut loader = Loader {
+                sym,
+                regs: FxMap::default(),
+                kinds,
+                facts: &mut facts,
+                regexes: &mut regexes,
+                regex_of: FxMap::default(),
+                shared_base: shared.len(),
+            };
             for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
                 use ryo_relations::domain::relations::types::CellKind;
                 let progs: Vec<Prog> = m["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
@@ -430,7 +510,26 @@ impl NavProgram {
                         _ => CellKind::Number,
                     })
                     .collect();
+                if m["op"] == "ordered_match" {
+                    let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
+                    let right: Vec<Prog> = m["right_programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+                    let om = OrderedMatch {
+                        left: progs,
+                        right,
+                        lw: m["width"].as_u64().unwrap() as usize,
+                        rw: m["right_width"].as_u64().unwrap() as usize,
+                        left_on: cols(&m["left_on"]),
+                        right_on: cols(&m["right_on"]),
+                        lo: m["left_order"].as_u64().unwrap() as usize,
+                        ro: m["right_order"].as_u64().unwrap() as usize,
+                        number: m["order_number"].as_bool().unwrap_or(false),
+                        output: m["output"].as_array().unwrap().iter().map(|o| (o[0].as_u64().unwrap() == 1, o[1].as_u64().unwrap() as usize)).collect(),
+                    };
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om) });
+                    continue;
+                }
                 loader.facts.push(FactRel {
+                    made_om: None,
                     model: None,
                     name: m["name"].as_str().unwrap().to_owned(),
                     relation: None,
@@ -442,6 +541,10 @@ impl NavProgram {
                         m["width"].as_u64().unwrap() as usize,
                     )),
                 });
+            }
+            for q in nav["shared"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+                let p = loader.prog(q);
+                shared.push(p);
             }
             let programs: Vec<Vec<Alt>> = nav["programs"]
                 .as_array()
@@ -469,7 +572,7 @@ impl NavProgram {
                 nregs,
             });
         }
-        Self { rules: out, facts, regexes, max_regs }
+        Self { rules: out, shared, facts, regexes, max_regs }
     }
 }
 
@@ -576,6 +679,8 @@ pub(crate) struct Exec<'a, 'p> {
     pub regs: Vec<u64>,
     pub outs: Vec<Vec<u64>>,
     pub cur_rule: usize,
+    /// the collect buffer of the innermost running closure edge sub-program (navwide)
+    pub collect: Vec<u64>,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -730,6 +835,11 @@ impl<'a, 'p> Exec<'a, 'p> {
             return;
         }
         let t = Instant::now();
+        if let Some(om) = &prog.facts[rel as usize].made_om {
+            self.ordered_match(rel, om);
+            self.c.fact_ns += t.elapsed().as_nanos() as u64;
+            return;
+        }
         if let Some((progs, keys, distinct, width)) = &prog.facts[rel as usize].made {
             let nkeys = &keys.len();
             let slot = self.outs.len() - 1;
@@ -1011,6 +1121,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 let hit = self.text_of(l, lv).is_some_and(|t| regex.iter().any(|&i| self.prog.regexes[i].is_match(t)));
                 if test == T::NotGlob { !hit } else { hit }
             }
+            T::NumGe | T::NatLt => self.test_numeric(test, l, r, lv, text, num),
             T::Starts | T::Ends => {
                 let rv = self.opd(r);
                 match (self.text_of(l, lv), self.text_of(r, rv)) {
@@ -1297,6 +1408,53 @@ impl<'a, 'p> Exec<'a, 'p> {
                     return false;
                 }
                 Ins::Yield => return true,
+                Ins::Collect { regs } => {
+                    for r in regs.iter() {
+                        let v = self.regs[*r as usize];
+                        self.collect.push(v);
+                    }
+                    return false;
+                }
+                Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
+                Ins::Union { outs, subs } => return self.union(p, pc, outs, subs),
+                Ins::Let { from, out } => self.regs[*out as usize] = self.opd(from),
+                Ins::TextFn { lower, args, out } => {
+                    let mut t = String::new();
+                    for a in args.iter() {
+                        let v = self.opd(a);
+                        match self.text_of(a, v) {
+                            Some(x) => t.push_str(x),
+                            None => return false,
+                        }
+                    }
+                    if *lower {
+                        t = t.to_lowercase();
+                    }
+                    self.regs[*out as usize] = self.sym.minted(t) as u64;
+                }
+                Ins::Capture { text, pattern, outs } => return self.capture(p, pc, text, pattern, outs),
+                Ins::Replace { text, regex, replacement, out } => {
+                    let v = self.opd(text);
+                    let r = match self.text_of(text, v).map(str::to_owned) {
+                        None => NULL,
+                        Some(t) => {
+                            let mut result = String::new();
+                            let mut last = 0;
+                            for m in self.prog.regexes[*regex].find_iter(t.as_bytes()) {
+                                result.push_str(&t[last..m.start()]);
+                                result.push_str(replacement);
+                                last = m.end();
+                            }
+                            result.push_str(&t[last..]);
+                            self.sym.minted(result)
+                        }
+                    };
+                    self.regs[*out as usize] = r as u64;
+                }
+                Ins::Shared { idx } => {
+                    let q: &'p [Ins] = &self.prog.shared[*idx as usize];
+                    return self.run_inner(q, 0);
+                }
                 Ins::SpanBetween { a, b, out } => {
                     let (x, y) = (self.opd(a), self.opd(b));
                     self.regs[*out as usize] = (x & !0xffff_ffff) | (y & 0xffff_ffff);
@@ -1354,6 +1512,296 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
             }
             pc += 1;
+        }
+    }
+
+    /// Ins::Closure (navwide): breadth-first from the start node over the edge sub-programs, per key partition, each reached
+    /// (keys, node) once; then the rest of the program per reached pair
+    #[allow(clippy::too_many_arguments)]
+    fn closure(&mut self, p: &'p [Ins], pc: usize, src: R, out: R, xin: R, kout: &[R], nkeys: usize, subs: &'p [Prog]) -> bool {
+        let w = 1 + nkeys;
+        let start = self.regs[src as usize];
+        let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+        let mut found: Vec<u64> = Vec::new();
+        let mut stack: Vec<(u64, Vec<u64>)> = Vec::new();
+        let saved = std::mem::take(&mut self.collect);
+        let saved_x = self.regs[xin as usize];
+        let mut first = true;
+        stack.push((start, Vec::new()));
+        while let Some((n, keys)) = stack.pop() {
+            self.regs[xin as usize] = n;
+            self.collect.clear();
+            for q in subs {
+                self.c.subs += 1;
+                self.run_inner(q, 0);
+            }
+            let rows = std::mem::take(&mut self.collect);
+            for row in rows.chunks(w) {
+                if !first && row[1..] != keys[..] {
+                    continue;
+                }
+                let mut k = row[1..].to_vec();
+                k.push(row[0]);
+                if seen.insert(k) {
+                    self.c.visits += 1;
+                    found.extend_from_slice(row);
+                    stack.push((row[0], row[1..].to_vec()));
+                }
+            }
+            self.collect = rows;
+            first = false;
+        }
+        self.collect = saved;
+        self.regs[xin as usize] = saved_x;
+        for row in found.chunks(w) {
+            self.regs[out as usize] = row[0];
+            for (i, r) in kout.iter().enumerate() {
+                self.regs[*r as usize] = row[1 + i];
+            }
+            if self.run_inner(p, pc + 1) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Ins::Union (navwide): every sub-program's collected tuples, distinct, each continuing the program
+    fn union(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog]) -> bool {
+        let w = outs.len();
+        let saved = std::mem::take(&mut self.collect);
+        for q in subs {
+            self.c.subs += 1;
+            self.run_inner(q, 0);
+        }
+        let rows = std::mem::replace(&mut self.collect, saved);
+        let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+        for row in rows.chunks(w) {
+            if !seen.insert(row) {
+                continue;
+            }
+            for (i, r) in outs.iter().enumerate() {
+                self.regs[*r as usize] = row[i];
+            }
+            self.c.visits += 1;
+            if self.run_inner(p, pc + 1) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// navwide: `numeric>=` and `natural<`; a number register is a number, a text register is read as canonical numeric text
+    fn test_numeric(&self, test: T, l: &Opd, r: &Opd, lv: u64, text: bool, num: bool) -> bool {
+        let rv = self.opd(r);
+        let kind = |o: &Opd| -> bool { matches!(o, Opd::Num(_)) || (matches!(o, Opd::Reg(_)) && num && !text) };
+        if test == T::NatLt {
+            return match (self.text_of(l, lv), self.text_of(r, rv)) {
+                (Some(a), Some(b)) => natural_compare(a, b).is_lt(),
+                _ => false,
+            };
+        }
+        let read = |o: &Opd, v: u64| -> Option<Numeric> {
+            if kind(o) {
+                return Some(Numeric::Int(i128::from(v as i64)));
+            }
+            read_numeric(self.text_of(o, v)?)
+        };
+        match (read(l, lv), read(r, rv)) {
+            (Some(a), Some(b)) => numeric_cmp(a, b).is_some_and(|o| o.is_ge()),
+            _ => false,
+        }
+    }
+
+    /// Ins::Capture (navwide)
+    fn capture(&mut self, p: &'p [Ins], pc: usize, text: &Opd, pattern: &str, outs: &[R]) -> bool {
+        let v = self.opd(text);
+        let Some(t) = self.text_of(text, v).map(str::to_owned) else { return false };
+        let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
+        capture_matches(pattern, &t, &t, &mut Vec::new(), &mut found);
+        for spans in found {
+            for (i, r) in spans.into_iter().enumerate() {
+                let id = self.sym.minted(t[r].to_owned());
+                self.regs[outs[i] as usize] = id as u64;
+            }
+            self.c.visits += 1;
+            if self.run_inner(p, pc + 1) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// a made table by ordered match (navwide): per equal-key group, each left row in ascending order consumes the earliest
+    /// unconsumed right row with a strictly greater order
+    fn ordered_match(&mut self, rel: u16, om: &'p OrderedMatch) {
+        let slot = self.outs.len() - 1;
+        let run = |ex: &mut Self, progs: &'p [Prog]| -> Vec<u64> {
+            let saved = (ex.cur_rule, std::mem::take(&mut ex.outs[slot]));
+            ex.cur_rule = slot;
+            for q in progs {
+                ex.run_inner(q, 0);
+            }
+            let rows = std::mem::replace(&mut ex.outs[slot], saved.1);
+            ex.cur_rule = saved.0;
+            rows
+        };
+        let lrows = run(self, &om.left);
+        let rrows = run(self, &om.right);
+        let distinct = |rows: &[u64], w: usize| -> Vec<Vec<u64>> {
+            let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+            rows.chunks(w.max(1)).filter(|r| seen.insert(r)).map(<[u64]>::to_vec).collect()
+        };
+        let ls = distinct(&lrows, om.lw);
+        let rs = distinct(&rrows, om.rw);
+        let key = |o: u64| -> i128 { if om.number { i128::from(o as i64) } else { i128::from(o) } };
+        let mut groups: FxMap<Vec<u64>, (Vec<usize>, Vec<usize>)> = FxMap::default();
+        let mut order: Vec<Vec<u64>> = Vec::new();
+        for (i, r) in ls.iter().enumerate() {
+            let k: Vec<u64> = om.left_on.iter().map(|&c| r[c]).collect();
+            let e = groups.entry(k.clone()).or_insert_with(|| {
+                order.push(k);
+                (Vec::new(), Vec::new())
+            });
+            e.0.push(i);
+        }
+        for (i, r) in rs.iter().enumerate() {
+            let k: Vec<u64> = om.right_on.iter().map(|&c| r[c]).collect();
+            if let Some(e) = groups.get_mut(&k) {
+                e.1.push(i);
+            }
+        }
+        let mut cols: Vec<Vec<u64>> = vec![Vec::new(); om.output.len()];
+        for k in order {
+            let (mut li, mut ri) = groups.remove(&k).unwrap();
+            li.sort_by_key(|&i| key(ls[i][om.lo]));
+            ri.sort_by_key(|&i| key(rs[i][om.ro]));
+            let mut j = 0usize;
+            for &l in &li {
+                let lo = key(ls[l][om.lo]);
+                while j < ri.len() && key(rs[ri[j]][om.ro]) <= lo {
+                    j += 1;
+                }
+                if j >= ri.len() {
+                    break;
+                }
+                let r = ri[j];
+                j += 1;
+                for (c, &(right, col)) in om.output.iter().enumerate() {
+                    cols[c].push(if right { rs[r][col] } else { ls[l][col] });
+                }
+            }
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += cols.first().map_or(0, Vec::len) as u64;
+        let facts = self.cache.facts.as_mut().unwrap();
+        facts.cols[rel as usize] = cols;
+        facts.loaded[rel as usize] = true;
+    }
+}
+
+/// RyoQL `capture` (navwide copy of the walk interpreter's): every way the text matches the slot pattern
+fn capture_matches(pattern: &str, whole: &str, tail: &str, slots: &mut Vec<std::ops::Range<usize>>, out: &mut Vec<Vec<std::ops::Range<usize>>>) {
+    let Some(open) = pattern.find('{') else {
+        if pattern == tail {
+            out.push(slots.clone());
+        }
+        return;
+    };
+    let (literal, after_open) = pattern.split_at(open);
+    let crosses = after_open.starts_with("{*");
+    let Some(from) = tail.strip_prefix(literal) else { return };
+    let rest = after_open.split_once('}').map(|(_, a)| a).unwrap_or_default();
+    let start = whole.len() - from.len();
+    if !rest.contains('{') {
+        let Some(end) = from.len().checked_sub(rest.len()) else { return };
+        if end >= 1 {
+            if let (Some(slot), Some(after)) = (from.get(..end), from.get(end..)) {
+                if after == rest && (crosses || !slot.contains('/')) {
+                    slots.push(start..start + end);
+                    out.push(slots.clone());
+                    slots.pop();
+                }
+            }
+        }
+        return;
+    }
+    for end in 1..=from.len() {
+        let (Some(slot), Some(after)) = (from.get(..end), from.get(end..)) else { continue };
+        if !crosses && slot.contains('/') {
+            continue;
+        }
+        slots.push(start..start + end);
+        capture_matches(rest, whole, after, slots, out);
+        slots.pop();
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Numeric {
+    Int(i128),
+    Float(f64),
+}
+
+/// canonical signed decimal integers, marked decimal floats, `inf`, `-inf`, `NaN` (no radix, underscore or whitespace)
+fn read_numeric(t: &str) -> Option<Numeric> {
+    match t {
+        "inf" => return Some(Numeric::Float(f64::INFINITY)),
+        "-inf" => return Some(Numeric::Float(f64::NEG_INFINITY)),
+        "NaN" => return Some(Numeric::Float(f64::NAN)),
+        _ => {}
+    }
+    let digits = t.strip_prefix('-').unwrap_or(t);
+    if t.contains(['.', 'e', 'E']) {
+        let b = digits.as_bytes();
+        if b.is_empty() || !b[0].is_ascii_digit() || (b.len() > 1 && b[0] == b'0' && b[1].is_ascii_digit()) {
+            return None;
+        }
+        return t.parse::<f64>().ok().map(Numeric::Float);
+    }
+    if digits.is_empty() || !digits.bytes().all(|c| c.is_ascii_digit()) || (digits.len() > 1 && digits.starts_with('0')) {
+        return None;
+    }
+    t.parse::<i128>().ok().map(Numeric::Int)
+}
+
+fn numeric_cmp(a: Numeric, b: Numeric) -> Option<std::cmp::Ordering> {
+    match (a, b) {
+        (Numeric::Int(x), Numeric::Int(y)) => Some(x.cmp(&y)),
+        (Numeric::Int(x), Numeric::Float(y)) => (x as f64).partial_cmp(&y),
+        (Numeric::Float(x), Numeric::Int(y)) => x.partial_cmp(&(y as f64)),
+        (Numeric::Float(x), Numeric::Float(y)) => x.partial_cmp(&y),
+    }
+}
+
+/// natural text order (ryoql.md): ASCII digit runs by length then digits unless zero-led (then lexically); Unicode
+/// whitespace separates runs without weight; other scalars compare case-sensitively
+fn natural_compare(left: &str, right: &str) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    let (mut left, mut right) = (left, right);
+    loop {
+        left = left.trim_start_matches(char::is_whitespace);
+        right = right.trim_start_matches(char::is_whitespace);
+        let (Some(a), Some(b)) = (left.chars().next(), right.chars().next()) else {
+            return left.is_empty().cmp(&right.is_empty()).reverse();
+        };
+        if a.is_ascii_digit() && b.is_ascii_digit() {
+            let a_len = left.bytes().take_while(u8::is_ascii_digit).count();
+            let b_len = right.bytes().take_while(u8::is_ascii_digit).count();
+            let (a_run, a_rest) = left.split_at(a_len);
+            let (b_run, b_rest) = right.split_at(b_len);
+            let order = if a == '0' || b == '0' { a_run.cmp(b_run) } else { a_len.cmp(&b_len).then_with(|| a_run.cmp(b_run)) };
+            if order != Ordering::Equal {
+                return order;
+            }
+            left = a_rest;
+            right = b_rest;
+        } else {
+            let order = a.cmp(&b);
+            if order != Ordering::Equal {
+                return order;
+            }
+            left = &left[a.len_utf8()..];
+            right = &right[b.len_utf8()..];
         }
     }
 }
