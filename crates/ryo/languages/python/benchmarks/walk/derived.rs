@@ -132,6 +132,8 @@ pub(crate) const RELATIONS: &[&str] = &[
     "token-link",
     "format-parse",
     "format-field",
+    "brace-format-parse",
+    "brace-format-field",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -2166,6 +2168,263 @@ fn rows_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usize>, f
     }
 }
 
+// ------------------------------------------------------------------------------------------------ brace-format-parse, brace-format-field
+/// The provider's brace-format grammar (`outbound/brace_format/adapters/ruff_literal_braceformat`, adapted from Ruff 0.16.5's
+/// `ruff_python_literal::format`, MIT), copied because the adapter is crate-private: the replacement fields of `str.format`.
+pub(crate) mod braceformat {
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    pub enum Error {
+        UnmatchedBracket,
+        MissingStartBracket,
+        PlaceholderRecursionExceeded,
+        UnknownConversion,
+        EmptyAttribute,
+        MissingRightBracket,
+        InvalidCharacterAfterRightBracket,
+    }
+    impl Error {
+        pub fn word(self) -> &'static str {
+            match self {
+                Error::UnmatchedBracket => "unmatched-bracket",
+                Error::MissingStartBracket => "missing-start-bracket",
+                Error::PlaceholderRecursionExceeded => "placeholder-recursion-exceeded",
+                Error::UnknownConversion => "unknown-conversion",
+                Error::EmptyAttribute => "empty-attribute",
+                Error::MissingRightBracket => "missing-right-bracket",
+                Error::InvalidCharacterAfterRightBracket => "invalid-character-after-right-bracket",
+            }
+        }
+    }
+    pub enum Selector {
+        Automatic(usize),
+        Index(usize, String),
+        Keyword(String),
+    }
+    pub struct Field {
+        pub ordinal: usize,
+        pub parent: Option<usize>,
+        pub selector: Selector,
+    }
+    #[derive(Default)]
+    pub struct Parsed {
+        pub fields: Vec<Field>,
+        pub automatic: usize,
+        pub indexed: usize,
+        pub keyword: usize,
+        pub nested: usize,
+    }
+    enum FieldType {
+        Automatic,
+        Index(usize, String),
+        Keyword(String),
+    }
+    struct Part {
+        name: String,
+        spec: Option<String>,
+    }
+    fn field_name(name: &str) -> Result<FieldType, Error> {
+        let chars: Vec<char> = name.chars().collect();
+        let root_end = chars.iter().position(|c| matches!(c, '.' | '[')).unwrap_or(chars.len());
+        let root: String = chars[..root_end].iter().collect();
+        let t = if root.is_empty() {
+            FieldType::Automatic
+        } else if let Ok(i) = root.parse::<usize>() {
+            FieldType::Index(i, root)
+        } else {
+            FieldType::Keyword(root)
+        };
+        let mut at = root_end;
+        while let Some(c) = chars.get(at) {
+            match c {
+                '.' => {
+                    at += 1;
+                    let start = at;
+                    while chars.get(at).is_some_and(|n| !matches!(n, '.' | '[')) {
+                        at += 1;
+                    }
+                    if start == at {
+                        return Err(Error::EmptyAttribute);
+                    }
+                }
+                '[' => {
+                    at += 1;
+                    let start = at;
+                    while chars.get(at).is_some_and(|n| *n != ']') {
+                        at += 1;
+                    }
+                    if at == chars.len() {
+                        return Err(Error::MissingRightBracket);
+                    }
+                    if start == at {
+                        return Err(Error::EmptyAttribute);
+                    }
+                    at += 1;
+                    if chars.get(at).is_some_and(|n| !matches!(n, '.' | '[')) {
+                        return Err(Error::InvalidCharacterAfterRightBracket);
+                    }
+                }
+                _ => return Err(Error::InvalidCharacterAfterRightBracket),
+            }
+        }
+        Ok(t)
+    }
+    fn part(body: &str) -> Result<Part, Error> {
+        let mut split = body.splitn(2, ':');
+        let field = split.next().unwrap_or_default();
+        let spec = split.next().map(str::to_owned);
+        let mut parts = field.splitn(2, '!');
+        let name = parts.next().unwrap_or_default();
+        if let Some(text) = parts.next() {
+            let mut cs = text.chars();
+            cs.next().ok_or(Error::UnknownConversion)?;
+            if cs.next().is_some() {
+                return Err(Error::UnknownConversion);
+            }
+        }
+        field_name(name)?;
+        Ok(Part { name: name.to_owned(), spec })
+    }
+    fn parts(text: &str) -> Result<Vec<Part>, Error> {
+        let chars: Vec<char> = text.chars().collect();
+        let mut out = Vec::new();
+        let mut at = 0;
+        let mut pending_escape = false;
+        while let Some(c) = chars.get(at).copied() {
+            if pending_escape && c == 'N' && chars.get(at + 1) == Some(&'{') {
+                if let Some(rel) = chars[at + 2..].iter().position(|n| *n == '}') {
+                    at += rel + 3;
+                    pending_escape = false;
+                    continue;
+                }
+            }
+            if c == '{' && chars.get(at + 1) == Some(&'{') {
+                at += 2;
+                pending_escape = false;
+                continue;
+            }
+            if c == '}' && chars.get(at + 1) == Some(&'}') {
+                at += 2;
+                pending_escape = false;
+                continue;
+            }
+            if c == '}' {
+                return Err(Error::MissingStartBracket);
+            }
+            if c != '{' {
+                pending_escape = c == '\\' && !pending_escape;
+                at += 1;
+                continue;
+            }
+            at += 1;
+            let start = at;
+            let mut nested = false;
+            while let Some(m) = chars.get(at) {
+                match m {
+                    '{' if nested => return Err(Error::PlaceholderRecursionExceeded),
+                    '{' => {
+                        nested = true;
+                        at += 1;
+                    }
+                    '}' if nested => {
+                        nested = false;
+                        at += 1;
+                    }
+                    '}' => break,
+                    _ => at += 1,
+                }
+            }
+            if at == chars.len() {
+                return Err(Error::UnmatchedBracket);
+            }
+            let body: String = chars[start..at].iter().collect();
+            at += 1;
+            out.push(part(&body)?);
+            pending_escape = false;
+        }
+        Ok(out)
+    }
+    fn add(p: &mut Parsed, name: &str, parent: Option<usize>) -> Result<usize, Error> {
+        let ordinal = p.fields.len();
+        let selector = match field_name(name)? {
+            FieldType::Automatic => {
+                let i = p.automatic;
+                p.automatic += 1;
+                Selector::Automatic(i)
+            }
+            FieldType::Index(i, t) => {
+                p.indexed += 1;
+                Selector::Index(i, t)
+            }
+            FieldType::Keyword(n) => {
+                p.keyword += 1;
+                Selector::Keyword(n)
+            }
+        };
+        p.fields.push(Field { ordinal, parent, selector });
+        Ok(ordinal)
+    }
+    pub fn parse(input: &str) -> Result<Parsed, Error> {
+        let ps = parts(input)?;
+        let mut p = Parsed::default();
+        for part in ps {
+            let parent = add(&mut p, &part.name, None)?;
+            let spec = part.spec.unwrap_or_default();
+            for nested in parts(&spec)? {
+                add(&mut p, &nested.name, Some(parent))?;
+                p.nested += 1;
+            }
+        }
+        Ok(p)
+    }
+}
+
+fn rows_brace_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usize>, field_rel: Option<usize>, buf: &mut String) {
+    for k in [NodeKind::ExprStringLiteral, NodeKind::ExprFString, NodeKind::InterpolatedStringFormatSpec] {
+        for &id in c.kind(k) {
+            let node = c.table.node[id as usize];
+            let input: Option<&str> = match node {
+                AnyNodeRef::InterpolatedStringFormatSpec(spec) => {
+                    buf.clear();
+                    let mut dynamic = false;
+                    for e in spec.elements.iter() {
+                        match e {
+                            ast::InterpolatedStringElement::Literal(l) => buf.push_str(&l.value),
+                            ast::InterpolatedStringElement::Interpolation(_) => dynamic = true,
+                        }
+                    }
+                    if dynamic { None } else { Some(buf.as_str()) }
+                }
+                _ => string_value(node, buf),
+            };
+            let row = |sink: &mut dyn Sink, outcome: &str, err: &str, p: Option<&braceformat::Parsed>| {
+                if let Some(r) = parse_rel {
+                    let n = |f: fn(&braceformat::Parsed) -> usize| Cell::Num(p.map_or(0, f) as i64);
+                    sink.row(r, &[Cell::Node(id), Cell::Text("decoded-string"), Cell::Text(outcome), Cell::Text(err), n(|p| p.automatic), n(|p| p.indexed), n(|p| p.keyword), n(|p| p.nested), Cell::File, c.span(id)]);
+                }
+            };
+            match input {
+                None => row(sink, "unknown-input", "none", None),
+                Some(text) => match braceformat::parse(text) {
+                    Err(e) => row(sink, "malformed", e.word(), None),
+                    Ok(p) => {
+                        row(sink, "parsed", "none", Some(&p));
+                        if let Some(r) = field_rel {
+                            for f in &p.fields {
+                                let (kind, index, name) = match &f.selector {
+                                    braceformat::Selector::Automatic(i) => ("automatic", *i as i64, ""),
+                                    braceformat::Selector::Index(i, t) => ("index", i64::try_from(*i).unwrap_or(0), t.as_str()),
+                                    braceformat::Selector::Keyword(n) => ("keyword", 0, n.as_str()),
+                                };
+                                sink.row(r, &[Cell::Node(id), Cell::Num(f.ordinal as i64), Cell::Text(if f.parent.is_some() { "format-spec" } else { "literal" }), Cell::Num(f.parent.map_or(-1, |p| p as i64)), Cell::Text(kind), Cell::Num(index), Cell::Flag(false), Cell::Text(name), Cell::File, c.span(id)]);
+                            }
+                        }
+                    }
+                },
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
@@ -2259,6 +2518,10 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     let (fp, ff) = (want("format-parse"), want("format-field"));
     if fp.is_some() || ff.is_some() {
         rows_format(c, sink, fp, ff, buf, st);
+    }
+    let (bp, bf) = (want("brace-format-parse"), want("brace-format-field"));
+    if bp.is_some() || bf.is_some() {
+        rows_brace_format(c, sink, bp, bf, buf);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
