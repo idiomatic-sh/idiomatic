@@ -16,7 +16,7 @@ use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::types::{Count, Relation};
+use ryo_relations::domain::relations::types::{Count, FileId, Relation};
 
 /// A language's facts that count what the engine asks.
 #[derive(Default)]
@@ -77,6 +77,7 @@ fn subject((): Input) -> Result<Value, Failure> {
     let file = FileFacts {
         table: finished(&mut writer),
         source: ByteSlice(b""),
+        file: FileId(0),
         facts: &mut facts,
     };
     let counters =

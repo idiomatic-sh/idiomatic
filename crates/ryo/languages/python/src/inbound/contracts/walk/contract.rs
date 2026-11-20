@@ -78,6 +78,7 @@ impl Walk for PythonWalk<WalkPorts> {
                 visit.visit(FileFacts {
                     table,
                     source: request.source,
+                    file: request.file,
                     facts: &mut source,
                 });
             },

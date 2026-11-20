@@ -21,7 +21,8 @@ use ryo_language::domain::facts::types::FileFacts;
 /// let _scanner = scanner();
 /// ```
 pub trait ScanUseCase: Send + Sync {
-    /// Runs every enabled program over the file's node table and facts.
+    /// Runs every enabled program over the file's node table and facts. Which file of the run it is, is the lent file's own
+    /// `file`: a program writes it as a `File` cell and as the file half of a node's id.
     ///
     /// # Errors
     ///

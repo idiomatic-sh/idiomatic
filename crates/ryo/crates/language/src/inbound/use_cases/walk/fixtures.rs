@@ -73,6 +73,7 @@ impl WalkUseCase for Walking {
         visit.visit(FileFacts {
             table,
             source: request.source,
+            file: request.file,
             facts: &mut source,
         });
         Ok(())

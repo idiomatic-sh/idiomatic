@@ -32,7 +32,7 @@ use ryo_language::domain::node_table::service::{element_count, kind_of, node_cou
 use ryo_language::inbound::use_cases::walk::types::FileVisit;
 use ryo_relations::domain::relations::service::{node_id, to_bits};
 use ryo_relations::domain::relations::types::{
-    CellKind, Count, FileId, Offset, Position, Relation, Span, Value,
+    CellKind, Count, Offset, Position, Relation, Span, Value,
 };
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
@@ -172,7 +172,6 @@ impl EnginePort for EngineFake {
         &self,
         _programs: &Programs,
         file: FileFacts<'_>,
-        number: FileId,
         _scratch: &mut ScanScratch,
         found: &mut dyn FoundRows,
     ) -> Result<ScanCounters, ScanError> {
@@ -231,8 +230,8 @@ impl EnginePort for EngineFake {
                         Held::Start => CellWord(u64::from(span.start.0)),
                         Held::End => CellWord(u64::from(span.end.0)),
                         Held::Word => word,
-                        Held::Node => CellWord(to_bits(Value::Node(node_id(number, position))).0),
-                        Held::File => CellWord(to_bits(Value::File(number)).0),
+                        Held::Node => CellWord(to_bits(Value::Node(node_id(file.file, position))).0),
+                        Held::File => CellWord(to_bits(Value::File(file.file)).0),
                         Held::Span => CellWord(to_bits(Value::Span(whole)).0),
                     })
                     .collect();

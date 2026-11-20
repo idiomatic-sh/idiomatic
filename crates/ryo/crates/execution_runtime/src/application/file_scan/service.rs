@@ -16,7 +16,6 @@ use ryo_language::domain::facts::types::FileFacts;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, WalkEngine, WalkRequest};
-use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::scan_rows::types::{FaultOf, FaultSentence, ScanFault, ScanRow};
 use std::sync::Arc;
@@ -116,8 +115,6 @@ struct Visiting<'a> {
     engine: &'a dyn EnginePort,
     /// What every file of the run is scanned with.
     run: &'a ScanRun<'a>,
-    /// The file being scanned.
-    file: FileId,
     /// The worker's per-file engine state.
     state: &'a mut ScanScratch,
     /// Where the worker keeps what it found.
@@ -133,7 +130,7 @@ impl FileVisit for Visiting<'_> {
         let mut keeping = RowKeeper {
             columns: self.run.columns,
             places: self.run.places,
-            file: self.file,
+            file: file.file,
             table: file.table,
             report: &mut *self.report,
             misfit: &mut self.misfit,
@@ -141,7 +138,7 @@ impl FileVisit for Visiting<'_> {
         self.answer =
             Some(
                 self.engine
-                    .scan(self.run.programs, file, self.file, self.state, &mut keeping),
+                    .scan(self.run.programs, file, self.state, &mut keeping),
             );
     }
 }
@@ -157,7 +154,6 @@ fn scanned(
     let mut visiting = Visiting {
         engine,
         run,
-        file: file.file,
         state: &mut worker.scan,
         report: &mut worker.report,
         misfit: None,

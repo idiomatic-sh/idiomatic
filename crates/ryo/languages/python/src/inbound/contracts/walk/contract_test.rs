@@ -1,6 +1,6 @@
 //! The `walk` contract's cases: over every Python source of the language's fixtures (514 files, the parser's suite among them), the walk writes the tree today's reading writes
 //! (every element, under the same parent, at the same place; in the same field wherever the parser accepts the file) and its table keeps the laws of the engine's node
-//! table; a file that is not Python is not walked.
+//! table; the lent file says the number the run gave it; a file that is not Python is not walked.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::labels::types::Field;
@@ -9,7 +9,10 @@ use crate::fixtures::table_laws::broken_laws;
 use crate::fixtures::today::{Read, read, read_keys, read_placements};
 use crate::fixtures::walking::{Placement, walked, walked_keys, walked_placements};
 use crate::outbound::syntax::fixtures::library::fixture_sources;
-use ryo::languages::{self, NodeTable, Offset, Walk, WalkError, node_table};
+use ryo::languages::{
+    self, ByteSlice, FileFacts, FileId, FileVisit, NodeTable, Offset, RelationNeeds, Walk,
+    WalkError, WalkRequest, node_table,
+};
 
 /// What a case asks of the walk.
 #[derive(Clone, Copy, Debug)]
@@ -22,6 +25,8 @@ enum Asked {
     Kinds,
     /// What the walk answers for a file at this path.
     Path(&'static str),
+    /// What differs between the number the run gave a file and the number the lent file says.
+    Numbered(FileId),
 }
 
 type Input = Asked;
@@ -53,6 +58,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_python_file_is_walked"),
         word: Word::Succeeds,
         input: || Asked::Path("package/module.py"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_lent_file_says_the_number_the_run_gave_it"),
+        word: Word::Succeeds,
+        input: || Asked::Numbered(FileId(7)),
         expect: Expect::Value(String::new()),
     },
     Case {
@@ -171,8 +182,38 @@ fn kind_difference<W: Walk>(_walk: &W) -> String {
     }
 }
 
+/// The visit that keeps which file of the run the lent file says it is.
+struct Numbering(Option<FileId>);
+
+impl FileVisit for Numbering {
+    fn visit(&mut self, file: FileFacts<'_>) {
+        self.0 = Some(file.file);
+    }
+}
+
+/// What differs between `number`, the number the run gave a file, and the number the lent file says.
+fn numbered<W: Walk>(walk: &W, number: FileId) -> Result<String, WalkError> {
+    let (mut table, mut numbering) = (NodeTable::default(), Numbering(None));
+    walk.walk(
+        WalkRequest {
+            path: languages::SourcePath("module.py"),
+            file: number,
+            source: ByteSlice(b"x = 1\n"),
+        },
+        RelationNeeds(&[]),
+        &mut node_table::builder(&mut table, W::KIND_COUNT),
+        &mut Default::default(),
+        &mut numbering,
+    )?;
+    Ok(match numbering.0 {
+        Some(lent) if lent == number => String::new(),
+        lent => format!("the run gave the file {number:?}, the lent file says {lent:?}"),
+    })
+}
+
 fn subject(asked: Input) -> Result<Value, Failure> {
     match asked {
+        Asked::Numbered(number) => numbered(&crate::walk(), number),
         Asked::Trees => fixture_sources()
             .map_err(|_unread| WalkError::Library)?
             .iter()

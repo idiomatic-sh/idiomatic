@@ -5,10 +5,11 @@ use crate::domain::node_table::types::NodeTable;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
 use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::types::{Missing, Relation};
+use ryo_relations::domain::relations::types::{FileId, Missing, Relation};
 use std::sync::Arc;
 
-/// One file as the engine reads it: the node table, the bytes, and the language's per-file view behind `FactSource`.
+/// One file as the engine reads it: the node table, the bytes, the file's number in the run, and the language's per-file view
+/// behind `FactSource`.
 ///
 /// # Examples
 ///
@@ -29,6 +30,8 @@ pub struct FileFacts<'f> {
     pub table: &'f NodeTable,
     /// The bytes of the file.
     pub source: ByteSlice<'f>,
+    /// The number the run gave the file: the `File` cell of its rows and the file half of its nodes' ids.
+    pub file: FileId,
     /// The language's per-file view, filled lazily.
     pub facts: &'f mut dyn FactSource,
 }

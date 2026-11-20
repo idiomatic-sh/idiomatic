@@ -123,7 +123,7 @@ pub fn found_in(
         let state = &mut adapter.state_for(programs);
         answer = Some(
             adapter
-                .scan(programs, file, request.file, state, &mut found)
+                .scan(programs, file, state, &mut found)
                 .map(|_| found.0),
         );
     });

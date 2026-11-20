@@ -15,7 +15,6 @@ use ryo_engine::inbound::use_cases::project::interface::ProjectUseCase;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
 use ryo_engine::inbound::use_cases::scan::interface::ScanUseCase;
 use ryo_language::domain::facts::types::{FileFacts, ProjectFacts};
-use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
@@ -71,11 +70,9 @@ where
         &self,
         programs: &Programs,
         file: FileFacts<'_>,
-        _number: FileId,
         scratch: &mut ScanScratch,
         found: &mut dyn FoundRows,
     ) -> Result<ScanCounters, ScanError> {
-        // The engine's `scan` takes no file number yet: a lent file does not say which file of the run it is.
         self.scanner.scan(programs, file, scratch, found)
     }
 

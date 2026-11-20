@@ -1,5 +1,5 @@
-//! What the `walk` use case promises: a language walks a file into the node table and lends it, with its fillers, to the visit;
-//! the language that reads nothing refuses every file, and a parser that fails is the language's fault.
+//! What the `walk` use case promises: a language walks a file into the node table and lends it, with its number in the run and
+//! its fillers, to the visit; the language that reads nothing refuses every file, and a parser that fails is the language's fault.
 
 use super::errors::WalkError;
 use super::fixtures::FAILING;
@@ -34,6 +34,8 @@ enum Scenario {
 /// What the visit saw of the lent file.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Seen {
+    /// Which file of the run the lent file says it is.
+    file: FileId,
     /// The file's syntax nodes.
     nodes: Count,
     /// Its nodes and tokens.
@@ -56,6 +58,7 @@ impl FileVisit for Seeing {
             .facts
             .fill(Relation::SyntaxError, &mut words, &mut columns);
         self.0 = Some(Seen {
+            file: file.file,
             nodes: node_count(file.table),
             elements: element_count(file.table),
             syntax_errors: Count(columns.0.first().map_or(0, |column| column.0.len())),
@@ -75,6 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Words("one two! three"),
         expect: Expect::Value(Some(Seen {
+            file: FileId(1),
             nodes: Count(1),
             elements: Count(4),
             syntax_errors: Count(1),
@@ -86,6 +90,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Held("one two! three"),
         expect: Expect::Value(Some(Seen {
+            file: FileId(1),
             nodes: Count(1),
             elements: Count(4),
             syntax_errors: Count(1),

@@ -81,6 +81,7 @@ impl FileVisit for Scanning<'_> {
         let lent = FileFacts {
             table: file.table,
             source: file.source,
+            file: file.file,
             facts: &mut counting,
         };
         let answer = ScanUseCaseImpl.scan(
