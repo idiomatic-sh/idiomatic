@@ -55,7 +55,7 @@ impl LoadUseCase for LoadUseCaseImpl {
             LoadSource::Pack(bytes, digest) => unpacked(bytes, digest)
                 .map(|programs| LoadedRules {
                     programs,
-                    refused: Vec::new(),
+                    ..LoadedRules::default()
                 })
                 .map_err(|error| match error {
                     PacksError::Version => LoadError::PackVersion,

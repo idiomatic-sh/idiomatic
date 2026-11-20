@@ -21,7 +21,7 @@ use crate::domain::encoding::bodies::service::use_words;
 use crate::domain::encoding::comparisons::service::{
     call_operands, latest_operands, render_operands, test_operands,
 };
-use crate::domain::encoding::matches::service::size_site;
+use crate::domain::encoding::matches::service::{extent_flag, size_site};
 use crate::domain::encoding::pipelines::types::{PipelinePlace, ProbeRead, StageUse};
 use crate::domain::encoding::programs::types::NearestRows;
 use crate::domain::encoding::sites::service::{
@@ -81,7 +81,7 @@ fn scan_word(
     values: &StepOperands,
     out: Register,
 ) -> Result<CodeWord, LoweringError> {
-    let flag = source_code(source).0;
+    let flag = source_code(source).0 | extent_flag(source).0;
     if columns.0.is_empty() && values.0.is_empty() {
         let read = source_number(encoding, source)?.number;
         return Ok(stage_scan(ScanWord {

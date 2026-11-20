@@ -28,8 +28,14 @@ pub(crate) struct PlanPoint(pub(crate) u32);
 /// The instruction set the lowering writes: one variant per instruction.
 #[derive(Debug)]
 pub(crate) enum ProgramStep {
-    /// Each id of the kinds, in id order.
-    EachKind { kinds: AnchorKinds, out: Register },
+    /// Each id of the kinds, in id order, among the node rows `relation` covers. `relation` is of the node-table form; its
+    /// extent (the catalog's `node_extent`) says which rows those are: the file's own tree alone, the rows of embedded
+    /// segments left out, or every row of the table.
+    EachKind {
+        relation: Relation,
+        kinds: AnchorKinds,
+        out: Register,
+    },
     /// Each row of a source whose columns hold the values (a constant: a bucket; a register: a key). `out` is the row's handle.
     EachMatch {
         source: StepRows,
@@ -168,7 +174,8 @@ pub(crate) enum StepMemo {
 /// Where rows are read from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum StepRows {
-    /// The node table, through a relation of the node-table form.
+    /// The node table, through a relation of the node-table form. The rows read are those of the relation's extent (the
+    /// catalog's `node_extent`): the file's own tree alone, or the rows of embedded segments too.
     Node(Relation),
     /// A filled relation.
     Filled(Relation),

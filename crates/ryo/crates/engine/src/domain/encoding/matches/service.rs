@@ -30,17 +30,32 @@ use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::types::{
     AnchorKinds, BoundKind, MatchColumns, RangeBound, ReadColumn, Register, StepOperands, StepRows,
 };
-use ryo_relations::domain::relations::types::{Count, KindBits};
+use ryo_relations::domain::relations::types::{Count, KindBits, Relation};
 
-/// The word of an `EachKind`: one kind in the word, several in the pool.
+/// The flag of the node rows a source covers: `OWN_TREE` when it reads the node table through a relation whose extent is the
+/// file's own tree alone, so the rows of embedded segments are left out. Every word of a node source takes it from here.
+// JOIN(own tree): the `StepRows::Node` arm asks the catalog's `node_extent(relation)` and answers `OWN_TREE` for `NodeExtent::Own`; that function is track C1's, and until it is in this tree no word carries the flag.
+pub(crate) const fn extent_flag(source: StepRows) -> WordFlag {
+    match source {
+        StepRows::Node(_)
+        | StepRows::Filled(_)
+        | StepRows::Made(_)
+        | StepRows::Written(_)
+        | StepRows::Definition(_) => WordFlag(0),
+    }
+}
+
+/// The word of an `EachKind` over the node rows of `relation`: one kind in the word, several in the pool.
 pub(crate) fn kind_word(
     encoding: &mut Encoding<'_>,
+    relation: Relation,
     kinds: &AnchorKinds,
     out: Register,
 ) -> CodeWord {
+    let extent = extent_flag(StepRows::Node(relation));
     match &*kinds.0 {
         [one] => each_kind(EachKindWord {
-            flag: WordFlag(0),
+            flag: extent,
             kind: *one,
             out,
             kinds: PoolAt(0),
@@ -52,7 +67,7 @@ pub(crate) fn kind_word(
                 .collect();
             let list = push_list(&mut encoding.code.pool, &slots);
             each_kind(EachKindWord {
-                flag: SEVERAL,
+                flag: WordFlag(extent.0 | SEVERAL.0),
                 kind: KindBits(0),
                 out,
                 kinds: list,
@@ -131,7 +146,7 @@ pub(crate) fn match_word(
     Ok(match (source, one) {
         (StepRows::Node(_), Some(FlaggedSlot { flag, slot: value })) => {
             each_match_node(EachMatchWord {
-                flag,
+                flag: WordFlag(flag.0 | extent_flag(source).0),
                 out,
                 value,
                 index,
@@ -227,7 +242,7 @@ pub(crate) fn range_word(
     push_operand(&mut encoding.code.pool, high.operand);
     encoding.code.pool.push(range_out);
     Ok(each_range(EachRangeWord {
-        flag: WordFlag(low.flag.0 | high.flag.0 | out_flag),
+        flag: WordFlag(low.flag.0 | high.flag.0 | out_flag | extent_flag(read.source).0),
         values: short_of(encoding, Count(values.len()), PastWidth::WordOperands)?,
         out: read.out,
         operands,
@@ -243,7 +258,7 @@ pub(crate) fn row_word(
 ) -> Result<CodeWord, LoweringError> {
     Ok(match source {
         StepRows::Node(_) => each_row_node(EachRowNodeWord {
-            flag: WordFlag(0),
+            flag: extent_flag(source),
             out,
         }),
         StepRows::Filled(read) => each_row_filled(EachRowFilledWord {

@@ -99,6 +99,18 @@ pub struct Measured<'a> {
     pub counts: &'a PointCounts,
 }
 
+/// How many units of a load's programs the statistics it was loaded with name: a unit is named by its key.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::statistics::types::MatchedUnits;
+///
+/// assert_eq!(MatchedUnits::default(), MatchedUnits(0));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MatchedUnits(pub usize);
+
 /// Statistics as the lowering and the passes read them.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Statistics {

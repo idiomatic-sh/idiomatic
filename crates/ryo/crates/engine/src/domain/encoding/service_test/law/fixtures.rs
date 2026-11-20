@@ -82,6 +82,7 @@ fn every_step() -> Vec<ProgramStep> {
     ]));
     vec![
         ProgramStep::EachKind {
+            relation: Relation::SyntaxTree,
             kinds: AnchorKinds(Box::new([KindBits(2), KindBits(3)])),
             out: reg(0),
         },

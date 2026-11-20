@@ -94,8 +94,7 @@ fn kept(encoding: &mut Encoding<'_>, kept: &StepMemo) -> Result<KeptAnswer, Lowe
 }
 
 /// The word of a `Nearest`: the bodies it runs written first, then its record: over derived edges the edges' body and the
-/// register the element whose edges are asked is in; then the condition's body, the register the element under test is in, and
-/// the memo site.
+/// register of the element whose edges are asked; then the condition's body, the register of the element under test, the memo.
 fn nearest_word(
     encoding: &mut Encoding<'_>,
     walk: NearestWalk<'_>,
@@ -161,8 +160,7 @@ fn exists_word(
     }))
 }
 
-/// The word of an `Or`: its bodies' records one after the other, then the list of its outputs and the list of the registers
-/// that key its answer.
+/// The word of an `Or`: its bodies' records in order, then the list of its outputs and the list of the registers that key it.
 fn or_word(
     encoding: &mut Encoding<'_>,
     bodies: &[StepBody],
@@ -248,7 +246,11 @@ fn emit_word(
 /// The word of a step: one arm for each instruction.
 fn step_word(encoding: &mut Encoding<'_>, step: &ProgramStep) -> Result<CodeWord, LoweringError> {
     Ok(match step {
-        ProgramStep::EachKind { kinds, out } => kind_word(encoding, kinds, *out),
+        ProgramStep::EachKind {
+            relation: of,
+            kinds,
+            out,
+        } => kind_word(encoding, *of, kinds, *out),
         ProgramStep::EachMatch {
             source,
             columns,

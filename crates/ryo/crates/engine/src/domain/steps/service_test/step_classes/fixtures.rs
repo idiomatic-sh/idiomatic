@@ -187,6 +187,7 @@ pub(super) fn step(scenario: Scenario) -> ProgramStep {
     let made = StepRows::Made(MadeTableId(0));
     match scenario {
         Scenario::Kind => ProgramStep::EachKind {
+            relation: Relation::SyntaxTree,
             kinds: AnchorKinds(Box::new([KindBits(1)])),
             out: register(0),
         },

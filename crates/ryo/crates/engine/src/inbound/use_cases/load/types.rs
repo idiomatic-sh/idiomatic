@@ -3,7 +3,7 @@
 use crate::domain::lowering::types::{RefusedRule, SelectedRules};
 use crate::domain::packs::types::{PackBytes, PackDigest};
 use crate::domain::programs::types::Programs;
-use crate::domain::statistics::types::StatisticsBytes;
+use crate::domain::statistics::types::{MatchedUnits, StatisticsBytes};
 
 /// What programs are made from.
 ///
@@ -28,7 +28,8 @@ pub enum LoadSource<'a> {
     Pack(PackBytes<'a>, PackDigest),
 }
 
-/// What a load answers: the programs of the rules it accepted, and each rule it refused with why.
+/// What a load answers: the programs of the rules it accepted, each rule it refused with why, and how many units of the
+/// programs the statistics named.
 ///
 /// # Examples
 ///
@@ -38,6 +39,7 @@ pub enum LoadSource<'a> {
 ///
 /// let loaded = LoadedRules::default();
 /// assert!(accepted(&loaded.programs).is_empty() && loaded.refused.is_empty());
+/// assert_eq!(loaded.matched.0, 0);
 /// ```
 #[derive(Debug, Default)]
 pub struct LoadedRules {
@@ -45,6 +47,9 @@ pub struct LoadedRules {
     pub programs: Programs,
     /// The refused rules, in rule order.
     pub refused: Vec<RefusedRule>,
+    /// How many units of the programs the statistics the rules were loaded with name; none for a pack, which is loaded with
+    /// no statistics.
+    pub matched: MatchedUnits,
 }
 
 /// Which lowering of a load a pack is of: a load lowers its rules once, and once more without the rules an encoding refused.

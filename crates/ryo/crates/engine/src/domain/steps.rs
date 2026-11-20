@@ -9,6 +9,7 @@
 
 pub mod service;
 pub mod stages;
+pub mod traversal;
 pub mod types;
 
 #[cfg(test)]

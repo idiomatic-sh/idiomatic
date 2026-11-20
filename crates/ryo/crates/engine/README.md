@@ -12,6 +12,10 @@ A rule set's programs as the executor runs them and the pack stores them: sixtee
 
 What a measuring worker counted, the counts of several workers added up, and the work ledger read off them.
 
+### digests
+
+The digest that names a plan's step by everything it reads, a bound value included: sixteen bytes of blake3, the same on every build, toolchain and machine.
+
 ### encoding
 
 A lowered pack written as code, every site and index numbered, with no count cut to fit a width and a file-sized word only where it may stand.

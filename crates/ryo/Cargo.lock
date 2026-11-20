@@ -1429,6 +1429,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-engine"
 version = "0.2.0"
 dependencies = [
+ "blake3",
  "cargo_metadata",
  "cucumber",
  "idiomatic-sh-ryo-engine",

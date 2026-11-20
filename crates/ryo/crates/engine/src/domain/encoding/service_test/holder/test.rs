@@ -162,6 +162,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// An anchor: each id of one kind.
 fn anchor() -> ProgramStep {
     ProgramStep::EachKind {
+        relation: Relation::SyntaxTree,
         kinds: AnchorKinds(Box::new([KindBits(2)])),
         out: reg(0),
     }

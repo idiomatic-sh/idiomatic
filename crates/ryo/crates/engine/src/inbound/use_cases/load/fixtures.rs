@@ -12,7 +12,7 @@ use crate::domain::lowering::fixtures::named;
 use crate::domain::lowering::types::{SelectedRule, SelectedRules};
 use crate::domain::programs::service::accepted;
 use crate::domain::programs::types::Programs;
-use crate::domain::statistics::service::{decoded, learned};
+use crate::domain::statistics::service::learned;
 use crate::domain::statistics::types::{EncodedStatistics, Measured, PointCounts, StatisticsBytes};
 use crate::inbound::use_cases::scan::fixtures::scanned;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
@@ -169,25 +169,6 @@ fn product_tables(programs: &Programs) -> usize {
     tables.len()
 }
 
-/// How many units of the programs the statistics a scenario's input was loaded with name.
-fn matched_units(scene: &str, programs: &Programs) -> usize {
-    let statistics = scene_statistics(scene)
-        .ok()
-        .and_then(|bytes| decoded(StatisticsBytes(&bytes.0), &kinds()));
-    let measured: BTreeSet<_> = statistics
-        .iter()
-        .flat_map(|read| &read.units)
-        .map(|unit| &unit.key)
-        .collect();
-    programs
-        .0
-        .code
-        .units
-        .iter()
-        .filter(|unit| measured.contains(&unit.key))
-        .count()
-}
-
 /// A load as the scenarios state it: how many rules it runs; for the inputs that ask, how many definitions, tables with a
 /// product stage or units the statistics matched; then each rule it refused, with why.
 #[must_use]
@@ -201,10 +182,7 @@ pub fn said(scene: &str, loaded: &LoadedRules) -> String {
             product_tables(programs)
         )),
         OTHER_STATISTICS => {
-            said.push_str(&format!(
-                "; statistics matched {} units",
-                matched_units(scene, programs)
-            ));
+            said.push_str(&format!("; statistics matched {} units", loaded.matched.0));
         }
         _ => {}
     }

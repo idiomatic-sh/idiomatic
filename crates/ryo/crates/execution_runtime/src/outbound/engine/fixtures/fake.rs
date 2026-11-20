@@ -134,6 +134,7 @@ impl EnginePort for EngineFake {
                 Ok(LoadedRules {
                     programs: self.loaded(accepted),
                     refused,
+                    ..LoadedRules::default()
                 })
             }
             LoadSource::Pack(bytes, digest) => {
@@ -145,7 +146,7 @@ impl EnginePort for EngineFake {
                     LoadUseCaseImpl.load(LoadSource::Pack(PackBytes(head), digest), kinds)?;
                 Ok(LoadedRules {
                     programs: self.loaded(named_rules(tail)?),
-                    refused: Vec::new(),
+                    ..LoadedRules::default()
                 })
             }
         }

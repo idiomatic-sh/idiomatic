@@ -11,7 +11,8 @@ use crate::domain::lowering::types::{
 };
 use crate::domain::passes::service::passed;
 use crate::domain::programs::types::{Programs, ProgramsEngine};
-use crate::domain::statistics::types::Statistics;
+use crate::domain::statistics::service::matched;
+use crate::domain::statistics::types::{MatchedUnits, Statistics};
 use ryo_language::domain::facts::service::base_words;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -69,7 +70,7 @@ pub(super) fn sequenced(
 ) -> LoadedRules {
     let mut selected: Vec<SelectedRule<'_>> = rules.0.to_vec();
     let mut refused: Vec<RefusedRule> = Vec::new();
-    let mut loaded = Programs::default();
+    let (mut loaded, mut named) = (Programs::default(), MatchedUnits::default());
     // Once, and once more without the rules an encoding refused: never a third time.
     for lowering in [LoadPass::First, LoadPass::Last] {
         let LoweredRules {
@@ -81,6 +82,7 @@ pub(super) fn sequenced(
         let written: Vec<SelectedRuleOrdinal> = pack.rules.iter().map(|rule| rule.rule).collect();
         match encoded(&pack) {
             Ok(code) => {
+                named = matched(statistics, &code.units);
                 loaded = programs(pack, code);
                 break;
             }
@@ -101,5 +103,6 @@ pub(super) fn sequenced(
     LoadedRules {
         programs: loaded,
         refused,
+        matched: named,
     }
 }

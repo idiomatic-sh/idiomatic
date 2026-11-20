@@ -7,7 +7,6 @@ use crate::domain::plan_parts::types::StepId;
 use crate::domain::plans::types::PlanStep;
 use crate::domain::query_bindings::types::PlanParameter;
 use crate::domain::query_tokens::types::QueryOrigin;
-use std::collections::hash_map::DefaultHasher;
 
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.
 ///
@@ -116,89 +115,3 @@ pub struct NodeDigest(pub [u8; 16]);
 /// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NodeDigests(pub Vec<NodeDigest>);
-
-/// How many times a step was digested: the walk's own count, which its case holds to one a step.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct StepsDigested(pub(crate) usize);
-
-/// The digests of a plan's steps, and how many steps were digested for them.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Digested {
-    /// The digest of each step, in step order.
-    pub(crate) digests: NodeDigests,
-    /// How many steps were digested.
-    pub(crate) steps: StepsDigested,
-}
-
-/// What a step's digest is written into: two keyed hashes of the same bytes, each half of the digest, with every number at a
-/// fixed width, least byte first, so a digest does not depend on the width of the machine that made it. The hash is the
-/// standard library's: a digest names a node within one build of the engine, and statistics of another build do not match.
-#[derive(Clone, Debug)]
-pub(crate) struct DigestWriter {
-    /// The low half.
-    pub(crate) low: DefaultHasher,
-    /// The high half: the same bytes after one that the low half does not hold.
-    pub(crate) high: DefaultHasher,
-}
-
-impl Default for DigestWriter {
-    fn default() -> Self {
-        let mut high = DefaultHasher::new();
-        std::hash::Hasher::write_u8(&mut high, 1);
-        Self {
-            low: DefaultHasher::new(),
-            high,
-        }
-    }
-}
-
-impl std::hash::Hasher for DigestWriter {
-    fn finish(&self) -> u64 {
-        self.low.finish()
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        self.low.write(bytes);
-        self.high.write(bytes);
-    }
-
-    fn write_u16(&mut self, number: u16) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_u32(&mut self, number: u32) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_u64(&mut self, number: u64) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_u128(&mut self, number: u128) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_usize(&mut self, number: usize) {
-        self.write_u64(u64::try_from(number).unwrap_or(u64::MAX));
-    }
-
-    fn write_i16(&mut self, number: i16) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_i32(&mut self, number: i32) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_i64(&mut self, number: i64) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_i128(&mut self, number: i128) {
-        self.write(&number.to_le_bytes());
-    }
-
-    fn write_isize(&mut self, number: isize) {
-        self.write_i64(i64::try_from(number).unwrap_or(i64::MAX));
-    }
-}

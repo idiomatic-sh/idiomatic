@@ -8,6 +8,7 @@ use super::service::sequenced;
 use super::types::{LoadSource, LoadedRules};
 use super::use_case::LoadUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::code::types::{MeasuredForm, UnitKey};
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule};
 use crate::domain::lowering::fixtures::named;
@@ -17,12 +18,14 @@ use crate::domain::packs::service::encoded;
 use crate::domain::packs::types::{PackBytes, PackDigest};
 use crate::domain::programs::service::accepted;
 use crate::domain::programs::types::Programs;
-use crate::domain::statistics::types::{Statistics, StatisticsBytes};
+use crate::domain::statistics::types::{
+    MeasuredUnit, OrderVerdict, ShapeChoice, Statistics, StatisticsBytes, UnitCounts,
+};
 use crate::domain::steps::types::{
     AnchorKinds, PlacedStep, Polarity, ProgramStep, Register, RegisterList, StepBody, StepMemo,
     StepProgram,
 };
-use ryo_relations::domain::relations::types::KindBits;
+use ryo_relations::domain::relations::types::{KindBits, Relation};
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::NodeDigest;
@@ -43,6 +46,8 @@ enum Scenario {
     OneCountOut,
     /// Three rules, the second and the third of which the encoding cannot write.
     TwoFaults,
+    /// Three rules, loaded with statistics that name the units of the first and the third and a unit no program has.
+    Measured,
     /// A pack written for another digest.
     OtherPack,
     /// A pack another engine version wrote.
@@ -108,6 +113,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("a_load_counts_the_units_its_statistics_name"),
+        word: Word::Succeeds,
+        input: || Scenario::Measured,
+        expect: Expect::Value(Cow::Borrowed(
+            "runs [0, 1, 2]; refused []; statistics matched 2 units; lowered 1 times",
+        )),
+    },
+    Case {
         name: CaseName("a_pack_for_other_rules_is_refused"),
         word: Word::Refuses,
         input: || Scenario::OtherPack,
@@ -127,9 +140,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
+/// The node of the rule of an ordinal: each rule's own.
+fn node(rule: SelectedRuleOrdinal) -> NodeDigest {
+    NodeDigest([u8::try_from(rule.0).unwrap_or(u8::MAX); 16])
+}
+
+/// Statistics that name the unit of each rule of `rules`.
+fn naming<const N: usize>(rules: [u32; N]) -> Statistics {
+    let unit = |rule| MeasuredUnit {
+        key: UnitKey::Rule(node(SelectedRuleOrdinal(rule))),
+        form: MeasuredForm::default(),
+        shape: ShapeChoice::default(),
+        order: OrderVerdict::default(),
+        points: Vec::new(),
+        counts: UnitCounts::default(),
+    };
+    Statistics {
+        units: rules.map(unit).into(),
+        ..Statistics::default()
+    }
+}
+
 /// A lowered rule as the encoding makes `written` of it.
 fn lowered_rule(rule: SelectedRuleOrdinal, written: Written) -> LoweredRule {
     let anchor = || ProgramStep::EachKind {
+        relation: Relation::SyntaxTree,
         kinds: AnchorKinds(Box::new([KindBits(2)])),
         out: Register(0),
     };
@@ -147,7 +182,7 @@ fn lowered_rule(rule: SelectedRuleOrdinal, written: Written) -> LoweredRule {
     };
     LoweredRule {
         rule,
-        node: NodeDigest::default(),
+        node: node(rule),
         branches: vec![Branch {
             emptiness: Emptiness::Unknown,
             program: StepProgram(steps.into()),
@@ -171,7 +206,7 @@ fn said(loaded: &LoadedRules) -> String {
 }
 
 /// Loads three copies of the tree rule through a lowering that lowers each as `written` says of its ordinal.
-fn sequence(written: [Written; 3]) -> Value {
+fn sequence(written: [Written; 3], statistics: &Statistics) -> Value {
     let plan = named("one tree rule");
     let rules: Vec<SelectedRule<'_>> = (0..3)
         .map(|rule| SelectedRule {
@@ -198,9 +233,14 @@ fn sequence(written: [Written; 3]) -> Value {
             refused: Vec::new(),
         }
     };
-    let loaded = sequenced(SelectedRules(&rules), &Statistics::default(), &lower);
+    let loaded = sequenced(SelectedRules(&rules), statistics, &lower);
+    let matched = if statistics.units.is_empty() {
+        String::new()
+    } else {
+        format!("; statistics matched {} units", loaded.matched.0)
+    };
     Cow::Owned(format!(
-        "{}; lowered {} times",
+        "{}{matched}; lowered {} times",
         said(&loaded),
         lowerings.get()
     ))
@@ -218,14 +258,24 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     let source = match scenario {
         Scenario::OneFault => {
-            return Ok(sequence([Written::Whole, Written::Faulty, Written::Whole]));
+            return Ok(sequence(
+                [Written::Whole, Written::Faulty, Written::Whole],
+                &Statistics::default(),
+            ));
         }
         Scenario::OneCountOut => {
-            return Ok(sequence([Written::Whole, Written::Wide, Written::Whole]));
+            return Ok(sequence(
+                [Written::Whole, Written::Wide, Written::Whole],
+                &Statistics::default(),
+            ));
         }
         Scenario::TwoFaults => {
-            return Ok(sequence([Written::Whole, Written::Faulty, Written::Faulty]));
+            return Ok(sequence(
+                [Written::Whole, Written::Faulty, Written::Faulty],
+                &Statistics::default(),
+            ));
         }
+        Scenario::Measured => return Ok(sequence([Written::Whole; 3], &naming([0, 2, 9]))),
         Scenario::NoRules => LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])),
         Scenario::Pack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([1; 32])),
         Scenario::OtherPack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([2; 32])),

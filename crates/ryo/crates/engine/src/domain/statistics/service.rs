@@ -1,7 +1,9 @@
 //! The services of the `statistics` concept.
 
-use super::types::{EncodedStatistics, Measured, Statistics, StatisticsBytes};
+use super::types::{EncodedStatistics, MatchedUnits, Measured, Statistics, StatisticsBytes};
+use crate::domain::code::types::{UnitCode, UnitKey};
 use ryo_values::domain::descriptions::types::KindVocabulary;
+use std::collections::BTreeSet;
 
 /// The statistics the bytes hold, or none when they are of another engine version or do not read: absent, never an error.
 #[must_use]
@@ -30,4 +32,11 @@ pub fn learned(first: Measured<'_>, second: Option<Measured<'_>>) -> EncodedStat
     // The bytes are the passes' track's: until it writes them a sample teaches nothing, and a load reads none.
     let _ = (first, second);
     EncodedStatistics::default()
+}
+
+/// How many of `units` the statistics name: a unit of the programs is matched by its key.
+pub(crate) fn matched(statistics: &Statistics, units: &[UnitCode]) -> MatchedUnits {
+    let measured: BTreeSet<&UnitKey> = statistics.units.iter().map(|unit| &unit.key).collect();
+    let named = units.iter().filter(|unit| measured.contains(&unit.key));
+    MatchedUnits(named.count())
 }
