@@ -111,6 +111,8 @@ fn main() {
     if program.is_some() {
         eprintln!("{{\"program_load_s\":{:.3}}}", t_load.elapsed().as_secs_f64());
     }
+    let t_loaded = t_load.elapsed().as_secs_f64();
+    let slow_ms: u64 = std::env::var("WALK_SLOW_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     let cursor = AtomicUsize::new(0);
     let totals = Totals::default();
     let outputs: Vec<Vec<String>> = std::thread::scope(|scope| {
@@ -125,7 +127,11 @@ fn main() {
                         let Some(path) = files.get(index) else { break };
                         let bytes = std::fs::read(root.join(path)).expect("read");
                         totals.bytes.fetch_add(bytes.len() as u64, Ordering::Relaxed);
+                        let tf = std::time::Instant::now();
                         worker.file(index, path, &bytes, &totals, &mut out);
+                        if slow_ms > 0 && tf.elapsed().as_millis() as u64 >= slow_ms {
+                            eprintln!("{{\"slow_file\":\"{path}\",\"ms\":{}}}", tf.elapsed().as_millis());
+                        }
                     }
                     worker.finish(&totals);
                     out
@@ -135,6 +141,7 @@ fn main() {
             .collect();
         handles.into_iter().map(|h| h.join().expect("worker")).collect()
     });
+    let t_workers = t_load.elapsed().as_secs_f64();
     if let Some(dir) = mode.strip_prefix("ddump:") {
         let mut files: Vec<std::io::BufWriter<std::fs::File>> = derived::RELATIONS
             .iter()
@@ -200,6 +207,10 @@ fn main() {
         e,
         lines.len()
     );
+    eprintln!("{{\"phases_s\":{{\"load\":{:.3},\"workers\":{:.3},\"output\":{:.3}}}}}", t_loaded, t_workers, t_load.elapsed().as_secs_f64());
+    // the program is read-only and the process ends here: its millions of small allocations are not freed one by one
+    std::mem::forget(program);
+    std::mem::forget(lines);
 }
 
 struct Worker<'p> {
