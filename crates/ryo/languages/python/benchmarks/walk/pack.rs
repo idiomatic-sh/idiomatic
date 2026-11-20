@@ -256,6 +256,11 @@ impl Enc {
                     }
                 }
             }
+            Ins::UnionKey { outs, subs, key } => {
+                self.regs(outs);
+                self.u(u32::from(*key));
+                self.progs(subs);
+            }
             Ins::Capture { regs } => self.regs(regs),
             Ins::SubFirst { subs } => self.progs(subs),
             Ins::NearMemo { start, out, subs } => {
@@ -647,6 +652,11 @@ impl Dec<'_> {
                 let f = self.u();
                 let field = if f == u32::MAX { None } else { Some((f, self.r())) };
                 Ins::ChildToward { parent, desc, out, field }
+            }
+            48 => {
+                let outs = self.regs();
+                let key = self.r();
+                Ins::UnionKey { outs, subs: self.progs(), key }
             }
             30 => Ins::Capture { regs: self.regs() },
             31 => Ins::SubFirst { subs: self.progs() },

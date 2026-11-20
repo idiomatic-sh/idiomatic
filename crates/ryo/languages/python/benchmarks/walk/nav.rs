@@ -117,6 +117,8 @@ pub(crate) enum Ins {
     /// the child `out` of `parent` that is a proper ancestor of `desc` (one walk up from `desc`), optionally only under one
     /// field (its register set): the load-time fusion of a child walk followed by a containment test against it
     ChildToward { parent: R, desc: R, out: R, field: Option<(u32, R)> },
+    /// a union whose sub-programs read one outer register: its distinct rows memoised per file per value of `key`
+    UnionKey { outs: Box<[R]>, subs: Box<[Prog]>, key: R },
     /// a negated check whose failure holds for every later element of the range walk that encloses it (monotone in the walk's
     /// start: its only use of the walk is an upper bound on a walk of the same bucket): failing ends that walk
     SubFirst { subs: Box<[Prog]> },
@@ -189,13 +191,13 @@ pub(crate) struct OrderedDfs {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const NINS: usize = 48;
+pub(crate) const NINS: usize = 49;
 pub(crate) const INS_NAMES: [&str; NINS] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
     "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
     "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture", "sub_first",
     "collect", "closure", "union", "let", "shared", "text_fn", "capture_text", "replace", "near_derived", "sibling", "sub_memo",
-    "near_memo", "sub_key", "anc_exists", "hoist_probe", "child_toward",
+    "near_memo", "sub_key", "anc_exists", "hoist_probe", "child_toward", "union_key",
 ];
 
 impl Ins {
@@ -250,6 +252,7 @@ impl Ins {
             Ins::AncExists { .. } => 45,
             Ins::HoistProbe { .. } => 46,
             Ins::ChildToward { .. } => 47,
+            Ins::UnionKey { .. } => 48,
         }
     }
 }
@@ -264,6 +267,7 @@ pub(crate) fn subs_mut(i: &mut Ins, f: &mut dyn FnMut(&mut Prog)) {
         | Ins::Union { subs, .. }
         | Ins::SubMemo { subs, .. }
         | Ins::NearMemo { subs, .. }
+        | Ins::UnionKey { subs, .. }
         | Ins::SubKey { subs, .. } => subs.iter_mut().for_each(f),
         Ins::NearDerived { edges, domain, .. } => {
             edges.iter_mut().for_each(&mut *f);
@@ -286,6 +290,7 @@ pub(crate) fn subs_ref<'x>(i: &'x Ins, f: &mut dyn FnMut(&'x [Ins])) {
         | Ins::Union { subs, .. }
         | Ins::SubMemo { subs, .. }
         | Ins::NearMemo { subs, .. }
+        | Ins::UnionKey { subs, .. }
         | Ins::SubKey { subs, .. } => subs.iter().for_each(|q| f(q)),
         Ins::NearDerived { edges, domain, .. } => {
             edges.iter().for_each(|q| f(q));
@@ -861,6 +866,11 @@ fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
                 defs.push(*fo);
             }
         }
+        Ins::UnionKey { outs, subs, key } => {
+            reads.push(*key);
+            sub(subs, reads);
+            defs.extend(outs.iter().copied());
+        }
         Ins::Capture { regs } => reads.extend(regs.iter().copied()),
         Ins::SubFirst { subs } => sub(subs, reads),
         Ins::Collect { regs } => reads.extend(regs.iter().copied()),
@@ -977,6 +987,10 @@ fn reads_defs_top(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
             defs.extend(kout.iter().copied());
         }
         Ins::Union { outs, .. } => defs.extend(outs.iter().copied()),
+        Ins::UnionKey { outs, key, .. } => {
+            reads.push(*key);
+            defs.extend(outs.iter().copied());
+        }
         Ins::NearDerived { start, out, xin, .. } => {
             reads.push(*start);
             defs.push(*out);
@@ -1206,6 +1220,13 @@ fn memo_rec(p: Prog) -> (Prog, Vec<R>) {
                     let cond: Prog = q.into_vec().into_iter().skip(1).collect::<Vec<_>>().into();
                     Ins::AncExists { negate, start, out, cond }
                 }
+                Ins::Union { outs, subs, memo: false } if !std::env::var("NAV_UNION_KEY").is_ok_and(|v| v == "0") && {
+                    let f: Vec<&R> = child.iter().filter(|r| !outs.contains(r)).collect();
+                    f.len() == 1
+                } => {
+                    let key = *child.iter().find(|r| !outs.contains(r)).unwrap();
+                    Ins::UnionKey { outs, subs, key }
+                }
                 Ins::Sub { negate, subs } => match child.len() {
                     0 if memo0 => Ins::SubMemo { negate, subs },
                     1 => Ins::SubKey { negate, key: child[0], subs },
@@ -1369,6 +1390,7 @@ fn is_iter(i: &Ins) -> bool {
             | Ins::SourceMatches { .. }
             | Ins::Closure { .. }
             | Ins::Union { .. }
+            | Ins::UnionKey { .. }
             | Ins::CaptureText { .. }
     )
 }
@@ -1418,6 +1440,8 @@ thread_local! {
     static HOIST_CONST: bool = !std::env::var("NAV_HOIST_CONST").is_ok_and(|v| v == "0");
     static HOIST_DEFER: bool = !std::env::var("NAV_HOIST_DEFER").is_ok_and(|v| v == "0");
     static HOIST_PROBE: bool = !std::env::var("NAV_HOIST_PROBE").is_ok_and(|v| v == "0");
+    static HOIST_SHARE: bool = !std::env::var("NAV_HOIST_SHARE").is_ok_and(|v| v == "0");
+    static HOIST_IDS: std::cell::RefCell<FxMap<String, u32>> = std::cell::RefCell::new(FxMap::default());
 }
 
 fn is_test(i: &Ins) -> bool {
@@ -1522,7 +1546,28 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
                     let mut seg: Vec<Ins> = inside.iter().map(|&j| taken[j - s].take().unwrap()).collect();
                     let tests: Vec<Ins> = deferred.iter().map(|&j| taken[j - s].take().unwrap()).collect();
                     seg.push(Ins::Capture { regs: caps.clone().into() });
-                    let id = HOIST_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    // the memo key: identical segments (registers renamed by first appearance, the key's first) share their
+                    // per-file tuples across sites (NAV_HOIST_SHARE=0: one memo per site)
+                    let id = if HOIST_SHARE.with(|h| *h) {
+                        let mut m: FxMap<R, R> = FxMap::default();
+                        let ck: Vec<R> = key.iter().map(|&r| {
+                            let n = m.len() as R;
+                            *m.entry(r).or_insert(n)
+                        }).collect();
+                        let cseg: Vec<Ins> = seg.iter().map(|i| map_regs_ref(i, &mut |r| {
+                            let n = m.len() as R;
+                            *m.entry(r).or_insert(n)
+                        })).collect();
+                        let cp = probe.map(|(pc, pr)| (pc, m.get(&pr).copied()));
+                        let text = format!("{ck:?}|{cseg:?}|{cp:?}");
+                        HOIST_IDS.with(|t| {
+                            let mut t = t.borrow_mut();
+                            let n = t.len() as u32;
+                            *t.entry(text).or_insert(n)
+                        })
+                    } else {
+                        HOIST_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed) | (1 << 31)
+                    };
                     for r in &caps {
                         def_at.insert(*r, s);
                     }
@@ -2255,21 +2300,64 @@ fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
         Ins::Emit { cols, rule } => Ins::Emit { cols: cols.iter().map(|c| o(c, f)).collect::<Vec<_>>().into(), rule: *rule },
         Ins::Fork { subs } => Ins::Fork { subs: subs.iter().map(|(s, q)| (s.clone(), p(q, f))).collect::<Vec<_>>().into() },
         Ins::Yield => Ins::Yield,
-        Ins::ReadCol { .. }
-        | Ins::ReadChild { .. }
-        | Ins::TestEqC { .. }
-        | Ins::TestNeC { .. }
-        | Ins::TestEqR { .. }
-        | Ins::TestNeR { .. }
-        | Ins::TestInC { .. }
-        | Ins::Hoist { .. }
-        | Ins::HoistProbe { .. }
-        | Ins::ChildToward { .. }
-        | Ins::Capture { .. }
-        | Ins::NearMemo { .. }
-        | Ins::SubKey { .. }
-        | Ins::AncExists { .. }
-        | Ins::SubFirst { .. } => unreachable!("specialisation runs after the tries are built"),
+        // specialised instructions (renamed only for the hoist memo's canonical keys)
+        Ins::ReadCol { which, row, out } => {
+            let row = f(*row);
+            Ins::ReadCol { which: *which, row, out: f(*out) }
+        }
+        Ins::ReadChild { which, row, out } => {
+            let row = f(*row);
+            Ins::ReadChild { which: *which, row, out: f(*out) }
+        }
+        Ins::TestEqC { reg, c } => Ins::TestEqC { reg: f(*reg), c: *c },
+        Ins::TestNeC { reg, c } => Ins::TestNeC { reg: f(*reg), c: *c },
+        Ins::TestEqR { a, b } => {
+            let a = f(*a);
+            Ins::TestEqR { a, b: f(*b) }
+        }
+        Ins::TestNeR { a, b } => {
+            let a = f(*a);
+            Ins::TestNeR { a, b: f(*b) }
+        }
+        Ins::TestInC { reg, set, negate } => Ins::TestInC { reg: f(*reg), set: set.clone(), negate: *negate },
+        Ins::Hoist { id, key, seg, caps } => {
+            let key = key.iter().map(|&r| f(r)).collect::<Vec<_>>().into();
+            let seg = p(seg, f);
+            Ins::Hoist { id: *id, key, seg, caps: caps.iter().map(|&r| f(r)).collect::<Vec<_>>().into() }
+        }
+        Ins::HoistProbe { id, key, seg, caps, probe } => {
+            let key = key.iter().map(|&r| f(r)).collect::<Vec<_>>().into();
+            let seg = p(seg, f);
+            let caps = caps.iter().map(|&r| f(r)).collect::<Vec<_>>().into();
+            Ins::HoistProbe { id: *id, key, seg, caps, probe: (probe.0, f(probe.1)) }
+        }
+        Ins::ChildToward { parent, desc, out, field } => {
+            let parent = f(*parent);
+            let desc = f(*desc);
+            let out = f(*out);
+            Ins::ChildToward { parent, desc, out, field: field.map(|(x, fo)| (x, f(fo))) }
+        }
+        Ins::Capture { regs } => Ins::Capture { regs: regs.iter().map(|&r| f(r)).collect::<Vec<_>>().into() },
+        Ins::NearMemo { start, out, subs } => {
+            let start = f(*start);
+            let out = f(*out);
+            Ins::NearMemo { start, out, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() }
+        }
+        Ins::SubKey { negate, key, subs } => {
+            let key = f(*key);
+            Ins::SubKey { negate: *negate, key, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() }
+        }
+        Ins::AncExists { negate, start, out, cond } => {
+            let start = f(*start);
+            let out = f(*out);
+            Ins::AncExists { negate: *negate, start, out, cond: p(cond, f) }
+        }
+        Ins::SubFirst { subs } => Ins::SubFirst { subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() },
+        Ins::UnionKey { outs, subs, key } => {
+            let outs = outs.iter().map(|&r| f(r)).collect::<Vec<_>>().into();
+            let key = f(*key);
+            Ins::UnionKey { outs, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into(), key }
+        }
         Ins::SpanBetween { a, b, out } => {
             let a = o(a, f);
             let b = o(b, f);
@@ -2393,9 +2481,9 @@ pub(crate) struct Counters {
     pub hoist_runs: u64,
     pub hoist_misses: u64,
     /// per hoist site over the run: (lookups, misses)
-    pub hoist_sites: FxMap<u32, (u64, u64)>,
+    pub hoist_sites: FxMap<u32, (u64, u64, u64)>,
     /// per SubKey site over the run: (lookups, misses)
-    pub key_sites: FxMap<usize, (u64, u64)>,
+    pub key_sites: FxMap<usize, (u64, u64, u64)>,
     /// per base made table over the run: (steps of its builds, builds) as a twin's buy price; twins switched
     pub twin_buy: FxMap<u16, (u64, u64)>,
     pub twin_switches: u64,
@@ -2496,6 +2584,7 @@ pub(crate) struct FileCache {
     /// join: NearMemo answers per site (indexed by node id) and SubKey answers per (site, key value)
     pub near_memo: FxMap<usize, Vec<u32>>,
     pub key_memo: FxMap<(usize, u64), bool>,
+    pub union_key_memo: FxMap<(usize, u64), Rc<Vec<u64>>>,
     /// navwide: reusable state of the derived relations (derived.rs)
     pub dstate: crate::derived::State,
     /// derived key cells: (start, stop, kind) -> view id for the current file (dkey_built), kind names -> base symbols
@@ -3881,10 +3970,12 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Hoist { id, key, seg, caps } => {
                     let hk = (*id, key.first().map_or(0, |&r| self.regs[r as usize]), key.get(1).map_or(0, |&r| self.regs[r as usize]));
-                    // per site over the run: (lookups, misses); a site whose keys do not repeat stops memoising
+                    // per site over the run: (lookups, misses, steps in misses); a site whose keys do not repeat and whose
+                    // misses are cheap stops memoising (an expensive segment keeps its memo: its repeats are the costly keys)
                     let site = self.c.hoist_sites.entry(*id).or_default();
                     site.0 += 1;
-                    let off = site.0 >= 256 && site.1 * 10 >= site.0 * 9;
+                    let off = site.0 >= 256 && site.1 * 10 >= site.0 * 9 && site.2 < 32 * site.1;
+                    let s0 = self.c.steps;
                     let cached = if off { None } else { self.cache.hoisted.get(&hk).cloned() };
                     let tuples = match cached {
                         Some(t) => t,
@@ -3893,7 +3984,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                             self.run_inner(seg, 0);
                             let t = Rc::new(std::mem::replace(&mut self.cap_buf, saved));
                             self.c.hoist_misses += 1;
-                            self.c.hoist_sites.get_mut(id).unwrap().1 += 1;
+                            let st = self.c.hoist_sites.get_mut(id).unwrap();
+                            st.1 += 1;
+                            st.2 += self.c.steps - s0;
                             if !off {
                                 self.cache.hoisted.insert(hk, t.clone());
                             }
@@ -4041,16 +4134,19 @@ impl<'a, 'p> Exec<'a, 'p> {
                     let k = self.regs[*key as usize];
                     let st = self.c.key_sites.entry(site).or_default();
                     st.0 += 1;
-                    let off = st.0 >= 256 && st.1 * 10 >= st.0 * 9;
+                    let off = st.0 >= 256 && st.1 * 10 >= st.0 * 9 && st.2 < 32 * st.1;
+                    let s0 = self.c.steps;
                     let hit = if off { None } else { self.cache.key_memo.get(&(site, k)).copied() };
                     let any = match hit {
                         Some(v) => v,
                         None => {
-                            self.c.key_sites.get_mut(&site).unwrap().1 += 1;
                             let v = subs.iter().any(|q| {
                                 self.c.subs += 1;
                                 self.run_inner(q, 0)
                             });
+                            let st = self.c.key_sites.get_mut(&site).unwrap();
+                            st.1 += 1;
+                            st.2 += self.c.steps - s0;
                             if !off {
                                 self.cache.key_memo.insert((site, k), v);
                             }
@@ -4093,6 +4189,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
                 Ins::Union { outs, subs, memo } => return self.union(p, pc, outs, subs, *memo),
+                Ins::UnionKey { outs, subs, key } => return self.union_key(p, pc, outs, subs, *key),
                 Ins::Let { from, out } => self.regs[*out as usize] = self.opd(from),
                 Ins::SubMemo { negate, subs } => {
                     let key = subs.as_ptr() as usize;
@@ -4397,6 +4494,55 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         self.cache.near_memo.insert(site, memo);
         res == 1
+    }
+
+    /// Ins::UnionKey: Ins::Union with its distinct rows memoised per file per value of `key` (a site whose keys do not repeat and
+    /// whose misses are cheap stops memoising)
+    fn union_key(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], key: R) -> bool {
+        let w = outs.len().max(1);
+        let site = subs.as_ptr() as usize;
+        let k = self.regs[key as usize];
+        let st = self.c.key_sites.entry(site).or_default();
+        st.0 += 1;
+        let off = st.0 >= 256 && st.1 * 10 >= st.0 * 9 && st.2 < 32 * st.1;
+        let hit = if off { None } else { self.cache.union_key_memo.get(&(site, k)).cloned() };
+        let rows = match hit {
+            Some(r) => r,
+            None => {
+                let s0 = self.c.steps;
+                let saved = std::mem::take(&mut self.collect);
+                for q in subs {
+                    self.c.subs += 1;
+                    self.run_inner(q, 0);
+                }
+                let rows = std::mem::replace(&mut self.collect, saved);
+                let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+                let mut distinct = Vec::with_capacity(rows.len());
+                for row in rows.chunks(w) {
+                    if seen.insert(row) {
+                        distinct.extend_from_slice(row);
+                    }
+                }
+                let r = Rc::new(distinct);
+                let st = self.c.key_sites.get_mut(&site).unwrap();
+                st.1 += 1;
+                st.2 += self.c.steps - s0;
+                if !off {
+                    self.cache.union_key_memo.insert((site, k), r.clone());
+                }
+                r
+            }
+        };
+        for row in rows.chunks(w) {
+            for (i, r) in outs.iter().enumerate() {
+                self.regs[*r as usize] = row[i];
+            }
+            self.c.visits += 1;
+            if self.run_inner(p, pc + 1) {
+                return true;
+            }
+        }
+        false
     }
 
     /// Ins::Union (navwide): every sub-program's collected tuples, distinct, each continuing the program
