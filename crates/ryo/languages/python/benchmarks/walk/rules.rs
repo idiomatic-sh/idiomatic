@@ -910,6 +910,11 @@ impl<'p> State<'p> {
             // nodes outer, merged programs inner
             for &k in &used {
                 let list = &dispatch[k as usize];
+                if compact && !ex.c.diag {
+                    // exec: one call of the loop per kind; a frame walks the (candidate, group) pairs
+                    ex.xdrive(k, list);
+                    continue;
+                }
                 let n = ex.bucket(k).len();
                 for i in 0..n {
                     let id = ex.bucket(k)[i];

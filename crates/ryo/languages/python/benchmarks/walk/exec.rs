@@ -795,51 +795,51 @@ struct Frame {
     end: u32,
     src: u32,
     x: u64,
+    y: u64,
 }
 
 const K_CHILD: u8 = 0;
 const K_RANGE: u8 = 1;
 const K_FIELD: u8 = 2;
-const K_FDENSE: u8 = 3;
+const K_CHAIN: u8 = 3;
 const K_ANC: u8 = 4;
 const K_RANGEW: u8 = 5;
 const K_TUP: u8 = 6;
-const K_FROWS: u8 = 7;
+const K_IA: u8 = 7;
 const K_FORK: u8 = 8;
 const K_KINDS: u8 = 9;
-const K_CONST: u8 = 10;
-const K_TREE: u8 = 11;
-const K_F2: u8 = 12;
-const NFRAMES: usize = 24;
+// boundaries: frames at or above K_CALL are not iterations
+const K_CALL: u8 = 32;
+const K_DRIVE: u8 = 33;
+// what an inline call does with its sub-program's answer
+const M_SUB: u8 = 0;
+const M_SUBKEY: u8 = 1;
+const M_HOIST: u8 = 2;
+const M_UNION: u8 = 3;
+const FL_NEG: u8 = 8;
+const FL_OFF: u8 = 16;
+const NFRAMES: usize = 32;
 const FL_VISIT: u8 = 1;
 const FL_RECLAIM: u8 = 2;
 
-/// A fact column's index for the file: by node id (head/next chains) when the column holds nodes, else key -> a run of rows.
-#[derive(Default)]
+/// A fact column's index for the file: a chain of rows per key (`next` is a run of the arena); the first row of a key is
+/// in `head` (a run of the arena indexed by node id) when the column holds nodes, else in the worker's keyed map.
+#[derive(Default, Clone, Copy)]
 pub(crate) struct XFIdx {
     generation: u32,
     dense: bool,
-    head: Vec<u32>,
-    next: Vec<u32>,
-    at: FxMap<u64, (u32, u32)>,
-    rows: Vec<u32>,
+    head: u32,
+    nhead: u32,
+    next: u32,
 }
 
-/// A tree column's value index for the file: ids sorted by (value, start, id).
-#[derive(Default)]
+/// A tree column's value index for the file: ids sorted by (value, start, id), two runs of the arena.
+#[derive(Default, Clone, Copy)]
 pub(crate) struct XTIdx {
     generation: u32,
-    vals: Vec<u32>,
-    ids: Vec<u32>,
-    pairs: Vec<(u64, u32)>,
-}
-
-/// A fact's rows by the values of two columns.
-#[derive(Default)]
-pub(crate) struct XF2 {
-    generation: u32,
-    at: FxMap<(u64, u64), (u32, u32)>,
-    rows: Vec<u32>,
+    vals: u32,
+    ids: u32,
+    len: u32,
 }
 
 /// What a worker keeps for the compact executor. Every per-file answer is stamped with the file's generation; the storage
@@ -874,13 +874,24 @@ pub(crate) struct XState {
     pub nm_peak: usize,
     /// fork children: generation * 2 + enabled
     fork: Vec<u32>,
-    /// constant value walks: generation and the ids
-    clist: Vec<(u32, Vec<u32>)>,
+    /// the file's index storage: every constant list, fact index chain and tree index is a run of this arena (reset per
+    /// file, storage kept; read by offset, so it may grow while read)
+    ia: Vec<u32>,
+    /// constant value walks: (generation, offset, length)
+    clist: Vec<(u32, u32, u32)>,
     fidx: Vec<XFIdx>,
+    /// fact indexes on columns that do not hold nodes: (index, key) -> first row
+    fat: FxMap<(u16, u64), u32>,
     tidx: Vec<XTIdx>,
-    f2: Vec<XF2>,
+    pairs: Vec<(u64, u32)>,
+    /// two-column fact indexes: generation and the chain's run; (index, value, value) -> first row
+    f2: Vec<(u32, u32)>,
+    f2at: FxMap<(u16, u64, u64), u32>,
     caps: Vec<Option<regex_automata::util::captures::Captures>>,
     scratch: Vec<u32>,
+    /// the per-kind driver's groups and the kind's range of the kind index
+    pub drive: Vec<u32>,
+    pub drive_range: (u32, u32),
     /// counter build: steps and nanoseconds per opcode, fall-through pairs
     pub xsteps: Vec<u64>,
     pub xns: Vec<u64>,
@@ -889,6 +900,7 @@ pub(crate) struct XState {
     pub cur_op: usize,
     pub optime: bool,
     pub tup_peak: usize,
+    pub ia_peak: usize,
 }
 
 impl XState {
@@ -902,10 +914,10 @@ impl XState {
             self.umemo = vec![(0, 0, 0); x.sites[S_UNION] as usize];
             self.nm_at = vec![(0, 0); x.sites[S_NODE] as usize];
             self.fork = vec![0; x.sites[S_FORK] as usize];
-            self.clist = (0..x.consts.len()).map(|_| (0, Vec::new())).collect();
-            self.fidx = (0..x.fidx.len()).map(|_| XFIdx::default()).collect();
-            self.tidx = (0..x.tidx.len()).map(|_| XTIdx::default()).collect();
-            self.f2 = (0..x.f2.len()).map(|_| XF2::default()).collect();
+            self.clist = vec![(0, 0, 0); x.consts.len()];
+            self.fidx = vec![XFIdx::default(); x.fidx.len()];
+            self.tidx = vec![XTIdx::default(); x.tidx.len()];
+            self.f2 = vec![(0, 0); x.f2.len()];
             self.caps = (0..nregex).map(|_| None).collect();
             self.xsteps = vec![0; NXOPS];
             self.xns = vec![0; NXOPS];
@@ -915,9 +927,13 @@ impl XState {
         self.generation += 1;
         self.tup_peak = self.tup_peak.max(self.tup.len());
         self.nm_peak = self.nm_peak.max(self.nm.len());
+        self.ia_peak = self.ia_peak.max(self.ia.len());
         self.tup.clear();
         self.cap.clear();
         self.nm.clear();
+        self.ia.clear();
+        self.fat.clear();
+        self.f2at.clear();
         self.hoistk.clear();
         self.probe_built.clear();
         self.probek.clear();
@@ -936,9 +952,9 @@ impl XState {
                 "site_arrays",
                 self.hoist0.len() * 12 + self.hsite.len() * 24 + self.ksite.len() * 24 + self.submemo.len() * 4 + self.umemo.len() * 12 + self.nm_at.len() * 8 + self.fork.len() * 4,
             ),
-            ("const_lists", self.clist.iter().map(|c| 32 + c.1.capacity() * 4).sum()),
-            ("fact_indexes", self.fidx.iter().map(|i| 120 + (i.head.capacity() + i.next.capacity() + i.rows.capacity()) * 4 + i.at.capacity() * 24).sum::<usize>() + self.f2.iter().map(|i| 64 + i.rows.capacity() * 4 + i.at.capacity() * 32).sum::<usize>()),
-            ("tree_indexes", self.tidx.iter().map(|i| 80 + (i.vals.capacity() + i.ids.capacity()) * 4 + i.pairs.capacity() * 16).sum()),
+            ("index_arena", self.ia.capacity() * 4 + self.pairs.capacity() * 16),
+            ("index_maps", self.fat.capacity() * 24 + self.f2at.capacity() * 32),
+            ("index_tables", self.clist.len() * 12 + self.fidx.len() * 20 + self.tidx.len() * 16 + self.f2.len() * 8),
         ]
     }
 }
@@ -1104,15 +1120,27 @@ impl<'p> Exec<'_, 'p> {
         self.c.rule_visits[r] = self.c.rule_visits[r].wrapping_add(self.c.visits - v0);
     }
 
-    /// the ids of a constant value walk (built once per file; the list keeps its storage across files): its length
+    /// Runs every group anchored on one kind over the kind's candidates (nodes outer, groups inner) in one call of the
+    /// loop. No per-rule accounting: the counter build drives per candidate through `xtop`.
+    pub(crate) fn xdrive(&mut self, kind: u32, groups: &[(u32, u32, u32)]) {
+        let k = kind as usize;
+        if k + 1 >= self.cache.kind_off.len() {
+            return;
+        }
+        let xs = &mut self.cache.x;
+        xs.drive.clear();
+        xs.drive.extend(groups.iter().map(|g| g.0));
+        xs.drive_range = (self.cache.kind_off[k], self.cache.kind_off[k + 1]);
+        self.xrun::<false>(0);
+    }
+
+    /// the ids of a constant value walk (built once per file into the index arena): (offset, length)
     #[inline(never)]
-    fn xconst(&mut self, id: u32) -> u32 {
+    fn xconst(&mut self, id: u32) -> (u32, u32) {
         let generation = self.cache.x.generation;
-        {
-            let e = &self.cache.x.clist[id as usize];
-            if e.0 == generation {
-                return e.1.len() as u32;
-            }
+        let e = self.cache.x.clist[id as usize];
+        if e.0 == generation {
+            return (e.1, e.2);
         }
         let t0 = std::time::Instant::now();
         self.c.const_misses += 1;
@@ -1122,8 +1150,7 @@ impl<'p> Exec<'_, 'p> {
         let n = prog.x.pool[off as usize] as usize;
         let wanted = &prog.x.pool[off as usize + 1..off as usize + 1 + n];
         let v = self.f.view;
-        let mut out = std::mem::take(&mut self.cache.x.clist[id as usize].1);
-        out.clear();
+        let at = self.cache.x.ia.len();
         if rel == TRel::Id && col == 1 && self.cache.ident.is_none() {
             // identifier text against a few constants: compare the parser's own strings, no interning of the file's names
             let texts: Vec<&str> = wanted.iter().filter_map(|&w| self.sym.str(w)).collect();
@@ -1134,32 +1161,32 @@ impl<'p> Exec<'_, 'p> {
                     _ => continue,
                 };
                 if texts.contains(&t) {
-                    out.push(i as u32);
+                    self.cache.x.ia.push(i as u32);
                 }
             }
-            out.sort_by_key(|&id| (v.start[id as usize], id));
+            self.cache.x.ia[at..].sort_by_key(|&id| (v.start[id as usize], id));
         } else {
             let csr = self.col_csr(rel, col);
             for &w in wanted {
-                out.extend_from_slice(csr.bucket(w));
+                self.cache.x.ia.extend_from_slice(csr.bucket(w));
             }
             if sorted {
-                out.sort_by_key(|&id| (v.start[id as usize], id));
+                self.cache.x.ia[at..].sort_by_key(|&id| (v.start[id as usize], id));
             }
-            self.c.made_rows += out.len() as u64;
+            self.c.made_rows += (self.cache.x.ia.len() - at) as u64;
         }
         self.c.made_tables += 1;
         let ns = t0.elapsed().as_nanos() as u64;
         self.c.index_ns += ns;
         self.c.charge_index(self.cur_rule, ns);
         self.c.index_split[1] += ns;
-        let e = &mut self.cache.x.clist[id as usize];
-        e.1 = out;
-        e.0 = generation;
-        e.1.len() as u32
+        let len = (self.cache.x.ia.len() - at) as u32;
+        self.cache.x.clist[id as usize] = (generation, at as u32, len);
+        (at as u32, len)
     }
 
-    /// a fact column's index for this file (the fact is loaded first, as nav.rs `fact_index` does)
+    /// a fact column's index for this file (the fact is loaded first, as nav.rs `fact_index` does): one pass over the
+    /// column, rows chained per key in row order
     #[inline(never)]
     fn xfact_index(&mut self, id: u16) {
         let prog = self.prog;
@@ -1172,91 +1199,84 @@ impl<'p> Exec<'_, 'p> {
         let t0 = std::time::Instant::now();
         let n_view = self.f.view.len();
         let dense = matches!(prog.facts[rel as usize].kinds[col as usize], ryo_relations::domain::relations::types::CellKind::Node);
-        let mut ix = std::mem::take(&mut self.cache.x.fidx[id as usize]);
-        let c = &self.cache.facts.as_ref().unwrap().cols[rel as usize][col as usize];
-        ix.dense = dense;
+        let cache = &mut *self.cache;
+        let c = &cache.facts.as_ref().unwrap().cols[rel as usize][col as usize];
+        let xs = &mut cache.x;
+        let mut ix = XFIdx { generation, dense, head: 0, nhead: 0, next: 0 };
         if dense {
-            ix.head.clear();
-            ix.head.resize(n_view + 1, u32::MAX);
-            ix.next.clear();
-            ix.next.resize(c.len(), u32::MAX);
-            for (row, &v) in c.iter().enumerate().rev() {
-                let k = (v as usize).min(n_view);
-                ix.next[row] = ix.head[k];
-                ix.head[k] = row as u32;
-            }
-        } else {
-            // key -> a run of rows in row order: count, place, fill
-            ix.at.clear();
-            for &v in c {
-                ix.at.entry(v).or_insert((0, 0)).1 += 1;
-            }
-            let mut pos = 0u32;
-            for e in ix.at.values_mut() {
-                let cnt = e.1;
-                *e = (pos, 0);
-                pos += cnt;
-            }
-            ix.rows.clear();
-            ix.rows.resize(c.len(), 0);
-            for (row, &v) in c.iter().enumerate() {
-                let e = ix.at.get_mut(&v).unwrap();
-                ix.rows[(e.0 + e.1) as usize] = row as u32;
-                e.1 += 1;
+            ix.head = xs.ia.len() as u32;
+            ix.nhead = n_view as u32 + 1;
+            xs.ia.resize(xs.ia.len() + n_view + 1, u32::MAX);
+        }
+        ix.next = xs.ia.len() as u32;
+        xs.ia.resize(xs.ia.len() + c.len(), u32::MAX);
+        assert!(xs.ia.len() < u32::MAX as usize);
+        for (row, &v) in c.iter().enumerate().rev() {
+            if dense {
+                let k = ix.head as usize + (v as usize).min(n_view);
+                xs.ia[ix.next as usize + row] = xs.ia[k];
+                xs.ia[k] = row as u32;
+            } else {
+                let e = xs.fat.entry((id, v)).or_insert(u32::MAX);
+                xs.ia[ix.next as usize + row] = *e;
+                *e = row as u32;
             }
         }
-        ix.generation = generation;
+        xs.fidx[id as usize] = ix;
         self.c.made_tables += 1;
         self.c.made_rows += c.len() as u64;
-        self.cache.x.fidx[id as usize] = ix;
         let ns = t0.elapsed().as_nanos() as u64;
         self.c.index_ns += ns;
         self.c.charge_index(self.cur_rule, ns);
         self.c.index_split[2] += ns;
     }
 
-    /// a fact's rows by two columns' values for this file
+    /// the first row of a key in a fact column's index (u32::MAX: none) and the offset of the index's chain
+    #[inline(always)]
+    fn xfact_first(&self, id: u16, key: u64) -> (u32, u32) {
+        let xs = &self.cache.x;
+        let ix = xs.fidx[id as usize];
+        let first = if ix.dense {
+            if key as usize >= ix.nhead as usize - 1 { u32::MAX } else { xs.ia[ix.head as usize + key as usize] }
+        } else {
+            xs.fat.get(&(id, key)).copied().unwrap_or(u32::MAX)
+        };
+        (first, ix.next)
+    }
+
+    /// a fact's rows by two columns' values for this file: the first row of a pair in the keyed map, rows chained
     #[inline(never)]
     fn xfact_index2(&mut self, id: u16) {
         let prog = self.prog;
         let (rel, c1, c2) = prog.x.f2[id as usize];
         self.ensure(rel);
         let generation = self.cache.x.generation;
-        if self.cache.x.f2[id as usize].generation == generation {
+        if self.cache.x.f2[id as usize].0 == generation {
             return;
         }
         let t0 = std::time::Instant::now();
-        let mut ix = std::mem::take(&mut self.cache.x.f2[id as usize]);
-        let facts = self.cache.facts.as_ref().unwrap();
+        let cache = &mut *self.cache;
+        let facts = cache.facts.as_ref().unwrap();
         let (a, b) = (&facts.cols[rel as usize][c1 as usize], &facts.cols[rel as usize][c2 as usize]);
-        ix.at.clear();
-        for (&x, &y) in a.iter().zip(b.iter()) {
-            ix.at.entry((x, y)).or_insert((0, 0)).1 += 1;
+        let xs = &mut cache.x;
+        let next = xs.ia.len();
+        let n = a.len().min(b.len());
+        xs.ia.resize(next + n, u32::MAX);
+        for row in (0..n).rev() {
+            let e = xs.f2at.entry((id, a[row], b[row])).or_insert(u32::MAX);
+            xs.ia[next + row] = *e;
+            *e = row as u32;
         }
-        let mut pos = 0u32;
-        for e in ix.at.values_mut() {
-            let cnt = e.1;
-            *e = (pos, 0);
-            pos += cnt;
-        }
-        ix.rows.clear();
-        ix.rows.resize(a.len().min(b.len()), 0);
-        for (row, (&x, &y)) in a.iter().zip(b.iter()).enumerate() {
-            let e = ix.at.get_mut(&(x, y)).unwrap();
-            ix.rows[(e.0 + e.1) as usize] = row as u32;
-            e.1 += 1;
-        }
-        ix.generation = generation;
+        xs.f2[id as usize] = (generation, next as u32);
         self.c.made_tables += 1;
         self.c.made_rows += a.len() as u64;
-        self.cache.x.f2[id as usize] = ix;
         let ns = t0.elapsed().as_nanos() as u64;
         self.c.index_ns += ns;
         self.c.charge_index(self.cur_rule, ns);
         self.c.index_split[2] += ns;
     }
 
-    /// a tree column's value index for this file; the range of `key`'s ids in it
+    /// a tree column's value index for this file; the run of `key`'s ids in the index arena (offsets)
     #[inline(never)]
     fn xtree_range(&mut self, id: u32, key: u32) -> (u32, u32) {
         let generation = self.cache.x.generation;
@@ -1265,20 +1285,21 @@ impl<'p> Exec<'_, 'p> {
             let (relc, col) = self.prog.x.tidx[id as usize];
             let rel = RELS[relc as usize];
             let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
-            let mut ix = std::mem::take(&mut self.cache.x.tidx[id as usize]);
-            ix.pairs.clear();
+            let mut pairs = std::mem::take(&mut self.cache.x.pairs);
+            pairs.clear();
             for nid in 0..n as u32 {
                 if let Some(v) = self.tread(rel, col, nid) {
-                    ix.pairs.push(((u64::from(v as u32) << 32) | u64::from(self.f.view.start[nid as usize]), nid));
+                    pairs.push(((u64::from(v as u32) << 32) | u64::from(self.f.view.start[nid as usize]), nid));
                 }
             }
-            ix.pairs.sort_unstable();
-            ix.vals.clear();
-            ix.vals.extend(ix.pairs.iter().map(|p| (p.0 >> 32) as u32));
-            ix.ids.clear();
-            ix.ids.extend(ix.pairs.iter().map(|p| p.1));
-            ix.generation = generation;
-            self.cache.x.tidx[id as usize] = ix;
+            pairs.sort_unstable();
+            let xs = &mut self.cache.x;
+            let vals = xs.ia.len() as u32;
+            xs.ia.extend(pairs.iter().map(|p| (p.0 >> 32) as u32));
+            let ids = xs.ia.len() as u32;
+            xs.ia.extend(pairs.iter().map(|p| p.1));
+            xs.tidx[id as usize] = XTIdx { generation, vals, ids, len: pairs.len() as u32 };
+            xs.pairs = pairs;
             self.c.made_tables += 1;
             self.c.made_rows += n as u64;
             let ns = t0.elapsed().as_nanos() as u64;
@@ -1286,10 +1307,12 @@ impl<'p> Exec<'_, 'p> {
             self.c.charge_index(self.cur_rule, ns);
             self.c.index_split[0] += ns;
         }
-        let ix = &self.cache.x.tidx[id as usize];
-        let a = ix.vals.partition_point(|&x| x < key);
-        let b = a + ix.vals[a..].partition_point(|&x| x == key);
-        (a as u32, b as u32)
+        let xs = &self.cache.x;
+        let ix = xs.tidx[id as usize];
+        let vals = &xs.ia[ix.vals as usize..(ix.vals + ix.len) as usize];
+        let a = vals.partition_point(|&x| x < key);
+        let b = a + vals[a..].partition_point(|&x| x == key);
+        (ix.ids + a as u32, ix.ids + b as u32)
     }
 
     /// the slab offset of a per-node memo site in this file (its cells start unknown)
@@ -1807,20 +1830,18 @@ impl<'p> Exec<'_, 'p> {
                         self.cache.x.xsteps[$i.op as usize] -= 1;
                     }
                     sync!();
-                    if self.xrun::<D>(pc as u32) {
-                        return true;
-                    }
-                    break $l;
+                    let y = self.xrun::<D>(pc as u32);
+                    break $l y;
                 }
             };
         }
         macro_rules! frame {
             ($kind:expr, $out:expr, $cur:expr, $end:expr, $src:expr, $x:expr, $flag:expr) => {
-                fr.push(Frame { kind: $kind, flag: $flag, out: $out, pc: pc as u32, cur: $cur, end: $end, src: $src, x: $x })
+                fr.push(Frame { kind: $kind, flag: $flag, out: $out, pc: pc as u32, cur: $cur, end: $end, src: $src, x: $x, y: 0 })
             };
         }
         'run: loop {
-            'fail: {
+            let mut yielded: bool = 'fail: {
                 let i: &XIns = &code[pc];
                 steps += 1;
                 if D {
@@ -1847,50 +1868,50 @@ impl<'p> Exec<'_, 'p> {
                     op::READ_COL => {
                         let id = r!(i.a) as usize;
                         if id >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                         r!(i.b) = u64::from(vc[(i.f & 7) as usize][id]);
                     }
                     op::READ_CHILD => {
                         let id = r!(i.a) as usize;
                         if id >= n || par[id] == u32::MAX {
-                            break 'fail;
+                            break 'fail false;
                         }
                         r!(i.b) = u64::from(vc[(i.f & 7) as usize][id]);
                     }
                     op::TEST_EQ_C => {
                         if r!(i.a) != u64::from(i.x) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::TEST_NE_C => {
                         if r!(i.a) == u64::from(i.x) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::TEST_EQ_K => {
                         if r!(i.a) != k64[i.x as usize] {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::TEST_NE_K => {
                         if r!(i.a) == k64[i.x as usize] {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::TEST_EQ_R => {
                         if r!(i.a) != r!(i.b) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::TEST_NE_R => {
                         if r!(i.a) == r!(i.b) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::TEST_IN_C => {
                         if inset(&pool[i.x as usize..(i.x + i.y) as usize], r!(i.a)) == (i.f != 0) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     // ---- fused: a read and the constant test of what it read (two steps when the read finds its row)
@@ -1898,7 +1919,7 @@ impl<'p> Exec<'_, 'p> {
                         let id = r!(i.a) as usize;
                         let child = i.op >= op::RCH_EQ && i.op != op::RC_EQ_R;
                         if id >= n || (child && par[id] == u32::MAX) {
-                            break 'fail;
+                            break 'fail false;
                         }
                         let val = u64::from(vc[(i.f & 7) as usize][id]);
                         r!(i.b) = val;
@@ -1931,7 +1952,7 @@ impl<'p> Exec<'_, 'p> {
                             }
                         };
                         if !pass {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::RF_EQ | op::RF_NE | op::RF_IN | op::RF_EQ_R => {
@@ -1966,31 +1987,31 @@ impl<'p> Exec<'_, 'p> {
                             }
                         };
                         if !pass {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::EQ_EQ => {
                         if r!(i.a) != u64::from(i.x) {
-                            break 'fail;
+                            break 'fail false;
                         }
                         steps += 1;
                         if D {
                             self.c.op_steps[24] += 1;
                         }
                         if r!(i.b) != u64::from(i.y) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::READ => {
                         let id = r!(i.a) as u32;
                         match self.tread(RELS[(i.f >> 4) as usize], i.f & 15, id) {
                             Some(val) => r!(i.b) = val,
-                            None => break 'fail,
+                            None => break 'fail false,
                         }
                     }
                     op::TEST => {
                         if !self.xtest(i) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::TEST_CMP => {
@@ -2003,24 +2024,24 @@ impl<'p> Exec<'_, 'p> {
                             _ => ord.is_ge(),
                         };
                         if !pass {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::ROW_ANY => {
                         if r!(i.a) as u32 as usize >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::ROW_CHILD => {
                         let id = r!(i.a) as u32 as usize;
                         if id >= n || par[id] == u32::MAX {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::ROW => {
                         let id = r!(i.a) as u32;
                         if !self.row_exists(RELS[i.f as usize], id) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::READ_FACT => {
@@ -2031,39 +2052,39 @@ impl<'p> Exec<'_, 'p> {
                         need_frame!('fail, i);
                         let p0 = r!(i.b) as u32 as usize;
                         if p0 >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                         frame!(K_CHILD, i.a, child_off[p0], child_off[p0 + 1], 0, 0, 0);
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::ITER_FIELD => {
                         need_frame!('fail, i);
                         let p0 = r!(i.b) as u32 as usize;
                         if p0 >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                         frame!(K_FIELD, i.a, child_off[p0], child_off[p0 + 1], u32::from(i.c), u64::from(i.x), 0);
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::ITER_KIND => {
                         need_frame!('fail, i);
                         frame!(K_KINDS, i.a, 0, 0, 0, (u64::from(i.x) << 32) | u64::from(i.y), 0);
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::ITER_VALUE_C => {
                         need_frame!('fail, i);
                         sync!();
-                        let len = self.xconst(i.x);
-                        frame!(K_CONST, i.a, 0, len, i.x, 0, 0);
-                        break 'fail;
+                        let (o, len) = self.xconst(i.x);
+                        frame!(K_IA, i.a, o, o + len, 0, 0, 0);
+                        break 'fail false;
                     }
                     op::ITER_VALUE_R => {
                         need_frame!('fail, i);
                         sync!();
                         let key = r!(i.b) as u32;
                         let (a, b) = self.xtree_range(i.x, key);
-                        frame!(K_TREE, i.a, a, b, i.x, 0, 0);
-                        break 'fail;
+                        frame!(K_IA, i.a, a, b, 0, 0, 0);
+                        break 'fail false;
                     }
                     op::ITER_SCAN => {
                         let rel = RELS[i.f as usize];
@@ -2076,10 +2097,10 @@ impl<'p> Exec<'_, 'p> {
                             r!(i.a) = id as u64;
                             self.c.visits += 1;
                             if self.xrun::<D>(pc as u32 + 1) {
-                                return true;
+                                break 'fail true;
                             }
                         }
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::ITER_FACT_KEYED => {
                         need_frame!('fail, i);
@@ -2087,25 +2108,19 @@ impl<'p> Exec<'_, 'p> {
                         let key = r!(i.b);
                         let (a, b) = self.keyed_rows(i.x as u16, key);
                         frame!(K_RANGE, i.a, a, b, 0, 0, 0);
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::ITER_FACT_R | op::ITER_FACT_C => {
                         need_frame!('fail, i);
                         sync!();
                         self.xfact_index(i.c);
                         let key = if i.op == op::ITER_FACT_R { r!(i.b) } else { k64[i.y as usize] };
-                        let ix = &self.cache.x.fidx[i.c as usize];
-                        if ix.dense {
-                            if key as usize >= ix.head.len() - 1 {
-                                break 'fail;
-                            }
-                            let first = ix.head[key as usize];
-                            frame!(K_FDENSE, i.a, first, 0, u32::from(i.c), 0, 0);
-                        } else {
-                            let Some(&(o, l)) = ix.at.get(&key) else { break 'fail };
-                            frame!(K_FROWS, i.a, o, o + l, u32::from(i.c), 0, 0);
+                        let (first, next) = self.xfact_first(i.c, key);
+                        if first == u32::MAX {
+                            break 'fail false;
                         }
-                        break 'fail;
+                        frame!(K_CHAIN, i.a, first, 0, 0, u64::from(next), 0);
+                        break 'fail false;
                     }
                     op::ITER_FACT_L => {
                         sync!();
@@ -2113,40 +2128,26 @@ impl<'p> Exec<'_, 'p> {
                         let nk = pool[i.y as usize] as usize;
                         for j in 0..nk {
                             let key = k64[pool[i.y as usize + 1 + j] as usize];
-                            let ix = &self.cache.x.fidx[i.c as usize];
-                            if ix.dense {
-                                if key as usize >= ix.head.len() - 1 {
-                                    continue;
+                            let (mut row, next) = self.xfact_first(i.c, key);
+                            while row != u32::MAX {
+                                r!(i.a) = u64::from(row);
+                                self.c.visits += 1;
+                                if self.xrun::<D>(pc as u32 + 1) {
+                                    break 'fail true;
                                 }
-                                let mut row = ix.head[key as usize];
-                                while row != u32::MAX {
-                                    r!(i.a) = u64::from(row);
-                                    self.c.visits += 1;
-                                    if self.xrun::<D>(pc as u32 + 1) {
-                                        return true;
-                                    }
-                                    row = self.cache.x.fidx[i.c as usize].next[row as usize];
-                                }
-                            } else if let Some(&(o, l)) = ix.at.get(&key) {
-                                for k in o..o + l {
-                                    let row = self.cache.x.fidx[i.c as usize].rows[k as usize];
-                                    r!(i.a) = u64::from(row);
-                                    self.c.visits += 1;
-                                    if self.xrun::<D>(pc as u32 + 1) {
-                                        return true;
-                                    }
-                                }
+                                row = self.cache.x.ia[(next + row) as usize];
                             }
                         }
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::ITER_FACT2 => {
                         need_frame!('fail, i);
                         sync!();
                         self.xfact_index2(i.c);
-                        let Some(&(o, l)) = self.cache.x.f2[i.c as usize].at.get(&(k64[i.y as usize], k64[i.y as usize + 1])) else { break 'fail };
-                        frame!(K_F2, i.a, o, o + l, u32::from(i.c), 0, 0);
-                        break 'fail;
+                        let Some(&first) = self.cache.x.f2at.get(&(i.c, k64[i.y as usize], k64[i.y as usize + 1])) else { break 'fail false };
+                        let next = self.cache.x.f2[i.c as usize].1;
+                        frame!(K_CHAIN, i.a, first, 0, 0, u64::from(next), 0);
+                        break 'fail false;
                     }
                     op::ITER_FACT_SCAN => {
                         need_frame!('fail, i);
@@ -2154,16 +2155,16 @@ impl<'p> Exec<'_, 'p> {
                         self.ensure(i.x as u16);
                         let cnt = self.cache.facts.as_ref().unwrap().cols[i.x as usize].first().map_or(0, Vec::len);
                         frame!(K_RANGE, i.a, 0, cnt as u32, 0, 0, 0);
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::AXIS_PARENT => {
                         let s = r!(i.b) as u32 as usize;
                         if s >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                         let p0 = par[s];
                         if p0 == u32::MAX {
-                            break 'fail;
+                            break 'fail false;
                         }
                         r!(i.a) = u64::from(p0);
                     }
@@ -2171,15 +2172,15 @@ impl<'p> Exec<'_, 'p> {
                         need_frame!('fail, i);
                         let s = r!(i.b) as u32 as usize;
                         if s >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                         frame!(K_ANC, i.a, par[s], 0, 0, 0, 0);
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::AXIS_DESC => {
                         let s = r!(i.b) as u32 as usize;
                         if s >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                         let mut stack: Vec<u32> = Vec::new();
                         let (b, e) = (child_off[s] as usize, child_off[s + 1] as usize);
@@ -2189,41 +2190,41 @@ impl<'p> Exec<'_, 'p> {
                             r!(i.a) = u64::from(d);
                             self.c.visits += 1;
                             if self.xrun::<D>(pc as u32 + 1) {
-                                return true;
+                                break 'fail true;
                             }
                             let (b, e) = (child_off[d as usize] as usize, child_off[d as usize + 1] as usize);
                             stack.extend(children[b..e].iter().rev());
                         }
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::WITHIN => {
                         let (a, d) = (r!(i.a) as u32, r!(i.b) as u32);
                         if d as usize >= n || a as usize >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                         let mut y = par[d as usize];
                         while y != u32::MAX && y != a {
                             y = par[y as usize];
                         }
                         if y != a {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::CHILD_TOWARD => {
                         let (p0, d) = (r!(i.b) as u32, r!(i.c) as u32);
                         if d as usize >= n || p0 as usize >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                         let mut y = par[d as usize];
                         while y != u32::MAX && par[y as usize] != p0 {
                             y = par[y as usize];
                         }
                         if y == u32::MAX {
-                            break 'fail;
+                            break 'fail false;
                         }
                         if i.f != 0 {
                             if fld[y as usize] != i.x {
-                                break 'fail;
+                                break 'fail false;
                             }
                             r!(i.y) = u64::from(i.x);
                         }
@@ -2237,27 +2238,27 @@ impl<'p> Exec<'_, 'p> {
                         let lo = (i.f & 1 != 0).then(|| (r!(lr) as i64, i.f & 2 != 0));
                         let hi = if i.f & 4 != 0 { r!(hr) as i64 } else { 0 };
                         sync!();
-                        // flag: bit 0 an upper bound, bit 1 inclusive, bit 2 started, bit 3 the list is a tree index's
-                        let (list, a, b, id, fl): (&[u32], u32, u32, u32, u8) = if i.f & 16 != 0 {
+                        // flag: bit 0 an upper bound, bit 1 inclusive, bit 2 started
+                        let (a, b) = if i.f & 16 != 0 {
                             let key = r!(src) as u32;
-                            let (a, b) = self.xtree_range(tid, key);
-                            (&self.cache.x.tidx[tid as usize].ids[a as usize..b as usize], a, b, tid, 8)
+                            self.xtree_range(tid, key)
                         } else {
-                            let l = self.xconst(src);
-                            (&self.cache.x.clist[src as usize].1[..], 0, l, src, 0)
+                            let (o, l) = self.xconst(src);
+                            (o, o + l)
                         };
+                        let list: &[u32] = &self.cache.x.ia[a as usize..b as usize];
                         let first = match lo {
                             Some((bound, true)) => list.partition_point(|&id| i64::from(v.start[id as usize]) < bound),
                             Some((bound, false)) => list.partition_point(|&id| i64::from(v.start[id as usize]) <= bound),
                             None => 0,
                         };
-                        frame!(K_RANGEW, i.a, a + first as u32, b, id, hi as u64, ((i.f >> 2) & 3) | fl);
-                        break 'fail;
+                        frame!(K_RANGEW, i.a, a + first as u32, b, 0, hi as u64, (i.f >> 2) & 3);
+                        break 'fail false;
                     }
                     op::NEAR => {
                         let s = r!(i.b) as u32 as usize;
                         if s >= n {
-                            break 'fail;
+                            break 'fail false;
                         }
                         let mut a = par[s];
                         let mut found = false;
@@ -2272,21 +2273,30 @@ impl<'p> Exec<'_, 'p> {
                             a = par[a as usize];
                         }
                         if !found {
-                            break 'fail;
+                            break 'fail false;
                         }
                         r!(i.a) = u64::from(a);
                     }
                     op::SUB1 => {
-                        sync!();
+                        // the check's sub-program runs in this loop: a call frame takes its answer
+                        need_frame!('fail, i);
                         self.c.subs += 1;
-                        if self.xrun::<D>(i.x) == (i.f != 0) {
-                            break 'fail;
-                        }
+                        fr.push(Frame { kind: K_CALL, flag: M_SUB | if i.f != 0 { FL_NEG } else { 0 }, out: 0, pc: pc as u32, cur: 0, end: 0, src: 0, x: 0, y: 0 });
+                        pc = i.x as usize;
+                        continue 'run;
                     }
                     op::SUB => {
-                        sync!();
-                        if self.xany::<D>(i.x) == (i.f != 0) {
-                            break 'fail;
+                        need_frame!('fail, i);
+                        let cnt = pool[i.x as usize];
+                        if cnt == 0 {
+                            if i.f == 0 {
+                                break 'fail false;
+                            }
+                        } else {
+                            self.c.subs += 1;
+                            fr.push(Frame { kind: K_CALL, flag: M_SUB | if i.f != 0 { FL_NEG } else { 0 }, out: 0, pc: pc as u32, cur: 1, end: cnt, src: i.x, x: 0, y: 0 });
+                            pc = pool[i.x as usize + 1] as usize;
+                            continue 'run;
                         }
                     }
                     op::NEAR_MEMO => {
@@ -2294,16 +2304,25 @@ impl<'p> Exec<'_, 'p> {
                         let s = r!(i.b) as u32;
                         match self.xnear_memo::<D>(s, i.a, i.x, i.y) {
                             Some(a) => r!(i.a) = u64::from(a),
-                            None => break 'fail,
+                            None => break 'fail false,
                         }
                     }
                     op::SUB_KEY => {
+                        need_frame!('fail, i);
                         let k = r!(i.a);
                         let st = &mut self.cache.x.ksite[i.y as usize];
                         st.0 += 1;
                         let off = st.0 >= 256 && st.1 * 10 >= st.0 * 9 && st.2 < 32 * st.1;
-                        sync!();
                         let hit = if off { None } else { self.cache.x.keym.get(&(i.y, k)).copied() };
+                        let cnt = pool[i.x as usize];
+                        if hit.is_none() && cnt > 0 {
+                            // a miss: the sub-programs run in this loop; the call frame records the answer under the key
+                            self.c.subs += 1;
+                            fr.push(Frame { kind: K_CALL, flag: M_SUBKEY | if i.f != 0 { FL_NEG } else { 0 } | if off { FL_OFF } else { 0 }, out: 0, pc: pc as u32, cur: 1, end: cnt, src: i.x, x: self.c.steps + steps, y: 0 });
+                            pc = pool[i.x as usize + 1] as usize;
+                            continue 'run;
+                        }
+                        sync!();
                         let any = match hit {
                             Some(a) => a,
                             None => {
@@ -2319,14 +2338,14 @@ impl<'p> Exec<'_, 'p> {
                             }
                         };
                         if any == (i.f != 0) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::ANC_EXISTS => {
                         sync!();
                         let s = r!(i.b) as u32;
                         if self.xanc_exists::<D>(s, i.a, i.x, i.y) == (i.f != 0) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::SUB_FIRST => {
@@ -2334,7 +2353,7 @@ impl<'p> Exec<'_, 'p> {
                         self.c.subs += 1;
                         if self.xrun::<D>(i.x) {
                             self.first_fail = true;
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::SUB_MEMO => {
@@ -2349,7 +2368,7 @@ impl<'p> Exec<'_, 'p> {
                             a
                         };
                         if any == (i.f != 0) {
-                            break 'fail;
+                            break 'fail false;
                         }
                     }
                     op::EMIT => {
@@ -2359,15 +2378,17 @@ impl<'p> Exec<'_, 'p> {
                             self.outs[slot].push(val);
                         }
                         self.c.emitted += 1;
-                        break 'fail;
+                        break 'fail false;
                     }
-                    op::YIELD => {
-                        sync!();
-                        return true;
-                    }
+                    op::YIELD => break 'fail true,
                     op::FAIL => {
                         steps -= 1;
-                        break 'fail;
+                        if pc == 0 {
+                            // word 0 is the per-kind driver's entry: one frame walks the kind's (candidate, group) pairs
+                            let (lo, hi) = self.cache.x.drive_range;
+                            fr.push(Frame { kind: K_DRIVE, flag: 0, out: 0, pc: 0, cur: lo, end: hi, src: 0, x: 0, y: 0 });
+                        }
+                        break 'fail false;
                     }
                     op::JUMP => {
                         // an indirection, not a step of the plan
@@ -2380,7 +2401,7 @@ impl<'p> Exec<'_, 'p> {
                             let val = r!(pool[i.x as usize + k]);
                             self.collect.push(val);
                         }
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::CAPTURE => {
                         if i.c == 0 {
@@ -2390,7 +2411,7 @@ impl<'p> Exec<'_, 'p> {
                             let val = r!(pool[i.x as usize + k]);
                             self.cache.x.cap.push(val);
                         }
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::FORK => {
                         if D {
@@ -2416,50 +2437,99 @@ impl<'p> Exec<'_, 'p> {
                                     self.c.rule_steps[saved] = self.c.rule_steps[saved].wrapping_sub(ds);
                                     self.c.rule_visits[saved] = self.c.rule_visits[saved].wrapping_sub(dv);
                                     if y {
-                                        return true;
+                                        break 'fail true;
                                     }
                                     continue;
                                 }
                                 if self.xrun::<D>(pool[at]) {
-                                    return true;
+                                    break 'fail true;
                                 }
                             }
-                            break 'fail;
+                            break 'fail false;
                         }
                         need_frame!('fail, i);
                         frame!(K_FORK, 0, 0, i.y, i.x, 0, 0);
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::HOIST => {
                         need_frame!('fail, i);
-                        sync!();
                         let at = i.x as usize;
-                        let (o, l, loose) = self.xhoist::<D>(at);
-                        let ncaps = pool[at + 5];
-                        frame!(K_TUP, 0, o, o + l, o, (u64::from(pool[at + 6]) << 32) | (u64::from(ncaps) << 16) | u64::from(ncaps.max(1)), if loose { FL_RECLAIM } else { 0 });
-                        break 'fail;
+                        let (site, seg, nkey) = (pool[at], pool[at + 1], pool[at + 2]);
+                        let st = &mut self.cache.x.hsite[site as usize];
+                        st.0 += 1;
+                        let off = st.0 >= 256 && st.1 * 10 >= st.0 * 9 && st.2 < 32 * st.1;
+                        let cached = if off {
+                            None
+                        } else if nkey == 0 {
+                            let e = self.cache.x.hoist0[site as usize];
+                            (e.0 == self.cache.x.generation).then_some((e.1, e.2))
+                        } else {
+                            let k0 = r!(pool[at + 3]);
+                            let k1 = if nkey > 1 { r!(pool[at + 4]) } else { 0 };
+                            self.cache.x.hoistk.get(&(site, k0, k1)).copied()
+                        };
+                        match cached {
+                            Some((o, l)) => {
+                                self.c.hoist_runs += 1;
+                                let ncaps = pool[at + 5];
+                                frame!(K_TUP, 0, o, o + l, o, (u64::from(pool[at + 6]) << 32) | (u64::from(ncaps) << 16) | u64::from(ncaps.max(1)), 0);
+                                break 'fail false;
+                            }
+                            None => {
+                                // a miss: the segment runs in this loop; the call frame turns into the replay of its captures
+                                let base = self.cache.x.cap.len() as u32;
+                                fr.push(Frame { kind: K_CALL, flag: M_HOIST | if off { FL_OFF } else { 0 }, out: 0, pc: pc as u32, cur: base, end: 0, src: 0, x: self.c.steps + steps, y: 0 });
+                                pc = seg as usize;
+                                continue 'run;
+                            }
+                        }
                     }
                     op::HOIST_PROBE => {
                         need_frame!('fail, i);
                         sync!();
                         let at = i.x as usize;
-                        let Some((o, l)) = self.xhoist_probe::<D>(at) else { break 'fail };
+                        let Some((o, l)) = self.xhoist_probe::<D>(at) else { break 'fail false };
                         let ncaps = pool[at + 5];
                         frame!(K_TUP, 0, o, o + l, o, (u64::from(pool[at + 6]) << 32) | (u64::from(ncaps) << 16) | u64::from(ncaps.max(1)), 0);
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::UNION | op::UNION_KEY => {
                         need_frame!('fail, i);
-                        sync!();
-                        let (o, l, loose) = if i.op == op::UNION {
-                            self.xunion::<D>(i.x, i.f != 0)
+                        let at = i.x as usize;
+                        let (subs, site) = (pool[at + 2], pool[at + 3]);
+                        let cnt = pool[subs as usize];
+                        // a hit of the memo replays; a miss runs the sub-programs in this loop (the call frame collects)
+                        let (hit, off) = if i.op == op::UNION {
+                            let e = self.cache.x.umemo[site as usize];
+                            ((i.f != 0 && e.0 == self.cache.x.generation).then_some((e.1, e.2)), false)
                         } else {
                             let k = r!(i.a);
-                            self.xunion_key::<D>(i.x, k)
+                            let st = &mut self.cache.x.ksite[site as usize];
+                            st.0 += 1;
+                            let off = st.0 >= 256 && st.1 * 10 >= st.0 * 9 && st.2 < 32 * st.1;
+                            (if off { None } else { self.cache.x.ukeym.get(&(site, k)).copied() }, off)
+                        };
+                        if hit.is_none() && cnt > 0 {
+                            self.c.subs += 1;
+                            let base = self.collect.len() as u64;
+                            fr.push(Frame { kind: K_CALL, flag: M_UNION | if off { FL_OFF } else { 0 }, out: 0, pc: pc as u32, cur: 1, end: cnt, src: subs, x: self.c.steps + steps, y: base });
+                            pc = pool[subs as usize + 1] as usize;
+                            continue 'run;
+                        }
+                        sync!();
+                        let (o, l, loose) = match hit {
+                            Some((o, l)) => (o, l, false),
+                            None if i.op == op::UNION => self.xunion::<D>(i.x, i.f != 0),
+                            None => {
+                                // no sub-program: the (empty) answer through the call path, its lookup not counted twice
+                                self.cache.x.ksite[site as usize].0 -= 1;
+                                let k = r!(i.a);
+                                self.xunion_key::<D>(i.x, k)
+                            }
                         };
                         let nouts = pool[i.x as usize];
                         frame!(K_TUP, 0, o, o + l, o, (u64::from(pool[i.x as usize + 1]) << 32) | (u64::from(nouts) << 16) | u64::from(nouts.max(1)), FL_VISIT | if loose { FL_RECLAIM } else { 0 });
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::CLOSURE => {
                         need_frame!('fail, i);
@@ -2468,7 +2538,7 @@ impl<'p> Exec<'_, 'p> {
                         let at = i.x as usize;
                         let (nkeys, ncaps, capl) = (pool[at], pool[at + 1], pool[at + 2]);
                         frame!(K_TUP, 0, o, o + l, o, (u64::from(capl) << 32) | (u64::from(ncaps) << 16) | u64::from(1 + nkeys), FL_RECLAIM);
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::LET => {
                         let val = xv!(i.x);
@@ -2477,15 +2547,15 @@ impl<'p> Exec<'_, 'p> {
                     op::SIBLING => {
                         let s = r!(i.b) as u32;
                         if s as usize >= n || par[s as usize] == u32::MAX {
-                            break 'fail;
+                            break 'fail false;
                         }
                         let p0 = par[s as usize] as usize;
                         let kids = &children[child_off[p0] as usize..child_off[p0 + 1] as usize];
-                        let Some(at) = kids.iter().position(|&k| k == s) else { break 'fail };
+                        let Some(at) = kids.iter().position(|&k| k == s) else { break 'fail false };
                         let j = if i.f != 0 { at + 1 } else { at.wrapping_sub(1) };
                         match kids.get(j) {
                             Some(&k) => r!(i.a) = u64::from(k),
-                            None => break 'fail,
+                            None => break 'fail false,
                         }
                     }
                     op::SPAN_BETWEEN => {
@@ -2500,22 +2570,22 @@ impl<'p> Exec<'_, 'p> {
                     op::SOURCE_MATCHES => {
                         sync!();
                         if self.xsource_matches::<D>(i, pc as u32) {
-                            return true;
+                            break 'fail true;
                         }
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::CAPTURE_TEXT => {
                         sync!();
                         if self.xcapture_text::<D>(i, pc as u32) {
-                            return true;
+                            break 'fail true;
                         }
-                        break 'fail;
+                        break 'fail false;
                     }
                     op::NEAR_DERIVED => {
                         sync!();
                         match self.xnear_derived::<D>(i) {
                             Some(y) => r!(i.a) = y,
-                            None => break 'fail,
+                            None => break 'fail false,
                         }
                     }
                     op::TEXT_FN => {
@@ -2534,7 +2604,7 @@ impl<'p> Exec<'_, 'p> {
                             }
                         }
                         if !ok {
-                            break 'fail;
+                            break 'fail false;
                         }
                         if i.f != 0 {
                             t = t.to_lowercase();
@@ -2566,13 +2636,141 @@ impl<'p> Exec<'_, 'p> {
                 }
                 pc += 1;
                 continue 'run;
-            }
-            // ---- backtrack: the innermost running iteration gives its next element, or ends
+            };
+            // ---- backtrack (the branch failed): the innermost running iteration gives its next element, or ends;
+            // ---- unwind (the program yielded): iterations are dropped down to the innermost inline call, which gets the answer
             loop {
                 let Some(f) = fr.last_mut() else {
                     sync!();
-                    return false;
+                    return yielded;
                 };
+                if f.kind >= K_CALL {
+                    // a boundary: an inline sub-program (or the per-kind driver) ended with `yielded` as its answer
+                    let i: &XIns = &code[f.pc as usize];
+                    match f.kind {
+                        K_DRIVE => {
+                            // the next (candidate, group) of the kind: nodes outer, groups inner
+                            yielded = false;
+                            let ng = self.cache.x.drive.len() as u32;
+                            if f.src == ng {
+                                f.src = 0;
+                                f.cur += 1;
+                            }
+                            if f.cur < f.end {
+                                let g = self.cache.x.drive[f.src as usize] as usize;
+                                f.src += 1;
+                                let id = self.cache.kind_ids[f.cur as usize];
+                                r!(x.group_out[g]) = u64::from(id);
+                                visits += 1;
+                                self.cur_rule = x.group_rule[g] as usize;
+                                pc = x.group_entry[g] as usize + 1;
+                                prev = 0;
+                                continue 'run;
+                            }
+                        }
+                        _ => match f.flag & 7 {
+                            M_SUB | M_SUBKEY => {
+                                // any sub-program yielding answers the check; else the next one runs
+                                if !yielded && f.cur < f.end {
+                                    self.c.subs += 1;
+                                    pc = pool[(f.src + 1 + f.cur) as usize] as usize;
+                                    f.cur += 1;
+                                    prev = 0;
+                                    continue 'run;
+                                }
+                                if f.flag & 7 == M_SUBKEY {
+                                    let k = r!(i.a);
+                                    let now = self.c.steps + steps;
+                                    let st = &mut self.cache.x.ksite[i.y as usize];
+                                    st.1 += 1;
+                                    st.2 += now - f.x;
+                                    if f.flag & FL_OFF == 0 {
+                                        self.cache.x.keym.insert((i.y, k), yielded);
+                                    }
+                                }
+                                let pass = yielded != (f.flag & FL_NEG != 0);
+                                yielded = false;
+                                if pass {
+                                    pc = f.pc as usize + 1;
+                                    prev = 0;
+                                    let _ = fr.pop();
+                                    continue 'run;
+                                }
+                            }
+                            M_HOIST => {
+                                // the segment ran: its captures become the site's tuples, replayed by this frame
+                                yielded = false;
+                                let at = i.x as usize;
+                                let (site, nkey) = (pool[at], pool[at + 2]);
+                                let k0 = if nkey > 0 { r!(pool[at + 3]) } else { 0 };
+                                let k1 = if nkey > 1 { r!(pool[at + 4]) } else { 0 };
+                                let now = self.c.steps + steps;
+                                let off = f.flag & FL_OFF != 0;
+                                let xs = &mut self.cache.x;
+                                let base = f.cur as usize;
+                                let o = xs.tup.len();
+                                xs.tup.extend_from_slice(&xs.cap[base..]);
+                                xs.cap.truncate(base);
+                                let l = xs.tup.len() - o;
+                                assert!(xs.tup.len() < u32::MAX as usize);
+                                self.c.hoist_misses += 1;
+                                let st = &mut xs.hsite[site as usize];
+                                st.1 += 1;
+                                st.2 += now - f.x;
+                                if !off {
+                                    if nkey == 0 {
+                                        xs.hoist0[site as usize] = (xs.generation, o as u32, l as u32);
+                                    } else {
+                                        xs.hoistk.insert((site, k0, k1), (o as u32, l as u32));
+                                    }
+                                }
+                                self.c.hoist_runs += 1;
+                                let ncaps = pool[at + 5];
+                                *f = Frame { kind: K_TUP, flag: if off { FL_RECLAIM } else { 0 }, out: 0, pc: f.pc, cur: o as u32, end: (o + l) as u32, src: o as u32, x: (u64::from(pool[at + 6]) << 32) | (u64::from(ncaps) << 16) | u64::from(ncaps.max(1)), y: 0 };
+                                continue;
+                            }
+                            _ => {
+                                // M_UNION: every sub-program runs to its end; then the distinct rows are replayed by this frame
+                                yielded = false;
+                                if f.cur < f.end {
+                                    self.c.subs += 1;
+                                    pc = pool[(f.src + 1 + f.cur) as usize] as usize;
+                                    f.cur += 1;
+                                    prev = 0;
+                                    continue 'run;
+                                }
+                                let at = i.x as usize;
+                                let (nouts, site) = (pool[at], pool[at + 3]);
+                                let now = self.c.steps + steps;
+                                let (o, l) = self.xdistinct(f.y as usize, nouts as usize);
+                                let loose = if i.op == op::UNION {
+                                    if i.f != 0 {
+                                        self.cache.x.umemo[site as usize] = (self.cache.x.generation, o, l);
+                                    }
+                                    i.f == 0
+                                } else {
+                                    let k = r!(i.a);
+                                    let st = &mut self.cache.x.ksite[site as usize];
+                                    st.1 += 1;
+                                    st.2 += now - f.x;
+                                    if f.flag & FL_OFF == 0 {
+                                        self.cache.x.ukeym.insert((site, k), (o, l));
+                                    }
+                                    f.flag & FL_OFF != 0
+                                };
+                                *f = Frame { kind: K_TUP, flag: FL_VISIT | if loose { FL_RECLAIM } else { 0 }, out: 0, pc: f.pc, cur: o, end: o + l, src: o, x: (u64::from(pool[at + 1]) << 32) | (u64::from(nouts) << 16) | u64::from(nouts.max(1)), y: 0 };
+                                continue;
+                            }
+                        },
+                    }
+                    let _ = fr.pop();
+                    continue;
+                }
+                if yielded {
+                    // an iteration of the sub-program that yielded: dropped
+                    let _ = fr.pop();
+                    continue;
+                }
                 match f.kind {
                     K_CHILD => {
                         if f.cur < f.end {
@@ -2613,49 +2811,21 @@ impl<'p> Exec<'_, 'p> {
                             continue 'run;
                         }
                     }
-                    K_FDENSE => {
+                    K_CHAIN => {
+                        // a chain of rows: x is the offset of the chain's links in the index arena
                         if f.cur != u32::MAX {
                             r!(f.out) = u64::from(f.cur);
-                            f.cur = self.cache.x.fidx[f.src as usize].next[f.cur as usize];
+                            f.cur = self.cache.x.ia[f.x as usize + f.cur as usize];
                             visits += 1;
                             pc = f.pc as usize + 1;
                             prev = 0;
                             continue 'run;
                         }
                     }
-                    K_FROWS => {
+                    K_IA => {
+                        // a run of ids in the index arena
                         if f.cur < f.end {
-                            r!(f.out) = u64::from(self.cache.x.fidx[f.src as usize].rows[f.cur as usize]);
-                            f.cur += 1;
-                            visits += 1;
-                            pc = f.pc as usize + 1;
-                            prev = 0;
-                            continue 'run;
-                        }
-                    }
-                    K_F2 => {
-                        if f.cur < f.end {
-                            r!(f.out) = u64::from(self.cache.x.f2[f.src as usize].rows[f.cur as usize]);
-                            f.cur += 1;
-                            visits += 1;
-                            pc = f.pc as usize + 1;
-                            prev = 0;
-                            continue 'run;
-                        }
-                    }
-                    K_CONST => {
-                        if f.cur < f.end {
-                            r!(f.out) = u64::from(self.cache.x.clist[f.src as usize].1[f.cur as usize]);
-                            f.cur += 1;
-                            visits += 1;
-                            pc = f.pc as usize + 1;
-                            prev = 0;
-                            continue 'run;
-                        }
-                    }
-                    K_TREE => {
-                        if f.cur < f.end {
-                            r!(f.out) = u64::from(self.cache.x.tidx[f.src as usize].ids[f.cur as usize]);
+                            r!(f.out) = u64::from(self.cache.x.ia[f.cur as usize]);
                             f.cur += 1;
                             visits += 1;
                             pc = f.pc as usize + 1;
@@ -2706,7 +2876,7 @@ impl<'p> Exec<'_, 'p> {
                         }
                         f.flag |= 4;
                         if f.cur < f.end {
-                            let id = if f.flag & 8 != 0 { self.cache.x.tidx[f.src as usize].ids[f.cur as usize] } else { self.cache.x.clist[f.src as usize].1[f.cur as usize] };
+                            let id = self.cache.x.ia[f.cur as usize];
                             let st = i64::from(v.start[id as usize]);
                             let hi = f.x as i64;
                             let over = match f.flag & 3 {
@@ -2972,13 +3142,22 @@ pub(crate) fn bytes_of<T: Packed>(xs: &[T]) -> Vec<u8> {
     out
 }
 
-/// Reads `n` elements of a table: one read of the bytes, then one fixed-width copy per element into the table (safe Rust has
-/// no way to read into a typed table in place; no allocation per element and nothing is interpreted).
+/// Reads `n` elements of a table in 64 KiB pieces (safe Rust has no way to read into a typed table in place): one
+/// fixed-width copy per element, no allocation per element, nothing interpreted, and no second copy of the table in memory.
 pub(crate) fn read_table<T: Packed>(f: &mut std::fs::File, n: usize) -> Vec<T> {
     use std::io::Read as _;
-    let mut b = vec![0u8; n * T::SIZE];
-    f.read_exact(&mut b).expect("pack section");
-    b.chunks_exact(T::SIZE).map(T::get).collect()
+    let mut out: Vec<T> = Vec::with_capacity(n);
+    let per = (65536 / T::SIZE).max(1);
+    let mut b = vec![0u8; per * T::SIZE];
+    let mut left = n;
+    while left > 0 {
+        let take = left.min(per);
+        let piece = &mut b[..take * T::SIZE];
+        f.read_exact(piece).expect("pack section");
+        out.extend(piece.chunks_exact(T::SIZE).map(T::get));
+        left -= take;
+    }
+    out
 }
 
 /// The process's resident set and its peak, in bytes (/proc/self/status).
