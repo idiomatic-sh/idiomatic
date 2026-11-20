@@ -277,6 +277,7 @@ impl<'p> Worker<'p> {
                 w.split(',').filter_map(derived::index_of).fold(0, |m, i| m | (1 << i))
             });
             let n = derived::RELATIONS.len();
+            self.dstate.view_file = None;
             if self.mode == "derived" {
                 let mut sink = derived::Count { counts: vec![0; n], touch: 0 };
                 for i in 0..n {

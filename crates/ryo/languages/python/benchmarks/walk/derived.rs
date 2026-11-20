@@ -123,6 +123,10 @@ pub(crate) const RELATIONS: &[&str] = &[
     "expression-shape",
     "expression-type",
     "syntax-child",
+    "syntax-tree",
+    "source-location",
+    "comment",
+    "indent-region",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -1345,8 +1349,11 @@ fn rows_expression_type(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, types:
 /// `syntax_child`: the lossless tree's edges (parent, child, ordinal among nodes and tokens, field), from walk's view of the
 /// parser's nodes and tokens (`view.rs`), one whitespace leaf per gap; identical rows to `semantic-child` on Python.
 fn rows_syntax_child(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, st: &mut State) {
-    st.sym.reset_file();
-    st.view.build(c.table, c.parsed, c.source, &mut st.sym);
+    if st.view_file != Some(c.source.as_ptr() as usize ^ c.source.len()) {
+        st.sym.reset_file();
+        st.view.build(c.table, c.parsed, c.source, &mut st.sym);
+        st.view_file = Some(c.source.as_ptr() as usize ^ c.source.len());
+    }
     let v = &st.view;
     let sym = &st.sym;
     let key = |id: usize| Cell::Key(kind_static(sym.str(v.kind[id]).unwrap_or("?")), v.start[id], v.stop[id]);
@@ -1373,6 +1380,50 @@ fn kind_static(name: &str) -> &'static str {
     leaked
 }
 
+// ------------------------------------------------------------------------------------------------ walk's tree view, proven
+/// `syntax-tree` (= `semantic-syntax` on Python), `source-location`, `comment`, `indent-region` from walk's view: every node and
+/// token of the lossless tree with its kind and text (tokens and whitespace only), its lines and columns, the comments, and the
+/// indentation regions (the module is region 0).
+fn rows_view(c: &Ctx<'_, '_>, sink: &mut dyn Sink, which: &str, rel: usize, st: &mut State) {
+    if st.view_file != Some(c.source.as_ptr() as usize ^ c.source.len()) {
+        st.sym.reset_file();
+        st.view.build(c.table, c.parsed, c.source, &mut st.sym);
+        st.view_file = Some(c.source.as_ptr() as usize ^ c.source.len());
+    }
+    let v = &st.view;
+    let sym = &st.sym;
+    let key = |id: usize| Cell::Key(kind_static(sym.str(v.kind[id]).unwrap_or("?")), v.start[id], v.stop[id]);
+    match which {
+        "syntax-tree" => {
+            for id in 0..v.len() {
+                let text = if id < v.n_nodes { Cell::Null } else { sym.str(v.text[id]).map_or(Cell::Null, Cell::Text) };
+                sink.row(rel, &[key(id), Cell::Text(sym.str(v.kind[id]).unwrap_or("?")), text, Cell::File, Cell::Span(v.start[id], v.stop[id])]);
+            }
+        }
+        "source-location" => {
+            for id in 0..v.len() {
+                let (s, e) = (v.start[id], v.stop[id]);
+                sink.row(rel, &[key(id), Cell::File, Cell::Span(s, e), Cell::Num(i64::from(v.line_of(s))), Cell::Num(i64::from(v.line_of(e))), Cell::Num(i64::from(s)), Cell::Num(i64::from(e)), Cell::Num(i64::from(v.column_of(s))), Cell::Num(i64::from(v.column_of(e)))]);
+            }
+        }
+        "comment" => {
+            let k = sym.get_base("comment");
+            for id in v.n_nodes..v.len() {
+                if Some(v.kind[id]) == k {
+                    let text = &c.source[v.start[id] as usize + 1..v.stop[id] as usize];
+                    sink.row(rel, &[key(id), Cell::Text(text), Cell::File, Cell::Span(v.start[id], v.stop[id]), Cell::Flag(false)]);
+                }
+            }
+        }
+        _ => {
+            for r in &v.regions {
+                let [rid, parent, ind, s, e] = *r;
+                sink.row(rel, &[key(rid as usize), key(parent as usize), Cell::Text(sym.str(ind).unwrap_or("")), Cell::Num(i64::from(s)), Cell::Num(i64::from(e)), Cell::File, Cell::Span(s, e)]);
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
@@ -1381,6 +1432,7 @@ pub(crate) struct State {
     pub types: Types,
     pub view: crate::view::View,
     pub sym: crate::symbols::Symbols,
+    pub view_file: Option<usize>,
 }
 
 pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
@@ -1443,6 +1495,11 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     }
     if let Some(r) = want("syntax-child") {
         rows_syntax_child(c, sink, r, st);
+    }
+    for which in ["syntax-tree", "source-location", "comment", "indent-region"] {
+        if let Some(r) = want(which) {
+            rows_view(c, sink, which, r, st);
+        }
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
