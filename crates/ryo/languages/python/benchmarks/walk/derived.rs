@@ -1537,7 +1537,7 @@ fn rows_view(c: &Ctx<'_, '_>, sink: &mut dyn Sink, which: &str, rel: usize, st: 
     match which {
         "syntax-tree" => {
             for id in 0..v.len() {
-                let text = if id < v.n_nodes { Cell::Null } else { sym.str(v.text[id]).map_or(Cell::Null, Cell::Text) };
+                let text = if id < v.n_nodes { Cell::Null } else { Cell::Text(&c.source[v.start[id] as usize..v.stop[id] as usize]) };
                 sink.row(rel, &[key(id), Cell::Text(names[v.kind[id] as usize]), text, Cell::File, Cell::Span(v.start[id], v.stop[id])]);
             }
         }

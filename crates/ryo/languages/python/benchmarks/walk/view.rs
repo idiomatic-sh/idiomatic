@@ -9,11 +9,15 @@ use ruff_python_ast::token::TokenKind;
 use ruff_python_ast::{AnyNodeRef, Expr};
 use ruff_text_size::Ranged as _;
 
+/// a token text not read yet
+pub(crate) const TEXT_UNSET: u32 = u32::MAX - 3;
+
 #[derive(Default)]
 pub(crate) struct View {
     pub n_nodes: usize,
     pub kind: Vec<u32>,
-    pub text: Vec<u32>,
+    /// facts: a token's or gap's text code, interned when first read (TEXT_UNSET until then; NULL for nodes)
+    pub text: Vec<std::cell::Cell<u32>>,
     pub start: Vec<u32>,
     pub stop: Vec<u32>,
     pub parent: Vec<u32>,
@@ -26,7 +30,12 @@ pub(crate) struct View {
     /// indent regions: (id, parent region id, indentation symbol, start byte, end byte); the module is region 0
     pub regions: Vec<[u32; 5]>,
     pub region_of: crate::sema::FxMap<u32, u32>,
-    leaves: Vec<(Option<TokenKind>, u32, u32)>,
+    pub(crate) leaves: Vec<(Option<TokenKind>, u32, u32)>,
+    /// facts: the symbol of each node kind (by the parser's kind number; kinds with an async form are named per node) and of
+    /// each token kind, found once per worker instead of hashed per id
+    node_code: Vec<u32>,
+    token_code: Vec<u32>,
+    last_field: (usize, u32),
     counter: Vec<u32>,
     stack: Vec<u32>,
     /// facts: the parser's token index -> leaf index (the token's id is n_nodes + leaf) and back (u32::MAX: a gap)
@@ -577,17 +586,32 @@ impl View {
         self.n_nodes = n;
         let tk1 = crate::nav::Tick::now();
         self.split_ns[0] += tk1.since(tk0);
-        for v in [&mut self.kind, &mut self.text, &mut self.start, &mut self.stop, &mut self.parent, &mut self.field, &mut self.ordinal] {
+        for v in [&mut self.kind, &mut self.start, &mut self.stop, &mut self.parent, &mut self.field, &mut self.ordinal] {
             v.clear();
             v.resize(total, 0);
         }
+        self.text.clear();
+        self.text.resize(n, std::cell::Cell::new(NULL));
+        self.text.resize(total, std::cell::Cell::new(TEXT_UNSET));
         let none = sym.base("none");
-        self.text[..].fill(NULL);
         self.field[..].fill(none);
         self.parent[..].fill(u32::MAX);
+        if self.node_code.is_empty() {
+            self.node_code.resize(256, u32::MAX);
+            self.token_code.resize(256, u32::MAX);
+        }
         for id in 0..n {
             let node = table.node[id];
-            self.kind[id] = sym.base(node_kind_name(node));
+            let k = table.kind[id] as usize;
+            let mut code = self.node_code[k];
+            if code == u32::MAX {
+                code = sym.base(node_kind_name(node));
+                // a definition, a loop and a with statement have an async form with its own kind name: named per node
+                if !matches!(node, AnyNodeRef::StmtFunctionDef(_) | AnyNodeRef::StmtFor(_) | AnyNodeRef::StmtWith(_)) {
+                    self.node_code[k] = code;
+                }
+            }
+            self.kind[id] = code;
             self.start[id] = table.start[id];
             self.stop[id] = table.stop[id];
             self.parent[id] = table.parent[id];
@@ -601,7 +625,10 @@ impl View {
             let mut set = |f: &'static str, child: AnyNodeRef<'_>| {
                 let c = Table::id_of(child) as usize;
                 if c < n {
-                    self.field[c] = sym.base(f);
+                    if self.last_field.0 != f.as_ptr() as usize {
+                        self.last_field = (f.as_ptr() as usize, sym.base_word(f));
+                    }
+                    self.field[c] = self.last_field.1;
                 }
             };
             fields(node, &mut set);
@@ -703,8 +730,16 @@ impl View {
             let id = n + t;
             let parent = self.stack.last().copied().unwrap_or(u32::MAX);
             self.parent[id] = parent;
-            self.kind[id] = token_kind.map_or(whitespace, |k| sym.base(token_kind_name(k)));
-            self.text[id] = sym.text(&source[ts as usize..te as usize]);
+            self.kind[id] = match token_kind {
+                None => whitespace,
+                Some(k) => {
+                    let slot = k as u8 as usize;
+                    if self.token_code[slot] == u32::MAX {
+                        self.token_code[slot] = sym.base(token_kind_name(k));
+                    }
+                    self.token_code[slot]
+                }
+            };
             self.start[id] = ts;
             self.stop[id] = te;
             ordinal_node(self, id);
@@ -713,7 +748,10 @@ impl View {
                     let p = self.regions[*open_regions.last().unwrap_or(&0)][0];
                     self.region_of.insert(id as u32, self.regions.len() as u32);
                     open_regions.push(self.regions.len());
-                    self.regions.push([id as u32, p, self.text[id], ts, source.len() as u32]);
+                    // an indentation region carries its indentation's text: this token's text is read now
+                    let indent = sym.text(&source[ts as usize..te as usize]);
+                    self.text[id].set(indent);
+                    self.regions.push([id as u32, p, indent, ts, source.len() as u32]);
                 }
                 Some(TokenKind::Dedent) => {
                     if open_regions.len() > 1 {
@@ -796,6 +834,23 @@ impl View {
 
     pub(crate) fn len(&self) -> usize {
         self.kind.len()
+    }
+
+    /// The text code of an id: NULL for a node; a token's or a gap's text is interned on its first read (facts).
+    #[inline]
+    pub(crate) fn text_of(&self, i: usize, sym: &mut Symbols, source: &str) -> u32 {
+        let t = self.text[i].get();
+        if t != TEXT_UNSET {
+            return t;
+        }
+        self.text_slow(i, sym, source)
+    }
+
+    #[inline(never)]
+    fn text_slow(&self, i: usize, sym: &mut Symbols, source: &str) -> u32 {
+        let t = sym.text(&source[self.start[i] as usize..self.stop[i] as usize]);
+        self.text[i].set(t);
+        t
     }
 
     pub(crate) fn children_of(&self, id: u32) -> &[u32] {

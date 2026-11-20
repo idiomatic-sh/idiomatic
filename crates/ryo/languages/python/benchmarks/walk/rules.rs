@@ -1276,7 +1276,7 @@ impl<'p> State<'p> {
                 if i >= v.len() {
                     return false;
                 }
-                buf.extend([id as u64, v.kind[i] as u64, v.text[i] as u64, ctx.file, span(v.start[i], v.stop[i])]);
+                buf.extend([id as u64, v.kind[i] as u64, v.text_of(i, &mut self.sym, ctx.source) as u64, ctx.file, span(v.start[i], v.stop[i])]);
             }
             RelId::Sc => {
                 if i >= v.len() || v.parent[i] == u32::MAX {

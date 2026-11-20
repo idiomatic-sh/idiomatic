@@ -2718,6 +2718,8 @@ pub(crate) struct FileCache {
     /// per tree column: ids bucketed by base-symbol value (counting sort, each bucket in start order)
     pub csr: FxMap<(u8, u8), Rc<Csr>>,
     pub csr_count: Vec<u32>,
+    /// per token kind (256: a gap) the last short text looked up among the base symbols: (length, bytes, code)
+    pub csr_last: Vec<(u32, u64, u32)>,
     /// keyed twin rows per (fact, key value): the row range in the twin's columns
     pub keyed_memo: FxMap<(u16, u64), (u32, u32)>,
     /// ski rental per keyed twin in this file: steps spent in keyed builds, and the twins switched to their base
@@ -3055,7 +3057,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             TRel::Ss => match col {
                 0 => id as u64,
                 1 => v.kind[i] as u64,
-                2 => v.text[i] as u64,
+                2 => v.text_of(i, self.sym, self.f.source) as u64,
                 3 => 0,
                 _ => span(v.start[i], v.stop[i]),
             },
@@ -3374,7 +3376,38 @@ impl<'a, 'p> Exec<'a, 'p> {
         let mut vals: Vec<u32> = Vec::with_capacity(n);
         match (rel, col) {
             (TRel::Sc, 3) => vals.extend((0..n).map(|i| if v.parent[i] == u32::MAX { u32::MAX } else { v.field[i] })),
-            (TRel::Ss, 2) => vals.extend_from_slice(&v.text[..n]),
+            (TRel::Ss, 2) => {
+                // facts: the buckets hold base-symbol values only, so a text is looked up among the base symbols, never
+                // interned; a token whose text repeats the last one of its kind (every operator, keyword and bracket, most
+                // gaps) costs a comparison
+                let src = self.f.source.as_bytes();
+                let last = &mut self.cache.csr_last;
+                last.clear();
+                last.resize(257, (u32::MAX, 0, u32::MAX));
+                vals.resize(v.n_nodes.min(n), u32::MAX);
+                for i in v.n_nodes..n {
+                    let t = v.text[i].get();
+                    if t != crate::view::TEXT_UNSET {
+                        vals.push(t);
+                        continue;
+                    }
+                    let (s, e) = (v.start[i] as usize, v.stop[i] as usize);
+                    let len = (e - s) as u32;
+                    let slot = v.leaves[i - v.n_nodes].0.map_or(256, |k| k as u8 as usize);
+                    if len <= 8 {
+                        let mut w = [0u8; 8];
+                        w[..len as usize].copy_from_slice(&src[s..e]);
+                        let word = u64::from_le_bytes(w);
+                        let l = &mut last[slot];
+                        if l.0 != len || l.1 != word {
+                            *l = (len, word, self.sym.get_base(&self.f.source[s..e]).unwrap_or(u32::MAX));
+                        }
+                        vals.push(l.2);
+                    } else {
+                        vals.push(self.sym.get_base(&self.f.source[s..e]).unwrap_or(u32::MAX));
+                    }
+                }
+            }
             _ => {
                 for id in 0..n as u32 {
                     vals.push(self.tread(rel, col, id).map_or(u32::MAX, |x| x as u32));
@@ -4074,7 +4107,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 break;
             }
             match &p[pc] {
-                Ins::ReadCol { which, row, out } if col(cols, *row).is_some() => {
+                Ins::ReadCol { which, row, out } if *which != 1 && col(cols, *row).is_some() => {
                     let ci = col(cols, *row).unwrap();
                     self.c.steps += sel.len() as u64;
                     self.c.batched_steps += sel.len() as u64;
@@ -4082,7 +4115,6 @@ impl<'a, 'p> Exec<'a, 'p> {
                     let mut o = vec![0u64; src.len()];
                     let a: &[u32] = match which {
                         0 => &v.kind,
-                        1 => &v.text,
                         2 => &v.start,
                         _ => &v.stop,
                     };
@@ -4214,7 +4246,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                     self.regs[*out as usize] = u64::from(match which {
                         0 => v.kind[i],
-                        1 => v.text[i],
+                        1 => v.text_of(i, self.sym, self.f.source),
                         2 => v.start[i],
                         _ => v.stop[i],
                     });

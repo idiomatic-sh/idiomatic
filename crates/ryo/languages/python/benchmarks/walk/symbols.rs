@@ -75,6 +75,18 @@ impl Symbols {
         id
     }
 
+    /// A kind or field name fixed in the provider's code: a base symbol from its first use, found by address afterwards.
+    #[inline]
+    pub(crate) fn base_word(&mut self, w: &'static str) -> u32 {
+        let key = (w.as_ptr() as usize, w.len());
+        if let Some(&id) = self.word_map.get(&key) {
+            return id;
+        }
+        let id = self.base(w);
+        self.word_map.insert(key, id);
+        id
+    }
+
     pub(crate) fn is_base(id: u32) -> bool {
         id < FILE_BASE
     }
