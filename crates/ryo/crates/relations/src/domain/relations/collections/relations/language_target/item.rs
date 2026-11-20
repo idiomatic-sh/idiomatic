@@ -26,6 +26,8 @@ macro_rules! language_target {
             scope File,
             notes Unneeded,
             form Filled(Whole),
+            size PerFile,
+            keys [],
             columns {
                 /// The source file whose parser configuration is described.
                 file File: FileId => File;

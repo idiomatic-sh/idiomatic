@@ -34,6 +34,8 @@ macro_rules! analyzed_source {
             scope Project,
             notes Needed,
             form Filled(Whole),
+            size PerFile,
+            keys [],
             columns {
                 /// The file.
                 path Path: FileId => File;

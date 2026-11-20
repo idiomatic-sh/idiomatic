@@ -34,6 +34,8 @@ macro_rules! string_literal {
             scope File,
             notes Unneeded,
             form Filled(Unique(Occurrence)),
+            size PerElement,
+            keys [],
             columns {
                 /// The literal: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

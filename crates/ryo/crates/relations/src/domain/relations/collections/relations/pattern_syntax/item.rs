@@ -26,6 +26,8 @@ macro_rules! pattern_syntax {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The pattern element.
                 id Id: NodeId => Node;

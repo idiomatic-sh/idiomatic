@@ -26,6 +26,8 @@ macro_rules! token_link {
             scope File,
             notes Unneeded,
             form Filled(Many(Source)),
+            size PerElement,
+            keys [Source, Target],
             columns {
                 /// Existing native source token identity.
                 source Source: NodeId => Node;

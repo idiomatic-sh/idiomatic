@@ -34,6 +34,8 @@ macro_rules! numeric_literal {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// Original numeric literal occurrence; unary operators remain separate syntax.
                 id Id: NodeId => Node;

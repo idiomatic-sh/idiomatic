@@ -23,6 +23,8 @@ macro_rules! module_identity {
             scope Project,
             notes Unneeded,
             form Filled(Whole),
+            size PerFile,
+            keys [],
             columns {
                 /// Actual requested source file.
                 file File: FileId => File;

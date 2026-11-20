@@ -26,7 +26,7 @@ use ryo_engine::inbound::use_cases::project::errors::ProjectPassError;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
 use ryo_language::domain::facts::service::{base_words, clear_words, file_words, intern};
 use ryo_language::domain::facts::types::{
-    CellWord, FactAnswer, FileFacts, FileWords, FilledColumns, ProjectFacts,
+    CellWord, FactAnswer, FileFacts, FileWords, FilledColumns, FixedNames, ProjectFacts, Wanted,
 };
 use ryo_language::domain::node_table::service::{element_count, kind_of, node_count, span_of};
 use ryo_language::inbound::use_cases::walk::types::FileVisit;
@@ -75,6 +75,8 @@ pub fn no_kinds() -> KindVocabulary {
     KindVocabulary {
         language: LanguageName::default(),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     }
 }
 
@@ -179,12 +181,14 @@ impl EnginePort for EngineFake {
         let Some(first) = rules.first() else {
             return Ok(ScanCounters::default());
         };
-        let mut words = file_words(&base_words(&[]));
+        let mut words = file_words(&base_words(&FixedNames::default(), &[]));
         let read = Relation::SyntaxError;
-        if let FactAnswer::Partial(partial) =
-            file.facts
-                .fill(read, &mut words, &mut FilledColumns(Vec::new()))
-        {
+        if let FactAnswer::Partial(partial) = file.facts.fill(
+            read,
+            Wanted::Whole,
+            &mut words,
+            &mut FilledColumns(Vec::new()),
+        ) {
             return Err(ScanError::Partial {
                 rule: first.rule,
                 relation: read,

@@ -31,6 +31,8 @@ macro_rules! function_terminal {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// Function or async-function syntax node.
                 id Id: NodeId => Node;

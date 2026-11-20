@@ -24,6 +24,8 @@ macro_rules! qualified_name {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The load expression, including nested attribute prefixes.
                 id Id: NodeId => Node;

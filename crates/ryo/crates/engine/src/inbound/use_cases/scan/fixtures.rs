@@ -8,7 +8,7 @@ use crate::domain::findings::types::{FoundCells, FoundRows, FoundTarget, ScanCou
 use crate::domain::programs::service::scratch_for;
 use crate::domain::programs::types::Programs;
 use ryo_language::domain::facts::types::{
-    FactAnswer, FactSource, FileFacts, FileWords, FilledColumns,
+    FactAnswer, FactSource, FileFacts, FileWords, FilledColumns, Wanted,
 };
 use ryo_language::domain::files::types::SourcePath;
 use ryo_language::domain::fillers::fixtures::Walking;
@@ -44,11 +44,12 @@ impl FactSource for Counting<'_> {
     fn fill(
         &mut self,
         relation: Relation,
+        wanted: Wanted,
         words: &mut FileWords,
         out: &mut FilledColumns,
     ) -> FactAnswer {
         self.fills = Count(self.fills.0.saturating_add(1));
-        self.inner.fill(relation, words, out)
+        self.inner.fill(relation, wanted, words, out)
     }
 
     fn render(&mut self, request: RenderRequest) -> RenderOutcome {

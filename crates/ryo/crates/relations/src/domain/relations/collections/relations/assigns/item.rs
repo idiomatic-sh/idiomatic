@@ -33,6 +33,8 @@ macro_rules! assigns {
             scope File,
             notes Unneeded,
             form Filled(Many(Occurrence)),
+            size PerElement,
+            keys [],
             columns {
                 /// The assignment: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

@@ -26,6 +26,8 @@ macro_rules! attribute_path {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The element the path starts at: the path node of an attribute's meta, or the first token of a path written in an
                 /// attribute's token tree.

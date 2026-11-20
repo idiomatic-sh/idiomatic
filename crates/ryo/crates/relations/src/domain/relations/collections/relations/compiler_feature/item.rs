@@ -24,6 +24,8 @@ macro_rules! compiler_feature {
             scope File,
             notes Unneeded,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The source file whose compiler mode was computed.
                 file File: FileId => File;

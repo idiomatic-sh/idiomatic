@@ -34,6 +34,8 @@ macro_rules! file_package {
             scope Project,
             notes Unneeded,
             form Filled(Whole),
+            size PerFile,
+            keys [],
             columns {
                 /// The file.
                 path Path: FileId => File;
