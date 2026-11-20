@@ -93,6 +93,8 @@ pub(crate) struct Declarations {
     pub binding_analysis: RefCell<BindingAnalysisIndex>,
     /// Spike (ryo-fmx3): schedule-order name resolution over the binding analysis, made on the first read of its relation.
     pub binding_resolution: RefCell<crate::domain::binding_resolution::types::BindingResolutionScratch>,
+    /// Spike (ryo-fmx3): annotation evaluation timing rows, rebuilt on each read of its relation.
+    pub annotation_evaluation: RefCell<crate::domain::annotation_evaluation::types::AnnotationEvaluationScratch>,
     /// What the readers work in file after file; emptied at each use, its capacity kept between files.
     pub scratch: RefCell<ReadScratch>,
 }

@@ -93,6 +93,9 @@ pub mod binding_use;
 /// Optional schedule-order name resolution.
 pub mod binding_resolution;
 
+/// Optional annotation evaluation timing.
+pub mod annotation_evaluation;
+
 /// Optional static binding analysis.
 pub mod binding_shadow;
 

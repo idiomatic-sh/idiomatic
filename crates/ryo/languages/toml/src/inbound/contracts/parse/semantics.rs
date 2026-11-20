@@ -124,6 +124,11 @@ impl languages::Semantics<Model> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn annotation_evaluation(&self) -> Support<Reader<languages::AnnotationEvaluation, Model>> {
+        // This optional analysis is not yet implemented or advertised by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Model>> {
         // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)

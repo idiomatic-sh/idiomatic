@@ -164,6 +164,7 @@ pub(super) fn expected() -> Vec<Expected> {
         binding_read::expected(),
         binding_use::expected(),
         binding_resolution::expected(),
+        annotation_evaluation::expected(),
         binding_shadow::expected(),
         implicit_symbol::expected(),
         brace_format_parse::expected(),
@@ -316,6 +317,11 @@ mod binding_read {
 /// Canonical positive fixture for `binding_use`.
 mod binding_use {
     include!("../../tests/fixtures/relations/binding_use/expected.rs");
+}
+
+/// Canonical positive fixture for `annotation_evaluation`.
+mod annotation_evaluation {
+    include!("../../tests/fixtures/relations/annotation_evaluation/expected.rs");
 }
 
 /// Canonical positive fixture for `binding_resolution`.

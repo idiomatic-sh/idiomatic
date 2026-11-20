@@ -127,6 +127,11 @@ impl languages::Semantics<ReadIndexes> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn annotation_evaluation(&self) -> Support<Reader<languages::AnnotationEvaluation, ReadIndexes>> {
+        // This optional analysis is not yet implemented or advertised by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, ReadIndexes>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
