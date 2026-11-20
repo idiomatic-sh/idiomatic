@@ -2997,6 +2997,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// A keyed twin's rows for one key value: run its programs with the key register set, group, append; memoised per file.
+    #[inline(never)]
     fn keyed_rows(&mut self, rel: u16, value: u64) -> (u32, u32) {
         if let Some(&r) = self.cache.keyed_memo.get(&(rel, value)) {
             return r;
@@ -3151,6 +3152,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// the ids whose tree column holds one of a constant set of values, in start order (one scan, memoised per file)
+    #[inline(never)]
     fn const_list(&mut self, rel: TRel, col: u8, val: &Val, sorted: bool) -> Rc<Vec<u32>> {
         let key = (val as *const Val as usize) * 2 + usize::from(sorted);
         if let Some(l) = self.cache.const_idx.get(&key) {
@@ -3220,6 +3222,7 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     /// a tree column's ids bucketed by value for base-symbol values (the pack's literals are base symbols): one counting sort
     /// whose cost is the file's size (a reusable count array; only the values present are touched)
+    #[inline(never)]
     fn col_csr(&mut self, rel: TRel, col: u8) -> Rc<Csr> {
         if let Some(c) = self.cache.csr.get(&(rel as u8, col)) {
             return c.clone();
@@ -3280,6 +3283,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// a tree relation's value index: (value, start, id) sorted once per file; a value's ids are a slice in start order
+    #[inline(never)]
     fn tree_index(&mut self, rel: TRel, col: u8) -> Rc<TIdx> {
         let key = (rel as u8, col);
         if let Some(i) = self.cache.tree_idx.get(&key) {
@@ -3306,6 +3310,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     // ---- facts: the model's relations one at a time on first demand; the provider's readers once per file for the rest
+    #[inline(never)]
     fn ensure(&mut self, rel: u16) {
         if !(self.c.diag && self.c.prof.is_some()) {
             return self.ensure_inner(rel);
@@ -3574,6 +3579,7 @@ impl<'a, 'p> Exec<'a, 'p> {
 
 
     /// a fact's rows by the values of two columns, one pass per file
+    #[inline(never)]
     fn fact_index2(&mut self, rel: u16, c1: u8, c2: u8) -> Rc<FxMap<(u64, u64), Vec<u32>>> {
         self.ensure(rel);
         if let Some(i) = self.cache.fact2.get(&(rel, c1, c2)) {
@@ -3596,6 +3602,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         m
     }
 
+    #[inline(never)]
     fn fact_index(&mut self, rel: u16, col: u8) -> Rc<FIdx> {
         self.ensure(rel);
         let n_view = self.f.view.len();
@@ -3707,6 +3714,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
     }
 
+    #[inline(never)]
     fn iter_fact_list(&mut self, p: &'p [Ins], pc: usize, idx: &FIdx, keys: &[u64], out: R) -> bool {
         for &k in keys {
             match idx {
@@ -4606,59 +4614,68 @@ impl<'a, 'p> Exec<'a, 'p> {
                     self.regs[*end as usize] = x & 0xffff_ffff;
                 }
                 Ins::SourceMatches { span: sarg, base, regex, group, outs, capture_text, capture_line } => {
-                    let sp = self.opd(sarg);
-                    let base_line = base.as_ref().map(|b| self.opd(b));
-                    let bytes = self.f.source.as_bytes();
-                    let (s, e) = ((sp >> 32) as usize, (sp & 0xffff_ffff) as usize);
-                    if e > bytes.len() || s > e {
-                        return false;
-                    }
-                    let re = &self.prog.regexes[*regex as usize];
-                    let mut caps = re.create_captures();
-                    let mut at = 0usize;
-                    let hay = &bytes[s..e];
-                    let line_at = |off: usize| -> u64 { base_line.unwrap_or(0) + bytes[s..off].iter().filter(|&&b| b == b'\n').count() as u64 };
-                    while at <= hay.len() {
-                        re.search_captures(&regex_automata::Input::new(hay).range(at..), &mut caps);
-                        let Some(m) = caps.get_match() else { break };
-                        let (ms, me) = (s + m.start(), s + m.end());
-                        at = if m.end() > m.start() { m.end() } else { m.end() + 1 };
-                        let mut k = 0;
-                        self.regs[outs[k] as usize] = span(ms as u32, me as u32);
-                        k += 1;
-                        if base_line.is_some() {
-                            self.regs[outs[k] as usize] = line_at(ms);
-                            k += 1;
-                        }
-                        if let Some(g) = group {
-                            let Some(cg) = caps.get_group(*g as usize) else { continue };
-                            let (cs, ce) = (s + cg.start, s + cg.end);
-                            self.regs[outs[k] as usize] = span(cs as u32, ce as u32);
-                            k += 1;
-                            if *capture_text {
-                                let t = String::from_utf8_lossy(&bytes[cs..ce]).to_string();
-                                self.regs[outs[k] as usize] = self.sym.minted(t) as u64;
-                                k += 1;
-                            }
-                            if *capture_line {
-                                self.regs[outs[k] as usize] = line_at(cs);
-                            }
-                        }
-                        self.c.visits += 1;
-                        if self.run_core(p, pc + 1) {
-                            return true;
-                        }
-                    }
-                    return false;
+                    return self.source_matches(p, pc, sarg, base.as_ref(), *regex, group.as_ref(), outs, *capture_text, *capture_line);
                 }
             }
             pc += 1;
         }
     }
 
+    /// Ins::SourceMatches: every match of the regex inside the span continues the program (kept out of the dispatch loop's frame)
+    #[inline(never)]
+    #[allow(clippy::too_many_arguments)]
+    fn source_matches(&mut self, p: &'p [Ins], pc: usize, sarg: &Opd, base: Option<&Opd>, regex: u32, group: Option<&u32>, outs: &[R], capture_text: bool, capture_line: bool) -> bool {
+        let sp = self.opd(sarg);
+        let base_line = base.as_ref().map(|b| self.opd(b));
+        let bytes = self.f.source.as_bytes();
+        let (s, e) = ((sp >> 32) as usize, (sp & 0xffff_ffff) as usize);
+        if e > bytes.len() || s > e {
+            return false;
+        }
+        let re = &self.prog.regexes[regex as usize];
+        let mut caps = re.create_captures();
+        let mut at = 0usize;
+        let hay = &bytes[s..e];
+        let line_at = |off: usize| -> u64 { base_line.unwrap_or(0) + bytes[s..off].iter().filter(|&&b| b == b'\n').count() as u64 };
+        while at <= hay.len() {
+            re.search_captures(&regex_automata::Input::new(hay).range(at..), &mut caps);
+            let Some(m) = caps.get_match() else { break };
+            let (ms, me) = (s + m.start(), s + m.end());
+            at = if m.end() > m.start() { m.end() } else { m.end() + 1 };
+            let mut k = 0;
+            self.regs[outs[k] as usize] = span(ms as u32, me as u32);
+            k += 1;
+            if base_line.is_some() {
+                self.regs[outs[k] as usize] = line_at(ms);
+                k += 1;
+            }
+            if let Some(g) = group {
+                let Some(cg) = caps.get_group(*g as usize) else { continue };
+                let (cs, ce) = (s + cg.start, s + cg.end);
+                self.regs[outs[k] as usize] = span(cs as u32, ce as u32);
+                k += 1;
+                if capture_text {
+                    let t = String::from_utf8_lossy(&bytes[cs..ce]).to_string();
+                    self.regs[outs[k] as usize] = self.sym.minted(t) as u64;
+                    k += 1;
+                }
+                if capture_line {
+                    self.regs[outs[k] as usize] = line_at(cs);
+                }
+            }
+            self.c.visits += 1;
+            if self.run_core(p, pc + 1) {
+                return true;
+            }
+        }
+        return false;
+        
+    }
+
     /// Ins::Closure (navwide): breadth-first from the start node over the edge sub-programs, per key partition, each reached
     /// (keys, node) once; then the rest of the program per reached pair
     #[allow(clippy::too_many_arguments)]
+    #[inline(never)]
     fn closure(&mut self, p: &'p [Ins], pc: usize, src: R, out: R, xin: R, kout: &[R], nkeys: usize, subs: &'p [Prog]) -> bool {
         if nkeys == 0 {
             return self.closure_nodes(p, pc, src, out, xin, subs);
@@ -4711,6 +4728,7 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     /// Ins::NearMemo: the nearest proper ancestor of `s` whose condition holds, memoised per file and site; every node passed
     /// on the way up shares the answer
+    #[inline(never)]
     fn near_memo(&mut self, s: u32, out: R, subs: &'p [Prog]) -> Option<u32> {
         const UNKNOWN: u32 = u32::MAX - 1;
         const NONE: u32 = u32::MAX;
@@ -4756,6 +4774,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// Ins::AncExists: whether some proper ancestor of `s` passes `cond`, memoised per file and site by node
+    #[inline(never)]
     fn anc_exists(&mut self, s: u32, out: R, cond: &'p [Ins]) -> bool {
         const UNKNOWN: u32 = u32::MAX - 1;
         let v = self.f.view;
@@ -4799,6 +4818,7 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     /// Ins::UnionKey: Ins::Union with its distinct rows memoised per file per value of `key` (a site whose keys do not repeat and
     /// whose misses are cheap stops memoising)
+    #[inline(never)]
     fn union_key(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], key: R) -> bool {
         let w = outs.len().max(1);
         let site = subs.as_ptr() as usize;
@@ -4847,6 +4867,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// Ins::Closure without partition keys: the reached nodes as plain numbers (no per-node allocation)
+    #[inline(never)]
     fn closure_nodes(&mut self, p: &'p [Ins], pc: usize, src: R, out: R, xin: R, subs: &'p [Prog]) -> bool {
         let start = self.regs[src as usize];
         let mut seen: std::collections::HashSet<u64, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
@@ -4882,6 +4903,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// Ins::Union (navwide): every sub-program's collected tuples, distinct, each continuing the program
+    #[inline(never)]
     fn union(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], memo: bool) -> bool {
         let w = outs.len();
         let key = subs.as_ptr() as usize;
@@ -4921,6 +4943,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// navwide: `numeric>=` and `natural<`; a number register is a number, a text register is read as canonical numeric text
+    #[inline(never)]
     fn test_numeric(&self, test: T, l: &Opd, r: &Opd, lv: u64, text: bool, num: bool) -> bool {
         let rv = self.opd(r);
         let kind = |o: &Opd| -> bool { matches!(o, Opd::Num(_)) || (matches!(o, Opd::Reg(_)) && num && !text) };
@@ -5083,6 +5106,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// Ins::NearDerived (navwide)
+    #[inline(never)]
     fn near_derived(&mut self, start: R, out: R, xin: R, edges: &'p [Prog], domain: &'p [Prog]) -> Option<u64> {
         let mut seen: std::collections::HashSet<u64, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
         let mut level = vec![self.regs[start as usize]];
@@ -5121,6 +5145,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// Ins::Capture (navwide)
+    #[inline(never)]
     fn capture(&mut self, p: &'p [Ins], pc: usize, text: &Opd, pattern: &str, outs: &[R]) -> bool {
         let v = self.opd(text);
         let Some(t) = self.text_of(text, v).map(str::to_owned) else { return false };
