@@ -46,6 +46,40 @@ deny = [
   { crate = "ruff_workspace", reason = "Ruff is the Python reference a benchmark runs as a tool; no Ryo crate links its settings" },
   { crate = "oxc_linter", reason = "Oxlint is the TypeScript reference a benchmark runs as a tool; no Ryo crate links its rules" },
   { crate = "clippy_lints", reason = "Clippy is the Rust reference a benchmark runs as a tool; no Ryo crate links its lints" },
+  # Owner, 2026-11-20: "we dont want to have external lib types leak into our engine"; "im fine with using external libs in our
+  # providers to implement languages. but we must own the contracts". A language's own libraries (its parser, its tree and its
+  # manifest tools) are linked by its provider package alone: `wrappers` names that package and the library's own crates that
+  # depend on it, so a contract, engine, host or shared crate that adds one fails `cargo deny check bans`. The crates every part of
+  # Ryo shares (serde, serde_json, postcard, toml, globset, rayon, indexmap, unicode-properties) are no language's and are not here.
+  { crate = "cssparser", wrappers = ["idiomatic-sh-ryo-css"], reason = "the css provider's parser: only the css provider links it" },
+  { crate = "tree-sitter", wrappers = ["idiomatic-sh-ryo-go"], reason = "the go provider's parser runtime: only the go provider links it" },
+  { crate = "tree-sitter-go", wrappers = ["idiomatic-sh-ryo-go"], reason = "the go provider's grammar: only the go provider links it" },
+  { crate = "swc_html_parser", wrappers = ["idiomatic-sh-ryo-html"], reason = "the html provider's parser: only the html provider links it" },
+  { crate = "swc_html_ast", wrappers = ["idiomatic-sh-ryo-html", "swc_html_parser"], reason = "the html provider's tree: only the html provider links it" },
+  { crate = "swc_common", wrappers = ["idiomatic-sh-ryo-html", "swc_html_ast", "swc_html_parser"], reason = "the html provider's spans: only the html provider links it" },
+  { crate = "swc_atoms", wrappers = ["idiomatic-sh-ryo-html", "swc_common", "swc_html_ast", "swc_html_parser", "swc_html_utils"], reason = "the html provider's atoms: only the html provider links it" },
+  { crate = "jsonc-parser", wrappers = ["idiomatic-sh-ryo-json", "idiomatic-sh-ryo-typescript"], reason = "the json provider's parser, which the typescript provider reads its tsconfig with: only those two providers link it" },
+  { crate = "json5", wrappers = ["idiomatic-sh-ryo-json"], reason = "the json provider's oracle reading: only the json provider links it" },
+  { crate = "pulldown-cmark", wrappers = ["idiomatic-sh-ryo-markdown"], reason = "the markdown provider's parser: only the markdown provider links it" },
+  { crate = "ruff_python_parser", wrappers = ["idiomatic-sh-ryo-python"], reason = "the python provider's parser: only the python provider links it" },
+  { crate = "ruff_python_ast", wrappers = ["idiomatic-sh-ryo-python", "ruff_python_parser"], reason = "the python provider's tree: only the python provider links it" },
+  { crate = "ruff_text_size", wrappers = ["idiomatic-sh-ryo-python", "ruff_python_ast", "ruff_python_parser", "ruff_python_trivia", "ruff_source_file"], reason = "the python provider's text ranges: only the python provider links it" },
+  { crate = "pyproject-toml", wrappers = ["idiomatic-sh-ryo-python"], reason = "the python provider's manifest reading: only the python provider links it" },
+  { crate = "pep508_rs", wrappers = ["idiomatic-sh-ryo-python", "pyproject-toml"], reason = "the python provider's requirement reading: only the python provider links it" },
+  { crate = "ra_ap_syntax", wrappers = ["idiomatic-sh-ryo-rust"], reason = "the rust provider's syntax tree: only the rust provider links it" },
+  { crate = "ra_ap_parser", wrappers = ["idiomatic-sh-ryo-rust", "ra_ap_syntax"], reason = "the rust provider's parser: only the rust provider links it" },
+  { crate = "rustc-literal-escaper", wrappers = ["idiomatic-sh-ryo-rust", "ra_ap_parser", "ra_ap_syntax"], reason = "the rust provider's literal decoding: only the rust provider links it" },
+  { crate = "cargo-platform", wrappers = ["idiomatic-sh-ryo-rust", "cargo_metadata"], reason = "the rust provider's target cfg reading: only the rust provider links it (cargo_metadata carries it for the command line's workspace read)" },
+  { crate = "toml_parser", wrappers = ["idiomatic-sh-ryo-toml", "toml", "toml_edit"], reason = "the toml provider's parser: only the toml provider links it (the toml crate every part reads its settings with carries it)" },
+  { crate = "oxc_parser", wrappers = ["idiomatic-sh-ryo-typescript"], reason = "the typescript provider's parser: only the typescript provider links it" },
+  { crate = "oxc_ast", wrappers = ["idiomatic-sh-ryo-typescript", "oxc_ast_visit", "oxc_ecmascript", "oxc_parser", "oxc_semantic"], reason = "the typescript provider's tree: only the typescript provider links it" },
+  { crate = "oxc_ast_visit", wrappers = ["idiomatic-sh-ryo-typescript", "oxc_semantic"], reason = "the typescript provider's tree visitor: only the typescript provider links it" },
+  { crate = "oxc_allocator", wrappers = ["idiomatic-sh-ryo-typescript", "oxc_ast", "oxc_ast_visit", "oxc_parser", "oxc_regular_expression", "oxc_semantic", "oxc_span", "oxc_str", "oxc_syntax"], reason = "the typescript provider's arena: only the typescript provider links it" },
+  { crate = "oxc_span", wrappers = ["idiomatic-sh-ryo-typescript", "oxc_ast", "oxc_ast_visit", "oxc_ecmascript", "oxc_parser", "oxc_regular_expression", "oxc_semantic", "oxc_syntax"], reason = "the typescript provider's spans: only the typescript provider links it" },
+  { crate = "oxc_semantic", wrappers = ["idiomatic-sh-ryo-typescript"], reason = "the typescript provider's semantic model: only the typescript provider links it" },
+  { crate = "oxc_cfg", wrappers = ["idiomatic-sh-ryo-typescript", "oxc_semantic"], reason = "the typescript provider's control flow graph: only the typescript provider links it" },
+  { crate = "oxc_regular_expression", wrappers = ["idiomatic-sh-ryo-typescript", "oxc_ast", "oxc_parser"], reason = "the typescript provider's pattern parser: only the typescript provider links it" },
+  { crate = "yaml_serde", wrappers = ["idiomatic-sh-ryo-typescript"], reason = "the typescript provider's pnpm manifest reading: only the typescript provider links it" },
 ]
 
 [sources]

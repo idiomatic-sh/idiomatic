@@ -2,6 +2,8 @@
 
 `language-tastemaker` keeps the line break after `closed = false`: the `set` tag trimmed it, so the comment below it ran onto the same line (claude/tastemaker-layers' 0.4.9, merged onto this line). Everything else is as in 0.4.17. 0.4.17 is removed with this version.
 
+Edited in place, as the engine track edits this version (the `walk` contract module, claude/engine-p1 4512ce549), so the two merge as one: the language's own placement (`language-tastemaker`) also places `no-library-types-at-boundary` 0.1.0 over `src/**/*.rs` with its `libraries`, its `domain-libraries` and the SDK's contracts (`ryo::*`), so no library type crosses what the language hands across its boundary (owner, 2026-11-20). Scenario `without-boundary-rule`: an own placement without the entry is reported; every demo placement of the spec's scenarios carries it. The description names the inbound contracts as the exact list the `contracts` template holds, `walk` among them, and `why` states the boundary: the `link!` arm is all a program links, the command line the one crate that depends on a language, each language library linked by its language alone (`deny.toml`).
+
 # language 0.4.16
 
 ## 0.4.17
