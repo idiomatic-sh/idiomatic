@@ -23,5 +23,6 @@ pub fn column_name(column: BindingEventColumn) -> &'static str {
         BindingEventColumn::Ordinal => ORDINAL,
         BindingEventColumn::File => "file",
         BindingEventColumn::Span => "span",
+        BindingEventColumn::Lexical => "lexical",
     }
 }

@@ -122,6 +122,11 @@ impl languages::Semantics<Sections> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn binding_resolution(&self) -> Support<Reader<languages::BindingResolution, Sections>> {
+        // This optional analysis is not yet implemented or advertised by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Sections>> {
         // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)

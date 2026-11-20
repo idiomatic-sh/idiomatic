@@ -91,6 +91,8 @@ pub(crate) struct Declarations {
     pub semantic: RefCell<SemanticIndex>,
     /// Lazy static binding observations; no analysis occurs for queries that do not request them.
     pub binding_analysis: RefCell<BindingAnalysisIndex>,
+    /// Spike (ryo-fmx3): schedule-order name resolution over the binding analysis, made on the first read of its relation.
+    pub binding_resolution: RefCell<crate::domain::binding_resolution::types::BindingResolutionScratch>,
     /// What the readers work in file after file; emptied at each use, its capacity kept between files.
     pub scratch: RefCell<ReadScratch>,
 }

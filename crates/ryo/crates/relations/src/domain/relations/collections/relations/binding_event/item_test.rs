@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::relations::types::{Bits, FileId, Integer, NodeId, Offset, Span};
 use crate::domain::terms::types::Symbol;
 type Input = ();
-type Value = [Bits; 8];
+type Value = [Bits; 9];
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("distinct identities and state preserve their columns"),
@@ -20,6 +20,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
         Bits(13),
         Bits(15),
         Bits(47_244_640_269),
+        Bits(17),
     ]),
 }];
 fn subject(_: Input) -> Result<Value, Failure> {
@@ -35,6 +36,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
             start: Offset(11),
             end: Offset(13),
         },
+        lexical: NodeId(17),
     }))
 }
 #[test]

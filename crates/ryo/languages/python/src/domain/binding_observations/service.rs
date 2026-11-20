@@ -15,7 +15,7 @@ use crate::domain::{
     },
     names::types::Imported,
     nodes::types::Node,
-    scopes::service::{binding_scope, enclosing},
+    scopes::service::{binding_scope, enclosing, lexical_scope},
     syntax::{
         service::{kind, name_of, nodes, parent},
         types::Kind,
@@ -228,6 +228,7 @@ pub(crate) fn observe(
                     phase: step.phase,
                     ordinal,
                     kind: event_kind,
+                    lexical: lexical_scope(tree, occurrence),
                 });
             }
         }
@@ -248,6 +249,17 @@ pub(crate) fn observe(
             |value| value.owner,
         )
     };
+    // Spike (ryo-fmx3): the namespace whose code holds the event. A parameter and a type parameter belong to their callable or
+    // owner, as `definitions` says; every other store, deletion and cleanup is in its lexical scope before `global`/`nonlocal`.
+    let lexical = if event_kind == EventKind::Read
+        || matches!(
+            kind(tree, step.occurrence),
+            Kind::Node(Node::Arg | Node::TypeVar | Node::TypeVarTuple | Node::ParamSpec)
+        ) {
+        scope
+    } else {
+        lexical_scope(tree, step.occurrence)
+    };
     index.events.push(BindingResultEvent {
         occurrence: step.occurrence,
         name,
@@ -255,6 +267,7 @@ pub(crate) fn observe(
         phase: step.phase,
         ordinal,
         kind: event_kind,
+        lexical,
     });
     match event_kind {
         EventKind::Wildcard => wildcard(&mut index.environments, frame, scope),

@@ -16,6 +16,7 @@ pub(super) fn expected() -> Expected {
             ordinal: number(1),
             file: file("binding_event/input.py"),
             span: span((1, 1), (1, 2)),
+            lexical: node(0),
         },
         BindingEventExpectedRow {
             occurrence: node(11),
@@ -26,6 +27,7 @@ pub(super) fn expected() -> Expected {
             ordinal: number(2),
             file: file("binding_event/input.py"),
             span: span((2, 1), (2, 2)),
+            lexical: node(0),
         },
     ])
 }
