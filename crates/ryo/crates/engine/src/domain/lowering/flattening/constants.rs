@@ -1,10 +1,9 @@
-//! The constants of the `flattening` part: the bounds a flattening is cut at (`swarm/lower` §2: B, P and A).
+//! The constants of the `flattening` part: the bounds a flattening is cut at (`swarm/lower` §2: B, P and A). Past one, an
+//! input becomes one use of a definition: a cut point, never a refusal.
 
-use super::types::CutBounds;
-
-/// At most 32 branches an input, 256 a join's product and 40 atoms a branch: past one, an input is one use of a definition.
-pub(crate) const CUT_BOUNDS: CutBounds = CutBounds {
-    branches: 32,
-    product: 256,
-    atoms: 40,
-};
+/// The branches of one input: at most 32.
+pub(crate) const INPUT_BRANCHES: usize = 32;
+/// The branches of a join's product: at most 256.
+pub(crate) const PRODUCT_BRANCHES: usize = 256;
+/// The atoms of one branch: at most 40.
+pub(crate) const BRANCH_ATOMS: usize = 40;

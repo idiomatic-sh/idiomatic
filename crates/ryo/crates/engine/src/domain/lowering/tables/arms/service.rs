@@ -9,10 +9,12 @@ use crate::domain::lowering::definitions::service::{
 };
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::{copied, derived, literal_read, relation_read};
-use crate::domain::lowering::flattening::constants::CUT_BOUNDS;
+use crate::domain::lowering::flattening::constants::{
+    BRANCH_ATOMS, INPUT_BRANCHES, PRODUCT_BRANCHES,
+};
 use crate::domain::lowering::flattening::service::{compared, picked, unified};
 use crate::domain::lowering::flattening::types::{
-    AtomRows, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
+    AtomRows, ColumnPlace, EqualTerms, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
 };
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, readers};
 use crate::domain::lowering::nodes::types::{NodeHome, AdmittedRule, StepShape};
@@ -47,13 +49,13 @@ fn term(
         Operand::Column(column) => row.get(usize::from(*column)).copied(),
         Operand::Literal(QueryLiteral::Number(number)) => Some(FlatTerm::Number(*number)),
         Operand::Literal(QueryLiteral::Text(written)) => {
-            Some(FlatTerm::Text(text(drafts, &written.0)))
+            Some(FlatTerm::Text(text(drafts, written)))
         }
         Operand::Parameter(parameter) => {
             let bindings = rule(state)?.rule.bindings.0;
             match bindings.get(usize::try_from(parameter.0).ok()?)? {
                 ParameterBinding::Number(number) => Some(FlatTerm::Number(Integer(number.0))),
-                ParameterBinding::Text(written) => Some(FlatTerm::Text(text(drafts, &written.0))),
+                ParameterBinding::Text(written) => Some(FlatTerm::Text(text(drafts, written))),
                 ParameterBinding::Flag(_)
                 | ParameterBinding::Numbers(_)
                 | ParameterBinding::Texts(_)
@@ -78,7 +80,7 @@ fn selected(
         let right = term(state, drafts, &branch.row, &comparison.right)?;
         let test = match (test_of(comparison.test)?, &comparison.right) {
             (TestOperation::Matches(_), Operand::Literal(QueryLiteral::Text(source))) => {
-                TestOperation::Matches(regex(drafts, &source.0))
+                TestOperation::Matches(regex(drafts, source))
             }
             (test, _) => test,
         };
@@ -115,11 +117,11 @@ fn use_of(drafts: &mut Drafts, definition: DefinitionId) -> Flattened {
 
 /// Whether a flattening is past a bound of one input: its branches, or the atoms of one of them.
 fn past_bounds(flattened: &Flattened) -> bool {
-    flattened.branches.len() > CUT_BOUNDS.branches
+    flattened.branches.len() > INPUT_BRANCHES
         || flattened
             .branches
             .iter()
-            .any(|branch| branch.atoms.len() > CUT_BOUNDS.atoms)
+            .any(|branch| branch.atoms.len() > BRANCH_ATOMS)
 }
 
 /// The definition of a step of the rule: found when the node has one, else made from the step's flattening.
@@ -265,8 +267,8 @@ fn sized(state: &RuleFlattening<'_>, drafts: &Drafts, read: Input) -> (usize, us
 /// are within the bounds; else the larger side is one use of its definition, and both when that is not enough.
 fn join_wants(left: (usize, usize), right: (usize, usize)) -> (InputWant, InputWant) {
     let fits = |left: (usize, usize), right: (usize, usize)| {
-        left.0.saturating_mul(right.0) <= CUT_BOUNDS.product
-            && left.1.saturating_add(right.1) <= CUT_BOUNDS.atoms
+        left.0.saturating_mul(right.0) <= PRODUCT_BRANCHES
+            && left.1.saturating_add(right.1) <= BRANCH_ATOMS
     };
     if fits(left, right) {
         return (InputWant::Inline, InputWant::Inline);
@@ -283,9 +285,11 @@ fn join_wants(left: (usize, usize), right: (usize, usize)) -> (InputWant, InputW
 fn join_row(row: &[FlatTerm], left_width: usize, output: &[JoinColumn]) -> Option<Vec<FlatTerm>> {
     picked(
         row,
-        output.iter().map(|column| match column.side {
-            Side::Left => usize::from(column.column),
-            Side::Right => left_width.saturating_add(usize::from(column.column)),
+        output.iter().map(|column| {
+            ColumnPlace(match column.side {
+                Side::Left => usize::from(column.column),
+                Side::Right => left_width.saturating_add(usize::from(column.column)),
+            })
         }),
     )
 }
@@ -318,7 +322,7 @@ fn selection_emptiness(
             continue;
         };
         let (Some(number), Some(column), Some(TestOperation::Equal)) = (
-            drafts.text_numbers.get(&written.0),
+            drafts.text_numbers.get(written),
             listed.get(usize::from(*column)),
             test_of(comparison.test),
         ) else {
@@ -364,7 +368,10 @@ fn join_arm(
             let width = left_branch.row.len();
             let mut pairs = Vec::with_capacity(left_on.len());
             for (left_key, right_key) in key_pairs(left_on, right_on) {
-                pairs.push((*left_branch.row.get(left_key)?, *right_branch.row.get(right_key)?));
+                pairs.push(EqualTerms {
+                    left: *left_branch.row.get(left_key)?,
+                    right: *right_branch.row.get(right_key)?,
+                });
             }
             let mut joined = left_branch.clone();
             joined.atoms.extend(right_branch.atoms.iter().cloned());
@@ -564,7 +571,7 @@ fn as_of_arm(
     let fill = MadeFill::Ordered(OrderedFill::Sorted(sorted));
     let table = made_once(state, drafts, (step, definition), fill, right_shape.0.len())?;
     for branch in &mut lefts.branches {
-        let key = picked(&branch.row, keys.iter().map(|(left_key, _)| *left_key))?;
+        let key = picked(&branch.row, keys.iter().map(|(left_key, _)| ColumnPlace(*left_key)))?;
         let cells = fresh_cells(drafts, &right_shape);
         let width = branch.row.len();
         let mut row = branch.row.clone();
@@ -699,7 +706,7 @@ fn arm(
             read.branches = all_selected(state, drafts, read.branches, comparisons)?;
             if !kept.is_empty() {
                 for branch in &mut read.branches {
-                    branch.row = picked(&branch.row, kept.iter().map(|column| usize::from(*column)))?;
+                    branch.row = picked(&branch.row, kept.iter().map(|column| ColumnPlace(usize::from(*column))))?;
                 }
             }
             read.emptiness = selection_emptiness(state, drafts, *from, comparisons, read.emptiness);
@@ -708,7 +715,7 @@ fn arm(
         Operation::Project { from, columns, .. } => {
             let mut read = input(state, drafts, *from, InputWant::Inline)?;
             for branch in &mut read.branches {
-                branch.row = picked(&branch.row, columns.iter().map(|column| usize::from(*column)))?;
+                branch.row = picked(&branch.row, columns.iter().map(|column| ColumnPlace(usize::from(*column))))?;
             }
             Some(read)
         }

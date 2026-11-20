@@ -13,7 +13,7 @@ use crate::domain::statistics::types::Statistics;
 use crate::domain::steps::types::{ColumnMask, MadeColumn};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
-use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::{LiteralText, StepId};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -84,8 +84,9 @@ fn counted((): ()) -> Result<(usize, usize, usize, usize), Failure> {
     asked(&mut drafts, first, &key, &nothing);
     asked(&mut drafts, first, &nothing, &nothing);
     asked(&mut drafts, first, &key, &nothing);
-    assert_eq!(text(&mut drafts, "a"), text(&mut drafts, "a"));
-    assert_ne!(text(&mut drafts, "a"), text(&mut drafts, "b"));
+    let (a, b) = (LiteralText("a".into()), LiteralText("b".into()));
+    assert_eq!(text(&mut drafts, &a), text(&mut drafts, &a));
+    assert_ne!(text(&mut drafts, &a), text(&mut drafts, &b));
     assert_eq!(use_branch(&mut drafts, first).row.len(), 2);
     let patterns = drafts.definitions.first().map_or(0, |draft| draft.patterns.len());
     Ok((drafts.definitions.len(), patterns, drafts.waiting.len(), drafts.texts.len()))

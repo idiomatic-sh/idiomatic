@@ -1,14 +1,15 @@
 //! The types of the `definitions` part: a definition before it is placed, the patterns asked of it, and the pack's drafts.
 
 use crate::domain::lowered::types::{Emptiness, MadeTable, PatternForm};
-use crate::domain::lowering::flattening::types::{FlatBranch, TextNumber};
+use crate::domain::lowering::flattening::types::{FlatBranch, FlatVariable, TextNumber};
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
 use crate::domain::statistics::types::ShapeChoice;
 use crate::domain::steps::types::{
-    ColumnMask, ConstantText, DefinitionId, MadeTableId, RegexId, Register, StepRegex,
+    ColumnMask, ConstantText, DefinitionId, MadeTableId, RegexId, Register, RegisterCount,
+    StepRegex,
 };
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::{LiteralText, StepId};
 use ryo_values::domain::query_plans::types::NodeDigest;
 use std::collections::{BTreeSet, HashMap};
 
@@ -54,13 +55,17 @@ pub(crate) struct DefinitionDraft {
     pub(crate) table: Option<MadeTableId>,
 }
 
+/// A pattern of a definition, by its place among the definition's patterns.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PatternPlace(pub(crate) usize);
+
 /// A pattern that waits to be placed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct WaitingPattern {
     /// The definition.
     pub(crate) definition: DefinitionId,
     /// The pattern's place among the definition's.
-    pub(crate) pattern: usize,
+    pub(crate) pattern: PatternPlace,
 }
 
 /// The pack as it is being lowered.
@@ -78,18 +83,18 @@ pub(crate) struct Drafts {
     pub(crate) table_homes: Vec<NodeHome>,
     /// The patterns asked and not yet placed.
     pub(crate) waiting: Vec<WaitingPattern>,
-    /// How many variables the branches name.
-    pub(crate) variables: u32,
+    /// The next variable no branch names.
+    pub(crate) variables: FlatVariable,
     /// How many registers the programs name.
-    pub(crate) registers: u32,
+    pub(crate) registers: RegisterCount,
     /// The constant texts, by number.
     pub(crate) texts: Vec<ConstantText>,
     /// The number of each constant text.
-    pub(crate) text_numbers: HashMap<Box<str>, TextNumber>,
+    pub(crate) text_numbers: HashMap<LiteralText, TextNumber>,
     /// The regular expressions, by number.
     pub(crate) regexes: Vec<StepRegex>,
     /// The number of each regular expression.
-    pub(crate) regex_numbers: HashMap<Box<str>, RegexId>,
+    pub(crate) regex_numbers: HashMap<LiteralText, RegexId>,
     /// Every relation some branch reads.
     pub(crate) reads: BTreeSet<Relation>,
 }
