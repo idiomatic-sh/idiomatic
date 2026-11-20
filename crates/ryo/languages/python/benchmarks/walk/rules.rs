@@ -592,7 +592,7 @@ impl<'p> State<'p> {
             files: 0,
             provider: None,
             cache: crate::nav::FileCache::default(),
-            nc: crate::nav::Counters::default(),
+            nc: crate::nav::Counters { prof: std::env::var_os("NAV_PROF").is_some(), ..Default::default() },
             nav_ns: 0,
             tail_ns: 0,
             tail_files: 0,
@@ -991,6 +991,15 @@ impl<'p> State<'p> {
                     .map(|(i, r)| format!("\"{}\":[{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i]))
                     .collect::<Vec<_>>().join(",")
             );
+            if c.prof {
+                // cut (diagnostic): shared entries that ran, as [index, calls, inclusive steps, own steps]
+                eprintln!(
+                    "{{\"navprof\":[{}]}}",
+                    (0..c.shared_calls.len()).filter(|&i| c.shared_calls[i] > 0)
+                        .map(|i| format!("[{},{},{},{}]", i, c.shared_calls[i], c.shared_incl[i], c.shared_self[i]))
+                        .collect::<Vec<_>>().join(",")
+                );
+            }
         }
         let ops: Vec<String> = OP_NAMES
             .iter()

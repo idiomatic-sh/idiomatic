@@ -706,6 +706,13 @@ pub(crate) struct Counters {
     pub rule_steps: Vec<u64>,
     pub rule_visits: Vec<u64>,
     pub rule_starts: Vec<u64>,
+    /// cut (diagnostic, NAV_PROF): per shared entry, calls, inclusive steps and own steps (inclusive minus the shared
+    /// entries it ran); `prof_child` is the inclusive steps of the entries run under the current one
+    pub prof: bool,
+    pub prof_child: u64,
+    pub shared_calls: Vec<u64>,
+    pub shared_incl: Vec<u64>,
+    pub shared_self: Vec<u64>,
 }
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
@@ -1619,7 +1626,25 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Shared { idx } => {
                     let q: &'p [Ins] = &self.prog.shared[*idx as usize];
-                    return self.run_inner(q, 0);
+                    if !self.c.prof {
+                        return self.run_inner(q, 0);
+                    }
+                    let i = *idx as usize;
+                    if self.c.shared_calls.len() <= i {
+                        let n = self.prog.shared.len();
+                        self.c.shared_calls.resize(n, 0);
+                        self.c.shared_incl.resize(n, 0);
+                        self.c.shared_self.resize(n, 0);
+                    }
+                    let outer = std::mem::take(&mut self.c.prof_child);
+                    let s0 = self.c.steps;
+                    let flow = self.run_inner(q, 0);
+                    let incl = self.c.steps - s0;
+                    self.c.shared_calls[i] += 1;
+                    self.c.shared_incl[i] += incl;
+                    self.c.shared_self[i] += incl - self.c.prof_child;
+                    self.c.prof_child = outer + incl;
+                    return flow;
                 }
                 Ins::SpanBetween { a, b, out } => {
                     let (x, y) = (self.opd(a), self.opd(b));
