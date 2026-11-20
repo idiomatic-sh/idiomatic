@@ -24,10 +24,10 @@ let class_assignments = select assignment, target, name, file from non_enum_clas
 let eligible_scopes = union(left=module_variables, right=class_assignments);
 let stub_assignments = select l.assignment as assignment, l.target as target, l.name as name, l.file as file from eligible_scopes as l join stub_files as r on l.file = r.file;
 let assignment_values = select parent as assignment, child as value, file from "semantic-child" where field = "value";
-let primitive_values = select id, file from "semantic-syntax" where kind = "constant" or kind = "list" or kind = "tuple" or kind = "set" or kind = "dict" or kind = "unary-op" or kind = "bin-op";
+let primitive_values = select id, file from "semantic-syntax" where kind in ["constant", "list", "tuple", "set", "dict", "unary-op", "bin-op"];
 let eligible_values = select l.assignment as assignment, l.value as value, l.file as file from assignment_values as l join primitive_values as r on l.value = r.id and l.file = r.file;
 let assignments_with_values = select l.target as target, l.name as name, r.value as value, l.file as file from stub_assignments as l join eligible_values as r on l.assignment = r.assignment and l.file = r.file;
-let literal_kinds = select id, kind, file from "literal-properties" where kind = "integer" or kind = "float" or kind = "complex" or kind = "boolean" or kind = "string" or kind = "bytes";
+let literal_kinds = select id, kind, file from "literal-properties" where kind in ["integer", "float", "complex", "boolean", "string", "bytes"];
 let primitive_candidates = select l.value as id, l.file as file from assignments_with_values as l join literal_kinds as r on l.value = r.id and l.file = r.file;
 let container_nodes = select id, file from "semantic-syntax" where kind = "list" or kind = "tuple" or kind = "set";
 let container_elements = select l.parent as container, l.child as member, l.file as file from "semantic-child" as l join container_nodes as r on l.parent = r.id and l.file = r.file where l.field = "elts";

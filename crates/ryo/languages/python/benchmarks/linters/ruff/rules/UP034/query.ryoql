@@ -34,8 +34,9 @@ let special_steps = select l.outer_id as parent, r.target as child from stopped 
 let non_open = select id from significant where kind != "lpar";
 let ordinary_steps = select l.source as parent, l.target as child from next_code as l join non_open as r on l.source = r.id;
 let steps = union(left=ordinary_steps, right=special_steps);
-let visited0 = axis(from=roots, relation=steps, direction=descendant, domain=code_ids);
-let visited_ids = select related as id from visited0;
+let step_paths = closure(edges=steps, source="parent", destination="child");
+let visited_steps = select r.child as id from roots as l join step_paths as r on l.id = r.parent;
+let visited_ids = select l.id as id from visited_steps as l join code_ids as r on l.id = r.id;
 let visited = union(left=roots, right=visited_ids);
 let closing = select id from significant where kind = "rpar";
 let candidates = select l.outer_id as outer_id, l.inner_id as id, l.close_id as close_id, l.file as file, l.start_span as start_span from completed as l join closing as r on l.consumed = r.id;

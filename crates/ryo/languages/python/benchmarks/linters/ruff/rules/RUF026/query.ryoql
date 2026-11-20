@@ -20,7 +20,7 @@ let constructors = select call, file from qualified_calls where path = "collecti
 let keyword_only_constructors = antijoin(left=constructors, right=positional_arguments, left-on=["call","file"], right-on=["call","file"]);
 let factory_keywords = select call, file, value from named_keyword_values where name = "default_factory";
 let factory_calls = select l.call as call, l.file as file, r.value as value from keyword_only_constructors as l join factory_keywords as r on l.call = r.call and l.file = r.file;
-let non_callable_values = select id, file from nodes where kind = "constant" or kind = "list" or kind = "dict" or kind = "set" or kind = "tuple" or kind = "slice" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp" or kind = "joined-str" or kind = "template-str";
+let non_callable_values = select id, file from nodes where kind in ["constant", "list", "dict", "set", "tuple", "slice", "list-comp", "set-comp", "dict-comp", "generator-exp", "joined-str", "template-str"];
 let possible_callable_factories = antijoin(left=factory_calls, right=non_callable_values, left-on=["value","file"], right-on=["id","file"]);
 let candidates = select l.call as id, l.file as file, r.span as span from possible_callable_factories as l join calls as r on l.call = r.id and l.file = r.file;
 let candidate_locations = line_located(candidates=candidates);

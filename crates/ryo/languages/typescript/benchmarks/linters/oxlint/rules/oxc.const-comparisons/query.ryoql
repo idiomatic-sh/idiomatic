@@ -3,7 +3,7 @@ import parenthesized from "typescript/oxlint/parenthesized";
 let logical_operators = select l.parent as id, r.text as operator from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text = "||" or r.text = "&&");
 let logicals = select l.id as id, l.operator as operator from logical_operators as l join "semantic-syntax" as r on l.id = r.id where r.kind = "logical-expression";
 let logical_sides = select l.id as id, l.operator as operator, c.child as operand, c.field as side from logicals as l join "semantic-child" as c on l.id = c.parent where c.field = "left" or c.field = "right";
-let comparison_operators = select l.parent as id, r.text as operator from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text = "<" or r.text = "<=" or r.text = ">" or r.text = ">=" or r.text = "==" or r.text = "===" or r.text = "!=" or r.text = "!==");
+let comparison_operators = select l.parent as id, r.text as operator from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text in ["<", "<=", ">", ">=", "==", "===", "!=", "!=="]);
 let comparisons = select l.id as id, l.operator as operator from comparison_operators as l join "semantic-syntax" as r on l.id = r.id where r.kind = "binary-expression";
 let comparison_sides = select l.id as id, l.operator as operator, c.child as operand, c.field as side from comparisons as l join "semantic-child" as c on l.id = c.parent where c.field = "left" or c.field = "right";
 let calls = select id from "semantic-syntax" where kind = "call-expression" or kind = "new-expression";

@@ -50,7 +50,7 @@ let bad_dict0123 = union(left=bad_dict01, right=bad_dict23);
 let bad_dicts = union(left=bad_dict0123, right=bad_dict4);
 let complete_operands = select l.binop as binop, l.format_id as format_id, l.right as right, l.right_kind as right_kind, l.file as file from right_shapes as l join convertible_formats as r on l.format_id = r.format_id and l.file = r.file;
 let dictionary_fallbacks = select l.binop as binop, l.format_id as format_id, l.file as file from complete_operands as l join bad_dicts as r on l.right = r.dictionary and l.file = r.file where l.right_kind = "dict";
-let eligible_operands = select binop, format_id, file from complete_operands where right_kind = "constant" or right_kind = "joined-str" or right_kind = "name" or right_kind = "attribute" or right_kind = "subscript" or right_kind = "call" or right_kind = "tuple" or right_kind = "dict";
+let eligible_operands = select binop, format_id, file from complete_operands where right_kind in ["constant", "joined-str", "name", "attribute", "subscript", "call", "tuple", "dict"];
 let normal_operands = antijoin(left=eligible_operands, right=dictionary_fallbacks, left-on=["binop","file"], right-on=["binop","file"]);
 let early_fallback_operands = select l.binop as binop, l.format_id as format_id, l.file as file from literal_binops as l join fallback_formats as r on l.format_id = r.format_id and l.file = r.file;
 let fallback_operands = union(left=early_fallback_operands, right=dictionary_fallbacks);

@@ -26,7 +26,7 @@ let literal_strings = select id as node, id as reported from then_strings;
 let literal_templates = select id as node, id as reported from then_templates;
 let literal_thens = union(left=literal_strings, right=literal_templates);
 let thens = union(left=literal_thens, right=constant_thens);
-let keyed_kinds = select id from "semantic-syntax" where kind = "property" or kind = "method-definition" or kind = "property-definition" or kind = "ts-abstract-method-definition" or kind = "ts-abstract-property-definition";
+let keyed_kinds = select id from "semantic-syntax" where kind in ["property", "method-definition", "property-definition", "ts-abstract-method-definition", "ts-abstract-property-definition"];
 let keys = select l.parent as member, l.child as key from "semantic-child" as l join keyed_kinds as r on l.parent = r.id where l.field = "key";
 let object_properties = select l.child as id from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "properties" and r.kind = "object-expression";
 let object_keys = select l.member as member, l.key as key from keys as l join "semantic-syntax" as r on l.member = r.id where r.kind != "property";

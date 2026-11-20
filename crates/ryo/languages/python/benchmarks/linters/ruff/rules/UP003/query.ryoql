@@ -26,7 +26,7 @@ let direct_type_calls = select l.call as call, l.reference as reference, r.argum
 let qualified_type_functions = select id, file from "qualified-name" where path = "builtins.type";
 let qualified_type_function_calls = select l.call as call, l.file as file, l.function as reference from call_functions as l join qualified_type_functions as r on l.function = r.id and l.file = r.file;
 let qualified_type_calls = select l.call as call, l.reference as reference, r.argument as argument, l.file as file from qualified_type_function_calls as l join no_keywords as r on l.call = r.call and l.file = r.file;
-let primitive_arguments = select id, file from "literal-properties" where kind = "boolean" or kind = "string" or kind = "bytes" or kind = "integer" or kind = "float" or kind = "complex";
+let primitive_arguments = select id, file from "literal-properties" where kind in ["boolean", "string", "bytes", "integer", "float", "complex"];
 let direct_typed_calls = select l.call as call, l.reference as reference, l.file as file from direct_type_calls as l join primitive_arguments as r on l.argument = r.id and l.file = r.file;
 let qualified_typed_calls = select l.call as call, l.reference as reference, l.file as file from qualified_type_calls as l join primitive_arguments as r on l.argument = r.id and l.file = r.file;
 let candidates = select l.call as call, l.reference as reference, l.file as file, r.span as span from direct_typed_calls as l join calls as r on l.call = r.id and l.file = r.file;

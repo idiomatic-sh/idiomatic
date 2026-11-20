@@ -12,7 +12,7 @@ let after_counts = group-count(from=following, keys=["parent", "star", "file"], 
 let before_overflow = select parent, file from before_counts where count >= 256;
 let after_overflow = select parent, file from after_counts where count >= 16777216;
 let overflows = union(left=before_overflow, right=after_overflow);
-let stores = select id from "semantic-syntax" where kind = "assign" or kind = "for" or kind = "async-for" or kind = "comprehension" or kind = "withitem";
+let stores = select id from "semantic-syntax" where kind in ["assign", "for", "async-for", "comprehension", "withitem"];
 let target_fields = select parent, child from "semantic-child" where field = "targets" or field = "target" or field = "optional-vars";
 let roots = select r.child as id from stores as l join target_fields as r on l.id = r.parent;
 let container_edges = select r.parent as parent, r.child as child from containers as l join elements as r on l.id = r.parent;

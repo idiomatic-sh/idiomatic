@@ -3,10 +3,10 @@ let tokens = select file, span, text from "semantic-syntax" where kind = "identi
 let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
 let promise_names = select l.id as id from identifiers as l join tokens as r on l.file = r.file and l.span = r.span where r.text = "Promise";
 let method_names = select l.id as id, r.text as name from identifiers as l join tokens as r on l.file = r.file and l.span = r.span where r.text = "all" or r.text = "any" or r.text = "race";
-let wrappers = select id from "semantic-syntax" where kind = "ts-as-expression" or kind = "ts-satisfies-expression" or kind = "ts-instantiation-expression" or kind = "ts-non-null-expression" or kind = "ts-type-assertion";
+let wrappers = select id from "semantic-syntax" where kind in ["ts-as-expression", "ts-satisfies-expression", "ts-instantiation-expression", "ts-non-null-expression", "ts-type-assertion"];
 let unwrapping = select l.parent as outer, l.child as inner from "semantic-child" as l join wrappers as r on l.parent = r.id where l.field = "expression";
 let unwrapped = closure(edges=unwrapping, source="outer", destination="inner");
-let chains = select id from "semantic-syntax" where kind = "chain-expression" or kind = "ts-as-expression" or kind = "ts-satisfies-expression" or kind = "ts-instantiation-expression" or kind = "ts-non-null-expression" or kind = "ts-type-assertion";
+let chains = select id from "semantic-syntax" where kind in ["chain-expression", "ts-as-expression", "ts-satisfies-expression", "ts-instantiation-expression", "ts-non-null-expression", "ts-type-assertion"];
 let chain_unwrapping = select l.parent as outer, l.child as inner from "semantic-child" as l join chains as r on l.parent = r.id where l.field = "expression";
 let chain_unwrapped = closure(edges=chain_unwrapping, source="outer", destination="inner");
 let optional = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "?.";

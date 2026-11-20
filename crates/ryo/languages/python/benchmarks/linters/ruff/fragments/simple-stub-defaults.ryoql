@@ -35,7 +35,7 @@ let unary_math_candidates = select l.unary as id, l.file as file from unary_math
 let with_unary_candidates = union(left=unary_numeric_candidates, right=unary_math_candidates);
 let complex_expression_candidates = union(left=with_unary_candidates, right=complex_binary_candidates);
 
-let allowed_attribute_names = select id, file from "qualified-name" where path = "math.inf" or path = "math.nan" or path = "math.e" or path = "math.pi" or path = "math.tau" or path = "sys.stdin" or path = "sys.stdout" or path = "sys.stderr" or path = "sys.version" or path = "sys.version_info" or path = "sys.platform" or path = "sys.executable" or path = "sys.prefix" or path = "sys.exec_prefix" or path = "sys.base_prefix" or path = "sys.byteorder" or path = "sys.maxsize" or path = "sys.hexversion" or path = "sys.winver";
+let allowed_attribute_names = select id, file from "qualified-name" where path in ["math.inf", "math.nan", "math.e", "math.pi", "math.tau", "sys.stdin", "sys.stdout", "sys.stderr", "sys.version", "sys.version_info", "sys.platform", "sys.executable", "sys.prefix", "sys.exec_prefix", "sys.base_prefix", "sys.byteorder", "sys.maxsize", "sys.hexversion", "sys.winver"];
 let allowed_attributes = select l.id as id, l.file as file from allowed_attribute_names as l join attribute_nodes as r on l.id = r.id and l.file = r.file;
 let atoms0 = union(left=literals, right=complex_expression_candidates);
 let atoms = union(left=atoms0, right=allowed_attributes);

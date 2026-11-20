@@ -23,7 +23,7 @@ let optional_nodes = select subscript as id, file from subscript_paths where pat
 let union_nodes = select subscript as id, file from subscript_paths where path = "typing.Union" or path = "typing_extensions.Union";
 let literal_nodes = select subscript as id, file from subscript_paths where path = "typing.Literal" or path = "typing_extensions.Literal";
 let annotated_nodes = select subscript as id, file from subscript_paths where path = "typing.Annotated" or path = "typing_extensions.Annotated";
-let direct_special = select id, path, file from origins where path = "typing.Optional" or path = "typing_extensions.Optional" or path = "typing.Any" or path = "typing_extensions.Any" or path = "builtins.object" or path = "typing.Hashable" or path = "typing_extensions.Hashable" or path = "collections.abc.Hashable";
+let direct_special = select id, path, file from origins where path in ["typing.Optional", "typing_extensions.Optional", "typing.Any", "typing_extensions.Any", "builtins.object", "typing.Hashable", "typing_extensions.Hashable", "collections.abc.Hashable"];
 let direct_nullable = select id, file from direct_special;
 let nullable_seeds_0 = union(left=nulls, right=direct_nullable);
 let nullable_seeds = union(left=nullable_seeds_0, right=optional_nodes);

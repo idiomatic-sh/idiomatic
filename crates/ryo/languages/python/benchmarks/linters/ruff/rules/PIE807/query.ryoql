@@ -3,7 +3,7 @@ import line_located from "python/ruff/candidate-locations";
 let lambdas = select id, file, span from "semantic-syntax" where kind = "lambda";
 let argument_fields = select parent, child from "semantic-child" where field = "args";
 let lambda_arguments = select l.parent as lambda, l.child as arguments, r.file as file from argument_fields as l join lambdas as r on l.parent = r.id;
-let parameter_fields = select parent, child, file from "semantic-child" where field = "posonlyargs" or field = "args" or field = "kwonlyargs" or field = "vararg" or field = "kwarg";
+let parameter_fields = select parent, child, file from "semantic-child" where field in ["posonlyargs", "args", "kwonlyargs", "vararg", "kwarg"];
 let parameter_children = select l.lambda as lambda, l.file as file from lambda_arguments as l join parameter_fields as r on l.arguments = r.parent and l.file = r.file;
 let no_parameters = antijoin(left=lambdas,right=parameter_children,left-on=["id","file"],right-on=["lambda","file"]);
 let body_fields = select parent, child from "semantic-child" where field = "body";

@@ -2,7 +2,7 @@ import attribute_items from "rust/clippy/attribute-items";
 input candidates: relation<id: node, file: file, span: span>;
 param names: string;
 output relation<id: node, file: file, span: span>;
-let levels = select occurrence, declaration, target, file from "decorates" where target = "allow" or target = "expect" or target = "warn" or target = "deny" or target = "forbid";
+let levels = select occurrence, declaration, target, file from "decorates" where target in ["allow", "expect", "warn", "deny", "forbid"];
 let level_metas = select l.declaration as declaration, l.target as target, r.child as meta, l.file as file from levels as l join "syntax-child" as r on l.occurrence = r.parent;
 let level_trees = select l.declaration as declaration, l.target as target, r.child as tree, l.file as file from level_metas as l join "syntax-child" as r on l.meta = r.parent;
 let level_attributes = select occurrence as id, file from levels;

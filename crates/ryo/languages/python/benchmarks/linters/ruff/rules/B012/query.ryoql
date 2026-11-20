@@ -2,7 +2,7 @@ import observation_matches from "python/ruff/suppress-matches";
 import line_located from "python/ruff/candidate-locations";
 let jumps = select id, kind, file, span from "semantic-syntax" where kind = "break" or kind = "continue" or kind = "return";
 let final_roots = select child as id from "semantic-child" where field = "finalbody";
-let ordinary = select id from "semantic-syntax" where kind = "if" or kind = "try" or kind = "try-star" or kind = "with" or kind = "async-with" or kind = "match-case";
+let ordinary = select id from "semantic-syntax" where kind in ["if", "try", "try-star", "with", "async-with", "match-case"];
 let body_fields = select parent, child from "semantic-child" where field = "body";
 let ordinary_edges = select r.parent as parent, r.child as child from ordinary as l join body_fields as r on l.id = r.parent;
 let case_edges = select parent, child from "semantic-child" where field = "cases";

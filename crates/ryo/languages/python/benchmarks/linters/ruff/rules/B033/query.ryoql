@@ -3,7 +3,7 @@ import line_located from "python/ruff/candidate-locations";
 let sets = select id, file from "semantic-syntax" where kind = "set";
 let elements = select l.parent as set_id, l.child as id, r.file as file from "semantic-child" as l join sets as r on l.parent = r.id where l.field = "elts";
 let literal_properties = select id, file, kind from "literal-properties";
-let primitive_literals = select r.set_id as set_id, l.id as id, r.file as file from literal_properties as l join elements as r on l.id = r.id and l.file = r.file where l.kind = "integer" or l.kind = "float" or l.kind = "complex" or l.kind = "boolean" or l.kind = "string" or l.kind = "bytes" or l.kind = "null" or l.kind = "ellipsis";
+let primitive_literals = select r.set_id as set_id, l.id as id, r.file as file from literal_properties as l join elements as r on l.id = r.id and l.file = r.file where l.kind in ["integer", "float", "complex", "boolean", "string", "bytes", "null", "ellipsis"];
 let constant_keys = select id, key, file from "constant-key";
 let keyed_elements = select l.set_id as set_id, l.id as id, r.key as key, l.file as file from primitive_literals as l join constant_keys as r on l.id = r.id and l.file = r.file;
 let ordered = select l.set_id as set_id, l.id as id, l.key as key, l.file as file, r."start-byte" as begin from keyed_elements as l join "source-location" as r on l.id = r.id and l.file = r.file;

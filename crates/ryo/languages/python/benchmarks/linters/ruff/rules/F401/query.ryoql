@@ -10,7 +10,7 @@ import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lin
 import line_located from "python/ruff/candidate-locations";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let modules = select id, file from nodes where kind = "module";
-let scopes = select id from nodes where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda";
+let scopes = select id from nodes where kind in ["module", "class-def", "function-def", "async-function-def", "lambda"];
 let assignment_nodes = select id from nodes where kind = "assign" or kind = "ann-assign" or kind = "aug-assign";
 let assignment_scopes = axis(from=assignment_nodes,relation="semantic-child",direction=nearest-ancestor,domain=scopes);
 let module_assignments = select l.id as statement from assignment_scopes as l join modules as r on l.related = r.id;
@@ -174,9 +174,10 @@ let inherited_uses = select b.binding as binding from marker_hits as h join bind
 let copied_and_inherited = union(left=copied_uses,right=inherited_uses);
 let used = union(left=direct_uses,right=copied_and_inherited);
 let branch_nodes = select id, file from nodes where kind = "if" or kind = "try" or kind = "try-star" or kind = "match-case";
-let child_parent_edges = select child as origin, parent as destination from "semantic-child";
-let event_ancestry = closure(edges=child_parent_edges, source="origin", destination="destination");
-let event_branch_ancestors = select l.occurrence as binding, r.destination as owner, l.file as file from events as l join event_ancestry as r on l.occurrence = r.origin;
+let tree_parents = select parent as id from "semantic-child";
+let event_starts = select occurrence as id, file from events;
+let event_walk = axis(from=event_starts, relation="semantic-child", direction=ancestor, domain=tree_parents);
+let event_branch_ancestors = select id as binding, related as owner, file from event_walk;
 let branch_events = select l.binding as binding, l.file as file from event_branch_ancestors as l join branch_nodes as r on l.owner = r.id and l.file = r.file;
 let conditional_delete_bindings = select l.occurrence as binding from events as l join branch_events as r on l.occurrence = r.binding and l.file = r.file where l.kind = "delete";
 let conditional_delete_events = select l.name as name, l.scope as scope, l.phase as phase, l.ordinal as ordinal, l.file as file from events as l join conditional_delete_bindings as r on l.occurrence = r.binding;

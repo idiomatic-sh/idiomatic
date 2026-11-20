@@ -5,8 +5,8 @@ let blocks = span-bounds(from=finalizer_nodes, span="span", start-output="begin"
 let jumps = select id, kind, file, span from "semantic-syntax" where kind = "return-statement" or kind = "throw-statement" or kind = "break-statement" or kind = "continue-statement";
 let jump_bounds = span-bounds(from=jumps, span="span", start-output="begin", end-output="finish");
 let inside = select l.id as id, l.kind as kind, l.file as file, l.span as span, l.begin as begin, l.finish as finish, r.block as block from jump_bounds as l join blocks as r on l.file = r.file where l.begin >= r.begin and l.finish <= r.finish;
-let functions = select id as shelter, file, span from "semantic-syntax" where kind = "function-declaration" or kind = "function-expression" or kind = "arrow-function-expression" or kind = "class-declaration" or kind = "class-expression";
-let loops = select id as shelter, file, span from "semantic-syntax" where kind = "for-statement" or kind = "for-in-statement" or kind = "for-of-statement" or kind = "while-statement" or kind = "do-while-statement";
+let functions = select id as shelter, file, span from "semantic-syntax" where kind in ["function-declaration", "function-expression", "arrow-function-expression", "class-declaration", "class-expression"];
+let loops = select id as shelter, file, span from "semantic-syntax" where kind in ["for-statement", "for-in-statement", "for-of-statement", "while-statement", "do-while-statement"];
 let switches = select id as shelter, file, span from "semantic-syntax" where kind = "switch-statement";
 let function_bounds = span-bounds(from=functions, span="span", start-output="begin", end-output="finish");
 let loop_bounds = span-bounds(from=loops, span="span", start-output="begin", end-output="finish");

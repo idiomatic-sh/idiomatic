@@ -45,7 +45,7 @@ let literal_names = select l.callee as callee, r.value as method from properties
 let computed_names = select l.callee as callee, l.method as method from literal_names as l join computed as r on l.callee = r.callee;
 let methods = union(left=static_names, right=computed_names);
 let mutators = select l.call as call, l.owner as owner, r.method as method from global_callees as l join methods as r on l.callee = r.callee;
-let mutating = select call from mutators where (owner = "Object" and (method = "assign" or method = "defineProperty" or method = "defineProperties" or method = "freeze" or method = "setPrototypeOf")) or (owner = "Reflect" and (method = "defineProperty" or method = "deleteProperty" or method = "set" or method = "setPrototypeOf"));
+let mutating = select call from mutators where (owner = "Object" and (method in ["assign", "defineProperty", "defineProperties", "freeze", "setPrototypeOf"])) or (owner = "Reflect" and (method = "defineProperty" or method = "deleteProperty" or method = "set" or method = "setPrototypeOf"));
 let call_arguments = select l.parent as call, l.child as argument, l.ordinal as ordinal from "semantic-child" as l join mutating as r on l.parent = r.call where l.field = "arguments";
 let first_arguments = group-min(from=call_arguments, keys=["call"], order="ordinal");
 let mutated = select r.reference as id, r.binding as binding, r.file as file, r.span as span, r.span as at from first_arguments as l join bare as r on l.argument = r.reference;

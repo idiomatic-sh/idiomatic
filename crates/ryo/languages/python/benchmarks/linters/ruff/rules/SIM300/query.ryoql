@@ -17,7 +17,7 @@ let math_unary_ids = select l.parent as id, l.file as file from op_fields as l j
 let unary = select l.id as id, l.file as file from nodes as l join math_unary_ids as r on l.id = r.id and l.file = r.file where l.kind = "unary-op";
 let ordinary_composites = select id, file from nodes where kind = "tuple" or kind = "list" or kind = "dict" or kind = "bin-op";
 let composites = union(left=ordinary_composites, right=unary);
-let value_fields = select parent, child, file from "semantic-child" where field = "elts" or field = "keys" or field = "values" or field = "key" or field = "value" or field = "left" or field = "right" or field = "operand";
+let value_fields = select parent, child, file from "semantic-child" where field in ["elts", "keys", "values", "key", "value", "left", "right", "operand"];
 let value_edges = select l.id as origin, r.child as destination from composites as l join value_fields as r on l.id = r.parent and l.file = r.file;
 let descendants = closure(edges=value_edges, source="origin", destination="destination");
 let admitted = union(left=atoms, right=composites);
@@ -40,7 +40,7 @@ let ranks = union(left=positive, right=low);
 let operators = select parent, child, file from "semantic-child" where field = "ops";
 let counts = group-count(from=operators, keys=[parent, file], count="count");
 let single = select parent, file from counts where count = 1;
-let wanted = select id, file from "semantic-syntax" where text = "==" or text = "!=" or text = "<" or text = "<=" or text = ">" or text = ">=";
+let wanted = select id, file from "semantic-syntax" where text in ["==", "!=", "<", "<=", ">", ">="];
 let ordinary_ops = select l.parent as parent, l.file as file from operators as l join wanted as r on l.child = r.id and l.file = r.file;
 let comparisons = select l.parent as id, l.file as file from ordinary_ops as l join single as r on l.parent = r.parent and l.file = r.file;
 let left_fields = select parent, child, file from "semantic-child" where field = "left";

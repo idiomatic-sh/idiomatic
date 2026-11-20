@@ -50,7 +50,7 @@ let call_functions = select l.id as call, r.child as function, l.file as file fr
 let attribute_values = select l.id as attribute, r.child as receiver, l.file as file from attributes as l join edges as r on l.id = r.parent and l.file = r.file where r.field = "value";
 let attribute_labels = select l.id as attribute, r.child as token, l.file as file from attributes as l join edges as r on l.id = r.parent and l.file = r.file where r.field = "attr";
 let attribute_names = select l.attribute as attribute, r.name as name, l.file as file from attribute_labels as l join identifiers as r on l.token = r.id and l.file = r.file;
-let method_names = select attribute, name, file from attribute_names where name = "debug" or name = "info" or name = "warn" or name = "warning" or name = "error" or name = "critical" or name = "log" or name = "exception";
+let method_names = select attribute, name, file from attribute_names where name in ["debug", "info", "warn", "warning", "error", "critical", "log", "exception"];
 let attribute_calls = select l.call as call, l.function as attribute, r.name as method, l.file as file from call_functions as l join method_names as r on l.function = r.attribute and l.file = r.file;
 let receiver_origins = select id, path, file from "qualified-name" where provenance = "import" or provenance = "builtin";
 let module_receivers = select l.attribute as attribute, l.file as file from attribute_values as l join receiver_origins as r on l.receiver = r.id and l.file = r.file where r.path = "logging" or r.path = "flask.current_app.logger";
@@ -116,7 +116,7 @@ let empty_fstrings = antijoin(left=fstrings, right=all_unsafe_fstrings, left-on=
 let direct_false_a = union(left=primitive_false, right=empty_containers);
 let direct_false = union(left=direct_false_a, right=empty_fstrings);
 let builtin_reads = select reference as id, file from "binding-read" where state = "builtin";
-let initializer_labels = select l.id as id, l.file as file from local_name_labels as l join builtin_reads as r on l.id = r.id and l.file = r.file where l.name = "list" or l.name = "tuple" or l.name = "set" or l.name = "dict" or l.name = "frozenset";
+let initializer_labels = select l.id as id, l.file as file from local_name_labels as l join builtin_reads as r on l.id = r.id and l.file = r.file where l.name in ["list", "tuple", "set", "dict", "frozenset"];
 let initializer_calls = select l.call as id, l.file as file from call_functions as l join initializer_labels as r on l.function = r.id and l.file = r.file;
 let any_positionals = select call as id, file from positionals;
 let any_keywords = select call as id, file from keywords;
@@ -125,7 +125,7 @@ let empty_initializers = antijoin(left=keyword_free_initializers, right=any_posi
 let multiple_positional_calls = select l.call as id, l.file as file from positionals as l join positionals as r on l.call = r.call and l.file = r.file where l.ordinal < r.ordinal;
 let single_initializer_calls = antijoin(left=keyword_free_initializers, right=multiple_positional_calls, left-on=["id", "file"], right-on=["id", "file"]);
 let initializer_arguments = select l.id as source, r.argument as destination, l.file as file from single_initializer_calls as l join positionals as r on l.id = r.call and l.file = r.file;
-let excluded_initializer_values_a = select id, file from "literal-properties" where kind = "integer" or kind = "float" or kind = "complex" or kind = "boolean" or kind = "null" or kind = "ellipsis";
+let excluded_initializer_values_a = select id, file from "literal-properties" where kind in ["integer", "float", "complex", "boolean", "null", "ellipsis"];
 let excluded_initializer_values_b = select id, file from nodes where kind = "template-str" or kind = "lambda" or kind = "generator-exp";
 let excluded_initializer_values = union(left=excluded_initializer_values_a, right=excluded_initializer_values_b);
 let initializer_dependencies = antijoin(left=initializer_arguments, right=excluded_initializer_values, left-on=["destination", "file"], right-on=["id", "file"]);

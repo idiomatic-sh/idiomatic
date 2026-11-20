@@ -8,7 +8,7 @@ let optional = select l.parent as id from "semantic-child" as l join "semantic-s
 let plain_calls = antijoin(left=calls, right=optional, left-on=["id"], right-on=["id"]);
 let callee_edges = select l.child as id from "semantic-child" as l join plain_calls as r on l.parent = r.id where l.field = "callee";
 let callees = select r.id as id, r.file as file, r.span as span from callee_edges as l join "semantic-syntax" as r on l.id = r.id;
-let wrappers = select id from "semantic-syntax" where kind = "ts-as-expression" or kind = "ts-satisfies-expression" or kind = "ts-instantiation-expression" or kind = "ts-non-null-expression" or kind = "ts-type-assertion";
+let wrappers = select id from "semantic-syntax" where kind in ["ts-as-expression", "ts-satisfies-expression", "ts-instantiation-expression", "ts-non-null-expression", "ts-type-assertion"];
 let unwrapping = select l.parent as outer, l.child as inner from "semantic-child" as l join wrappers as r on l.parent = r.id where l.field = "expression";
 let unwrapped = closure(edges=unwrapping, source="outer", destination="inner");
 let direct = select id as outer, id as inner from callees;
