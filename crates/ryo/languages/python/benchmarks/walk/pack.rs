@@ -219,7 +219,8 @@ impl Enc {
             | Ins::TestNeR { .. }
             | Ins::TestInC { .. }
             | Ins::Hoist { .. }
-            | Ins::Capture { .. } => panic!("specialised instructions are not stored in the pack"),
+            | Ins::Capture { .. }
+            | Ins::SubFirst { .. } => panic!("specialised instructions are not stored in the pack"),
             Ins::Fork { subs } => {
                 self.u(subs.len() as u32);
                 for (slots, q) in subs.iter() {

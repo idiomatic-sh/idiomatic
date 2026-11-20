@@ -746,6 +746,7 @@ impl<'p> State<'p> {
                 outs,
                 cur_rule: 0,
                 cap_buf: Vec::new(),
+                first_fail: false,
             };
             if ex.c.prof.is_none() && std::env::var("NAV_PROFILE").is_ok() {
                 ex.c.prof = Some(FxMap::default());

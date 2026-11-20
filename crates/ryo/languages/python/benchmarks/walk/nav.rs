@@ -106,6 +106,9 @@ pub(crate) enum Ins {
     Hoist { id: u32, key: Box<[R]>, seg: Prog, caps: Box<[R]> },
     /// pushes the registers' values onto the running hoist's capture buffer
     Capture { regs: Box<[R]> },
+    /// a negated check whose failure holds for every later element of the range walk that encloses it (monotone in the walk's
+    /// start: its only use of the walk is an upper bound on a walk of the same bucket): failing ends that walk
+    SubFirst { subs: Box<[Prog]> },
     Yield,
     SpanBetween { a: Opd, b: Opd, out: R },
     SpanBounds { s: Opd, start: R, end: R },
@@ -114,10 +117,10 @@ pub(crate) enum Ins {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const INS_NAMES: [&str; 31] = [
+pub(crate) const INS_NAMES: [&str; 32] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
     "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
-    "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture",
+    "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture", "sub_first",
 ];
 
 impl Ins {
@@ -155,6 +158,7 @@ impl Ins {
             Ins::TestInC { .. } => 28,
             Ins::Hoist { .. } => 29,
             Ins::Capture { .. } => 30,
+            Ins::SubFirst { .. } => 31,
         }
     }
 }
@@ -643,7 +647,134 @@ fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
             defs.extend(caps.iter().copied());
         }
         Ins::Capture { regs } => reads.extend(regs.iter().copied()),
+        Ins::SubFirst { subs } => sub(subs, reads),
     }
+}
+
+/// Constant folding from bucket walks (NAV_FOLD=0 turns it off): a row reached through a single-value bucket of a tree column
+/// has that value, so a read of that column is known and an equality or membership test on it always holds (dropped).
+pub(crate) fn fold(p: Prog, known: &FxMap<R, u64>) -> Prog {
+    if std::env::var("NAV_FOLD").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut known = known.clone();
+    // row register -> (view column: 0 kind 1 text, value)
+    let mut bucket: FxMap<R, (u8, u64)> = FxMap::default();
+    let one = |val: &Val| match val {
+        Val::Syms(s) if s.len() == 1 => Some(u64::from(s[0])),
+        _ => None,
+    };
+    let mut out: Vec<Ins> = Vec::new();
+    for i in p.into_vec() {
+        match &i {
+            Ins::IterValue { rel: TRel::Ss, col, val, out: o } | Ins::IterRange { rel: TRel::Ss, col, val, out: o, .. } if *col == 1 || *col == 2 => {
+                if let Some(c) = one(val) {
+                    bucket.insert(*o, (*col - 1, c));
+                }
+            }
+            Ins::IterKind { kinds, out: o } if kinds.len() == 1 => {
+                bucket.insert(*o, (0, u64::from(kinds[0])));
+            }
+            Ins::IterField { field, field_out, .. } => {
+                known.insert(*field_out, u64::from(*field));
+            }
+            Ins::ReadCol { which, row, out: x } if *which <= 1 => {
+                if let Some(&(c, v)) = bucket.get(row) {
+                    if c == *which {
+                        known.insert(*x, v);
+                    }
+                }
+            }
+            Ins::TestEqC { reg, c } if known.get(reg) == Some(c) => continue,
+            Ins::TestInC { reg, set, negate: false } if known.get(reg).is_some_and(|&k| k <= u64::from(u32::MAX) && set.binary_search(&(k as u32)).is_ok()) => continue,
+            _ => {}
+        }
+        let i = match i {
+            Ins::Sub { negate, subs } => Ins::Sub { negate, subs: subs.into_vec().into_iter().map(|q| fold(q, &known)).collect::<Vec<_>>().into() },
+            Ins::Near { start, out: o, subs } => {
+                Ins::Near { start, out: o, subs: subs.into_vec().into_iter().map(|q| fold(q, &known)).collect::<Vec<_>>().into() }
+            }
+            Ins::Fork { subs } => Ins::Fork { subs: subs.into_vec().into_iter().map(|(sl, q)| (sl, fold(q, &known))).collect::<Vec<_>>().into() },
+            other => other,
+        };
+        out.push(i);
+    }
+    out.into()
+}
+
+/// Marks first-element checks (NAV_FIRST=0 turns it off): after a range walk with no upper bound, a negated single
+/// sub-program in the same straight run whose last step before Yield walks the same bucket below the walk's start, and which
+/// reads nothing else bound by the walk or after it, becomes SubFirst.
+pub(crate) fn mark_first(p: Prog) -> Prog {
+    if std::env::var("NAV_FIRST").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut v: Vec<Ins> = p
+        .into_vec()
+        .into_iter()
+        .map(|i| match i {
+            Ins::Sub { negate, subs } => Ins::Sub { negate, subs: subs.into_vec().into_iter().map(mark_first).collect::<Vec<_>>().into() },
+            Ins::Near { start, out, subs } => Ins::Near { start, out, subs: subs.into_vec().into_iter().map(mark_first).collect::<Vec<_>>().into() },
+            Ins::Fork { subs } => Ins::Fork { subs: subs.into_vec().into_iter().map(|(sl, q)| (sl, mark_first(q))).collect::<Vec<_>>().into() },
+            other => other,
+        })
+        .collect();
+    for i in 0..v.len() {
+        let (oval, ost, oout) = match &v[i] {
+            Ins::IterRange { val, start, out, hi: None, .. } => (format!("{val:?}"), *start, *out),
+            _ => continue,
+        };
+        // registers bound by the walk or after it, up to the check
+        let mut bound_after: Vec<R> = vec![ost, oout];
+        let mut j = i + 1;
+        while j < v.len() {
+            if is_iter(&v[j]) || matches!(v[j], Ins::Fork { .. } | Ins::Emit { .. } | Ins::Hoist { .. } | Ins::Yield) {
+                break;
+            }
+            let ok = match &v[j] {
+                Ins::Sub { negate: true, subs } if subs.len() == 1 => {
+                    let q = &subs[0];
+                    let n = q.len();
+                    n >= 2
+                        && matches!(q[n - 1], Ins::Yield)
+                        && matches!(&q[n - 2], Ins::IterRange { val, hi: Some((h, false)), lo, .. }
+                            if format!("{val:?}") == oval && *h == ost && lo.is_none_or(|(l, _)| !bound_after.contains(&l)))
+                        && q[..n - 2].iter().all(|k| {
+                            let (mut r, mut d) = (Vec::new(), Vec::new());
+                            reads_defs(k, &mut r, &mut d);
+                            r.iter().all(|x| !bound_after.contains(x))
+                        })
+                }
+                _ => false,
+            };
+            if !ok && std::env::var_os("NAV_FIRST_DEBUG").is_some() {
+                if let Ins::Sub { negate: true, subs } = &v[j] {
+                    let q = &subs[0];
+                    let n = q.len();
+                    let bad: Vec<R> = q[..n.saturating_sub(2)]
+                        .iter()
+                        .flat_map(|k| {
+                            let (mut r, mut d) = (Vec::new(), Vec::new());
+                            reads_defs(k, &mut r, &mut d);
+                            r
+                        })
+                        .filter(|x| bound_after.contains(x))
+                        .collect();
+                    eprintln!("first? subs {} last {:?} bad {:?} bound {:?}", subs.len(), q.get(n.wrapping_sub(2)).map(|i| format!("{i:?}").chars().take(120).collect::<String>()), bad, bound_after);
+                }
+            }
+            if ok {
+                let Ins::Sub { subs, .. } = std::mem::replace(&mut v[j], Ins::Yield) else { unreachable!() };
+                v[j] = Ins::SubFirst { subs };
+                break;
+            }
+            let (mut r, mut d) = (Vec::new(), Vec::new());
+            reads_defs(&v[j], &mut r, &mut d);
+            bound_after.extend(d);
+            j += 1;
+        }
+    }
+    v.into()
 }
 
 fn is_iter(i: &Ins) -> bool {
@@ -762,13 +893,14 @@ pub(crate) fn hoist(p: Prog) -> Prog {
 impl NavProgram {
     /// the final load step: specialise every program the executor runs
     pub(crate) fn specialize_all(&mut self) {
+        let none = FxMap::default();
         for g in &mut self.groups {
-            g.prog = hoist(specialize(std::mem::take(&mut g.prog)));
+            g.prog = mark_first(hoist(fold(specialize(std::mem::take(&mut g.prog)), &none)));
         }
         for f in &mut self.facts {
             if let Some((progs, ..)) = &mut f.made {
                 for q in progs.iter_mut() {
-                    *q = hoist(specialize(std::mem::take(q)));
+                    *q = mark_first(hoist(fold(specialize(std::mem::take(q)), &none)));
                 }
             }
         }
@@ -1202,7 +1334,8 @@ fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
         | Ins::TestNeR { .. }
         | Ins::TestInC { .. }
         | Ins::Hoist { .. }
-        | Ins::Capture { .. } => unreachable!("specialisation runs after the tries are built"),
+        | Ins::Capture { .. }
+        | Ins::SubFirst { .. } => unreachable!("specialisation runs after the tries are built"),
         Ins::SpanBetween { a, b, out } => {
             let a = o(a, f);
             let b = o(b, f);
@@ -1398,6 +1531,8 @@ pub(crate) struct Exec<'a, 'p> {
     pub cur_rule: usize,
     /// the running hoist's capture buffer
     pub cap_buf: Vec<u64>,
+    /// set by a failing SubFirst: the enclosing range walk stops
+    pub first_fail: bool,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -2595,6 +2730,10 @@ impl<'a, 'p> Exec<'a, 'p> {
                             if self.run_inner(p, pc + 1) {
                                 return true;
                             }
+                            if self.first_fail {
+                                self.first_fail = false;
+                                break;
+                            }
                         }
                     }
                     return false;
@@ -2711,6 +2850,13 @@ impl<'a, 'p> Exec<'a, 'p> {
                         self.run_inner(q, 0)
                     });
                     if any == *negate {
+                        return false;
+                    }
+                }
+                Ins::SubFirst { subs } => {
+                    self.c.subs += 1;
+                    if self.run_inner(&subs[0], 0) {
+                        self.first_fail = true;
                         return false;
                     }
                 }
