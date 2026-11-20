@@ -662,6 +662,10 @@ fn is_iter(i: &Ins) -> bool {
     )
 }
 
+thread_local! {
+    static HOIST_ANY: bool = std::env::var("NAV_HOIST_ANY").is_ok_and(|v| v == "1");
+}
+
 static HOIST_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 /// Loop-invariant inner enumerations (NAV_HOIST=0 turns it off): an iteration whose inputs were all bound before an
@@ -700,7 +704,9 @@ pub(crate) fn hoist(p: Prog) -> Prog {
         };
         if candidate {
             let d = reads.iter().map(|r| def_at[r]).max().unwrap();
-            let enclosing = (d + 1..s).any(|j| is_iter(&v[j]));
+            // inside a loop whose body re-derives the same key (an iteration after the key's binding), or (NAV_HOIST_ANY) any
+            // loop at all: the runtime turns a site's memo off when its keys do not repeat
+            let enclosing = (d + 1..s).any(|j| is_iter(&v[j])) || (HOIST_ANY.with(|h| *h) && (0..s).any(|j| is_iter(&v[j])));
             if enclosing {
                 // grow the segment while each step reads only the key or what the segment defined
                 let key: Vec<R> = {
@@ -1275,6 +1281,8 @@ pub(crate) struct Counters {
     pub made_steps_total: u64,
     pub hoist_runs: u64,
     pub hoist_misses: u64,
+    /// per hoist site over the run: (lookups, misses)
+    pub hoist_sites: FxMap<u32, (u64, u64)>,
     pub made_depth: u32,
     /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
     pub diag: bool,
@@ -2614,14 +2622,22 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Hoist { id, key, seg, caps } => {
                     let hk = (*id, self.regs[key[0] as usize], key.get(1).map_or(0, |&r| self.regs[r as usize]));
-                    let tuples = match self.cache.hoisted.get(&hk) {
-                        Some(t) => t.clone(),
+                    // per site over the run: (lookups, misses); a site whose keys do not repeat stops memoising
+                    let site = self.c.hoist_sites.entry(*id).or_default();
+                    site.0 += 1;
+                    let off = site.0 >= 256 && site.1 * 10 >= site.0 * 9;
+                    let cached = if off { None } else { self.cache.hoisted.get(&hk).cloned() };
+                    let tuples = match cached {
+                        Some(t) => t,
                         None => {
                             let saved = std::mem::take(&mut self.cap_buf);
                             self.run_inner(seg, 0);
                             let t = Rc::new(std::mem::replace(&mut self.cap_buf, saved));
                             self.c.hoist_misses += 1;
-                            self.cache.hoisted.insert(hk, t.clone());
+                            self.c.hoist_sites.get_mut(id).unwrap().1 += 1;
+                            if !off {
+                                self.cache.hoisted.insert(hk, t.clone());
+                            }
                             t
                         }
                     };
