@@ -116,21 +116,24 @@ fn every_step() -> Vec<ProgramStep> {
             out: reg(4),
         },
         ProgramStep::Children {
+            relation: Relation::SyntaxTree,
             parent: reg(0),
             field: Some(FieldCode(6)),
             out: reg(5),
         },
         ProgramStep::Axis {
+            relation: Relation::SyntaxTree,
             direction: AxisDirection::NextSibling,
             start: reg(5),
             out: reg(6),
         },
         ProgramStep::Within {
+            relation: Relation::SyntaxTree,
             ancestor: reg(0),
             descendant: reg(6),
         },
         ProgramStep::Nearest {
-            edges: NearestEdges::Tree,
+            edges: NearestEdges::Tree(Relation::SyntaxTree),
             condition,
             element: reg(20),
             start: reg(6),
@@ -269,6 +272,7 @@ fn definition(
 pub(super) fn every_variant() -> LoweredPack {
     let called = program(vec![
         ProgramStep::Children {
+            relation: Relation::SyntaxTree,
             parent: reg(60),
             field: None,
             out: reg(61),

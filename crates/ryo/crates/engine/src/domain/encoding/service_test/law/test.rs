@@ -38,9 +38,9 @@ const WORDS: &str = "\
 10 EachMatchMade EachMatchMadeWord { flag: WordFlag(0), values: Short(0), out: Register(16), value: WordSlot(1), index: IndexSite(1) } @2\n\
 11 EachRange EachRangeWord { flag: WordFlag(19), values: Short(1), out: Register(2), operands: PoolAt(9), index: IndexSite(2) } @3\n\
 12 EachRowMade EachRowMadeWord { flag: WordFlag(4), out: Register(4), table: MadeTableId(3) } @4\n\
-13 ChildrenOfField ChildrenOfFieldWord { field: FieldCode(6), parent: Register(0), out: Register(5) } @5\n\
-14 Axis AxisWord { direction: WordFlag(3), start: Register(5), out: Register(6) } @6\n\
-15 Within WithinWord { ancestor: Register(0), descendant: Register(6) } @7\n\
+13 ChildrenOfField ChildrenOfFieldWord { flag: WordFlag(0), field: FieldCode(6), parent: Register(0), out: Register(5) } @5\n\
+14 Axis AxisWord { flag: WordFlag(0), direction: WordFlag(3), start: Register(5), out: Register(6) } @6\n\
+15 Within WithinWord { flag: WordFlag(0), ancestor: Register(0), descendant: Register(6) } @7\n\
 16 Nearest NearestWord { flag: WordFlag(1), start: Register(6), out: Register(7), operands: PoolAt(17) } @8\n\
 17 Closure ClosureWord { seed: Register(7), out: Register(8), operands: PoolAt(21) } @9\n\
 18 ReadNode ReadNodeWord { column: Short(1), row: Register(8), out: Register(9) } @10\n\
@@ -71,7 +71,7 @@ const WORDS: &str = "\
 43 StageWrite WriteWord { flag: WordFlag(1), columns: Short(2), table: MadeTableId(0), operands: PoolAt(105) } @-\n\
 44 StageScan ScanWord { flag: WordFlag(5), out: Register(50), constants: PoolAt(117), read: WordSlot(0) } @33\n\
 45 StageWrite WriteWord { flag: WordFlag(0), columns: Short(2), table: MadeTableId(1), operands: PoolAt(119) } @-\n\
-46 Children ChildrenWord { parent: Register(60), out: Register(61) } @34\n\
+46 Children ChildrenWord { flag: WordFlag(0), parent: Register(60), out: Register(61) } @34\n\
 47 Yield YieldWord { cells: Short(1), row: WordSlot(61) } @35\n\
 48 End no operand @-\n\
 49 StageScan ScanWord { flag: WordFlag(2), out: Register(50), constants: PoolAt(0), read: WordSlot(1) } @36\n\

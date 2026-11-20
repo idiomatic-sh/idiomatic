@@ -7,6 +7,8 @@ pub(crate) const NO_SLOT: WordSlot = WordSlot(u32::MAX);
 
 /// On a node-source code: the file's own tree only, its embedded segments left out.
 pub(crate) const OWN_TREE: WordFlag = WordFlag(0x80);
+/// `Axis`: the bits that hold the direction's code.
+pub(crate) const AXIS_DIRECTION: WordFlag = WordFlag(0x07);
 /// `EachKind`: several kinds, listed in the pool.
 pub(crate) const SEVERAL: WordFlag = WordFlag(0x01);
 /// A match, a `Let`: the value is a constant's number.

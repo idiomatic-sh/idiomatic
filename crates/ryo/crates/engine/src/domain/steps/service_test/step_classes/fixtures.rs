@@ -178,7 +178,7 @@ fn nearest_edges(scenario: Scenario) -> NearestEdges {
             from: register(2),
         }
     } else {
-        NearestEdges::Tree
+        NearestEdges::Tree(Relation::SyntaxTree)
     }
 }
 
@@ -209,21 +209,25 @@ pub(super) fn step(scenario: Scenario) -> ProgramStep {
             out: register(0),
         },
         Scenario::Children => ProgramStep::Children {
+            relation: Relation::SyntaxTree,
             parent: register(0),
             field: None,
             out: register(1),
         },
         Scenario::AxisParent => ProgramStep::Axis {
+            relation: Relation::SyntaxTree,
             direction: AxisDirection::Parent,
             start: register(0),
             out: register(1),
         },
         Scenario::AxisDescendant => ProgramStep::Axis {
+            relation: Relation::SyntaxTree,
             direction: AxisDirection::Descendant,
             start: register(0),
             out: register(1),
         },
         Scenario::Within => ProgramStep::Within {
+            relation: Relation::SyntaxTree,
             ancestor: register(0),
             descendant: register(1),
         },

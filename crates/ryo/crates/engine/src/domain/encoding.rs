@@ -12,6 +12,7 @@ pub mod sites;
 pub mod tables;
 pub mod types;
 pub mod units;
+pub mod walks;
 
 #[cfg(test)]
 mod service_test;

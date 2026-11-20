@@ -1,7 +1,8 @@
 //! The services of the `walking` part of the `code` concept: one constructor and one reader for each of
 //! the words that walk the tree and the edges a body yields: the one place each is written and read.
 
-use crate::domain::code::types::{CodeWord, Op, PoolAt, Short, WordSlot};
+use crate::domain::code::constants::{AXIS_DIRECTION, OWN_TREE};
+use crate::domain::code::types::{CodeWord, Op, PoolAt, Short, WordFlag, WordSlot};
 use crate::domain::code::walking::types::{
     AxisWord, ChildrenOfFieldWord, ChildrenWord, ClosureWord, NearestWord, WithinWord,
 };
@@ -13,6 +14,7 @@ use ryo_language::domain::node_table::types::FieldCode;
 pub(crate) fn children(operands: ChildrenWord) -> CodeWord {
     CodeWord {
         op: Op::Children,
+        flag: operands.flag,
         a: WordSlot(operands.parent.0),
         b: WordSlot(operands.out.0),
         ..CodeWord::default()
@@ -23,6 +25,7 @@ pub(crate) fn children(operands: ChildrenWord) -> CodeWord {
 #[must_use]
 pub(crate) const fn children_of(word: CodeWord) -> ChildrenWord {
     ChildrenWord {
+        flag: word.flag,
         parent: Register(word.a.0),
         out: Register(word.b.0),
     }
@@ -33,6 +36,7 @@ pub(crate) const fn children_of(word: CodeWord) -> ChildrenWord {
 pub(crate) fn children_of_field(operands: ChildrenOfFieldWord) -> CodeWord {
     CodeWord {
         op: Op::ChildrenOfField,
+        flag: operands.flag,
         short: Short(operands.field.0),
         a: WordSlot(operands.parent.0),
         b: WordSlot(operands.out.0),
@@ -44,6 +48,7 @@ pub(crate) fn children_of_field(operands: ChildrenOfFieldWord) -> CodeWord {
 #[must_use]
 pub(crate) const fn children_of_field_of(word: CodeWord) -> ChildrenOfFieldWord {
     ChildrenOfFieldWord {
+        flag: word.flag,
         field: FieldCode(word.short.0),
         parent: Register(word.a.0),
         out: Register(word.b.0),
@@ -55,7 +60,7 @@ pub(crate) const fn children_of_field_of(word: CodeWord) -> ChildrenOfFieldWord 
 pub(crate) fn axis(operands: AxisWord) -> CodeWord {
     CodeWord {
         op: Op::Axis,
-        flag: operands.direction,
+        flag: WordFlag(operands.direction.0 | operands.flag.0),
         a: WordSlot(operands.start.0),
         b: WordSlot(operands.out.0),
         ..CodeWord::default()
@@ -66,7 +71,8 @@ pub(crate) fn axis(operands: AxisWord) -> CodeWord {
 #[must_use]
 pub(crate) const fn axis_of(word: CodeWord) -> AxisWord {
     AxisWord {
-        direction: word.flag,
+        flag: WordFlag(word.flag.0 & OWN_TREE.0),
+        direction: WordFlag(word.flag.0 & AXIS_DIRECTION.0),
         start: Register(word.a.0),
         out: Register(word.b.0),
     }
@@ -77,6 +83,7 @@ pub(crate) const fn axis_of(word: CodeWord) -> AxisWord {
 pub(crate) fn within(operands: WithinWord) -> CodeWord {
     CodeWord {
         op: Op::Within,
+        flag: operands.flag,
         a: WordSlot(operands.ancestor.0),
         b: WordSlot(operands.descendant.0),
         ..CodeWord::default()
@@ -87,6 +94,7 @@ pub(crate) fn within(operands: WithinWord) -> CodeWord {
 #[must_use]
 pub(crate) const fn within_of(word: CodeWord) -> WithinWord {
     WithinWord {
+        flag: word.flag,
         ancestor: Register(word.a.0),
         descendant: Register(word.b.0),
     }
