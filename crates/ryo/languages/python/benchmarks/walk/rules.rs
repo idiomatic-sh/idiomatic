@@ -769,6 +769,34 @@ impl<'p> State<'p> {
                 let r0 = nav.slot_rule[g.slots[0] as usize];
                 if g.slots.iter().all(|&s| nav.slot_rule[s as usize] == r0) { r0 as usize } else { nrules }
             };
+            // batched: each kind-anchored merged program over its whole candidate list (straight-line steps as loops)
+            let batched = std::env::var("NAV_BATCH").is_ok_and(|v| v == "1");
+            if batched {
+                let mut ids: Vec<u32> = Vec::new();
+                for (gi, g) in nav.groups.iter().enumerate() {
+                    let Some(kinds) = &g.kinds else { continue };
+                    if !g.slots.iter().any(|&s| ex.cache.enabled[s as usize]) {
+                        continue;
+                    }
+                    ids.clear();
+                    for &k in kinds.iter() {
+                        ids.extend_from_slice(ex.bucket(k));
+                    }
+                    if ids.is_empty() {
+                        continue;
+                    }
+                    let p: &[crate::nav::Ins] = &nav.groups[gi].prog;
+                    let crate::nav::Ins::IterKind { out, .. } = &p[0] else { unreachable!() };
+                    ex.c.visits += ids.len() as u64;
+                    ex.cur_rule = group_rule(gi as u32);
+                    let s0 = ex.c.steps;
+                    ex.run_batched(&p[1..], *out, &ids);
+                    let e = ex.c.branch_steps.entry((gi as u32, 0)).or_default();
+                    e.0 += ids.len() as u64;
+                    e.1 += ex.c.steps - s0;
+                }
+                used.clear();
+            }
             // nodes outer, merged programs inner
             for &k in &used {
                 let list = &dispatch[k as usize];
@@ -783,10 +811,11 @@ impl<'p> State<'p> {
                         ex.c.visits += 1;
                         ex.cur_rule = group_rule(gi);
                         let s0 = ex.c.steps;
+                        let m0 = ex.c.made_steps_total;
                         ex.run(p, 1);
                         let e = ex.c.branch_steps.entry((gi, 0)).or_default();
                         e.0 += 1;
-                        e.1 += ex.c.steps - s0;
+                        e.1 += (ex.c.steps - s0) - (ex.c.made_steps_total - m0);
                     }
                 }
             }
@@ -794,10 +823,11 @@ impl<'p> State<'p> {
                 let p: &[crate::nav::Ins] = &nav.groups[gi as usize].prog;
                 ex.cur_rule = group_rule(gi);
                 let s0 = ex.c.steps;
+                let m0 = ex.c.made_steps_total;
                 ex.run(p, 0);
                 let e = ex.c.branch_steps.entry((gi, 0)).or_default();
                 e.0 += 1;
-                e.1 += ex.c.steps - s0;
+                e.1 += (ex.c.steps - s0) - (ex.c.made_steps_total - m0);
             }
             ex.cache.dispatch = dispatch;
             ex.cache.dispatch_used = used;
@@ -1030,8 +1060,8 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"made_ns\":{},\"index_ns\":{},\"index_tree_ns\":{},\"index_const_ns\":{},\"index_fact_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
-                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"batched_steps\":{},\"made_ns\":{},\"index_ns\":{},\"index_tree_ns\":{},\"index_const_ns\":{},\"index_fact_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
+                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.batched_steps, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
                 c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.visits,
                 crate::nav::INS_NAMES.iter().enumerate().map(|(i, n)| format!("\"{n}\":{}", c.op_steps[i])).collect::<Vec<_>>().join(","),
                 self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
@@ -1045,7 +1075,7 @@ impl<'p> State<'p> {
             let nav = self.program.nav.as_ref().unwrap();
             let top: Vec<String> = b
                 .iter()
-                .take(60)
+                .take(if std::env::var_os("NAV_ALLBRANCHES").is_some() { usize::MAX } else { 60 })
                 .map(|((g, br), (n, st))| {
                     let r = nav.slot_rule[nav.groups[*g as usize].slots[0] as usize] as usize;
                     format!("[\"{}/g{g}x{}\",{br},{n},{st}]", nav.rules[r].id, nav.groups[*g as usize].slots.len())

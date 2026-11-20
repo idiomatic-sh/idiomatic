@@ -988,6 +988,11 @@ pub(crate) struct Counters {
     pub branch_steps: FxMap<(u32, u32), (u64, u64)>,
     /// NAV_PROFILE: steps per instruction site (its address)
     pub prof: Option<FxMap<usize, u64>>,
+    /// steps executed inside batched loops
+    pub batched_steps: u64,
+    /// steps spent building made tables (outermost builds), excluded from per-program accounting
+    pub made_steps_total: u64,
+    pub made_depth: u32,
     /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
     pub diag: bool,
 }
@@ -1268,6 +1273,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         let made_before = self.c.made_ns;
         let fact_before = self.c.fact_ns;
         let steps0 = self.c.steps;
+        self.c.made_depth += 1;
         self.ensure_facts();
         let slot = self.outs.len() - 1;
         let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
@@ -1301,6 +1307,10 @@ impl<'a, 'p> Exec<'a, 'p> {
         e.1 += excl;
         e.2 += (rows.len() / width.max(&1)) as u64;
         e.3 += self.c.steps - steps0;
+        self.c.made_depth -= 1;
+        if self.c.made_depth == 0 {
+            self.c.made_steps_total += self.c.steps - steps0;
+        }
         self.cache.keyed_memo.insert((rel, value), (start, end));
         (start, end)
     }
@@ -1461,6 +1471,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some((progs, keys, distinct, width)) = &prog.facts[rel as usize].made {
             let nkeys = &keys.len();
             let made_t0 = Instant::now();
+            self.c.made_depth += 1;
             let made_before = self.c.made_ns;
             let fact_before = self.c.fact_ns;
             let steps0 = self.c.steps;
@@ -1524,6 +1535,10 @@ impl<'a, 'p> Exec<'a, 'p> {
             e.1 += excl;
             e.2 += (rows_len / width.max(&1)) as u64;
             e.3 += self.c.steps - steps0;
+            self.c.made_depth -= 1;
+            if self.c.made_depth == 0 {
+                self.c.made_steps_total += self.c.steps - steps0;
+            }
             if owner < self.c.rule_made_rows.len() {
                 self.c.rule_made_rows[owner] += cols[*nkeys].len() as u64 + (rows_len / width.max(&1)) as u64;
                 self.c.rule_made_steps[owner] += self.c.steps - steps0;
@@ -1828,6 +1843,140 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.c.rule_visits[r] += self.c.visits - visits0;
         let _ = &mut pc;
         flow
+    }
+
+    /// Batched anchor loop (NAV_BATCH=0 turns it off): `p` runs over every candidate of a bucket at once; its straight-line
+    /// reads and tests are loops over a selection vector, a Fork hands the survivors to each enabled child, and the first
+    /// instruction that is neither runs per survivor with the batch's registers restored.
+    pub(crate) fn run_batched(&mut self, p: &'p [Ins], anchor: R, ids: &[u32]) {
+        let mut cols: Vec<(R, Vec<u64>)> = vec![(anchor, ids.iter().map(|&x| u64::from(x)).collect())];
+        let sel: Vec<u32> = (0..ids.len() as u32).collect();
+        self.batch(p, 0, &mut cols, sel);
+    }
+
+    fn batch(&mut self, p: &'p [Ins], pc0: usize, cols: &mut Vec<(R, Vec<u64>)>, mut sel: Vec<u32>) {
+        let base = cols.len();
+        let col = |cols: &[(R, Vec<u64>)], r: R| cols.iter().rposition(|c| c.0 == r);
+        let mut pc = pc0;
+        let v = self.f.view;
+        loop {
+            if sel.is_empty() {
+                break;
+            }
+            match &p[pc] {
+                Ins::ReadCol { which, row, out } if col(cols, *row).is_some() => {
+                    let ci = col(cols, *row).unwrap();
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    let src = &cols[ci].1;
+                    let mut o = vec![0u64; src.len()];
+                    let a: &[u32] = match which {
+                        0 => &v.kind,
+                        1 => &v.text,
+                        2 => &v.start,
+                        _ => &v.stop,
+                    };
+                    sel.retain(|&k| {
+                        let i = src[k as usize] as usize;
+                        if i < a.len() {
+                            o[k as usize] = u64::from(a[i]);
+                            true
+                        } else {
+                            false
+                        }
+                    });
+                    cols.push((*out, o));
+                }
+                Ins::ReadChild { which, row, out } if col(cols, *row).is_some() => {
+                    let ci = col(cols, *row).unwrap();
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    let src = &cols[ci].1;
+                    let mut o = vec![0u64; src.len()];
+                    let a: &[u32] = match which {
+                        0 => &v.parent,
+                        1 => &v.ordinal,
+                        _ => &v.field,
+                    };
+                    sel.retain(|&k| {
+                        let i = src[k as usize] as usize;
+                        if i < v.parent.len() && v.parent[i] != u32::MAX {
+                            o[k as usize] = u64::from(a[i]);
+                            true
+                        } else {
+                            false
+                        }
+                    });
+                    cols.push((*out, o));
+                }
+                Ins::Row { rel, key } if col(cols, *key).is_some() && *rel != TRel::Id => {
+                    let ci = col(cols, *key).unwrap();
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    let src = &cols[ci].1;
+                    let rel = *rel;
+                    sel.retain(|&k| {
+                        let i = src[k as usize] as usize;
+                        i < v.parent.len() && (rel != TRel::Sc || v.parent[i] != u32::MAX)
+                    });
+                }
+                Ins::TestEqC { reg, c } if col(cols, *reg).is_some() => {
+                    let src = &cols[col(cols, *reg).unwrap()].1;
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| src[k as usize] == *c);
+                }
+                Ins::TestNeC { reg, c } if col(cols, *reg).is_some() => {
+                    let src = &cols[col(cols, *reg).unwrap()].1;
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| src[k as usize] != *c);
+                }
+                Ins::TestInC { reg, set, negate } if col(cols, *reg).is_some() => {
+                    let src = &cols[col(cols, *reg).unwrap()].1;
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| {
+                        let x = src[k as usize];
+                        (x <= u64::from(u32::MAX) && set.binary_search(&(x as u32)).is_ok()) != *negate
+                    });
+                }
+                Ins::TestEqR { a, b } if col(cols, *a).is_some() && col(cols, *b).is_some() => {
+                    let (x, y) = (&cols[col(cols, *a).unwrap()].1, &cols[col(cols, *b).unwrap()].1);
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| x[k as usize] == y[k as usize]);
+                }
+                Ins::TestNeR { a, b } if col(cols, *a).is_some() && col(cols, *b).is_some() => {
+                    let (x, y) = (&cols[col(cols, *a).unwrap()].1, &cols[col(cols, *b).unwrap()].1);
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| x[k as usize] != y[k as usize]);
+                }
+                Ins::Fork { subs } => {
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    for (slots, q) in subs.iter() {
+                        if !slots.iter().any(|&s| self.cache.enabled[s as usize]) {
+                            continue;
+                        }
+                        self.batch(q, 0, cols, sel.clone());
+                    }
+                    break;
+                }
+                _ => {
+                    for &k in &sel {
+                        for (r, vals) in cols.iter() {
+                            self.regs[*r as usize] = vals[k as usize];
+                        }
+                        self.run_inner(p, pc);
+                    }
+                    break;
+                }
+            }
+            pc += 1;
+        }
+        cols.truncate(base);
     }
 
     fn run_inner(&mut self, p: &'p [Ins], pc: usize) -> bool {
