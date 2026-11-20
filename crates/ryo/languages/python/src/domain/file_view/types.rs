@@ -15,7 +15,7 @@ use crate::domain::token_links::types::Opener;
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PythonWalk<P = ()> {
     /// The ports the walk calls.
-    pub ports: P,
+    pub(crate) ports: P,
 }
 
 /// One walked file as the fillers read it: its syntax in place, the language version it is read under, and its semantic model,
@@ -23,15 +23,15 @@ pub(crate) struct PythonWalk<P = ()> {
 #[derive(Debug)]
 pub(crate) struct PythonFile<'f> {
     /// The node table, the typed node of each syntax node and the text.
-    pub syntax: SyntaxFile<'f>,
+    pub(crate) syntax: SyntaxFile<'f>,
     /// The language version the file is read under.
-    pub target: TargetVersion,
+    pub(crate) target: TargetVersion,
     /// The semantic model, lent from the worker's buffers.
-    pub model: &'f mut SemanticModel,
+    pub(crate) model: &'f mut SemanticModel,
     /// The parts of the model this file has built.
-    pub built: Built,
+    pub(crate) built: Built,
     /// The buffers the fillers write through, lent from the worker's.
-    pub buffers: &'f mut FillBuffers,
+    pub(crate) buffers: &'f mut FillBuffers,
 }
 
 impl ModelView for PythonFile<'_> {
@@ -55,22 +55,22 @@ impl ModelView for PythonFile<'_> {
 #[derive(Debug, Default)]
 pub(crate) struct PythonScratch {
     /// The semantic model's buffers.
-    pub model: SemanticModel,
+    pub(crate) model: SemanticModel,
     /// The fillers' buffers.
-    pub buffers: FillBuffers,
+    pub(crate) buffers: FillBuffers,
 }
 
 /// The buffers the fillers of a file write through: kept by the worker from file to file, so a fill allocates none of its own.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FillBuffers {
     /// A text a filler builds for one row.
-    pub text: TextBuffer,
+    pub(crate) text: TextBuffer,
     /// The fixed words this file has interned.
-    pub fixed: FixedWords,
+    pub(crate) fixed: FixedWords,
     /// The open brackets of a scan of the tokens.
-    pub brackets: Vec<Opener>,
+    pub(crate) brackets: Vec<Opener>,
     /// The indentation regions of the file.
-    pub regions: Vec<IndentationRegion>,
+    pub(crate) regions: Vec<IndentationRegion>,
     /// Where the lines of the file start.
-    pub lines: FileLines,
+    pub(crate) lines: FileLines,
 }

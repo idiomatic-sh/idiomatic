@@ -24,7 +24,7 @@ pub(crate) struct FixtureView<'f> {
     /// The node table.
     pub table: &'f NodeTable,
     /// The library's node of each node id.
-    pub nodes: &'f [AnyNodeRef<'f>],
+    pub(crate) nodes: &'f [AnyNodeRef<'f>],
     /// The file's number.
     pub file: FileId,
     /// The model.

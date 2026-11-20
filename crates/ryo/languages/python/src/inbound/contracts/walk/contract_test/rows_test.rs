@@ -166,6 +166,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Relation::RawFormatField, "raw_format_field"),
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("the_filler_of_syntax_error_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::SyntaxError, "syntax_error"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_standard_library_import_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::StandardLibraryImport, "standard_library_import"),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 /// The rows of one side the other lacks, shown.

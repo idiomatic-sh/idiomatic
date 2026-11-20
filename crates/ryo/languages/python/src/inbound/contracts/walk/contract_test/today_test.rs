@@ -42,8 +42,10 @@ const FILLED: &[Relation] = &[
     Relation::Resolves,
     Relation::Scope,
     Relation::SourceLocation,
+    Relation::StandardLibraryImport,
     Relation::StaticImport,
     Relation::StringLiteral,
+    Relation::SyntaxError,
     Relation::TokenLink,
 ];
 

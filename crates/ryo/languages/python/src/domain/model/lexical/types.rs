@@ -10,9 +10,9 @@ use std::hash::BuildHasherDefault;
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TypedTree<'t, 'a> {
     /// The node table: parents, subtree ends and spans by id.
-    pub table: &'t NodeTable,
+    pub(crate) table: &'t NodeTable,
     /// The parser's node of each node id, in id order.
-    pub nodes: &'t [AnyNodeRef<'a>],
+    pub(crate) nodes: &'t [AnyNodeRef<'a>],
 }
 
 /// What a node is to the language's name rules.

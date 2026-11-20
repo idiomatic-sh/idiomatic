@@ -80,8 +80,10 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         raw_format_field: RawFormatField => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatFieldItem;
         raw_format_segment: RawFormatSegment => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatSegmentItem;
         source_location: SourceLocation => super::source_location::SourceLocationItem;
+        standard_library_import: StandardLibraryImport => crate::domain::relations::collections::relations::standard_library_import::item::StandardLibraryImportItem;
         static_import: StaticImport => crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
         string_literal: StringLiteral => crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
+        syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
         token_link: TokenLink => crate::inbound::contracts::parse::readers::token_link::composition::TokenLinkItem;
     }
 
@@ -134,9 +136,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         prose: Prose => NotADocument;
         sequence_element: SequenceElement => NotAKeyedDocument;
         source_dependency: SourceDependency => NotYetRead;
-        standard_library_import: StandardLibraryImport => NotYetRead;
         static_call: StaticCall => NotYetRead;
-        syntax_error: SyntaxError => NotYetRead;
         visibility: Visibility => NoSuchConstruct;
         workspace_member: WorkspaceMember => NotYetRead;
     }
