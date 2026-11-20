@@ -1604,7 +1604,10 @@ version = "0.2.0"
 dependencies = [
  "dhat",
  "divan",
+ "idiomatic-sh-ryo-execution-runtime",
+ "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-python",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-sdk",
  "indexmap",
  "pep508_rs",
