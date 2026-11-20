@@ -732,8 +732,6 @@ impl<'p> State<'p> {
         self.cache.keyed_memo.clear();
         self.cache.plan_built.clear();
         self.cache.plan_charged.clear();
-        self.cache.twin_rent.clear();
-        self.cache.twin_bought.clear();
         self.cache.hoisted.clear();
         self.cache.probed.clear();
         self.cache.dkey_built = false;
@@ -850,34 +848,6 @@ impl<'p> State<'p> {
                 let r0 = nav.slot_rule[g.slots[0] as usize];
                 if g.slots.iter().all(|&s| nav.slot_rule[s as usize] == r0) { r0 as usize } else { nrules }
             };
-            // batched: each kind-anchored merged program over its whole candidate list (straight-line steps as loops)
-            let batched = std::env::var("NAV_BATCH").is_ok_and(|v| v == "1");
-            if batched {
-                let mut ids: Vec<u32> = Vec::new();
-                for (gi, g) in nav.groups.iter().enumerate() {
-                    let Some(kinds) = &g.kinds else { continue };
-                    if !g.slots.iter().any(|&s| ex.cache.enabled[s as usize]) {
-                        continue;
-                    }
-                    ids.clear();
-                    for &k in kinds.iter() {
-                        ids.extend_from_slice(ex.bucket(k));
-                    }
-                    if ids.is_empty() {
-                        continue;
-                    }
-                    let p: &[crate::nav::Ins] = &nav.groups[gi].prog;
-                    let crate::nav::Ins::IterKind { out, .. } = &p[0] else { unreachable!() };
-                    ex.c.visits += ids.len() as u64;
-                    ex.cur_rule = group_rule(gi as u32);
-                    let s0 = ex.c.steps;
-                    ex.run_batched(&p[1..], *out, &ids);
-                    let e = ex.c.branch_steps.entry((gi as u32, 0)).or_default();
-                    e.0 += ids.len() as u64;
-                    e.1 += ex.c.steps - s0;
-                }
-                used.clear();
-            }
             // nodes outer, merged programs inner
             for &k in &used {
                 let list = &dispatch[k as usize];
@@ -1160,8 +1130,8 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"batched_steps\":{},\"const_misses\":{},\"csr_builds\":{},\"csr_ns\":{},\"hoist_runs\":{},\"hoist_misses\":{},\"twin_switches\":{},\"made_ns\":{},\"index_ns\":{},\"index_tree_ns\":{},\"index_const_ns\":{},\"index_fact_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"keyed_calls\":{},\"keyed_misses\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
-                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.batched_steps, c.const_misses, c.csr_builds, c.csr_ns, c.hoist_runs, c.hoist_misses, c.twin_switches, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"batched_steps\":{},\"const_misses\":{},\"csr_builds\":{},\"csr_ns\":{},\"hoist_runs\":{},\"hoist_misses\":{},\"made_ns\":{},\"index_ns\":{},\"index_tree_ns\":{},\"index_const_ns\":{},\"index_fact_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"keyed_calls\":{},\"keyed_misses\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
+                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.batched_steps, c.const_misses, c.csr_builds, c.csr_ns, c.hoist_runs, c.hoist_misses, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
                 c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits, c.keyed_calls, c.keyed_misses,
                 crate::nav::INS_NAMES.iter().enumerate().map(|(i, n)| format!("\"{n}\":{}", c.op_steps.get(i).copied().unwrap_or(0))).collect::<Vec<_>>().join(","),
                 {

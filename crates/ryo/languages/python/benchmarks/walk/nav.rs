@@ -437,12 +437,6 @@ pub(crate) struct FactRel {
     pub made: Option<(Vec<Prog>, Vec<usize>, Option<usize>, usize)>,
     /// navwide: a made table answered by an ordered match
     pub made_om: Option<OrderedMatch>,
-    /// a keyed twin: its programs enumerate the input rows whose output key column `.0` equals register `.1` (set before
-    /// the run); rows are filled per key on first demand
-    pub keyed: Option<(u8, R)>,
-    /// a keyed twin's base (unkeyed) table, u16::MAX when none: a file whose keyed builds cost more than building the base once
-    /// switches to the base (ski rental)
-    pub base: u16,
     /// registers its programs use (0..nregs): saved and restored around a build inside a running program
     pub nregs: usize,
 }
@@ -508,15 +502,11 @@ struct Loader<'a> {
     alias: &'a mut FxMap<String, u16>,
     /// the rule whose programs are loading (u32::MAX while its made tables load)
     rule: u32,
-    /// the shared sub-program table of the rule loading: its definitions. NAV_DEFS=0 (the joined engine's reading): inlined at
-    /// load, register maps differing per context, the identical sub-programs shared again by `reshare`.
+    /// the shared sub-program table of the rule loading: its definitions
     shared_json: &'a [Value],
-    /// definitions kept as entries of the shared table (the default): a reference loads as `Ins::Shared` of `shared_base` plus
+    /// whether the rule has definitions: a reference loads as `Ins::Shared` of `shared_base` plus
     /// its index in the rule's table
     defs: bool,
-    /// NAV_DEFS is on for the load (whether or not this rule has definitions): registers from FRAME_BASE up are interface
-    /// registers, so no program numbers its own that high
-    frames_on: bool,
     shared_base: usize,
     /// the rule's interface registers: variables some definition reads without binding them (its formals, and registers of
     /// its caller it reads directly). They keep one fixed register, FRAME_BASE up, in every program of the rule; every other
@@ -530,11 +520,6 @@ struct Loader<'a> {
 /// Registers below FRAME_BASE are a program's own (canonical per program, saved around a made table's build); from FRAME_BASE
 /// up they are a rule's interface registers and then the private registers of its definitions (`NavProgram::load`).
 pub(crate) const FRAME_BASE: R = 4096;
-
-thread_local! {
-    /// whether the program loading keeps definitions (NAV_DEFS, on unless 0): only then is FRAME_BASE a boundary
-    static FRAMES_ON: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
-}
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
     let mut out = String::from("^");
@@ -572,7 +557,7 @@ impl Loader<'_> {
             return r;
         }
         let n = self.regs.len();
-        assert!(n < FRAME_BASE as usize || self.prescan || !self.frames_on, "a program with {n} registers of its own (FRAME_BASE)");
+        assert!(n < FRAME_BASE as usize || self.prescan, "a program with {n} registers of its own (FRAME_BASE)");
         *self.regs.entry(k).or_insert(n as R)
     }
 
@@ -635,7 +620,7 @@ impl Loader<'_> {
         }
         let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
         let model = if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
-        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None, keyed: None, base: u16::MAX, nregs: 0 });
+        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None, nregs: 0 });
         (self.facts.len() - 1) as u16
     }
 
@@ -665,11 +650,7 @@ impl Loader<'_> {
     fn prog(&mut self, p: &Value) -> Prog {
         let a = p.as_array().unwrap();
         if a.len() == 1 && a[0][0] == "shared" {
-            if self.defs {
-                return vec![Ins::Shared { idx: (self.shared_base + a[0][1].as_u64().unwrap() as usize) as u32 }].into();
-            }
-            let sj = self.shared_json;
-            return self.prog(&sj[a[0][1].as_u64().unwrap() as usize]);
+            return vec![Ins::Shared { idx: (self.shared_base + a[0][1].as_u64().unwrap() as usize) as u32 }].into();
         }
         fuse(p.as_array().unwrap().iter().map(|i| self.ins(i)).collect::<Vec<_>>()).into()
     }
@@ -1490,8 +1471,7 @@ pub(crate) fn sink(p: Prog) -> Prog {
     let mut k = v.len();
     while k > 0 {
         k -= 1;
-        let plain = SINK_ALL.with(|x| *x) && matches!(v[k], Ins::Sub { .. });
-        if !plain && !matches!(v[k], Ins::SubKey { .. } | Ins::AncExists { .. }) {
+        if !matches!(v[k], Ins::SubKey { .. } | Ins::AncExists { .. }) {
             continue;
         }
         let mut reads = Vec::new();
@@ -1744,7 +1724,6 @@ thread_local! {
     /// plan: the unit being hoisted has a learned order (set per unit by specialize_all); slots whose rules' order was dropped
     static HOIST_EFF: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static PLAN_DENIED: std::cell::RefCell<Vec<bool>> = const { std::cell::RefCell::new(Vec::new()) };
-    static HOIST_ANY: bool = std::env::var("NAV_HOIST_ANY").is_ok_and(|v| v == "1");
 }
 
 static HOIST_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
@@ -1783,17 +1762,13 @@ pub(crate) fn ins_free_reads(i: &Ins) -> Vec<R> {
 }
 
 thread_local! {
-    static SKI: bool = !std::env::var("NAV_SKI").is_ok_and(|v| v == "0");
     static PROVIDER_ALL: bool = std::env::var_os("NAV_PROVIDER").is_some();
     static HOIST_CONST: bool = !std::env::var("NAV_HOIST_CONST").is_ok_and(|v| v == "0");
     static HOIST_DEFER: bool = !std::env::var("NAV_HOIST_DEFER").is_ok_and(|v| v == "0");
     static HOIST_PROBE: bool = !std::env::var("NAV_HOIST_PROBE").is_ok_and(|v| v == "0");
     static HOIST_SHARE: bool = !std::env::var("NAV_HOIST_SHARE").is_ok_and(|v| v == "0");
-    static SINK_ALL: bool = std::env::var("NAV_SINK_ALL").is_ok_and(|v| v == "1");
     static HOIST_OUTER: bool = !std::env::var("NAV_HOIST_OUTER").is_ok_and(|v| v == "0");
     static HOIST_IDS: std::cell::RefCell<FxMap<String, u32>> = std::cell::RefCell::new(FxMap::default());
-    static HOIST_CALLS: u8 = std::env::var("NAV_HOIST_CALLS").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
-    static HOIST_ENTRY: bool = std::env::var("NAV_HOIST_ENTRY").is_ok_and(|v| v == "1");
     /// set before a pass runs over a definition whose every use is memoised by its args; the pass's first level takes it
     static MEMO_ENTRY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
@@ -1804,7 +1779,7 @@ pub(crate) fn is_test(i: &Ins) -> bool {
 
 fn hoist_rec(p: Prog, nested: bool) -> Prog {
     // the top level of a definition every use of which is memoised by its args: it runs once per value of the registers
-    // bound outside it, so an iteration keyed on those cannot repeat (NAV_HOIST_ENTRY=1: hoisted as any sub-program is)
+    // bound outside it, so an iteration keyed on those cannot repeat
     let memo_top = MEMO_ENTRY.with(|c| c.replace(false));
     let mut v: Vec<Ins> = p.into_vec();
     // recurse first
@@ -1862,7 +1837,7 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
             // a key read (single-valued) from a loop's variable is many-to-one: it repeats across that loop's elements (planned
             // units only; a site whose keys do not repeat stops memoising at run time)
             let via_read = eff_on && d < s && is_loop(&v[d]) && reads.iter().any(|r| derived.get(r).copied().unwrap_or(false));
-            let enclosing = konst || outer_any || via_read || (d + 1..s).any(|j| is_loop(&v[j])) || (HOIST_ANY.with(|h| *h) && (0..s).any(|j| is_loop(&v[j])));
+            let enclosing = konst || outer_any || via_read || (d + 1..s).any(|j| is_loop(&v[j]));
             if enclosing {
                 // grow the segment while each step reads only the key or what the segment defined
                 let key: Vec<R> = if konst {
@@ -1883,17 +1858,12 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
                         break;
                     }
                     // a test deferred past the segment no longer guards what follows it: the segment goes on over reads and
-                    // tests only, not over an iteration, a check or a call the test stood before (NAV_HOIST_CALLS=1: it goes
-                    // on over anything, the joined engine's rule; 2: it stops only at calls and probes of definitions)
+                    // tests only, not over an iteration, a check or a call the test stood before (measured over the 345:
+                    // 183.0M steps; going on over anything, the joined engine's rule, 512.7M; stopping only at calls 344.8M)
                     if !deferred.is_empty() && {
-                        let call = matches!(v[t], Ins::UnionKeyed { .. } | Ins::SubKeyed { .. } | Ins::Probe { .. } | Ins::ProbeTest { .. });
                         let mut has_subs = false;
                         subs_ref(&v[t], &mut |_| has_subs = true);
-                        match HOIST_CALLS.with(|h| *h) {
-                            1 => false,
-                            2 => call,
-                            _ => has_subs || is_iter(&v[t]),
-                        }
+                        has_subs || is_iter(&v[t])
                     } {
                         break;
                     }
@@ -2005,27 +1975,13 @@ impl NavProgram {
         let none = FxMap::default();
         // the registers each shared entry reads (entries only reference entries before them)
         self.shared_tables();
-        // each pass over every program, timed (NAV_VERBOSE). NAV_PIPELINE=join: the joined engine's order (hoist before the
-        // first-element marks and the memo pass, then the sink). Otherwise (plan): the structural passes first, then the measured
+        // each pass over every program, timed (NAV_VERBOSE): the structural passes first, then the measured
         // order (NAV_PLAN=<statistics>), then the hoist; a unit with no learned order takes the sink as its prior.
         // NAV_PLAN_STAGE=stats stops before the plan: the programs a statistics run executes.
-        let join = std::env::var("NAV_PIPELINE").is_ok_and(|v| v == "join");
         let stats_stage = std::env::var("NAV_PLAN_STAGE").is_ok_and(|v| v == "stats");
         let fold_none = |q: Prog| fold(q, &none);
         let ident = |q: Prog| q;
-        let stages: Vec<(&str, &dyn Fn(Prog) -> Prog)> = if join {
-            vec![
-                ("specialise", &specialize),
-                ("toward", &fuse_within),
-                ("fact2", &fuse_fact2),
-                ("detach", &detach),
-                ("fold", &fold_none),
-                ("hoist", &hoist),
-                ("first", &mark_first),
-                ("memo", &memoize),
-                ("sink", &sink),
-            ]
-        } else {
+        let stages: Vec<(&str, &dyn Fn(Prog) -> Prog)> = {
             let mut v: Vec<(&str, &dyn Fn(Prog) -> Prog)> = vec![
                 ("specialise", &specialize),
                 ("toward", &fuse_within),
@@ -2070,7 +2026,7 @@ impl NavProgram {
             }
             HOIST_EFF.with(|e| e.set(planned.as_ref().is_some_and(|p| p.2)));
             if !(skip && planned.as_ref().is_some_and(|p| p.2)) {
-                let memo_only = if name == "hoist" && !HOIST_ENTRY.with(|h| *h) { self.memo_only() } else { Vec::new() };
+                let memo_only = if name == "hoist" { self.memo_only() } else { Vec::new() };
                 for (k, q) in self.shared.iter_mut().enumerate() {
                     MEMO_ENTRY.with(|c| c.set(memo_only.get(k).copied().unwrap_or(false)));
                     pass(q);
@@ -2629,8 +2585,6 @@ impl NavProgram {
         // canonical form of a made table (its programs with registers numbered from 0, keys, kinds) -> its fact index
         let mut canon: FxMap<String, u16> = FxMap::default();
         let share = !std::env::var("NAV_SHARE_MADE").is_ok_and(|v| v == "0");
-        let defs_on = !std::env::var("NAV_DEFS").is_ok_and(|v| v == "0");
-        FRAMES_ON.with(|f| f.set(defs_on));
         // the definitions of every rule (the shared table's first entries; `reshare` appends the hash-consed sub-programs)
         let mut shared: Vec<Prog> = Vec::new();
         let mut frames = Frames::default();
@@ -2649,8 +2603,7 @@ impl NavProgram {
                 alias: &mut alias,
                 rule: u32::MAX,
                 shared_json,
-                defs: defs_on && !shared_json.is_empty(),
-                frames_on: defs_on,
+                defs: !shared_json.is_empty(),
                 shared_base: shared.len(),
                 frame: FxMap::default(),
                 prescan: false,
@@ -2712,7 +2665,7 @@ impl NavProgram {
                         }),
                     };
                     max_regs = max_regs.max(loader.regs.len());
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), keyed: None, base: u16::MAX, nregs: loader.regs.len() });
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), nregs: loader.regs.len() });
                     continue;
                 }
                 if m["op"] == "ordered_match" {
@@ -2732,22 +2685,12 @@ impl NavProgram {
                         dfs: None,
                     };
                     max_regs = max_regs.max(loader.regs.len());
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), keyed: None, base: u16::MAX, nregs: loader.regs.len() });
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), nregs: loader.regs.len() });
                     continue;
                 }
                 let name = m["name"].as_str().unwrap().to_owned();
-                let keyed = m.get("param").map(|p| (m["keycol"].as_u64().unwrap() as u8, loader.reg(p)));
-                let base = match (&keyed, name.rsplit_once('@')) {
-                    (Some(_), Some((b, _))) => loader
-                        .alias
-                        .get(b)
-                        .copied()
-                        .or_else(|| loader.facts.iter().position(|f| f.name == b).map(|i| i as u16))
-                        .unwrap_or(u16::MAX),
-                    _ => u16::MAX,
-                };
                 max_regs = max_regs.max(loader.regs.len());
-                let key = format!("{progs:?}|{}|{}|{}|{kinds:?}|{keyed:?}", m["keys"], m["distinct"], m["width"]);
+                let key = format!("{progs:?}|{}|{}|{}|{kinds:?}", m["keys"], m["distinct"], m["width"]);
                 if share {
                     if let Some(&i) = canon.get(&key) {
                         loader.alias.insert(name, i);
@@ -2767,8 +2710,6 @@ impl NavProgram {
                         m["distinct"].as_u64().map(|d| d as usize),
                         m["width"].as_u64().unwrap() as usize,
                     )),
-                    keyed,
-                    base,
                     nregs: loader.regs.len(),
                 });
             }
@@ -2784,7 +2725,7 @@ impl NavProgram {
                         .unwrap()
                         .iter()
                         .map(|a| {
-                            if loader.frames_on {
+                            {
                                 // each program numbers its own registers (the trie renumbers them again); interface registers fixed
                                 top_regs = top_regs.max(loader.regs.len());
                                 loader.regs = FxMap::default();
@@ -2868,7 +2809,7 @@ impl NavProgram {
                 let prog = std::mem::take(&mut alts[0].prog);
                 let mut m: FxMap<R, R> = FxMap::default();
                 let canon: Vec<Ins> = prog.into_vec().into_iter().map(|i| map_regs(i, &mut m)).collect();
-                assert!(m.len() < FRAME_BASE as usize || !FRAMES_ON.with(|f| f.get()), "a program with {} registers of its own (FRAME_BASE)", m.len());
+                assert!(m.len() < FRAME_BASE as usize, "a program with {} registers of its own (FRAME_BASE)", m.len());
                 max_regs = max_regs.max(m.len());
                 let key = alts[0].anchor.clone();
                 let gi = if merge { by_anchor.iter().position(|(k, _)| *k == key) } else { None };
@@ -2896,7 +2837,7 @@ impl NavProgram {
                         .map(|i| {
                             let (mut r, mut d) = (Vec::new(), Vec::new());
                             reads_defs_top(i, &mut r, &mut d);
-                            if FRAMES_ON.with(|f| f.get()) && d.iter().any(|x| *x >= FRAME_BASE) { format!("{i:?}#{s}") } else { format!("{i:?}") }
+                            if d.iter().any(|x| *x >= FRAME_BASE) { format!("{i:?}#{s}") } else { format!("{i:?}") }
                         })
                         .collect();
                     (s, p, k)
@@ -2971,9 +2912,8 @@ fn clone_ins(i: &Ins) -> Ins {
 /// Renumbers every register of `i` (and its sub-programs) through `m`, assigning the next number on first appearance.
 /// Interface registers (FRAME_BASE up) keep their number: the rule's definitions read them there.
 fn map_regs(i: Ins, m: &mut FxMap<R, R>) -> Ins {
-    let frames = FRAMES_ON.with(|f| f.get());
     map_regs_ref(&i, &mut |r| {
-        if frames && r >= FRAME_BASE {
+        if r >= FRAME_BASE {
             return r;
         }
         let n = m.len() as R;
@@ -3278,13 +3218,10 @@ pub(crate) struct Counters {
     /// per SubKey site over the run: (lookups, misses)
     pub key_sites: FxMap<usize, (u64, u64, u64)>,
     /// per base made table over the run: (steps of its builds, builds) as a twin's buy price; twins switched
-    pub twin_buy: FxMap<u16, (u64, u64)>,
-    pub twin_switches: u64,
     /// NAV_DIAG: fork children looked at, and those skipped as disabled in the file
     pub fork_children: u64,
     pub fork_disabled: u64,
     /// per twin over the run: (files using it, files where it switched to its base)
-    pub twin_files: FxMap<u16, (u64, u64)>,
     /// NearMemo / AncExists memo arrays allocated (per file per site) and their cells
     pub memo_allocs: u64,
     pub memo_cells: u64,
@@ -3478,8 +3415,6 @@ pub(crate) struct FileCache {
     pub plan_built: FxMap<u16, u64>,
     pub plan_charged: FxMap<(usize, u16), ()>,
     /// ski rental per keyed twin in this file: steps spent in keyed builds, and the twins switched to their base
-    pub twin_rent: FxMap<u16, u64>,
-    pub twin_bought: std::collections::HashSet<u16, std::hash::BuildHasherDefault<crate::sema::Fx>>,
     /// hoisted inner enumerations per (site, key values): captured tuples, flattened
     pub hoisted: FxMap<(u32, u64, u64), Rc<Vec<u64>>>,
     /// HoistProbe: per (site, key values) the captured tuples indexed by the probed register
@@ -3966,160 +3901,6 @@ impl<'a, 'p> Exec<'a, 'p> {
             i = j;
         }
         out
-    }
-
-    /// A keyed twin's rows for one key value: run its programs with the key register set, group, append; memoised per file.
-    #[inline(never)]
-    fn keyed_rows(&mut self, rel: u16, value: u64) -> (u32, u32) {
-        if let Some(&r) = self.cache.keyed_memo.get(&(rel, value)) {
-            return r;
-        }
-        let prog = self.prog;
-        let f = &prog.facts[rel as usize];
-        // ski rental (NAV_SKI=0 turns it off): per file, keyed builds run until their steps exceed what building the base table
-        // once costs (the run's average so far); then the base is built and indexed by the key, and every later key is served
-        // from it
-        if f.base != u16::MAX && SKI.with(|s| *s) {
-            let bought = self.cache.twin_bought.contains(&rel);
-            let rent = self.cache.twin_rent.get(&rel).copied().unwrap_or(0);
-            let (buy_steps, buys) = self.c.twin_buy.get(&f.base).copied().unwrap_or((0, 0));
-            // per twin over the run: (files using it, files where it switched); a twin that switched in most files it served
-            // switches at once
-            let first_use = !self.cache.twin_rent.contains_key(&rel) && !bought;
-            let (used, switched) = self.c.twin_files.get(&rel).copied().unwrap_or((0, 0));
-            if first_use {
-                self.c.twin_files.entry(rel).or_default().0 += 1;
-            }
-            let budget = if used >= 8 && switched * 2 >= used {
-                0
-            } else if buys == 0 {
-                20_000
-            } else {
-                buy_steps / buys
-            };
-            if bought || rent > budget || budget == 0 {
-                return self.keyed_from_base(rel, value);
-            }
-        }
-        let steps_at = self.c.steps;
-        let site = self.c.cur_site;
-        let r = self.keyed_build(rel, value);
-        if self.c.diag && self.c.prof.is_some() {
-            *self.c.site_extra.entry(site).or_default() += self.c.steps - steps_at;
-        }
-        *self.cache.twin_rent.entry(rel).or_default() += (self.c.steps - steps_at).max(1);
-        r
-    }
-
-    /// a keyed twin's rows for one key value from its base table (built once per file, indexed by the key column)
-    fn keyed_from_base(&mut self, rel: u16, value: u64) -> (u32, u32) {
-        let prog = self.prog;
-        let f = &prog.facts[rel as usize];
-        let base = f.base;
-        let col = f.keyed.unwrap().0;
-        if self.cache.twin_bought.insert(rel) {
-            self.c.twin_files.entry(rel).or_default().1 += 1;
-            let loaded = self.cache.facts.as_ref().is_some_and(|x| x.loaded[base as usize]);
-            if !loaded {
-                let s0 = self.c.steps;
-                self.ensure(base);
-                let e = self.c.twin_buy.entry(base).or_default();
-                e.0 += self.c.steps - s0;
-                e.1 += 1;
-            }
-            self.c.twin_switches += 1;
-        }
-        let idx = self.fact_index(base, col);
-        let rows: Vec<u32> = match &*idx {
-            FIdx::Dense { head, next } => {
-                let mut v = Vec::new();
-                if (value as usize) < head.len() - 1 {
-                    let mut r = head[value as usize];
-                    while r != u32::MAX {
-                        v.push(r);
-                        r = next[r as usize];
-                    }
-                }
-                v
-            }
-            FIdx::Hash(m) => m.get(&value).cloned().unwrap_or_default(),
-            FIdx::Sorted { keys, rows } => {
-                if value >= u64::from(u32::MAX) {
-                    Vec::new()
-                } else {
-                    let a = keys.partition_point(|&k| k < value as u32);
-                    let b = a + keys[a..].partition_point(|&k| k == value as u32);
-                    rows[a..b].to_vec()
-                }
-            }
-        };
-        let facts = self.cache.facts.as_mut().unwrap();
-        let width = facts.cols[rel as usize].len();
-        let start = facts.cols[rel as usize][width - 1].len() as u32;
-        for &r in &rows {
-            for c in 0..width {
-                let v = facts.cols[base as usize][c][r as usize];
-                facts.cols[rel as usize][c].push(v);
-            }
-        }
-        let end = facts.cols[rel as usize][width - 1].len() as u32;
-        self.cache.keyed_memo.insert((rel, value), (start, end));
-        (start, end)
-    }
-
-    fn keyed_build(&mut self, rel: u16, value: u64) -> (u32, u32) {
-        let prog = self.prog;
-        let f = &prog.facts[rel as usize];
-        let (progs, keys, distinct, width) = f.made.as_ref().unwrap();
-        let (_, param) = f.keyed.unwrap();
-        let t0 = Tick::now();
-        let made_before = self.c.made_ns;
-        let fact_before = self.c.fact_ns;
-        let steps0 = self.c.steps;
-        if self.c.made_depth == 0 {
-            self.c.top_rule = self.cur_rule;
-        }
-        self.c.made_depth += 1;
-        self.ensure_facts();
-        let slot = self.outs.len() - 1;
-        let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
-        let nr = f.nregs;
-        let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
-        self.cur_rule = slot;
-        self.regs[param as usize] = value;
-        for q in progs {
-            self.run_inner(q, 0);
-        }
-        self.regs[..nr].copy_from_slice(&saved_regs);
-        let rows = std::mem::replace(&mut self.outs[slot], saved.1);
-        self.cur_rule = saved.0;
-        let grouped = Self::group_rows(&rows, keys, *distinct, *width);
-        let nk = keys.len();
-        let facts = self.cache.facts.as_mut().unwrap();
-        let cols = &mut facts.cols[rel as usize];
-        let start = cols[nk].len() as u32;
-        for g in grouped.chunks(nk + 1) {
-            for (c, v) in g.iter().enumerate() {
-                cols[c].push(*v);
-            }
-        }
-        let end = cols[nk].len() as u32;
-        self.c.made_tables += 1;
-        self.c.made_rows += u64::from(end - start) + (rows.len() / width.max(&1)) as u64;
-        let excl = t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before) - (self.c.made_ns - made_before);
-        self.c.charge_made(excl);
-        self.c.made_ns = made_before + t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before);
-        let e = self.c.made_by.entry(rel).or_default();
-        e.0 += 1;
-        e.1 += excl;
-        e.2 += (rows.len() / width.max(&1)) as u64;
-        e.3 += self.c.steps - steps0;
-        self.c.made_depth -= 1;
-        if self.c.made_depth == 0 {
-            self.c.made_steps_total += self.c.steps - steps0;
-        }
-        self.cache.keyed_memo.insert((rel, value), (start, end));
-        (start, end)
     }
 
     fn ensure_facts(&mut self) {
@@ -5094,139 +4875,6 @@ impl<'a, 'p> Exec<'a, 'p> {
         flow
     }
 
-    /// Batched anchor loop (NAV_BATCH=0 turns it off): `p` runs over every candidate of a bucket at once; its straight-line
-    /// reads and tests are loops over a selection vector, a Fork hands the survivors to each enabled child, and the first
-    /// instruction that is neither runs per survivor with the batch's registers restored.
-    pub(crate) fn run_batched(&mut self, p: &'p [Ins], anchor: R, ids: &[u32]) {
-        let mut cols: Vec<(R, Vec<u64>)> = vec![(anchor, ids.iter().map(|&x| u64::from(x)).collect())];
-        let sel: Vec<u32> = (0..ids.len() as u32).collect();
-        self.batch(p, 0, &mut cols, sel);
-    }
-
-    fn batch(&mut self, p: &'p [Ins], pc0: usize, cols: &mut Vec<(R, Vec<u64>)>, mut sel: Vec<u32>) {
-        let base = cols.len();
-        let col = |cols: &[(R, Vec<u64>)], r: R| cols.iter().rposition(|c| c.0 == r);
-        let mut pc = pc0;
-        let v = self.f.view;
-        loop {
-            if sel.is_empty() {
-                break;
-            }
-            match &p[pc] {
-                Ins::ReadCol { which, row, out } if *which != 1 && col(cols, *row).is_some() => {
-                    let ci = col(cols, *row).unwrap();
-                    self.c.steps += sel.len() as u64;
-                    self.c.batched_steps += sel.len() as u64;
-                    let src = &cols[ci].1;
-                    let mut o = vec![0u64; src.len()];
-                    let a: &[u32] = match which {
-                        0 => &v.kind,
-                        2 => &v.start,
-                        _ => &v.stop,
-                    };
-                    sel.retain(|&k| {
-                        let i = src[k as usize] as usize;
-                        if i < a.len() {
-                            o[k as usize] = u64::from(a[i]);
-                            true
-                        } else {
-                            false
-                        }
-                    });
-                    cols.push((*out, o));
-                }
-                Ins::ReadChild { which, row, out } if col(cols, *row).is_some() => {
-                    let ci = col(cols, *row).unwrap();
-                    self.c.steps += sel.len() as u64;
-                    self.c.batched_steps += sel.len() as u64;
-                    let src = &cols[ci].1;
-                    let mut o = vec![0u64; src.len()];
-                    let a: &[u32] = match which {
-                        0 => &v.parent,
-                        1 => &v.ordinal,
-                        _ => &v.field,
-                    };
-                    sel.retain(|&k| {
-                        let i = src[k as usize] as usize;
-                        if i < v.parent.len() && v.parent[i] != u32::MAX {
-                            o[k as usize] = u64::from(a[i]);
-                            true
-                        } else {
-                            false
-                        }
-                    });
-                    cols.push((*out, o));
-                }
-                Ins::Row { rel, key } if col(cols, *key).is_some() && *rel != TRel::Id => {
-                    let ci = col(cols, *key).unwrap();
-                    self.c.steps += sel.len() as u64;
-                    self.c.batched_steps += sel.len() as u64;
-                    let src = &cols[ci].1;
-                    let rel = *rel;
-                    sel.retain(|&k| {
-                        let i = src[k as usize] as usize;
-                        i < v.parent.len() && (rel != TRel::Sc || v.parent[i] != u32::MAX)
-                    });
-                }
-                Ins::TestEqC { reg, c } if col(cols, *reg).is_some() => {
-                    let src = &cols[col(cols, *reg).unwrap()].1;
-                    self.c.steps += sel.len() as u64;
-                    self.c.batched_steps += sel.len() as u64;
-                    sel.retain(|&k| src[k as usize] == *c);
-                }
-                Ins::TestNeC { reg, c } if col(cols, *reg).is_some() => {
-                    let src = &cols[col(cols, *reg).unwrap()].1;
-                    self.c.steps += sel.len() as u64;
-                    self.c.batched_steps += sel.len() as u64;
-                    sel.retain(|&k| src[k as usize] != *c);
-                }
-                Ins::TestInC { reg, set, negate } if col(cols, *reg).is_some() => {
-                    let src = &cols[col(cols, *reg).unwrap()].1;
-                    self.c.steps += sel.len() as u64;
-                    self.c.batched_steps += sel.len() as u64;
-                    sel.retain(|&k| {
-                        let x = src[k as usize];
-                        (x <= u64::from(u32::MAX) && set.binary_search(&(x as u32)).is_ok()) != *negate
-                    });
-                }
-                Ins::TestEqR { a, b } if col(cols, *a).is_some() && col(cols, *b).is_some() => {
-                    let (x, y) = (&cols[col(cols, *a).unwrap()].1, &cols[col(cols, *b).unwrap()].1);
-                    self.c.steps += sel.len() as u64;
-                    self.c.batched_steps += sel.len() as u64;
-                    sel.retain(|&k| x[k as usize] == y[k as usize]);
-                }
-                Ins::TestNeR { a, b } if col(cols, *a).is_some() && col(cols, *b).is_some() => {
-                    let (x, y) = (&cols[col(cols, *a).unwrap()].1, &cols[col(cols, *b).unwrap()].1);
-                    self.c.steps += sel.len() as u64;
-                    self.c.batched_steps += sel.len() as u64;
-                    sel.retain(|&k| x[k as usize] != y[k as usize]);
-                }
-                Ins::Fork { subs } => {
-                    self.c.steps += sel.len() as u64;
-                    self.c.batched_steps += sel.len() as u64;
-                    for (slots, q) in subs.iter() {
-                        if !slots.is_empty() && !slots.iter().any(|&s| self.cache.enabled[s as usize]) {
-                            continue;
-                        }
-                        self.batch(q, 0, cols, sel.clone());
-                    }
-                    break;
-                }
-                _ => {
-                    for &k in &sel {
-                        for (r, vals) in cols.iter() {
-                            self.regs[*r as usize] = vals[k as usize];
-                        }
-                        self.run_inner(p, pc);
-                    }
-                    break;
-                }
-            }
-            pc += 1;
-        }
-        cols.truncate(base);
-    }
-
     /// Runs `p` from `pc` (a sub-program, a fork child or a made table's program from its start; NAV_PROFILE records each
     /// such run's inclusive steps per program).
     #[inline]
@@ -5412,20 +5060,6 @@ impl<'a, 'p> Exec<'a, 'p> {
                         }
                         self.regs[*out as usize] = id as u64;
                                 self.c.visits += 1;
-                        if self.run_core(p, pc + 1) {
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-                Ins::IterFact { rel, col, val: Val::Reg(r), out } if self.prog.facts[*rel as usize].keyed.is_some_and(|k| k.0 == *col) => {
-                    let (a, b) = self.keyed_rows(*rel, self.regs[*r as usize]);
-                    for row in a..b {
-                        self.regs[*out as usize] = u64::from(row);
-                        self.c.visits += 1;
-                        if self.c.acct {
-                            self.acct_row(*rel, u64::from(row), 2);
-                        }
                         if self.run_core(p, pc + 1) {
                             return true;
                         }
