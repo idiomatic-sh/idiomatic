@@ -52,6 +52,12 @@ name = "conformance"
 harness = false
 
 
+# Engine bake-off prototype (bead ryo-i8o1, throwaway, never landed): parse and flat-table reference points.
+[[bench]]
+name = "walk"
+path = "benchmarks/walk/bench.rs"
+harness = false
+
 [[bench]]
 name = "provider"
 path = "benchmarks/provider/bench.rs"

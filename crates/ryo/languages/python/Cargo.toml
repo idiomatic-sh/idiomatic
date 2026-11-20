@@ -40,6 +40,8 @@ dhat.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-python = { path = ".", features = ["fixtures"] }
 divan.workspace = true
+# The walk bench's regex leaves (bead ryo-i8o1, throwaway).
+regex-automata.workspace = true
 
 [[test]]
 name = "allocation"
@@ -52,6 +54,12 @@ harness = false
 [[bench]]
 name = "provider"
 path = "benchmarks/provider/bench.rs"
+harness = false
+
+# Engine bake-off prototype (bead ryo-i8o1, throwaway, never landed): the parser's tree read in place, one walk per file.
+[[bench]]
+name = "walk"
+path = "benchmarks/walk/bench.rs"
 harness = false
 
 [features]
