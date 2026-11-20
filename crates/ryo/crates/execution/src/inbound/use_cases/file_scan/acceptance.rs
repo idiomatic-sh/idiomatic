@@ -21,7 +21,7 @@ fn scanned(world: &mut Behavior, path: String) {
     let plan = rule(&["id", "file", "span"]);
     let loaded = scan.load(ScanLoadRequest {
         plans: &[&plan],
-        digests: &[Digest([1; 16])],
+        given: Digest([1; 16]),
         stored: &[],
     });
     world.answer = match loaded {

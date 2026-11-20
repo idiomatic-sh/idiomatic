@@ -1,11 +1,13 @@
 //! The file scan use case's cases, over the engine port's fake and the fixture language: the old engine alone loads nothing; the
 //! new engine's rule set scans a file in a worker and hands its rows, placed and sorted; a file no linked language reads and a
-//! rule's fault cross as sentences; the pack of a load is read back by the next; and a run that cannot scan is refused.
+//! rule's fault cross as sentences; the pack of a load is read back by the next run given the same, before it has a plan, and by
+//! none given something else; and a run that cannot scan is refused.
 use super::fixtures::{Edge, composed, contract, file, rule};
 use super::interface::FileScanUseCase as _;
-use super::types::{RuleSetNumber, ScanLoadRequest, ScanSession, Scanned};
+use super::types::{RuleSetNumber, ScanLoadRequest, ScanSession, ScanStoredRequest, Scanned};
 use super::use_case::FileScanUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::scan_rows::types::{KeptCell, RowPlace, ScanRow};
 use ryo_values::domain::stored_facts::types::Digest;
@@ -22,8 +24,10 @@ enum Scenario {
     New,
     /// Both engines, with a rule the new engine refuses: no file is scanned.
     BothNothingAccepted,
-    /// The new engine alone, twice: the second load is handed the first one's packs.
+    /// The new engine alone, twice: the second run, given the same, asks the store of the first one's packs before it has a plan.
     SecondRun,
+    /// The new engine alone, twice: the second run, given something else, asks the store of the first one's packs.
+    SecondRunOfOtherRules,
     /// The new engine, at an edge that composed no engine.
     NoEngine,
     /// The new engine, with a language linked without its walk.
@@ -62,11 +66,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("a_second_run_reads_the_first_ones_pack_and_lowers_nothing"),
+        name: CaseName("a_second_run_reads_the_first_ones_pack_with_no_plan_and_lowers_nothing"),
         word: Word::Succeeds,
         input: || Scenario::SecondRun,
         expect: Expect::Value(Cow::Borrowed(
-            "New: rule sets [[SelectedRuleOrdinal(0)]]\nagain New: rule sets [[SelectedRuleOrdinal(0)]]; lowered since 0; packs read 1; the same packs kept: true",
+            "New: rule sets [[SelectedRuleOrdinal(0)]]\nagain New: rule sets [[SelectedRuleOrdinal(0)]]; rule 0 emits Some((1, [ColumnIndex(0)], [Heading(\"id\"), Heading(\"file\"), Heading(\"span\"), Heading(\"text\")])); a rule it does not run emits false; the same packs kept: true; lowered since 0; packs read 1",
+        )),
+    },
+    Case {
+        name: CaseName("a_second_run_given_something_else_reads_no_pack_back"),
+        word: Word::Succeeds,
+        input: || Scenario::SecondRunOfOtherRules,
+        expect: Expect::Value(Cow::Borrowed(
+            "New: rule sets [[SelectedRuleOrdinal(0)]]\nagain no rule set; lowered since 0; packs read 0",
         )),
     },
     Case {
@@ -115,7 +127,7 @@ fn said(scan: &FileScanUseCaseImpl, session: &ScanSession) -> String {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let (scan, fake) = composed(match scenario {
         Scenario::Old => Edge::Old,
-        Scenario::New | Scenario::SecondRun => Edge::New,
+        Scenario::New | Scenario::SecondRun | Scenario::SecondRunOfOtherRules => Edge::New,
         Scenario::BothNothingAccepted => Edge::Both,
         Scenario::NoEngine => Edge::NoEngine,
         Scenario::NoWalk => Edge::NoWalk,
@@ -125,27 +137,49 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::BothNothingAccepted => rule(&["id", "kind"]),
         _ => rule(&["id", "file", "span", "text"]),
     };
-    let digests = [Digest([1; 16])];
     let load = |stored: &[StoredPack]| {
         scan.load(ScanLoadRequest {
             plans: &[&plan],
-            digests: &digests,
+            given: Digest([1; 16]),
             stored,
         })
         .map_err(|error| Cow::Owned(error.to_string()))
     };
     let session = load(&[])?;
     let mut lines = vec![said(&scan, &session)];
-    if matches!(scenario, Scenario::SecondRun) {
+    if let Scenario::SecondRun | Scenario::SecondRunOfOtherRules = scenario {
         let kept = scan.packs(&session);
         let before = fake.lowered.load(Ordering::Relaxed);
-        let again = load(&kept)?;
+        let given = match scenario {
+            Scenario::SecondRun => Digest([1; 16]),
+            _ => Digest([2; 16]),
+        };
+        // The second run has no plan: it asks the store before it compiles.
+        let again = scan
+            .stored(ScanStoredRequest {
+                given,
+                selected: Count(1),
+                stored: &kept,
+            })
+            .map_err(|error| Cow::Owned(error.to_string()))?;
+        let read = match &again {
+            Some(again) => {
+                let emit = scan.emit(again, RuleSetNumber(0), SelectedRuleOrdinal(0));
+                format!(
+                    "{}; rule 0 emits {:?}; a rule it does not run emits {:?}; the same packs kept: {}",
+                    said(&scan, again),
+                    emit.map(|emit| (emit.subject.0, &emit.key, &emit.headings)),
+                    scan.emit(again, RuleSetNumber(0), SelectedRuleOrdinal(1))
+                        .is_some(),
+                    scan.packs(again) == kept,
+                )
+            }
+            None => "no rule set".to_owned(),
+        };
         lines.push(format!(
-            "again {}; lowered since {}; packs read {}; the same packs kept: {}",
-            said(&scan, &again),
+            "again {read}; lowered since {}; packs read {}",
             fake.lowered.load(Ordering::Relaxed) - before,
             fake.unpacked.load(Ordering::Relaxed),
-            scan.packs(&again) == kept,
         ));
         return Ok(Cow::Owned(lines.join("\n")));
     }

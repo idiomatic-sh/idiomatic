@@ -1,7 +1,8 @@
-//! The pack load's cases, over the engine port's fake and the engine itself: a first run lowers and writes the pack; the same rules
-//! read it back and lower nothing; a changed rule, another kind vocabulary or a pack that does not decode lowers again; and the
-//! harness loads nothing under the old engine, answers a rule set for each linked language under `new` and `both`, and stops a run
-//! that has no engine or no language to lower against.
+//! The pack load's cases, over the engine port's fake and the engine itself: a first run lowers and writes the pack; a run given
+//! the same reads it back and lowers nothing; a run given something else, another kind vocabulary or a pack that does not decode
+//! lowers again; and the harness loads nothing under the old engine, answers a rule set for each linked language under `new`
+//! and `both`, and stops a run that has no engine or no language to lower against. What is read back of the store with no plan
+//! in hand is `read_back`'s cases.
 
 use super::service::{harnessed, loaded, pack_key};
 use super::types::{Harness, HarnessLoad, HarnessRequest, LoadRequest};
@@ -22,14 +23,16 @@ use ryo_values::domain::stores::types::StoredPack;
 use std::borrow::Cow;
 use std::sync::atomic::Ordering;
 
+mod read_back;
+
 /// What a row does.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
     /// Three rules, one the fake accepts, with nothing stored.
     FirstRun,
-    /// The same rules, with the first run's pack stored.
+    /// The same rules given, with the first run's pack stored.
     SameRules,
-    /// One rule's digest changed since the pack was stored.
+    /// Something else given than when the pack was stored.
     ChangedRule,
     /// A pack stored under the rules' key whose bytes do not decode.
     BrokenPack,
@@ -158,9 +161,9 @@ fn plans(scenes: &[&str]) -> Vec<Plan> {
     scenes.iter().map(|scene| named(scene)).collect()
 }
 
-/// A digest of each seed.
-fn digests(seeds: &[u8]) -> Vec<Digest> {
-    seeds.iter().map(|seed| Digest([*seed; 16])).collect()
+/// What a run was given, as the digest a seed stands for.
+fn given(seed: u8) -> Digest {
+    Digest([seed; 16])
 }
 
 /// A language of one kind.
@@ -193,12 +196,12 @@ fn said(load: &HarnessLoad, fake: &EngineFake) -> Value {
     ))
 }
 
-/// A load of the three rules through a new fake, under `seeds` and `kind`, with `stored` in the store.
-fn load(seeds: &[u8], kind: &str, stored: &[StoredPack]) -> (HarnessLoad, EngineFake) {
+/// A load of the three rules through a new fake, given `seed` and `kind`, with `stored` in the store.
+fn load(seed: u8, kind: &str, stored: &[StoredPack]) -> (HarnessLoad, EngineFake) {
     let (fake, kinds, rules) = (EngineFake::default(), kinds("words", kind), three_rules());
     let request = LoadRequest {
         plans: &rules.iter().collect::<Vec<&Plan>>(),
-        digests: &digests(seeds),
+        given: given(seed),
         kinds: &kinds,
         stored,
     };
@@ -216,7 +219,7 @@ fn harness(
     let (vocabularies, rules, digest) = (KindVocabularies(linked), plans(scenes), blake3());
     let request = HarnessRequest {
         plans: &rules.iter().collect::<Vec<&Plan>>(),
-        digests: &digests(&[1]),
+        given: given(1),
         stored: &[],
     };
     let harness = engine.map(|engine| Harness {
@@ -229,7 +232,7 @@ fn harness(
 }
 
 /// What the harness loaded: each load's language, and whether the first load's pack is `expected`.
-fn kept(loads: &[HarnessLoad], expected: &StoredPack) -> Value {
+fn languages_kept(loads: &[HarnessLoad], expected: &StoredPack) -> Value {
     let languages: Vec<&str> = loads.iter().map(|load| &*load.language.0).collect();
     let pack = match loads.first() {
         Some(load) if load.pack == *expected => "the rule set's pack",
@@ -240,19 +243,19 @@ fn kept(loads: &[HarnessLoad], expected: &StoredPack) -> Value {
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let first = || load(&[1, 2, 3], "word", &[]).0.pack;
+    let first = || load(1, "word", &[]).0.pack;
     let both = EngineMode::Both;
     match scenario {
         Scenario::FirstRun => {
-            let (cold, fake) = load(&[1, 2, 3], "word", &[]);
+            let (cold, fake) = load(1, "word", &[]);
             Ok(said(&cold, &fake))
         }
         Scenario::SameRules => {
-            let (warm, fake) = load(&[1, 2, 3], "word", &[first()]);
+            let (warm, fake) = load(1, "word", &[first()]);
             Ok(said(&warm, &fake))
         }
         Scenario::ChangedRule => {
-            let (again, fake) = load(&[1, 2, 9], "word", &[first()]);
+            let (again, fake) = load(9, "word", &[first()]);
             Ok(said(&again, &fake))
         }
         Scenario::BrokenPack => {
@@ -260,7 +263,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 bytes: Bytes(b"no".to_vec()),
                 ..first()
             };
-            let (again, fake) = load(&[1, 2, 3], "word", &[broken]);
+            let (again, fake) = load(1, "word", &[broken]);
             Ok(said(&again, &fake))
         }
         Scenario::EmptyRuleSet => {
@@ -270,7 +273,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 &digest,
                 LoadRequest {
                     plans: &[],
-                    digests: &[],
+                    given: given(0),
                     kinds: &kinds,
                     stored: &[],
                 },
@@ -282,7 +285,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 &digest,
                 LoadRequest {
                     plans: &[],
-                    digests: &[],
+                    given: given(0),
                     kinds: &kinds,
                     stored: &stored,
                 },
@@ -301,12 +304,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let (pack, rules) = (first(), three_rules());
             let request = HarnessRequest {
                 plans: &rules.iter().collect::<Vec<&Plan>>(),
-                digests: &digests(&[1, 2, 3]),
+                given: given(1),
                 stored: std::slice::from_ref(&pack),
             };
             let load = harnessed(EngineMode::Old, None, request)
                 .map_err(|error| Cow::Owned(error.to_string()))?;
-            Ok(kept(&load, &pack))
+            Ok(languages_kept(&load, &pack))
         }
         Scenario::BothNothingAccepted | Scenario::NamedLanguage | Scenario::TwoLanguages => {
             let fake = EngineFake::default();
@@ -325,12 +328,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let refused = plans(&scenes);
             let request = LoadRequest {
                 plans: &refused.iter().collect::<Vec<&Plan>>(),
-                digests: &digests(&[1]),
+                given: given(1),
                 kinds: &lowered,
                 stored: &[],
             };
             let expected = loaded(&EngineFake::default(), &blake3(), request).pack;
-            Ok(kept(&load, &expected))
+            Ok(languages_kept(&load, &expected))
         }
         Scenario::NewEngine
         | Scenario::BothAccepted
@@ -361,7 +364,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .collect();
             Ok(Cow::Owned(format!(
                 "{}; accepted {accepted:?}",
-                kept(&packs, &StoredPack::default())
+                languages_kept(&packs, &StoredPack::default())
             )))
         }
     }
@@ -369,10 +372,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 
 #[test]
 fn succeeds() {
-    let key = |seed, kind| pack_key(&blake3(), &digests(&[seed]), &kinds("words", kind));
+    let key = |seed, kind| pack_key(&blake3(), given(seed), &kinds("words", kind));
     assert!(
         key(1, "word") != key(2, "word"),
-        "a changed rule is another key"
+        "something else given is another key"
     );
     assert!(
         key(1, "word") != key(1, "token"),

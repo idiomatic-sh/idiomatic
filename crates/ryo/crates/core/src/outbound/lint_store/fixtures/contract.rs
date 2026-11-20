@@ -153,10 +153,17 @@ fn answer(
                 StoredPack {
                     key: PackKey([4; 32]),
                     bytes: ryo_relations::domain::relations::types::Bytes(vec![1, 2, 3]),
+                    emits: vec![ryo_values::domain::plans::types::Emit {
+                        step: ryo_values::domain::plan_parts::types::StepId(1),
+                        subject: ryo_values::domain::plan_parts::types::ColumnIndex(1),
+                        key: vec![ryo_values::domain::plan_parts::types::ColumnIndex(0)],
+                        headings: vec![ryo_values::domain::plan_parts::types::Heading("id".into())],
+                    }],
                 },
                 StoredPack {
                     key: PackKey([5; 32]),
                     bytes: ryo_relations::domain::relations::types::Bytes(Vec::new()),
+                    emits: Vec::new(),
                 },
             ];
             let with = Stored {

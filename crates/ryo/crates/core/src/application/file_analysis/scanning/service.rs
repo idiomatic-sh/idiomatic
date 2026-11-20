@@ -1,20 +1,17 @@
-//! The files of a run scanned by the new engine. Before the files, the request's rule sets are loaded once. Each file is then
-//! read and scanned in the worker that took its job, and its rows are rendered as the old engine's rows are: alone, they are
-//! streamed to the rows port in the order of the files; beside the old engine, they are compared with the old engine's rows of
-//! the file, and the first difference stops the run. Nothing is done per rule for a file: which rules govern a file is decided
-//! once, for a file that has rows.
+//! The files of a run scanned by the new engine, once the request's rule sets are loaded (`rule_sets`). Each file is read and
+//! scanned in the worker that took its job, and its rows are rendered as the old engine's rows are: alone, they are streamed to
+//! the rows port in the order of the files; beside the old engine, they are compared with the old engine's rows of the file,
+//! and the first difference stops the run. Nothing is done per rule for a file: which rules govern a file is decided once, for
+//! a file that has rows.
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::streaming::service::FileVisits;
-use super::super::types::{
-    RowsDiffer, ScanRequest, ScanState, ScannedRun, Scanning, StreamRun, Streaming,
-};
+use super::super::types::{RowsDiffer, ScanState, ScannedRun, Scanning, StreamRun, Streaming};
 use crate::domain::found_rows::service::{first_difference, render_found};
 use crate::domain::found_rows::types::{Compared, FoundInput};
 use crate::domain::ordering::types::Ordered;
 use crate::domain::render::service::{rendered_limit, shown_by};
 use crate::domain::render::types::{Answering, FindingRule, Rendered};
-use crate::domain::repository::service::paths_of;
 use crate::domain::value_cells::types::Scene;
 use crate::domain::workers::service::{file_at, size_at};
 use crate::domain::workers::types::FileOrder;
@@ -22,10 +19,7 @@ use crate::outbound::row_sink::types::AnswerCounts;
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::types::{JobCount, JobNumber};
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase as _;
-use ryo_execution::inbound::use_cases::file_scan::types::{
-    FileToScan, RuleSetNumber, ScanLoadRequest, Scanned,
-};
+use ryo_execution::inbound::use_cases::file_scan::types::{FileToScan, RuleSetNumber, Scanned};
 use ryo_execution::inbound::use_cases::metadata::interface::{
     Governing, Message, MetadataUseCase as _, Unknown,
 };
@@ -58,18 +52,18 @@ impl Scanning<'_> {
 
     /// How the rows of `rule` are compared in a file the rule set `by` scanned: none for a rule the rule set does not run.
     fn compared(&self, by: RuleSetNumber, rule: RuleNumber) -> Option<Compared<'_>> {
-        let accepted = self.scan.accepted(&self.session, by);
         let ordinal = SelectedRuleOrdinal(rule.0);
         let at = usize::try_from(rule.0).unwrap_or(usize::MAX);
-        let (emit, id) = (self.emits.get(at)?, self.ids.get(at)?);
-        match accepted.binary_search(&ordinal) {
-            Ok(_) => Some(Compared {
-                shown: shown_by(self.answering, rule, FindingRule(&id.0)).shown,
-                emit,
-                kinds: self.scan.kinds(&self.session, by, ordinal),
-            }),
-            Err(_) => None,
-        }
+        // The rule set's pack says what a row of a rule it runs emits: none for a rule it does not run.
+        let (emit, id) = (
+            self.scan.emit(&self.session, by, ordinal)?,
+            self.ids.get(at)?,
+        );
+        Some(Compared {
+            shown: shown_by(self.answering, rule, FindingRule(&id.0)).shown,
+            emit,
+            kinds: self.scan.kinds(&self.session, by, ordinal),
+        })
     }
 
     /// A worker's state before its first file.
@@ -82,42 +76,6 @@ impl Scanning<'_> {
 }
 
 impl FileVisits {
-    /// The new engine's part of a run, its rule sets loaded: under the old engine alone nothing is loaded and the store's packs
-    /// are not read; otherwise the packs the store kept are read, and each rule set is read back from its pack or lowered.
-    pub(crate) fn scanning<'a>(
-        &self,
-        request: ScanRequest<'a, '_>,
-    ) -> Result<Scanning<'a>, FileAnalysisError> {
-        let scan = Box::new(self.analysis.scanner(request.named));
-        // The packs are asked of the store only by a run of the new engine.
-        let stored = match (request.read, scan.mode()) {
-            (_, EngineMode::Old) | (None, _) => Vec::new(),
-            (Some(read), EngineMode::New | EngineMode::Both) => read.packs()?,
-        };
-        let session = scan.load(ScanLoadRequest {
-            plans: request.plans,
-            digests: request.digests,
-            stored: &stored,
-        })?;
-        // The path of each file is read only when the new engine scans one.
-        let paths = match scan.mode() {
-            EngineMode::Old => Vec::new(),
-            EngineMode::New | EngineMode::Both => paths_of(request.files),
-        };
-        Ok(Scanning {
-            scan,
-            session,
-            emits: request.plans.iter().map(|plan| plan.emit.clone()).collect(),
-            ids: request.ids,
-            placed: request.placed,
-            paths,
-            answering: request.answering,
-            files: request.files,
-            read: request.read,
-            unknown: self.analysis.language.unknown_reasons().0,
-        })
-    }
-
     /// A worker's state for the comparison of the two engines' rows, when the run compares them.
     pub(in crate::application::file_analysis) fn comparing(
         scanning: &Scanning<'_>,
@@ -170,10 +128,21 @@ impl FileVisits {
         }
     }
 
+    /// The run of the new engine alone, answered: its files scanned, then the end of its rows written to the rows port.
+    pub(crate) fn answered(
+        &self,
+        scanning: &Scanning<'_>,
+        only: &[FilePath],
+    ) -> Result<ScannedRun, FileAnalysisError> {
+        let scanned = self.scanned(scanning, only)??;
+        self.rows.end(scanned.counts, &scanned.unread)?;
+        Ok(scanned)
+    }
+
     /// The run of the new engine alone: each file is scanned once on the scheduler's workers, and its rows are written to the
     /// rows port in the order of the files; then the packs of its rule sets are kept in the store it read, when it read one.
     /// The outer refusal is the scheduler's, the inner one the scan's.
-    pub(crate) fn scanned(
+    fn scanned(
         &self,
         scanning: &Scanning<'_>,
         only: &[FilePath],
@@ -367,7 +336,10 @@ impl FileAnalysis {
             };
             let number = RuleNumber(rule.0);
             let at = usize::try_from(rule.0).unwrap_or(usize::MAX);
-            let (Some(emit), Some(id)) = (scanning.emits.get(at), scanning.ids.get(at)) else {
+            let (Some(emit), Some(id)) = (
+                scanning.scan.emit(&scanning.session, by, rule),
+                scanning.ids.get(at),
+            ) else {
                 continue;
             };
             if MetadataUseCaseImpl.governs(&state.mask, number) != Governing::Governs {

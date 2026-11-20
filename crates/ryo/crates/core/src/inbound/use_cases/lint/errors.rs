@@ -280,6 +280,8 @@ impl From<crate::application::file_analysis::errors::FileAnalysisError> for Lint
             FileAnalysisError::Budget(error) => error.into(),
             FileAnalysisError::Memory(error) => error.into(),
             FileAnalysisError::Language(error) => error.into(),
+            FileAnalysisError::Scheduler(error) => error.into(),
+            FileAnalysisError::Output(error) => error.into(),
         }
     }
 }

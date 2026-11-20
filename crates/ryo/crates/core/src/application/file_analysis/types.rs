@@ -210,10 +210,8 @@ pub(crate) struct LanguageSource<'a> {
 pub(crate) struct Scanning<'a> {
     /// Scans a request's files with the new engine.
     pub scan: Box<dyn ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase>,
-    /// The rule sets loaded for the request.
+    /// The rule sets loaded for the request: each says what a row of each rule it runs emits.
     pub session: ryo_execution::inbound::use_cases::file_scan::types::ScanSession,
-    /// What a row of each rule emits, in rule order: its subject, its key and its headings.
-    pub emits: Vec<ryo_values::domain::plans::types::Emit>,
     /// The rules' ids.
     pub ids: &'a [ryo_values::domain::runs::types::RuleId],
     /// Which rule governs which file.
@@ -273,14 +271,17 @@ pub(crate) struct ScannedRun {
     pub counts: crate::outbound::row_sink::types::AnswerCounts,
 }
 
-/// What the new engine's part of a run is made of, before its rule sets are loaded.
+/// What the new engine's part of a run is made of, before its rule sets are loaded: the rules as the run was given them, which
+/// say what the rule sets' packs are kept under, and what a scanned file's rows are rendered with. No plan: the store is asked
+/// with this before anything is compiled.
+#[derive(Clone, Copy)]
 pub(crate) struct ScanRequest<'a, 'l> {
     /// The language the request says reads every file, when it names one.
     pub named: Option<&'l ryo_values::domain::descriptions::types::LanguageName>,
-    /// The plan of each rule, in rule order: read while the rule sets are loaded.
-    pub plans: &'l [&'l ryo_values::domain::plans::types::Plan],
-    /// The digest of each rule, in rule order: read while the rule sets are loaded.
-    pub digests: &'l [ryo_values::domain::stored_facts::types::Digest],
+    /// The selected rules as the run was given them, in rule order.
+    pub rules: &'l [ryo_values::domain::rule_requests::types::RuleSpec],
+    /// The relations the host declared.
+    pub hosted: &'l [ryo_values::domain::hosted::types::HostRelation],
     /// The rules' ids.
     pub ids: &'a [ryo_values::domain::runs::types::RuleId],
     /// Which rule governs which file.

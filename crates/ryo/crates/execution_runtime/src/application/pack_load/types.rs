@@ -10,30 +10,68 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
 
-/// What a load is asked: the selected rules' plans and digests, the kinds of the language whose files are scanned, and the pack
-/// the store kept, when it kept one.
+/// What a load is asked: the selected rules' plans, what the run was given as one digest, the kinds of the language whose files
+/// are scanned, and the packs the store kept.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_execution_runtime::application::pack_load::types::LoadRequest;
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
+/// use ryo_values::domain::stored_facts::types::Digest;
 ///
 /// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
-/// let request = LoadRequest { plans: &[], digests: &[], kinds: &kinds, stored: &[] };
+/// let request = LoadRequest { plans: &[], given: Digest([0; 16]), kinds: &kinds, stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct LoadRequest<'a> {
     /// The plan of each selected rule, in rule order.
     pub plans: &'a [&'a Plan],
-    /// The digest of each selected rule, in rule order: what its query, parameters and fragments come to.
-    pub digests: &'a [Digest],
+    /// What the run was given, as one digest: its rules as they were written, their fragments, what the host declared and which
+    /// were selected. Made before any compile.
+    pub given: Digest,
     /// The kinds of the linked language the rules are lowered against.
     pub kinds: &'a KindVocabulary,
     /// The packs the store kept.
     pub stored: &'a [StoredPack],
 }
+
+/// What reading a rule set back from the store is asked: what the run was given as one digest, the kinds of the language whose
+/// files are scanned, and the packs the store kept. No plan: nothing is compiled before it is asked.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::pack_load::types::KeptRequest;
+/// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
+/// use ryo_values::domain::stored_facts::types::Digest;
+///
+/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
+/// let request = KeptRequest { given: Digest([0; 16]), kinds: &kinds, stored: &[] };
+/// assert!(request.stored.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct KeptRequest<'a> {
+    /// What the run was given, as one digest.
+    pub given: Digest,
+    /// The kinds of the linked language the rule set scans the files of.
+    pub kinds: &'a KindVocabulary,
+    /// The packs the store kept.
+    pub stored: &'a [StoredPack],
+}
+
+/// The version of the engine that writes a pack: part of what the pack is kept under.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::pack_load::types::EngineVersion;
+///
+/// assert_ne!(EngineVersion("0.2.0"), EngineVersion("0.3.0"));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EngineVersion<'a>(pub &'a str);
 
 /// What the edge composed for the build branch's `RYO_ENGINE` harness: the new engine, the digest its packs are keyed by, every
 /// linked language's kinds, and the language the request names when it names one.
@@ -69,22 +107,47 @@ impl std::fmt::Debug for Harness<'_> {
     }
 }
 
-/// What the harness is asked before the files of one request: the selected rules and the packs the store kept.
+/// What the harness is asked before the files of one request: the selected rules, what the run was given as one digest, and
+/// the packs the store kept.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_execution_runtime::application::pack_load::types::HarnessRequest;
+/// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = HarnessRequest { plans: &[], digests: &[], stored: &[] };
+/// let request = HarnessRequest { plans: &[], given: Digest([0; 16]), stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct HarnessRequest<'a> {
     /// The plan of each selected rule, in rule order.
     pub plans: &'a [&'a Plan],
-    /// The digest of each selected rule, in rule order.
-    pub digests: &'a [Digest],
+    /// What the run was given, as one digest.
+    pub given: Digest,
+    /// The packs the store kept.
+    pub stored: &'a [StoredPack],
+}
+
+/// What the harness is asked of the store before anything is compiled: what the run was given as one digest, how many rules it
+/// selects, and the packs the store kept.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::pack_load::types::ReadBackRequest;
+/// use ryo_relations::domain::relations::types::Count;
+/// use ryo_values::domain::stored_facts::types::Digest;
+///
+/// let request = ReadBackRequest { given: Digest([0; 16]), selected: Count(0), stored: &[] };
+/// assert_eq!(request.selected, Count(0));
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct ReadBackRequest<'a> {
+    /// What the run was given, as one digest.
+    pub given: Digest,
+    /// How many rules the request selects: what the harness reports the rule set's rules of.
+    pub selected: Count,
     /// The packs the store kept.
     pub stored: &'a [StoredPack],
 }
@@ -108,7 +171,7 @@ pub struct HarnessLoad {
     pub accepted: Vec<SelectedRuleOrdinal>,
     /// Whether the rules were lowered, or read back from the store's pack.
     pub from: LoadedFrom,
-    /// The pack of the rule set, under its digest: what the store keeps for the next run.
+    /// The pack of the rule set, under its key: what the store keeps for the next run.
     pub pack: StoredPack,
 }
 

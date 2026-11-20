@@ -49,4 +49,10 @@ pub(crate) enum FileAnalysisError {
     /// Project analysis failed.
     #[error(transparent)]
     Language(#[from] LanguageError),
+    /// The workers that scan the files could not be run.
+    #[error(transparent)]
+    Scheduler(#[from] crate::outbound::scheduler::errors::SchedulerError),
+    /// The rows of a run the new engine scans alone could not be written.
+    #[error(transparent)]
+    Output(#[from] crate::outbound::row_sink::errors::RowSinkError),
 }

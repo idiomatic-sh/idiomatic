@@ -2,7 +2,7 @@
 use super::interface::FileScanUseCase;
 use super::types::{
     FileScanSetting, FileScanWorker, FileToScan, RuleSet, RuleSetNumber, ScanEngine, ScanLanguage,
-    ScanLoadRequest, ScanSession, Scanned,
+    ScanLoadRequest, ScanSession, ScanStoredRequest, Scanned,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_runtime::application::file_scan::errors::FileScanError;
@@ -10,12 +10,15 @@ use ryo_execution_runtime::application::file_scan::service::{
     crossed, emit_columns, place_columns, taken, worker,
 };
 use ryo_execution_runtime::application::file_scan::types::ScanRun;
-use ryo_execution_runtime::application::pack_load::service::harnessed;
-use ryo_execution_runtime::application::pack_load::types::{Harness, HarnessRequest};
+use ryo_execution_runtime::application::pack_load::service::{harnessed, read_back};
+use ryo_execution_runtime::application::pack_load::types::{
+    Harness, HarnessLoad, HarnessRequest, ReadBackRequest,
+};
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::types::WalkRequest;
 use ryo_operators::spike::{EngineMode, engine_unwalked};
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::scan_rows::types::ScanRow;
 use ryo_values::domain::stores::types::StoredPack;
@@ -81,32 +84,25 @@ impl FileScanUseCaseImpl {
             ScanEngine::NotComposed => None,
         }
     }
-}
 
-impl FileScanUseCase for FileScanUseCaseImpl {
-    fn mode(&self) -> EngineMode {
-        self.setting.mode
+    /// What the edge composed for the harness: none at an edge that composed no engine.
+    fn harness(&self) -> Option<Harness<'_>> {
+        let composed = &self.setting;
+        self.engine().map(|engine| Harness {
+            engine,
+            digest: composed.digest.as_ref(),
+            vocabularies: &composed.vocabularies,
+            named: match &composed.language {
+                ScanLanguage::EveryLinked => None,
+                ScanLanguage::Named(name) => Some(name),
+            },
+        })
     }
 
-    fn load(&self, request: ScanLoadRequest<'_>) -> Result<ScanSession, OperatingError> {
+    /// The session of the rule sets `loads` made, read back or lowered: each with its language's walk and the columns its
+    /// files' rows are read and placed by, which its pack says.
+    fn session(&self, loads: Vec<HarnessLoad>) -> Result<ScanSession, OperatingError> {
         let composed = &self.setting;
-        let loads = harnessed(
-            composed.mode,
-            self.engine().map(|engine| Harness {
-                engine,
-                digest: composed.digest.as_ref(),
-                vocabularies: &composed.vocabularies,
-                named: match &composed.language {
-                    ScanLanguage::EveryLinked => None,
-                    ScanLanguage::Named(name) => Some(name),
-                },
-            }),
-            HarnessRequest {
-                plans: request.plans,
-                digests: request.digests,
-                stored: request.stored,
-            },
-        )?;
         let Some(engine) = self.engine() else {
             return Ok(ScanSession::default());
         };
@@ -121,7 +117,7 @@ impl FileScanUseCase for FileScanUseCaseImpl {
             let set = linked.map(|walk| RuleSet {
                 walk: std::sync::Arc::clone(walk),
                 columns: emit_columns(engine, &load.programs),
-                places: place_columns(request.plans),
+                places: place_columns(&load.accepted, &load.pack.emits),
                 load,
             });
             // A language linked without its walk has a walk with no kind: its files cannot be scanned.
@@ -138,6 +134,39 @@ impl FileScanUseCase for FileScanUseCaseImpl {
             }
         }
         Ok(session)
+    }
+}
+
+impl FileScanUseCase for FileScanUseCaseImpl {
+    fn mode(&self) -> EngineMode {
+        self.setting.mode
+    }
+
+    fn stored(
+        &self,
+        request: ScanStoredRequest<'_>,
+    ) -> Result<Option<ScanSession>, OperatingError> {
+        let read = ReadBackRequest {
+            given: request.given,
+            selected: request.selected,
+            stored: request.stored,
+        };
+        read_back(self.setting.mode, self.harness(), read)?
+            .map(|loads| self.session(loads))
+            .transpose()
+    }
+
+    fn load(&self, request: ScanLoadRequest<'_>) -> Result<ScanSession, OperatingError> {
+        let loads = harnessed(
+            self.setting.mode,
+            self.harness(),
+            HarnessRequest {
+                plans: request.plans,
+                given: request.given,
+                stored: request.stored,
+            },
+        )?;
+        self.session(loads)
     }
 
     fn worker(&self, session: &ScanSession) -> FileScanWorker {
@@ -206,6 +235,20 @@ impl FileScanUseCase for FileScanUseCaseImpl {
                     .get(usize::try_from(rule.0).unwrap_or(usize::MAX))
             })
             .map_or(&[], |columns| columns.emit.0.as_slice())
+    }
+
+    fn emit<'s>(
+        &self,
+        session: &'s ScanSession,
+        by: RuleSetNumber,
+        rule: SelectedRuleOrdinal,
+    ) -> Option<&'s Emit> {
+        // The pack says what each rule the rule set runs emits, in the order of those rules.
+        let load = &session.rule_sets.get(by.0)?.load;
+        match load.accepted.binary_search(&rule) {
+            Ok(at) => load.pack.emits.get(at),
+            Err(_) => None,
+        }
     }
 
     fn accepted<'s>(

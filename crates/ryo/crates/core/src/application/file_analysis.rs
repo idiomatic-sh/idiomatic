@@ -11,6 +11,7 @@ pub(crate) mod outcome;
 pub(crate) mod parsing;
 pub(crate) mod project;
 pub(crate) mod replaying;
+pub(crate) mod rule_sets;
 pub(crate) mod scanning;
 pub(crate) mod semantic;
 pub mod service;

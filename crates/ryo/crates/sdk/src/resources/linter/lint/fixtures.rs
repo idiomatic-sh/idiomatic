@@ -12,6 +12,8 @@ pub(crate) mod directory;
 #[cfg(test)]
 pub(crate) mod excluded_producer;
 #[cfg(test)]
+pub(crate) mod given_words;
+#[cfg(test)]
 pub(crate) mod hosted_text_identity;
 #[cfg(test)]
 pub(crate) mod observations;

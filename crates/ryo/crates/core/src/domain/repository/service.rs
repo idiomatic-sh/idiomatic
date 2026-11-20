@@ -2,7 +2,7 @@
 
 use super::constants::{COMPILED_PLAN_LABEL, RELATION_SCHEMA_LABEL, SOURCE_SELECTION_LABEL};
 use super::types::{DigestColumn, DigestRelation, IdentityHasher, SchemaCount};
-use crate::domain::keeping::service::configuration_bytes;
+use crate::domain::keeping::service::{configuration_bytes, rule_head, rule_modules, rule_tail};
 use crate::domain::keeping::types::{Configuration, DigestInput, DigestPart, HostedText};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::CellKind;
@@ -16,6 +16,37 @@ use ryo_values::domain::rule_requests::types::RuleSpec;
 #[must_use]
 pub(crate) fn configuration(rules: &[RuleSpec], hosted: &[HostedText]) -> DigestInput {
     configuration_bytes(&Configuration { rules, hosted })
+}
+
+/// What a run was given of its rules, as bytes to digest before anything is compiled: every selected rule in order, as
+/// `configuration` writes one (its id, its applicability, its root document, its parameters as written, what it observes, its
+/// globs), but with the modules its query names written once for the run: a rule says which of the run's catalogs of modules is
+/// its own, and each catalog follows the rules. The rules of a pack share one catalog, so the fragments are read once, not once
+/// a rule. The same rules give the same bytes however they share their catalogs: a catalog equal to an earlier one is that one.
+#[must_use]
+pub(crate) fn given(rules: &[RuleSpec]) -> DigestInput {
+    let mut bytes = DigestInput::default();
+    count(&mut bytes, SchemaCount(rules.len()));
+    // A rule of each catalog met so far: rules that share a catalog share its allocation, which is compared first, so the
+    // modules' texts are read only where the allocations differ.
+    let mut catalogs: Vec<&RuleSpec> = Vec::new();
+    for rule in rules {
+        rule_head(&mut bytes, rule);
+        let met = catalogs
+            .iter()
+            .position(|held| held.query.modules == rule.query.modules);
+        let at = met.unwrap_or_else(|| {
+            catalogs.push(rule);
+            catalogs.len().saturating_sub(1)
+        });
+        count(&mut bytes, SchemaCount(at));
+        rule_tail(&mut bytes, rule);
+    }
+    count(&mut bytes, SchemaCount(catalogs.len()));
+    for catalog in catalogs {
+        rule_modules(&mut bytes, catalog);
+    }
+    bytes
 }
 
 /// Puts the files in the order of their paths, which is the order their findings leave in: a file is numbered by its place in it.

@@ -1,15 +1,18 @@
-//! What the packs document of the store accepts: packs read back as they were written, and bytes that are no packs read as none.
+//! What the packs document of the store accepts: packs read back as they were written, with what the rules they run emit, and
+//! bytes that are no packs read as none.
 
 use super::{packs_bytes, packs_of};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Bytes;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, StepId};
+use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::stores::types::{PackKey, StoredPack};
 
 /// What a row of the cases reads back.
 #[derive(Clone, Copy, Debug)]
 enum Written {
-    /// Two packs under two keys, one of them with no byte.
+    /// Two packs under two keys: one of a rule set that runs two rules, one with no byte and no rule.
     TwoPacks,
     /// Bytes that are no packs.
     NoPacks,
@@ -40,10 +43,25 @@ fn subject(written: Input) -> Result<Value, Failure> {
         StoredPack {
             key: PackKey([1; 32]),
             bytes: Bytes(vec![7, 0, 255]),
+            emits: vec![
+                Emit {
+                    step: StepId(4),
+                    subject: ColumnIndex(1),
+                    key: vec![ColumnIndex(0), ColumnIndex(2)],
+                    headings: vec![Heading("id".into()), Heading("span".into())],
+                },
+                Emit {
+                    step: StepId(0),
+                    subject: ColumnIndex(0),
+                    key: Vec::new(),
+                    headings: Vec::new(),
+                },
+            ],
         },
         StoredPack {
             key: PackKey([2; 32]),
             bytes: Bytes(Vec::new()),
+            emits: Vec::new(),
         },
     ];
     let bytes = match written {

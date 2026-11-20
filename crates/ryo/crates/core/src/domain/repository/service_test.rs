@@ -2,7 +2,7 @@
 
 use super::constants::COMPILED_PLAN_LABEL;
 use super::service::{
-    by_path, catalog_schema, configuration, paths_of, plan_identity, schema_bytes,
+    by_path, catalog_schema, configuration, given, paths_of, plan_identity, schema_bytes,
     source_selection_identity,
 };
 use super::types::{DigestColumn, DigestRelation, IdentityHasher};
@@ -35,6 +35,11 @@ enum Scenario {
     LegacyCatalog,
     /// Adjacent names do not alias and the real catalog is stable.
     SchemaFrames,
+    /// What a run was given of its rules: how many of the things that must hold of it do not (another text of a rule, of the
+    /// fragment the rules share, another glob, other parameters, one rule fewer and the rules in another order are each other
+    /// bytes; the same rules sharing their fragment or each holding an equal one are the same bytes), then how often the
+    /// fragment two rules share is written in it, then how often in their configuration.
+    Given,
     /// A plan's identity is the label then its derived `Hash` bytes, numbers at a fixed width: the same plan the same bytes, another
     /// plan of one more step other bytes.
     PlanIdentity,
@@ -87,6 +92,71 @@ fn rule(id: &str, query: &str) -> RuleSpec {
         include: Vec::new(),
         exclude: Vec::new(),
     }
+}
+
+/// A rule whose query is the root `text` over one fragment of `body`, in a catalog of its own.
+fn fragmented(id: &str, text: &str, body: &str) -> RuleSpec {
+    let source = |spelling: &'static str, text: &str| {
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::query_tokens::types::QuerySpelling(spelling),
+            )
+            .expect("the id is nonblank"),
+            text,
+        )
+    };
+    let mut rule = rule(id, text);
+    rule.query = ryo_values::domain::program::service::query_bundle(
+        source("rules/root", text),
+        [source("python/ruff/suppress", body)],
+    )
+    .expect("source ids are unique");
+    rule
+}
+
+/// What must hold of what a run was given of its rules, over two rules that share one fragment as a pack's rules do.
+fn given_follows_the_rules() -> Value {
+    const FRAGMENT: &str = "a fragment every rule of the pack names";
+    let shared = |first: &str, body: &str| {
+        let (one, mut two) = (fragmented("a", first, body), fragmented("b", "q2", body));
+        two.query.modules = std::sync::Arc::clone(&one.query.modules);
+        [one, two]
+    };
+    let rules = shared("q1", FRAGMENT);
+    let bytes = given(&rules);
+    // The same rules, each with a catalog of its own that says the same.
+    let apart = [
+        fragmented("a", "q1", FRAGMENT),
+        fragmented("b", "q2", FRAGMENT),
+    ];
+    let mut globbed = shared("q1", FRAGMENT);
+    globbed[1].exclude = vec![ryo_values::domain::files::types::Glob("tests/**".into())];
+    let mut bound = shared("q1", FRAGMENT);
+    bound[0].spelled = RuleParameters("limit=3".into());
+    let written = |bytes: &DigestInput| {
+        let times = bytes
+            .0
+            .windows(FRAGMENT.len())
+            .filter(|window| *window == FRAGMENT.as_bytes())
+            .count();
+        i64::try_from(times).unwrap_or(i64::MAX)
+    };
+    let broken = [
+        bytes != given(&shared("q1", FRAGMENT)),
+        bytes == given(&shared("q1 edited", FRAGMENT)),
+        bytes == given(&shared("q1", "the fragment edited")),
+        bytes == given(&rules[..1]),
+        bytes == given(&[rules[1].clone(), rules[0].clone()]),
+        bytes == given(&globbed),
+        bytes == given(&bound),
+        bytes != given(&apart),
+    ];
+    let broken = broken.iter().filter(|each| **each).count();
+    [
+        i64::try_from(broken).unwrap_or(i64::MAX),
+        written(&bytes),
+        written(&configuration(&rules, &[])),
+    ]
 }
 
 fn files_in_order() -> Vec<CorpusInput> {
@@ -213,6 +283,7 @@ fn subject(scenario: Input) -> Value {
                 i64::from(once == rewritten),
             ]
         }
+        Scenario::Given => given_follows_the_rules(),
         Scenario::Configured => {
             let digest = |rules: &[RuleSpec]| configuration(rules, &[]);
             let first = digest(&[rule("a", "select x")]);
@@ -272,6 +343,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::SchemaFrames,
         expect: Expect::Value([1, 1, 1]),
+    },
+    Case {
+        name: CaseName(
+            "what_a_run_was_given_follows_each_rule_fragment_and_selection_and_reads_a_shared_fragment_once",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::Given,
+        expect: Expect::Value([0, 1, 2]),
     },
     Case {
         name: CaseName("a_plan_identity_is_its_label_then_its_hash_bytes_and_another_plan_differs"),

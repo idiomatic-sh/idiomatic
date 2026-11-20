@@ -51,8 +51,8 @@ pub struct Stored {
     pub packs: Vec<StoredPack>,
 }
 
-/// What a rule set's compiled pack is kept under: thirty-two bytes that are the same for the same rules, kind vocabulary and
-/// engine, and differ when one of them does.
+/// What a rule set's compiled pack is kept under: thirty-two bytes that are the same for the same rules as the run was given
+/// them, kind vocabulary and engine, and differ when one of them does.
 ///
 /// # Examples
 ///
@@ -64,7 +64,8 @@ pub struct Stored {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PackKey(pub [u8; 32]);
 
-/// A rule set's compiled pack, as the engine wrote it: a run with the same rules reads it back, and lowers nothing.
+/// A rule set's compiled pack: its programs as the engine wrote them, and what the host reads the rules' rows by. A run given
+/// the same rules reads it back, and neither compiles nor lowers them.
 ///
 /// # Examples
 ///
@@ -79,6 +80,8 @@ pub struct StoredPack {
     pub key: PackKey,
     /// The pack's bytes, the engine's own.
     pub bytes: ryo_relations::domain::relations::types::Bytes,
+    /// What a row of each rule the rule set runs emits (its subject, its key, its headings), in the order of those rules.
+    pub emits: Vec<crate::domain::plans::types::Emit>,
 }
 
 /// What a file hands one rule that reads across files, as a digest.

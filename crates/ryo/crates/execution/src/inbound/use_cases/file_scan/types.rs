@@ -106,22 +106,48 @@ pub enum ScanLanguage {
     Named(LanguageName),
 }
 
-/// What a load is asked before the files of one request: the selected rules, and the packs the store kept.
+/// What a load is asked before the files of one request: the selected rules, compiled, what the run was given as one digest, and
+/// the packs the store kept.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_execution::inbound::use_cases::file_scan::types::ScanLoadRequest;
+/// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = ScanLoadRequest { plans: &[], digests: &[], stored: &[] };
+/// let request = ScanLoadRequest { plans: &[], given: Digest([0; 16]), stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct ScanLoadRequest<'a> {
     /// The plan of each selected rule, in rule order.
     pub plans: &'a [&'a Plan],
-    /// The digest of each selected rule, in rule order: what its query, parameters and fragments come to.
-    pub digests: &'a [Digest],
+    /// What the run was given, as one digest: its rules as they were written, their fragments, what the host declared and which
+    /// were selected. Made before any compile; a rule set's pack is kept under it.
+    pub given: Digest,
+    /// The packs the store kept.
+    pub stored: &'a [StoredPack],
+}
+
+/// What the store is asked before anything is compiled: what the run was given as one digest, how many rules it selects, and
+/// the packs the store kept.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution::inbound::use_cases::file_scan::types::ScanStoredRequest;
+/// use ryo_relations::domain::relations::types::Count;
+/// use ryo_values::domain::stored_facts::types::Digest;
+///
+/// let request = ScanStoredRequest { given: Digest([0; 16]), selected: Count(0), stored: &[] };
+/// assert!(request.stored.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct ScanStoredRequest<'a> {
+    /// What the run was given, as one digest.
+    pub given: Digest,
+    /// How many rules the request selects.
+    pub selected: ryo_relations::domain::relations::types::Count,
     /// The packs the store kept.
     pub stored: &'a [StoredPack],
 }
@@ -144,7 +170,8 @@ pub struct RuleSet {
     pub walk: Arc<dyn WalkEngine>,
     /// The columns of each selected rule's rows, by rule ordinal.
     pub columns: EmitColumns,
-    /// The columns that place each selected rule's rows, by rule ordinal.
+    /// The columns that place each selected rule's rows, by rule ordinal: read from the rule set's pack, as what a row of each
+    /// rule emits is.
     pub places: PlaceColumns,
 }
 

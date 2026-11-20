@@ -112,7 +112,7 @@ impl std::fmt::Debug for ScanWorker {
 }
 
 /// What every file of a run is scanned with: the rule set, the columns of its rules' rows as the engine says them
-/// (`service::emit_columns`), and the columns that place a row, as the rules' plans say them (`service::place_columns`).
+/// (`service::emit_columns`), and the columns that place a row, as the rule set's pack says them (`service::place_columns`).
 ///
 /// # Examples
 ///

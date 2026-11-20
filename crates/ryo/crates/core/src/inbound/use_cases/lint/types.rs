@@ -215,14 +215,6 @@ pub struct FeatureFed {
     pub rows: RowTotal,
 }
 
-/// Where the rules govern, and what they read.
-pub(crate) struct Wanting {
-    /// Which rule governs which file.
-    pub placed: PlacedScopes,
-    /// What the plans read of the files.
-    pub wants: Wants,
-}
-
 /// What was wrong with the output a language wrote for a file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProviderFault {

@@ -2,11 +2,13 @@
 //! for them, and one file scanned in the worker that took it. The state a worker holds between files is behind this trait: a
 //! caller keeps it and names none of its parts.
 use super::types::{
-    FileScanWorker, FileToScan, RuleSetNumber, ScanLoadRequest, ScanSession, Scanned,
+    FileScanWorker, FileToScan, RuleSetNumber, ScanLoadRequest, ScanSession, ScanStoredRequest,
+    Scanned,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::scan_rows::types::ScanRow;
 use ryo_values::domain::stores::types::StoredPack;
@@ -27,9 +29,20 @@ pub trait FileScanUseCase: Send + Sync {
     /// Which engines run the files of a request.
     fn mode(&self) -> EngineMode;
 
+    /// The rule sets of a request as the store kept them, asked before anything is compiled: under the old engine alone, none,
+    /// and the store's packs are not read; otherwise one for each linked language, each read back from the stored pack of what
+    /// the run was given and reported by count. Nothing when the store lacks the pack of one of them: the run compiles its
+    /// rules and asks `load`.
+    ///
+    /// # Errors
+    ///
+    /// As `load`.
+    fn stored(&self, request: ScanStoredRequest<'_>)
+    -> Result<Option<ScanSession>, OperatingError>;
+
     /// The rule sets of a request, before its files: under the old engine alone, none, and nothing is loaded; otherwise one for
-    /// each linked language the rules are lowered against, read back from the stored pack of the same rules or lowered, and
-    /// reported by count.
+    /// each linked language the rules are lowered against, read back from the stored pack of what the run was given or lowered,
+    /// and reported by count.
     ///
     /// # Errors
     ///
@@ -58,6 +71,15 @@ pub trait FileScanUseCase: Send + Sync {
         by: RuleSetNumber,
         rule: SelectedRuleOrdinal,
     ) -> &'s [CellKind];
+
+    /// What a row of a rule emits in a rule set, as the rule set's pack says it: its subject, its key and its headings. None for
+    /// a rule the rule set does not run.
+    fn emit<'s>(
+        &self,
+        session: &'s ScanSession,
+        by: RuleSetNumber,
+        rule: SelectedRuleOrdinal,
+    ) -> Option<&'s Emit>;
 
     /// The rules a rule set runs, in rule order: nothing for a rule set the session does not have.
     fn accepted<'s>(

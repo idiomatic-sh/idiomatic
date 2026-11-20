@@ -203,7 +203,10 @@ fn worked(plan: &Plan, files: &[WalkRequest<'_>]) -> ScanReport {
     let engine = EngineFake::default();
     let programs = accepted(&engine, plan);
     let mut worker = worker(&words(), &engine, &programs);
-    let (columns, places) = (emit_columns(&engine, &programs), place_columns(&[plan]));
+    let (columns, places) = (
+        emit_columns(&engine, &programs),
+        place_columns(&[SelectedRuleOrdinal(0)], std::slice::from_ref(&plan.emit)),
+    );
     let run = ScanRun {
         programs: &programs,
         columns: &columns,
@@ -300,7 +303,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let (engine, plan) = (EngineFake::default(), keeping(3));
             let programs = accepted(&engine, &plan);
             let mut worker = worker(&words(), &engine, &programs);
-            let (columns, places) = (emit_columns(&engine, &programs), place_columns(&[&plan]));
+            let (columns, places) = (
+                emit_columns(&engine, &programs),
+                place_columns(&[SelectedRuleOrdinal(0)], std::slice::from_ref(&plan.emit)),
+            );
             let run = ScanRun {
                 programs: &programs,
                 columns: &columns,

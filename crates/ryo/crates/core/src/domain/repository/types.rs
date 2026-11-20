@@ -22,7 +22,8 @@ pub(crate) struct DigestRelation<'a> {
     pub columns: Vec<DigestColumn<'a>>,
 }
 
-/// A count or a length that the digest of the catalog writes as eight bytes.
+/// A count, a length or a place that an identity writes as eight bytes: of the catalog's relations and columns, and of a run's
+/// rules and the modules they share.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SchemaCount(pub usize);
 

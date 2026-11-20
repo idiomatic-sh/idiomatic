@@ -2,8 +2,8 @@
 
 use super::errors::LintError;
 use super::types::{
-    FeatureFed, LintReport, LintRun, ProjectDependency, ProjectDependencyState, RuleWork,
-    SourceProvider, StepFed, Wanting,
+    FeatureFed, LintReport, LintRequest, LintRun, ProjectDependency, ProjectDependencyState,
+    RuleWork, SourceProvider, StepFed,
 };
 use crate::application::cross_file::service::CrossFile;
 use crate::application::cross_file::types::{
@@ -12,7 +12,7 @@ use crate::application::cross_file::types::{
 use crate::application::file_analysis::gating::service::refusals;
 use crate::application::file_analysis::streaming::service::FileVisits;
 use crate::application::file_analysis::types::{
-    FileVisit, ProjectMaking, RequestVisitSetting, StreamRun,
+    FileVisit, ProjectMaking, RequestVisitSetting, ScanRequest, StreamRun,
 };
 use crate::application::metadata::service::kernel_metadata;
 use crate::application::persisting::service::kept;
@@ -26,30 +26,23 @@ use crate::domain::keeping::service::rows_of;
 use crate::domain::listing::service::every_file;
 use crate::domain::project::service::{project_rules, reads_any};
 use crate::domain::project::types::{PlanReads, Projected};
-use crate::domain::render::types::Rendered;
+use crate::domain::render::types::{Answering, Rendered};
 use crate::domain::reporting::service::{read_outcomes, sort_unique, unknowns_from};
 use crate::domain::reporting::types::RowCounts;
-use crate::domain::run_rules::service::{owner_of, scopes_of};
 use crate::domain::storing::types::{Decision, ReadAlone, Reused, ToKeep};
-use crate::domain::visit::service::wants;
 use crate::domain::workers::service::by_step;
 use crate::domain::workers::service::order;
 use crate::domain::workers::types::{CrossReading, ProjectHandle, Visited, WorkersMet};
 use crate::inbound::use_cases::lint::constants::NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY;
 use crate::outbound::corpus::interface::CorpusPort;
-use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::lint_store::types::StoreKeeping;
 use crate::outbound::row_sink::interface::RowSinkPort;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, PlacedScopes};
-use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
 use ryo_execution_runtime::outbound::observer::types::FedTotals;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
-use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
-use ryo_values::domain::files::types::Glob;
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::Freshness;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
@@ -76,32 +69,26 @@ pub(super) fn from_storing(error: StoringError) -> LintError {
     }
 }
 
-/// Which rule governs which file, and which relations the rules read: those the languages are asked for.
-pub(super) fn wanting(
-    matching: &dyn MatchingPort,
-    language: &dyn LanguagePort,
-    rules: &[RuleSpec],
-    plans: &[&Plan],
-    ids: &[RuleId],
-) -> Result<Wanting, LintError> {
-    let placement = kernel_metadata().decide(&scopes_of(rules));
-    let matcher = matching
-        .compile(&placement.globs)
-        .map_err(|error| match error {
-            MatchingError::BadGlob { glob, reason } => LintError::Rule {
-                id: owner_of(&placement, &Glob(glob.into()), ids)
-                    .map(|id| id.0.to_string())
-                    .unwrap_or_default(),
-                reason,
-            },
-            MatchingError::InvalidRegex { reason } => LintError::Rule {
-                id: String::new(),
-                reason,
-            },
-        })?;
-    let wants = wants(plans, &language.relations()?.0)?;
-    let placed = PlacedScopes { placement, matcher };
-    Ok(Wanting { placed, wants })
+/// What the new engine's part of a run is asked with: the rules as the run was given them, which say what the rule sets' packs
+/// are kept under, and what a scanned file's rows are rendered with.
+pub(super) fn asked<'a, 'l>(
+    request: &'l LintRequest,
+    rules: &'l [RuleSpec],
+    ids: &'a [RuleId],
+    placed: &'a PlacedScopes,
+    answering: &'a Answering,
+    listing: &'a RepositoryListing,
+) -> ScanRequest<'a, 'l> {
+    ScanRequest {
+        named: named_provider(&request.source_language),
+        rules,
+        hosted: &request.hosted,
+        ids,
+        placed,
+        answering,
+        files: &listing.files,
+        read: listing.read.as_ref(),
+    }
 }
 
 /// What the run uses again of what the last kept: the changed files are read alone once the files the project's lookup consulted

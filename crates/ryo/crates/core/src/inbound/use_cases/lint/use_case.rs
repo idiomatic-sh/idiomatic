@@ -5,15 +5,15 @@
 //! listing and reuse, the visits of the files and the cross-file phase are the application's; this wires them and publishes.
 use super::errors::LintError;
 use super::interface::LintUseCase;
-use super::service::{answer, from_storing, named_provider, reused, wanting};
-use super::types::{LintReport, LintRequest, LintRun, Wanting};
+use super::service::{answer, asked, from_storing, named_provider, reused};
+use super::types::{LintReport, LintRequest, LintRun};
 use crate::application::cross_file::service::CrossFile;
 use crate::application::cross_file::types::PhasePorts;
 use crate::application::engine::service::{Compilation, Execution};
 use crate::application::file_analysis::service::FileAnalysis;
 use crate::application::file_analysis::streaming::service::FileVisits;
-use crate::application::file_analysis::types::{FileVisit, RequestVisitSetting, ScanRequest};
-use crate::application::metadata::service::kernel_metadata;
+use crate::application::file_analysis::types::{FileVisit, RequestVisitSetting};
+use crate::application::metadata::service::{kernel_metadata, placement};
 use crate::application::persisting::service::handed_of;
 use crate::application::storing::service::Storing;
 use crate::domain::reading::service::first_buckets;
@@ -50,6 +50,7 @@ use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::spike::EngineMode;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::{AnswerShape, RuleId};
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Reuse};
@@ -179,6 +180,19 @@ impl LintUseCase for LintUseCaseImpl {
         let analysis = self.visits.analysis();
         analysis.validate_source_language(named_provider(&request.source_language))?;
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
+        // The new engine alone, answering findings, asks the store before it compiles: a run given the rules the store holds the
+        // packs of compiles nothing. A run the store has no answer for goes on as before, and keeps its packs for the next.
+        let (ids, mut listed) = (ids_of(&rules), None);
+        if analysis.engines() == EngineMode::New && request.answer == AnswerShape::Findings {
+            let placed = placement(self.matching.as_ref(), &rules, &ids)?;
+            let findings = Answering::Findings;
+            let listing = self.storing.listing(&findings).map_err(from_storing)?;
+            let scan = asked(&request, &rules, &ids, &placed, &findings, &listing);
+            if let Some(stored) = self.visits.stored(scan)? {
+                return Ok(self.visits.answered(&stored, &request.files)?.into());
+            }
+            listed = Some(listing);
+        }
         let compiling = tracing::info_span!("compile").entered();
         let compiled = self.compilation.compile_rules(CompileRequest {
             rules: &rules,
@@ -186,14 +200,8 @@ impl LintUseCase for LintUseCaseImpl {
             vocabularies: &self.language.kind_vocabularies(),
         })?;
         let plans: Vec<&ryo_values::domain::plans::types::Plan> = compiled.plans().collect();
-        let ids = ids_of(&rules);
-        let Wanting { placed, wants } = wanting(
-            self.matching.as_ref(),
-            self.language.as_ref(),
-            &rules,
-            &plans,
-            &ids,
-        )?;
+        let placed = placement(self.matching.as_ref(), &rules, &ids)?;
+        let wants = crate::domain::visit::service::wants(&plans, &self.language.relations()?.0)?;
         drop(compiling);
         let answering = match request.answer {
             AnswerShape::Findings => Answering::Findings,
@@ -201,7 +209,8 @@ impl LintUseCase for LintUseCaseImpl {
         };
         let mut listing = {
             let _listing = tracing::info_span!("list").entered();
-            self.storing.listing(&answering).map_err(from_storing)?
+            let list = || self.storing.listing(&answering).map_err(from_storing);
+            listed.map_or_else(list, Ok)?
         };
         let paths = paths_of(&listing.files);
         let manifests = analysis.read_manifests(&mut listing.files)?;
@@ -248,20 +257,10 @@ impl LintUseCase for LintUseCaseImpl {
                 error,
             )
         };
-        let scanning = self.visits.scanning(ScanRequest {
-            named: named_provider(&request.source_language),
-            plans: &plans,
-            digests: &digests,
-            ids: &ids,
-            placed: &placed,
-            answering: &answering,
-            files: &listing.files,
-            read: listing.read.as_ref(),
-        })?;
-        if scanning.mode() == ryo_operators::spike::EngineMode::New {
-            let scanned = self.visits.scanned(&scanning, &request.files)??;
-            self.rows.end(scanned.counts, &scanned.unread)?;
-            return Ok(scanned.into());
+        let scan = asked(&request, &rules, &ids, &placed, &answering, &listing);
+        let scanning = self.visits.scanning(scan, &plans)?;
+        if scanning.mode() == EngineMode::New {
+            return Ok(self.visits.answered(&scanning, &request.files)?.into());
         }
         let program = Arc::new(
             execution

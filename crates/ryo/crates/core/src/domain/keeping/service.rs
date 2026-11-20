@@ -21,6 +21,7 @@ use ryo_values::domain::row_texts::types::{
     RowsTextView, TextRange,
 };
 use ryo_values::domain::row_texts::types::{FindingRows, RowPlacing, RowTotal};
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_findings::types::{
@@ -171,6 +172,48 @@ fn put(out: &mut DigestInput, text: DigestPart<'_>) {
     out.extend_from_slice(text.as_bytes());
 }
 
+/// Writes what a rule is before its modules: its id, its applicability and its root document.
+pub(crate) fn rule_head(out: &mut DigestInput, rule: &RuleSpec) {
+    put(out, DigestPart(&rule.id.0));
+    // A rule's applicability is written as the number of its variant, as a number is not a text and needs no length.
+    out.0.push(match rule.applicability {
+        ryo_values::domain::runs::types::RuleApplicability::Always => 0,
+        ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax => 1,
+    });
+    put(out, DigestPart(&rule.query.root.id.0));
+    put(out, DigestPart(&rule.query.root.text));
+}
+
+/// Writes the modules a rule's query names: how many, then each one's id and text.
+pub(crate) fn rule_modules(out: &mut DigestInput, rule: &RuleSpec) {
+    out.0.extend_from_slice(
+        &u64::try_from(rule.query.modules.len())
+            .unwrap_or(u64::MAX)
+            .to_le_bytes(),
+    );
+    for (id, source) in rule.query.modules.iter() {
+        put(out, DigestPart(&id.0));
+        put(out, DigestPart(&source.text));
+    }
+}
+
+/// Writes what a rule is after its modules: its parameters as they are written, what it observes, and its globs.
+pub(crate) fn rule_tail(out: &mut DigestInput, rule: &RuleSpec) {
+    put(out, DigestPart(&rule.spelled.0));
+    // Ordinary rules retain their historical bytes; declared dependency contracts
+    // carry a versioned frame including producer IDs, output names and schema.
+    out.0.extend_from_slice(
+        &ryo_values::domain::observations::service::identity(&rule.observations).0,
+    );
+    for globs in [&rule.include, &rule.exclude] {
+        out.0
+            .extend_from_slice(&u64::try_from(globs.len()).unwrap_or(0).to_le_bytes());
+        for glob in globs {
+            put(out, DigestPart(&glob.0));
+        }
+    }
+}
+
 /// What the findings of rules depend on of the rules themselves and of the relations the host declares, as bytes to digest.
 #[must_use]
 pub(crate) fn configuration_bytes(configuration: &Configuration<'_>) -> DigestInput {
@@ -181,36 +224,9 @@ pub(crate) fn configuration_bytes(configuration: &Configuration<'_>) -> DigestIn
             .to_le_bytes(),
     );
     for rule in configuration.rules {
-        put(&mut out, DigestPart(&rule.id.0));
-        // A rule's applicability is written as the number of its variant, as a number is not a text and needs no length.
-        out.0.push(match rule.applicability {
-            ryo_values::domain::runs::types::RuleApplicability::Always => 0,
-            ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax => 1,
-        });
-        put(&mut out, DigestPart(&rule.query.root.id.0));
-        put(&mut out, DigestPart(&rule.query.root.text));
-        out.0.extend_from_slice(
-            &u64::try_from(rule.query.modules.len())
-                .unwrap_or(u64::MAX)
-                .to_le_bytes(),
-        );
-        for (id, source) in rule.query.modules.iter() {
-            put(&mut out, DigestPart(&id.0));
-            put(&mut out, DigestPart(&source.text));
-        }
-        put(&mut out, DigestPart(&rule.spelled.0));
-        // Ordinary rules retain their historical bytes; declared dependency contracts
-        // carry a versioned frame including producer IDs, output names and schema.
-        out.0.extend_from_slice(
-            &ryo_values::domain::observations::service::identity(&rule.observations).0,
-        );
-        for globs in [&rule.include, &rule.exclude] {
-            out.0
-                .extend_from_slice(&u64::try_from(globs.len()).unwrap_or(0).to_le_bytes());
-            for glob in globs {
-                put(&mut out, DigestPart(&glob.0));
-            }
-        }
+        rule_head(&mut out, rule);
+        rule_modules(&mut out, rule);
+        rule_tail(&mut out, rule);
     }
     out.0.extend_from_slice(
         &u64::try_from(configuration.hosted.len())

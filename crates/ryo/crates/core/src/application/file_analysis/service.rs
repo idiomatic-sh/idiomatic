@@ -161,6 +161,11 @@ impl FileAnalysis {
         self
     }
 
+    /// Which engines run the files: the ones the edge said, otherwise the ones `RYO_ENGINE` selects.
+    pub(crate) fn engines(&self) -> EngineMode {
+        self.mode.unwrap_or_else(engine_mode)
+    }
+
     /// The new engine's scan of a request's files: over the engine the edge composed, the linked languages' walks and kinds, and
     /// the language the request names, when it names one.
     pub(crate) fn scanner(
@@ -178,7 +183,7 @@ impl FileAnalysis {
             language: named
                 .cloned()
                 .map_or(ScanLanguage::EveryLinked, ScanLanguage::Named),
-            mode: self.mode.unwrap_or_else(engine_mode),
+            mode: self.engines(),
         })
     }
 

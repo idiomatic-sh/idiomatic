@@ -16,7 +16,8 @@ use ryo_language::domain::facts::types::FileFacts;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, WalkEngine, WalkRequest};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::scan_rows::types::{FaultOf, FaultSentence, ScanFault, ScanRow};
 use std::sync::Arc;
 
@@ -52,31 +53,35 @@ pub fn emit_columns(engine: &dyn EnginePort, programs: &Programs) -> EmitColumns
     columns
 }
 
-/// The columns that place a row of each selected rule, by rule ordinal: the key columns of its plan's emit, then its subject.
-/// `plans` are the selected rules' plans, in rule order.
+/// The columns that place a row of each rule a rule set runs, by rule ordinal: the key columns of what the rule emits, then its
+/// subject. `rules` are the rules the rule set runs and `emits` what a row of each emits, in the same order, as the rule set's
+/// pack says it: no plan is read.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_execution_runtime::application::file_scan::service::place_columns;
 ///
-/// assert!(place_columns(&[]).0.is_empty());
+/// assert!(place_columns(&[], &[]).0.is_empty());
 /// ```
 #[must_use]
-pub fn place_columns(plans: &[&Plan]) -> PlaceColumns {
-    PlaceColumns(
-        plans
-            .iter()
-            .map(|plan| {
-                plan.emit
-                    .key
-                    .iter()
-                    .chain(std::iter::once(&plan.emit.subject))
-                    .copied()
-                    .collect()
-            })
-            .collect(),
-    )
+pub fn place_columns(rules: &[SelectedRuleOrdinal], emits: &[Emit]) -> PlaceColumns {
+    let mut places = PlaceColumns::default();
+    for (rule, emit) in rules.iter().zip(emits) {
+        let place = usize::try_from(rule.0).unwrap_or(usize::MAX);
+        if places.0.len() <= place {
+            places.0.resize_with(place.saturating_add(1), Vec::new);
+        }
+        if let Some(slot) = places.0.get_mut(place) {
+            *slot = emit
+                .key
+                .iter()
+                .chain(std::iter::once(&emit.subject))
+                .copied()
+                .collect();
+        }
+    }
+    places
 }
 
 /// A worker's state for a rule set, before its first file.

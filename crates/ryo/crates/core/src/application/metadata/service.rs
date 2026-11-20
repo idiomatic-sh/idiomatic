@@ -1,5 +1,5 @@
 //! The decisions over request metadata the use cases take: the kernel's own, called here where an application service may name its
-//! implementation, so a use case holds none.
+//! implementation, so a use case holds none; and which rule governs which file, decided once for a run.
 
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
@@ -53,4 +53,30 @@ impl<Metadata: MetadataUseCase> RunDecisions for Metadata {
     fn blocked(&self, needs: &[RelationRead], partial: &[Partial]) -> Blocking {
         MetadataUseCase::blocked(self, needs, partial)
     }
+}
+
+/// Which rule governs which file: the scopes of the rules decided once, and their globs compiled.
+///
+/// # Errors
+///
+/// The rule whose glob is not one, with why; no rule for a pattern that names none.
+pub(crate) fn placement(
+    matching: &dyn ryo_execution::outbound::matching::interface::MatchingPort,
+    rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
+    ids: &[RuleId],
+) -> Result<PlacedScopes, ryo_values::domain::rule_requests::errors::RuleRequestsError> {
+    use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
+    let placement = kernel_metadata().decide(&crate::domain::run_rules::service::scopes_of(rules));
+    let matcher = matching.compile(&placement.globs).map_err(|error| {
+        let (owner, reason) = match error {
+            MatchingError::BadGlob { glob, reason } => {
+                let glob = ryo_values::domain::files::types::Glob(glob.into());
+                let owner = crate::domain::run_rules::service::owner_of(&placement, &glob, ids);
+                (owner.cloned().unwrap_or_default(), reason)
+            }
+            MatchingError::InvalidRegex { reason } => (RuleId::default(), reason),
+        };
+        ryo_values::domain::rule_requests::service::failed(&owner, &reason)
+    })?;
+    Ok(PlacedScopes { placement, matcher })
 }
