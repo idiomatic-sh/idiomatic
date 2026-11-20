@@ -1209,6 +1209,10 @@ pub(crate) struct Counters {
     pub index_ns: u64,
     /// index_ns split: [tree value index, constant scans, fact column index]
     pub index_split: [u64; 3],
+    /// constant-list misses, bucket (CSR) builds and their time
+    pub const_misses: u64,
+    pub csr_builds: u64,
+    pub csr_ns: u64,
     /// per made table (fact index): (builds, exclusive ns, input rows, steps)
     pub made_by: FxMap<u16, (u64, u64, u64, u64)>,
     pub kind_index_ns: u64,
@@ -1581,6 +1585,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             return l.clone();
         }
         let t0 = Instant::now();
+        self.c.const_misses += 1;
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
         let wanted: Vec<u64> = match val {
             Val::Syms(s) => s.iter().map(|&x| u64::from(x)).collect(),
@@ -1594,6 +1599,29 @@ impl<'a, 'p> Exec<'a, 'p> {
             return l;
         }
         let v = self.f.view;
+        if rel == TRel::Id && col == 1 && self.cache.ident.is_none() {
+            // identifier text against a few constants: compare the parser's own strings, no interning of the file's names
+            let texts: Vec<&str> = wanted.iter().filter_map(|&w| self.sym.str(w as u32)).collect();
+            let mut out: Vec<u32> = Vec::new();
+            for (i, node) in self.f.table.node.iter().enumerate() {
+                let t = match node {
+                    ruff_python_ast::AnyNodeRef::Identifier(x) => x.as_str(),
+                    ruff_python_ast::AnyNodeRef::ExprName(x) => x.id.as_str(),
+                    _ => continue,
+                };
+                if texts.contains(&t) {
+                    out.push(i as u32);
+                }
+            }
+            out.sort_by_key(|&id| (v.start[id as usize], id));
+            self.c.made_tables += 1;
+            self.c.index_ns += t0.elapsed().as_nanos() as u64;
+            self.c.index_split[1] += t0.elapsed().as_nanos() as u64;
+            let l = Rc::new(out);
+            self.cache.const_idx.insert(key, l.clone());
+            self.cache.const_by.insert(ckey, l.clone());
+            return l;
+        }
         let csr = self.col_csr(rel, col);
         let mut out: Vec<u32> = Vec::new();
         for &w in &wanted {
@@ -1621,6 +1649,8 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(c) = self.cache.csr.get(&(rel as u8, col)) {
             return c.clone();
         }
+        let t_csr = Instant::now();
+        self.c.csr_builds += 1;
         let nb = self.sym.base_count();
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
         let v = self.f.view;
@@ -1674,6 +1704,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 sl.sort_by_key(|&id| (v.start[id as usize], id));
             }
         }
+        self.c.csr_ns += t_csr.elapsed().as_nanos() as u64;
         let c = Rc::new(Csr { at, ids });
         self.cache.csr.insert((rel as u8, col), c.clone());
         c
