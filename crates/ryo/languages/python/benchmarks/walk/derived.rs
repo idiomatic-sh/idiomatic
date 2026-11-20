@@ -137,6 +137,7 @@ pub(crate) const RELATIONS: &[&str] = &[
     "literal-expression-parse",
     "raw-format-segment",
     "raw-format-field",
+    "format-specification",
 ];
 
 /// The other relation computed from the same parse (its rows come from one pass).
@@ -2231,6 +2232,9 @@ pub(crate) mod braceformat {
         pub ordinal: usize,
         pub parent: Option<usize>,
         pub selector: Selector,
+        pub spec: Option<String>,
+        pub selector_text: String,
+        pub conversion: Option<char>,
     }
     #[derive(Default)]
     pub struct Parsed {
@@ -2248,6 +2252,7 @@ pub(crate) mod braceformat {
     struct Part {
         name: String,
         spec: Option<String>,
+        conversion: Option<char>,
     }
     fn field_name(name: &str) -> Result<FieldType, Error> {
         let chars: Vec<char> = name.chars().collect();
@@ -2301,15 +2306,16 @@ pub(crate) mod braceformat {
         let spec = split.next().map(str::to_owned);
         let mut parts = field.splitn(2, '!');
         let name = parts.next().unwrap_or_default();
+        let mut conversion = None;
         if let Some(text) = parts.next() {
             let mut cs = text.chars();
-            cs.next().ok_or(Error::UnknownConversion)?;
+            conversion = Some(cs.next().ok_or(Error::UnknownConversion)?);
             if cs.next().is_some() {
                 return Err(Error::UnknownConversion);
             }
         }
         field_name(name)?;
-        Ok(Part { name: name.to_owned(), spec })
+        Ok(Part { name: name.to_owned(), spec, conversion })
     }
     fn parts(text: &str) -> Result<Vec<Part>, Error> {
         let chars: Vec<char> = text.chars().collect();
@@ -2370,7 +2376,7 @@ pub(crate) mod braceformat {
         }
         Ok(out)
     }
-    fn add(p: &mut Parsed, name: &str, parent: Option<usize>) -> Result<usize, Error> {
+    fn add(p: &mut Parsed, name: &str, parent: Option<usize>, spec: Option<String>, conversion: Option<char>) -> Result<usize, Error> {
         let ordinal = p.fields.len();
         let selector = match field_name(name)? {
             FieldType::Automatic => {
@@ -2387,17 +2393,17 @@ pub(crate) mod braceformat {
                 Selector::Keyword(n)
             }
         };
-        p.fields.push(Field { ordinal, parent, selector });
+        p.fields.push(Field { ordinal, parent, selector, spec, selector_text: name.to_owned(), conversion });
         Ok(ordinal)
     }
     pub fn parse(input: &str) -> Result<Parsed, Error> {
         let ps = parts(input)?;
         let mut p = Parsed::default();
         for part in ps {
-            let parent = add(&mut p, &part.name, None)?;
+            let parent = add(&mut p, &part.name, None, part.spec.clone(), part.conversion)?;
             let spec = part.spec.unwrap_or_default();
             for nested in parts(&spec)? {
-                add(&mut p, &nested.name, Some(parent))?;
+                add(&mut p, &nested.name, Some(parent), nested.spec, nested.conversion)?;
                 p.nested += 1;
             }
         }
@@ -2567,6 +2573,143 @@ fn rows_raw_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, seg_rel: Option<usize>,
     }
 }
 
+// ------------------------------------------------------------------------------------------------ format-specification
+/// `format_specification::observe` + `standard_format_spec::recognize`: every format spec, of a `str.format` field in a string
+/// (from the brace parse) or of an f-string interpolation (its own syntax), recognised against Python's standard format-spec
+/// mini-language for the target version.
+#[derive(Clone, Copy)]
+enum SpecOutcome {
+    Recognized,
+    Dynamic,
+    InvalidType(char),
+    OtherError,
+}
+
+fn is_decimal(c: char) -> bool {
+    use unicode_properties::{GeneralCategory, UnicodeGeneralCategory};
+    c.general_category() == GeneralCategory::DecimalNumber
+}
+
+fn recognize(raw: &str, nested: bool, target: (i64, i64)) -> SpecOutcome {
+    if nested {
+        return SpecOutcome::Dynamic;
+    }
+    let align = |c: char| matches!(c, '<' | '>' | '=' | '^');
+    let mut chars = raw.chars().peekable();
+    let mut look = chars.clone();
+    let (first, second) = (look.next(), look.next());
+    if second.is_some_and(align) {
+        chars.next();
+        chars.next();
+    } else if first.is_some_and(align) {
+        chars.next();
+    }
+    if chars.peek().is_some_and(|c| matches!(*c, '+' | '-' | ' ')) {
+        chars.next();
+    }
+    if target >= (3, 11) && chars.peek() == Some(&'z') {
+        chars.next();
+    }
+    if chars.peek() == Some(&'#') {
+        chars.next();
+    }
+    if chars.peek() == Some(&'0') {
+        chars.next();
+    }
+    while chars.peek().is_some_and(|c| is_decimal(*c)) {
+        chars.next();
+    }
+    if chars.peek().is_some_and(|c| matches!(*c, ',' | '_')) {
+        chars.next();
+    }
+    if chars.peek() == Some(&'.') {
+        chars.next();
+        if !chars.peek().is_some_and(|c| is_decimal(*c)) {
+            return SpecOutcome::OtherError;
+        }
+        while chars.peek().is_some_and(|c| is_decimal(*c)) {
+            chars.next();
+        }
+    }
+    let Some(p) = chars.next() else { return SpecOutcome::Recognized };
+    if !matches!(p, 's' | 'b' | 'c' | 'd' | 'o' | 'x' | 'X' | 'n' | 'e' | 'E' | 'f' | 'F' | 'g' | 'G' | '%') {
+        return SpecOutcome::InvalidType(p);
+    }
+    if chars.next().is_some() { SpecOutcome::OtherError } else { SpecOutcome::Recognized }
+}
+
+fn rows_format_specification(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
+    let emit = |sink: &mut dyn Sink, id: u32, ordinal: usize, parent: Option<usize>, origin: u32, kind: &str, value: Option<&str>, o: SpecOutcome, selector: &str, conversion: &str| {
+        let mut b = [0u8; 4];
+        let (label, invalid) = match o {
+            SpecOutcome::Recognized => ("recognized", ""),
+            SpecOutcome::Dynamic => ("dynamic", ""),
+            SpecOutcome::InvalidType(ch) => ("invalid-type", &*ch.encode_utf8(&mut b)),
+            SpecOutcome::OtherError => ("other-error", ""),
+        };
+        sink.row(rel, &[Cell::Node(id), Cell::Num(ordinal as i64), Cell::Num(parent.map_or(-1, |p| p as i64)), Cell::Node(origin), Cell::Text(kind), value.map_or(Cell::Null, Cell::Text), Cell::Text(label), Cell::Text(invalid), Cell::Text(selector), Cell::Text(conversion), Cell::File, c.span(origin)]);
+    };
+    // brace strings: string literals whose brace parse succeeded
+    for &id in c.kind(NodeKind::ExprStringLiteral) {
+        let Some(text) = string_value(c.table.node[id as usize], buf) else { continue };
+        let Ok(p) = braceformat::parse(text) else { continue };
+        for f in &p.fields {
+            let Some(spec) = &f.spec else { continue };
+            let nested = p.fields.iter().any(|n| n.parent == Some(f.ordinal));
+            let mut cb = [0u8; 4];
+            let conv = f.conversion.map_or("", |ch| &*ch.encode_utf8(&mut cb));
+            emit(sink, id, f.ordinal, f.parent, id, "brace-string", Some(spec), recognize(spec, nested, TARGET), &f.selector_text, conv);
+        }
+    }
+    // f-strings: the interpolations of each f-string (not of a spec), numbered in order; a spec's parent is the enclosing one
+    for &owner in c.kind(NodeKind::ExprFString) {
+        let (start, end) = (owner as usize + 1, c.table.end[owner as usize] as usize);
+        let owner_of = |mut x: u32| -> u32 {
+            loop {
+                x = c.table.parent[x as usize];
+                if matches!(c.table.node[x as usize], AnyNodeRef::ExprFString(_)) || x == u32::MAX || x == 0 {
+                    return x;
+                }
+            }
+        };
+        let group: Vec<u32> = (start..end)
+            .map(|i| i as u32)
+            .filter(|&i| matches!(c.table.node[i as usize], AnyNodeRef::InterpolatedElement(_)) && owner_of(i) == owner)
+            .collect();
+        for (ordinal, &field) in group.iter().enumerate() {
+            let AnyNodeRef::InterpolatedElement(ie) = c.table.node[field as usize] else { continue };
+            let Some(spec) = &ie.format_spec else { continue };
+            let spec_id = id_of((&**spec).into());
+            let mut above = c.table.parent[field as usize];
+            let parent = loop {
+                if above == owner || above == u32::MAX {
+                    break None;
+                }
+                if let Some(found) = group.iter().position(|g| *g == above) {
+                    break Some(found);
+                }
+                above = c.table.parent[above as usize];
+            };
+            buf.clear();
+            let mut dynamic = false;
+            for e in spec.elements.iter() {
+                match e {
+                    ast::InterpolatedStringElement::Literal(l) => buf.push_str(&l.value),
+                    ast::InterpolatedStringElement::Interpolation(_) => dynamic = true,
+                }
+            }
+            let mut cb = [0u8; 4];
+            let conv = ie.conversion.to_char().map_or("", |ch| &*ch.encode_utf8(&mut cb));
+            if dynamic {
+                emit(sink, owner, ordinal, parent, spec_id, "fstring", None, SpecOutcome::Dynamic, "", conv);
+            } else {
+                let o = recognize(buf, false, TARGET);
+                emit(sink, owner, ordinal, parent, spec_id, "fstring", Some(buf.as_str()), o, "", conv);
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
@@ -2672,6 +2815,9 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     let (rs, rf) = (want("raw-format-segment"), want("raw-format-field"));
     if rs.is_some() || rf.is_some() {
         rows_raw_format(c, sink, rs, rf, st);
+    }
+    if let Some(r) = want("format-specification") {
+        rows_format_specification(c, sink, r, buf);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
