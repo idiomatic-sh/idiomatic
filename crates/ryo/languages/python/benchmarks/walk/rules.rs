@@ -435,8 +435,24 @@ impl Loader<'_> {
 impl Program {
     pub(crate) fn load(path: &str) -> Self {
         if path.ends_with(".pack") {
-            let (symbols, tails, nav) = crate::pack::read(path);
-            return Self::build(&tails, symbols, Some(nav));
+            let mem = std::env::var_os("NAV_MEM").is_some();
+            let (symbols, tails, nav, tables) = crate::pack::read(path);
+            if mem {
+                eprintln!("{{\"load_rss\":\"pack read (symbols, regexes, side tables, tails JSON value)\",\"rss\":{}}}", crate::exec::rss().0);
+            }
+            let mut me = Self::build(&tails, symbols, Some(nav));
+            if mem {
+                eprintln!("{{\"load_rss\":\"tails built\",\"rss\":{}}}", crate::exec::rss().0);
+            }
+            drop(tails);
+            // exec: the compact tables after the tails' JSON value is freed
+            if let Some(t) = tables {
+                t.read(me.nav.as_mut().unwrap());
+            }
+            if mem {
+                eprintln!("{{\"load_rss\":\"compact tables read\",\"rss\":{}}}", crate::exec::rss().0);
+            }
+            return me;
         }
         let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
         Self::build(&v, Symbols::default(), None)
@@ -1310,7 +1326,7 @@ impl<'p> State<'p> {
                 let xs = &self.cache.x;
                 let (hk, hm) = xs.hsite.iter().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
                 let (sk, sm) = xs.ksite.iter().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
-                eprintln!("{{\"xmemo\":{{\"key_lookups\":{sk},\"key_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm},\"tuples_peak\":{},\"node_memo_peak\":{}}}}}", xs.tup_peak.max(xs.tup.len()), xs.nm_peak.max(0));
+                eprintln!("{{\"xmemo\":{{\"loop_calls\":{},\"key_lookups\":{sk},\"key_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm},\"tuples_peak\":{},\"node_memo_peak\":{},\"index_arena_peak\":{}}}}}", xs.calls, xs.tup_peak.max(xs.tup.len()), xs.nm_peak, xs.ia_peak);
                 if c.diag {
                     let ops: Vec<String> = (0..crate::exec::NXOPS).filter(|&o| xs.xsteps[o] > 0).map(|o| format!("\"{}\":[{},{}]", crate::exec::xop_name(o), xs.xsteps[o], xs.xns[o])).collect();
                     eprintln!("{{\"xops\":{{{}}}}}", ops.join(","));

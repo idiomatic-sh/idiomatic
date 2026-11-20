@@ -901,6 +901,8 @@ pub(crate) struct XState {
     pub optime: bool,
     pub tup_peak: usize,
     pub ia_peak: usize,
+    /// calls of the dispatch loop over the run
+    pub calls: u64,
 }
 
 impl XState {
@@ -1187,15 +1189,20 @@ impl<'p> Exec<'_, 'p> {
 
     /// a fact column's index for this file (the fact is loaded first, as nav.rs `fact_index` does): one pass over the
     /// column, rows chained per key in row order
-    #[inline(never)]
+    #[inline(always)]
     fn xfact_index(&mut self, id: u16) {
+        // an index built for this file means its fact is loaded: no call into the loader on the way
+        if self.cache.x.fidx[id as usize].generation != self.cache.x.generation {
+            self.xfact_index_build(id);
+        }
+    }
+
+    #[inline(never)]
+    fn xfact_index_build(&mut self, id: u16) {
         let prog = self.prog;
         let (rel, col) = prog.x.fidx[id as usize];
         self.ensure(rel);
         let generation = self.cache.x.generation;
-        if self.cache.x.fidx[id as usize].generation == generation {
-            return;
-        }
         let t0 = std::time::Instant::now();
         let n_view = self.f.view.len();
         let dense = matches!(prog.facts[rel as usize].kinds[col as usize], ryo_relations::domain::relations::types::CellKind::Node);
@@ -1245,15 +1252,19 @@ impl<'p> Exec<'_, 'p> {
     }
 
     /// a fact's rows by two columns' values for this file: the first row of a pair in the keyed map, rows chained
-    #[inline(never)]
+    #[inline(always)]
     fn xfact_index2(&mut self, id: u16) {
+        if self.cache.x.f2[id as usize].0 != self.cache.x.generation {
+            self.xfact_index2_build(id);
+        }
+    }
+
+    #[inline(never)]
+    fn xfact_index2_build(&mut self, id: u16) {
         let prog = self.prog;
         let (rel, c1, c2) = prog.x.f2[id as usize];
         self.ensure(rel);
         let generation = self.cache.x.generation;
-        if self.cache.x.f2[id as usize].0 == generation {
-            return;
-        }
         let t0 = std::time::Instant::now();
         let cache = &mut *self.cache;
         let facts = cache.facts.as_ref().unwrap();
@@ -1780,6 +1791,72 @@ impl<'p> Exec<'_, 'p> {
         self.cache.x.probek.get(&(site, k0, k1, want)).copied()
     }
 
+    /// Ins::TextFn (out of the loop's frame)
+    #[inline(never)]
+    fn xtext_fn(&mut self, i: &XIns) -> Option<u64> {
+        let x = &self.prog.x;
+        let at = i.x as usize;
+        let mut t = String::new();
+        for k in 0..x.pool[at] as usize {
+            let o = tagged(x, at + 1 + 2 * k);
+            let val = self.xoval(o);
+            t.push_str(self.xtext(o, val)?);
+        }
+        if i.f != 0 {
+            t = t.to_lowercase();
+        }
+        Some(u64::from(self.sym.minted(t)))
+    }
+
+    /// Ins::Replace (out of the loop's frame: the regex iterator and its thread-local pool lookup stay out of the loop)
+    #[inline(never)]
+    fn xreplace(&mut self, i: &XIns) -> u64 {
+        let prog = self.prog;
+        let x = &prog.x;
+        let at = i.x as usize;
+        let o = tagged(x, at);
+        let val = self.xoval(o);
+        let (regex, replacement) = (x.pool[at + 2] as usize, x.strs[x.pool[at + 3] as usize].as_str());
+        let res = match self.xtext(o, val).map(str::to_owned) {
+            None => NULL,
+            Some(t) => {
+                let mut result = String::new();
+                let mut last = 0;
+                for m in prog.regexes[regex].find_iter(t.as_bytes()) {
+                    result.push_str(&t[last..m.start()]);
+                    result.push_str(replacement);
+                    last = m.end();
+                }
+                result.push_str(&t[last..]);
+                self.sym.minted(result)
+            }
+        };
+        u64::from(res)
+    }
+
+    /// Ins::Axis descendant: every descendant in document order continues the program (out of the loop's frame)
+    #[inline(never)]
+    fn xaxis_desc<const D: bool>(&mut self, i: &XIns, pc: u32) -> bool {
+        let v = self.f.view;
+        let s = self.regs[i.b as usize] as u32 as usize;
+        if s >= v.len() {
+            return false;
+        }
+        let mut stack: Vec<u32> = Vec::new();
+        let (b, e) = (v.child_off[s] as usize, v.child_off[s + 1] as usize);
+        stack.extend(v.children[b..e].iter().rev());
+        while let Some(d) = stack.pop() {
+            self.regs[i.a as usize] = u64::from(d);
+            self.c.visits += 1;
+            if self.xrun::<D>(pc + 1) {
+                return true;
+            }
+            let (b, e) = (v.child_off[d as usize] as usize, v.child_off[d as usize + 1] as usize);
+            stack.extend(v.children[b..e].iter().rev());
+        }
+        false
+    }
+
     /// The dispatch loop. Returns true when the program reached Yield (the caller stops enumerating).
     #[allow(clippy::too_many_lines)]
     pub(crate) fn xrun<const D: bool>(&mut self, entry: u32) -> bool {
@@ -1796,6 +1873,7 @@ impl<'p> Exec<'_, 'p> {
         let child_off: &[u32] = &v.child_off;
         let children: &[u32] = &v.children;
         let mut fr: arrayvec::ArrayVec<Frame, NFRAMES> = arrayvec::ArrayVec::new();
+        self.cache.x.calls += 1;
         let mut steps = 0u64;
         let mut visits = 0u64;
         let mut pc = entry as usize;
@@ -2178,24 +2256,9 @@ impl<'p> Exec<'_, 'p> {
                         break 'fail false;
                     }
                     op::AXIS_DESC => {
-                        let s = r!(i.b) as u32 as usize;
-                        if s >= n {
-                            break 'fail false;
-                        }
-                        let mut stack: Vec<u32> = Vec::new();
-                        let (b, e) = (child_off[s] as usize, child_off[s + 1] as usize);
-                        stack.extend(children[b..e].iter().rev());
                         sync!();
-                        while let Some(d) = stack.pop() {
-                            r!(i.a) = u64::from(d);
-                            self.c.visits += 1;
-                            if self.xrun::<D>(pc as u32 + 1) {
-                                break 'fail true;
-                            }
-                            let (b, e) = (child_off[d as usize] as usize, child_off[d as usize + 1] as usize);
-                            stack.extend(children[b..e].iter().rev());
-                        }
-                        break 'fail false;
+                        let y = self.xaxis_desc::<D>(i, pc as u32);
+                        break 'fail y;
                     }
                     op::WITHIN => {
                         let (a, d) = (r!(i.a) as u32, r!(i.b) as u32);
@@ -2589,48 +2652,14 @@ impl<'p> Exec<'_, 'p> {
                         }
                     }
                     op::TEXT_FN => {
-                        let at = i.x as usize;
-                        let mut t = String::new();
-                        let mut ok = true;
-                        for k in 0..pool[at] as usize {
-                            let o = tagged(x, at + 1 + 2 * k);
-                            let val = self.xoval(o);
-                            match self.xtext(o, val) {
-                                Some(s) => t.push_str(s),
-                                None => {
-                                    ok = false;
-                                    break;
-                                }
-                            }
+                        match self.xtext_fn(i) {
+                            Some(val) => r!(i.a) = val,
+                            None => break 'fail false,
                         }
-                        if !ok {
-                            break 'fail false;
-                        }
-                        if i.f != 0 {
-                            t = t.to_lowercase();
-                        }
-                        r!(i.a) = u64::from(self.sym.minted(t));
                     }
                     op::REPLACE => {
-                        let at = i.x as usize;
-                        let o = tagged(x, at);
-                        let val = self.xoval(o);
-                        let (regex, replacement) = (pool[at + 2] as usize, x.strs[pool[at + 3] as usize].as_str());
-                        let res = match self.xtext(o, val).map(str::to_owned) {
-                            None => NULL,
-                            Some(t) => {
-                                let mut result = String::new();
-                                let mut last = 0;
-                                for m in prog.regexes[regex].find_iter(t.as_bytes()) {
-                                    result.push_str(&t[last..m.start()]);
-                                    result.push_str(replacement);
-                                    last = m.end();
-                                }
-                                result.push_str(&t[last..]);
-                                self.sym.minted(result)
-                            }
-                        };
-                        r!(i.a) = u64::from(res);
+                        let val = self.xreplace(i);
+                        r!(i.a) = val;
                     }
                     _ => unreachable!("an opcode the encoder never writes"),
                 }

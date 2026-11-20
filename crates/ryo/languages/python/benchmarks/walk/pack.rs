@@ -961,7 +961,7 @@ pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -
 }
 
 /// Reads a pack: the symbols (every base symbol at its id), the tails in the loader's format, the navigation program.
-pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
+pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram, Option<Tables>) {
     let t0 = std::time::Instant::now();
     let mut file = std::fs::File::open(path).expect("pack");
     let head: Vec<u32> = crate::exec::read_table(&mut file, 4);
@@ -979,20 +979,20 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
         serde_json::from_slice(&tails_bytes[..tails_len]).expect("tails")
     };
     let t_tails = t0.elapsed().as_secs_f64();
+    let mem = std::env::var_os("NAV_MEM").is_some();
+    if mem {
+        eprintln!("{{\"load_rss\":\"tails JSON parsed\",\"rss\":{}}}", crate::exec::rss().0);
+    }
     let words: Vec<u32> = crate::exec::read_table(&mut file, nwords);
-    let mut xparts: Option<(Vec<u32>, Vec<crate::exec::XIns>, Vec<u32>, Vec<u64>)> = None;
+    let mut pending: Option<Tables> = None;
     if compact {
-        // the compact program: three tables read as they are (one read each, nothing decoded per instruction)
+        // the compact program's side tables now; its three big tables are read by `Tables::read` after the tails are built
+        // and their JSON value is freed (the tables then reuse that memory instead of adding to it)
         let cm: Vec<u32> = crate::exec::read_table(&mut file, more[0] as usize);
         let at = 32 + (32 + tails_len).div_ceil(8) * 8 - 32 + (nwords + more[0] as usize) * 4;
         let _skip: Vec<u8> = crate::exec::read_table(&mut file, at.div_ceil(8) * 8 - at);
-        let code: Vec<crate::exec::XIns> = crate::exec::read_table(&mut file, more[1] as usize);
-        let pool: Vec<u32> = crate::exec::read_table(&mut file, more[2] as usize);
-        let _skip: Vec<u8> = crate::exec::read_table(&mut file, (more[2] as usize * 4).div_ceil(8) * 8 - more[2] as usize * 4);
-        let k64: Vec<u64> = crate::exec::read_table(&mut file, more[3] as usize);
-        xparts = Some((cm, code, pool, k64));
+        pending = Some(Tables { file, cm, counts: [more[1] as usize, more[2] as usize, more[3] as usize] });
     }
-    drop(file);
     let mut d = Dec { w: &words, at: 0 };
     let mut symbols = Symbols::default();
     let n = d.u();
@@ -1001,9 +1001,15 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
         symbols.base(&t);
     }
     let t_sym = t0.elapsed().as_secs_f64();
+    if mem {
+        eprintln!("{{\"load_rss\":\"symbols\",\"rss\":{}}}", crate::exec::rss().0);
+    }
     let n = d.u();
     let regexes: Vec<Regex> = (0..n).map(|_| Regex::new(&d.s()).expect("regex")).collect();
     let t_re = t0.elapsed().as_secs_f64();
+    if mem {
+        eprintln!("{{\"load_rss\":\"regexes compiled\",\"rss\":{},\"regexes\":{}}}", crate::exec::rss().0, regexes.len());
+    }
     let max_regs = d.u() as usize;
     let nslots = d.u() as usize;
     let n = d.u();
@@ -1120,12 +1126,26 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
         );
     }
     let mut nav = NavProgram { groups, slot_of, slot_rule, nslots, rules, shared, facts, regexes, regex_patterns: Vec::new(), max_regs, needs_provider, x: crate::exec::Compact::default() };
-    if let Some((cm, code, pool, k64)) = xparts {
-        nav.x.code = code;
-        nav.x.pool = pool;
-        nav.x.k64 = k64;
-        crate::exec::unpack_meta(&mut nav, &cm);
+    if let Some(t) = &pending {
+        crate::exec::unpack_meta(&mut nav, &t.cm);
     }
     // the pack stores the specialised programs (written after specialize_all)
-    (symbols, tails, nav)
+    (symbols, tails, nav, pending)
+}
+
+/// The compact program's three tables, still in the pack file (exec): read as they are, one piece at a time, nothing
+/// decoded per instruction.
+pub(crate) struct Tables {
+    file: std::fs::File,
+    cm: Vec<u32>,
+    counts: [usize; 3],
+}
+
+impl Tables {
+    pub(crate) fn read(mut self, nav: &mut NavProgram) {
+        nav.x.code = crate::exec::read_table(&mut self.file, self.counts[0]);
+        nav.x.pool = crate::exec::read_table(&mut self.file, self.counts[1]);
+        let _skip: Vec<u8> = crate::exec::read_table(&mut self.file, (self.counts[1] * 4).div_ceil(8) * 8 - self.counts[1] * 4);
+        nav.x.k64 = crate::exec::read_table(&mut self.file, self.counts[2]);
+    }
 }
