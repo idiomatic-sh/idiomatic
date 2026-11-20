@@ -127,6 +127,7 @@ pub(crate) const RELATIONS: &[&str] = &[
     "source-location",
     "comment",
     "indent-region",
+    "function-terminal",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -1424,6 +1425,227 @@ fn rows_view(c: &Ctx<'_, '_>, sink: &mut dyn Sink, which: &str, rel: usize, st: 
     }
 }
 
+// ------------------------------------------------------------------------------------------------ function-terminal
+/// `terminal_flow::build`: one reverse-preorder fold of how each statement ends (implicit, raise, return-or-raise, conditional
+/// return) and whether it sometimes breaks out of its loop; a function's outcome is its body's sequence.
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum Term {
+    Implicit,
+    Raise,
+    Return,
+    RaiseOrReturn,
+    ConditionalReturn,
+    #[default]
+    None,
+}
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Summary {
+    terminal: Term,
+    function: Term,
+    breaks: bool,
+    wildcard: bool,
+}
+
+fn and_then(l: Term, r: Term) -> Term {
+    use Term::*;
+    match (l, r) {
+        (None | Implicit, o) | (o, None | Implicit) => o,
+        (ConditionalReturn, ConditionalReturn) => ConditionalReturn,
+        (Raise, ConditionalReturn | Return) | (ConditionalReturn | Return, Raise) | (RaiseOrReturn, _) | (_, RaiseOrReturn) => RaiseOrReturn,
+        (Return, ConditionalReturn | Return) | (ConditionalReturn, Return) => Return,
+        (Raise, Raise) => Raise,
+    }
+}
+
+fn branch(l: Term, r: Term) -> Term {
+    use Term::*;
+    match (l, r) {
+        (None, o) | (o, None) => o,
+        (Implicit, Implicit | Raise) | (Raise, Implicit) => Implicit,
+        (Implicit, Return | RaiseOrReturn | ConditionalReturn) | (Return | RaiseOrReturn | ConditionalReturn, Implicit) | (ConditionalReturn, ConditionalReturn) => {
+            ConditionalReturn
+        }
+        (Raise, ConditionalReturn | Return) | (ConditionalReturn | Return, Raise) | (RaiseOrReturn, _) | (_, RaiseOrReturn) => RaiseOrReturn,
+        (Return, ConditionalReturn | Return) | (ConditionalReturn, Return) => Return,
+        (Raise, Raise) => Raise,
+    }
+}
+
+fn has_return(t: Term) -> bool {
+    matches!(t, Term::Return | Term::RaiseOrReturn | Term::ConditionalReturn)
+}
+
+#[derive(Default)]
+pub(crate) struct Terminals {
+    pub s: Vec<Summary>,
+}
+
+impl Terminals {
+    fn get(&self, stmt: &ast::Stmt) -> Summary {
+        self.s[id_of(stmt.into()) as usize]
+    }
+    fn get_pattern(&self, p: &ast::Pattern) -> Summary {
+        self.s[id_of(p.into()) as usize]
+    }
+    fn sequence(&self, body: &[ast::Stmt]) -> Term {
+        let o = body.iter().fold(Term::None, |cur, st| and_then(cur, self.get(st).terminal));
+        if o == Term::None { Term::Implicit } else { o }
+    }
+    fn body_breaks(&self, body: &[ast::Stmt]) -> bool {
+        for st in body {
+            match st {
+                ast::Stmt::Break(_) => return true,
+                ast::Stmt::Return(_) | ast::Stmt::Raise(_) => return false,
+                _ if self.get(st).breaks => return true,
+                _ => {}
+            }
+        }
+        false
+    }
+    fn always_breaks(body: &[ast::Stmt]) -> bool {
+        for st in body {
+            match st {
+                ast::Stmt::Break(_) => return true,
+                ast::Stmt::Return(_) | ast::Stmt::Raise(_) => return false,
+                _ => {}
+            }
+        }
+        false
+    }
+
+    fn summary(&self, node: AnyNodeRef<'_>) -> Summary {
+        use AnyNodeRef as N;
+        let d = Summary::default();
+        match node {
+            N::PatternMatchAs(a) => Summary { wildcard: a.pattern.as_deref().is_none_or(|p| self.get_pattern(p).wildcard), ..d },
+            N::PatternMatchOr(o) => {
+                Summary { wildcard: !o.patterns.is_empty() && o.patterns.iter().all(|p| self.get_pattern(p).wildcard), ..d }
+            }
+            N::StmtFunctionDef(f) => Summary { function: self.sequence(&f.body), ..d },
+            N::StmtBreak(_) => Summary { terminal: Term::None, breaks: true, ..d },
+            N::StmtReturn(_) => Summary { terminal: Term::RaiseOrReturn, ..d },
+            N::StmtRaise(_) => Summary { terminal: Term::Raise, ..d },
+            N::StmtIf(i) => {
+                let mut branches = self.sequence(&i.body);
+                let mut exhaustive = false;
+                let mut breaks = self.body_breaks(&i.body);
+                for clause in &i.elif_else_clauses {
+                    exhaustive |= clause.test.is_none();
+                    branches = branch(branches, self.sequence(&clause.body));
+                    breaks |= self.body_breaks(&clause.body);
+                }
+                let terminal = if exhaustive {
+                    and_then(Term::None, branches)
+                } else if has_return(branches) {
+                    and_then(Term::None, Term::ConditionalReturn)
+                } else {
+                    Term::None
+                };
+                Summary { terminal, breaks, ..d }
+            }
+            N::StmtMatch(m) => {
+                let mut t = Term::None;
+                let mut exhaustive = false;
+                let mut breaks = false;
+                for case in &m.cases {
+                    t = branch(t, self.sequence(&case.body));
+                    exhaustive |= case.guard.is_none() && self.get_pattern(&case.pattern).wildcard;
+                    breaks |= self.body_breaks(&case.body);
+                }
+                let terminal = if exhaustive {
+                    and_then(Term::None, t)
+                } else if has_return(t) {
+                    and_then(Term::None, Term::ConditionalReturn)
+                } else {
+                    Term::None
+                };
+                Summary { terminal, breaks, ..d }
+            }
+            N::StmtFor(_) | N::StmtWhile(_) => {
+                let (body, orelse): (&[ast::Stmt], &[ast::Stmt]) = match node {
+                    N::StmtFor(f) => (&f.body, &f.orelse),
+                    N::StmtWhile(w) => (&w.body, &w.orelse),
+                    _ => unreachable!(),
+                };
+                let b = self.sequence(body);
+                let o = self.sequence(orelse);
+                if Self::always_breaks(body) {
+                    Summary { terminal: Term::None, breaks: false, ..d }
+                } else {
+                    let mut terminal = and_then(Term::None, b);
+                    if !self.body_breaks(body) {
+                        terminal = and_then(terminal, o);
+                    }
+                    Summary { terminal, breaks: !has_return(b) && self.body_breaks(orelse), ..d }
+                }
+            }
+            N::StmtWith(w) => Summary { terminal: self.sequence(&w.body), breaks: self.body_breaks(&w.body), ..d },
+            N::StmtTry(t) => {
+                let body = self.sequence(&t.body);
+                let mut branches = Term::None;
+                let mut handler_breaks = false;
+                for h in &t.handlers {
+                    let ast::ExceptHandler::ExceptHandler(h) = h;
+                    branches = branch(branches, self.sequence(&h.body));
+                    handler_breaks |= self.body_breaks(&h.body);
+                }
+                let orelse = self.sequence(&t.orelse);
+                let finally = self.sequence(&t.finalbody);
+                let mut terminal = Term::None;
+                if has_return(body) {
+                    terminal = and_then(terminal, Term::ConditionalReturn);
+                }
+                terminal = and_then(terminal, finally);
+                if t.orelse.is_empty() {
+                    if has_return(branches) {
+                        terminal = and_then(terminal, Term::ConditionalReturn);
+                    }
+                } else {
+                    terminal = and_then(terminal, branch(branches, orelse));
+                }
+                Summary {
+                    terminal,
+                    breaks: self.body_breaks(&t.body) || handler_breaks || self.body_breaks(&t.orelse) || self.body_breaks(&t.finalbody),
+                    ..d
+                }
+            }
+            _ => d,
+        }
+    }
+
+    pub(crate) fn build(&mut self, c: &Ctx<'_, '_>) -> bool {
+        let n = c.table.len();
+        self.s.clear();
+        self.s.resize(n, Summary::default());
+        if c.incomplete {
+            return false;
+        }
+        for id in (0..n).rev() {
+            self.s[id] = self.summary(c.table.node[id]);
+        }
+        true
+    }
+
+    pub(crate) fn outcome(&self, id: u32) -> &'static str {
+        match self.s[id as usize].function {
+            Term::None | Term::Implicit => "implicit",
+            Term::Raise => "raise",
+            Term::Return | Term::RaiseOrReturn => "return-or-raise",
+            Term::ConditionalReturn => "conditional-return",
+        }
+    }
+}
+
+fn rows_function_terminal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, t: &mut Terminals) {
+    if !t.build(c) {
+        return;
+    }
+    for &id in c.kind(NodeKind::StmtFunctionDef) {
+        sink.row(rel, &[Cell::Node(id), Cell::Text(t.outcome(id)), Cell::File, c.span(id)]);
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
@@ -1433,6 +1655,7 @@ pub(crate) struct State {
     pub view: crate::view::View,
     pub sym: crate::symbols::Symbols,
     pub view_file: Option<usize>,
+    pub terminals: Terminals,
 }
 
 pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
@@ -1500,6 +1723,9 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
         if let Some(r) = want(which) {
             rows_view(c, sink, which, r, st);
         }
+    }
+    if let Some(r) = want("function-terminal") {
+        rows_function_terminal(c, sink, r, &mut st.terminals);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
