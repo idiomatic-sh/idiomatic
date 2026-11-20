@@ -108,6 +108,9 @@ MULTI_KEY = os.environ.get("NAV_MULTI_KEY", "1") == "1"
 # (1.0); with only some of them it is several rows of unknown number (MADE_PARTIAL, dearer than a walk up the tree). Before,
 # any bound node column cost 1.3, so "every descendant of this root" looked like one row.
 MADE_PARTIAL = float(os.environ.get("NAV_MADE_PARTIAL", "10"))
+# the chance that a candidate reaches a made table's first read (and builds it) is (candidates expected there) ** MADE_P_EXP,
+# at most 1: 1 takes the planner's count at face value
+MADE_P_EXP = float(os.environ.get("NAV_MADE_P_EXP", "1"))
 # a top-level plan is tried from the ANCHOR_TOP anchors with the smallest start (bucket size, or a definition's cheapest
 # anchor), not from every atom: planning is (anchors tried) x (items squared) accesses, the dominant lowering cost
 ANCHOR_TOP = int(os.environ.get("NAV_ANCHOR_TOP", "4"))
@@ -118,6 +121,7 @@ MADE_FIRST_RANK = float(os.environ.get("NAV_MADE_FIRST_RANK", "0"))  # tried at 
 # prefix once and fork after it (factor_prefix): a union of variants of one shape no longer walks its anchor once per variant
 PREFIX = os.environ.get("NAV_PREFIX", "1") == "1"
 TOP_PREFIX = os.environ.get("NAV_TOP_PREFIX", "1") == "1"   # the same for the core's own branches (merge_top)
+COST_CAP, ROWS_CAP = 1e30, 1e15   # the planner's estimates never leave the finite range
 KEYED_STEPS = float(os.environ.get("NAV_KEYED_STEPS", "20"))   # steps of a well-keyed call: a call ranks as its rows, or its steps over this
 
 
@@ -1004,6 +1008,8 @@ class Lowerer:
             self.shared.append(clean_sub(prog, set(F[c] for c in mask)))
             idxs.append(len(self.shared) - 1)
         self.mult = saved_mult
+        tc = tc if tc < COST_CAP else COST_CAP
+        tn = tn if tn < ROWS_CAP else ROWS_CAP
         self.body_cost[k] = (tc, tn if free is not None else min(tn, 1.0))
         self.body_branches[k] = list(idxs)
         if len(idxs) > 1:
@@ -1322,7 +1328,9 @@ class Lowerer:
                 continue
             seen.add(key)
             est = max(anchor or 1.0, 0.01)
-            out.append(dict(prog=prog, est=est, per=cost / est))
+            est = est if est < ROWS_CAP else ROWS_CAP
+            per = cost / est
+            out.append(dict(prog=prog, est=est, per=per if per < COST_CAP else COST_CAP))
             if len(out) >= 4:
                 break
         return out
@@ -1611,6 +1619,12 @@ class Lowerer:
                     filt.remove(eq)
                     flush_filters()
                     continue
+            # cut: estimates stay finite (nested definitions multiply into inf, inf * 0 into nan, and a program's est/per
+            # must be numbers the executor's JSON reader accepts)
+            if not cost[0] < COST_CAP:
+                cost[0] = COST_CAP
+            if not cost[1] < ROWS_CAP:
+                cost[1] = ROWS_CAP
             best = None
             best_fan = 0.0
             if len(bound) != len(seen_bound):
@@ -1746,7 +1760,7 @@ class Lowerer:
                 if rel0 in self.made_cost and rel0 not in built:
                     # cut: the first read of a made table builds it (once per file, when a candidate gets here)
                     built.add(rel0)
-                    cost[0] += self.made_cost[rel0] * min(1.0, cost[1] * self.mult)
+                    cost[0] += self.made_cost[rel0] * min(1.0, (cost[1] * self.mult) ** MADE_P_EXP)
             if not bound and cost[0] == 0.0:
                 self.last_anchor = best[0]
             step = best_fan if best[1] == "atom" else best[0]
@@ -1908,8 +1922,8 @@ class Lowerer:
             prog.append(["collect", list(sub)])
         else:
             prog.append(["yield"])
-        self.last_card = cost[1]
-        return prog, cost[0]
+        self.last_card = cost[1] if cost[1] < ROWS_CAP else ROWS_CAP
+        return prog, (cost[0] if cost[0] < COST_CAP else COST_CAP)
 
     def mask_of(self, key, args, tbound):
         """the columns a use binds; past MASK_CAP distinct patterns per definition the use binds none (the definition's
@@ -3126,7 +3140,7 @@ def merge_top(progs):
             out.append(progs[ks[0]])
             continue
         first = progs[ks[0]]
-        alts = [dict(prog=prog, est=first[0]["est"], per=sum(progs[k][0]["per"] for k in ks))]
+        alts = [dict(prog=prog, est=first[0]["est"], per=min(sum(progs[k][0]["per"] for k in ks), COST_CAP))]
         kinds = lambda a: json.dumps(a["prog"][0][3]) if a["prog"] and a["prog"][0][0] == "iter" and a["prog"][0][2] == "kind" else None
         common = None
         for k in ks:
