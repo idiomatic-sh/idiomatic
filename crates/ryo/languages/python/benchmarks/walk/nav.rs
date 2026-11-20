@@ -191,7 +191,9 @@ struct Loader<'a> {
     kinds: &'a serde_json::Map<String, Value>,
     facts: &'a mut Vec<FactRel>,
     regexes: &'a mut Vec<Regex>,
-    regex_of: FxMap<(String, bool), usize>,
+    regex_of: &'a mut FxMap<(String, bool), usize>,
+    /// a made table's name -> the fact index of the identical made table already loaded (shared across rules)
+    alias: &'a mut FxMap<String, u16>,
 }
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
@@ -273,6 +275,9 @@ impl Loader<'_> {
     }
 
     fn fact(&mut self, name: &str) -> u16 {
+        if let Some(&i) = self.alias.get(name) {
+            return i;
+        }
         if let Some(i) = self.facts.iter().position(|f| f.name == name) {
             return i as u16;
         }
@@ -526,13 +531,29 @@ impl NavProgram {
         let mut regexes = Vec::new();
         let mut out = Vec::new();
         let mut max_regs = 0;
+        let mut regex_of = FxMap::default();
+        let mut alias: FxMap<String, u16> = FxMap::default();
+        // canonical form of a made table (its programs with registers numbered from 0, keys, kinds) -> its fact index
+        let mut canon: FxMap<String, u16> = FxMap::default();
+        let share = !std::env::var("NAV_SHARE_MADE").is_ok_and(|v| v == "0");
         for r in rules {
             let nav = &r["nav"];
             let kinds = nav["kinds"].as_object().unwrap();
-            let mut loader = Loader { sym, regs: FxMap::default(), kinds, facts: &mut facts, regexes: &mut regexes, regex_of: FxMap::default() };
+            let mut loader = Loader {
+                sym,
+                regs: FxMap::default(),
+                kinds,
+                facts: &mut facts,
+                regexes: &mut regexes,
+                regex_of: &mut regex_of,
+                alias: &mut alias,
+            };
             for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
                 use ryo_relations::domain::relations::types::CellKind;
+                // each made table's programs number their registers from 0 (they run at top level; ensure() saves the caller's)
+                loader.regs = FxMap::default();
                 let progs: Vec<Prog> = m["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+                max_regs = max_regs.max(loader.regs.len());
                 let kinds = m["kinds"]
                     .as_array()
                     .unwrap()
@@ -545,10 +566,19 @@ impl NavProgram {
                         "flag" => CellKind::Flag,
                         _ => CellKind::Number,
                     })
-                    .collect();
+                    .collect::<Vec<CellKind>>();
+                let name = m["name"].as_str().unwrap().to_owned();
+                let key = format!("{progs:?}|{}|{}|{}|{kinds:?}", m["keys"], m["distinct"], m["width"]);
+                if share {
+                    if let Some(&i) = canon.get(&key) {
+                        loader.alias.insert(name, i);
+                        continue;
+                    }
+                    canon.insert(key, loader.facts.len() as u16);
+                }
                 loader.facts.push(FactRel {
                     model: None,
-                    name: m["name"].as_str().unwrap().to_owned(),
+                    name,
                     relation: None,
                     kinds,
                     made: Some((
@@ -559,6 +589,7 @@ impl NavProgram {
                     )),
                 });
             }
+            loader.regs = FxMap::default();
             let programs: Vec<Vec<Alt>> = nav["programs"]
                 .as_array()
                 .unwrap()
@@ -880,10 +911,12 @@ impl<'a, 'p> Exec<'a, 'p> {
             let owner = self.cur_rule;
             let slot = self.outs.len() - 1;
             let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
+            let saved_regs = self.regs.clone();
             self.cur_rule = slot;
             for q in progs {
                 self.run_inner(q, 0);
             }
+            self.regs.copy_from_slice(&saved_regs);
             let rows = std::mem::replace(&mut self.outs[slot], saved.1);
             let rows_len = rows.len();
             self.cur_rule = saved.0;
@@ -1615,5 +1648,5 @@ pub(crate) fn profile_report(prog: &NavProgram, prof: &FxMap<usize, u64>) -> Str
     }
     let mut v: Vec<(usize, u64)> = prof.iter().map(|(&k, &n)| (k, n)).collect();
     v.sort_by(|a, b| b.1.cmp(&a.1));
-    v.iter().take(5000).map(|(k, n)| format!("{n:>12} {}", sites.get(k).map_or("?", String::as_str))).collect::<Vec<_>>().join("\n")
+    v.iter().take(1_000_000).map(|(k, n)| format!("{n:>12} {}", sites.get(k).map_or("?", String::as_str))).collect::<Vec<_>>().join("\n")
 }
