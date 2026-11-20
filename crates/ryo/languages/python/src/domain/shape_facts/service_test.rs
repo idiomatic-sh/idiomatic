@@ -43,10 +43,10 @@ fn subject(source: Input) -> Result<Value, Failure> {
     let mut shown: Vec<String> = Vec::new();
     with_file(source, &mut |file| {
         let mut index = RetainedKeyIndex::default();
-        let mut words = languages::facts::file_words(&languages::facts::base_words(
-            &languages::FixedNames::default(),
-            &[],
-        ));
+        let mut words = languages::facts::file_words(
+            &languages::facts::base_words(&languages::FixedNames::default(), &[])
+                .expect("no fixed name to refuse"),
+        );
         let mut text = TextBuffer::default();
         shapes(
             file,

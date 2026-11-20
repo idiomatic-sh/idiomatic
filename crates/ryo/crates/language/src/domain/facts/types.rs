@@ -6,7 +6,7 @@ use crate::domain::node_table::types::NodeTable;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
 use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::types::{Column, FileId, Missing, Relation};
+use ryo_relations::domain::relations::types::{Column, Count, FileId, Missing, Relation};
 use ryo_relations::domain::terms::types::NameText;
 use std::sync::Arc;
 
@@ -94,7 +94,7 @@ impl std::fmt::Debug for ProjectFacts<'_> {
 ///         RenderOutcome::NotApplicable
 ///     }
 /// }
-/// let mut words = file_words(&base_words(&FixedNames::default(), &[]));
+/// let mut words = file_words(&base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse"));
 /// let answer = Nothing.fill(Relation::Function, Wanted::Whole, &mut words, &mut FilledColumns::default());
 /// assert_eq!(answer, FactAnswer::Refused(AbsenceCause::NotYetRead));
 /// ```
@@ -127,18 +127,18 @@ pub trait FactSource {
 /// use ryo_language::domain::facts::types::FixedNames;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let _base = base_words(&FixedNames::default(), &[NameText("print")]);
+/// let _base = base_words(&FixedNames::default(), &[NameText("print")]).expect("no fixed name to refuse");
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct BaseWords(pub(crate) Arc<BaseSet>);
 
-/// The private body of `BaseWords`: the words, and the word of each of the language's fixed names by its place.
+/// The private body of `BaseWords`: the words, and how many of them are the language's fixed names.
 #[derive(Debug, Default)]
 pub(crate) struct BaseSet {
     /// The words.
     pub(crate) words: WordSet,
-    /// The word of each fixed name, by its place in the language's fixed names.
-    pub(crate) fixed: Vec<CellWord>,
+    /// How many fixed names the words were made with: the words after the empty text, one for each place.
+    pub(crate) fixed: Count,
 }
 
 /// The file's words: the run's base words (shared, read-only) and the texts this file's fills built (cleared per file), coded
@@ -155,7 +155,7 @@ pub(crate) struct BaseSet {
 /// use ryo_language::domain::facts::types::FixedNames;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let mut words = file_words(&base_words(&FixedNames::default(), &[]));
+/// let mut words = file_words(&base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse"));
 /// let word = intern(&mut words, NameText("x"));
 /// assert_eq!(text(&words, word), NameText("x"));
 /// ```
@@ -326,13 +326,15 @@ pub enum FillExtent {
 /// use ryo_language::domain::facts::types::{FixedNames, FixedWord};
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let words = file_words(&base_words(&FixedNames(vec![NameText("next-token")]), &[]));
+/// let base = base_words(&FixedNames(vec![NameText("next-token")]), &[]).expect("one fixed name, stated once");
+/// let words = file_words(&base);
 /// assert_eq!(text(&words, fixed(&words, FixedWord(0))), NameText("next-token"));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FixedWord(pub u32);
 
-/// The texts a language's fillers write by handle, each once: a `FixedWord` is a place here.
+/// The texts a language's fillers write by handle, each once and none empty: a `FixedWord` is a place here, and
+/// `facts::service::base_words` refuses a name stated twice or the empty text.
 ///
 /// # Examples
 ///

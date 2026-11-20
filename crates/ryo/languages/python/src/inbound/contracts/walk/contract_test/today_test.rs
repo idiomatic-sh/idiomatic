@@ -111,10 +111,10 @@ fn differences(path: &str, bytes: &[u8]) -> Result<String, WalkError> {
         &mut table,
         &mut scratch,
         &mut |mut file| {
-            let mut words = languages::facts::file_words(&languages::facts::base_words(
-                &languages::FixedNames::default(),
-                &[],
-            ));
+            let mut words = languages::facts::file_words(
+                &languages::facts::base_words(&languages::FixedNames::default(), &[])
+                    .expect("no fixed name to refuse"),
+            );
             let keys = walked_keys(file.table);
             for relation in FILLED {
                 let (before, left_out): (Vec<Vec<Seen>>, Vec<Vec<Seen>>) =

@@ -81,7 +81,8 @@ struct Seeing(Option<Seen>);
 
 impl FileVisit for Seeing {
     fn visit(&mut self, file: FileFacts<'_>) {
-        let mut words = file_words(&base_words(&FixedNames::default(), &[]));
+        let mut words =
+            file_words(&base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse"));
         let mut columns = FilledColumns::default();
         let answer = file.facts.fill(
             Relation::SyntaxError,

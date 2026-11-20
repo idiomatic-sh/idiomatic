@@ -1,7 +1,9 @@
 //! The `facts` service's cases: word zero is the empty text, a base word keeps its code, a file's own text is coded after the
-//! base words and once, the words of the last file are forgotten, and a fixed name's word is read by its place: the same cell
-//! in every file of the run, the word its text interns to, one word for a name given twice; a handle past the names is refused.
+//! base words and once, the words of the last file are forgotten, and a fixed name's word is its place after the empty text:
+//! the same cell in every file of the run and the word its text interns to. A fixed name given twice or empty is refused where
+//! the base words are made; a handle past the names fails the assertion of a test build.
 
+use super::errors::FixedNamesError;
 use super::service::{base_words, clear_words, file_words, fixed, intern, text};
 use super::types::{CellWord, FixedNames, FixedWord};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -26,18 +28,29 @@ enum Scenario {
     FixedAcrossFiles,
     /// A fixed name's word by its handle, and the word its text interns to.
     FixedInterned,
-    /// The words of a fixed name given at two places.
-    FixedTwice,
     /// The first base text's word, which follows the fixed names.
     AfterFixed,
-    /// The word of a handle past the fixed names.
+    /// Base words of fixed names that state one name at two places.
+    NameTwice,
+    /// Base words of fixed names that hold the empty text.
+    NameEmpty,
+    /// The word of the first handle past the fixed names.
     FixedPast,
+}
+
+/// Why a row was refused.
+#[derive(Debug, PartialEq, Eq)]
+enum Refusal {
+    /// The base words were not made of the fixed names.
+    Names(FixedNamesError),
+    /// The read of a fixed word failed its assertion.
+    Asserted,
 }
 
 type Input = Scenario;
 /// Up to two numbers a row reads, the rest zero.
 type Value = [u64; 2];
-type Failure = ();
+type Failure = Refusal;
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -90,35 +103,48 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([2, 2]),
     },
     Case {
-        name: CaseName("a_fixed_name_given_twice_has_one_word"),
-        word: Word::Succeeds,
-        input: || Scenario::FixedTwice,
-        expect: Expect::Value([1, 1]),
-    },
-    Case {
         name: CaseName("the_base_texts_follow_the_fixed_names"),
         word: Word::Succeeds,
         input: || Scenario::AfterFixed,
         expect: Expect::Value([3, 4]),
     },
     Case {
-        name: CaseName("a_handle_past_the_fixed_names_is_refused"),
+        name: CaseName("a_fixed_name_given_twice_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::NameTwice,
+        expect: Expect::Error(Refusal::Names(FixedNamesError::Twice {
+            first: FixedWord(0),
+            again: FixedWord(2),
+        })),
+    },
+    Case {
+        name: CaseName("an_empty_fixed_name_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::NameEmpty,
+        expect: Expect::Error(Refusal::Names(FixedNamesError::Empty {
+            place: FixedWord(2),
+        })),
+    },
+    Case {
+        name: CaseName("a_handle_past_the_fixed_names_fails_the_assertion_of_a_test_build"),
         word: Word::Refuses,
         input: || Scenario::FixedPast,
-        expect: Expect::Error(()),
+        expect: Expect::Error(Refusal::Asserted),
     },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let names = FixedNames(vec![
-        NameText("next-token"),
-        NameText("matching-delimiter"),
-        NameText("next-token"),
-    ]);
+    let mut names = vec![NameText("next-token"), NameText("matching-delimiter")];
+    match scenario {
+        Scenario::NameTwice => names.push(NameText("next-token")),
+        Scenario::NameEmpty => names.push(NameText("")),
+        _ => {}
+    }
     let base = base_words(
-        &names,
+        &FixedNames(names),
         &[NameText("print"), NameText("eval"), NameText("print")],
-    );
+    )
+    .map_err(Refusal::Names)?;
     let mut words = file_words(&base);
     Ok(match scenario {
         Scenario::BaseText => [intern(&mut words, NameText("eval")).0, 0],
@@ -153,17 +179,20 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             fixed(&words, FixedWord(1)).0,
             intern(&mut words, NameText("matching-delimiter")).0,
         ],
-        Scenario::FixedTwice => [fixed(&words, FixedWord(0)).0, fixed(&words, FixedWord(2)).0],
         Scenario::AfterFixed => [
             intern(&mut words, NameText("print")).0,
             intern(&mut words, NameText("eval")).0,
         ],
+        // Refused before any word is read: the base words were not made.
+        Scenario::NameTwice | Scenario::NameEmpty => [0, 0],
         Scenario::FixedPast => {
-            // The read fails loudly: the failure is the answer this row expects.
+            // The read fails its assertion in a test build: the failure is the answer this row expects.
             let read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                fixed(&words, FixedWord(3))
+                fixed(&words, FixedWord(2))
             }));
-            return read.map(|word| [word.0, 0]).map_err(|_panic| ());
+            return read
+                .map(|word| [word.0, 0])
+                .map_err(|_panic| Refusal::Asserted);
         }
     })
 }

@@ -74,7 +74,14 @@ fn runs(world: &mut Behavior) {
     let (path, text) = scene(&world.input);
     let mut seen = String::new();
     let refused = walked(path, text, &mut |file| {
-        let (mut words, mut columns) = (fixture_words(), FilledColumns::default());
+        let mut words = match fixture_words() {
+            Ok(words) => words,
+            Err(refused) => {
+                seen = refused.to_string();
+                return;
+            }
+        };
+        let mut columns = FilledColumns::default();
         let _answer = file.facts.fill(
             Relation::SyntaxError,
             Wanted::Whole,
@@ -108,7 +115,14 @@ fn fills(world: &mut Behavior, asked: String) {
 /// (as its other fills would intern them) before its links are read, keeping the kind of each one's links.
 #[when(expr = "walk fills the links of the file and then of a file of {string}")]
 fn fills_two(world: &mut Behavior, second: String) {
-    let ((path, first), mut words, mut kinds) = (scene(&world.input), fixture_words(), Vec::new());
+    let mut words = match fixture_words() {
+        Ok(words) => words,
+        Err(refused) => {
+            world.answer = refused.to_string();
+            return;
+        }
+    };
+    let ((path, first), mut kinds) = (scene(&world.input), Vec::new());
     for each in [first, second.as_str()] {
         clear_words(&mut words);
         let _own: Vec<_> = each

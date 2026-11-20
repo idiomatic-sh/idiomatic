@@ -87,7 +87,13 @@ pub(crate) fn counted<Row>(
 ) -> Counted {
     let mut counted = Counted::default();
     viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
-        let base = facts::base_words(&languages::FixedNames::default(), &[]);
+        let base = match facts::base_words(&languages::FixedNames::default(), &[]) {
+            Ok(base) => base,
+            Err(refused) => {
+                counted.causes.push(format!("no words: {refused}"));
+                return;
+            }
+        };
         let mut words = facts::file_words(&base);
         if let Fill::Absent(cause) = fill(view, &mut words, &mut counted) {
             counted.causes.push(format!("absent: {cause:?}"));

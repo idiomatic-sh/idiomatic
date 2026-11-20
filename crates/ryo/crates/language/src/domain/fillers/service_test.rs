@@ -320,7 +320,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Fills(relation, text, asks) => lent(text, &mut |file| {
             let first = u32::try_from(node_count(file.table).0).unwrap_or(u32::MAX);
             let (mut words, mut columns) = (
-                file_words(&base_words(&names, &[])),
+                file_words(&base_words(&names, &[]).expect("the fixture's fixed names")),
                 FilledColumns::default(),
             );
             for ask in asks {
@@ -332,7 +332,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }),
         Scenario::Then(first, second, text) => lent(text, &mut |file| {
             let (mut words, mut columns) = (
-                file_words(&base_words(&names, &[])),
+                file_words(&base_words(&names, &[]).expect("the fixture's fixed names")),
                 FilledColumns::default(),
             );
             let _written = file

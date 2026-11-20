@@ -181,7 +181,11 @@ impl EnginePort for EngineFake {
         let Some(first) = rules.first() else {
             return Ok(ScanCounters::default());
         };
-        let mut words = file_words(&base_words(&FixedNames::default(), &[]));
+        // The fake states no fixed name, so no name is refused; were one, the file is scanned as holding nothing.
+        let Ok(base) = base_words(&FixedNames::default(), &[]) else {
+            return Ok(ScanCounters::default());
+        };
+        let mut words = file_words(&base);
         let read = Relation::SyntaxError;
         if let FactAnswer::Partial(partial) = file.facts.fill(
             read,

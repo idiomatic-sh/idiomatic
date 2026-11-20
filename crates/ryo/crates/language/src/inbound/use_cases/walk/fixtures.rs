@@ -8,6 +8,7 @@
 use super::errors::WalkError;
 use super::interface::WalkUseCase;
 use super::types::{FileVisit, RelationNeeds, WalkRequest};
+use crate::domain::facts::errors::FixedNamesError;
 use crate::domain::facts::service::{base_words, file_words, fixed, text};
 use crate::domain::facts::types::{
     CellWord, FactAnswer, FileFacts, FileWords, FillExtent, FilledColumns, Wanted,
@@ -156,9 +157,12 @@ impl WalkUseCase for Walking {
 }
 
 /// A worker's words over the fixture language's fixed names.
-#[must_use]
-pub fn fixture_words() -> FileWords {
-    file_words(&base_words(&Walking::vocabulary().fixed, &[]))
+///
+/// # Errors
+///
+/// When the fixture language's fixed names are refused as base words: one is stated twice or is the empty text.
+pub fn fixture_words() -> Result<FileWords, FixedNamesError> {
+    Ok(file_words(&base_words(&Walking::vocabulary().fixed, &[])?))
 }
 
 /// What a fill answered, in words, with the rows the columns hold.
@@ -176,11 +180,16 @@ pub fn said(answer: &FactAnswer, columns: &FilledColumns) -> String {
 }
 
 /// Fills what `asked` names of the lent file and says what the fill answered: `<relation> whole`, or `<relation> by <column>`
-/// with the key the whole fill's first row holds. Nothing when it names no relation or no column of it.
+/// with the key the whole fill's first row holds. Nothing when it names no relation or no column of it; why the fixture's fixed
+/// names were refused when they were.
 pub fn fill_named(file: &mut FileFacts<'_>, asked: &str) -> Option<String> {
     let (relation, by) = asked.split_once(' ')?;
     let relation = relation_named(NameRef(relation))?;
-    let (mut words, mut whole) = (fixture_words(), FilledColumns::default());
+    let mut words = match fixture_words() {
+        Ok(words) => words,
+        Err(refused) => return Some(refused.to_string()),
+    };
+    let mut whole = FilledColumns::default();
     let answer = file
         .facts
         .fill(relation, Wanted::Whole, &mut words, &mut whole);

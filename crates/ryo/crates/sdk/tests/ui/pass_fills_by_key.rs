@@ -85,7 +85,8 @@ fn main() {
         fills: Count(0),
         weakness: Weakness::Sound,
     };
-    let mut words = facts::file_words(&facts::base_words(&FixedNames::default(), &[]));
+    let base = facts::base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse");
+    let mut words = facts::file_words(&base);
     let key = |column, id| {
         Wanted::Key(
             Column::TokenLink(column),

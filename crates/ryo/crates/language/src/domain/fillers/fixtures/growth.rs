@@ -2,9 +2,10 @@
 //! the catalog declares of each relation they fill. A whole fill's rows grow with the file as the relation's `size` says, and a
 //! fill by a declared key answers `Asked`, writes that key's rows alone, and writes no more for a larger file.
 
+use crate::domain::facts::errors::FixedNamesError;
 use crate::domain::facts::service::{base_words, file_words};
 use crate::domain::facts::types::{
-    CellWord, FactAnswer, FileFacts, FillExtent, FilledColumns, FixedNames, Wanted,
+    BaseWords, CellWord, FactAnswer, FileFacts, FillExtent, FilledColumns, FixedNames, Wanted,
 };
 use crate::domain::node_table::service::element_count;
 use ryo_relations::domain::catalog::service::{fact_form, key_columns, relation_size};
@@ -38,6 +39,8 @@ pub struct KeyGrowth {
 /// What a growth run found that a relation's catalog item does not declare, or could not judge.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GrowthFault {
+    /// The language's fixed names cannot be base words of a run: one is stated twice or is the empty text. No file is asked for.
+    FixedNames(FixedNamesError),
     /// The language lent no file for one of the two sizes, or the larger is under three times the smaller's elements.
     Sources,
     /// No relation was answered: there is nothing to hold.
@@ -131,13 +134,13 @@ fn rarest(cells: &[CellWord]) -> Option<CellWord> {
 }
 
 /// Fills every filled relation of the catalog for the lent file, whole and then by one key of each declared key column.
-fn measured(file: &mut FileFacts<'_>, names: &FixedNames) -> Vec<Measured> {
+fn measured(file: &mut FileFacts<'_>, base: &BaseWords) -> Vec<Measured> {
     let mut found = Vec::new();
     for relation in all().iter().copied() {
         if fact_form(relation) == FactForm::NodeTable {
             continue;
         }
-        let mut words = file_words(&base_words(names, &[]));
+        let mut words = file_words(base);
         let mut whole = FilledColumns::default();
         let rows = match file
             .facts
@@ -188,30 +191,32 @@ fn measured(file: &mut FileFacts<'_>, names: &FixedNames) -> Vec<Measured> {
 /// must grow as the relation's `size` says (no more than one row for `PerFile`; no faster than nine eighths of the file's own
 /// growth for `PerElement`, which is 4.5 times at four times the elements; `PerPair` is not held), and for each of its declared
 /// `keys` a fill of one key must answer `Asked`, write exactly the rows of the whole fill that hold the key, and write no more
-/// for the larger file. `names` are the language's fixed names (`Fillers::vocabulary`). A relation with no row for the larger
-/// file is a fault too: a generator that makes no row of it proves nothing.
+/// for the larger file. `names` are the language's fixed names (`Fillers::vocabulary`): names that cannot be base words of a
+/// run are the one fault of the report, and no file is asked for. A relation with no row for the larger file is a fault too: a
+/// generator that makes no row of it proves nothing.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_language::domain::facts::types::FixedNames;
-/// use ryo_language::domain::fillers::fixtures::growth::grown;
+/// use ryo_language::domain::facts::errors::FixedNamesError;
+/// use ryo_language::domain::facts::types::{FixedNames, FixedWord};
+/// use ryo_language::domain::fillers::fixtures::growth::{GrowthFault, grown};
 /// use ryo_relations::domain::relations::types::Count;
+/// use ryo_relations::domain::terms::types::NameText;
 ///
 /// let report = grown(&FixedNames::default(), Count(8), &mut |_elements, _visit| {});
 /// assert!(!report.faults.is_empty());
+///
+/// let twice = FixedNames(vec![NameText("next-token"), NameText("next-token")]);
+/// let report = grown(&twice, Count(8), &mut |_elements, _visit| unreachable!("no file is asked for"));
+/// let refused = FixedNamesError::Twice { first: FixedWord(0), again: FixedWord(1) };
+/// assert_eq!(report.faults, vec![GrowthFault::FixedNames(refused)]);
 /// ```
 pub fn grown(
     names: &FixedNames,
     elements: Count,
     lend: &mut dyn FnMut(Count, &mut dyn FnMut(FileFacts<'_>)),
 ) -> GrowthReport {
-    let mut sides: Vec<(Count, Vec<Measured>)> = Vec::new();
-    for asked in [elements, Count(elements.0.saturating_mul(4))] {
-        lend(asked, &mut |mut file| {
-            sides.push((element_count(file.table), measured(&mut file, names)));
-        });
-    }
     let mut report = GrowthReport {
         small: Count(0),
         large: Count(0),
@@ -219,6 +224,19 @@ pub fn grown(
         keys: Vec::new(),
         faults: Vec::new(),
     };
+    let base = match base_words(names, &[]) {
+        Ok(base) => base,
+        Err(refused) => {
+            report.faults.push(GrowthFault::FixedNames(refused));
+            return report;
+        }
+    };
+    let mut sides: Vec<(Count, Vec<Measured>)> = Vec::new();
+    for asked in [elements, Count(elements.0.saturating_mul(4))] {
+        lend(asked, &mut |mut file| {
+            sides.push((element_count(file.table), measured(&mut file, &base)));
+        });
+    }
     let [(small, before), (large, after)] = sides.as_slice() else {
         report.faults.push(GrowthFault::Sources);
         return report;
