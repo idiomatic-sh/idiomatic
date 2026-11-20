@@ -4,7 +4,7 @@
 //! reported by count, and a run the new engine cannot finish is stopped. The comparison of the two engines' rows is the file
 //! scan's; the use case that runs the files composes the two.
 
-use super::constants::{NO_ENGINE_COMPOSED, NO_ONE_LANGUAGE};
+use super::constants::{NO_ENGINE_COMPOSED, NO_LANGUAGE};
 use super::types::{Harness, HarnessLoad, HarnessRequest, LoadRequest, LoadedFrom, Refusals};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestBytes;
@@ -91,6 +91,7 @@ pub fn loaded(
         )
     {
         return HarnessLoad {
+            language: request.kinds.language.clone(),
             accepted: engine.accepted(&programs),
             programs,
             from: LoadedFrom::Pack,
@@ -129,6 +130,7 @@ pub fn loaded(
         bytes: Bytes(engine.encoded(&programs, written_for).0),
     };
     HarnessLoad {
+        language: request.kinds.language.clone(),
         accepted: engine.accepted(&programs),
         programs,
         from: LoadedFrom::Lowering(refusals),
@@ -136,25 +138,26 @@ pub fn loaded(
     }
 }
 
-/// The kind vocabulary the rules are lowered against: the named language's, or the only linked one's.
+/// The kind vocabularies the rules are lowered against, one rule set each: the named language's, or every linked one's.
 fn lowered_against<'a>(
     vocabularies: &'a KindVocabularies,
     named: Option<&LanguageName>,
-) -> Option<&'a KindVocabulary> {
-    match (named, vocabularies.0.as_slice()) {
-        (Some(name), linked) => linked.iter().find(|each| each.language == *name),
-        (None, [only]) => Some(only),
-        (None, _) => None,
-    }
+) -> Vec<&'a KindVocabulary> {
+    vocabularies
+        .0
+        .iter()
+        .filter(|each| named.is_none_or(|name| each.language == *name))
+        .collect()
 }
 
 /// The harness of a request's file phase in `mode`, before any file. The old engine: nothing is loaded, and the store's packs
-/// stay as they were. `new` and `both`: the rule set loaded against the linked language's kinds and reported by count. Answers
-/// the load: its pack is what the store keeps, and its accepted rules are what `both` compares after the files.
+/// stay as they were. `new` and `both`: one rule set for each linked language (or for the one the request names), loaded
+/// against that language's kinds and reported by count. Answers the loads: each one's pack is what the store keeps, and its
+/// accepted rules are what `both` compares after the files.
 ///
 /// # Errors
 ///
-/// `EngineHarness` when the edge composed no engine, when no one language's kinds can be chosen, and when the new engine would
+/// `EngineHarness` when the edge composed no engine, when there is no language to lower against, and when the new engine would
 /// have to run files no linked language walks yet.
 ///
 /// # Examples
@@ -165,45 +168,52 @@ fn lowered_against<'a>(
 /// use ryo_operators::spike::EngineMode;
 ///
 /// let request = HarnessRequest { plans: &[], digests: &[], stored: &[] };
-/// assert!(harnessed_in(EngineMode::Old, None, request).is_ok_and(|load| load.is_none()));
+/// assert!(harnessed_in(EngineMode::Old, None, request).is_ok_and(|loads| loads.is_empty()));
 /// ```
 pub fn harnessed_in(
     mode: EngineMode,
     harness: Option<Harness<'_>>,
     request: HarnessRequest<'_>,
-) -> Result<Option<HarnessLoad>, OperatingError> {
+) -> Result<Vec<HarnessLoad>, OperatingError> {
     if mode == EngineMode::Old {
-        return Ok(None);
+        return Ok(Vec::new());
     }
     let stopped = |reason| OperatingError::EngineHarness { reason };
     let harness = harness.ok_or_else(|| stopped(NO_ENGINE_COMPOSED.into()))?;
-    let kinds = lowered_against(harness.vocabularies, harness.named)
-        .ok_or_else(|| stopped(NO_ONE_LANGUAGE.into()))?;
-    let load = loaded(
-        harness.engine,
-        harness.digest,
-        LoadRequest {
-            plans: request.plans,
-            digests: request.digests,
-            kinds,
-            stored: request.stored,
-        },
-    );
-    let (accepted, selected) = (load.accepted.len(), request.plans.len());
-    match load.from {
-        LoadedFrom::Lowering(refused) => engine_loaded(
-            mode,
-            accepted,
-            selected,
-            refused.unlowerable.0,
-            refused.over_budget.0,
-        ),
-        LoadedFrom::Pack => engine_unpacked(mode, accepted, selected),
+    let languages = lowered_against(harness.vocabularies, harness.named);
+    if languages.is_empty() {
+        return Err(stopped(NO_LANGUAGE.into()));
     }
-    if mode == EngineMode::New || accepted > 0 {
-        return Err(stopped(engine_refusal(mode, accepted)));
+    let (mut loads, mut accepted) = (Vec::new(), Count(0));
+    for kinds in languages {
+        let load = loaded(
+            harness.engine,
+            harness.digest,
+            LoadRequest {
+                plans: request.plans,
+                digests: request.digests,
+                kinds,
+                stored: request.stored,
+            },
+        );
+        let (ran, selected) = (load.accepted.len(), request.plans.len());
+        match load.from {
+            LoadedFrom::Lowering(refused) => engine_loaded(
+                mode,
+                ran,
+                selected,
+                refused.unlowerable.0,
+                refused.over_budget.0,
+            ),
+            LoadedFrom::Pack => engine_unpacked(mode, ran, selected),
+        }
+        accepted = Count(accepted.0.saturating_add(ran));
+        loads.push(load);
     }
-    Ok(Some(load))
+    if mode == EngineMode::New || accepted.0 > 0 {
+        return Err(stopped(engine_refusal(mode, accepted.0)));
+    }
+    Ok(loads)
 }
 
 /// The harness of a request's file phase, in the mode `RYO_ENGINE` selects: see [`harnessed_in`].
@@ -224,11 +234,11 @@ pub fn harnessed_in(
 /// let only = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
 /// let vocabularies = KindVocabularies(vec![only]);
 /// let harness = Harness { engine: &engine, digest: &digest, vocabularies: &vocabularies, named: None };
-/// let _load = harnessed(Some(harness), HarnessRequest { plans: &[], digests: &[], stored: &[] });
+/// let _loads = harnessed(Some(harness), HarnessRequest { plans: &[], digests: &[], stored: &[] });
 /// ```
 pub fn harnessed(
     harness: Option<Harness<'_>>,
     request: HarnessRequest<'_>,
-) -> Result<Option<HarnessLoad>, OperatingError> {
+) -> Result<Vec<HarnessLoad>, OperatingError> {
     harnessed_in(engine_mode(), harness, request)
 }

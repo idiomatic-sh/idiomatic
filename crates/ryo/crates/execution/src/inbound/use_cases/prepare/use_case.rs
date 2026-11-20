@@ -62,7 +62,7 @@ impl PrepareUseCase for PrepareUseCaseImpl {
         // for a rule set's pack yet: none is read back, and the pack of the load is let go.
         let plans: Vec<&ryo_values::domain::plans::types::Plan> =
             compiled.plans.iter().map(AsRef::as_ref).collect();
-        let load = harnessed(
+        let loads = harnessed(
             self.harness.as_ref().map(|composed| Harness {
                 engine: composed.engine.as_ref(),
                 digest: composed.digest.as_ref(),
@@ -78,7 +78,7 @@ impl PrepareUseCase for PrepareUseCaseImpl {
                 stored: &[],
             },
         )?;
-        if let Some(load) = load {
+        for load in &loads {
             // `both` while no linked language walks: the new engine ran no file, so its report is empty, and so are the old
             // engine's rows of the rules it accepted, which are none.
             let _compared = both(

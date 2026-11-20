@@ -3,5 +3,5 @@
 /// Why the harness stops a run of the new engine at an edge that composed no engine.
 pub const NO_ENGINE_COMPOSED: &str = "RYO_ENGINE is set and this edge composed no engine port";
 
-/// Why the harness stops a run it cannot choose a kind vocabulary for.
-pub const NO_ONE_LANGUAGE: &str = "RYO_ENGINE lowers against one linked language: link one, or name the request's source language";
+/// Why the harness stops a run that has no language to lower the rules against.
+pub const NO_LANGUAGE: &str = "RYO_ENGINE lowers the rules against each linked language: none is linked, or the one the request names is not";

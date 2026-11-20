@@ -100,6 +100,8 @@ pub struct HarnessRequest<'a> {
 /// ```
 #[derive(Debug, Default)]
 pub struct HarnessLoad {
+    /// The language whose kinds the rules were lowered against: the rule set scans that language's files.
+    pub language: LanguageName,
     /// The programs of the accepted rules.
     pub programs: Programs,
     /// The accepted rules, in rule order.
