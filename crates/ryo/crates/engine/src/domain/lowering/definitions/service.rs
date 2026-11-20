@@ -2,7 +2,7 @@
 //! of one, and a pattern asked of one. A definition is lowered once, whoever reads it; nothing below a use is ever copied.
 
 use super::types::{
-    DefinitionDraft, Drafts, Flattened, PatternDraft, RowEstimate, WaitingPattern,
+    DefinitionDraft, Drafts, Flattened, PatternDraft, PatternPlace, RowEstimate, WaitingPattern,
 };
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile, TextNumber,
@@ -10,34 +10,35 @@ use crate::domain::lowering::flattening::types::{
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
 use crate::domain::statistics::types::ShapeChoice;
 use crate::domain::steps::types::{
-    ColumnMask, ConstantText, DefinitionId, RegexId, Register, StepRegex,
+    ColumnMask, ConstantText, DefinitionId, RegexId, Register, RegisterCount, StepRegex,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::query_plans::types::NodeDigest;
 
 /// A variable no branch names yet.
 pub(crate) fn fresh_variable(drafts: &mut Drafts) -> FlatVariable {
-    let variable = FlatVariable(drafts.variables);
-    drafts.variables = drafts.variables.saturating_add(1);
+    let variable = drafts.variables;
+    drafts.variables = FlatVariable(variable.0.saturating_add(1));
     variable
 }
 
 /// A register no program names yet.
 pub(crate) fn fresh_register(drafts: &mut Drafts) -> Register {
-    let register = Register(drafts.registers);
-    drafts.registers = drafts.registers.saturating_add(1);
+    let register = Register(drafts.registers.0);
+    drafts.registers = RegisterCount(register.0.saturating_add(1));
     register
 }
 
 /// The number of a constant text: each text once, numbered from zero in the order first written.
-pub(crate) fn text(drafts: &mut Drafts, written: &str) -> TextNumber {
+pub(crate) fn text(drafts: &mut Drafts, written: &LiteralText) -> TextNumber {
     if let Some(number) = drafts.text_numbers.get(written) {
         return *number;
     }
     let number = TextNumber(u32::try_from(drafts.texts.len()).unwrap_or(u32::MAX));
-    drafts.texts.push(ConstantText(written.into()));
-    let _new = drafts.text_numbers.insert(written.into(), number);
+    drafts.texts.push(ConstantText(written.0.clone()));
+    let _new = drafts.text_numbers.insert(written.clone(), number);
     number
 }
 
@@ -48,13 +49,13 @@ pub(crate) fn text_word(number: TextNumber) -> CellWord {
 }
 
 /// The number of a regular expression: each source once.
-pub(crate) fn regex(drafts: &mut Drafts, source: &str) -> RegexId {
+pub(crate) fn regex(drafts: &mut Drafts, source: &LiteralText) -> RegexId {
     if let Some(number) = drafts.regex_numbers.get(source) {
         return *number;
     }
     let number = RegexId(u32::try_from(drafts.regexes.len()).unwrap_or(u32::MAX));
-    drafts.regexes.push(StepRegex(source.into()));
-    let _new = drafts.regex_numbers.insert(source.into(), number);
+    drafts.regexes.push(StepRegex(source.0.clone()));
+    let _new = drafts.regex_numbers.insert(source.clone(), number);
     number
 }
 
@@ -155,6 +156,6 @@ pub(crate) fn asked(
     });
     drafts.waiting.push(WaitingPattern {
         definition,
-        pattern: draft.patterns.len().saturating_sub(1),
+        pattern: PatternPlace(draft.patterns.len().saturating_sub(1)),
     });
 }

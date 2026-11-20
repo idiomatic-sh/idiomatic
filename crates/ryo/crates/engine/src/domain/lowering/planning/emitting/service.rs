@@ -4,11 +4,11 @@
 
 use crate::domain::lowering::costing::service::keyed;
 use crate::domain::lowering::costing::types::CellState;
-use crate::domain::lowering::definitions::service::{asked, fresh_register, text_word};
+use crate::domain::lowering::definitions::service::{asked, draft, fresh_register, text_word};
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::service::variables;
 use crate::domain::lowering::flattening::types::{
-    AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile,
+    AtomRows, ColumnPlace, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile,
 };
 use crate::domain::lowering::planning::types::{
     WrittenAccess, Emitter, Enumerated, Environment, FileCell, UnitRole,
@@ -209,12 +209,13 @@ fn cells_read(
     emitter: &mut Emitter<'_>,
     source: AtomRows,
     cells: &[FlatTerm],
-    key: &[usize],
+    key: &[ColumnPlace],
     row: Register,
 ) {
     let rows = source_of(source);
     for (place, cell) in cells.iter().enumerate() {
-        let Some(column) = read_column(source, place).filter(|_| !key.contains(&place)) else {
+        let Some(column) = read_column(source, place).filter(|_| !key.contains(&ColumnPlace(place)))
+        else {
             continue;
         };
         match (*cell, state_of(&emitter.environment, *cell)) {
@@ -240,15 +241,22 @@ fn cells_read(
     }
 }
 
-/// Remembers a file column of a row at hand, for a pipeline that later needs the file's cell in a register.
+/// Remembers a file column of a row at hand, for a pipeline that later needs the file's cell in a register: a relation's
+/// file column, or a definition's.
 fn file_noted(emitter: &mut Emitter<'_>, source: AtomRows, row: Register) {
-    let AtomRows::Relation(relation) = source else {
-        return;
+    let place = match source {
+        AtomRows::Relation(relation) => {
+            let listed = columns(relation);
+            listed
+                .iter()
+                .position(|column| kind(*column) == CellKind::File)
+        }
+        AtomRows::Definition(definition) => draft(emitter.drafts, definition).and_then(|draft| {
+            let kinds = draft.shape.0.iter();
+            kinds.clone().position(|kind| *kind == CellKind::File)
+        }),
+        AtomRows::Made(_) => None,
     };
-    let listed = columns(relation);
-    let place = listed
-        .iter()
-        .position(|column| kind(*column) == CellKind::File);
     if let Some(column) = place.and_then(|place| read_column(source, place)) {
         emitter.environment.file = Some(FileCell {
             source: source_of(source),
@@ -284,7 +292,12 @@ fn file_register(emitter: &mut Emitter<'_>) -> Option<Register> {
 }
 
 /// A keyed use of a definition: its bound cells are its values, and the open variables something else reads are collected.
-fn used(emitter: &mut Emitter<'_>, definition: DefinitionId, cells: &[FlatTerm], key: &[usize]) {
+fn used(
+    emitter: &mut Emitter<'_>,
+    definition: DefinitionId,
+    cells: &[FlatTerm],
+    key: &[ColumnPlace],
+) {
     let (mut bound, mut values) = (Vec::new(), Vec::new());
     let (mut collected, mut outputs, mut tests) = (Vec::new(), Vec::new(), Vec::new());
     for (place, cell) in cells.iter().enumerate() {
@@ -292,7 +305,7 @@ fn used(emitter: &mut Emitter<'_>, definition: DefinitionId, cells: &[FlatTerm],
             continue;
         };
         let state = state_of(&emitter.environment, *cell);
-        match (*cell, state, key.contains(&place)) {
+        match (*cell, state, key.contains(&ColumnPlace(place))) {
             (_, CellState::File, _) => {}
             // A bound cell: a given variable's value, or the constant a pin holds the cell to.
             (given, CellState::Register | CellState::Constant, true) => {
@@ -400,10 +413,10 @@ fn rows_read(
     }
     let mut pinned = Vec::new();
     for place in &choice.cells {
-        let (Some(column), Some(cell)) = (read_column(source, *place), cells.get(*place)) else {
+        let (Some(column), Some(cell)) = (read_column(source, place.0), cells.get(place.0)) else {
             continue;
         };
-        let state = states.get(*place).copied();
+        let state = states.get(place.0).copied();
         let Some(value) = key_value(emitter, *cell) else {
             continue;
         };

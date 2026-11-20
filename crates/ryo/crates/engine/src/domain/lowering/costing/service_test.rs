@@ -47,7 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject((rows, per_file, states): Input) -> Result<Value, Failure> {
     let KeyChoice { cells, class, rows } = keyed(&Drafts::default(), rows, per_file, states);
     let RowEstimate(rows) = rows;
-    let key = cells.iter().fold(0_u32, |key, cell| key | (1 << cell));
+    let key = cells.iter().fold(0_u32, |key, cell| key | (1 << cell.0));
     Ok((key, class, rows))
 }
 

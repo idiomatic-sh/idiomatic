@@ -148,7 +148,7 @@ fn work(depth: u32) -> Option<u64> {
     let flattened = rule_flattened(&mut state, &mut drafts).ok()?;
     assert_eq!(flattened.branches.len(), 1, "a chain of joins of one branch is one branch");
     let made = u64::try_from(drafts.definitions.len()).ok()?;
-    Some(u64::from(drafts.variables) + made)
+    Some(u64::from(drafts.variables.0) + made)
 }
 
 /// A plan walk visits each step once: the flattening of a chain of self-joins of depth n and of depth 2n makes work in

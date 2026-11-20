@@ -1,7 +1,7 @@
 //! The services of the `flattening` part: the equalities of a branch resolved in one union-find and one rewrite, a comparison
 //! added to a branch, and the columns of a row picked. Nothing here copies a sub-plan: a branch holds uses, never bodies.
 
-use super::types::{FlatAtom, FlatBranch, FlatTerm, FlatVariable};
+use super::types::{ColumnPlace, EqualTerms, FlatAtom, FlatBranch, FlatTerm, FlatVariable};
 use crate::domain::steps::types::TestOperation;
 use std::collections::HashMap;
 
@@ -77,11 +77,11 @@ pub(crate) fn pins_of(branch: &FlatBranch) -> HashMap<FlatVariable, FlatTerm> {
 /// the plan stays a key when one side of it is a constant. None when the branch then holds of no row: two different
 /// constants equal, or a constant equal to the file.
 #[must_use]
-pub(crate) fn unified(mut branch: FlatBranch, pairs: &[(FlatTerm, FlatTerm)]) -> Option<FlatBranch> {
+pub(crate) fn unified(mut branch: FlatBranch, pairs: &[EqualTerms]) -> Option<FlatBranch> {
     let mut classes: HashMap<FlatVariable, FlatTerm> = HashMap::new();
     let mut pinned: Vec<(FlatVariable, FlatTerm)> = Vec::new();
-    for (left, right) in pairs {
-        let (left, right) = (found(&classes, *left), found(&classes, *right));
+    for pair in pairs {
+        let (left, right) = (found(&classes, pair.left), found(&classes, pair.right));
         match (left, right) {
             _ if left == right => {}
             (FlatTerm::Variable(variable), other @ (FlatTerm::Variable(_) | FlatTerm::File))
@@ -148,14 +148,6 @@ pub(crate) fn unified(mut branch: FlatBranch, pairs: &[(FlatTerm, FlatTerm)]) ->
     Some(branch)
 }
 
-/// Whether a term is a constant of the query: a text or a number.
-const fn constant(term: FlatTerm) -> bool {
-    match term {
-        FlatTerm::Text(_) | FlatTerm::Number(_) => true,
-        FlatTerm::Variable(_) | FlatTerm::File => false,
-    }
-}
-
 /// The branch with one more comparison. An equality binds at once: it is one more pair of the union-find. An equality or an
 /// inequality of two constants is decided here; any other comparison is a test of the branch. None when the branch then
 /// holds of no row.
@@ -167,8 +159,11 @@ pub(crate) fn compared(
     right: FlatTerm,
 ) -> Option<FlatBranch> {
     match test {
-        TestOperation::Equal => unified(branch, &[(left, right)]),
-        TestOperation::NotEqual if constant(left) && constant(right) => {
+        TestOperation::Equal => unified(branch, &[EqualTerms { left, right }]),
+        TestOperation::NotEqual
+            if matches!(left, FlatTerm::Text(_) | FlatTerm::Number(_))
+                && matches!(right, FlatTerm::Text(_) | FlatTerm::Number(_)) =>
+        {
             (left != right).then_some(branch)
         }
         TestOperation::NotEqual if left == right => None,
@@ -195,6 +190,10 @@ pub(crate) fn compared(
 
 /// The terms of a row at the given columns, in their order; none when a column is past the row.
 #[must_use]
-pub(crate) fn picked(row: &[FlatTerm], columns: impl IntoIterator<Item = usize>) -> Option<Vec<FlatTerm>> {
-    columns.into_iter().map(|column| row.get(column).copied()).collect()
+pub(crate) fn picked(
+    row: &[FlatTerm],
+    columns: impl IntoIterator<Item = ColumnPlace>,
+) -> Option<Vec<FlatTerm>> {
+    let cells = columns.into_iter().map(|column| row.get(column.0).copied());
+    cells.collect()
 }

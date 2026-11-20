@@ -3,14 +3,14 @@
 
 use super::constants::{
     CHILDREN, ELEMENTS, ESTIMATE_CAP, FILLED_ROWS, GROUP_ROWS, KEY_SHARE, KIND_SHARE,
-    LITERAL_SHARE, MANY_ROWS,
+    LITERAL_SHARE, MANY_ROWS, SECOND_KEY_SHARE,
 };
 use super::types::{CellState, KeyChoice};
 use crate::domain::lowering::definitions::service::draft;
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
 use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{
-    AtomRows, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
+    AtomRows, ColumnPlace, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
 };
 use crate::domain::steps::types::CostClass;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
@@ -18,8 +18,8 @@ use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{FactForm, FilledKey, NodeColumn, Relation};
 
 /// One row in `share` of an estimate, and never none.
-const fn shared(rows: RowEstimate, share: u64) -> RowEstimate {
-    let part = rows.0 / share;
+const fn shared(rows: RowEstimate, share: RowEstimate) -> RowEstimate {
+    let part = rows.0 / share.0;
     RowEstimate(if part == 0 { 1 } else { part })
 }
 
@@ -39,11 +39,11 @@ pub(crate) fn source_rows(drafts: &Drafts, rows: AtomRows) -> RowEstimate {
 }
 
 /// The places of the cells in a state.
-fn standing(states: &[CellState], state: CellState) -> Vec<usize> {
+fn standing(states: &[CellState], state: CellState) -> Vec<ColumnPlace> {
     let places = states.iter().enumerate();
     places
         .filter(|(_, each)| **each == state)
-        .map(|(place, _)| place)
+        .map(|(place, _)| ColumnPlace(place))
         .collect()
 }
 
@@ -66,7 +66,7 @@ fn node_access(relation: Relation, states: &[CellState]) -> KeyChoice {
     for (column, state, class, rows) in keys {
         if let Some(place) = cell(column, state) {
             return KeyChoice {
-                cells: vec![place],
+                cells: vec![ColumnPlace(place)],
                 class,
                 rows,
             };
@@ -88,9 +88,9 @@ fn composite_access(states: &[CellState], whole: RowEstimate, own: RowEstimate) 
         (0, 0) => (CostClass::File, whole),
         (0, _) => (CostClass::File, shared(whole, LITERAL_SHARE)),
         (1, 0) => (CostClass::Fanout, own),
-        (_, _) => (CostClass::Fanout, shared(own, 2)),
+        (_, _) => (CostClass::Fanout, shared(own, SECOND_KEY_SHARE)),
     };
-    let mut cells: Vec<usize> = registers.into_iter().chain(constants).collect();
+    let mut cells: Vec<ColumnPlace> = registers.into_iter().chain(constants).collect();
     cells.sort_unstable();
     KeyChoice { cells, class, rows }
 }

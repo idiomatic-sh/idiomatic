@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
 
 /// A variable of a branch: a cell some atom gives and others read.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct FlatVariable(pub(crate) u32);
 
 /// A constant text, by its place among the pack's texts.
@@ -126,13 +126,15 @@ pub(crate) struct FlatBranch {
     pub(crate) row: Vec<FlatTerm>,
 }
 
-/// The bounds a flattening is cut at: past one, an input becomes one use of a definition. Never a refusal.
+/// A column of a row, or a cell of an atom, by place.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct ColumnPlace(pub(crate) usize);
+
+/// Two terms an equality holds equal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CutBounds {
-    /// The branches of one input.
-    pub(crate) branches: usize,
-    /// The branches of a join's product.
-    pub(crate) product: usize,
-    /// The atoms of one branch.
-    pub(crate) atoms: usize,
+pub(crate) struct EqualTerms {
+    /// One term.
+    pub(crate) left: FlatTerm,
+    /// The other.
+    pub(crate) right: FlatTerm,
 }

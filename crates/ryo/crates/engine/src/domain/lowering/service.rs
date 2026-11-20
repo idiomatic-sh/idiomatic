@@ -135,7 +135,7 @@ fn pattern_placed(
     let Some(draft) = draft_at(drafts, waiting.definition) else {
         return Err(missing);
     };
-    let Some(pattern) = draft.patterns.get(waiting.pattern) else {
+    let Some(pattern) = draft.patterns.get(waiting.pattern.0) else {
         return Err(missing);
     };
     let (bound, collected) = (pattern.bound.clone(), pattern.collected.clone());
@@ -200,7 +200,7 @@ fn pattern_placed(
     let slot = drafts
         .definitions
         .get_mut(place)
-        .and_then(|draft| draft.patterns.get_mut(waiting.pattern));
+        .and_then(|draft| draft.patterns.get_mut(waiting.pattern.0));
     if let Some(slot) = slot {
         slot.form = Some(form);
         slot.shape = placement.shape;
@@ -284,7 +284,7 @@ fn assembled(drafts: Drafts, rules: Vec<LoweredRule>) -> LoweredPack {
         definitions: definitions.collect(),
         tables: drafts.tables,
         rules,
-        registers: RegisterCount(drafts.registers),
+        registers: drafts.registers,
         regexes: drafts.regexes,
         texts: drafts.texts,
         reads: drafts.reads.into_iter().collect(),
