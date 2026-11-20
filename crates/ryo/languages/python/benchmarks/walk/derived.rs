@@ -128,6 +128,7 @@ pub(crate) const RELATIONS: &[&str] = &[
     "comment",
     "indent-region",
     "function-terminal",
+    "constant-key",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -1646,6 +1647,222 @@ fn rows_function_terminal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, t: &
     }
 }
 
+// ------------------------------------------------------------------------------------------------ constant-key
+/// `constant_keys::prepare`: Python's equality of constant values as dictionary keys: numbers by exact value across bool, int,
+/// float and complex (`True == 1 == 1.0`), a signed number and `real ± imag j` folded, strings by decoded value, bytes, None,
+/// Ellipsis, tuples of keyed elements; an integer too large for 64 bits keys by its text. A class is named by its highest member.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RealKey {
+    Int(i128),
+    Float(u64),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct NumberKey {
+    real: RealKey,
+    imag: RealKey,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Numeric {
+    Number(NumberKey),
+    Structural,
+}
+
+fn float_key(v: f64) -> RealKey {
+    if v == 0.0 {
+        return RealKey::Int(0);
+    }
+    if v.is_finite() && v.abs() < f64::from_bits(0x43f0_0000_0000_0000) {
+        let i = v as i128;
+        if i as f64 == v {
+            return RealKey::Int(i);
+        }
+    }
+    RealKey::Float(v.to_bits())
+}
+
+fn to_float(v: RealKey) -> f64 {
+    match v {
+        RealKey::Int(i) => i as f64,
+        RealKey::Float(b) => f64::from_bits(b),
+    }
+}
+
+fn negate(v: RealKey) -> Option<RealKey> {
+    match v {
+        RealKey::Int(i) => i.checked_neg().map(RealKey::Int),
+        RealKey::Float(b) => Some(RealKey::Float((-f64::from_bits(b)).to_bits())),
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct ConstantKeys {
+    pub key: Vec<u32>,
+    num: Vec<Option<Numeric>>,
+    map: crate::sema::FxMap<Box<[u64]>, u32>,
+    words: Vec<u64>,
+}
+
+impl ConstantKeys {
+    fn push_number(&mut self, n: NumberKey) {
+        let enc = |r: RealKey| match r {
+            RealKey::Int(i) => [1u64, i as u64, (i >> 64) as u64],
+            RealKey::Float(b) => [2u64, b, 0],
+        };
+        self.words.push(0x6e75_6d);
+        self.words.extend_from_slice(&enc(n.real));
+        self.words.extend_from_slice(&enc(n.imag));
+    }
+    fn push_literal(&mut self, kind: u64, text: Option<&str>) {
+        self.words.push(0x6c69_74 ^ (kind << 32));
+        self.words.push(text.map_or(0, h));
+    }
+
+    fn build_key(&mut self, node: AnyNodeRef<'_>) -> Option<Option<Numeric>> {
+        use AnyNodeRef as N;
+        let zero = RealKey::Int(0);
+        match node {
+            N::ExprNumberLiteral(n) => {
+                let k = match &n.value {
+                    ast::Number::Int(i) => match i.as_u64() {
+                        Some(v) => NumberKey { real: RealKey::Int(i128::from(v)), imag: zero },
+                        None => {
+                            self.push_literal(1, Some(&i.to_string()));
+                            return Some(Some(Numeric::Structural));
+                        }
+                    },
+                    ast::Number::Float(f) => NumberKey { real: float_key(*f), imag: zero },
+                    ast::Number::Complex { real, imag } => NumberKey { real: float_key(*real), imag: float_key(*imag) },
+                };
+                self.push_number(k);
+                Some(Some(Numeric::Number(k)))
+            }
+            N::ExprBooleanLiteral(b) => {
+                let k = NumberKey { real: RealKey::Int(i128::from(u8::from(b.value))), imag: zero };
+                self.push_number(k);
+                Some(Some(Numeric::Number(k)))
+            }
+            N::ExprStringLiteral(s) => {
+                let mut v = String::new();
+                for p in s.value.iter() {
+                    v.push_str(&p.value);
+                }
+                self.push_literal(2, Some(&v));
+                Some(None)
+            }
+            N::ExprBytesLiteral(b) => {
+                use std::fmt::Write as _;
+                let mut v = String::new();
+                for byte in b.value.bytes() {
+                    let _ = write!(v, "{byte:02x}");
+                }
+                self.push_literal(3, Some(&v));
+                Some(None)
+            }
+            N::ExprNoneLiteral(_) => {
+                self.push_literal(4, None);
+                Some(None)
+            }
+            N::ExprEllipsisLiteral(_) => {
+                self.push_literal(5, None);
+                Some(None)
+            }
+            N::ExprTuple(t) => {
+                self.words.push(0x7475_706c_65);
+                for e in t.elts.iter() {
+                    let k = self.key[id_of(e.into()) as usize];
+                    if k == u32::MAX {
+                        return None;
+                    }
+                    self.words.push(u64::from(k));
+                }
+                self.words.push(0x656e_64);
+                Some(None)
+            }
+            N::ExprUnaryOp(u) => {
+                let Some(Numeric::Number(mut n)) = self.num[id_of((&*u.operand).into()) as usize] else { return None };
+                match u.op {
+                    ast::UnaryOp::UAdd => {}
+                    ast::UnaryOp::USub => {
+                        n.real = negate(n.real)?;
+                        n.imag = negate(n.imag)?;
+                    }
+                    _ => return None,
+                }
+                self.push_number(n);
+                Some(Some(Numeric::Number(n)))
+            }
+            N::ExprBinOp(b) => {
+                let Expr::NumberLiteral(r) = &*b.right else { return None };
+                if !matches!(r.value, ast::Number::Complex { .. }) {
+                    return None;
+                }
+                let minus = match b.op {
+                    ast::Operator::Add => false,
+                    ast::Operator::Sub => true,
+                    _ => return None,
+                };
+                let Some(Numeric::Number(l)) = self.num[id_of((&*b.left).into()) as usize] else { return None };
+                let Some(Numeric::Number(rn)) = self.num[id_of((&*b.right).into()) as usize] else { return None };
+                if l.imag != zero || rn.real != zero {
+                    return None;
+                }
+                let mut ri = to_float(rn.imag);
+                if minus {
+                    ri = -ri;
+                }
+                let k = NumberKey { real: float_key(to_float(l.real)), imag: float_key(ri) };
+                self.push_number(k);
+                Some(Some(Numeric::Number(k)))
+            }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn build(&mut self, c: &Ctx<'_, '_>) {
+        let n = c.table.len();
+        self.key.clear();
+        self.key.resize(n, u32::MAX);
+        self.num.clear();
+        self.num.resize(n, None);
+        self.map.clear();
+        for id in (0..n).rev() {
+            let node = c.table.node[id];
+            if !matches!(
+                node,
+                AnyNodeRef::ExprNumberLiteral(_) | AnyNodeRef::ExprBooleanLiteral(_) | AnyNodeRef::ExprStringLiteral(_) | AnyNodeRef::ExprBytesLiteral(_)
+                    | AnyNodeRef::ExprNoneLiteral(_) | AnyNodeRef::ExprEllipsisLiteral(_) | AnyNodeRef::ExprTuple(_) | AnyNodeRef::ExprUnaryOp(_)
+                    | AnyNodeRef::ExprBinOp(_)
+            ) {
+                continue;
+            }
+            self.words.clear();
+            if let Some(numeric) = self.build_key(node) {
+                let rep = match self.map.get(self.words.as_slice()) {
+                    Some(&r) => r,
+                    None => {
+                        self.map.insert(self.words.clone().into_boxed_slice(), id as u32);
+                        id as u32
+                    }
+                };
+                self.key[id] = rep;
+                self.num[id] = numeric;
+            }
+        }
+    }
+}
+
+fn rows_constant_key(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, k: &mut ConstantKeys) {
+    k.build(c);
+    for id in 0..c.table.len() as u32 {
+        let key = k.key[id as usize];
+        if key != u32::MAX {
+            sink.row(rel, &[Cell::Node(id), Cell::Node(key), Cell::File, c.span(id)]);
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
@@ -1656,6 +1873,7 @@ pub(crate) struct State {
     pub sym: crate::symbols::Symbols,
     pub view_file: Option<usize>,
     pub terminals: Terminals,
+    pub constant_keys: ConstantKeys,
 }
 
 pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
@@ -1726,6 +1944,9 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     }
     if let Some(r) = want("function-terminal") {
         rows_function_terminal(c, sink, r, &mut st.terminals);
+    }
+    if let Some(r) = want("constant-key") {
+        rows_constant_key(c, sink, r, &mut st.constant_keys);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
