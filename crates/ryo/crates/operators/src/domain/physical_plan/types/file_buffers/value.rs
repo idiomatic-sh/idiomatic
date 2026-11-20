@@ -125,6 +125,8 @@ pub struct FileBuffers {
     pub(crate) turn: u32,
     /// Spike (ryo-8y7q): by turn, the nodes held in the open file whose last turn that is: released when it ends.
     pub(crate) turn_holds: Vec<Vec<u32>>,
+    /// Spike (ryo-bshs): the existence pre-pass's sets for the open file.
+    pub(crate) bitmap: crate::domain::physical_plan::service::run::bitmap::service::BitmapScratch,
 }
 
 /// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.

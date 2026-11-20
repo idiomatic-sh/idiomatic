@@ -291,11 +291,18 @@ fn materialize(
     node: PlanNodeId,
     buffers: &mut FileBuffers,
 ) -> Result<(), PortableOperatorFault> {
+    // Spike (ryo-bshs): the existence pre-pass, before any guard or killer.
+    let mode = crate::spike::bitmap();
+    let proved = mode != 0 && lazy() && super::bitmap::service::proved_empty(plan, run, node, buffers);
+    let started = (proved && mode == 2 && crate::spike::on()).then(std::time::Instant::now);
     let span = timed(buffers);
     if crate::spike::on() {
         crate::spike::enter(node.0);
     }
-    let made = if let Some(origin) = killed(plan, run, node, buffers) {
+    let made = if proved && mode == 1 {
+        marked_empty(plan, buffers, node, node.0);
+        Ok(())
+    } else if let Some(origin) = killed(plan, run, node, buffers) {
         marked_empty(plan, buffers, node, origin);
         Ok(())
     } else if let Some(origin) = guarded_empty(plan, run, node, buffers) {
@@ -309,10 +316,15 @@ fn materialize(
         kernels_of(plan, run, node, buffers)
     };
     if crate::spike::on() {
-        crate::spike::leave(match buffers.rows(node) {
+        let rows = match buffers.rows(node) {
             NodeRows::Materialized(table) => table.count.0,
             NodeRows::Absent => 0,
-        });
+        };
+        crate::spike::leave(rows);
+        if proved {
+            let nanos = started.map_or(0, |started| u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX));
+            crate::spike::proved(node.0, rows, nanos);
+        }
     }
     timed_to(buffers, span, node);
     if lazy() && known(buffers, node.0) == Known::Empty {

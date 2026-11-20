@@ -23,6 +23,14 @@ pub struct NodeStat {
     pub dead_nanos: u64,
     /// Rows it held in files where no rule that owns it emitted a row.
     pub dead_rows: u64,
+    /// Spike (ryo-bshs): runs the existence pre-pass proved empty before they ran (observe mode) or skipped (on).
+    pub proved: u64,
+    /// Spike (ryo-bshs): own nanoseconds of the runs the pre-pass proved empty (observe mode).
+    pub proved_nanos: u64,
+    /// Spike (ryo-bshs): the same runs' nanoseconds with the nodes they made first (observe mode).
+    pub proved_whole: u64,
+    /// Spike (ryo-bshs): runs the pre-pass proved empty that held a row: a soundness fault, must stay zero.
+    pub unsound: u64,
 }
 
 struct Local {
@@ -207,6 +215,15 @@ pub fn flush() {
         let mut local = local.borrow_mut();
         // Which rules emitted a row in this file, and so which of the file's runs served a rule that found something.
         let ran = std::mem::take(&mut local.file);
+        // Spike (ryo-bshs): the file's runs for the census, one line per file.
+        if census() && !ran.is_empty() {
+            let mut line = String::new();
+            for (node, nanos, rows) in &ran {
+                line.push_str(&format!("{node},{nanos},{rows};"));
+            }
+            line.push('\n');
+            CENSUS.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push_str(&line);
+        }
         if !ran.is_empty() {
             let emits = EMITS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             let owners = OWNERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -252,6 +269,10 @@ pub fn flush() {
             into.skip_nanos += from.skip_nanos;
             into.dead_nanos += from.dead_nanos;
             into.dead_rows += from.dead_rows;
+            into.proved += from.proved;
+            into.proved_nanos += from.proved_nanos;
+            into.proved_whole += from.proved_whole;
+            into.unsound += from.unsound;
         }
         local.touched = touched;
         local.touched.clear();
@@ -370,6 +391,67 @@ fn flush_probes() {
     });
 }
 
+/// Spike (ryo-bshs): the existence pre-pass, set once from `RYO_BITMAP`: 0 off (default), 1 on (nodes it proves empty are
+/// only marked empty), 2 observe (computed before each made node, nothing skipped; with the recorder, each run's proof is
+/// counted and checked against the rows it held).
+pub fn bitmap() -> u8 {
+    static MODE: OnceLock<u8> = OnceLock::new();
+    *MODE.get_or_init(|| match std::env::var("RYO_BITMAP").as_deref() {
+        Ok("1") => 1,
+        Ok("2") => 2,
+        _ => 0,
+    })
+}
+
+/// Spike (ryo-bshs): stage 3 of the pre-pass, set once from `RYO_BITMAP_ANTI` (on unless `0`): an anti probe whose one-column
+/// key has an exact right set clears the left keys it holds.
+pub fn bitmap_anti() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var("RYO_BITMAP_ANTI").map_or(true, |value| value != "0"))
+}
+
+/// Spike (ryo-bshs): edge navigation in the pre-pass, set once from `RYO_BITMAP_AXIS` (on unless `0`): a child or parent axis
+/// gathers its starts' ids through the edge rows.
+pub fn bitmap_axis() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var("RYO_BITMAP_AXIS").map_or(true, |value| value != "0"))
+}
+
+/// Spike (ryo-bshs): whether the pre-pass stops asking about a node it seldom proves empty in this worker's files, set once
+/// from `RYO_BITMAP_LEARN` (on unless `0`).
+pub fn bitmap_learn() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var("RYO_BITMAP_LEARN").map_or(true, |value| value != "0"))
+}
+
+/// Spike (ryo-bshs): the pre-pass proved the node that just finished (`leave`) empty; `whole` its nanoseconds with what it
+/// made first.
+pub fn proved(node: u32, rows: usize, whole: u64) {
+    if !on() {
+        return;
+    }
+    LOCAL.with(|local| {
+        let mut local = local.borrow_mut();
+        let own = local.file.last().filter(|last| last.0 == node).map_or(0, |last| last.1);
+        let stat = slot(&mut local, node);
+        stat.proved += 1;
+        stat.proved_nanos = stat.proved_nanos.saturating_add(own);
+        stat.proved_whole = stat.proved_whole.saturating_add(whole);
+        if rows > 0 {
+            stat.unsound += 1;
+        }
+    });
+}
+
+static CENSUS: Mutex<String> = Mutex::new(String::new());
+
+/// Spike (ryo-bshs): whether the recorder also writes every file's runs (node, own nanos, rows) to `<RYO_STATS>.census`,
+/// set once from `RYO_CENSUS`.
+pub fn census() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| on() && std::env::var_os("RYO_CENSUS").is_some())
+}
+
 /// Writes the totals to the file `RYO_STATS` names, one JSON object per node that ran or was skipped.
 pub fn dump() {
     dump_keys();
@@ -393,6 +475,14 @@ pub fn dump() {
         probe_path.push(".probes");
         drop(std::fs::write(probe_path, text));
     }
+    if census() {
+        let mut census_path = path.clone();
+        census_path.push(".census");
+        let emits = EMITS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut text = format!("emits {emits:?}\n");
+        text.push_str(CENSUS.lock().unwrap_or_else(std::sync::PoisonError::into_inner).as_str());
+        drop(std::fs::write(census_path, text));
+    }
     let global = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let descriptions = DESCRIPTIONS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let owners = OWNERS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -404,8 +494,8 @@ pub fn dump() {
         let description = descriptions.get(node).map_or("", String::as_str);
         let rules = owners.get(node).map_or(&[][..], Vec::as_slice);
         text.push_str(&format!(
-            "{{\"node\":{node},\"nanos\":{},\"runs\":{},\"rows\":{},\"skips\":{},\"empty\":{},\"skip_nanos\":{},\"dead_nanos\":{},\"dead_rows\":{},\"rules\":{rules:?},\"desc\":{:?}}}\n",
-            stat.nanos, stat.runs, stat.rows, stat.skips, stat.empty, stat.skip_nanos, stat.dead_nanos, stat.dead_rows, description
+            "{{\"node\":{node},\"nanos\":{},\"runs\":{},\"rows\":{},\"skips\":{},\"empty\":{},\"skip_nanos\":{},\"dead_nanos\":{},\"dead_rows\":{},\"proved\":{},\"proved_nanos\":{},\"proved_whole\":{},\"unsound\":{},\"rules\":{rules:?},\"desc\":{:?}}}\n",
+            stat.nanos, stat.runs, stat.rows, stat.skips, stat.empty, stat.skip_nanos, stat.dead_nanos, stat.dead_rows, stat.proved, stat.proved_nanos, stat.proved_whole, stat.unsound, description
         ));
     }
     drop(std::fs::write(path, text));
