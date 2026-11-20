@@ -176,9 +176,17 @@ fn direction(walk: Direction) -> &'static str {
     }
 }
 
-/// The operation's name and every field, as JSON object members (no braces): `"op":..,"field":..`.
+/// The operation's name and every field, as JSON object members (no braces): `"op":..,"params":{"field":..}`.
 #[must_use]
 pub fn operation(op: &Operation) -> String {
+    let members = operation_members(op);
+    match members.split_once(',') {
+        Some((name, fields)) => format!("{name},\"params\":{{{fields}}}"),
+        None => format!("{members},\"params\":{{}}"),
+    }
+}
+
+fn operation_members(op: &Operation) -> String {
     match op {
         Operation::Select { from, comparisons: c, kept } => format!(
             "\"op\":\"select\",\"from\":{},\"comparisons\":{},\"kept\":{}",
