@@ -3,7 +3,6 @@
 use super::constants::INCOMPLETE;
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::literal_facts::service::number;
-use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::{

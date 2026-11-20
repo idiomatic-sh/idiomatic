@@ -11,7 +11,9 @@ use crate::domain::node::types::SyntaxFile;
 use crate::domain::syntax::constants::{
     BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR,
 };
-use crate::domain::syntax::types::Interpolation;
+use crate::domain::syntax::service::kind_of;
+use crate::domain::syntax::types::{Interpolation, Kind};
+use crate::domain::tokens::types::Token;
 use ruff_python_ast::{
     AnyNodeRef, ArgOrKeyword, FStringPartRef, InterpolatedStringElement,
     InterpolatedStringElements, Number,
@@ -249,6 +251,32 @@ pub(crate) fn format_spec_value<'b>(
         Interpolation::Interpolates => StringValue::Interpolated,
         Interpolation::Static => StringValue::Known(NameText(buffer.0.as_str())),
     })
+}
+
+/// The string tokens of the string `node` into `tokens`, in the order they are written: one for each part of an implicit
+/// concatenation. Nothing for a node that is no string.
+pub(crate) fn string_tokens(
+    file: &SyntaxFile<'_>,
+    node: AnyNodeRef<'_>,
+    tokens: &mut Vec<Position>,
+) {
+    tokens.clear();
+    let AnyNodeRef::ExprStringLiteral(literal) = node else {
+        return;
+    };
+    for part in &literal.value {
+        let Some(part_id) = id_of(part) else {
+            continue;
+        };
+        tokens.extend(
+            node_table::children_of(file.table, part_id)
+                .iter()
+                .copied()
+                .filter(|token| {
+                    kind_of(node_table::kind_of(file.table, *token)) == Kind::Token(Token::String)
+                }),
+        );
+    }
 }
 
 /// Whether the string at `id` names a module a call loads: the first argument of `__import__(..)` or of

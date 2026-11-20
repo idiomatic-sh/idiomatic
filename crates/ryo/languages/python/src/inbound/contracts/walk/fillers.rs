@@ -74,6 +74,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
         interpolated_string_literal: InterpolatedStringLiteral => crate::domain::relations::collections::relations::interpolated_string_literal::item::InterpolatedStringLiteralItem;
         language_target: LanguageTarget => crate::domain::relations::collections::relations::language_target::item::LanguageTargetItem;
+        literal_expression_parse: LiteralExpressionParse => crate::inbound::contracts::parse::readers::literal_expression::composition::LiteralExpressionParseItem;
         literal_properties: LiteralProperties => crate::domain::relations::collections::relations::literal_properties::item::LiteralPropertiesItem;
         numeric_literal: NumericLiteral => crate::domain::relations::collections::relations::numeric_literal::item::NumericLiteralItem;
         parameter: Parameter => crate::domain::relations::collections::relations::parameter::item::ParameterItem;
@@ -123,7 +124,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         flow_step: FlowStep => NotYetRead;
         format_specification: FormatSpecification => NotYetRead;
         function_terminal: FunctionTerminal => NotYetRead;
-        literal_expression_parse: LiteralExpressionParse => NotYetRead;
         manifest_diagnostic: ManifestDiagnostic => NotYetRead;
         mapping: Mapping => NotAKeyedDocument;
         mention: Mention => NoSuchConstruct;

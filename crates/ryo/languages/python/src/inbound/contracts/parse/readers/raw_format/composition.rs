@@ -3,15 +3,12 @@ use crate::application::raw_format::service::prepare;
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::format_syntax::service::flag_text;
 use crate::domain::format_syntax::types::{FormatDialect, FormatInput};
-use crate::domain::node::service::{
-    fixed, id_of, node_cell, nodes_of_kind, span_at, word, written,
-};
+use crate::domain::literal_facts::service::string_tokens;
+use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at, word, written};
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::raw_format::constants::INCOMPLETE;
 use crate::domain::raw_format::service::body;
 use crate::domain::raw_format::types::RawFormatToken;
-use crate::domain::syntax::service::kind_of;
-use crate::domain::tokens::types::Token;
 use crate::domain::{
     format_syntax::types::{DynamicInput, FormatParseResult, FormatParseState},
     model::types::Declarations,
@@ -103,28 +100,12 @@ fn raw_segments(
     tokens: &mut Vec<languages::Position>,
     parses: &mut Vec<Option<FormatParseResult>>,
 ) {
-    tokens.clear();
     parses.clear();
-    let AnyNodeRef::ExprStringLiteral(literal) = node else {
-        return;
-    };
-    for part in &literal.value {
-        let Some(part_id) = id_of(part) else {
-            continue;
-        };
-        for token in languages::node_table::children_of(file.table, part_id) {
-            if kind_of(languages::node_table::kind_of(file.table, *token))
-                != Kind::Token(Token::String)
-            {
-                continue;
-            }
-            let parsed = body(RawFormatToken(written(file, *token).0)).map(|raw| {
-                RuffLiteralCFormat.parse(FormatInput(raw.0), FormatDialect::PercentString)
-            });
-            tokens.push(*token);
-            parses.push(parsed);
-        }
-    }
+    string_tokens(file, node, tokens);
+    parses.extend(tokens.iter().map(|token| {
+        body(RawFormatToken(written(file, *token).0))
+            .map(|raw| RuffLiteralCFormat.parse(FormatInput(raw.0), FormatDialect::PercentString))
+    }));
 }
 
 /// Whether every token of a string was parsed: a string with no token, or with a token whose body is not told or whose grammar

@@ -178,6 +178,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Relation::StandardLibraryImport, "standard_library_import"),
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("the_filler_of_literal_expression_parse_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::LiteralExpressionParse, "literal_expression_parse"),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 /// The rows of one side the other lacks, shown.

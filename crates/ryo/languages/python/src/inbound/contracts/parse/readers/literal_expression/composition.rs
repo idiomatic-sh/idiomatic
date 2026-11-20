@@ -1,6 +1,16 @@
 //! Bind syntactic literal validity independently of embedded AST publication.
 use super::constants::PYTHON_STRING_ANNOTATION;
 use crate::application::literal_expression_parsing::service::prepare;
+use crate::domain::file_view::types::PythonWalk;
+use crate::domain::literal_expression_parsing::constants::CARRIER_OPEN;
+use crate::domain::literal_expression_parsing::types::{
+    CarrierInput, LiteralDialect, LiteralParseOutcome,
+};
+use crate::domain::literal_facts::service::string_tokens;
+use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at, written};
+use crate::domain::node::types::{Numbered, SyntaxFile};
+use crate::domain::raw_format::service::body;
+use crate::domain::raw_format::types::RawFormatToken;
 use crate::domain::{
     literal_expression_parsing::{
         service::{INCOMPLETE, outcome_name},
@@ -11,6 +21,8 @@ use crate::domain::{
     syntax::{service::kind_bits, types::Kind},
 };
 use crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation;
+use crate::outbound::literal_expression::interface::LiteralExpressionSyntaxPort as _;
+use ruff_python_ast::AnyNodeRef;
 use ryo::languages;
 use std::convert::identity;
 
@@ -30,6 +42,72 @@ ryo::reads! {
             LiteralParseState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
             LiteralParseState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
             LiteralParseState::Complete => {}
+        }
+    }
+}
+
+/// Whether the string `node` reads as an expression the way a string annotation is read: its string tokens as they are written,
+/// one on each line between parentheses, parsed by the string-annotation grammar. Unavailable for a string with no token or
+/// with a token whose body is not told from its quotes.
+fn parsed_as_annotation(
+    file: &SyntaxFile<'_>,
+    node: AnyNodeRef<'_>,
+    tokens: &mut Vec<languages::Position>,
+    carrier: &mut crate::domain::literal_facts::types::TextBuffer,
+) -> LiteralParseOutcome {
+    string_tokens(file, node, tokens);
+    carrier.0.clear();
+    carrier.0.push_str(CARRIER_OPEN);
+    for token in tokens.iter() {
+        let spelling = written(file, *token).0;
+        if body(RawFormatToken(spelling)).is_none() {
+            return LiteralParseOutcome::Unavailable;
+        }
+        carrier.0.push_str(spelling);
+        carrier.0.push('\n');
+    }
+    if tokens.is_empty() {
+        return LiteralParseOutcome::Unavailable;
+    }
+    carrier.0.push(')');
+    RuffStringAnnotation.parse(
+        CarrierInput(&carrier.0),
+        LiteralDialect::PythonStringAnnotation,
+    )
+}
+
+// The engine fills `literal-expression-parse` from the walked file: every row of the file, once.
+ryo::fills! {
+    LiteralExpressionParseItem => languages::LiteralExpressionParse, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::LiteralExpressionParse as languages::CatalogRelation>::Row;
+        let syntax = file.syntax;
+        let memo = &mut file.buffers.fixed;
+        let carrier = &mut file.buffers.text;
+        let mut tokens = Vec::new();
+        let mut whole = if syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
+            languages::SyntaxCompleteness::Incomplete
+        } else {
+            syntax.completeness.lexical
+        };
+        for Numbered { id, node } in nodes_of_kind(&syntax, Kind::Node(Node::Constant)) {
+            if !matches!(node, AnyNodeRef::ExprStringLiteral(_)) {
+                continue;
+            }
+            let outcome = parsed_as_annotation(&syntax, node, &mut tokens, carrier);
+            if outcome == LiteralParseOutcome::Unavailable {
+                whole = languages::SyntaxCompleteness::Incomplete;
+            }
+            rows.write(Row {
+                id: node_cell(&syntax, id),
+                dialect: fixed(words, memo, languages::NameText(PYTHON_STRING_ANNOTATION)),
+                outcome: fixed(words, memo, outcome_name(outcome)),
+                file: syntax.file,
+                span: span_at(&syntax, id),
+            });
+        }
+        if whole == languages::SyntaxCompleteness::Incomplete {
+            rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
         }
     }
 }

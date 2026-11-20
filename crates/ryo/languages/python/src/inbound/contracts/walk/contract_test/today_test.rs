@@ -32,6 +32,7 @@ const FILLED: &[Relation] = &[
     Relation::Inherits,
     Relation::InterpolatedStringLiteral,
     Relation::LanguageTarget,
+    Relation::LiteralExpressionParse,
     Relation::LiteralProperties,
     Relation::NumericLiteral,
     Relation::Parameter,
