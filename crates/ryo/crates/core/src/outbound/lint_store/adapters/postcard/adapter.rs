@@ -17,6 +17,8 @@ use super::constants::OUTSIDE;
 use super::constants::TEMPORARY;
 use super::constants::TRAILER;
 use super::constants::UNDECODED;
+use super::packs::schemas::packs_bytes;
+use super::packs::schemas::packs_of;
 use super::rest::schemas::rest_bytes;
 use super::rest::schemas::rest_from;
 use super::schemas::contents;
@@ -92,6 +94,8 @@ struct PostcardRead {
     opened: Option<Mutex<OpenedStore>>,
     /// Where the small tables are in the file.
     tables: SectionSpan,
+    /// Where the packs are in the file.
+    packs: SectionSpan,
     /// Immutable bucket framing metadata retained when this reader opens its snapshot.
     buckets: Vec<BucketSpan>,
     /// One snapshot identity, even before it creates a temporary file.
@@ -490,6 +494,7 @@ impl LintStorePort for LintStorePostcardAdapter {
                 adapter: self.clone(),
                 opened: None,
                 tables: SectionSpan::default(),
+                packs: SectionSpan::default(),
                 buckets: Vec::new(),
                 session,
                 spool: Mutex::new(None),
@@ -502,6 +507,7 @@ impl LintStorePort for LintStorePostcardAdapter {
         let tables = contents(&self.store.build.0, &opened.contents.0).filter(|contents| {
             std::iter::once(contents.tables)
                 .chain(std::iter::once(contents.rest))
+                .chain(std::iter::once(contents.packs))
                 .chain(contents.buckets.iter().map(|each| each.span))
                 .all(|span| inside(&opened.file, span).is_ok())
         });
@@ -512,6 +518,7 @@ impl LintStorePort for LintStorePostcardAdapter {
             adapter: self.clone(),
             opened: Some(Mutex::new(opened)),
             tables: contents.tables,
+            packs: contents.packs,
             buckets: contents.buckets,
             session,
             spool: Mutex::new(None),
@@ -526,6 +533,16 @@ impl ReadStore for PostcardRead {
             section(&locked(opened).file, self.tables)
                 .map_or_else(|_| Stored::default(), |bytes| tables_of(&bytes.0))
         })
+    }
+
+    fn packs(&self) -> Result<Vec<ryo_values::domain::stores::types::StoredPack>, LintStoreError> {
+        // Read when asked: a run that never asks never reads the section.
+        match &self.opened {
+            Some(opened) => section(&locked(opened).file, self.packs)
+                .map(|bytes| packs_of(&bytes.0))
+                .map_err(|error| self.adapter.unreadable(&error)),
+            None => Ok(Vec::new()),
+        }
     }
 
     fn handed(&self, wanted: &BucketsWanted) -> Result<ReadHanded, LintStoreError> {
@@ -758,6 +775,12 @@ impl ReadStore for PostcardRead {
                     &SectionBytes(rest_bytes(&stored.handed).map_err(|error| unwritable(&error))?),
                 )
                 .map_err(|error| unwritable(&error))?;
+                let packs = put(
+                    &mut out,
+                    &mut at,
+                    &SectionBytes(packs_bytes(&stored.packs).map_err(|error| unwritable(&error))?),
+                )
+                .map_err(|error| unwritable(&error))?;
                 let mut buckets = put_made(
                     &mut out,
                     &mut at,
@@ -790,6 +813,7 @@ impl ReadStore for PostcardRead {
                         &TableOfContents {
                             tables,
                             rest,
+                            packs,
                             buckets,
                         },
                     )

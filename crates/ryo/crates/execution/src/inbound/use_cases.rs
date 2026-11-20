@@ -2,6 +2,8 @@
 /// Compiles the rules of a request into plans, before any file is read.
 pub mod compile_rules;
 pub mod execution;
+/// Runs a request's files with the new engine: its rule sets loaded once, each file scanned in the worker that took it.
+pub mod file_scan;
 /// Pure request preflight, placement, coverage, and report metadata.
 pub mod metadata;
 

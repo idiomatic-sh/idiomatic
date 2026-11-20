@@ -28,6 +28,10 @@ impl ReadStore for DiscardRead {
         Stored::default()
     }
 
+    fn packs(&self) -> Result<Vec<ryo_values::domain::stores::types::StoredPack>, LintStoreError> {
+        Ok(Vec::new())
+    }
+
     fn handed(
         &self,
         _wanted: &BucketsWanted,

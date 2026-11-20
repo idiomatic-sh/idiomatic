@@ -159,6 +159,17 @@ pub struct LintReport {
     pub handovers: Vec<ryo_values::domain::runs::types::Handover>,
 }
 
+/// What a run the new engine scanned alone answers: the files no language walked and what the rules could not decide.
+impl From<crate::application::file_analysis::types::ScannedRun> for LintReport {
+    fn from(scanned: crate::application::file_analysis::types::ScannedRun) -> Self {
+        Self {
+            unread: scanned.unread,
+            unknowns: scanned.unknowns,
+            ..Self::default()
+        }
+    }
+}
+
 /// One required project lookup, whether the file was present or absent.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectDependency {
@@ -312,6 +323,8 @@ pub(super) struct LintRun<'a> {
     pub handed: &'a ReadHanded,
     /// The buckets of what the files handed that the run read.
     pub wanted: &'a BucketsWanted,
+    /// The new engine's part of the run: under both engines, what each file's rows are compared with.
+    pub scanning: &'a crate::application::file_analysis::types::Scanning<'a>,
 }
 
 use ryo_values::domain::rule_requests::types::{Given, RuleSpec};

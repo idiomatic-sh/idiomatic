@@ -21,6 +21,9 @@ impl ReadStore for StagingRead {
     fn tables(&self) -> Stored {
         Stored::default()
     }
+    fn packs(&self) -> Result<Vec<ryo_values::domain::stores::types::StoredPack>, LintStoreError> {
+        Ok(Vec::new())
+    }
     fn handed(
         &self,
         _: &BucketsWanted,

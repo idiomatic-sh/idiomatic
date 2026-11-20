@@ -177,6 +177,10 @@ pub(crate) struct LinterLintEngine {
     pub memory: MemoryBudget,
     /// Where the runs keep what they leave for the next.
     pub cache: Cache,
+    /// The new engine: what the `RYO_ENGINE` harness of the build branch loads a run's rules into.
+    pub scan_engine: Arc<dyn ryo_execution_runtime::outbound::engine::interface::EnginePort>,
+    /// Which engines run the files of every run: the ones `RYO_ENGINE` selected when the linter was built.
+    pub engines: ryo_operators::spike::EngineMode,
 }
 
 impl Linter {

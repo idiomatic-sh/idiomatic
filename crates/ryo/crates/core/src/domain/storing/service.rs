@@ -290,9 +290,11 @@ pub(crate) fn stored_of<W>(
         consulted,
         consulted_absent,
         project_observations,
+        packs,
     } = keeping;
     let mut stored = Stored {
         rules,
+        packs,
         refused: refused.to_vec(),
         consulted: consulted.to_vec(),
         consulted_absent: consulted_absent.to_vec(),

@@ -2,10 +2,10 @@
 use super::super::service::FileAnalysis;
 use super::super::types::{FileVisit, Worker};
 use crate::domain::keeping::service::rows_of;
-use crate::domain::recording::service::{ascending, frontier_flat_in};
 use crate::domain::recording::service::interface_bytes;
 use crate::domain::recording::service::made_ran;
 use crate::domain::recording::service::moved_words;
+use crate::domain::recording::service::{ascending, frontier_flat_in};
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
@@ -87,7 +87,8 @@ impl FileAnalysis {
         // Spike (ryo-fmx3, host3): buckets out of order are searched through their order by bucket, not scanned once per rule;
         // and a rule's words digested in this worker before are not digested again.
         let lever = ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Record);
-        let mut searched: Vec<&crate::domain::recording::types::BucketWords> = moved.iter().collect();
+        let mut searched: Vec<&crate::domain::recording::types::BucketWords> =
+            moved.iter().collect();
         // Spike (ryo-fmx3, host3): a clean bucket is read with its moved clean frame, so each rule's digest is the one its words
         // would make.
         searched.extend(clean.iter().map(|(_, words)| words));
@@ -135,10 +136,12 @@ impl FileAnalysis {
                 .clean
                 .iter()
                 .zip(&clean)
-                .map(|(bucket, (frame, _))| ryo_values::domain::records::types::HandedClean {
-                    bucket: *bucket,
-                    frame: std::sync::Arc::clone(frame),
-                })
+                .map(
+                    |(bucket, (frame, _))| ryo_values::domain::records::types::HandedClean {
+                        bucket: *bucket,
+                        frame: std::sync::Arc::clone(frame),
+                    },
+                )
                 .collect();
         }
         ran.noted = noted;

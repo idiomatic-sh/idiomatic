@@ -33,6 +33,8 @@ pub(super) struct ContentsSchema<'a> {
     pub tables: SpanSchema,
     /// What the files handed but their words.
     pub rest: SpanSchema,
+    /// The compiled packs of the rule sets.
+    pub packs: SpanSchema,
     /// The words of each bucket, in the order of the buckets.
     pub buckets: Vec<BucketSpanSchema>,
 }
@@ -82,6 +84,7 @@ pub(super) fn contents_bytes(
         build: Cow::Borrowed(build),
         tables: SpanSchema::from(contents.tables),
         rest: SpanSchema::from(contents.rest),
+        packs: SpanSchema::from(contents.packs),
         buckets: contents
             .buckets
             .iter()
@@ -99,6 +102,7 @@ pub(super) fn contents(build: &str, bytes: &[u8]) -> Option<TableOfContents> {
     (*contents.build == *build).then(|| TableOfContents {
         tables: SectionSpan::from(contents.tables),
         rest: SectionSpan::from(contents.rest),
+        packs: SectionSpan::from(contents.packs),
         buckets: contents.buckets.into_iter().map(BucketSpan::from).collect(),
     })
 }

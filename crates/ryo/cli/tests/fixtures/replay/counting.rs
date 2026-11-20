@@ -44,6 +44,10 @@ impl language::interface::LanguagePort for Counting {
         self.language.kind_vocabularies()
     }
 
+    fn walks(&self) -> Vec<Arc<dyn ryo_language::inbound::use_cases::walk::types::WalkEngine>> {
+        self.language.walks()
+    }
+
     fn supports(
         &self,
         relation: ryo_relations::domain::relations::types::Relation,

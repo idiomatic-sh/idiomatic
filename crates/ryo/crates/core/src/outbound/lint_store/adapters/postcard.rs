@@ -7,6 +7,7 @@ pub(crate) mod connection;
 mod constants;
 mod files;
 mod findings;
+mod packs;
 mod proofs;
 mod rest;
 mod schemas;

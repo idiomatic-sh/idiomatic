@@ -55,7 +55,8 @@ pub fn carry_proofs(current: &mut StoredHanded, old: &StoredHanded, kept: &KeptR
 pub fn carry_clean(current: &mut StoredHanded, old: &StoredHanded, kept: &KeptRows) {
     let made: Vec<Bucket> = current.proofs.iter().map(|row| row.bucket).collect();
     for each in &old.clean {
-        let unchanged = kept.unchanged.binary_search(&each.bucket).is_ok() && !made.contains(&each.bucket);
+        let unchanged =
+            kept.unchanged.binary_search(&each.bucket).is_ok() && !made.contains(&each.bucket);
         let files: Vec<crate::domain::stored_findings::types::StoredFileNumber> = each
             .files
             .iter()
@@ -88,7 +89,10 @@ pub fn clean_file(
     frame: &crate::domain::records::types::CleanFrame,
     file: crate::domain::stored_findings::types::StoredFileNumber,
 ) -> bool {
-    match stored.clean.binary_search_by_key(&bucket, |each| each.bucket) {
+    match stored
+        .clean
+        .binary_search_by_key(&bucket, |each| each.bucket)
+    {
         Ok(place) => match stored.clean.get_mut(place) {
             Some(each) if each.frame == *frame => {
                 each.files.push(file);

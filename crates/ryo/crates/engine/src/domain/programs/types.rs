@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the one instruction set the lowering writes, the packs encode and the executor runs, with the rule programs that hold it: a contract three tracks build against, so splitting it now would move names under all of them; the tracks that own it regroup it into its step items as they land
 //! The types of the `programs` concept: a rule set's programs and the instruction set they are written in. Everything but
 //! `Programs` itself is the crate's own: the lowering writes it, the packs encode it, the executor runs it.
 #![expect(
@@ -57,6 +58,8 @@ pub(crate) struct RuleProgram {
     pub(crate) branches: Vec<Branch>,
     /// How many registers its programs use.
     pub(crate) registers: RegisterCount,
+    /// What each column of the rows it emits holds: the lowering knows what it emits.
+    pub(crate) columns: crate::domain::findings::types::RuleColumns,
 }
 
 /// One conjunctive branch of a rule: alternatives that answer the same rows from different anchors.

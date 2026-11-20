@@ -4,7 +4,7 @@
 use super::errors::WalkError;
 use super::fixtures::FAILING;
 use super::interface::WalkUseCase as _;
-use super::types::{FileVisit, RelationNeeds, WalkRequest};
+use super::types::{FileVisit, RelationNeeds, WalkEngine, WalkRequest};
 use super::use_case::WalkUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::facts::service::{base_words, file_words};
@@ -25,6 +25,10 @@ enum Scenario {
     Failing,
     /// Any file, through the language that reads nothing.
     Nothing,
+    /// A file of one word, then a file of words, through the fixture language held behind `WalkEngine` with one worker's buffers.
+    Held(&'static str),
+    /// Any file, through the language that reads nothing held behind `WalkEngine`.
+    HeldNothing,
 }
 
 /// What the visit saw of the lent file.
@@ -78,6 +82,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         })),
     },
     Case {
+        name: CaseName("a_held_language_walks_file_after_file_into_one_workers_buffers"),
+        word: Word::Succeeds,
+        input: || Scenario::Held("one two! three"),
+        expect: Expect::Value(Some(Seen {
+            nodes: Count(1),
+            elements: Count(4),
+            syntax_errors: Count(1),
+            answer: FactAnswer::Answered,
+        })),
+    },
+    Case {
+        name: CaseName("the_language_that_reads_nothing_refuses_held_too"),
+        word: Word::Refuses,
+        input: || Scenario::HeldNothing,
+        expect: Expect::Error(WalkError::Unsupported),
+    },
+    Case {
         name: CaseName("the_language_that_reads_nothing_refuses_a_file"),
         word: Word::Refuses,
         input: || Scenario::Nothing,
@@ -93,9 +114,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let (bytes, path): (&[u8], &str) = match scenario {
-        Scenario::Words(text) => (text.as_bytes(), "words.walk"),
+        Scenario::Words(text) | Scenario::Held(text) => (text.as_bytes(), "words.walk"),
         Scenario::Failing => (FAILING, "broken.walk"),
-        Scenario::Nothing => (b"", "src/lib.rs"),
+        Scenario::Nothing | Scenario::HeldNothing => (b"", "src/lib.rs"),
     };
     let request = WalkRequest {
         path: SourcePath(path),
@@ -106,6 +127,23 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut writer = builder(&mut table, Count(3));
     let mut seeing = Seeing::default();
     match scenario {
+        Scenario::Held(_) | Scenario::HeldNothing => {
+            let language: &dyn WalkEngine = match scenario {
+                Scenario::Held(_) => &Walking,
+                _ => &WalkUseCaseImpl,
+            };
+            let (held, mut buffers, needs) = (
+                &mut NodeTable::default(),
+                language.buffers(),
+                RelationNeeds(&[]),
+            );
+            let first = WalkRequest {
+                source: ByteSlice(b"one"),
+                ..request
+            };
+            language.walk_file(first, needs, held, &mut *buffers, &mut Seeing::default())?;
+            language.walk_file(request, needs, held, &mut *buffers, &mut seeing)?;
+        }
         Scenario::Nothing => WalkUseCaseImpl.walk(
             request,
             RelationNeeds(&[]),

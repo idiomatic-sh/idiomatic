@@ -56,6 +56,11 @@ impl LanguagePort for Forgetful {
     fn kind_vocabularies(&self) -> ryo_values::domain::descriptions::types::KindVocabularies {
         self.0.kind_vocabularies()
     }
+    fn walks(
+        &self,
+    ) -> Vec<std::sync::Arc<dyn ryo_language::inbound::use_cases::walk::types::WalkEngine>> {
+        self.0.walks()
+    }
     fn unknown_reasons(&self) -> crate::outbound::language::types::UnknownReasons {
         self.0.unknown_reasons()
     }

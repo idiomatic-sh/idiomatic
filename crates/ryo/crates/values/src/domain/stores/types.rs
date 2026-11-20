@@ -46,6 +46,39 @@ pub struct Stored {
     /// What each file handed the steps that read across files and the project: read only by a run that makes those steps again or
     /// keeps a store of its own.
     pub handed: StoredHanded,
+    /// The compiled pack of each rule set the new engine ran, each under its key: a table of its own, read only by a run of
+    /// the new engine, and left out of the tables every run reads.
+    pub packs: Vec<StoredPack>,
+}
+
+/// What a rule set's compiled pack is kept under: thirty-two bytes that are the same for the same rules, kind vocabulary and
+/// engine, and differ when one of them does.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::stores::types::PackKey;
+///
+/// assert_ne!(PackKey([0; 32]), PackKey([1; 32]));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct PackKey(pub [u8; 32]);
+
+/// A rule set's compiled pack, as the engine wrote it: a run with the same rules reads it back, and lowers nothing.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::stores::types::StoredPack;
+///
+/// assert!(StoredPack::default().bytes.0.is_empty());
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct StoredPack {
+    /// What the pack is kept under.
+    pub key: PackKey,
+    /// The pack's bytes, the engine's own.
+    pub bytes: ryo_relations::domain::relations::types::Bytes,
 }
 
 /// What a file hands one rule that reads across files, as a digest.

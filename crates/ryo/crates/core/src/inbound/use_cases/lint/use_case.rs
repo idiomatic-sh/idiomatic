@@ -12,7 +12,7 @@ use crate::application::cross_file::types::PhasePorts;
 use crate::application::engine::service::{Compilation, Execution};
 use crate::application::file_analysis::service::FileAnalysis;
 use crate::application::file_analysis::streaming::service::FileVisits;
-use crate::application::file_analysis::types::{FileVisit, RequestVisitSetting};
+use crate::application::file_analysis::types::{FileVisit, RequestVisitSetting, ScanRequest};
 use crate::application::metadata::service::kernel_metadata;
 use crate::application::persisting::service::handed_of;
 use crate::application::storing::service::Storing;
@@ -248,6 +248,21 @@ impl LintUseCase for LintUseCaseImpl {
                 error,
             )
         };
+        let scanning = self.visits.scanning(ScanRequest {
+            named: named_provider(&request.source_language),
+            plans: &plans,
+            digests: &digests,
+            ids: &ids,
+            placed: &placed,
+            answering: &answering,
+            files: &listing.files,
+            read: listing.read.as_ref(),
+        })?;
+        if scanning.mode() == ryo_operators::spike::EngineMode::New {
+            let scanned = self.visits.scanned(&scanning, &request.files)??;
+            self.rows.end(scanned.counts, &scanned.unread)?;
+            return Ok(scanned.into());
+        }
         let program = Arc::new(
             execution
                 .prepare(PrepareRequest {
@@ -355,6 +370,7 @@ impl LintUseCase for LintUseCaseImpl {
             skipped: &alone_skipped,
             handed: &handed.handed,
             wanted: &handed.wanted,
+            scanning: &scanning,
         };
         let visit = FileVisit {
             store: listing.read.as_deref(),

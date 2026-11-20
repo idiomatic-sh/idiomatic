@@ -40,7 +40,7 @@ pub trait LintStorePort: Send + Sync {
 
 /// The store exactly as one run read it.
 pub trait ReadStore: Send + Sync + std::fmt::Debug {
-    /// What the last run kept but what its files handed: empty when the store holds nothing.
+    /// What the last run kept but what its files handed and its packs: empty when the store holds nothing.
     fn tables(&self) -> Stored;
 
     /// What the files handed the steps that read across files and the project when the last run kept its store, left out of
@@ -50,6 +50,14 @@ pub trait ReadStore: Send + Sync + std::fmt::Debug {
     ///
     /// `Unreadable` when the place cannot be read.
     fn handed(&self, wanted: &BucketsWanted) -> Result<ReadHanded, LintStoreError>;
+
+    /// The compiled packs the last run kept, each under its key, left out of `tables`: asked only by a run of the new engine,
+    /// so a run of the old engine alone never reads them. Empty when the store holds nothing.
+    ///
+    /// # Errors
+    ///
+    /// `Unreadable` when the place cannot be read.
+    fn packs(&self) -> Result<Vec<ryo_values::domain::stores::types::StoredPack>, LintStoreError>;
 
     /// Resolve one old row from this exact snapshot into reusable caller-owned storage.
     ///

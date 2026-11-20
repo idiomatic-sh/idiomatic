@@ -36,6 +36,10 @@ The core domain's `crossing` concept: the cross-file steps of one rule, run on w
 
 The core domain's `finish` concept.
 
+### `found_rows`
+
+The core domain's `found_rows` concept: the rows the new engine's scan found in a file as the cells of the answer, and the comparison of one file's rows as the two engines rendered them.
+
 ### handing
 
 The core domain's `handing` concept: what a file handed the steps that read across files, as the store keeps it in its tables and gives it back.

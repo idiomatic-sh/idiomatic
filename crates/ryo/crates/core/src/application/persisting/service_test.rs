@@ -67,6 +67,7 @@ fn subject(keeping: Input) -> Result<Value, Failure> {
             consulted: &[],
             consulted_absent: &[],
             project_observations: &[],
+            packs: Vec::new(),
         },
     )?;
     Ok(keeps.load(Ordering::Relaxed))

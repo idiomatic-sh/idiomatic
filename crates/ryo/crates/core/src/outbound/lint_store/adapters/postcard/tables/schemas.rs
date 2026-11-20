@@ -352,6 +352,7 @@ impl TryFrom<TablesSchema<'_>> for Stored {
             consulted_absent,
             project_observations,
             handed: StoredHanded::default(),
+            packs: Vec::new(),
         })
     }
 }

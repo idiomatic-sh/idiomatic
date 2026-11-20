@@ -179,7 +179,8 @@ pub(crate) struct Tables {
     /// Spike (ryo-fmx3, host3): the buckets the file being read hands its clean frame in.
     pub clean: Vec<ryo_values::domain::stored_facts::types::Bucket>,
     /// Spike (ryo-fmx3, host3): each bucket's clean frame as this worker first kept it, and once moved, the frame and its words.
-    pub clean_frames: std::collections::HashMap<ryo_values::domain::stored_facts::types::Bucket, CleanTemplate>,
+    pub clean_frames:
+        std::collections::HashMap<ryo_values::domain::stored_facts::types::Bucket, CleanTemplate>,
     /// What this worker made of the files it read, to be kept: the place of the file among the files, and the record.
     pub fresh: Vec<FreshRecord>,
     /// What the language wrote of each file this worker read, by the file's place, for the project.

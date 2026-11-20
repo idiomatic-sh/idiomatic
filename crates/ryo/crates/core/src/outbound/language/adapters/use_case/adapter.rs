@@ -119,6 +119,15 @@ impl LanguagePort for LanguageUseCaseAdapter {
         )
     }
 
+    fn walks(
+        &self,
+    ) -> Vec<std::sync::Arc<dyn ryo_language::inbound::use_cases::walk::types::WalkEngine>> {
+        self.languages
+            .iter()
+            .map(|linked| std::sync::Arc::clone(&linked.walk))
+            .collect()
+    }
+
     fn unknown_reasons(&self) -> UnknownReasons {
         let mut reasons: Vec<UnknownName> = Vec::new();
         for each in self

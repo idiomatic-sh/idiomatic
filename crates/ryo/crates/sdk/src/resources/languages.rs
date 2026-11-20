@@ -14,6 +14,9 @@ pub use crate::domain::language::types::LanguageName;
 #[doc(hidden)]
 pub use macros::link::link;
 
+#[doc(hidden)]
+pub use macros::link::walking;
+
 /// Open on purpose: a language implements it, and nothing else does.
 pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Parse;
 

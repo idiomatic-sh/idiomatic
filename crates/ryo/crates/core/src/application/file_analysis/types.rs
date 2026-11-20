@@ -121,6 +121,8 @@ pub(crate) struct Course<'a> {
     pub only: &'a [ryo_language::domain::files::types::FilePath],
     /// How many findings the workers wrote.
     pub counted: &'a std::sync::atomic::AtomicU64,
+    /// The new engine's part of the run: what each file's rows are compared with, when the run compares the two engines.
+    pub scanning: &'a Scanning<'a>,
 }
 
 /// What the project is made from: the files listed, the session, the manifests, the relations the rules read, and what the rules
@@ -201,4 +203,122 @@ pub(crate) struct LanguageSource<'a> {
     pub serves: &'a [ryo_relations::domain::relations::types::Relation],
     /// The refusal of the language's output, kept with its reason.
     pub refused: &'a mut Option<FileAnalysisError>,
+}
+
+/// The new engine's part of a run: the use case that scans the files, the rule sets it loaded for the request, and what a
+/// scanned file's rows are rendered and compared with. Under the old engine alone it holds no rule set, and nothing reads it.
+pub(crate) struct Scanning<'a> {
+    /// Scans a request's files with the new engine.
+    pub scan: Box<dyn ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase>,
+    /// The rule sets loaded for the request.
+    pub session: ryo_execution::inbound::use_cases::file_scan::types::ScanSession,
+    /// What a row of each rule emits, in rule order: its subject, its key and its headings.
+    pub emits: Vec<ryo_values::domain::plans::types::Emit>,
+    /// The rules' ids.
+    pub ids: &'a [ryo_values::domain::runs::types::RuleId],
+    /// Which rule governs which file.
+    pub placed: &'a ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
+    /// The path of each file, by file number.
+    pub paths: Vec<ryo_language::domain::files::types::FilePath>,
+    /// How the rows the rules emit are answered.
+    pub answering: &'a crate::domain::render::types::Answering,
+    /// The files the run lists, in the order of their paths.
+    pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+    /// The store the run read beside its files, when it read one: where the packs of its rule sets are kept.
+    pub read: Option<&'a Arc<dyn crate::outbound::lint_store::interface::ReadStore>>,
+    /// What the reasons of the languages linked are called.
+    pub unknown: Vec<ryo_relations::domain::terms::types::UnknownName>,
+}
+
+/// What one worker owns while the new engine scans the files it takes: the use case's state for the worker, the file's bytes,
+/// the rows the scan handed, their rendering, which rules govern the file, and what the worker could not read or decide.
+#[derive(Default)]
+pub(crate) struct ScanState {
+    /// The use case's state for the worker.
+    pub worker: ryo_execution::inbound::use_cases::file_scan::types::FileScanWorker,
+    /// The bytes of the file being scanned.
+    pub bytes: ryo_values::domain::files::types::FileBytes,
+    /// The rows the scan of the file handed.
+    pub rows: Vec<ryo_values::domain::scan_rows::types::ScanRow>,
+    /// The rule set whose language walked the file, when one did.
+    pub by: Option<ryo_execution::inbound::use_cases::file_scan::types::RuleSetNumber>,
+    /// Where the lines of the file start, as far as its last row.
+    pub starts: crate::domain::finish::types::LineStarts,
+    /// The file's rows, rendered.
+    pub rendered: crate::domain::render::types::Rendered,
+    /// The rules that govern the file.
+    pub mask: ryo_execution::inbound::use_cases::metadata::interface::Mask,
+    /// The globs that matched the file.
+    pub hits: ryo_values::domain::files::types::Hits,
+    /// The names of a file the new engine scanned: none, a kept row holds its text.
+    pub symbols: ryo_language::domain::symbols::types::Symbols,
+    /// The tree of a file the new engine scanned, as the old engine holds one: none.
+    pub elements: ryo_language::domain::elements::types::Elements,
+    /// The files no language walked, with why.
+    pub unread: Vec<ryo_values::domain::records::types::Unread>,
+    /// What the rules could not decide.
+    pub unknowns: Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown>,
+    /// The failure that stopped the worker, when one did.
+    pub failure: Option<FileAnalysisError>,
+}
+
+/// What a run the new engine scanned alone answers once its rows are written: the files no language walked, what the rules could
+/// not decide, and how many rows the answer has and shows.
+pub(crate) struct ScannedRun {
+    /// The files no language walked, in the order of their paths.
+    pub unread: Vec<ryo_values::domain::records::types::Unread>,
+    /// What the rules could not decide.
+    pub unknowns: Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown>,
+    /// How many rows the answer has and how many were written.
+    pub counts: crate::outbound::row_sink::types::AnswerCounts,
+}
+
+/// What the new engine's part of a run is made of, before its rule sets are loaded.
+pub(crate) struct ScanRequest<'a, 'l> {
+    /// The language the request says reads every file, when it names one.
+    pub named: Option<&'l ryo_values::domain::descriptions::types::LanguageName>,
+    /// The plan of each rule, in rule order: read while the rule sets are loaded.
+    pub plans: &'l [&'l ryo_values::domain::plans::types::Plan],
+    /// The digest of each rule, in rule order: read while the rule sets are loaded.
+    pub digests: &'l [ryo_values::domain::stored_facts::types::Digest],
+    /// The rules' ids.
+    pub ids: &'a [ryo_values::domain::runs::types::RuleId],
+    /// Which rule governs which file.
+    pub placed: &'a ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
+    /// How the rows the rules emit are answered.
+    pub answering: &'a crate::domain::render::types::Answering,
+    /// The files the run lists, in the order of their paths.
+    pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+    /// The store the run read beside its files, when it read one.
+    pub read: Option<&'a Arc<dyn crate::outbound::lint_store::interface::ReadStore>>,
+}
+
+/// Where the two engines' rows differ, as the harness says it: the rule, the file, and the first row each engine has that the
+/// other has not there; none for the engine that has no more rows.
+#[derive(Debug)]
+pub(crate) struct RowsDiffer<'a> {
+    /// The rule's id.
+    #[expect(
+        dead_code,
+        reason = "read by the harness's sentence, which is this value's `Debug`"
+    )]
+    pub rule: Option<&'a ryo_values::domain::runs::types::RuleId>,
+    /// The file's path.
+    #[expect(
+        dead_code,
+        reason = "read by the harness's sentence, which is this value's `Debug`"
+    )]
+    pub file: Option<&'a ryo_language::domain::files::types::FilePath>,
+    /// The old engine's row.
+    #[expect(
+        dead_code,
+        reason = "read by the harness's sentence, which is this value's `Debug`"
+    )]
+    pub old: Option<crate::domain::found_rows::types::ComparedRow>,
+    /// The new engine's row.
+    #[expect(
+        dead_code,
+        reason = "read by the harness's sentence, which is this value's `Debug`"
+    )]
+    pub new: Option<crate::domain::found_rows::types::ComparedRow>,
 }

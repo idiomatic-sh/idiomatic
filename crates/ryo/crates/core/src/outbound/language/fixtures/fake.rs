@@ -119,6 +119,15 @@ impl LanguagePort for LanguageFake {
         UnknownReasons(Vec::new())
     }
 
+    fn walks(
+        &self,
+    ) -> Vec<std::sync::Arc<dyn ryo_language::inbound::use_cases::walk::types::WalkEngine>> {
+        // The fake's one language, linked without its walk.
+        vec![std::sync::Arc::new(
+            ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl::new(),
+        )]
+    }
+
     fn kind_vocabularies(&self) -> KindVocabularies {
         KindVocabularies(vec![KindVocabulary {
             language: LanguageName("fake".into()),

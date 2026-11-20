@@ -84,6 +84,10 @@ The values domain's `run_metadata` concept: The facts a run keeps of a compiled 
 
 The values domain's `runs` concept: what a run is asked, and what it keeps of a repository for the next.
 
+### `scan_rows`
+
+The values domain's `scan_rows` concept: the rows the new engine's scan found in a file, kept as owned text and numbers after the file's words are gone, and why a file's scan kept none.
+
 ### `stored_facts`
 
 The values domain's `stored_facts` concept: what a run keeps of the words and the text of a file.

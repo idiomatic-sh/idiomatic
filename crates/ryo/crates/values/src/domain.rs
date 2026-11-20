@@ -12,6 +12,7 @@ pub mod program;
 pub mod records;
 pub mod row_texts;
 pub mod runs;
+pub mod scan_rows;
 pub mod stored_facts;
 pub mod stored_findings;
 pub mod stores;
