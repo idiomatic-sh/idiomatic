@@ -187,8 +187,8 @@ impl Enc {
                         self.opd(b);
                     }
                 }
-                self.u(*regex as u32);
-                self.u(group.map_or(u32::MAX, |g| g as u32));
+                self.u(*regex);
+                self.u(group.unwrap_or(u32::MAX));
                 self.us(&outs.iter().map(|&r| u32::from(r)).collect::<Vec<_>>());
                 self.u(u32::from(*capture_text) | (u32::from(*capture_line) << 1));
             }
@@ -389,7 +389,7 @@ impl Dec<'_> {
             0 => Opd::Reg(self.r()),
             1 => Opd::Num(self.i()),
             2 => Opd::Sym(self.u()),
-            3 => Opd::Syms(self.us()),
+            3 => Opd::Syms(self.us().into()),
             4 => {
                 let n = self.u() as usize;
                 Opd::Nums((0..n).map(|_| self.i()).collect::<Vec<_>>().into())
@@ -522,9 +522,9 @@ impl Dec<'_> {
             17 => {
                 let span = self.opd();
                 let base = if self.u() == 1 { Some(self.opd()) } else { None };
-                let regex = self.u() as usize;
+                let regex = self.u();
                 let g = self.u();
-                let group = (g != u32::MAX).then_some(g as usize);
+                let group = (g != u32::MAX).then_some(g);
                 let outs = self.us().iter().map(|&r| r as R).collect::<Vec<_>>().into();
                 let flags = self.u();
                 Ins::SourceMatches { span, base, regex, group, outs, capture_text: flags & 1 != 0, capture_line: flags & 2 != 0 }
@@ -635,9 +635,9 @@ impl Dec<'_> {
             }
             29 | 46 => {
                 let id = self.u();
-                let key = self.regs();
+                let key: crate::nav::Thin<R> = self.regs().into();
                 let seg = self.prog();
-                let caps = self.regs();
+                let caps: crate::nav::Thin<R> = self.regs().into();
                 if code == 29 {
                     Ins::Hoist { id, key, seg, caps }
                 } else {

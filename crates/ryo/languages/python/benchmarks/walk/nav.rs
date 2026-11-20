@@ -23,21 +23,50 @@ pub(crate) enum TRel {
     Id,
 }
 
+/// a constant list behind one pointer (join: keeps operands at 16 bytes, so instructions stay small)
+#[derive(Clone, PartialEq)]
+pub(crate) struct Thin<T>(Box<Vec<T>>);
+
+impl<T> std::ops::Deref for Thin<T> {
+    type Target = [T];
+    fn deref(&self) -> &[T] {
+        &self.0
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for Thin<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T> From<Vec<T>> for Thin<T> {
+    fn from(v: Vec<T>) -> Self {
+        Thin(Box::new(v))
+    }
+}
+
+impl<T> From<Box<[T]>> for Thin<T> {
+    fn from(v: Box<[T]>) -> Self {
+        Thin(Box::new(v.into_vec()))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) enum Opd {
     Reg(R),
     Num(i64),
     Sym(u32),
-    Syms(Box<[u32]>),
-    Nums(Box<[i64]>),
+    Syms(Thin<u32>),
+    Nums(Thin<i64>),
     File,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) enum Val {
     Reg(R),
-    Syms(Box<[u32]>),
-    Nums(Box<[i64]>),
+    Syms(Thin<u32>),
+    Nums(Thin<i64>),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -81,7 +110,7 @@ pub(crate) enum Ins {
     Row { rel: TRel, key: R },
     Read { rel: TRel, col: u8, row: R, out: R },
     ReadFact { rel: u16, col: u8, row: R, out: R },
-    Test { test: T, l: Opd, r: Opd, text: bool, num: bool, regex: Box<[usize]> },
+    Test { test: T, l: Opd, r: Opd, text: bool, num: bool, regex: Thin<usize> },
     Axis { dir: Dir, start: R, out: R },
     /// `anc` is a proper ancestor of `desc` (both bound): one walk up the parent chain
     Within { anc: R, desc: R },
@@ -108,12 +137,12 @@ pub(crate) enum Ins {
     TestInC { reg: R, set: Box<[u32]>, negate: bool },
     /// a loop-invariant inner enumeration: `seg` (ending in Capture) runs once per file per value of `key` and its captured
     /// tuples are replayed (registers `caps` restored) into the rest of the program
-    Hoist { id: u32, key: Box<[R]>, seg: Prog, caps: Box<[R]> },
+    Hoist { id: u32, key: Thin<R>, seg: Prog, caps: Thin<R> },
     /// pushes the registers' values onto the running hoist's capture buffer
     Capture { regs: Box<[R]> },
     /// a Hoist whose replay keeps only the tuples whose captured register `probe.0` equals register `probe.1` (an index on it,
     /// built with the tuples once per file per key)
-    HoistProbe { id: u32, key: Box<[R]>, seg: Prog, caps: Box<[R]>, probe: (u32, R) },
+    HoistProbe { id: u32, key: Thin<R>, seg: Prog, caps: Thin<R>, probe: (u32, R) },
     /// the child `out` of `parent` that is a proper ancestor of `desc` (one walk up from `desc`), optionally only under one
     /// field (its register set): the load-time fusion of a child walk followed by a containment test against it
     ChildToward { parent: R, desc: R, out: R, field: Option<(u32, R)> },
@@ -125,7 +154,7 @@ pub(crate) enum Ins {
     Yield,
     SpanBetween { a: Opd, b: Opd, out: R },
     SpanBounds { s: Opd, start: R, end: R },
-    SourceMatches { span: Opd, base: Option<Opd>, regex: usize, group: Option<usize>, outs: Box<[R]>, capture_text: bool, capture_line: bool },
+    SourceMatches { span: Opd, base: Option<Opd>, regex: u32, group: Option<u32>, outs: Thin<R>, capture_text: bool, capture_line: bool },
     /// transitive closure from the node in `src`, one or more edges, each edge a sub-program run with `xin` bound that collects
     /// the reached node (and the partition keys when they are not bound before); per (keys, node) distinct; `out` and `kout`
     /// receive each reached node and its keys
@@ -543,7 +572,7 @@ impl Loader<'_> {
                             }) else {
                                 panic!("kind literal")
                             };
-                            Ins::IterKind { kinds: k, out }
+                            Ins::IterKind { kinds: k.to_vec().into(), out }
                         }
                         "value" => {
                             let col = a[3][0].as_u64().unwrap() as u8;
@@ -660,8 +689,8 @@ impl Loader<'_> {
                         Ins::SourceMatches {
                             span: args[0].clone(),
                             base: args.get(1).cloned(),
-                            regex,
-                            group,
+                            regex: regex as u32,
+                            group: group.map(|g| g as u32),
                             outs: outs.into(),
                             capture_text: p["capture_text"].as_bool().unwrap_or(false),
                             capture_line: p["capture_line"].as_bool().unwrap_or(false),
@@ -738,8 +767,8 @@ pub(crate) fn specialize(p: Prog) -> Prog {
             Ins::Test { test: T::Ne, l: Opd::Reg(reg), r: Opd::Sym(c), .. } => Ins::TestNeC { reg, c: u64::from(c) },
             Ins::Test { test: T::Eq, l: Opd::Reg(reg), r: Opd::Num(c), .. } => Ins::TestEqC { reg, c: c as u64 },
             Ins::Test { test: T::Ne, l: Opd::Reg(reg), r: Opd::Num(c), .. } => Ins::TestNeC { reg, c: c as u64 },
-            Ins::Test { test: T::In, l: Opd::Reg(reg), r: Opd::Syms(set), .. } => Ins::TestInC { reg, set, negate: false },
-            Ins::Test { test: T::NotIn, l: Opd::Reg(reg), r: Opd::Syms(set), .. } => Ins::TestInC { reg, set, negate: true },
+            Ins::Test { test: T::In, l: Opd::Reg(reg), r: Opd::Syms(set), .. } => Ins::TestInC { reg, set: set.to_vec().into(), negate: false },
+            Ins::Test { test: T::NotIn, l: Opd::Reg(reg), r: Opd::Syms(set), .. } => Ins::TestInC { reg, set: set.to_vec().into(), negate: true },
             mut other => {
                 subs_mut(&mut other, &mut |q| *q = specialize(std::mem::take(q)));
                 other
@@ -4325,7 +4354,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     if e > bytes.len() || s > e {
                         return false;
                     }
-                    let re = &self.prog.regexes[*regex];
+                    let re = &self.prog.regexes[*regex as usize];
                     let mut caps = re.create_captures();
                     let mut at = 0usize;
                     let hay = &bytes[s..e];
@@ -4343,7 +4372,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                             k += 1;
                         }
                         if let Some(g) = group {
-                            let Some(cg) = caps.get_group(*g) else { continue };
+                            let Some(cg) = caps.get_group(*g as usize) else { continue };
                             let (cs, ce) = (s + cg.start, s + cg.end);
                             self.regs[outs[k] as usize] = span(cs as u32, ce as u32);
                             k += 1;
