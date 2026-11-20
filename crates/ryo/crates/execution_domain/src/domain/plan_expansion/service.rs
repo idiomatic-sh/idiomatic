@@ -6,6 +6,7 @@
 //! the rows those answer, wherever this engine can (a `follow` is followed 2^20 edges and no further).
 
 use super::widths::service::width_of;
+use super::widths::types::StepWidths;
 use ryo_operators::domain::physical_plan::constants::EXPANDED;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_orders::types::{GroupEnd, OrderBound};
@@ -52,12 +53,14 @@ pub fn expanded(plan: &Plan) -> Plan {
         },
         Input::Relation(_) | Input::BoundObservation(_) => input,
     };
+    // Each step's width is counted once, however many expanded steps read it.
+    let mut widths = StepWidths::default();
     for step in &plan.steps {
         let mut operation = step.operation.clone();
         each_input(&mut operation, &mut |input| {
             *input = renumbered(&answers, *input);
         });
-        let answer = written(plan, &mut steps, step.scope, &operation)
+        let answer = written(plan, &mut steps, step.scope, &operation, &mut widths)
             .unwrap_or_else(|| pushed(&mut steps, step.scope, operation));
         answers.push(match answer {
             Input::Step(id) => id,
@@ -85,6 +88,7 @@ fn written(
     steps: &mut Vec<PlanStep>,
     scope: StepScope,
     operation: &Operation,
+    widths: &mut StepWidths,
 ) -> Option<Input> {
     match operation {
         Operation::AsOf {
@@ -97,7 +101,7 @@ fn written(
             bound,
             output,
         } => {
-            let width = width_of(plan, steps, *left)?;
+            let width = width_of(plan, steps, *left, widths)?;
             // The band rows: every left column, the right order after them, then each other right column the answer names.
             let mut right_columns = vec![*right_order];
             for named in output.iter().filter(|named| named.side == Side::Right) {
@@ -155,7 +159,7 @@ fn written(
             order,
             end,
         } => {
-            let width = width_of(plan, steps, *from)?;
+            let width = width_of(plan, steps, *from, widths)?;
             let passed = match end {
                 GroupEnd::Greatest => Test::LessThan,
                 GroupEnd::Least => Test::GreaterThan,
@@ -165,7 +169,7 @@ fn written(
             ))
         }
         Operation::GroupOrdinal { from, keys, order } => {
-            let width = width_of(plan, steps, *from)?;
+            let width = width_of(plan, steps, *from, widths)?;
             let every = every(width);
             let rows = projected(*from, every.clone(), RepeatedRows::Dropped);
             let rows = pushed(steps, scope, rows);
