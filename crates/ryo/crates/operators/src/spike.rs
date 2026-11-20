@@ -495,6 +495,8 @@ pub fn remade(node: u32, turn: u32, last: u32) {
     if remade.1.len() < 40 {
         remade.1.push((node, turn, last));
     }
+}
+
 /// Spike (ryo-jenl): whether the key census is on, set once from `RYO_KEYSTATS` (a file the census is written to).
 #[inline]
 pub fn keystats() -> bool {
