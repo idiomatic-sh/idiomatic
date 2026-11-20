@@ -142,6 +142,15 @@ impl Language {
         self.parse_use_case()
     }
 
+    /// Walks one file through the interface the new engine's file scan calls: what a language's own tests pin the walk it is linked
+    /// with through. A language linked without one answers the walk of the language that reads nothing. Only with the `fixtures`
+    /// feature, which only tests switch on: an edge hands a language to the engine through the SDK's edges.
+    #[cfg(feature = "fixtures")]
+    #[must_use]
+    pub fn walk_engine(&self) -> Arc<dyn WalkEngine> {
+        self.walk_use_case()
+    }
+
     /// Reads the repository's manifests: what a language's own tests drive its project through. Only with the `fixtures` feature.
     #[cfg(feature = "fixtures")]
     #[must_use]

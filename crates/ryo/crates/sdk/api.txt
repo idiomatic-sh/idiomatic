@@ -707,6 +707,7 @@ pub fn ryo::languages::Language::parse_engine(&self) -> alloc::sync::Arc<dyn ryo
 pub fn ryo::languages::Language::primary_role(&self, ryo_language::domain::files::types::SourcePath<'_>) -> ryo_language::domain::files::types::PrimaryFileRole
 pub fn ryo::languages::Language::project(&self) -> alloc::sync::Arc<dyn ryo_language::inbound::use_cases::project::types::ProjectEngine>
 pub fn ryo::languages::Language::skips(&self) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory]
+pub fn ryo::languages::Language::walk_engine(&self) -> alloc::sync::Arc<dyn ryo_language::inbound::use_cases::walk::types::WalkEngine>
 impl core::clone::Clone for ryo::languages::Language
 pub fn ryo::languages::Language::clone(&self) -> ryo::languages::Language
 impl core::fmt::Debug for ryo::languages::Language

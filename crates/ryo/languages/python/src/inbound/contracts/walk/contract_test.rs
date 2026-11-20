@@ -1,6 +1,7 @@
 //! The `walk` contract's cases: over every Python source of the language's fixtures (514 files, the parser's suite among them), the walk writes the tree today's reading writes
 //! (every element, under the same parent, at the same place; in the same field wherever the parser accepts the file) and its table keeps the laws of the engine's node
-//! table; the lent file says the number the run gave it; a file that is not Python is not walked.
+//! table; the lent file says the number the run gave it; the linked language carries this walk for the engine; a file that is not
+//! Python is not walked.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::labels::types::Field;
@@ -27,6 +28,8 @@ enum Asked {
     Path(&'static str),
     /// What differs between the number the run gave a file and the number the lent file says.
     Numbered(FileId),
+    /// What differs between this walk and the walk the linked language carries for the engine.
+    Linked,
 }
 
 type Input = Asked;
@@ -64,6 +67,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_lent_file_says_the_number_the_run_gave_it"),
         word: Word::Succeeds,
         input: || Asked::Numbered(FileId(7)),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_linked_language_carries_this_walk_for_the_engine"),
+        word: Word::Succeeds,
+        input: || Asked::Linked,
         expect: Expect::Value(String::new()),
     },
     Case {
@@ -211,8 +220,60 @@ fn numbered<W: Walk>(walk: &W, number: FileId) -> Result<String, WalkError> {
     })
 }
 
+/// What differs between `walk` and the walk the linked language carries for the engine: its kinds, and the table and the number
+/// of one file walked through the engine's interface. A language linked without its walk has no kind and walks no file.
+fn linked<W: Walk>(walk: &W) -> Result<String, WalkError> {
+    const SOURCE: &[u8] = b"x = 1\n";
+    let request = WalkRequest {
+        path: languages::SourcePath("module.py"),
+        file: FileId(3),
+        source: ByteSlice(SOURCE),
+    };
+    let (mut own, mut numbering) = (NodeTable::default(), Numbering(None));
+    walk.walk(
+        request,
+        RelationNeeds(&[]),
+        &mut node_table::builder(&mut own, W::KIND_COUNT),
+        &mut Default::default(),
+        &mut numbering,
+    )?;
+    let engine = crate::linked().walk_engine();
+    let (mut table, mut buffers, mut lent) =
+        (NodeTable::default(), engine.buffers(), Numbering(None));
+    engine.walk_file(
+        request,
+        RelationNeeds(&[]),
+        &mut table,
+        &mut *buffers,
+        &mut lent,
+    )?;
+    let mut differences = String::new();
+    if engine.kind_count() != W::KIND_COUNT {
+        differences.push_str(&format!(
+            "the linked walk has {:?} kinds, this walk {:?}\n",
+            engine.kind_count(),
+            W::KIND_COUNT
+        ));
+    }
+    if lent.0 != Some(request.file) {
+        differences.push_str(&format!("the linked walk lent the file as {:?}\n", lent.0));
+    }
+    let elements = (
+        node_table::element_count(&table),
+        node_table::element_count(&own),
+    );
+    if elements.0 != elements.1 || elements.0.0 == 0 {
+        differences.push_str(&format!(
+            "the linked walk wrote {:?} elements, this walk {:?}\n",
+            elements.0, elements.1
+        ));
+    }
+    Ok(differences)
+}
+
 fn subject(asked: Input) -> Result<Value, Failure> {
     match asked {
+        Asked::Linked => linked(&crate::walk()),
         Asked::Numbered(number) => numbered(&crate::walk(), number),
         Asked::Trees => fixture_sources()
             .map_err(|_unread| WalkError::Library)?
