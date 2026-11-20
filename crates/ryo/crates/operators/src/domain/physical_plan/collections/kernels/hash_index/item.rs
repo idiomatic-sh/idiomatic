@@ -7,7 +7,8 @@ use super::super::scan_facts::item::{cell_of, count_of, rows_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::physical_plan::types::keyed_rows::value::{
-    IndexKeyHash, IndexedRow, KeyedRows, KeyedRun, NO_ROW, hash_of_cells, same_cells,
+    IndexKeyHash, IndexedRow, KeyWords, KeyedRows, KeyedRun, NO_ROW, NO_SLOT, hash_of_cells,
+    key_words, same_cells, word_hash,
 };
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
@@ -50,6 +51,18 @@ impl KernelsItem for HashIndexItem {
 fn cleared(rows: &mut KeyedRows, count: RowCount) {
     rows.cleared();
     rows.next.resize(count.0, NO_ROW);
+}
+
+/// Spike (ryo-jenl): a hashed build gives back position-addressed room past the kept room, so an index never holds a large
+/// room of both kinds; room within it stays, so a warm kernel that alternates allocates nothing.
+fn hashed_only(rows: &mut KeyedRows) {
+    use crate::domain::kept_room::constants::KEPT_ROOM;
+    if rows.slots.capacity() > KEPT_ROOM {
+        rows.slots = Vec::new();
+    }
+    if rows.runs.capacity() > KEPT_ROOM {
+        rows.runs = Vec::new();
+    }
 }
 
 /// Adds `row` to the key `same` finds under `hash`, or as a key of its own.
@@ -97,6 +110,40 @@ fn hashed(run: &KeyedRun, hash: IndexKeyHash) -> PredicateOutcome {
     }
 }
 
+/// Spike (ryo-jenl): counts a build of `side` in the key census.
+fn census(side: KeyedSide<'_>, rows: &mut KeyedRows) {
+    if !crate::spike::keystats() {
+        return;
+    }
+    let kinds = super::super::scan_facts::item::kinds_of(side.rows);
+    let class = crate::spike::key_class(side.on.iter().map(|column| {
+        kinds.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied().unwrap_or(CellKind::Flag)
+    }));
+    rows.census = u8::try_from(class).unwrap_or(4);
+    let count = count_of(side.rows);
+    crate::spike::key_rows(0, class, count.0 as u64);
+    if let [one, two] = side.on {
+        let kind = |column: &ColumnIndex| kinds.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied().unwrap_or(CellKind::Flag);
+        crate::spike::key_pair([kind(one), kind(two)], count.0 as u64);
+    }
+    if class == 0 && count.0 > 0 {
+        let (mut low, mut high, mut file, mut files) = (u64::MAX, 0u64, None, false);
+        for at in 0..count.0 {
+            if let Some(Value::Node(node)) = cell_of(side.rows, RowIndex(at), side.on[0]) {
+                let place = node.0 & 0xffff_ffff;
+                low = low.min(place);
+                high = high.max(place);
+                let here = node.0 >> 32;
+                if file.is_some_and(|seen| seen != here) {
+                    files = true;
+                }
+                file = Some(here);
+            }
+        }
+        crate::spike::key_range(high.saturating_sub(low) + 1, count.0 as u64, files);
+    }
+}
+
 /// Keys the relation's rows by the hash of `column`'s text into `rows`: each key's first and last row, and each row's next
 /// of the same key, ascending. A cell with no text is no key.
 pub(crate) fn texts(
@@ -106,6 +153,10 @@ pub(crate) fn texts(
     rows: &mut KeyedRows,
 ) {
     cleared(rows, rows_of(view));
+    hashed_only(rows);
+    if crate::spike::keystats() {
+        crate::spike::key_rows(5, 2, rows_of(view).0 as u64);
+    }
     let Some(cells) = view
         .columns
         .get(usize::try_from(column.0).unwrap_or(usize::MAX))
@@ -174,8 +225,29 @@ pub(crate) fn cells(
     side: KeyedSide<'_>,
     rows: &mut KeyedRows,
 ) -> Result<(), PortableOperatorFault> {
+    // Spike (ryo-jenl): a key that is one word is keyed by its word, by position when its words span few places.
+    if crate::spike::dense_levers()[4] {
+        census(side, rows);
+        if words_any(side, rows)? {
+            return Ok(());
+        }
+    }
+    cells_by_cells(side, rows)
+}
+
+/// `cells`, every key hashed and compared cell by cell.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a key column past a row.
+fn cells_by_cells(
+    side: KeyedSide<'_>,
+    rows: &mut KeyedRows,
+) -> Result<(), PortableOperatorFault> {
+    census(side, rows);
     let count = count_of(side.rows);
     cleared(rows, count);
+    hashed_only(rows);
     for at in 0..count.0 {
         let probe = KeyedRowAt {
             side,
@@ -217,6 +289,9 @@ pub(crate) fn find_cells(
     indexed_side: KeyedSide<'_>,
     probe: KeyedRowAt<'_>,
 ) -> Result<Option<KeyedRun>, PortableOperatorFault> {
+    if rows.words != KeyWords::Cells && probe.side.on.len() == indexed_side.on.len() {
+        return word_found(rows, probe.side.on, probe.row, &|row, column| cell_of(probe.side.rows, row, column));
+    }
     let hash = hash_of(probe)?;
     Ok(rows
         .keys
@@ -246,6 +321,10 @@ pub(crate) fn find_value(
     let [column] = indexed_side.on else {
         return Err(PortableOperatorFault::ShapeMismatch);
     };
+    if rows.words != KeyWords::Cells {
+        let mut words = rows.words;
+        return Ok(words.word(key, None, false).and_then(|word| find_word(rows, word)));
+    }
     let hash = hash_of_cells([key]);
     Ok(rows
         .keys
@@ -379,6 +458,7 @@ pub(crate) fn cells_read(
     rows: &mut KeyedRows,
 ) -> Result<(), PortableOperatorFault> {
     cleared(rows, count);
+    hashed_only(rows);
     rows.keys.reserve(count.0.min(1 << 16), |run| run.hash.0);
     for at in 0..count.0 {
         let hash = hash_read(on, RowIndex(at), cell)?;
@@ -408,6 +488,9 @@ pub(crate) fn find_read(
     at: RowIndex,
     left: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
 ) -> Result<Option<KeyedRun>, PortableOperatorFault> {
+    if rows.words != KeyWords::Cells && left_on.len() == right_on.len() {
+        return word_found(rows, left_on, at, left);
+    }
     let hash = hash_read(left_on, at, left)?;
     Ok(rows
         .keys
@@ -427,6 +510,12 @@ pub(crate) fn cells_typed(side: KeyedSide<'_>, rows: &mut KeyedRows) -> Result<(
     if !crate::spike::probe_lever("fastkey") {
         return cells(side, rows);
     }
+    if !matches!(side.rows, crate::domain::physical_plan::types::InputRows::Tree(_) | crate::domain::physical_plan::types::InputRows::Row(..)) {
+        census(side, rows);
+    }
+    if words_any(side, rows)? {
+        return Ok(());
+    }
     match side.rows {
         crate::domain::physical_plan::types::InputRows::Table(table) => {
             cells_read(table.count, side.on, &|row, column| table_cell(table, row, column), rows)
@@ -435,6 +524,176 @@ pub(crate) fn cells_typed(side: KeyedSide<'_>, rows: &mut KeyedRows) -> Result<(
             cells_read(rows_of(view), side.on, &|row, column| facts_cell(view, row, column), rows)
         }
         crate::domain::physical_plan::types::InputRows::Tree(_)
-        | crate::domain::physical_plan::types::InputRows::Row(..) => cells(side, rows),
+        | crate::domain::physical_plan::types::InputRows::Row(..) => cells_by_cells(side, rows),
     }
+}
+
+/// Spike (ryo-jenl): keys `side` by its one-word keys (`KeyWords`, from its key columns' declared kinds), each row read by
+/// its own kind's reader; `false`, nothing keyed, for a key that is no word or a row whose cells are not.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a key column past a row.
+fn words_any(side: KeyedSide<'_>, rows: &mut KeyedRows) -> Result<bool, PortableOperatorFault> {
+    use super::super::scan_facts::item::{facts_cell, table_cell};
+    let kinds = super::super::scan_facts::item::kinds_of(side.rows);
+    let kind = |column: &ColumnIndex| kinds.get(usize::try_from(column.0).unwrap_or(usize::MAX)).copied();
+    let words = if crate::spike::dense_lever("words") {
+        match side.on {
+            [one] => kind(one).map_or(KeyWords::Cells, |one| key_words([one].into_iter())),
+            [one, two] => match (kind(one), kind(two)) {
+                (Some(one), Some(two)) => key_words([one, two].into_iter()),
+                _ => KeyWords::Cells,
+            },
+            _ => KeyWords::Cells,
+        }
+    } else {
+        KeyWords::Cells
+    };
+    if words == KeyWords::Cells {
+        return Ok(false);
+    }
+    match side.rows {
+        crate::domain::physical_plan::types::InputRows::Table(table) => {
+            words_read(table.count, side.on, &|row, column| table_cell(table, row, column), words, rows)
+        }
+        crate::domain::physical_plan::types::InputRows::Facts(view) => {
+            words_read(rows_of(view), side.on, &|row, column| facts_cell(view, row, column), words, rows)
+        }
+        crate::domain::physical_plan::types::InputRows::Tree(_)
+        | crate::domain::physical_plan::types::InputRows::Row(..) => {
+            words_read(count_of(side.rows), side.on, &|row, column| cell_of(side.rows, row, column), words, rows)
+        }
+    }
+}
+
+thread_local! {
+    /// Spike (ryo-jenl): each row's word of the index being built, one per worker, its room kept between builds.
+    static WORDS: std::cell::RefCell<Vec<u64>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Spike (ryo-jenl): `cells_read` for a key that is one word (`KeyWords`): each key hashed by its word's exact hash and
+/// compared by that hash alone, no row read back. Answers `false`, its rows to be keyed cell by cell, when a row's cell is
+/// not of its column's declared kind or a two-column key's node is in another file than the first key's.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for a key column past a row.
+fn words_read(
+    count: RowCount,
+    on: &[ColumnIndex],
+    cell: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+    words: KeyWords,
+    rows: &mut KeyedRows,
+) -> Result<bool, PortableOperatorFault> {
+    cleared(rows, count);
+    let mut words = words;
+    // The words are read once per build into the worker's one scratch, never an index's own room.
+    let mut scratch = WORDS.with(|words| std::mem::take(&mut *words.borrow_mut()));
+    scratch.clear();
+    let (mut low, mut high) = (u64::MAX, 0u64);
+    for at in 0..count.0 {
+        let Some(word) = word_read(&mut words, on, RowIndex(at), cell, true)? else {
+            WORDS.with(|words| *words.borrow_mut() = scratch);
+            return Ok(false);
+        };
+        low = low.min(word);
+        high = high.max(word);
+        scratch.push(word);
+    }
+    let span = high.wrapping_sub(low);
+    if count.0 > 0 && crate::spike::dense_levers()[3] && span < 4 * count.0 as u64 + 64 {
+        // Position-addressed: each key's place in `runs` at its word less the smallest; the slots cleared are at most four
+        // per row.
+        if rows.keys.capacity() > crate::domain::kept_room::constants::KEPT_ROOM {
+            rows.keys = hashbrown::HashTable::new();
+        }
+        rows.base = low;
+        rows.slots.clear();
+        rows.slots.resize(usize::try_from(span).unwrap_or(0) + 1, NO_SLOT);
+        for (at, word) in scratch.iter().enumerate() {
+            let row = IndexedRow(u32::try_from(at).unwrap_or(u32::MAX));
+            let place = usize::try_from(word - low).unwrap_or(usize::MAX);
+            let Some(slot) = rows.slots.get_mut(place) else {
+                continue;
+            };
+            if *slot == NO_SLOT {
+                *slot = u32::try_from(rows.runs.len()).unwrap_or(NO_SLOT);
+                rows.runs.push(KeyedRun {
+                    hash: IndexKeyHash(*word),
+                    first: row,
+                    last: row,
+                    rows: RowCount(1),
+                });
+            } else if let Some(run) = rows.runs.get_mut(usize::try_from(*slot).unwrap_or(usize::MAX)) {
+                if let Some(link) = rows.next.get_mut(usize::try_from(run.last.0).unwrap_or(usize::MAX)) {
+                    *link = row;
+                }
+                run.last = row;
+                run.rows = RowCount(run.rows.0.saturating_add(1));
+            }
+        }
+    } else {
+        hashed_only(rows);
+        rows.keys.reserve(count.0.min(1 << 16), |run| run.hash.0);
+        for (at, word) in scratch.iter().enumerate() {
+            let hash = word_hash(*word);
+            let row = IndexedRow(u32::try_from(at).unwrap_or(u32::MAX));
+            insert(rows, hash, row, |run| hashed(run, hash));
+        }
+    }
+    WORDS.with(|words| *words.borrow_mut() = scratch);
+    rows.words = words;
+    if crate::spike::keystats() {
+        crate::spike::key_rows(6, usize::from(rows.census), count.0 as u64);
+    }
+    Ok(true)
+}
+
+/// Spike (ryo-jenl): the word of row `at`'s key in columns `on`; none when a cell is of another kind or file.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for the first key column past the row.
+#[inline]
+fn word_read(
+    words: &mut KeyWords,
+    on: &[ColumnIndex],
+    at: RowIndex,
+    cell: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+    fix: bool,
+) -> Result<Option<u64>, PortableOperatorFault> {
+    let (first, second) = match on {
+        [first] => (*first, None),
+        [first, second] => (*first, Some(*second)),
+        _ => return Ok(None),
+    };
+    let one = cell(at, first).ok_or(PortableOperatorFault::NoSuchColumn { index: first })?;
+    let two = match second {
+        Some(column) => Some(cell(at, column).ok_or(PortableOperatorFault::NoSuchColumn { index: column })?),
+        None => None,
+    };
+    Ok(words.word(one, two, fix))
+}
+
+/// Spike (ryo-jenl): the key of word-keyed `rows` that row `at`, read by `cell`, holds in columns `on`.
+///
+/// # Errors
+///
+/// `NoSuchColumn` for the first key column past the row.
+#[inline]
+fn word_found(
+    rows: &KeyedRows,
+    on: &[ColumnIndex],
+    at: RowIndex,
+    cell: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
+) -> Result<Option<KeyedRun>, PortableOperatorFault> {
+    let mut words = rows.words;
+    Ok(word_read(&mut words, on, at, cell, false)?.and_then(|word| find_word(rows, word)))
+}
+
+/// Spike (ryo-jenl): the key of word-keyed `rows` whose word is `word`.
+#[inline]
+fn find_word(rows: &KeyedRows, word: u64) -> Option<KeyedRun> {
+    rows.word_run(word)
 }

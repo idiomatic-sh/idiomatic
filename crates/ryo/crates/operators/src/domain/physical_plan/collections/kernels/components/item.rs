@@ -94,7 +94,7 @@ pub(crate) fn cyclic(
     let count = nodes.len();
     scratch.starts.clear();
     scratch.starts.resize(count + 1, EdgeStart(0));
-    for run in &index.keys {
+    for run in index.every_run() {
         let node = number_of(nodes, end_of(edges, indexed(run.first), cycles.source)?)?;
         if let Some(slot) = scratch.starts.get_mut(node.0 + 1) {
             *slot = EdgeStart(run.rows.0);
@@ -110,7 +110,7 @@ pub(crate) fn cyclic(
     scratch
         .leaving
         .resize(scratch.starts.last().map_or(0, |end| end.0), NodeNumber(0));
-    for run in &index.keys {
+    for run in index.every_run() {
         let node = number_of(nodes, end_of(edges, indexed(run.first), cycles.source)?)?;
         let mut place = scratch.starts.get(node.0).map_or(0, |start| start.0);
         let mut row = run.first;

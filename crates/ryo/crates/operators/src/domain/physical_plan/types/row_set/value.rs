@@ -6,7 +6,7 @@ use crate::domain::kept_room::constants::KEPT_ROOM;
 use crate::domain::kept_room::types::{Poolable, RoomFit, RoomHeld};
 use crate::domain::physical_plan::types::CellStart;
 use crate::domain::physical_plan::types::keyed_rows::value::{
-    IndexKeyHash, IndexedRow, hash_of_cells, same_cells,
+    IndexKeyHash, IndexedRow, KeyWords, hash_of_cells, key_words, same_cells, word_hash,
 };
 use crate::domain::table_scratch::types::SetMembership;
 use ryo_relations::domain::relations::types::{CellKind, Value};
@@ -28,6 +28,8 @@ pub(crate) enum FirstSeen {
 pub(crate) struct RowSet {
     /// Each kept row, by the hash of its cells; seen by its tests, which plant a row of a colliding hash.
     pub(super) kept: hashbrown::HashTable<SetEntry>,
+    /// Spike (ryo-jenl): whether the rows kept are words (`KeyWords`), each hash exact.
+    pub(super) words: KeyWords,
 }
 
 /// One kept row: the hash of its cells and its place among the rows it was kept from.
@@ -67,7 +69,21 @@ impl RowSet {
     /// `Repeat` otherwise. The set keeps the rows of `table` in order, so the row kept is the table's next row.
     pub(crate) fn first_seen(&mut self, table: &Table, start: CellStart) -> FirstSeen {
         let new = table.cells.get(start.0..).unwrap_or_default();
-        let hash = hash_of_cells(new.iter().copied());
+        if self.kept.is_empty() {
+            self.words = if crate::spike::dense_lever("repeats") {
+                key_words(table.kinds.iter().copied())
+            } else {
+                KeyWords::Cells
+            };
+        }
+        // Spike (ryo-jenl): a row that is one word hashes by the word: cheaper than by its cells, the same rows compared.
+        let word = match (self.words, new) {
+            (KeyWords::Cells, _) => None,
+            (_, [one]) => self.words.word(*one, None, true),
+            (_, [one, two]) => self.words.word(*one, Some(*two), true),
+            _ => None,
+        };
+        let hash = word.map_or_else(|| hash_of_cells(new.iter().copied()), word_hash);
         if self
             .kept
             .find(hash.0, |kept| {
@@ -97,6 +113,10 @@ impl RowSet {
         cell: impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
     ) -> Result<(), PortableOperatorFault> {
         self.kept.clear();
+        self.words = KeyWords::Cells;
+        if crate::spike::keystats() {
+            crate::spike::key_rows(3, crate::spike::key_class(kinds.iter().copied()), count.0 as u64);
+        }
         let mut cells = Vec::with_capacity(kinds.len());
         for at in 0..count.0 {
             cells.clear();
@@ -157,6 +177,7 @@ impl RowSet {
     pub(crate) fn with_room(room: crate::domain::kept_room::types::Room) -> Self {
         Self {
             kept: hashbrown::HashTable::with_capacity(room.0),
+            words: KeyWords::Cells,
         }
     }
 
@@ -174,6 +195,7 @@ impl RowSet {
     /// Empties the set for its next rows, keeping its room.
     pub(crate) fn cleared(&mut self) {
         self.kept.clear();
+        self.words = KeyWords::Cells;
     }
 }
 

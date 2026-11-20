@@ -297,8 +297,24 @@ fn extremes(
     order: OrderedProbe,
     index: &mut KeyedRows,
 ) -> Result<(), PortableOperatorFault> {
-    let KeyedRows { keys, next } = index;
-    for key in keys.iter_mut() {
+    let next = std::mem::take(&mut index.next);
+    let walked = extremes_of(right, order, index, &next);
+    index.next = next;
+    walked
+}
+
+/// Spike (ryo-jenl): `extremes` over every key, hashed or position-addressed, each key's chain read from `next`.
+#[expect(
+    clippy::indexing_slicing,
+    reason = "the chain is made together with the rows it indexes: a row past it is a bug, which panics"
+)]
+fn extremes_of(
+    right: InputRows<'_>,
+    order: OrderedProbe,
+    index: &mut KeyedRows,
+    next: &[crate::domain::physical_plan::types::keyed_rows::value::IndexedRow],
+) -> Result<(), PortableOperatorFault> {
+    for key in index.each_run() {
         let mut best = key.first;
         let mut bound = number_at(right, indexed(best), order.right_order)?;
         let mut row = next[usize::try_from(best.0).unwrap_or(usize::MAX)];
