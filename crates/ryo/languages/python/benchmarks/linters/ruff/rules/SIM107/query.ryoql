@@ -18,8 +18,7 @@ let earlier_returns = union(left=try_returns, right=handler_returns);
 
 let final_statements = select l.id as try_node, r.statement as statement, r.ordinal as ordinal, l.file as file from tries as l join final_edges as r on l.id = r.try_node and l.file = r.file;
 let final_returns = select l.try_node as try_node, l.statement as id, l.ordinal as ordinal, l.file as file from final_statements as l join returns as r on l.statement = r.id and l.file = r.file;
-let later_final_returns = select l.id as id, l.file as file from final_returns as l join final_returns as r on l.try_node = r.try_node and l.file = r.file where l.ordinal > r.ordinal;
-let first_final_returns = antijoin(left=final_returns, right=later_final_returns, left-on=["id", "file"], right-on=["id", "file"]);
+let first_final_returns = group-min(from=final_returns, keys=["try_node", "file"], order="ordinal");
 let reportable = select l.id as id, l.file as file from first_final_returns as l join earlier_returns as r on l.try_node = r.try_node and l.file = r.file;
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations_matches = observation_matches(candidates=candidates, codes="^(?:SIM107)$");

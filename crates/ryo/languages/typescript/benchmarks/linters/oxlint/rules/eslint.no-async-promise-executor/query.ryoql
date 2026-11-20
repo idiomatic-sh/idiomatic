@@ -12,8 +12,7 @@ let reached_callees = select l.id as id, r.inner as inner from callees as l join
 let inner_callees = union(left=direct_callees, right=reached_callees);
 let promise_news = select l.id as id from inner_callees as l join promise_names as r on l.inner = r.id;
 let arguments = select l.parent as id, l.child as argument, l.ordinal as ordinal from "semantic-child" as l join promise_news as r on l.parent = r.id where l.field = "arguments";
-let later = select l.id as id, l.argument as argument from arguments as l join arguments as r on l.id = r.id where l.ordinal > r.ordinal;
-let firsts = antijoin(left=arguments, right=later, left-on=["id", "argument"], right-on=["id", "argument"]);
+let firsts = group-min(from=arguments, keys=["id"], order="ordinal");
 let direct = select argument as executor from firsts;
 let reached = select r.inner as executor from firsts as l join unwrapped as r on l.argument = r.outer;
 let executors = union(left=direct, right=reached);

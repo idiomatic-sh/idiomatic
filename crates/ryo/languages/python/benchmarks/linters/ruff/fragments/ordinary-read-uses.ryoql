@@ -143,7 +143,6 @@ let declaring_restored = select l.reference as reference, r.id as event, r.kind 
 let stepped_answers0 = union(left=home_answers, right=declaring_plain);
 let stepped_answers = union(left=stepped_answers0, right=declaring_restored);
 let answers = union(left=plain_answers, right=stepped_answers);
-let farther_answers = select l.reference as reference, l.depth as depth, l.file as file from answers as l join answers as r on l.reference = r.reference and l.file = r.file where r.depth < l.depth;
-let nearest_answers = antijoin(left=answers, right=farther_answers, left-on=["reference", "depth", "file"], right-on=["reference", "depth", "file"]);
+let nearest_answers = group-min(from=answers, keys=["reference", "file"], order="depth");
 let resolved_lookups = select reference, event as binding, kind, file from nearest_answers where kind = "bind" or kind = "global" or kind = "nonlocal";
 return resolved_lookups;

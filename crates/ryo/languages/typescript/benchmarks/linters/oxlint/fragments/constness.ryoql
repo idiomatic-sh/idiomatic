@@ -21,15 +21,13 @@ let unary_edges = select parent, child from operated where kind = "unary-express
 let logical_edges = select parent, child, field, operator from operated where kind = "logical-expression" and (field = "left" or field = "right");
 let assign_edges = select parent, child from operated where kind = "assignment-expression" and operator = "=" and field = "right";
 let sequence_parts = select parent, child, ordinal from children where kind = "sequence-expression" and field = "expressions";
-let earlier_parts = select l.child as child from sequence_parts as l join sequence_parts as r on l.parent = r.parent where l.ordinal < r.ordinal;
-let last_parts = antijoin(left=sequence_parts, right=earlier_parts, left-on=["child"], right-on=["child"]);
+let last_parts = group-max(from=sequence_parts, keys=["parent"], order="ordinal");
 let sequence_edges = select parent, child from last_parts;
 let calls = select id from "semantic-syntax" where kind = "call-expression";
 let call_callees = select l.parent as id, r.id as callee from "semantic-child" as l join global_boolean as r on l.child = r.id where l.field = "callee";
 let boolean_calls = select l.id as id from calls as l join call_callees as r on l.id = r.id;
 let call_arguments = select l.parent as parent, l.child as child, l.ordinal as ordinal from "semantic-child" as l join boolean_calls as r on l.parent = r.id where l.field = "arguments";
-let later_arguments = select l.child as child from call_arguments as l join call_arguments as r on l.parent = r.parent where l.ordinal > r.ordinal;
-let first_arguments = antijoin(left=call_arguments, right=later_arguments, left-on=["child"], right-on=["child"]);
+let first_arguments = group-min(from=call_arguments, keys=["parent"], order="ordinal");
 let boolean_edges = select parent, child from first_arguments;
 let array_edges = select parent, child from children where kind = "array-expression" and field = "elements";
 let template_edges = select parent, child from children where kind = "template-literal" and field = "expressions";

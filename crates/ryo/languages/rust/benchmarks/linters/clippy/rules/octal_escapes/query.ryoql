@@ -14,8 +14,7 @@ let format_children = select l.call as call, l.child as child, l.file as file fr
 let format_trees = select l.child as tree, l.file as file from format_children as l join "syntax-tree" as r on l.child = r.id where r.kind = "token-tree";
 let tree_strings = select l.parent as tree, l.child as id, l.ordinal as ordinal, l.file as file from "syntax-child" as l join cooked as r on l.child = r.id;
 let format_strings = select l.tree as tree, l.id as id, l.ordinal as ordinal, l.file as file from tree_strings as l join format_trees as r on l.tree = r.tree;
-let later_strings = select l.tree as tree, l.id as id, l.ordinal as ordinal, l.file as file from format_strings as l join format_strings as r on l.tree = r.tree where r.ordinal < l.ordinal;
-let templates = antijoin(left=format_strings, right=later_strings, left-on=["id"], right-on=["id"]);
+let templates = group-min(from=format_strings, keys=["tree"], order="ordinal");
 let read = antijoin(left=cooked, right=templates, left-on=["id"], right-on=["id"]);
 let escapes = source-matches(from=read, span="span", pattern="(?P<octal>\\0[0-7]{1,2})|\\[\s\S]", output="found", capture="octal", capture-output="escape");
 let candidates = select id, file, escape as span from escapes;

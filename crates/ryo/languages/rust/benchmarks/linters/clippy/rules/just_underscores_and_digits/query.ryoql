@@ -26,8 +26,7 @@ let colons = select l.parent as id from "syntax-child" as l join "syntax-tree" a
 let field_edges = select parent, child from node_edges where kind = "record-pat-field";
 let named_field_edges = select l.parent as parent, l.child as child from field_edges as l join colons as r on l.parent = r.id;
 let alternatives = select parent, child, ordinal from node_edges where kind = "or-pat";
-let later_alternatives = select l.parent as parent, l.child as child from alternatives as l join alternatives as r on l.parent = r.parent where r.ordinal < l.ordinal;
-let first_alternatives = antijoin(left=alternatives, right=later_alternatives, left-on=["parent", "child"], right-on=["parent", "child"]);
+let first_alternatives = group-min(from=alternatives, keys=["parent"], order="ordinal");
 let first_edges = select parent, child from first_alternatives;
 let pattern_edges = union(left=passing, right=named_field_edges);
 let walk_edges = union(left=pattern_edges, right=first_edges);

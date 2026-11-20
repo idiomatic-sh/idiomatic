@@ -36,8 +36,7 @@ let embedded_roots = axis(from=root_names, relation="semantic-child", direction=
 let embedded_names = select id, file from embedded_roots;
 let deferred_names = union(left=deferred0, right=embedded_names);
 let ordinals = select ordinal as point, file from "binding-event";
-let earlier_ordinals = select l.point as point, l.file as file from ordinals as l join ordinals as r on l.file = r.file where l.point < r.point;
-let final_ordinals = antijoin(left=ordinals, right=earlier_ordinals, left-on=["point","file"], right-on=["point","file"]);
+let final_ordinals = group-max(from=ordinals, keys=["file"], order="point");
 let lexical_reads = select reference as id, scope, file from "binding-read";
 let deferred_scopes = select l.id as context, r.scope as initial_scope, l.file as file from deferred_names as l join lexical_reads as r on l.id = r.id and l.file = r.file;
 let scopes = select context, initial_scope, file from deferred_scopes;

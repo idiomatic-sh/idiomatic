@@ -40,8 +40,7 @@ let other_yields = antijoin(left=other_yields_all, right=fors, left-on=["loop"],
 let yielding = union(left=for_yields, right=other_yields);
 let exempt = select l.test as id from generator_loops as l join yielding as r on l.id = r.loop;
 let reported = antijoin(left=checked, right=exempt, left-on=["id"], right-on=["id"]);
-let outer_wraps = select l.id as id, l.level as level from wraps as l join wraps as r on l.id = r.id where r.level > l.level;
-let outermost = antijoin(left=wraps, right=outer_wraps, left-on=["id", "level"], right-on=["id", "level"]);
+let outermost = group-max(from=wraps, keys=["id"], order="level");
 let wrapped_spans = select l.id as id, r.file as file, r.wrap as span from reported as l join outermost as r on l.id = r.id;
 let bare_reported = antijoin(left=reported, right=outermost, left-on=["id"], right-on=["id"]);
 let bare_spans = select l.id as id, r.file as file, r.span as span from bare_reported as l join test_rows as r on l.id = r.id;

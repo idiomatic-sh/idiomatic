@@ -14,8 +14,7 @@ let later_opens = select l.parent as parent, l.child as child from syntax_opens_
 let syntax_opens = antijoin(left=syntax_opens_all, right=later_opens, left-on=["parent", "child"], right-on=["parent", "child"]);
 let syntax_owners = select parent from syntax_opens;
 let closes_all = select l.parent as parent, l.child as child, l.begin as begin from child_bounds as l join syntax_owners as r on l.parent = r.parent where l.child_kind = "punctuator" and l.text = ")";
-let earlier_closes = select l.parent as parent, l.child as child from closes_all as l join closes_all as r on l.parent = r.parent where l.begin < r.begin;
-let syntax_closes = antijoin(left=closes_all, right=earlier_closes, left-on=["parent", "child"], right-on=["parent", "child"]);
+let syntax_closes = group-max(from=closes_all, keys=["parent"], order="begin");
 let syntax_open_ids = select child as id from syntax_opens;
 let syntax_close_ids = select child as id from syntax_closes;
 let syntax = union(left=syntax_open_ids, right=syntax_close_ids);

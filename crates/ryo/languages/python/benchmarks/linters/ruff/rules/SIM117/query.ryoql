@@ -23,8 +23,7 @@ let explicit_outers = select l.outer as outer, l.file as file from top_nested as
 let explicit_inners = select l.outer as outer, l.file as file from top_nested as l join explicit_owners as r on l.inner = r.owner and l.file = r.file;
 let excluded = union(left=explicit_outers, right=explicit_inners);
 let reportable = antijoin(left=top_nested, right=excluded, left-on=["outer", "file"], right-on=["outer", "file"]);
-let earlier_items = select l.owner as owner, l.item as item, l.file as file from items as l join items as r on l.owner = r.owner and l.file = r.file where l.ordinal < r.ordinal;
-let last_items = antijoin(left=items, right=earlier_items, left-on=["owner", "item", "file"], right-on=["owner", "item", "file"]);
+let last_items = group-max(from=items, keys=["owner", "file"], order="ordinal");
 let inner_items = select l.outer as id, r.item as item, l.file as file from reportable as l join last_items as r on l.inner = r.owner and l.file = r.file;
 let locations = select id, span, "start-byte", "end-byte", "start-line", file from "source-location";
 let item_ends = select l.id as id, r."end-byte" as item_end, l.file as file from inner_items as l join locations as r on l.item = r.id and l.file = r.file;
