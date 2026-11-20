@@ -1326,7 +1326,7 @@ impl<'p> State<'p> {
                 let xs = &self.cache.x;
                 let (hk, hm) = xs.hsite.iter().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
                 let (sk, sm) = xs.ksite.iter().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
-                eprintln!("{{\"xmemo\":{{\"loop_calls\":{},\"key_lookups\":{sk},\"key_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm},\"tuples_peak\":{},\"node_memo_peak\":{},\"index_arena_peak\":{}}}}}", xs.calls, xs.tup_peak.max(xs.tup.len()), xs.nm_peak, xs.ia_peak);
+                eprintln!("{{\"xmemo\":{{\"loop_calls\":{},\"key_lookups\":{sk},\"key_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm},\"tuples_peak\":{},\"node_memo_peak\":{},\"index_arena_peak\":{},\"top_runs\":{},\"prefix_runs\":{},\"prefix_steps\":{}}}}}", xs.calls, xs.tup_peak.max(xs.tup.len()), xs.nm_peak, xs.ia_peak, xs.top_runs, xs.prefix_runs, xs.prefix_steps);
                 if c.diag {
                     let ops: Vec<String> = (0..crate::exec::NXOPS).filter(|&o| xs.xsteps[o] > 0).map(|o| format!("\"{}\":[{},{}]", crate::exec::xop_name(o), xs.xsteps[o], xs.xns[o])).collect();
                     eprintln!("{{\"xops\":{{{}}}}}", ops.join(","));

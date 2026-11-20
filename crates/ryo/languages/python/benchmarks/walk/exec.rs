@@ -910,6 +910,11 @@ pub(crate) struct XState {
     pub sparse: usize,
     /// calls of the dispatch loop over the run
     pub calls: u64,
+    /// counter build: top-level runs, those that ended inside their straight-line prefix, and the steps of those
+    pub top: bool,
+    pub top_runs: u64,
+    pub prefix_runs: u64,
+    pub prefix_steps: u64,
 }
 
 impl XState {
@@ -1124,6 +1129,7 @@ impl<'p> Exec<'_, 'p> {
     /// A top-level run (a group's program): its steps and visits are charged to the running rule.
     pub(crate) fn xtop(&mut self, entry: u32) {
         let (s0, v0) = (self.c.steps, self.c.visits);
+        self.cache.x.top = true;
         self.xcall(entry);
         let r = self.cur_rule;
         self.c.rule_steps[r] = self.c.rule_steps[r].wrapping_add(self.c.steps - s0);
@@ -1885,6 +1891,9 @@ impl<'p> Exec<'_, 'p> {
         let children: &[u32] = &v.children;
         let mut fr: arrayvec::ArrayVec<Frame, NFRAMES> = arrayvec::ArrayVec::new();
         self.cache.x.calls += 1;
+        // counter build: a top-level run (one candidate of one group) that never leaves its straight-line prefix
+        let top = D && std::mem::take(&mut self.cache.x.top);
+        let mut straight = true;
         let mut steps = 0u64;
         let mut visits = 0u64;
         let mut pc = entry as usize;
@@ -1906,6 +1915,7 @@ impl<'p> Exec<'_, 'p> {
                 steps = 0;
                 self.c.visits += visits;
                 visits = 0;
+                straight = false;
             };
         }
         // an iteration needs a frame: past the local frames, the rest of the program (from this instruction) runs as a
@@ -2681,9 +2691,18 @@ impl<'p> Exec<'_, 'p> {
             // ---- unwind (the program yielded): iterations are dropped down to the innermost inline call, which gets the answer
             loop {
                 let Some(f) = fr.last_mut() else {
+                    if top {
+                        let xs = &mut self.cache.x;
+                        xs.top_runs += 1;
+                        if straight {
+                            xs.prefix_runs += 1;
+                            xs.prefix_steps += steps;
+                        }
+                    }
                     sync!();
                     return yielded;
                 };
+                straight = false;
                 if f.kind >= K_CALL {
                     // a boundary: an inline sub-program (or the per-kind driver) ended with `yielded` as its answer
                     let i: &XIns = &code[f.pc as usize];
