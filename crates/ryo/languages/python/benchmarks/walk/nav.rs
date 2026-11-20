@@ -3413,7 +3413,8 @@ impl<'a, 'p> Exec<'a, 'p> {
             let slot = self.outs.len() - 1;
             let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
             let nr = prog.facts[rel as usize].nregs;
-            let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
+            let save_at = self.save.len();
+            self.save.extend_from_slice(&self.regs[..nr]);
             self.cur_rule = slot;
             if prog.x.on {
                 for &e in &prog.x.fact_e[rel as usize] {
@@ -3423,16 +3424,22 @@ impl<'a, 'p> Exec<'a, 'p> {
             for q in progs {
                 self.run_inner(q, 0);
             }
-            self.regs[..nr].copy_from_slice(&saved_regs);
+            self.regs[..nr].copy_from_slice(&self.save[save_at..]);
+            self.save.truncate(save_at);
             let rows = std::mem::replace(&mut self.outs[slot], saved.1);
             let rows_len = rows.len();
             self.cur_rule = saved.0;
             // group count by sorting fixed-width identities (keys first, then the distinct column or the rest of the row):
             // equal identities collapse, runs of equal keys are the groups
             let w = (*width).max(1);
-            let rest: Vec<usize> = match distinct {
-                Some(d) => vec![*d],
-                None => (0..*width).filter(|c| !keys.contains(c)).collect(),
+            // exec: an empty input has no group: no identity list, no sort
+            let rest: Vec<usize> = if rows.is_empty() {
+                Vec::new()
+            } else {
+                match distinct {
+                    Some(d) => vec![*d],
+                    None => (0..*width).filter(|c| !keys.contains(c)).collect(),
+                }
             };
             let t = keys.len() + rest.len();
             assert!(t <= 8, "made identity wider than 8");

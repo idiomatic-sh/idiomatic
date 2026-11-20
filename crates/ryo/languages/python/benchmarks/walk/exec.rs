@@ -1731,8 +1731,14 @@ impl<'p> Exec<'_, 'p> {
         let line_at = |off: usize| -> u64 { base_line.unwrap_or(0) + bytes[s..off].iter().filter(|&&b| b == b'\n').count() as u64 };
         let mut flow = false;
         while at <= hay.len() {
-            re.search_captures(&regex_automata::Input::new(hay).range(at..), &mut caps);
-            let Some(m) = caps.get_match() else { break };
+            // the capture engine only when a group is asked for: a match's span alone is the plain search
+            let m = if group.is_some() {
+                re.search_captures(&regex_automata::Input::new(hay).range(at..), &mut caps);
+                caps.get_match()
+            } else {
+                re.search(&regex_automata::Input::new(hay).range(at..))
+            };
+            let Some(m) = m else { break };
             let (ms, me) = (s + m.start(), s + m.end());
             at = if m.end() > m.start() { m.end() } else { m.end() + 1 };
             let mut k = 0;
