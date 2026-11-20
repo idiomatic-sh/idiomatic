@@ -51,6 +51,17 @@ pub fn link(
 }
 
 /// A linked language with its walk for the new engine. Called by the `walk:` arm of [`link!`](crate::link), never by hand.
+///
+/// # Examples
+///
+/// ```
+/// use ryo::languages::{Language, Walk};
+/// use std::sync::Arc;
+///
+/// fn with_its_walk<W: Walk>(linked: Language, walk: W) -> Language {
+///     ryo::languages::walking(linked, Arc::new(walk))
+/// }
+/// ```
 #[doc(hidden)]
 #[must_use]
 pub fn walking(language: Language, walk: Arc<dyn WalkEngine>) -> Language {
