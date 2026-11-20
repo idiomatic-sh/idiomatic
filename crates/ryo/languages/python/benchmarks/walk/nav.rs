@@ -1613,8 +1613,8 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// the ids whose tree column holds one of a constant set of values, in start order (one scan, memoised per file)
-    fn const_list(&mut self, rel: TRel, col: u8, val: &Val) -> Rc<Vec<u32>> {
-        let key = val as *const Val as usize;
+    fn const_list(&mut self, rel: TRel, col: u8, val: &Val, sorted: bool) -> Rc<Vec<u32>> {
+        let key = (val as *const Val as usize) * 2 + usize::from(sorted);
         if let Some(l) = self.cache.const_idx.get(&key) {
             return l.clone();
         }
@@ -1626,7 +1626,8 @@ impl<'a, 'p> Exec<'a, 'p> {
             Val::Nums(v) => v.iter().map(|&x| u64::from(x as u32)).collect(),
             Val::Reg(_) => unreachable!(),
         };
-        let ckey = (rel as u8, col, wanted.clone());
+        let mut ckey = (rel as u8, col, wanted.clone());
+        ckey.2.push(u64::from(sorted));
         if let Some(l) = self.cache.const_by.get(&ckey) {
             let l = l.clone();
             self.cache.const_idx.insert(key, l.clone());
@@ -1664,7 +1665,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         }
         let _ = n;
-        if wanted.len() > 1 {
+        if sorted {
             out.sort_by_key(|&id| (v.start[id as usize], id));
         }
         self.c.made_tables += 1;
@@ -1731,13 +1732,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             at.insert(t, (starts[k], count[t as usize]));
             count[t as usize] = 0;
         }
-        // buckets in start order (ids are pre-order nodes, then tokens)
-        for &(s0, e0) in at.values() {
-            let sl = &mut ids[s0 as usize..e0 as usize];
-            if sl.windows(2).any(|w| v.start[w[0] as usize] > v.start[w[1] as usize]) {
-                sl.sort_by_key(|&id| (v.start[id as usize], id));
-            }
-        }
+        // buckets stay in id order; a range walk sorts its own (small) list by start
         self.c.csr_ns += t_csr.elapsed().as_nanos() as u64;
         let c = Rc::new(Csr { at, ids });
         self.cache.csr.insert((rel as u8, col), c.clone());
@@ -2415,7 +2410,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     return false;
                 }
                 Ins::IterValue { rel, col, val, out } if !matches!(val, Val::Reg(_)) => {
-                    let list = self.const_list(*rel, *col, val);
+                    let list = self.const_list(*rel, *col, val, false);
                     for &id in list.iter() {
                         self.regs[*out as usize] = id as u64;
                         self.c.visits += 1;
@@ -2562,7 +2557,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     let hi = hi.map(|(r, incl)| (self.regs[r as usize] as i64, incl));
                     let (tidx, clist) = match val {
                         Val::Reg(_) => (Some(self.tree_index(*rel, *col)), None),
-                        _ => (None, Some(self.const_list(*rel, *col, val))),
+                        _ => (None, Some(self.const_list(*rel, *col, val, true))),
                     };
                     let keys: Vec<u32> = match val {
                         Val::Reg(r) => vec![self.regs[*r as usize] as u32],
