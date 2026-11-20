@@ -2625,7 +2625,7 @@ pub(crate) struct Counters {
     pub view_tokens: u64,
     pub text_distinct: u64,
     /// whole-column passes over the view per (what, relation, column): 0 value buckets, 1 sorted value index
-    pub view_passes: FxMap<(u8, u8, u8), u64>,
+    pub view_passes: FxMap<(u8, u8, u8), (u64, u64)>,
     /// files where a row of a model relation was read: [lexical relations, flow relations]; files where the lexical model was
     /// built only for a derived relation's owner column
     pub model_read_files: [u64; 2],
@@ -3419,9 +3419,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         let t_csr = Tick::now();
         self.c.csr_builds += 1;
-        if self.c.acct {
-            *self.c.view_passes.entry((0, rel as u8, col)).or_default() += 1;
-        }
+
         let nb = self.sym.base_count();
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
         let v = self.f.view;
@@ -3523,9 +3521,44 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         // buckets stay in id order; a range walk sorts its own (small) list by start
         self.c.csr_ns += t_csr.elapsed().as_nanos() as u64;
+        if self.c.acct {
+            let e = self.c.view_passes.entry((0, rel as u8, col)).or_default();
+            e.0 += 1;
+            e.1 += t_csr.elapsed().as_nanos() as u64;
+        }
         let c = Rc::new(Csr { at, ids });
         self.cache.csr.insert((rel as u8, col), c.clone());
         c
+    }
+
+    /// facts: the index of the start-offset column is the ids in (start, id) order, and the nodes and the leaves are each
+    /// already in that order: one merge, no sort (None when a list is not ascending, and for every other column)
+    fn start_order(&self, rel: TRel, col: u8) -> Option<TIdx> {
+        if !(rel == TRel::Sl && col == 5) {
+            return None;
+        }
+        let v = self.f.view;
+        let (n, total) = (v.n_nodes, v.len());
+        let start = &v.start;
+        if (1..n).any(|i| start[i] < start[i - 1]) || (n + 1..total).any(|i| start[i] < start[i - 1]) {
+            return None;
+        }
+        let mut vals = Vec::with_capacity(total);
+        let mut ids = Vec::with_capacity(total);
+        let (mut a, mut b) = (0, n);
+        while a < n || b < total {
+            // equal starts: the node first (its id is the lower one)
+            let take_node = b >= total || (a < n && start[a] <= start[b]);
+            let id = if take_node { a } else { b };
+            vals.push(start[id]);
+            ids.push(id as u32);
+            if take_node {
+                a += 1;
+            } else {
+                b += 1;
+            }
+        }
+        Some(TIdx { vals, ids })
     }
 
     /// a tree relation's value index: (value, start, id) sorted once per file; a value's ids are a slice in start order
@@ -3535,22 +3568,30 @@ impl<'a, 'p> Exec<'a, 'p> {
             return i.clone();
         }
         let t0 = Tick::now();
-        if self.c.acct {
-            *self.c.view_passes.entry((1, rel as u8, col)).or_default() += 1;
-        }
+
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
-        let mut pairs: Vec<(u64, u32)> = Vec::with_capacity(n);
-        for id in 0..n as u32 {
-            if let Some(v) = self.tread(rel, col, id) {
-                pairs.push(((u64::from(v as u32) << 32) | u64::from(self.f.view.start[id as usize]), id));
+        let idx = match self.start_order(rel, col) {
+            Some(idx) => idx,
+            None => {
+                let mut pairs: Vec<(u64, u32)> = Vec::with_capacity(n);
+                for id in 0..n as u32 {
+                    if let Some(v) = self.tread(rel, col, id) {
+                        pairs.push(((u64::from(v as u32) << 32) | u64::from(self.f.view.start[id as usize]), id));
+                    }
+                }
+                pairs.sort_unstable();
+                TIdx { vals: pairs.iter().map(|p| (p.0 >> 32) as u32).collect(), ids: pairs.iter().map(|p| p.1).collect() }
             }
-        }
-        pairs.sort_unstable();
-        let idx = TIdx { vals: pairs.iter().map(|p| (p.0 >> 32) as u32).collect(), ids: pairs.iter().map(|p| p.1).collect() };
+        };
         self.c.made_tables += 1;
         self.c.made_rows += n as u64;
         self.c.index_ns += t0.elapsed().as_nanos() as u64;
         self.c.index_split[0] += t0.elapsed().as_nanos() as u64;
+        if self.c.acct {
+            let e = self.c.view_passes.entry((1, rel as u8, col)).or_default();
+            e.0 += 1;
+            e.1 += t0.elapsed().as_nanos() as u64;
+        }
         let m = Rc::new(idx);
         self.cache.tree_idx.insert(key, m.clone());
         m

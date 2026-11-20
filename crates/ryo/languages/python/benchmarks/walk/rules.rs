@@ -1184,7 +1184,7 @@ impl<'p> State<'p> {
                     .filter(|(_, a)| a.iter().any(|x| *x != 0))
                     .map(|(k, a)| format!("\"{}\":[{}]", nav.facts[k].name, a.iter().map(u64::to_string).collect::<Vec<_>>().join(",")))
                     .collect();
-                let passes: Vec<String> = c.view_passes.iter().map(|((w, r, col), n)| format!("[{w},{r},{col},{n}]")).collect();
+                let passes: Vec<String> = c.view_passes.iter().map(|((w, r, col), n)| format!("[{w},{r},{col},{},{}]", n.0, n.1)).collect();
                 let probes: Vec<String> = c.probe_cols.iter().map(|((r, col, w), n)| format!("[\"{}\",{col},{w},{n}]", nav.facts[*r as usize].name)).collect();
                 let reads: Vec<String> = c.read_cols.iter().map(|((r, col), n)| format!("[\"{}\",{col},{n}]", nav.facts[*r as usize].name)).collect();
                 eprintln!("{{\"acct_cols\":{{\"probes\":[{}],\"reads\":[{}]}}}}", probes.join(","), reads.join(","));
