@@ -63,6 +63,14 @@ fn resolve(
     clear(out);
     parameters(tree, model, out);
     let walk = Walk { tree, model, index };
+    // C3 (§7.12, §7.13): a global or nonlocal statement is a declaration that holds for the entire code block, so a declaring
+    // namespace holds its declaration for every reference, even one the schedule reaches before the statement (which Python then
+    // refuses to compile). The row keeps the declaration's own ordinal. A module-level declaration routes nothing and is left out.
+    for (at, event) in index.events.iter().enumerate() {
+        if matches!(event.kind, EventKind::Global | EventKind::Nonlocal) && event.lexical != event.scope {
+            let _first = out.latest.entry(key(event.lexical, event.name)).or_insert(at);
+        }
+    }
     let mut cursor = 0;
     for (at, event) in index.events.iter().enumerate() {
         match event.kind {

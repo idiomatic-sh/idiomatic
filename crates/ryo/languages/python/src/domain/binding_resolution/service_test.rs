@@ -69,6 +69,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("d0 global value scope=[1:def f():] event=[2:x] lexical=[1:def f():] ordinal=4 | d1 delete value scope=[module] event=[5:x] lexical=[1:def f():] ordinal=8"),
     },
     Case {
+        name: CaseName("C3 a declaration holds for its whole block, even before the statement"),
+        word: Word::Succeeds,
+        input: || ("def f():\n    value = 1\n    print(value)\n    global value\n", 3, "value"),
+        expect: Expect::Value("d0 global value scope=[1:def f():] event=[4:value] lexical=[1:def f():] ordinal=7 | d1 bind value scope=[module] event=[2:value] lexical=[1:def f():] ordinal=4"),
+    },
+    Case {
         name: CaseName("C3 nonlocal continues along the ordinary chain"),
         word: Word::Succeeds,
         input: || {
