@@ -220,6 +220,8 @@ impl Enc {
             | Ins::TestInC { .. }
             | Ins::Hoist { .. }
             | Ins::Capture { regs: _ }
+            | Ins::NearMemo { .. }
+            | Ins::SubKey { .. }
             | Ins::SubFirst { .. } => panic!("specialised instructions are not stored in the pack"),
             Ins::Fork { subs } => {
                 self.u(subs.len() as u32);
@@ -682,6 +684,7 @@ pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -
                 e.u(u32::from(r));
             }
         }
+        e.u(u32::from(f.base));
         match &f.made {
             None => e.u(0),
             Some((progs, keys, distinct, width)) => {
@@ -762,7 +765,7 @@ pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -
         e.prog(&g.prog);
     }
     let mut bytes: Vec<u8> = Vec::new();
-    for x in [MAGIC, 2, tails.len() as u32, e.w.len() as u32] {
+    for x in [MAGIC, 3, tails.len() as u32, e.w.len() as u32] {
         bytes.extend_from_slice(&x.to_le_bytes());
     }
     bytes.extend_from_slice(tails.as_bytes());
@@ -781,7 +784,7 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
     let bytes = std::fs::read(path).expect("pack");
     let word = |i: usize| u32::from_le_bytes(bytes[i * 4..i * 4 + 4].try_into().unwrap());
     assert_eq!(word(0), MAGIC, "pack magic");
-    assert_eq!(word(1), 2, "pack version");
+    assert_eq!(word(1), 3, "pack version");
     let tails_len = word(2) as usize;
     let nwords = word(3) as usize;
     let t0 = std::time::Instant::now();
@@ -810,6 +813,7 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
         let nregs = d.u() as usize;
         let kc = d.u();
         let keyed = if kc == u32::MAX { None } else { Some((kc as u8, d.r())) };
+        let base = d.u() as u16;
         let made = if d.u() == 1 {
             let progs = d.progs().into_vec();
             let keys = d.us().iter().map(|&k| k as usize).collect();
@@ -851,7 +855,7 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
                 if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
             (model, relation)
         };
-        facts.push(FactRel { model, name, relation, kinds, made, made_om, keyed, nregs });
+        facts.push(FactRel { model, name, relation, kinds, made, made_om, keyed, base, nregs });
     }
     let n = d.u();
     let mut rules = Vec::new();

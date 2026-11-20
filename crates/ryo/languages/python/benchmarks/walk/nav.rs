@@ -143,6 +143,12 @@ pub(crate) enum Ins {
     Sibling { next: bool, start: R, out: R },
     /// an absence/existence test reading no candidate register: answered once per file
     SubMemo { negate: bool, subs: Box<[Prog]> },
+    // ---- load-time memo specialisations (join; never stored in the pack)
+    /// Near whose sub-programs read no register but the ancestor: the nearest proper ancestor per start node, memoised per file
+    /// (every node passed on the way up gets the same answer)
+    NearMemo { start: R, out: R, subs: Box<[Prog]> },
+    /// an absence/existence check whose sub-programs read one outer register: answered once per file per value of `key`
+    SubKey { negate: bool, key: R, subs: Box<[Prog]> },
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -174,12 +180,13 @@ pub(crate) struct OrderedDfs {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const NINS: usize = 43;
+pub(crate) const NINS: usize = 45;
 pub(crate) const INS_NAMES: [&str; NINS] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
     "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
     "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture", "sub_first",
     "collect", "closure", "union", "let", "shared", "text_fn", "capture_text", "replace", "near_derived", "sibling", "sub_memo",
+    "near_memo", "sub_key",
 ];
 
 impl Ins {
@@ -229,6 +236,8 @@ impl Ins {
             Ins::NearDerived { .. } => 40,
             Ins::Sibling { .. } => 41,
             Ins::SubMemo { .. } => 42,
+            Ins::NearMemo { .. } => 43,
+            Ins::SubKey { .. } => 44,
         }
     }
 }
@@ -241,7 +250,9 @@ pub(crate) fn subs_mut(i: &mut Ins, f: &mut dyn FnMut(&mut Prog)) {
         | Ins::SubFirst { subs }
         | Ins::Closure { subs, .. }
         | Ins::Union { subs, .. }
-        | Ins::SubMemo { subs, .. } => subs.iter_mut().for_each(f),
+        | Ins::SubMemo { subs, .. }
+        | Ins::NearMemo { subs, .. }
+        | Ins::SubKey { subs, .. } => subs.iter_mut().for_each(f),
         Ins::NearDerived { edges, domain, .. } => {
             edges.iter_mut().for_each(&mut *f);
             domain.iter_mut().for_each(f);
@@ -260,7 +271,9 @@ pub(crate) fn subs_ref<'x>(i: &'x Ins, f: &mut dyn FnMut(&'x [Ins])) {
         | Ins::SubFirst { subs }
         | Ins::Closure { subs, .. }
         | Ins::Union { subs, .. }
-        | Ins::SubMemo { subs, .. } => subs.iter().for_each(|q| f(q)),
+        | Ins::SubMemo { subs, .. }
+        | Ins::NearMemo { subs, .. }
+        | Ins::SubKey { subs, .. } => subs.iter().for_each(|q| f(q)),
         Ins::NearDerived { edges, domain, .. } => {
             edges.iter().for_each(|q| f(q));
             domain.iter().for_each(|q| f(q));
@@ -308,6 +321,9 @@ pub(crate) struct FactRel {
     /// a keyed twin: its programs enumerate the input rows whose output key column `.0` equals register `.1` (set before
     /// the run); rows are filled per key on first demand
     pub keyed: Option<(u8, R)>,
+    /// a keyed twin's base (unkeyed) table, u16::MAX when none: a file whose keyed builds cost more than building the base once
+    /// switches to the base (ski rental)
+    pub base: u16,
     /// registers its programs use (0..nregs): saved and restored around a build inside a running program
     pub nregs: usize,
 }
@@ -468,7 +484,7 @@ impl Loader<'_> {
         }
         let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
         let model = if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
-        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None, keyed: None, nregs: 0 });
+        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None, keyed: None, base: u16::MAX, nregs: 0 });
         (self.facts.len() - 1) as u16
     }
 
@@ -865,7 +881,115 @@ fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
             defs.push(*out);
         }
         Ins::SubMemo { subs, .. } => sub(subs, reads),
+        Ins::NearMemo { start, out, subs } => {
+            reads.push(*start);
+            sub(subs, reads);
+            defs.push(*out);
+        }
+        Ins::SubKey { key, subs, .. } => {
+            reads.push(*key);
+            sub(subs, reads);
+        }
     }
+}
+
+thread_local! {
+    /// the free registers of each shared entry (read and not defined inside it; set by specialize_all)
+    static SHARED_FREE: std::cell::RefCell<Vec<Vec<R>>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Registers a program reads that nothing inside it defines (every nested sub-program included; a shared entry contributes its
+/// own free registers). Over-approximates what the program needs from outside.
+pub(crate) fn free_regs(p: &[Ins]) -> Vec<R> {
+    fn walk(p: &[Ins], reads: &mut Vec<R>, defs: &mut Vec<R>) {
+        for i in p {
+            if let Ins::Shared { idx } = i {
+                SHARED_FREE.with(|t| reads.extend(t.borrow()[*idx as usize].iter().copied()));
+                continue;
+            }
+            let mut r = Vec::new();
+            reads_defs_top(i, &mut r, defs);
+            reads.extend(r);
+            subs_ref(i, &mut |q| walk(q, reads, defs));
+        }
+    }
+    let (mut reads, mut defs) = (Vec::new(), Vec::new());
+    walk(p, &mut reads, &mut defs);
+    defs.sort_unstable();
+    defs.dedup();
+    reads.sort_unstable();
+    reads.dedup();
+    reads.retain(|r| defs.binary_search(r).is_err());
+    reads
+}
+
+/// reads_defs without the sub-programs' reads (free_regs walks those itself); a closure's or nearest-derived walk's input
+/// register counts as defined (the step sets it before its sub-programs run)
+fn reads_defs_top(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
+    let mut has_subs = false;
+    subs_ref(i, &mut |_| has_subs = true);
+    if !has_subs {
+        reads_defs(i, reads, defs);
+        return;
+    }
+    match i {
+        Ins::Near { start, out, .. } | Ins::NearMemo { start, out, .. } => {
+            reads.push(*start);
+            defs.push(*out);
+        }
+        Ins::Closure { src, out, xin, kout, .. } => {
+            reads.push(*src);
+            defs.push(*out);
+            defs.push(*xin);
+            defs.extend(kout.iter().copied());
+        }
+        Ins::Union { outs, .. } => defs.extend(outs.iter().copied()),
+        Ins::NearDerived { start, out, xin, .. } => {
+            reads.push(*start);
+            defs.push(*out);
+            defs.push(*xin);
+        }
+        Ins::SubKey { key, .. } => reads.push(*key),
+        Ins::Hoist { key, caps, .. } => {
+            reads.extend(key.iter().copied());
+            defs.extend(caps.iter().copied());
+        }
+        _ => {}
+    }
+}
+
+/// Memo specialisations (NAV_MEMO=0 turns them off): a nearest-ancestor walk whose condition reads only the ancestor becomes
+/// NearMemo; an absence/existence check reading no outer register becomes a per-file SubMemo, one reading exactly one becomes
+/// SubKey (per file per value).
+pub(crate) fn memoize(p: Prog) -> Prog {
+    if std::env::var("NAV_MEMO").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    p.into_vec()
+        .into_iter()
+        .map(|mut i| {
+            subs_mut(&mut i, &mut |q| *q = memoize(std::mem::take(q)));
+            match i {
+                Ins::Near { start, out, subs } => {
+                    let mut free: Vec<R> = subs.iter().flat_map(|q| free_regs(q)).collect();
+                    free.retain(|r| *r != out);
+                    if free.is_empty() { Ins::NearMemo { start, out, subs } } else { Ins::Near { start, out, subs } }
+                }
+                Ins::Sub { negate, subs } => {
+                    let mut free: Vec<R> = subs.iter().flat_map(|q| free_regs(q)).collect();
+                    free.sort_unstable();
+                    free.dedup();
+                    match free.len() {
+                        0 if !std::env::var("NAV_MEMO0").is_ok_and(|v| v == "0") => Ins::SubMemo { negate, subs },
+                        1 => Ins::SubKey { negate, key: free[0], subs },
+                        _ => Ins::Sub { negate, subs },
+                    }
+                }
+                other => other,
+            }
+        })
+        .collect::<Vec<_>>()
+        .into()
 }
 
 /// Constant folding from bucket walks (NAV_FOLD=0 turns it off): a row reached through a single-value bucket of a tree column
@@ -1109,7 +1233,13 @@ impl NavProgram {
             reads.dedup();
             SHARED_READS.with(|t| t.borrow_mut().push(reads));
         }
-        let pass = |q: &mut Prog| *q = mark_first(hoist(fold(specialize(std::mem::take(q)), &none)));
+        // memo specialisation reads the shared entries' free registers (entries only reference entries before them)
+        SHARED_FREE.with(|t| t.borrow_mut().clear());
+        for q in &self.shared {
+            let f = free_regs(q);
+            SHARED_FREE.with(|t| t.borrow_mut().push(f));
+        }
+        let pass = |q: &mut Prog| *q = memoize(mark_first(hoist(fold(specialize(std::mem::take(q)), &none))));
         for g in &mut self.groups {
             pass(&mut g.prog);
         }
@@ -1461,7 +1591,7 @@ impl NavProgram {
                         }),
                     };
                     max_regs = max_regs.max(loader.regs.len());
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), keyed: None, nregs: loader.regs.len() });
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), keyed: None, base: u16::MAX, nregs: loader.regs.len() });
                     continue;
                 }
                 if m["op"] == "ordered_match" {
@@ -1481,11 +1611,20 @@ impl NavProgram {
                         dfs: None,
                     };
                     max_regs = max_regs.max(loader.regs.len());
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), keyed: None, nregs: loader.regs.len() });
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), keyed: None, base: u16::MAX, nregs: loader.regs.len() });
                     continue;
                 }
                 let name = m["name"].as_str().unwrap().to_owned();
                 let keyed = m.get("param").map(|p| (m["keycol"].as_u64().unwrap() as u8, loader.reg(p)));
+                let base = match (&keyed, name.rsplit_once('@')) {
+                    (Some(_), Some((b, _))) => loader
+                        .alias
+                        .get(b)
+                        .copied()
+                        .or_else(|| loader.facts.iter().position(|f| f.name == b).map(|i| i as u16))
+                        .unwrap_or(u16::MAX),
+                    _ => u16::MAX,
+                };
                 max_regs = max_regs.max(loader.regs.len());
                 let key = format!("{progs:?}|{}|{}|{}|{kinds:?}|{keyed:?}", m["keys"], m["distinct"], m["width"]);
                 if share {
@@ -1508,6 +1647,7 @@ impl NavProgram {
                         m["width"].as_u64().unwrap() as usize,
                     )),
                     keyed,
+                    base,
                     nregs: loader.regs.len(),
                 });
             }
@@ -1770,6 +1910,8 @@ fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
         | Ins::TestInC { .. }
         | Ins::Hoist { .. }
         | Ins::Capture { .. }
+        | Ins::NearMemo { .. }
+        | Ins::SubKey { .. }
         | Ins::SubFirst { .. } => unreachable!("specialisation runs after the tries are built"),
         Ins::SpanBetween { a, b, out } => {
             let a = o(a, f);
@@ -1895,6 +2037,11 @@ pub(crate) struct Counters {
     pub hoist_misses: u64,
     /// per hoist site over the run: (lookups, misses)
     pub hoist_sites: FxMap<u32, (u64, u64)>,
+    /// per SubKey site over the run: (lookups, misses)
+    pub key_sites: FxMap<usize, (u64, u64)>,
+    /// per base made table over the run: (steps of its builds, builds) as a twin's buy price; twins switched
+    pub twin_buy: FxMap<u16, (u64, u64)>,
+    pub twin_switches: u64,
     pub made_depth: u32,
     /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
     pub diag: bool,
@@ -1973,10 +2120,16 @@ pub(crate) struct FileCache {
     pub csr_count: Vec<u32>,
     /// keyed twin rows per (fact, key value): the row range in the twin's columns
     pub keyed_memo: FxMap<(u16, u64), (u32, u32)>,
+    /// ski rental per keyed twin in this file: steps spent in keyed builds, and the twins switched to their base
+    pub twin_rent: FxMap<u16, u64>,
+    pub twin_bought: std::collections::HashSet<u16, std::hash::BuildHasherDefault<crate::sema::Fx>>,
     /// hoisted inner enumerations per (site, key values): captured tuples, flattened
     pub hoisted: FxMap<(u32, u64, u64), Rc<Vec<u64>>>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
+    /// join: NearMemo answers per site (indexed by node id) and SubKey answers per (site, key value)
+    pub near_memo: FxMap<usize, Vec<u32>>,
+    pub key_memo: FxMap<(usize, u64), bool>,
     /// navwide: reusable state of the derived relations (derived.rs)
     pub dstate: crate::derived::State,
     pub model_lex: bool,
@@ -2185,6 +2338,73 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(&r) = self.cache.keyed_memo.get(&(rel, value)) {
             return r;
         }
+        let prog = self.prog;
+        let f = &prog.facts[rel as usize];
+        // ski rental (NAV_SKI=0 turns it off): per file, keyed builds run until their steps exceed what building the base table
+        // once costs (the run's average so far); then the base is built and indexed by the key, and every later key is served
+        // from it
+        if f.base != u16::MAX && !std::env::var("NAV_SKI").is_ok_and(|v| v == "0") {
+            let bought = self.cache.twin_bought.contains(&rel);
+            let rent = self.cache.twin_rent.get(&rel).copied().unwrap_or(0);
+            let (buy_steps, buys) = self.c.twin_buy.get(&f.base).copied().unwrap_or((0, 0));
+            let budget = if buys == 0 { 20_000 } else { buy_steps / buys };
+            if bought || rent > budget {
+                return self.keyed_from_base(rel, value);
+            }
+        }
+        let steps_at = self.c.steps;
+        let r = self.keyed_build(rel, value);
+        *self.cache.twin_rent.entry(rel).or_default() += self.c.steps - steps_at;
+        r
+    }
+
+    /// a keyed twin's rows for one key value from its base table (built once per file, indexed by the key column)
+    fn keyed_from_base(&mut self, rel: u16, value: u64) -> (u32, u32) {
+        let prog = self.prog;
+        let f = &prog.facts[rel as usize];
+        let base = f.base;
+        let col = f.keyed.unwrap().0;
+        if self.cache.twin_bought.insert(rel) {
+            let loaded = self.cache.facts.as_ref().is_some_and(|x| x.loaded[base as usize]);
+            if !loaded {
+                let s0 = self.c.steps;
+                self.ensure(base);
+                let e = self.c.twin_buy.entry(base).or_default();
+                e.0 += self.c.steps - s0;
+                e.1 += 1;
+            }
+            self.c.twin_switches += 1;
+        }
+        let idx = self.fact_index(base, col);
+        let rows: Vec<u32> = match &*idx {
+            FIdx::Dense { head, next } => {
+                let mut v = Vec::new();
+                if (value as usize) < head.len() - 1 {
+                    let mut r = head[value as usize];
+                    while r != u32::MAX {
+                        v.push(r);
+                        r = next[r as usize];
+                    }
+                }
+                v
+            }
+            FIdx::Hash(m) => m.get(&value).cloned().unwrap_or_default(),
+        };
+        let facts = self.cache.facts.as_mut().unwrap();
+        let width = facts.cols[rel as usize].len();
+        let start = facts.cols[rel as usize][width - 1].len() as u32;
+        for &r in &rows {
+            for c in 0..width {
+                let v = facts.cols[base as usize][c][r as usize];
+                facts.cols[rel as usize][c].push(v);
+            }
+        }
+        let end = facts.cols[rel as usize][width - 1].len() as u32;
+        self.cache.keyed_memo.insert((rel, value), (start, end));
+        (start, end)
+    }
+
+    fn keyed_build(&mut self, rel: u16, value: u64) -> (u32, u32) {
         let prog = self.prog;
         let f = &prog.facts[rel as usize];
         let (progs, keys, distinct, width) = f.made.as_ref().unwrap();
@@ -3361,6 +3581,38 @@ impl<'a, 'p> Exec<'a, 'p> {
                         return false;
                     }
                 }
+                Ins::NearMemo { start, out, subs } => {
+                    let s = self.regs[*start as usize] as u32;
+                    match self.near_memo(s, *out, subs) {
+                        Some(a) => self.regs[*out as usize] = u64::from(a),
+                        None => return false,
+                    }
+                }
+                Ins::SubKey { negate, key, subs } => {
+                    let site = subs.as_ptr() as usize;
+                    let k = self.regs[*key as usize];
+                    let st = self.c.key_sites.entry(site).or_default();
+                    st.0 += 1;
+                    let off = st.0 >= 256 && st.1 * 10 >= st.0 * 9;
+                    let hit = if off { None } else { self.cache.key_memo.get(&(site, k)).copied() };
+                    let any = match hit {
+                        Some(v) => v,
+                        None => {
+                            self.c.key_sites.get_mut(&site).unwrap().1 += 1;
+                            let v = subs.iter().any(|q| {
+                                self.c.subs += 1;
+                                self.run_inner(q, 0)
+                            });
+                            if !off {
+                                self.cache.key_memo.insert((site, k), v);
+                            }
+                            v
+                        }
+                    };
+                    if any == *negate {
+                        return false;
+                    }
+                }
                 Ins::SubFirst { subs } => {
                     self.c.subs += 1;
                     if self.run_inner(&subs[0], 0) {
@@ -3584,6 +3836,48 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         }
         false
+    }
+
+    /// Ins::NearMemo: the nearest proper ancestor of `s` whose condition holds, memoised per file and site; every node passed
+    /// on the way up shares the answer
+    fn near_memo(&mut self, s: u32, out: R, subs: &'p [Prog]) -> Option<u32> {
+        const UNKNOWN: u32 = u32::MAX - 1;
+        const NONE: u32 = u32::MAX;
+        let v = self.f.view;
+        if s as usize >= v.len() {
+            return None;
+        }
+        let site = subs.as_ptr() as usize;
+        let mut memo = self.cache.near_memo.remove(&site).unwrap_or_else(|| vec![UNKNOWN; v.len()]);
+        let mut stack: Vec<u32> = Vec::new();
+        let mut x = s;
+        let res = loop {
+            let m = memo[x as usize];
+            if m != UNKNOWN {
+                break m;
+            }
+            let p = v.parent[x as usize];
+            if p == u32::MAX {
+                memo[x as usize] = NONE;
+                break NONE;
+            }
+            self.regs[out as usize] = u64::from(p);
+            self.c.visits += 1;
+            if subs.iter().any(|q| {
+                self.c.subs += 1;
+                self.run_inner(q, 0)
+            }) {
+                memo[x as usize] = p;
+                break p;
+            }
+            stack.push(x);
+            x = p;
+        };
+        for y in stack {
+            memo[y as usize] = res;
+        }
+        self.cache.near_memo.insert(site, memo);
+        (res != NONE).then_some(res)
     }
 
     /// Ins::Union (navwide): every sub-program's collected tuples, distinct, each continuing the program

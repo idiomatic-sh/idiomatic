@@ -720,8 +720,12 @@ impl<'p> State<'p> {
         self.cache.const_by.clear();
         self.cache.csr.clear();
         self.cache.keyed_memo.clear();
+        self.cache.twin_rent.clear();
+        self.cache.twin_bought.clear();
         self.cache.hoisted.clear();
         self.cache.sub_memo.clear();
+        self.cache.near_memo.clear();
+        self.cache.key_memo.clear();
         let nrules = nav.rules.len();
         let mut outs = std::mem::take(&mut self.outs);
         outs.resize_with(nrules + 1, Vec::new);
@@ -1124,8 +1128,8 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"batched_steps\":{},\"const_misses\":{},\"csr_builds\":{},\"csr_ns\":{},\"hoist_runs\":{},\"hoist_misses\":{},\"made_ns\":{},\"index_ns\":{},\"index_tree_ns\":{},\"index_const_ns\":{},\"index_fact_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
-                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.batched_steps, c.const_misses, c.csr_builds, c.csr_ns, c.hoist_runs, c.hoist_misses, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"batched_steps\":{},\"const_misses\":{},\"csr_builds\":{},\"csr_ns\":{},\"hoist_runs\":{},\"hoist_misses\":{},\"twin_switches\":{},\"made_ns\":{},\"index_ns\":{},\"index_tree_ns\":{},\"index_const_ns\":{},\"index_fact_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
+                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.batched_steps, c.const_misses, c.csr_builds, c.csr_ns, c.hoist_runs, c.hoist_misses, c.twin_switches, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
                 c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits,
                 crate::nav::INS_NAMES.iter().enumerate().map(|(i, n)| format!("\"{n}\":{}", c.op_steps.get(i).copied().unwrap_or(0))).collect::<Vec<_>>().join(","),
                 self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
