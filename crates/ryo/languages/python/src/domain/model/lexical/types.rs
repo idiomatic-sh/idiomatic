@@ -1,0 +1,229 @@
+//! The types of the model's `lexical` part: plain data, public fields and derives, with no constructor and no inherent impl.
+
+use crate::domain::model::names::types::{KeyHasher, NameCode};
+use ruff_python_ast::AnyNodeRef;
+use ryo::languages::{Count, NodeTable, Position};
+use std::collections::HashMap;
+use std::hash::BuildHasherDefault;
+
+/// The file as the model's passes read it: the node table and the parser's own node of each id.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TypedTree<'t, 'a> {
+    /// The node table: parents, subtree ends and spans by id.
+    pub table: &'t NodeTable,
+    /// The parser's node of each node id, in id order.
+    pub nodes: &'t [AnyNodeRef<'a>],
+}
+
+/// What a node is to the language's name rules.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum NodeClass {
+    /// The module, or a lone expression read as one.
+    Module,
+    /// A `def`.
+    FunctionDef,
+    /// A `class`.
+    ClassDef,
+    /// A `lambda`.
+    Lambda,
+    /// A list comprehension.
+    ListComp,
+    /// A set comprehension.
+    SetComp,
+    /// A dictionary comprehension.
+    DictComp,
+    /// A generator expression.
+    Generator,
+    /// One `for ... in ... if ...` clause of a comprehension.
+    Comprehension,
+    /// A name expression.
+    Name,
+    /// An attribute expression.
+    Attribute,
+    /// An identifier that is not an expression: a definition's name, an attribute's, a keyword's.
+    Identifier,
+    /// One imported name.
+    Alias,
+    /// A parameter.
+    Parameter,
+    /// The parameters of a callable.
+    Parameters,
+    /// A parameter with its default.
+    ParameterWithDefault,
+    /// An `except` clause.
+    ExceptHandler,
+    /// An `as` pattern or a capture.
+    MatchAs,
+    /// A starred pattern.
+    MatchStar,
+    /// A mapping pattern.
+    MatchMapping,
+    /// A type variable.
+    TypeVar,
+    /// A type variable tuple.
+    TypeVarTuple,
+    /// A parameter specification.
+    ParamSpec,
+    /// The type parameters of a definition.
+    TypeParams,
+    /// A `global` statement.
+    Global,
+    /// A `nonlocal` statement.
+    Nonlocal,
+    /// A named expression (`:=`).
+    NamedExpr,
+    /// A `type` statement.
+    TypeAlias,
+    /// An annotated assignment.
+    AnnAssign,
+    /// An assignment.
+    Assign,
+    /// A `from ... import`.
+    ImportFrom,
+    /// An `import`.
+    Import,
+    /// Every other statement.
+    Statement,
+    /// Every other expression.
+    Expression,
+    /// Everything else.
+    #[default]
+    Other,
+}
+
+/// How a node opens a namespace.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ScopeForm {
+    /// The module.
+    Module,
+    /// A function: its body runs when it is called.
+    Function,
+    /// A class: its body runs where it stands, and nested functions do not see its names.
+    Class,
+    /// A lambda: its body runs when it is called.
+    Lambda,
+    /// A list, set or dictionary comprehension: its body runs where it stands.
+    Comprehension,
+    /// A generator expression: its body runs when it is iterated.
+    Generator,
+}
+
+/// Whether a node is a statement, an expression or neither.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SyntaxForm {
+    /// A statement.
+    Statement,
+    /// An expression.
+    Expression,
+    /// Neither.
+    Neither,
+}
+
+/// What a name or attribute expression does with its target.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum NameUse {
+    /// It reads it.
+    #[default]
+    Load,
+    /// It binds it.
+    Store,
+    /// It deletes it.
+    Delete,
+}
+
+/// Whether an expression is an annotation: of a parameter, of an annotated assignment, or a function's return annotation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum AnnotationMark {
+    /// It is not.
+    #[default]
+    Plain,
+    /// It is.
+    Annotation,
+}
+
+/// Where a scope says a name it assigns is bound instead of in itself.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ScopeRedirect {
+    /// `global`: in the module.
+    Global,
+    /// `nonlocal`: in the nearest enclosing function.
+    Nonlocal,
+}
+
+/// A name in a namespace.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct NamespaceKey {
+    /// The scope whose namespace it is.
+    pub scope: Position,
+    /// The name.
+    pub name: NameCode,
+}
+
+/// Something that leaves the origin of a name unproven after it: a wildcard import, or a deletion of the name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct NameHazard {
+    /// The namespace it changes.
+    pub scope: Position,
+    /// The import's alias, or the deleted name.
+    pub at: Position,
+    /// The deleted name; the code of no name for a wildcard import.
+    pub name: NameCode,
+}
+
+/// How many dots a `from` import starts with.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ImportLevel(pub u32);
+
+/// Whether an import gives its name another one with `as`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ImportRename {
+    /// It keeps the imported name.
+    Kept,
+    /// It renames it.
+    Renamed,
+}
+
+/// Where one imported name comes from, as its statement writes it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ImportOrigin {
+    /// The alias.
+    pub at: Position,
+    /// The dots of a `from` import; none for an `import`.
+    pub level: Option<ImportLevel>,
+    /// The module of a `from` import, when it names one; the code of no name otherwise.
+    pub module: NameCode,
+    /// The imported name, dotted as written.
+    pub name: NameCode,
+    /// The first name of the imported name: what an `import a.b` binds.
+    pub head: NameCode,
+    /// Whether the alias renames it.
+    pub rename: ImportRename,
+}
+
+/// The lexical part of the model: one entry per node unless said otherwise, cleared between files.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct LexicalModel {
+    /// How many nodes the file has.
+    pub nodes: Count,
+    /// What each node is.
+    pub class: Vec<NodeClass>,
+    /// The scope each node is evaluated in.
+    pub scope_of: Vec<Position>,
+    /// The name a name expression or an identifier carries, and the attribute an attribute expression reads; the code of no
+    /// name for every other node.
+    pub name: Vec<NameCode>,
+    /// What a name or attribute expression does with its target.
+    pub usage: Vec<NameUse>,
+    /// Whether the node is an annotation.
+    pub annotation: Vec<AnnotationMark>,
+    /// The `global` and `nonlocal` names of each scope: the first declaration of a name in a scope is the one that holds.
+    pub declared: HashMap<NamespaceKey, ScopeRedirect, BuildHasherDefault<KeyHasher>>,
+    /// The nodes that may define a name, in source order.
+    pub binders: Vec<Position>,
+    /// The deleted name expressions, in source order.
+    pub deleted: Vec<Position>,
+    /// The wildcard imports and deletions, in source order.
+    pub hazards: Vec<NameHazard>,
+    /// Where each imported name comes from, in source order.
+    pub imports: Vec<ImportOrigin>,
+}

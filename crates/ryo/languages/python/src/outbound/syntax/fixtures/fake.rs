@@ -53,7 +53,7 @@ impl SyntaxPort for SyntaxFake {
             crate::domain::node::types::WalkedTree<'_>,
         ),
     ) {
-        use crate::domain::node::types::{Wholeness, PostponedAnnotations, WalkedTree};
+        use crate::domain::node::types::{Wholeness, WalkedTree};
         use languages::{FieldCode, SyntaxCompleteness, node_table};
         let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
         let start = languages::Offset(0);
@@ -80,7 +80,6 @@ impl SyntaxPort for SyntaxFake {
                     syntax: SyntaxCompleteness::Complete,
                     lexical: SyntaxCompleteness::Complete,
                 },
-                annotations: PostponedAnnotations::Evaluated,
             },
         );
     }

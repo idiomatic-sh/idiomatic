@@ -15,15 +15,6 @@ pub(crate) struct Wholeness {
     pub lexical: SyntaxCompleteness,
 }
 
-/// Whether the module postpones the evaluation of its annotations (`from __future__ import annotations` where it may stand).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PostponedAnnotations {
-    /// Annotations are not evaluated where they are written.
-    Postponed,
-    /// Annotations are evaluated as the language version says.
-    Evaluated,
-}
-
 /// What the syntax adapter lends once it has walked a file into the node table, while its parse lives.
 #[derive(Debug)]
 pub(crate) struct WalkedTree<'t> {
@@ -33,8 +24,6 @@ pub(crate) struct WalkedTree<'t> {
     pub text: NameText<'t>,
     /// Whether the file was read whole.
     pub completeness: Wholeness,
-    /// Whether the module postpones its annotations.
-    pub annotations: PostponedAnnotations,
 }
 
 /// One walked file as a filler reads it: the engine's node table, the typed node of each syntax node and the text.
@@ -50,8 +39,6 @@ pub(crate) struct SyntaxFile<'f> {
     pub file: FileId,
     /// Whether the file was read whole.
     pub completeness: Wholeness,
-    /// Whether the module postpones its annotations.
-    pub annotations: PostponedAnnotations,
 }
 
 /// A syntax node of a walked file: its id and its typed node.

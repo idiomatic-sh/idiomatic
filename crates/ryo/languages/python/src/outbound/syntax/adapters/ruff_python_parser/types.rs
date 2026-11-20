@@ -245,6 +245,8 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub refused: Vec<ParserRefusal>,
     /// How long the file is.
     pub length: Offset,
+    /// Whether the module postpones its annotations: the property the walk records on the module node.
+    pub future_annotations: FutureAnnotations,
     /// The typed node of each id written so far.
     pub nodes: Vec<ruff_python_ast::AnyNodeRef<'t>>,
     /// The open nodes, the innermost last.

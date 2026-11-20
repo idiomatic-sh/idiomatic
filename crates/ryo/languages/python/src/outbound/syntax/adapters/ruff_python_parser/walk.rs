@@ -6,7 +6,7 @@ use super::future::module_future_annotations;
 use super::lexical::{complete, offset, readable};
 use super::options::options;
 use super::types::{ByteIndex, FutureAnnotations, Readable, TokenIndex, Walker};
-use crate::domain::node::types::{PostponedAnnotations, WalkedTree, Wholeness};
+use crate::domain::node::types::{WalkedTree, Wholeness};
 use crate::outbound::syntax::types::{PythonSourceKind, ReportedSyntax, SourceText};
 use crate::settings::PythonParserSettings;
 use ruff_python_ast::Mod;
@@ -114,6 +114,7 @@ pub(super) fn walked(
         strings: Vec::new(),
         parsed_tokens: parsed.tokens(),
         refused: Vec::new(),
+        future_annotations,
         length: offset(ByteIndex(text.0.len())),
         nodes: Vec::new(),
         open: Vec::new(),
@@ -224,11 +225,6 @@ pub(super) fn walked(
             nodes,
             text: NameText(&source),
             completeness: Wholeness { syntax, lexical },
-            annotations: if future_annotations.0 {
-                PostponedAnnotations::Postponed
-            } else {
-                PostponedAnnotations::Evaluated
-            },
         },
     );
 }

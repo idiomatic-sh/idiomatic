@@ -1,34 +1,90 @@
-//! The cases of the model's per-file view. Track P1's placeholder of the file track P2 writes: the placeholder builds nothing.
+//! The `view` service's cases: which parts of the model one ask builds.
 
 use super::service::built;
-use super::types::{Built, ModelPart, SemanticModel};
+use super::types::{Built, ModelPart, PartState, SemanticModel};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::languages::NodeTable;
+use crate::outbound::syntax::fixtures::model_view::{ModelFixture, viewed};
+use ryo::languages::FileId;
 
-type Input = ModelPart;
-/// Whether the part asked for is kept.
-type Value = &'static str;
+/// The parts asked for, in order.
+type Input = &'static [ModelPart];
+/// What is built after the asks, and how many steps the schedule has.
+type Value = (Built, usize);
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("the_placeholder_keeps_the_part_asked_for"),
-    word: Word::Succeeds,
-    input: || ModelPart::Lexical,
-    expect: Expect::Value("asked"),
-}];
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("asking_for_nothing_builds_nothing"),
+        word: Word::Succeeds,
+        input: || &[ModelPart::Nothing],
+        expect: Expect::Value((
+            Built {
+                lexical: PartState::Pending,
+                resolution: PartState::Pending,
+                flow: PartState::Pending,
+            },
+            0,
+        )),
+    },
+    Case {
+        name: CaseName("the_lexical_part_is_built_without_the_flow"),
+        word: Word::Succeeds,
+        input: || &[ModelPart::Lexical],
+        expect: Expect::Value((
+            Built {
+                lexical: PartState::Ready,
+                resolution: PartState::Pending,
+                flow: PartState::Pending,
+            },
+            0,
+        )),
+    },
+    Case {
+        name: CaseName("the_resolution_is_built_only_when_asked_for"),
+        word: Word::Succeeds,
+        input: || &[ModelPart::Resolution],
+        expect: Expect::Value((
+            Built {
+                lexical: PartState::Ready,
+                resolution: PartState::Ready,
+                flow: PartState::Pending,
+            },
+            0,
+        )),
+    },
+    Case {
+        name: CaseName("the_flow_part_builds_the_lexical_part_first"),
+        word: Word::Succeeds,
+        input: || &[ModelPart::Flow, ModelPart::Lexical],
+        expect: Expect::Value((
+            Built {
+                lexical: PartState::Ready,
+                resolution: PartState::Pending,
+                flow: PartState::Ready,
+            },
+            4,
+        )),
+    },
+];
 
-fn subject(part: Input) -> Result<Value, Failure> {
-    let (mut model, mut parts) = (SemanticModel::default(), Built::default());
-    built(&mut model, &mut parts, part, &NodeTable::default(), &[]);
-    Ok(if parts.asked == Some(part) && model.asked == [part] {
-        "asked"
-    } else {
-        "not asked"
-    })
+fn subject(parts: Input) -> Value {
+    let mut model = SemanticModel::default();
+    let mut state = Built::default();
+    viewed(
+        &mut ModelFixture::default(),
+        "x = y\n",
+        FileId(0),
+        &mut |view| {
+            for part in parts {
+                built(&mut model, &mut state, *part, view.table, view.nodes);
+            }
+        },
+    );
+    (state, model.schedule.steps.len())
 }
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
+    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }

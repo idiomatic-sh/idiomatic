@@ -5,13 +5,14 @@
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::imports::service::{import_binding, import_target};
 use crate::domain::model::types::Declarations;
+use crate::domain::model::view::service::built;
+use crate::domain::model::view::types::ModelPart;
 use crate::domain::name_facts::service::imported as imported_names;
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
 use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
-use crate::domain::owner_facts::service::{owner_of, owners};
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -41,13 +42,15 @@ ryo::fills! {
     StaticImportItem => languages::StaticImport, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::StaticImport as languages::CatalogRelation>::Row;
-        let owned = owners(&file.syntax, file.owners);
+        // The owner of a node is the scope the model says it is evaluated in.
+        built(file.model, &mut file.built, ModelPart::Lexical, file.syntax.table, file.syntax.nodes);
+        let owned = &file.model.lexical.scope_of;
         let names = &mut file.buffers.text;
         for Numbered { id, .. } in nodes_of_kind(&file.syntax, Kind::Node(Node::Alias)) {
             if let Some(found) = imported_names(&file.syntax, id, names) {
                 rows.write(Row {
                     occurrence: node_cell(&file.syntax, id),
-                    owner: node_cell(&file.syntax, owner_of(owned, id)),
+                    owner: node_cell(&file.syntax, owned.get(usize::from(id)).copied().unwrap_or(languages::Position(0))),
                     binding: found
                         .binding
                         .map_or(unknown(Unresolved::WildcardImport), |name| word(words, name)),

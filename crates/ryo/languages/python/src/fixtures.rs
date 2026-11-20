@@ -7,6 +7,8 @@ pub mod contracts;
 mod invalid_project;
 pub(crate) mod kinds;
 #[cfg(test)]
+pub(crate) mod model_rows;
+#[cfg(test)]
 pub(crate) mod projects;
 #[cfg(test)]
 pub(crate) mod reading;

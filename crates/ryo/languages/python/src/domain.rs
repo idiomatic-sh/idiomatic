@@ -1,6 +1,5 @@
 //! The python domain: its nodes, tokens and extras, its files, its scopes and its names, and the readers of its relations.
 
-pub(crate) mod binding_facts;
 pub(crate) mod bindings;
 pub(crate) mod definitions;
 pub(crate) mod dependencies;
@@ -13,7 +12,6 @@ pub(crate) mod imports;
 pub(crate) mod labels;
 pub(crate) mod language;
 pub(crate) mod layout_facts;
-pub(crate) mod lexical_facts;
 pub(crate) mod links;
 pub(crate) mod manifests;
 pub(crate) mod merging;
@@ -23,7 +21,6 @@ pub(crate) mod names;
 pub(crate) mod node;
 pub(crate) mod node_fields;
 pub(crate) mod nodes;
-pub(crate) mod owner_facts;
 pub(crate) mod packages;
 pub(crate) mod patterns;
 pub(crate) mod relations;
@@ -107,3 +104,9 @@ pub(crate) mod token_links;
 
 /// Standard project-metadata validation outcomes.
 pub(crate) mod manifest_validation;
+
+/// The rows of the lexical relations, written from the model.
+pub(crate) mod lexical_facts;
+
+/// The rows of the binding relations, written from the model.
+pub(crate) mod binding_facts;

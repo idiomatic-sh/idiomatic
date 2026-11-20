@@ -8,7 +8,6 @@ use crate::domain::language::service::reads;
 use crate::domain::model::view::types::Built;
 use crate::domain::node::types::SyntaxFile;
 use crate::domain::nodes::types::Node;
-use crate::domain::owner_facts::types::Readiness;
 use crate::domain::tokens::types::Token;
 use crate::inbound::contracts::parse::service::source_kind;
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -51,7 +50,7 @@ impl Walk for PythonWalk<WalkPorts> {
             ReportedSyntax::Refusals
         };
         let target = self.ports.settings.target_version().components();
-        scratch.owners.ready = Readiness::Pending;
+        scratch.model.target = target;
         // The words of the last file are forgotten: so are the fixed words it interned.
         scratch.buffers.fixed.texts.clear();
         scratch.buffers.fixed.words.clear();
@@ -69,13 +68,10 @@ impl Walk for PythonWalk<WalkPorts> {
                         text: tree.text,
                         file: request.file,
                         completeness: tree.completeness,
-                        annotations: tree.annotations,
                     },
-                    bytes: request.source,
                     target,
                     model: &mut scratch.model,
                     built: Built::default(),
-                    owners: &mut scratch.owners,
                     buffers: &mut scratch.buffers,
                 };
                 let mut source = fillers::file_source::<Self>(&mut file);

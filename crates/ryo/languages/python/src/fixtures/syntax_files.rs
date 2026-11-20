@@ -1,7 +1,7 @@
 //! A walked file for the tests of the concepts that read one: the source walked into a table by the language's own walk, and the
 //! typed nodes of a second parse numbered in the same order, which stand for the nodes the walk lends only inside a visit.
 
-use crate::domain::node::types::{PostponedAnnotations, SyntaxFile, Wholeness};
+use crate::domain::node::types::{SyntaxFile, Wholeness};
 use ruff_python_ast::visitor::source_order::{SourceOrderVisitor, TraversalSignal};
 use ruff_python_ast::{AnyNodeRef, HasNodeIndex as _, InterpolatedStringElement, NodeIndex};
 use ryo::languages::{FileId, NameText, NodeTable, SyntaxCompleteness};
@@ -72,6 +72,5 @@ pub(crate) fn with_file(source: &str, read: &mut dyn FnMut(&SyntaxFile<'_>)) {
             syntax: SyntaxCompleteness::Complete,
             lexical: SyntaxCompleteness::Complete,
         },
-        annotations: PostponedAnnotations::Evaluated,
     });
 }

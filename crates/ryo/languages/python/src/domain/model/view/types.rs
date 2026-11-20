@@ -1,7 +1,14 @@
-//! The types of the model's per-file view: the seam between the walk's file and the semantic fillers. Track P1's placeholder of the
-//! file track P2 writes: the model holds no column and builds nothing here.
+//! The types of the model's `view` part: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo::languages::{ByteSlice, FileId, NodeTable};
+use crate::domain::model::definitions::types::DefinitionModel;
+use crate::domain::model::flow::types::FlowModel;
+use crate::domain::model::lexical::types::LexicalModel;
+use crate::domain::model::names::types::{FactWords, NameTable};
+use crate::domain::model::resolution::types::ResolutionModel;
+use crate::domain::model::types::BindingSchedule;
+use crate::domain::standard_library::types::TargetVersion;
+use ryo::languages::{FileId, NodeTable};
+use std::cell::RefCell;
 
 /// The per-file view as the semantic fillers read it.
 pub(crate) trait ModelView {
@@ -12,39 +19,65 @@ pub(crate) trait ModelView {
 /// Which part of the model a filler reads: the flow part needs the lexical part.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ModelPart {
-    /// Scopes, names and definitions.
+    /// No part: the filler reads the table and the file's number alone, and the model is left as it is.
+    Nothing,
+    /// Scopes, names, declarations and definitions.
     Lexical,
-    /// Binding events and reads in evaluation order.
+    /// The lexical part, and the one definition the static rule gives every name that is read.
+    Resolution,
+    /// The lexical part, and the schedule interpreted: events, reads, uses and shadows.
     Flow,
 }
 
 /// What a filler reads once the model is built.
-#[expect(
-    dead_code,
-    reason = "track P1's placeholder: the fillers that read the model are the ones track P2 writes"
-)]
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ModelRead<'v> {
-    /// The file's model.
+    /// The model.
     pub model: &'v SemanticModel,
     /// The file's node table.
     pub table: &'v NodeTable,
-    /// The file's bytes.
-    pub source: ByteSlice<'v>,
-    /// The number the run gave the file.
+    /// The file's number in the run.
     pub file: FileId,
 }
 
-/// The model of one file: per-worker buffers, cleared and refilled per file.
+/// The model of one file: per-worker buffers, cleared and refilled per file, never reallocated.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SemanticModel {
-    /// The parts asked for since the worker began: the placeholder builds none of them.
-    pub asked: Vec<ModelPart>,
+    /// The language target the file is read for: the walk sets it from its settings when it makes the view.
+    pub target: TargetVersion,
+    /// The names of the file.
+    pub names: NameTable,
+    /// What each node is to the name rules, and the scope it is evaluated in.
+    pub lexical: LexicalModel,
+    /// The definitions, and the static resolution of the names that are read.
+    pub definitions: DefinitionModel,
+    /// The one definition each name that is read resolves to.
+    pub resolution: ResolutionModel,
+    /// The names in evaluation order.
+    pub schedule: BindingSchedule,
+    /// The schedule interpreted.
+    pub flow: FlowModel,
+    /// The words the fillers have written for the file in hand, kept from one filler to the next.
+    pub words: RefCell<FactWords>,
 }
 
-/// Which parts of the model this file has built so far.
-#[derive(Clone, Copy, Debug, Default)]
+/// Whether a part of the model is built for the file in hand.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum PartState {
+    /// Not yet.
+    #[default]
+    Pending,
+    /// It is.
+    Ready,
+}
+
+/// Which parts of the model this file has built so far; a view made for a file starts with none.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Built {
-    /// The last part a filler asked for; none before the first fill of the file.
-    pub asked: Option<ModelPart>,
+    /// The lexical part.
+    pub lexical: PartState,
+    /// The static resolution.
+    pub resolution: PartState,
+    /// The flow part.
+    pub flow: PartState,
 }

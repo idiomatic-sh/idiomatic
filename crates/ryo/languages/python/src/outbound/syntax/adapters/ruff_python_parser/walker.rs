@@ -11,13 +11,17 @@ use crate::domain::labels::types::Field;
 use crate::domain::node::service::{field_code, token_field};
 use crate::domain::node::types::Placed;
 use crate::domain::node_fields::service::child_fields;
+use crate::domain::syntax::constants::{
+    MODULE_FUTURE_ANNOTATIONS, MODULE_FUTURE_ANNOTATIONS_DISABLED,
+    MODULE_FUTURE_ANNOTATIONS_ENABLED,
+};
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ruff_python_ast::visitor::source_order::{SourceOrderVisitor, TraversalSignal};
 use ruff_python_ast::{AnyNodeRef, HasNodeIndex as _, InterpolatedStringElement, NodeIndex};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{
-    DiagnosticMetadata, DiagnosticPhase, FieldCode, Offset, TreeImpact, node_table,
+    DiagnosticMetadata, DiagnosticPhase, FieldCode, NameText, Offset, TreeImpact, node_table,
 };
 
 impl Walker<'_, '_, '_> {
@@ -134,6 +138,17 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             field_code(field),
             start,
         );
+        if matches!(node, AnyNodeRef::ModModule(_)) {
+            node_table::node_property(
+                self.builder,
+                MODULE_FUTURE_ANNOTATIONS,
+                NameText(if self.future_annotations.0 {
+                    MODULE_FUTURE_ANNOTATIONS_ENABLED
+                } else {
+                    MODULE_FUTURE_ANNOTATIONS_DISABLED
+                }),
+            );
+        }
         self.nodes.push(node);
         let from = FieldIndex(self.fields.len());
         child_fields(
