@@ -248,11 +248,16 @@ class Lowerer:
         # keyed by a definition (its branches, formals, programs per binding pattern, costs, whether it is a table) and
         # every made table is kept across rules; what is a rule's own is set by `begin`
         self.made_all, self.made_by_node, self.nmade, self.serial = {}, {}, 0, 0
+        # share (diagnostic): the compiler's merged node a variable stands for a column of: the node of the plan step being
+        # flattened when it was minted (a copy keeps its original's; a definition's formals and a call's outputs are the
+        # definition's node). A profile charges each executed instruction to the node of the variable it binds or tests.
+        self.origin, self.cur, self.own_node = {}, None, {}
         self.body_serial, self.reused, self.planned, self.body_depth, self.body_cpu = {}, set(), 0, 0, 0.0
 
     def begin(self, rid, steps, step_nodes):
         """share: the state of one attempt at one rule"""
         self.rid, self.steps, self.step_nodes = rid, steps, step_nodes
+        self.cur = None
         self.memo, self.plan_memo = {}, {}
         self.uses_of = collections.Counter(v["step"] for st in steps for _, v in inputs(st["params"]) if "step" in v)
         self.made = []
@@ -275,7 +280,13 @@ class Lowerer:
         a flattening, whose shape depends on the rule's other uses and the caps) stays this attempt's own."""
         if SHARE_DEFS and all(isinstance(e, str) for e in extra):
             return (kind, self.step_nodes[s]) + extra
+        self.own_node[("own", self.serial, s)] = self.step_nodes[s]
         return (kind, ("own", self.serial, s)) + extra
+
+    def key_node(self, key):
+        """share (diagnostic): the merged node a definition's name was taken from (None: one atom of a relation)"""
+        k = key[1] if len(key) > 1 else None
+        return k if isinstance(k, int) else self.own_node.get(k) if isinstance(k, tuple) else None
 
     PACK_DICTS = ("defs", "formal", "body_memo", "tableable_memo", "body_scans", "body_pairs", "table_memo", "all_cols_memo",
                   "body_cost", "body_branches", "anchor_memo", "require_memo", "made_by_node", "heavy_memo", "walk_memo",
@@ -305,6 +316,7 @@ class Lowerer:
         return f"made:{self.nmade}"
 
     def made_done(self, op, s, name):
+        self.made[-1]["node"] = self.step_nodes[s]
         self.made_all[name] = self.made[-1]
         self.made_by_node[(op, self.step_nodes[s])] = name
 
@@ -312,6 +324,8 @@ class Lowerer:
         v = self.nvar
         self.nvar += 1
         self.kind[v] = kind
+        if self.cur is not None:
+            self.origin[v] = self.cur
         return v
 
     # ---- substitution
@@ -379,6 +393,13 @@ class Lowerer:
 
     # ---- flatten
     def flat(self, s):
+        saved, self.cur = self.cur, self.step_nodes[s]
+        try:
+            return self.flat1(s)
+        finally:
+            self.cur = saved
+
+    def flat1(self, s):
         st = self.steps[s]
         op, p = st["op"], st["params"]
         if st.get("scope") == "cross-file":
@@ -868,8 +889,10 @@ class Lowerer:
             self.defs[key] = bs
         body = self.defs[key]
         outs = []
+        saved, self.cur = self.cur, self.key_node(key) or self.cur
         for t in (body[0].out if body else []):
             outs.append(t if not is_var(t) and t[0] == "f" else self.fresh(self.tkind(t)))
+        self.cur = saved
         return Br(out=list(outs), specials=[["call", key, [None if (not is_var(t) and t[0] == "f") else t for t in outs]]])
 
     # ---- cut: made tables sized and costed from their inputs' plans
@@ -1045,7 +1068,9 @@ class Lowerer:
         the definition's sub-program reads them"""
         if key not in self.formal:
             body = self.defs[key]
+            saved, self.cur = self.cur, self.key_node(key)
             self.formal[key] = [self.fresh(self.tkind(t)) for t in (body[0].out if body else [])]
+            self.cur = saved
         return self.formal[key]
 
     def body(self, key, mask, free, calls=1.0):
@@ -1131,7 +1156,7 @@ class Lowerer:
             if NEED:
                 entry = self.with_need(B, entry)  # bind
             self.shared.append(entry)
-            self.shared_meta.append([list(key), list(mask), None if free is None else list(free), "branch"])
+            self.shared_meta.append([list(key), list(mask), None if free is None else list(free), "branch", self.key_node(key)])
             idxs.append(len(self.shared) - 1)
         self.mult = saved_mult
         tc = tc if tc < COST_CAP else COST_CAP
@@ -1150,7 +1175,7 @@ class Lowerer:
             if group is None:
                 group = [["exists", [[["shared", i]] for i in idxs]]] + ([["yield"]] if free is None else [])
             self.shared.append(group)
-            self.shared_meta.append([list(key), list(mask), None if free is None else list(free), "group"])
+            self.shared_meta.append([list(key), list(mask), None if free is None else list(free), "group", self.key_node(key)])
             idxs = [len(self.shared) - 1]
         self.body_memo[k] = idxs
         self.body_serial[k] = self.serial
@@ -1171,6 +1196,9 @@ class Lowerer:
             if s[0] == "nearc":
                 vs.update(t for t in [s[3], s[4]] if is_var(t))
         m = {v: self.fresh(self.kind[v]) for v in vs}
+        for v, n in m.items():
+            if v in self.origin:
+                self.origin[n] = self.origin[v]
         return self.subst(b.copy(), m)
 
     def rename_deep(self, b):
@@ -1202,6 +1230,9 @@ class Lowerer:
                         coll(x)
         coll(b)
         m = {v: self.fresh(self.kind[v]) for v in vs}
+        for v, n in m.items():
+            if v in self.origin:
+                self.origin[n] = self.origin[v]
         return self.subst(b.copy(), m)
 
     def input(self, v):
@@ -2902,7 +2933,8 @@ def main():
     low = PACK[0]
     lowering = time.process_time() - c0
     pack = dict(kinds={str(k): v for k, v in low.kind.items()}, made=list(low.made_all.values()), shared=low.shared,
-                shared_meta=low.shared_meta, rules=out_rules) if low else dict(kinds={}, made=[], shared=[], shared_meta=[], rules=out_rules)
+                shared_meta=low.shared_meta, rules=out_rules, origin={str(k): v for k, v in low.origin.items()}) if low else \
+        dict(kinds={}, made=[], shared=[], shared_meta=[], rules=out_rules)
     before = (len(pack["shared"]), len(pack["made"]))
     pack = link(pack)
     stats = collections.Counter(blocked.values())
@@ -3510,7 +3542,8 @@ def link(pack, ids=None):
     meta = pack.get("shared_meta") or []
     out_shared = [tr(table[old]) for old in sorted(keep)]  # (before the kinds: it names registers too)
     return dict(kinds={k: v for k, v in pack["kinds"].items() if k in used}, made=out_made, shared=out_shared,
-                shared_meta=[meta[old] if old < len(meta) else [None, [], None, "sub"] for old in sorted(keep)], rules=out_rules)
+                shared_meta=[meta[old] if old < len(meta) else [None, [], None, "sub"] for old in sorted(keep)], rules=out_rules,
+                origin={k: v for k, v in (pack.get("origin") or {}).items() if k in used})
 
 
 # ====================================================================== asof (ryo-8hfg) =====================================

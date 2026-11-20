@@ -277,6 +277,8 @@ pub(crate) struct NavProgram {
     pub need_slots: usize,
     /// share: per definition table (its shared entry), every register a build of it can write
     pub table_regs: FxMap<u32, Box<[R]>>,
+    /// share (diagnostic, NAV_INS_PROF): the load-order number of every instruction, by its address
+    pub ins_seq: Option<FxMap<usize, u32>>,
 }
 
 fn trel(name: &str) -> Option<TRel> {
@@ -321,6 +323,17 @@ struct Loader<'a> {
     need_slots: &'a mut FxMap<String, u32>,
     /// share: what the piece being loaded names
     named: &'a mut Named,
+    /// share (diagnostic, NAV_INS_PROF): every instruction numbered in the order the loader meets it (an instruction
+    /// before the programs nested in it), by its address; the count and a checksum of the operation names in that order
+    ins_seq: Option<&'a mut InsSeq>,
+}
+
+/// share (diagnostic, NAV_INS_PROF): see `Loader::ins_seq`
+#[derive(Default)]
+pub(crate) struct InsSeq {
+    pub by_addr: FxMap<usize, u32>,
+    pub next: u32,
+    pub checksum: u64,
 }
 
 /// share: what one piece of the pack (a shared entry, a made table) names in its own text: its registers, the shared
@@ -480,7 +493,26 @@ impl Loader<'_> {
     }
 
     fn prog(&mut self, p: &Value) -> Prog {
-        p.as_array().unwrap().iter().map(|i| self.ins(i)).collect::<Vec<_>>().into()
+        if self.ins_seq.is_none() {
+            return p.as_array().unwrap().iter().map(|i| self.ins(i)).collect::<Vec<_>>().into();
+        }
+        let mut seqs = Vec::new();
+        let mut built = Vec::new();
+        for i in p.as_array().unwrap() {
+            let q = self.ins_seq.as_mut().unwrap();
+            seqs.push(q.next);
+            q.next += 1;
+            for b in i[0].as_str().unwrap().bytes().chain(std::iter::once(b'\n')) {
+                q.checksum = (q.checksum ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3);
+            }
+            built.push(self.ins(i));
+        }
+        let prog: Prog = built.into();
+        let q = self.ins_seq.as_mut().unwrap();
+        for (ins, n) in prog.iter().zip(seqs) {
+            q.by_addr.insert(std::ptr::from_ref(ins) as usize, n);
+        }
+        prog
     }
 
     fn ins(&mut self, i: &Value) -> Ins {
@@ -798,6 +830,7 @@ pub(crate) struct NavBuilder {
     named: Named,
     entry_named: Vec<Named>,
     fact_named: FxMap<u16, Named>,
+    ins_seq: Option<InsSeq>,
 }
 
 impl NavBuilder {
@@ -814,12 +847,16 @@ impl NavBuilder {
             wrap16: std::env::var_os("NAV_REG16").is_some(),
             need_slots: &mut self.need_slots,
             named: &mut self.named,
+            ins_seq: self.ins_seq.as_mut(),
         }
     }
 
-    /// share: the kinds of the pack's registers
+    /// share: the kinds of the pack's registers (the first piece of a program)
     pub(crate) fn kinds(&mut self, kinds: serde_json::Map<String, Value>) {
         self.kinds = kinds;
+        if std::env::var_os("NAV_INS_PROF").is_some() {
+            self.ins_seq = Some(InsSeq { checksum: 0xcbf2_9ce4_8422_2325, ..Default::default() });
+        }
     }
 
     /// share: one entry of the pack's shared table
@@ -981,7 +1018,10 @@ impl NavBuilder {
     }
 
     pub(crate) fn finish(self) -> NavProgram {
-        let NavBuilder { facts, regexes, regex_of: _, shared, out, regs, kinds: _, keyed, table_slots, need_slots, named: _, entry_named, fact_named } = self;
+        let NavBuilder { facts, regexes, regex_of: _, shared, out, regs, kinds: _, keyed, table_slots, need_slots, named: _, entry_named, fact_named, ins_seq } = self;
+        if let Some(q) = &ins_seq {
+            eprintln!("{{\"navload\":{{\"instructions\":{},\"checksum\":{}}}}}", q.next, q.checksum);
+        }
         let max_regs = regs.len();
         // share: per definition table, the registers its build can write: those its entry names and those of every shared
         // entry and made table it reaches
@@ -1027,7 +1067,7 @@ impl NavBuilder {
                     && crate::derived::index_of(&f.name).is_none()
                     && !f.name.starts_with("filesystem.")
             });
-        NavProgram { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed, need_slots: need_slots.len(), table_regs }
+        NavProgram { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed, need_slots: need_slots.len(), table_regs, ins_seq: ins_seq.map(|q| q.by_addr) }
     }
 }
 
@@ -1064,6 +1104,12 @@ pub(crate) struct Counters {
     /// entries it ran); `prof_child` is the inclusive steps of the entries run under the current one
     pub prof: bool,
     pub prof_child: u64,
+    /// share (diagnostic, NAV_INS_PROF): per instruction (load-order number): steps (times it ran) and files it ran in;
+    /// `ins_last` is the last file (1-based count of this worker's files) it ran in
+    pub ins_steps: Vec<u64>,
+    pub ins_files: Vec<u32>,
+    pub ins_last: Vec<u32>,
+    pub file_no: u32,
     /// cut: thread-ns grouping made tables (after their programs ran) and building fact, composite and probe indexes;
     /// keyed memo lookups and misses
     pub made_group_ns: u64,
@@ -1818,6 +1864,23 @@ impl<'a, 'p> Exec<'a, 'p> {
         let mut pc = pc;
         loop {
             self.c.steps += 1;
+            if let Some(seq) = &self.prog.ins_seq {
+                // share (diagnostic, NAV_INS_PROF): the step is this instruction's
+                if let Some(&i) = seq.get(&(std::ptr::from_ref(&p[pc]) as usize)) {
+                    let i = i as usize;
+                    if self.c.ins_steps.len() <= i {
+                        let n = seq.len();
+                        self.c.ins_steps.resize(n, 0);
+                        self.c.ins_files.resize(n, 0);
+                        self.c.ins_last.resize(n, 0);
+                    }
+                    self.c.ins_steps[i] += 1;
+                    if self.c.ins_last[i] != self.c.file_no {
+                        self.c.ins_last[i] = self.c.file_no;
+                        self.c.ins_files[i] += 1;
+                    }
+                }
+            }
             if self.c.steps > self.budget_end {
                 // asof: a table build past its budget: every running program stops (nothing it computed is kept)
                 self.aborted = true;

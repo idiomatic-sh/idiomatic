@@ -690,6 +690,7 @@ impl<'p> State<'p> {
         let program = self.program;
         let nav = program.nav.as_ref().unwrap();
         self.files += 1;
+        self.nc.file_no = self.files as u32;
         self.sym.reset_file();
         let t0 = Instant::now();
         let mut view = std::mem::take(&mut self.view);
@@ -1093,6 +1094,15 @@ impl<'p> State<'p> {
                     .map(|(i, r)| format!("\"{}\":[{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i]))
                     .collect::<Vec<_>>().join(",")
             );
+            if !c.ins_steps.is_empty() {
+                // share (diagnostic, NAV_INS_PROF): instructions that ran, as [load-order number, steps, files]
+                eprintln!(
+                    "{{\"navins\":[{}]}}",
+                    (0..c.ins_steps.len()).filter(|&i| c.ins_steps[i] > 0)
+                        .map(|i| format!("[{},{},{}]", i, c.ins_steps[i], c.ins_files[i]))
+                        .collect::<Vec<_>>().join(",")
+                );
+            }
             if c.prof {
                 // bind (diagnostic): keyed calls per shared entry, and made-table builds
                 eprintln!(
