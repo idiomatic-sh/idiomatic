@@ -423,12 +423,19 @@ impl Loader<'_> {
 
 impl Program {
     pub(crate) fn load(path: &str) -> Self {
-        let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
-        let mut symbols = Symbols::default();
-        let mut rules = Vec::new();
-        let mut nav_rules: Vec<&Value> = Vec::new();
-        for r in v["rules"].as_array().unwrap() {
-            let mut loader = Loader { sym: &mut symbols, pos: FxMap::default() };
+        // bind: the program file is read as a stream, one rule's JSON at a time (each dropped once it is loaded); it was
+        // parsed whole into one tree, which was most of a run's peak memory
+        use serde::de::{DeserializeSeed, Deserializer, IgnoredAny, MapAccess, SeqAccess, Visitor};
+        struct State {
+            symbols: Symbols,
+            rules: Vec<Rule>,
+            nav_builder: crate::nav::NavBuilder,
+            nav_count: usize,
+            census: Option<Value>,
+        }
+        fn one_rule(r: &Value, st: &mut State) {
+            let State { symbols, rules, nav_builder, nav_count, .. } = st;
+            let mut loader = Loader { sym: &mut *symbols, pos: FxMap::default() };
             let steps_v = r["steps"].as_array().unwrap();
             for (i, s) in steps_v.iter().enumerate() {
                 loader.pos.insert(s["step"].as_u64().unwrap(), i);
@@ -451,15 +458,60 @@ impl Program {
             let id = r["id"].as_str().unwrap().to_owned();
             if let Some(e) = failed {
                 eprintln!("skip {id}: {e}");
-                continue;
+                return;
             }
             let root = loader.pos[&r["root"].as_u64().unwrap()];
             let nodes = steps_v.iter().map(|s| s["merged"].as_u64().unwrap() as u32).collect();
             rules.push(Rule { id, steps, anchors, nodes, root, emit_key: Loader::cols(&r["emit_key"]) });
             if r.get("nav").is_some() {
-                nav_rules.push(r);
+                nav_builder.rule(r, symbols);
+                *nav_count += 1;
             }
         }
+        struct Rules<'a>(&'a mut State);
+        impl<'de> DeserializeSeed<'de> for Rules<'_> {
+            type Value = ();
+            fn deserialize<D: Deserializer<'de>>(self, d: D) -> Result<(), D::Error> {
+                d.deserialize_seq(self)
+            }
+        }
+        impl<'de> Visitor<'de> for Rules<'_> {
+            type Value = ();
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("the rules")
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<(), A::Error> {
+                while let Some(r) = seq.next_element::<Value>()? {
+                    one_rule(&r, self.0);
+                }
+                Ok(())
+            }
+        }
+        struct Top<'a>(&'a mut State);
+        impl<'de> Visitor<'de> for Top<'_> {
+            type Value = ();
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a program")
+            }
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<(), A::Error> {
+                while let Some(k) = map.next_key::<String>()? {
+                    match k.as_str() {
+                        "rules" => map.next_value_seed(Rules(&mut *self.0))?,
+                        "census" => self.0.census = Some(map.next_value::<Value>()?),
+                        _ => {
+                            map.next_value::<IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(())
+            }
+        }
+        let mut st = State { symbols: Symbols::default(), rules: Vec::new(), nav_builder: Default::default(), nav_count: 0, census: None };
+        let file = std::io::BufReader::with_capacity(1 << 20, std::fs::File::open(path).expect("program"));
+        let mut de = serde_json::Deserializer::from_reader(file);
+        de.deserialize_map(Top(&mut st)).expect("json");
+        let State { mut symbols, rules, nav_builder, nav_count, census: census_v } = st;
+        let v = serde_json::json!({ "census": census_v.unwrap_or(Value::Null) });
         let mut census = Vec::new();
         if let Some(all) = v["census"].as_array() {
             for r in all {
@@ -481,11 +533,11 @@ impl Program {
             }
         }
         // node kind names are base symbols before any literal (the view interns them as base symbols per file otherwise)
-        let nav = if nav_rules.is_empty() {
+        let nav = if nav_count == 0 {
             None
         } else {
-            assert_eq!(nav_rules.len(), rules.len(), "every nav rule's tail loads");
-            Some(crate::nav::NavProgram::load(&nav_rules, &mut symbols))
+            assert_eq!(nav_count, rules.len(), "every nav rule's tail loads");
+            Some(nav_builder.finish())
         };
         Self { rules, symbols, census, nav }
     }

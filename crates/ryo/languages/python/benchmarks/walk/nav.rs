@@ -741,170 +741,179 @@ impl Loader<'_> {
     }
 }
 
-impl NavProgram {
-    pub(crate) fn load(rules: &[&Value], sym: &mut Symbols) -> Self {
-        let mut facts = Vec::new();
-        let mut regexes = Vec::new();
-        let mut shared: Vec<Prog> = Vec::new();
-        let mut out = Vec::new();
-        let mut max_regs = 0;
-        let mut keyed: Vec<(u16, Box<[u8]>)> = Vec::new();
-        let mut table_slots: Vec<(u32, Box<[u8]>, Box<[u8]>)> = Vec::new();
-        let mut need_slots: FxMap<(usize, String), u32> = FxMap::default();
-        for r in rules {
-            let nav = &r["nav"];
-            let kinds = nav["kinds"].as_object().unwrap();
-            let mut loader = Loader {
-                sym,
-                regs: FxMap::default(),
-                kinds,
-                facts: &mut facts,
-                regexes: &mut regexes,
-                regex_of: FxMap::default(),
-                shared_base: shared.len(),
-                keyed: &mut keyed,
-                table_slots: &mut table_slots,
-                wrap16: std::env::var_os("NAV_REG16").is_some(),
-                need_slots: &mut need_slots,
-            };
-            for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
-                use ryo_relations::domain::relations::types::CellKind;
-                let progs: Vec<Prog> = m["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
-                let kinds = m["kinds"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|k| match k.as_str().unwrap() {
-                        "node" => CellKind::Node,
-                        "symbol" => CellKind::Symbol,
-                        "file" => CellKind::File,
-                        "span" => CellKind::Span,
-                        "flag" => CellKind::Flag,
-                        _ => CellKind::Number,
-                    })
-                    .collect();
-                if m["op"] == "asof" || m["op"] == "power" {
-                    let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
-                    let n = |k: &str| m[k].as_u64().unwrap() as usize;
-                    let shape = (m["op"] == "asof").then(|| {
-                        let r = m["restrict"].as_array().unwrap();
-                        AsOfShape {
-                            ekeys: cols(&m["ekeys"]),
-                            order: n("order"),
-                            number: m["order_number"].as_bool().unwrap_or(false),
-                            events_first: m["events_first"].as_bool().unwrap_or(true),
-                            restrict: [r[0] == true, r[1] == true, r[2] == true, r[3] == true],
-                        }
-                    });
-                    let probes: Vec<Prog> = m["right_programs"].as_array().map(Vec::as_slice).unwrap_or(&[]).iter().map(|p| loader.prog(p)).collect();
-                    let asof = AsOf { shape, events: progs, probes, w: n("width"), levels: n("levels") as u32, jkeys: cols(&m["jkeys"]), node: n("node"), target: n("target") };
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: None, made_asof: Some(asof) });
-                    continue;
-                }
-                if m["op"] == "ordered_dfs" {
-                    let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
-                    let right: Vec<Prog> = m["right_programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
-                    let n = |k: &str| m[k].as_u64().unwrap() as usize;
-                    let om = OrderedMatch {
-                        left: progs,
-                        right,
-                        lw: n("width"),
-                        rw: n("right_width"),
-                        left_on: Vec::new(),
-                        right_on: Vec::new(),
-                        lo: 0,
-                        ro: 0,
-                        number: m["order_number"].as_bool().unwrap_or(false),
-                        output: Vec::new(),
-                        dfs: Some(OrderedDfs {
-                            root: n("root"),
-                            source: n("source"),
-                            destination: n("destination"),
-                            order: n("order"),
-                            edge: n("edge"),
-                            root_keys: cols(&m["root_keys"]),
-                            edge_keys: cols(&m["edge_keys"]),
-                        }),
-                    };
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), made_asof: None });
-                    continue;
-                }
-                if m["op"] == "ordered_match" {
-                    let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
-                    let right: Vec<Prog> = m["right_programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
-                    let om = OrderedMatch {
-                        left: progs,
-                        right,
-                        lw: m["width"].as_u64().unwrap() as usize,
-                        rw: m["right_width"].as_u64().unwrap() as usize,
-                        left_on: cols(&m["left_on"]),
-                        right_on: cols(&m["right_on"]),
-                        lo: m["left_order"].as_u64().unwrap() as usize,
-                        ro: m["right_order"].as_u64().unwrap() as usize,
-                        number: m["order_number"].as_bool().unwrap_or(false),
-                        output: m["output"].as_array().unwrap().iter().map(|o| (o[0].as_u64().unwrap() == 1, o[1].as_u64().unwrap() as usize)).collect(),
-                        dfs: None,
-                    };
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), made_asof: None });
-                    continue;
-                }
-                loader.facts.push(FactRel {
-                    made_om: None,
-                    made_asof: None,
-                    model: None,
-                    name: m["name"].as_str().unwrap().to_owned(),
-                    relation: None,
-                    kinds,
-                    made: Some((
-                        progs,
-                        m["keys"].as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect(),
-                        m["distinct"].as_u64().map(|d| d as usize),
-                        m["width"].as_u64().unwrap() as usize,
-                    )),
-                });
-            }
-            for q in nav["shared"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
-                let p = loader.prog(q);
-                shared.push(p);
-            }
-            let programs: Vec<Vec<Alt>> = nav["programs"]
+/// bind: the program built one rule at a time, so the loader can drop each rule's JSON before it reads the next (the whole
+/// pack's JSON as one tree was most of the peak memory of a run)
+#[derive(Default)]
+pub(crate) struct NavBuilder {
+    facts: Vec<FactRel>,
+    regexes: Vec<Regex>,
+    shared: Vec<Prog>,
+    out: Vec<NavRule>,
+    max_regs: usize,
+    keyed: Vec<(u16, Box<[u8]>)>,
+    table_slots: Vec<(u32, Box<[u8]>, Box<[u8]>)>,
+    need_slots: FxMap<(usize, String), u32>,
+}
+
+impl NavBuilder {
+    pub(crate) fn rule(&mut self, r: &Value, sym: &mut Symbols) {
+        let NavBuilder { facts, regexes, shared, out, max_regs, keyed, table_slots, need_slots } = self;
+        let nav = &r["nav"];
+        let kinds = nav["kinds"].as_object().unwrap();
+        let mut loader = Loader {
+            sym,
+            regs: FxMap::default(),
+            kinds,
+            facts: &mut *facts,
+            regexes: &mut *regexes,
+            regex_of: FxMap::default(),
+            shared_base: shared.len(),
+            keyed: &mut *keyed,
+            table_slots: &mut *table_slots,
+            wrap16: std::env::var_os("NAV_REG16").is_some(),
+            need_slots: &mut *need_slots,
+        };
+        for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+            use ryo_relations::domain::relations::types::CellKind;
+            let progs: Vec<Prog> = m["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+            let kinds = m["kinds"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|alts| {
-                    alts.as_array()
-                        .unwrap()
-                        .iter()
-                        .map(|a| {
-                            let prog = loader.prog(&a["prog"]);
-                            let anchor = if let Some(Ins::IterKind { kinds, .. }) = prog.first() { Some(kinds.clone()) } else { None };
-                            Alt { prog, anchor, est: a["est"].as_f64().unwrap(), per: a["per"].as_f64().unwrap() }
-                        })
-                        .collect()
+                .map(|k| match k.as_str().unwrap() {
+                    "node" => CellKind::Node,
+                    "symbol" => CellKind::Symbol,
+                    "file" => CellKind::File,
+                    "span" => CellKind::Span,
+                    "flag" => CellKind::Flag,
+                    _ => CellKind::Number,
                 })
                 .collect();
-            let aux: Vec<(u32, Vec<Prog>, Vec<u8>)> = nav["aux"]
-                .as_array()
-                .map(Vec::as_slice)
-                .unwrap_or(&[])
-                .iter()
-                .map(|a| {
-                    let progs = a["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
-                    let kinds = a["columns"].as_array().unwrap().iter().map(|c| cell_kind(c.as_str().unwrap())).collect();
-                    (a["merged"].as_u64().unwrap() as u32, progs, kinds)
-                })
-                .collect();
-            let nregs = loader.regs.len();
-            max_regs = max_regs.max(nregs);
-            out.push(NavRule {
-                id: r["id"].as_str().unwrap().to_owned(),
-                programs,
-                xmerged: nav["xmerged"].as_u64().unwrap() as u32,
-                kinds: nav["columns"].as_array().unwrap().iter().map(|c| cell_kind(c.as_str().unwrap())).collect(),
-                nregs,
-                aux,
+            if m["op"] == "asof" || m["op"] == "power" {
+                let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
+                let n = |k: &str| m[k].as_u64().unwrap() as usize;
+                let shape = (m["op"] == "asof").then(|| {
+                    let r = m["restrict"].as_array().unwrap();
+                    AsOfShape {
+                        ekeys: cols(&m["ekeys"]),
+                        order: n("order"),
+                        number: m["order_number"].as_bool().unwrap_or(false),
+                        events_first: m["events_first"].as_bool().unwrap_or(true),
+                        restrict: [r[0] == true, r[1] == true, r[2] == true, r[3] == true],
+                    }
+                });
+                let probes: Vec<Prog> = m["right_programs"].as_array().map(Vec::as_slice).unwrap_or(&[]).iter().map(|p| loader.prog(p)).collect();
+                let asof = AsOf { shape, events: progs, probes, w: n("width"), levels: n("levels") as u32, jkeys: cols(&m["jkeys"]), node: n("node"), target: n("target") };
+                loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: None, made_asof: Some(asof) });
+                continue;
+            }
+            if m["op"] == "ordered_dfs" {
+                let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
+                let right: Vec<Prog> = m["right_programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+                let n = |k: &str| m[k].as_u64().unwrap() as usize;
+                let om = OrderedMatch {
+                    left: progs,
+                    right,
+                    lw: n("width"),
+                    rw: n("right_width"),
+                    left_on: Vec::new(),
+                    right_on: Vec::new(),
+                    lo: 0,
+                    ro: 0,
+                    number: m["order_number"].as_bool().unwrap_or(false),
+                    output: Vec::new(),
+                    dfs: Some(OrderedDfs {
+                        root: n("root"),
+                        source: n("source"),
+                        destination: n("destination"),
+                        order: n("order"),
+                        edge: n("edge"),
+                        root_keys: cols(&m["root_keys"]),
+                        edge_keys: cols(&m["edge_keys"]),
+                    }),
+                };
+                loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), made_asof: None });
+                continue;
+            }
+            if m["op"] == "ordered_match" {
+                let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
+                let right: Vec<Prog> = m["right_programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+                let om = OrderedMatch {
+                    left: progs,
+                    right,
+                    lw: m["width"].as_u64().unwrap() as usize,
+                    rw: m["right_width"].as_u64().unwrap() as usize,
+                    left_on: cols(&m["left_on"]),
+                    right_on: cols(&m["right_on"]),
+                    lo: m["left_order"].as_u64().unwrap() as usize,
+                    ro: m["right_order"].as_u64().unwrap() as usize,
+                    number: m["order_number"].as_bool().unwrap_or(false),
+                    output: m["output"].as_array().unwrap().iter().map(|o| (o[0].as_u64().unwrap() == 1, o[1].as_u64().unwrap() as usize)).collect(),
+                    dfs: None,
+                };
+                loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), made_asof: None });
+                continue;
+            }
+            loader.facts.push(FactRel {
+                made_om: None,
+                made_asof: None,
+                model: None,
+                name: m["name"].as_str().unwrap().to_owned(),
+                relation: None,
+                kinds,
+                made: Some((
+                    progs,
+                    m["keys"].as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect(),
+                    m["distinct"].as_u64().map(|d| d as usize),
+                    m["width"].as_u64().unwrap() as usize,
+                )),
             });
         }
+        for q in nav["shared"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+            let p = loader.prog(q);
+            shared.push(p);
+        }
+        let programs: Vec<Vec<Alt>> = nav["programs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|alts| {
+                alts.as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|a| {
+                        let prog = loader.prog(&a["prog"]);
+                        let anchor = if let Some(Ins::IterKind { kinds, .. }) = prog.first() { Some(kinds.clone()) } else { None };
+                        Alt { prog, anchor, est: a["est"].as_f64().unwrap(), per: a["per"].as_f64().unwrap() }
+                    })
+                    .collect()
+            })
+            .collect();
+        let aux: Vec<(u32, Vec<Prog>, Vec<u8>)> = nav["aux"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+            .iter()
+            .map(|a| {
+                let progs = a["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+                let kinds = a["columns"].as_array().unwrap().iter().map(|c| cell_kind(c.as_str().unwrap())).collect();
+                (a["merged"].as_u64().unwrap() as u32, progs, kinds)
+            })
+            .collect();
+        let nregs = loader.regs.len();
+        *max_regs = (*max_regs).max(nregs);
+        out.push(NavRule {
+            id: r["id"].as_str().unwrap().to_owned(),
+            programs,
+            xmerged: nav["xmerged"].as_u64().unwrap() as u32,
+            kinds: nav["columns"].as_array().unwrap().iter().map(|c| cell_kind(c.as_str().unwrap())).collect(),
+            nregs,
+            aux,
+        });
+    }
+
+    pub(crate) fn finish(self) -> NavProgram {
+        let NavBuilder { facts, regexes, shared, out, max_regs, keyed, table_slots: _, need_slots } = self;
         let needs_provider = std::env::var_os("NAV_PROVIDER").is_some()
             || facts.iter().any(|f| {
                 f.model.is_none()
@@ -914,7 +923,17 @@ impl NavProgram {
                     && crate::derived::index_of(&f.name).is_none()
                     && !f.name.starts_with("filesystem.")
             });
-        Self { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed, need_slots: need_slots.len() }
+        NavProgram { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed, need_slots: need_slots.len() }
+    }
+}
+
+impl NavProgram {
+    pub(crate) fn load(rules: &[&Value], sym: &mut Symbols) -> Self {
+        let mut b = NavBuilder::default();
+        for r in rules {
+            b.rule(r, sym);
+        }
+        b.finish()
     }
 }
 

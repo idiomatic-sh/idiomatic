@@ -3859,24 +3859,23 @@ def with_need(self, b, prog):
         return prog
     kinds, facts = self.branch_needs(b)
     subs = []
-    if True:
-        # the tables the program probes for rows (not for absence): each is one program [["shared", entry]]
-        for ins in prog:
-            q = ins[2] if ins[0] == "or-probe" else ins[1] if ins[0] == "exists-probe" else None
-            if q and len(q) == 1 and q[0] not in subs:
-                subs.append(q[0])
-            # a keyed call for rows whose definition has a table under the bound (`way`: 'budget'): the same question,
-            # asked of that table when it can be built within the bound (written as the table's program and its width)
-            k = table_at(ins) if ins[0] in ("or-keyed", "exists-keyed") else None
-            if k is not None:
-                q = [ins[k][0][0][0], ["test", "=", ["n", ins[k][1]], ["n", ins[k][1]]]]
-                if q not in subs:
-                    subs.append(q)
+    # the tables the program probes for rows (not for absence): each is one program [["shared", entry]]
+    for ins in prog:
+        q = ins[2] if ins[0] == "or-probe" else ins[1] if ins[0] == "exists-probe" else None
+        if q and len(q) == 1 and q[0] not in subs:
+            subs.append(q[0])
+        # a keyed call for rows whose definition has a table under the bound (`way`: 'budget'): the same question,
+        # asked of that table when it can be built within the bound (written as the table's program and its width)
+        k = table_at(ins) if ins[0] in ("or-keyed", "exists-keyed") else None
+        if k is not None:
+            q = [ins[k][0][0][0], ["test", "=", ["n", ins[k][1]], ["n", ins[k][1]]]]
+            if q not in subs:
+                subs.append(q)
 
-        def build_cost(q):
-            key = tuple(self.shared_meta[q[0][1]][0])
-            return self.body_cost.get((key, (), self.all_cols(key)), (COST_CAP, 0.0))[0]
-        subs.sort(key=build_cost)  # the cheapest table first: an empty one spares the others
+    def build_cost(q):
+        key = tuple(self.shared_meta[q[0][1]][0])
+        return self.body_cost.get((key, (), self.all_cols(key)), (COST_CAP, 0.0))[0]
+    subs.sort(key=build_cost)  # the cheapest table first: an empty one spares the others
     if not kinds and not facts and not subs:
         return prog
     prog = list(prog)
