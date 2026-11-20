@@ -194,8 +194,14 @@ pub(crate) fn plan_with(
                 .collect(),
         );
     }
+    // Spike (ryo-fmx3): after every rewrite, the sibling constant filters that read one partition of their source.
+    let partitions = if crate::spike::fanout() {
+        crate::domain::physical_plan::collections::rewrites::partitioned_select::item::partitions(&nodes)
+    } else {
+        Default::default()
+    };
     Ok(PhysicalPlan {
-        entity_queries: std::sync::Arc::new(entity_queries::service::compile(&nodes, &indexes)), guards: guards(&nodes), nodes, indexes, layouts: Vec::new() })
+        entity_queries: std::sync::Arc::new(entity_queries::service::compile(&nodes, &indexes)), guards: guards(&nodes), nodes, indexes, layouts: Vec::new(), partitions })
 }
 
 /// Streams each node whose rows only one streaming stage reads, first, so no one else ever asks for them (`flow_of`). Who reads
