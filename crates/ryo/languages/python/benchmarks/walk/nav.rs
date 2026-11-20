@@ -149,6 +149,9 @@ pub(crate) enum Ins {
     NearMemo { start: R, out: R, subs: Box<[Prog]> },
     /// an absence/existence check whose sub-programs read one outer register: answered once per file per value of `key`
     SubKey { negate: bool, key: R, subs: Box<[Prog]> },
+    /// an absence/existence check "some proper ancestor `out` of `start` passes `cond`" whose condition reads only `out`:
+    /// answered per node per file, every node on the way up sharing the answer
+    AncExists { negate: bool, start: R, out: R, cond: Prog },
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -180,13 +183,13 @@ pub(crate) struct OrderedDfs {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const NINS: usize = 45;
+pub(crate) const NINS: usize = 46;
 pub(crate) const INS_NAMES: [&str; NINS] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
     "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
     "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture", "sub_first",
     "collect", "closure", "union", "let", "shared", "text_fn", "capture_text", "replace", "near_derived", "sibling", "sub_memo",
-    "near_memo", "sub_key",
+    "near_memo", "sub_key", "anc_exists",
 ];
 
 impl Ins {
@@ -238,6 +241,7 @@ impl Ins {
             Ins::SubMemo { .. } => 42,
             Ins::NearMemo { .. } => 43,
             Ins::SubKey { .. } => 44,
+            Ins::AncExists { .. } => 45,
         }
     }
 }
@@ -259,6 +263,7 @@ pub(crate) fn subs_mut(i: &mut Ins, f: &mut dyn FnMut(&mut Prog)) {
         }
         Ins::Fork { subs } => subs.iter_mut().for_each(|(_, q)| f(q)),
         Ins::Hoist { seg, .. } => f(seg),
+        Ins::AncExists { cond, .. } => f(cond),
         _ => {}
     }
 }
@@ -280,6 +285,7 @@ pub(crate) fn subs_ref<'x>(i: &'x Ins, f: &mut dyn FnMut(&'x [Ins])) {
         }
         Ins::Fork { subs } => subs.iter().for_each(|(_, q)| f(q)),
         Ins::Hoist { seg, .. } => f(seg),
+        Ins::AncExists { cond, .. } => f(cond),
         _ => {}
     }
 }
@@ -890,6 +896,11 @@ fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
             reads.push(*key);
             sub(subs, reads);
         }
+        Ins::AncExists { start, out, cond, .. } => {
+            reads.push(*start);
+            sub(std::slice::from_ref(cond), reads);
+            reads.retain(|r| r != out);
+        }
     }
 }
 
@@ -950,6 +961,10 @@ fn reads_defs_top(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
             defs.push(*xin);
         }
         Ins::SubKey { key, .. } => reads.push(*key),
+        Ins::AncExists { start, out, .. } => {
+            reads.push(*start);
+            defs.push(*out);
+        }
         Ins::Hoist { key, caps, .. } => {
             reads.extend(key.iter().copied());
             defs.extend(caps.iter().copied());
@@ -961,35 +976,204 @@ fn reads_defs_top(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
 /// Memo specialisations (NAV_MEMO=0 turns them off): a nearest-ancestor walk whose condition reads only the ancestor becomes
 /// NearMemo; an absence/existence check reading no outer register becomes a per-file SubMemo, one reading exactly one becomes
 /// SubKey (per file per value).
+/// [[Axis Ancestor start -> out, cond...]] whose cond reads no register but `out` (and what it defines): (start, out)
+fn anc_shape(subs: &[Prog]) -> Option<(R, R)> {
+    let [q] = subs else { return None };
+    let Some(Ins::Axis { dir: Dir::Ancestor, start, out }) = q.first() else { return None };
+    let free = free_regs(&q[1..]);
+    free.iter().all(|r| r == out).then_some((*start, *out))
+}
+
+/// Detached components (NAV_DETACH_LOAD=0 turns it off): in a program run for existence (the sub-programs of absence and
+/// existence checks, nearest-ancestor conditions, union and closure sub-programs, whose consumers keep sets), a run of steps that
+/// shares no register with the steps after it (but registers bound before it) is its own existence check: its loops no longer
+/// multiply the work of what follows. The planner's order is kept.
+pub(crate) fn detach(p: Prog) -> Prog {
+    if std::env::var("NAV_DETACH_LOAD").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    // a program ending in Yield is run for existence wherever it is used (shared entries included)
+    detach_rec(p, true)
+}
+
+fn detach_rec(p: Prog, exist: bool) -> Prog {
+    let mut v: Vec<Ins> = p.into_vec();
+    for i in v.iter_mut() {
+        let sub_exist = matches!(
+            i,
+            Ins::Sub { .. } | Ins::SubMemo { .. } | Ins::Near { .. } | Ins::Union { .. } | Ins::Closure { .. } | Ins::NearDerived { .. }
+        );
+        subs_mut(i, &mut |q| *q = detach_rec(std::mem::take(q), sub_exist));
+    }
+    if !exist || v.len() < 3 || !matches!(v.last(), Some(Ins::Yield)) {
+        return v.into();
+    }
+    let body = v.len() - 1;
+    // reads[c..body] per suffix (over-approximate), defs per step
+    let mut rd: Vec<Vec<R>> = Vec::with_capacity(body);
+    let mut df: Vec<Vec<R>> = Vec::with_capacity(body);
+    for i in &v[..body] {
+        let (mut r, mut d) = (Vec::new(), Vec::new());
+        reads_defs(i, &mut r, &mut d);
+        rd.push(r);
+        df.push(d);
+    }
+    let mut suffix: Vec<std::collections::HashSet<R>> = vec![Default::default(); body + 1];
+    for c in (0..body).rev() {
+        let mut s = suffix[c + 1].clone();
+        s.extend(rd[c].iter().copied());
+        suffix[c] = s;
+    }
+    // chunk boundaries: c where nothing at or after c reads what [start, c) defined
+    let mut chunks: Vec<(usize, usize)> = Vec::new();
+    let mut start = 0;
+    let mut defined: Vec<R> = Vec::new();
+    for c in 0..body {
+        defined.extend(df[c].iter().copied());
+        if !defined.iter().any(|r| suffix[c + 1].contains(r)) {
+            chunks.push((start, c + 1));
+            start = c + 1;
+            defined.clear();
+        }
+    }
+    if start < body {
+        chunks.push((start, body));
+    }
+    let iterating = |a: usize, b: usize, v: &[Ins]| v[a..b].iter().any(is_iter);
+    if chunks.len() < 2 || chunks.iter().filter(|&&(a, b)| iterating(a, b, &v)).count() == 0 {
+        return v.into();
+    }
+    // every chunk with a loop becomes an existence check (a single trailing chunk that is the whole loop stays inline)
+    let n_iter = chunks.iter().filter(|&&(a, b)| iterating(a, b, &v)).count();
+    let mut out: Vec<Ins> = Vec::with_capacity(v.len());
+    let mut it = v.into_iter();
+    let mut pos = 0;
+    let mut wrapped = 0;
+    for (a, b) in chunks {
+        let seg: Vec<Ins> = (a..b).map(|_| it.next().unwrap()).collect();
+        pos += b - a;
+        let loops = seg.iter().any(is_iter);
+        if loops && (n_iter > 1 || wrapped == 0 && pos < body) {
+            let mut q = seg;
+            q.push(Ins::Yield);
+            out.push(Ins::Sub { negate: false, subs: vec![q.into_boxed_slice()].into() });
+            wrapped += 1;
+        } else {
+            out.extend(seg);
+        }
+    }
+    out.extend(it);
+    out.into()
+}
+
+/// Memoised checks sink (NAV_SINK=0 turns it off): a SubKey or AncExists moves down its straight run to just before the run's
+/// end (an emit, yield, fork, collect, capture, hoist or shared step), past every step that does not redefine what it reads.
+/// Filters commute; past a fan-out the memo answers the repeats (its key was bound before the fan-out), past a filter it runs
+/// for fewer candidates.
+pub(crate) fn sink(p: Prog) -> Prog {
+    if std::env::var("NAV_SINK").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut v: Vec<Ins> = p.into_vec();
+    for i in v.iter_mut() {
+        subs_mut(i, &mut |q| *q = sink(std::mem::take(q)));
+    }
+    let stop = |i: &Ins| {
+        matches!(i, Ins::Emit { .. } | Ins::Yield | Ins::Fork { .. } | Ins::Collect { .. } | Ins::Capture { .. } | Ins::Hoist { .. } | Ins::Shared { .. })
+    };
+    let mut k = v.len();
+    while k > 0 {
+        k -= 1;
+        if !matches!(v[k], Ins::SubKey { .. } | Ins::AncExists { .. }) {
+            continue;
+        }
+        let mut reads = Vec::new();
+        reads_defs_top(&v[k], &mut reads, &mut Vec::new());
+        let mut j = k + 1;
+        while j < v.len() && !stop(&v[j]) {
+            let mut d = Vec::new();
+            reads_defs_top(&v[j], &mut Vec::new(), &mut d);
+            if d.iter().any(|r| reads.contains(r)) {
+                break;
+            }
+            j += 1;
+        }
+        if j < v.len() && j > k + 1 {
+            let x = v.remove(k);
+            v.insert(j - 1, x);
+        }
+    }
+    v.into()
+}
+
 pub(crate) fn memoize(p: Prog) -> Prog {
     if std::env::var("NAV_MEMO").is_ok_and(|v| v == "0") {
         return p;
     }
-    p.into_vec()
+    memo_rec(p).0
+}
+
+/// memoize, bottom-up: returns the program and its free registers (reads not defined in the same program level or inside the
+/// sub-program that reads them: a superset of free_regs, so a memo it allows is sound)
+fn memo_rec(p: Prog) -> (Prog, Vec<R>) {
+    let memo0 = !std::env::var("NAV_MEMO0").is_ok_and(|v| v == "0");
+    let mut reads: Vec<R> = Vec::new();
+    let mut defs: Vec<R> = Vec::new();
+    let out: Vec<Ins> = p
+        .into_vec()
         .into_iter()
         .map(|mut i| {
-            subs_mut(&mut i, &mut |q| *q = memoize(std::mem::take(q)));
-            match i {
-                Ins::Near { start, out, subs } => {
-                    let mut free: Vec<R> = subs.iter().flat_map(|q| free_regs(q)).collect();
-                    free.retain(|r| *r != out);
-                    if free.is_empty() { Ins::NearMemo { start, out, subs } } else { Ins::Near { start, out, subs } }
-                }
-                Ins::Sub { negate, subs } => {
-                    let mut free: Vec<R> = subs.iter().flat_map(|q| free_regs(q)).collect();
-                    free.sort_unstable();
-                    free.dedup();
-                    match free.len() {
-                        0 if !std::env::var("NAV_MEMO0").is_ok_and(|v| v == "0") => Ins::SubMemo { negate, subs },
-                        1 => Ins::SubKey { negate, key: free[0], subs },
-                        _ => Ins::Sub { negate, subs },
-                    }
-                }
-                other => other,
+            if let Ins::Shared { idx } = &i {
+                SHARED_FREE.with(|t| reads.extend(t.borrow()[*idx as usize].iter().copied()));
+                return i;
             }
+            let mut child: Vec<R> = Vec::new();
+            subs_mut(&mut i, &mut |q| {
+                let (q2, f) = memo_rec(std::mem::take(q));
+                *q = q2;
+                child.extend(f);
+            });
+            child.sort_unstable();
+            child.dedup();
+            let i = match i {
+                Ins::Near { start, out, subs } => {
+                    if child.iter().all(|r| *r == out) { Ins::NearMemo { start, out, subs } } else { Ins::Near { start, out, subs } }
+                }
+                Ins::Sub { negate, subs } if anc_shape(&subs).is_some() && !std::env::var("NAV_ANC").is_ok_and(|v| v == "0") => {
+                    let (start, out) = anc_shape(&subs).unwrap();
+                    let mut v = subs.into_vec();
+                    let q = v.pop().unwrap();
+                    let cond: Prog = q.into_vec().into_iter().skip(1).collect::<Vec<_>>().into();
+                    Ins::AncExists { negate, start, out, cond }
+                }
+                Ins::Sub { negate, subs } => match child.len() {
+                    0 if memo0 => Ins::SubMemo { negate, subs },
+                    1 => Ins::SubKey { negate, key: child[0], subs },
+                    _ => Ins::Sub { negate, subs },
+                },
+                other => other,
+            };
+            let mut r = Vec::new();
+            reads_defs_top(&i, &mut r, &mut defs);
+            reads.extend(r);
+            // a closure's / nearest-derived walk's input register and a Near's output are set by the step itself
+            match &i {
+                Ins::Closure { xin, .. } | Ins::NearDerived { xin, .. } => child.retain(|r| r != xin),
+                _ => {}
+            }
+            if let Ins::Near { out, .. } | Ins::NearMemo { out, .. } | Ins::NearDerived { out, .. } = &i {
+                child.retain(|r| r != out);
+            }
+            reads.extend(child);
+            i
         })
-        .collect::<Vec<_>>()
-        .into()
+        .collect();
+    defs.sort_unstable();
+    defs.dedup();
+    reads.sort_unstable();
+    reads.dedup();
+    reads.retain(|r| defs.binary_search(r).is_err());
+    (out.into(), reads)
 }
 
 /// Constant folding from bucket walks (NAV_FOLD=0 turns it off): a row reached through a single-value bucket of a tree column
@@ -1152,7 +1336,12 @@ pub(crate) fn hoist(p: Prog) -> Prog {
     while s < v.len() {
         let mut reads = Vec::new();
         let mut defs = Vec::new();
-        reads_defs(&v[s], &mut reads, &mut defs);
+        // the full reads (every nested sub-program) only for an iteration that may be hoisted; definitions are top level
+        if is_iter(&v[s]) {
+            reads_defs(&v[s], &mut reads, &mut defs);
+        } else {
+            reads_defs_top(&v[s], &mut reads, &mut defs);
+        }
         let candidate = is_iter(&v[s]) && !reads.is_empty() && reads.iter().all(|r| def_at.contains_key(r)) && {
             let mut k = reads.clone();
             k.sort_unstable();
@@ -1233,31 +1422,49 @@ impl NavProgram {
             reads.dedup();
             SHARED_READS.with(|t| t.borrow_mut().push(reads));
         }
-        // memo specialisation reads the shared entries' free registers (entries only reference entries before them)
-        SHARED_FREE.with(|t| t.borrow_mut().clear());
-        for q in &self.shared {
-            let f = free_regs(q);
-            SHARED_FREE.with(|t| t.borrow_mut().push(f));
-        }
-        let pass = |q: &mut Prog| *q = memoize(mark_first(hoist(fold(specialize(std::mem::take(q)), &none))));
-        for g in &mut self.groups {
-            pass(&mut g.prog);
-        }
-        for q in &mut self.shared {
-            pass(q);
-        }
-        for f in &mut self.facts {
-            if let Some((progs, ..)) = &mut f.made {
-                progs.iter_mut().for_each(pass);
+        // each pass over every program, timed (NAV_VERBOSE)
+        let stages: [(&str, &dyn Fn(Prog) -> Prog); 7] = [
+            ("specialise", &specialize),
+            ("detach", &detach),
+            ("fold", &|q| fold(q, &none)),
+            ("hoist", &hoist),
+            ("first", &mark_first),
+            ("memo", &memoize),
+            ("sink", &sink),
+        ];
+        for (name, f) in stages {
+            let t = Instant::now();
+            let pass = |q: &mut Prog| *q = f(std::mem::take(q));
+            if name == "memo" {
+                // memo specialisation reads the shared entries' free registers (entries only reference entries before them)
+                SHARED_FREE.with(|t| t.borrow_mut().clear());
+                for q in &self.shared {
+                    let fr = free_regs(q);
+                    SHARED_FREE.with(|t| t.borrow_mut().push(fr));
+                }
             }
-            if let Some(om) = &mut f.made_om {
-                om.left.iter_mut().for_each(pass);
-                om.right.iter_mut().for_each(pass);
+            for g in &mut self.groups {
+                pass(&mut g.prog);
             }
-        }
-        for r in &mut self.rules {
-            for (_, ps, _) in &mut r.aux {
-                ps.iter_mut().for_each(pass);
+            for q in &mut self.shared {
+                pass(q);
+            }
+            for fr in &mut self.facts {
+                if let Some((progs, ..)) = &mut fr.made {
+                    progs.iter_mut().for_each(pass);
+                }
+                if let Some(om) = &mut fr.made_om {
+                    om.left.iter_mut().for_each(pass);
+                    om.right.iter_mut().for_each(pass);
+                }
+            }
+            for r in &mut self.rules {
+                for (_, ps, _) in &mut r.aux {
+                    ps.iter_mut().for_each(pass);
+                }
+            }
+            if std::env::var("NAV_VERBOSE").is_ok() {
+                eprintln!("pass {name}: {:.3} s", t.elapsed().as_secs_f64());
             }
         }
     }
@@ -1912,6 +2119,7 @@ fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
         | Ins::Capture { .. }
         | Ins::NearMemo { .. }
         | Ins::SubKey { .. }
+        | Ins::AncExists { .. }
         | Ins::SubFirst { .. } => unreachable!("specialisation runs after the tries are built"),
         Ins::SpanBetween { a, b, out } => {
             let a = o(a, f);
@@ -2042,6 +2250,8 @@ pub(crate) struct Counters {
     /// per base made table over the run: (steps of its builds, builds) as a twin's buy price; twins switched
     pub twin_buy: FxMap<u16, (u64, u64)>,
     pub twin_switches: u64,
+    /// per derived relation: (files, ns, rows)
+    pub derived_by: FxMap<u16, (u64, u64, u64)>,
     pub made_depth: u32,
     /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
     pub diag: bool,
@@ -3016,8 +3226,8 @@ impl<'a, 'p> Exec<'a, 'p> {
         let visits0 = self.c.visits;
         let flow = self.run_inner(p, pc);
         let r = self.cur_rule;
-        self.c.rule_steps[r] += self.c.steps - steps0;
-        self.c.rule_visits[r] += self.c.visits - visits0;
+        self.c.rule_steps[r] = self.c.rule_steps[r].wrapping_add(self.c.steps - steps0);
+        self.c.rule_visits[r] = self.c.rule_visits[r].wrapping_add(self.c.visits - visits0);
         let _ = &mut pc;
         flow
     }
@@ -3613,6 +3823,12 @@ impl<'a, 'p> Exec<'a, 'p> {
                         return false;
                     }
                 }
+                Ins::AncExists { negate, start, out, cond } => {
+                    let s = self.regs[*start as usize] as u32;
+                    if self.anc_exists(s, *out, cond) == *negate {
+                        return false;
+                    }
+                }
                 Ins::SubFirst { subs } => {
                     self.c.subs += 1;
                     if self.run_inner(&subs[0], 0) {
@@ -3721,6 +3937,25 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for (slots, q) in subs.iter() {
                         if !slots.iter().any(|&s| self.cache.enabled[s as usize]) {
                             continue;
+                        }
+                        if self.c.diag {
+                            // NAV_DIAG: a child owned by one rule charges its steps to that rule (run() charges the rest)
+                            let r0 = self.prog.slot_rule[slots[0] as usize] as usize;
+                            if self.cur_rule != r0 && slots.iter().all(|&s| self.prog.slot_rule[s as usize] as usize == r0) {
+                                let (s0, v0, saved) = (self.c.steps, self.c.visits, self.cur_rule);
+                                self.cur_rule = r0;
+                                let y = self.run_inner(q, 0);
+                                self.cur_rule = saved;
+                                let (ds, dv) = (self.c.steps - s0, self.c.visits - v0);
+                                self.c.rule_steps[r0] += ds;
+                                self.c.rule_visits[r0] += dv;
+                                self.c.rule_steps[saved] = self.c.rule_steps[saved].wrapping_sub(ds);
+                                self.c.rule_visits[saved] = self.c.rule_visits[saved].wrapping_sub(dv);
+                                if y {
+                                    return true;
+                                }
+                                continue;
+                            }
                         }
                         if self.run_inner(q, 0) {
                             return true;
@@ -3880,6 +4115,44 @@ impl<'a, 'p> Exec<'a, 'p> {
         (res != NONE).then_some(res)
     }
 
+    /// Ins::AncExists: whether some proper ancestor of `s` passes `cond`, memoised per file and site by node
+    fn anc_exists(&mut self, s: u32, out: R, cond: &'p [Ins]) -> bool {
+        const UNKNOWN: u32 = u32::MAX - 1;
+        let v = self.f.view;
+        if s as usize >= v.len() {
+            return false;
+        }
+        let site = cond.as_ptr() as usize;
+        let mut memo = self.cache.near_memo.remove(&site).unwrap_or_else(|| vec![UNKNOWN; v.len()]);
+        let mut stack: Vec<u32> = Vec::new();
+        let mut x = s;
+        let res = loop {
+            let m = memo[x as usize];
+            if m != UNKNOWN {
+                break m;
+            }
+            let p = v.parent[x as usize];
+            if p == u32::MAX {
+                memo[x as usize] = 0;
+                break 0;
+            }
+            self.regs[out as usize] = u64::from(p);
+            self.c.visits += 1;
+            self.c.subs += 1;
+            if self.run_inner(cond, 0) {
+                memo[x as usize] = 1;
+                break 1;
+            }
+            stack.push(x);
+            x = p;
+        };
+        for y in stack {
+            memo[y as usize] = res;
+        }
+        self.cache.near_memo.insert(site, memo);
+        res == 1
+    }
+
     /// Ins::Union (navwide): every sub-program's collected tuples, distinct, each continuing the program
     fn union(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], memo: bool) -> bool {
         let w = outs.len();
@@ -3964,6 +4237,16 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// navwide: one derived relation (and the relation computed in the same pass) from derived.rs's rows form over the node
     /// table, decoded into the view's ids and the run's text codes
     fn load_derived(&mut self, rel: u16) {
+        let t = Instant::now();
+        let rows0 = self.c.fact_rows;
+        self.load_derived_inner(rel);
+        let e = self.c.derived_by.entry(rel).or_default();
+        e.0 += 1;
+        e.1 += t.elapsed().as_nanos() as u64;
+        e.2 += self.c.fact_rows - rows0;
+    }
+
+    fn load_derived_inner(&mut self, rel: u16) {
         let t = Instant::now();
         if !self.cache.model_lex {
             let t = Instant::now();

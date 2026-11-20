@@ -1154,6 +1154,10 @@ impl<'p> State<'p> {
             mb.sort_by(|a, b| b.1.1.cmp(&a.1.1));
             let mb: Vec<String> = mb.iter().take(40).map(|(k, v)| format!("[\"{}\",{},{},{},{}]", nav.facts[*k as usize].name, v.0, v.1, v.2, v.3)).collect();
             eprintln!("{{\"made_by\":[{}]}}", mb.join(","));
+            let mut db: Vec<_> = self.nc.derived_by.iter().map(|(&k, &v)| (k, v)).collect();
+            db.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+            let db: Vec<String> = db.iter().map(|(k, v)| format!("[\"{}\",{},{},{}]", nav.facts[*k as usize].name, v.0, v.1, v.2)).collect();
+            eprintln!("{{\"derived_by\":[{}]}}", db.join(","));
             if let Some(prof) = &self.nc.prof {
                 eprintln!("PROFILE\n{}", crate::nav::profile_report(nav, prof));
             }

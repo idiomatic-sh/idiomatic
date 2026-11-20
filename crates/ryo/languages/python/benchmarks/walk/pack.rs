@@ -222,6 +222,7 @@ impl Enc {
             | Ins::Capture { regs: _ }
             | Ins::NearMemo { .. }
             | Ins::SubKey { .. }
+            | Ins::AncExists { .. }
             | Ins::SubFirst { .. } => panic!("specialised instructions are not stored in the pack"),
             Ins::Fork { subs } => {
                 self.u(subs.len() as u32);
@@ -916,6 +917,10 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
         );
     }
     let mut nav = NavProgram { groups, slot_of, slot_rule, nslots, rules, shared, facts, regexes, regex_patterns: Vec::new(), max_regs, needs_provider };
+    let t1 = std::time::Instant::now();
     nav.specialize_all();
+    if std::env::var("NAV_VERBOSE").is_ok() {
+        eprintln!("pack specialise: {:.3} s", t1.elapsed().as_secs_f64());
+    }
     (symbols, tails, nav)
 }
