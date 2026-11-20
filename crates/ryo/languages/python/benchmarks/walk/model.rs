@@ -811,6 +811,15 @@ impl Model {
         }
     }
 
+    /// The lexical declaration of every name load, memoised (what `resolves` and `qualified-name` read).
+    pub(crate) fn resolve_loads(&mut self, table: &Table<'_>) {
+        for &id in table.of_kind(ruff_python_ast::NodeKind::ExprName as u8) {
+            if self.store[id as usize] == 0 {
+                self.resolve_memo(table, id);
+            }
+        }
+    }
+
     pub(crate) fn resolve_memo(&mut self, table: &Table<'_>, at: u32) -> u32 {
         let r = self.resolved[at as usize];
         if r != NOT_ASKED {

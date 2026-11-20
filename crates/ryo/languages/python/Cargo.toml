@@ -42,6 +42,8 @@ idiomatic-sh-ryo-python = { path = ".", features = ["fixtures"] }
 divan.workspace = true
 # The walk bench's regex leaves (bead ryo-i8o1, throwaway).
 regex-automata.workspace = true
+# The sema bench's per-stage thread CPU clock (bead ryo-emlr, throwaway).
+rustix = { version = "=1.1.5", features = ["time"] }
 
 [[test]]
 name = "allocation"
