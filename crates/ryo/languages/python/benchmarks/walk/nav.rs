@@ -751,6 +751,13 @@ pub(crate) struct Counters {
     /// entries it ran); `prof_child` is the inclusive steps of the entries run under the current one
     pub prof: bool,
     pub prof_child: u64,
+    /// cut: thread-ns grouping made tables (after their programs ran) and building fact, composite and probe indexes;
+    /// keyed memo lookups and misses
+    pub made_group_ns: u64,
+    pub index_ns: u64,
+    pub index_builds: u64,
+    pub keyed_calls: u64,
+    pub keyed_misses: u64,
     pub shared_calls: Vec<u64>,
     pub shared_incl: Vec<u64>,
     pub shared_self: Vec<u64>,
@@ -1019,6 +1026,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
             let rows = std::mem::replace(&mut self.outs[slot], saved.1);
             self.cur_rule = saved.0;
+            let tg = Instant::now();
             let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
             let mut groups: FxMap<Vec<u64>, u64> = FxMap::default();
             let mut order: Vec<Vec<u64>> = Vec::new();
@@ -1049,6 +1057,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.made_tables += 1;
             self.c.made_rows += cols[*nkeys].len() as u64;
             facts.loaded[rel as usize] = true;
+            self.c.made_group_ns += tg.elapsed().as_nanos() as u64;
             return;
         }
         match prog.facts[rel as usize].model {
@@ -1213,6 +1222,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = facts.idx.get(&(rel, col)) {
             return i.clone();
         }
+        let ti = Instant::now();
         let c = &facts.cols[rel as usize][col as usize];
         let idx = if dense {
             let mut head = vec![u32::MAX; n_view + 1];
@@ -1232,6 +1242,8 @@ impl<'a, 'p> Exec<'a, 'p> {
         };
         self.c.made_tables += 1;
         self.c.made_rows += c.len() as u64;
+        self.c.index_builds += 1;
+        self.c.index_ns += ti.elapsed().as_nanos() as u64;
         let m = Rc::new(idx);
         facts.idx.insert((rel, col), m.clone());
         m
@@ -1245,6 +1257,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = facts.midx.get(&(rel, cols.into())) {
             return i.clone();
         }
+        let ti = Instant::now();
         let f = &facts.cols[rel as usize];
         let n = f.first().map_or(0, Vec::len);
         let mut m: FxMap<u64, Vec<u32>> = FxMap::default();
@@ -1257,6 +1270,8 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         self.c.made_tables += 1;
         self.c.made_rows += n as u64;
+        self.c.index_builds += 1;
+        self.c.index_ns += ti.elapsed().as_nanos() as u64;
         let m = Rc::new(m);
         facts.midx.insert((rel, cols.into()), m.clone());
         m
@@ -2000,6 +2015,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             return i.clone();
         }
         let rows = self.definition_rows(subs);
+        let ti = Instant::now();
         let mut map: FxMap<Box<[u64]>, Vec<u64>> = FxMap::default();
         let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
         let mut key: Vec<u64> = Vec::with_capacity(kcols.len());
@@ -2023,6 +2039,8 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         }
         let idx = Rc::new(ProbeIndex { map });
+        self.c.index_builds += 1;
+        self.c.index_ns += ti.elapsed().as_nanos() as u64;
         self.probe_idx.insert(at, idx.clone());
         idx
     }
@@ -2044,9 +2062,11 @@ impl<'a, 'p> Exec<'a, 'p> {
             Some(r) if r.len() >= nk && keys.iter().enumerate().all(|(i, k)| r[i] == self.regs[*k as usize]) => Some(r.clone()),
             _ => None,
         };
+        self.c.keyed_calls += 1;
         let rows = match hit {
             Some(r) => r,
             None => {
+                self.c.keyed_misses += 1;
                 let saved = std::mem::take(&mut self.collect);
                 for q in subs {
                     self.c.subs += 1;
@@ -2088,11 +2108,13 @@ impl<'a, 'p> Exec<'a, 'p> {
             h.write_u64(self.regs[*k as usize]);
         }
         let key = (h.finish() as usize) | 1;
+        self.c.keyed_calls += 1;
         if let Some(r) = self.union_memo.get(&key) {
             if r.len() == nk + 1 && keys.iter().enumerate().all(|(i, k)| r[i] == self.regs[*k as usize]) {
                 return r[nk] != 0;
             }
         }
+        self.c.keyed_misses += 1;
         let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
         let any = subs.iter().any(|q| {
             self.c.subs += 1;

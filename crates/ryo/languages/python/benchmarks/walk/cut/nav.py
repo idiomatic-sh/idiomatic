@@ -60,6 +60,14 @@ REQUIRE = os.environ.get("NAV_REQUIRE", "1") == "1"            # kind buckets a 
 # the probe's build is weighed against a tenth of the candidates the plan expects: estimates of candidates err upward
 # (most files hold none), a keyed call costs nothing without one, the build is paid whole once one arrives
 PROBE_BIAS = float(os.environ.get("NAV_PROBE_BIAS", "0.1"))
+# whether a probe may be PREFERRED to a keyed call on the cost estimate (off: a probe is taken only when the definition has
+# no binding pattern left, where last round scanned its memoised rows per candidate). Measured: preferring it gained nothing on
+# the 341 (0.697G without, 0.706G with) and its build is unbounded when the estimate of candidates errs: UP034 built an
+# all-pairs closure of the token chain once in one file, 4 x 289M steps, for a call that a keyed walk answers in a few.
+PROBE_PREFER = os.environ.get("NAV_PROBE_PREFER", "1") == "1"
+# ... so a probe is preferred only when the definition's uncorrelated sub-program walks no closure and no nearest-over-edges
+# (PROBE_SAFE): then its rows are bounded by the buckets it iterates, which the estimate does see.
+PROBE_SAFE = os.environ.get("NAV_PROBE_SAFE", "1") == "1"
 # a bucket iterated inside a candidate keeps its penalty (BUCKET_X) as its RANK only; the plan's cost and rows use its size, so
 # plans from different anchors compare on what they would run (last round the penalty also multiplied the rows after it)
 RANK_SPLIT = os.environ.get("NAV_RANK_SPLIT", "1") == "1"
@@ -95,6 +103,15 @@ MULTI_KEY = os.environ.get("NAV_MULTI_KEY", "1") == "1"
 # (1.0); with only some of them it is several rows of unknown number (MADE_PARTIAL, dearer than a walk up the tree). Before,
 # any bound node column cost 1.3, so "every descendant of this root" looked like one row.
 MADE_PARTIAL = float(os.environ.get("NAV_MADE_PARTIAL", "10"))
+# a top-level plan is tried from the ANCHOR_TOP anchors with the smallest start (bucket size, or a definition's cheapest
+# anchor), not from every atom: planning is (anchors tried) x (items squared) accesses, the dominant lowering cost
+ANCHOR_TOP = int(os.environ.get("NAV_ANCHOR_TOP", "4"))
+# the first read of a made table in a plan builds it for the file: it ranks after the ready tests (MADE_FIRST_RANK, above
+# TEST_WAIT_RANK and below a children iteration), so a test that drops the candidate spares the build
+MADE_FIRST_RANK = float(os.environ.get("NAV_MADE_FIRST_RANK", "0"))  # tried at 1.4: C411 -2%, ISC004 x15.8, ASYNC100 x13.6; off
+# the branches of one definition (and the programs of one made table) that start with the same instructions run that
+# prefix once and fork after it (factor_prefix): a union of variants of one shape no longer walks its anchor once per variant
+PREFIX = os.environ.get("NAV_PREFIX", "1") == "1"
 KEYED_STEPS = float(os.environ.get("NAV_KEYED_STEPS", "20"))   # steps of a well-keyed call: a call ranks as its rows, or its steps over this
 
 
@@ -123,7 +140,7 @@ def bind(value, params):
 # a term is an int (variable) or a constant tuple: ("t", text|None) ("n", int) ("ts", (texts,)) ("ns", (ints,))
 
 def is_var(t):
-    return isinstance(t, int)
+    return type(t) is int
 
 
 SUB_LISTS = {"near": (3,), "clos": (7,), "or": (2,), "nearc": (5, 6)}
@@ -189,6 +206,8 @@ class Lowerer:
         self.kind = {}
         self.defs, self.formal, self.body_memo, self.masks, self.shared, self.n_bodies = {}, {}, {}, {}, [], 0
         self.heavy_memo = {}
+        self.walk_memo = {}
+        self.all_cols_memo = {}
         # cut: per definition program (key, mask, free): (steps per call, rows per call) from its plan, and its branch entries
         self.body_cost, self.body_branches = {}, {}
         self.mult = 1.0          # calls per file of the sub-program being planned (amortises one-off costs)
@@ -757,6 +776,10 @@ class Lowerer:
             progs.append(self.plan_alts(b.copy())[0]["prog"])
             cost += self.top_cost
             rows += self.top_card
+        if PREFIX and len(progs) > 1:
+            fp, n_shared = factor_prefix(progs, False)
+            if n_shared:
+                progs = [fp]
         return progs, cost, rows
 
     def made_size(self, name, cost, rows):
@@ -980,7 +1003,15 @@ class Lowerer:
         if len(idxs) > 1:
             # one entry runs every branch (each pushes its rows, or the first that holds answers the test): every call
             # site names the definition once, not once per branch
-            self.shared.append([["exists", [[["shared", i]] for i in idxs]]] + ([["yield"]] if free is None else []))
+            group = None
+            if PREFIX:
+                # cut: branches that start alike share that start (the fork runs each rest in turn)
+                fp, n_shared = factor_prefix([self.shared[i] for i in idxs], free is None)
+                if n_shared:
+                    group = fp
+            if group is None:
+                group = [["exists", [[["shared", i]] for i in idxs]]] + ([["yield"]] if free is None else [])
+            self.shared.append(group)
             idxs = [len(self.shared) - 1]
         self.body_memo[k] = idxs
         self.n_bodies += 1
@@ -1296,6 +1327,17 @@ class Lowerer:
         out = [("a", i) for i in range(len(b.atoms))]
         if CALL_COST:
             out += [("s", j) for j, sp in enumerate(b.specials) if sp[0] == "call"]
+        if ANCHOR_TOP and len(out) > ANCHOR_TOP:
+            one = Br()
+            rank = []
+            for ch in out:
+                if ch[0] == "a":
+                    one.atoms, one.filt, one.specials = [b.atoms[ch[1]]], b.filt, []
+                    rank.append((self.branch_anchor(one), len(rank), ch))
+                else:
+                    rank.append((self.def_anchor(b.specials[ch[1]][1]), len(rank), ch))
+            rank.sort()
+            out = [ch for _, _, ch in rank[:ANCHOR_TOP]]
         return out or [None]
 
     def detach(self, b, bound, sub):
@@ -1358,13 +1400,20 @@ class Lowerer:
         E = collect_vars(b, set(bound))
         prog = []
         built = set()  # cut: made tables this plan already reads (their build is costed once)
+        # cut: an atom's possible accesses change only when one of its variables gets bound: kept per atom, dropped then
+        # (they were recomputed for every atom at every placement: items squared, the dominant lowering cost)
+        acc_cache, var_atoms, seen_bound = {}, {}, set(bound)
+        for i0, (_, ts0) in enumerate(b.atoms):
+            for t0 in ts0:
+                if isinstance(t0, int):
+                    var_atoms.setdefault(t0, []).append(i0)
         atoms = list(range(len(b.atoms)))
         filt = list(b.filt)
         negs = list(b.negs)
         specials = list(b.specials)
 
         def tbound(t):
-            return (not is_var(t)) or t in bound
+            return type(t) is not int or t in bound
 
         def lit_on(var):
             for x, l, r in filt:
@@ -1558,10 +1607,18 @@ class Lowerer:
                     continue
             best = None
             best_fan = 0.0
+            if len(bound) != len(seen_bound):
+                for v0 in bound - seen_bound:
+                    for i0 in var_atoms.get(v0, ()):
+                        acc_cache.pop(i0, None)
+                seen_bound = set(bound)
             for i in atoms:
                 if first is not None and not bound and first != ("a", i):
                     continue
-                for c, kind, arg in accesses(i):
+                acc = acc_cache.get(i)
+                if acc is None:
+                    acc = acc_cache[i] = accesses(i)
+                for c, kind, arg in acc:
                     if not bound and kind in ("key", "children"):
                         continue
                     fan = c
@@ -1573,6 +1630,8 @@ class Lowerer:
                             c = c + 10.0 if not BUCKET_X else c * BUCKET_X + 10.0  # a bucket inside a candidate is a cross product
                     if not RANK_SPLIT:
                         fan = c
+                    if MADE_FIRST_RANK and bound and c < MADE_FIRST_RANK and b.atoms[i][0] in self.made_cost and b.atoms[i][0] not in built:
+                        c = MADE_FIRST_RANK
                     if best is None or c < best[0]:
                         best = (c, "atom", i, (kind, arg))
                         best_fan = fan
@@ -1960,8 +2019,11 @@ class Lowerer:
 
     def all_cols(self, key):
         """the columns of a definition its uncorrelated rows hold (every column but a file constant)"""
-        body = self.defs[key]
-        return tuple(c for c, t in enumerate(body[0].out) if is_var(t) or t[0] != "f") if body else ()
+        hit = self.all_cols_memo.get(key)
+        if hit is None:
+            body = self.defs[key]
+            hit = self.all_cols_memo[key] = tuple(c for c, t in enumerate(body[0].out) if is_var(t) or t[0] != "f") if body else ()
+        return hit
 
     def def_cost(self, key, mask, free, calls=1.0):
         """(steps per call, rows per call) of the definition's sub-program for a binding pattern, from its plan"""
@@ -2001,13 +2063,42 @@ class Lowerer:
                 fan = min(fan, 1.0)
             once = c0 * min(1.0, eff)
             per = 1.0 + fan
-            if best is None or once + eff * PROBE_BIAS * per < eff * PROBE_BIAS * best[2]:
+            if best is None or (self.probe_ok(key, allc) and once + eff * PROBE_BIAS * per < eff * PROBE_BIAS * best[2]):
                 best = ("probe", max(fan, (once / max(eff, 1e-6) + per) / KEYED_STEPS, 1.05), per, once, fan)
         if best is None:
             # no pattern left and no probe: last round's degraded use (uncorrelated rows, args tested after)
             c0, n0 = self.def_cost(key, (), cols)
             best = ("degraded", n0 * BUCKET_X + 10.0, max(n0, 1.0), c0 * min(1.0, eff), n0 * 0.1 ** len(mask))
         return best
+
+    def walks(self, idxs):
+        """whether sub-programs (and the shared entries they run) walk a closure or a nearest-over-edges: their rows with
+        nothing bound can be every pair of a chain, which no bucket statistic shows"""
+        memo = self.walk_memo
+
+        def h(p):
+            for ins in p:
+                if ins[0] == "shared":
+                    j = ins[1]
+                    if j not in memo:
+                        memo[j] = False
+                        memo[j] = h(self.shared[j])
+                    if memo[j]:
+                        return True
+                elif ins[0] in ("clos", "nearc"):
+                    return True
+                else:
+                    for k in SUBS_AT.get(ins[0], ()):
+                        if any(h(q) for q in ins[k]):
+                            return True
+            return False
+        return any(h([["shared", i]]) for i in idxs)
+
+    def probe_ok(self, key, allc):
+        """whether a probe of the definition may be preferred to a keyed call on the cost estimate"""
+        if not PROBE_PREFER:
+            return False
+        return not PROBE_SAFE or not self.walks(self.body(key, (), allc))
 
     def light(self, idxs):
         """sub-programs that only read, test and bind (no iteration, no call): cheaper run in place than called"""
@@ -2073,7 +2164,7 @@ class Lowerer:
         allc = self.all_cols(key)
         if PROBE and all(c in allc for c in mask):
             once = self.def_cost(key, (), allc)[0] * min(1.0, eff)
-            if cm is None or once + eff * PROBE_BIAS < eff * PROBE_BIAS * cm:
+            if cm is None or (self.probe_ok(key, allc) and once + eff * PROBE_BIAS < eff * PROBE_BIAS * cm):
                 return 1.0 + once / max(eff, 1e-6)
         return cm if cm is not None else 5.0
 
@@ -2109,7 +2200,7 @@ class Lowerer:
         if PROBE and all(c in allc for c in mask):
             c0 = self.def_cost(key, (), allc)[0]
             once = c0 * min(1.0, eff)
-            if cm is None or once + eff * PROBE_BIAS < eff * PROBE_BIAS * (cm + 1.0):
+            if cm is None or (self.probe_ok(key, allc) and once + eff * PROBE_BIAS < eff * PROBE_BIAS * (cm + 1.0)):
                 idxs = self.body(key, (), allc)
                 prog.append([m + "-probe", [[["shared", i]] for i in idxs], [allc.index(c) for c in mask], [args[c] for c in mask], len(allc)])
                 return 1.0, once
@@ -2814,6 +2905,182 @@ def clean_sub(p, formals):
 # ------------------------------------------------------------------ shared sub-programs (navwide)
 SUBS_AT = {"neg": (1,), "exists": (1,), "neg-memo": (1,), "exists-memo": (1,), "neg-keyed": (1,), "exists-keyed": (1,), "or": (2,), "or-keyed": (2,), "clos": (7,), "near": (3,), "nearc": (5, 6),
            "or-probe": (2,), "neg-probe": (1,), "exists-probe": (1,)}
+
+
+# ------------------------------------------------------------------ cut: common prefixes of a union's programs
+def rn_prog(p, m):
+    return [rn_ins(i, m) for i in p]
+
+
+def rn_ins(ins, m):
+    """the instruction with every register (used, defined, or internal to a sub-program) renamed by m"""
+    def f(t):
+        return m.get(t, t) if type(t) is int else t
+
+    def fl(ts):
+        return [f(t) for t in ts]
+    op = ins[0]
+    if op == "iter":
+        a = ins[3]
+        if ins[2] == "children":
+            a = f(a)
+        elif ins[2] == "bym":
+            a = [a[0], fl(a[1])]
+        elif isinstance(a, list) and len(a) == 2:
+            a = [a[0], f(a[1])]
+        return [op, ins[1], ins[2], a, f(ins[4])]
+    if op == "row":
+        return [op, ins[1], f(ins[2])]
+    if op == "read":
+        return [op, ins[1], ins[2], f(ins[3]), f(ins[4])]
+    if op == "test":
+        return [op, ins[1], f(ins[2]), f(ins[3])]
+    if op in ("axis", "sib"):
+        return [op, ins[1], f(ins[2]), f(ins[3])]
+    if op == "let":
+        return [op, f(ins[1]), f(ins[2])]
+    if op == "fn":
+        return [op, ins[1], fl(ins[2]), fl(ins[3]), ins[4]]
+    if op in ("emit", "collect"):
+        return [op, fl(ins[1])]
+    if op in ("yield", "shared"):
+        return ins
+    if op in ("neg", "exists", "neg-memo", "exists-memo"):
+        return [op, [rn_prog(q, m) for q in ins[1]]] + ins[2:]
+    if op in ("neg-keyed", "exists-keyed"):
+        return [op, [rn_prog(q, m) for q in ins[1]], fl(ins[2])] + ([fl(ins[3])] if len(ins) > 3 else [])
+    if op in ("neg-probe", "exists-probe"):
+        return [op, [rn_prog(q, m) for q in ins[1]], ins[2], fl(ins[3]), ins[4]]
+    if op == "or":
+        return [op, fl(ins[1]), [rn_prog(q, m) for q in ins[2]]] + ins[3:]
+    if op == "or-keyed":
+        return [op, fl(ins[1]), [rn_prog(q, m) for q in ins[2]], fl(ins[3])] + ([fl(ins[4])] if len(ins) > 4 else [])
+    if op == "or-probe":
+        return [op, fl(ins[1]), [rn_prog(q, m) for q in ins[2]], ins[3], fl(ins[4]), ins[5], ins[6]]
+    if op == "near":
+        return [op, f(ins[1]), f(ins[2]), [rn_prog(q, m) for q in ins[3]]]
+    if op == "clos":
+        return [op, f(ins[1]), f(ins[2]), f(ins[3]), f(ins[4]), fl(ins[5]), fl(ins[6]), [rn_prog(q, m) for q in ins[7]]]
+    if op == "nearc":
+        return [op, f(ins[1]), f(ins[2]), f(ins[3]), f(ins[4]), [rn_prog(q, m) for q in ins[5]], [rn_prog(q, m) for q in ins[6]]]
+    raise Blocked("rename-" + op)
+
+
+def ins_defs(ins):
+    """the registers an instruction writes at its own level (a closure's and a nearest walk's scratch registers included)"""
+    op = ins[0]
+    if op in ("iter", "read"):
+        return [ins[4]]
+    if op in ("axis", "sib"):
+        return [ins[3]]
+    if op == "let":
+        return [ins[2]]
+    if op == "fn":
+        return list(ins[3])
+    if op == "near":
+        return [ins[2]]
+    if op == "clos":
+        return [ins[2], ins[3], ins[4]] + list(ins[5]) + list(ins[6])
+    if op == "nearc":
+        return [ins[2], ins[3], ins[4]]
+    if op in ("or", "or-keyed", "or-probe"):
+        return list(ins[1])
+    return []
+
+
+class _Seen(dict):
+    """a rename map that records every register asked for (rn_ins as a register collector)"""
+    def get(self, k, d=None):
+        self[k] = True
+        return d
+
+
+def prog_regs(p):
+    seen = _Seen()
+    rn_prog(p, seen)
+    return set(seen)
+
+
+def reg_seq(ins):
+    """every register occurrence of the instruction (sub-programs included), in a fixed order"""
+    seq = []
+
+    class Rec(dict):
+        def get(self, k, d=None):
+            seq.append(k)
+            return d
+    rn_ins(ins, Rec())
+    return seq
+
+
+def all_defs(ins, acc):
+    """the registers the instruction writes, at its own level and inside its sub-programs"""
+    acc.update(t for t in ins_defs(ins) if type(t) is int)
+    for k in SUBS_AT.get(ins[0], ()):
+        for q in ins[k]:
+            for x in q:
+                all_defs(x, acc)
+    return acc
+
+
+def match_ins(a, b, rest_regs):
+    """the renaming of the registers b writes (its own and those inside its sub-programs) that makes it the instruction
+    a, or None; {} when they are equal. Only registers b itself writes are renamed (every earlier one already has a's
+    name, the prefix being shared), and a register of a that b's remaining program names refuses the match."""
+    if a == b:
+        return {}
+    if a[0] != b[0]:
+        return None
+    try:
+        sa, sb = reg_seq(a), reg_seq(b)
+    except Blocked:
+        return None
+    if len(sa) != len(sb):
+        return None
+    own = all_defs(b, set())
+    m = {}
+    for x, y in zip(sa, sb):
+        if x != y:
+            if y in m:
+                if m[y] != x:
+                    return None
+            elif y not in own or x in rest_regs:
+                return None
+            else:
+                m[y] = x
+    if not m or len(set(m.values())) != len(m):
+        return None
+    return m if rn_ins(b, m) == a else None
+
+
+def factor_prefix(progs, test):
+    """programs of one union (every one runs: each collects or emits its rows, or the first that holds yields) as ONE
+    program: those that start with the same instruction (up to the names of the registers it writes) share it and fork
+    after, recursively. Returns the program, and how many instructions were shared."""
+    saved = [0]
+
+    def fork(ps):
+        ps = [p for p in ps if p]
+        groups = []
+        for p in ps:
+            for g in groups:
+                m = match_ins(g[0], p[0], prog_regs(p[1:]) if p[0] != g[0] else ())
+                if m is not None:
+                    g[1].append(rn_prog(p[1:], m) if m else p[1:])
+                    saved[0] += 1
+                    break
+            else:
+                groups.append((p[0], [p[1:]]))
+        subs = []
+        for head, rests in groups:
+            if len(rests) == 1 or not all(rests):
+                subs.append([head] + rests[0])
+            else:
+                subs.append([head] + fork(rests))
+        if len(subs) == 1:
+            return subs[0]
+        return [["exists", subs]] + ([["yield"]] if test else [])
+    return fork([list(p) for p in progs]), saved[0]
 
 
 def prune_shared(nav):
