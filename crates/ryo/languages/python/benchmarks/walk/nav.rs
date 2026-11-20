@@ -159,6 +159,11 @@ pub(crate) struct FactRel {
     pub kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
     /// a made table (group count): its input's programs, the number of key columns, and whether it counts distinct values
     pub made: Option<(Vec<Prog>, Vec<usize>, Option<usize>, usize)>,
+    /// a keyed twin: its programs enumerate the input rows whose output key column `.0` equals register `.1` (set before
+    /// the run); rows are filled per key on first demand
+    pub keyed: Option<(u8, R)>,
+    /// registers its programs use (0..nregs): saved and restored around a build inside a running program
+    pub nregs: usize,
 }
 
 /// Programs merged on their shared prefixes (the alpha network): one per anchor kind set (or one for every program without a kind
@@ -310,7 +315,7 @@ impl Loader<'_> {
         }
         let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
         let model = if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
-        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None });
+        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, keyed: None, nregs: 0 });
         (self.facts.len() - 1) as u16
     }
 
@@ -594,7 +599,9 @@ impl NavProgram {
                     })
                     .collect::<Vec<CellKind>>();
                 let name = m["name"].as_str().unwrap().to_owned();
-                let key = format!("{progs:?}|{}|{}|{}|{kinds:?}", m["keys"], m["distinct"], m["width"]);
+                let keyed = m.get("param").map(|p| (m["keycol"].as_u64().unwrap() as u8, loader.reg(p)));
+                max_regs = max_regs.max(loader.regs.len());
+                let key = format!("{progs:?}|{}|{}|{}|{kinds:?}|{keyed:?}", m["keys"], m["distinct"], m["width"]);
                 if share {
                     if let Some(&i) = canon.get(&key) {
                         loader.alias.insert(name, i);
@@ -613,6 +620,8 @@ impl NavProgram {
                         m["distinct"].as_u64().map(|d| d as usize),
                         m["width"].as_u64().unwrap() as usize,
                     )),
+                    keyed,
+                    nregs: loader.regs.len(),
                 });
             }
             loader.regs = FxMap::default();
@@ -914,6 +923,12 @@ pub(crate) struct Facts {
     pub idx: FxMap<(u16, u8), Rc<FIdx>>,
 }
 
+/// A tree column bucketed by base-symbol value: value -> range of `ids` (start order).
+pub(crate) struct Csr {
+    at: FxMap<u32, (u32, u32)>,
+    ids: Vec<u32>,
+}
+
 /// A tree relation column's value index: ids sorted by (value, start, id).
 pub(crate) struct TIdx {
     vals: Vec<u32>,
@@ -968,7 +983,10 @@ pub(crate) struct FileCache {
     /// the same lists by content (relation, column, values), shared by every instruction naming that set
     pub const_by: FxMap<(u8, u8, Vec<u64>), Rc<Vec<u32>>>,
     /// per tree column: ids bucketed by base-symbol value (counting sort, each bucket in start order)
-    pub csr: FxMap<(u8, u8), Rc<(Vec<u32>, Vec<u32>)>>,
+    pub csr: FxMap<(u8, u8), Rc<Csr>>,
+    pub csr_count: Vec<u32>,
+    /// keyed twin rows per (fact, key value): the row range in the twin's columns
+    pub keyed_memo: FxMap<(u16, u64), (u32, u32)>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
     pub model_lex: bool,
@@ -1124,6 +1142,101 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
     }
 
+    /// Group count of a made table's input rows: (key values..., count) rows, flattened (keys then count).
+    fn group_rows(rows: &[u64], keys: &[usize], distinct: Option<usize>, width: usize) -> Vec<u64> {
+        let w = width.max(1);
+        let rest: Vec<usize> = match distinct {
+            Some(d) => vec![d],
+            None => (0..width).filter(|c| !keys.contains(c)).collect(),
+        };
+        assert!(keys.len() + rest.len() <= 8, "made identity wider than 8");
+        let mut ids: Vec<[u64; 8]> = rows
+            .chunks(w)
+            .map(|row| {
+                let mut x = [0u64; 8];
+                for (i, &k) in keys.iter().chain(rest.iter()).enumerate() {
+                    x[i] = row[k];
+                }
+                x
+            })
+            .collect();
+        ids.sort_unstable();
+        ids.dedup();
+        let nk = keys.len();
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < ids.len() {
+            let mut j = i + 1;
+            while j < ids.len() && ids[j][..nk] == ids[i][..nk] {
+                j += 1;
+            }
+            out.extend_from_slice(&ids[i][..nk]);
+            out.push((j - i) as u64);
+            i = j;
+        }
+        out
+    }
+
+    /// A keyed twin's rows for one key value: run its programs with the key register set, group, append; memoised per file.
+    fn keyed_rows(&mut self, rel: u16, value: u64) -> (u32, u32) {
+        if let Some(&r) = self.cache.keyed_memo.get(&(rel, value)) {
+            return r;
+        }
+        let prog = self.prog;
+        let f = &prog.facts[rel as usize];
+        let (progs, keys, distinct, width) = f.made.as_ref().unwrap();
+        let (_, param) = f.keyed.unwrap();
+        let t0 = Instant::now();
+        let made_before = self.c.made_ns;
+        let fact_before = self.c.fact_ns;
+        let steps0 = self.c.steps;
+        self.ensure_facts();
+        let slot = self.outs.len() - 1;
+        let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
+        let nr = f.nregs;
+        let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
+        self.cur_rule = slot;
+        self.regs[param as usize] = value;
+        for q in progs {
+            self.run_inner(q, 0);
+        }
+        self.regs[..nr].copy_from_slice(&saved_regs);
+        let rows = std::mem::replace(&mut self.outs[slot], saved.1);
+        self.cur_rule = saved.0;
+        let grouped = Self::group_rows(&rows, keys, *distinct, *width);
+        let nk = keys.len();
+        let facts = self.cache.facts.as_mut().unwrap();
+        let cols = &mut facts.cols[rel as usize];
+        let start = cols[nk].len() as u32;
+        for g in grouped.chunks(nk + 1) {
+            for (c, v) in g.iter().enumerate() {
+                cols[c].push(*v);
+            }
+        }
+        let end = cols[nk].len() as u32;
+        self.c.made_tables += 1;
+        self.c.made_rows += u64::from(end - start) + (rows.len() / width.max(&1)) as u64;
+        let excl = t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before) - (self.c.made_ns - made_before);
+        self.c.made_ns = made_before + t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before);
+        let e = self.c.made_by.entry(rel).or_default();
+        e.0 += 1;
+        e.1 += excl;
+        e.2 += (rows.len() / width.max(&1)) as u64;
+        e.3 += self.c.steps - steps0;
+        self.cache.keyed_memo.insert((rel, value), (start, end));
+        (start, end)
+    }
+
+    fn ensure_facts(&mut self) {
+        let prog = self.prog;
+        self.cache.facts.get_or_insert_with(|| Facts {
+            cols: prog.facts.iter().map(|f| vec![Vec::new(); f.kinds.len()]).collect(),
+            loaded: vec![false; prog.facts.len()],
+            provider_done: false,
+            idx: FxMap::default(),
+        });
+    }
+
     /// the ids whose tree column holds one of a constant set of values, in start order (one scan, memoised per file)
     fn const_list(&mut self, rel: TRel, col: u8, val: &Val) -> Rc<Vec<u32>> {
         let key = val as *const Val as usize;
@@ -1145,12 +1258,10 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         let v = self.f.view;
         let csr = self.col_csr(rel, col);
-        let (off, ids) = (&csr.0, &csr.1);
         let mut out: Vec<u32> = Vec::new();
         for &w in &wanted {
-            let w = w as usize;
-            if w + 1 < off.len() {
-                out.extend_from_slice(&ids[off[w] as usize..off[w + 1] as usize]);
+            if let Some(&(a, b)) = csr.at.get(&(w as u32)) {
+                out.extend_from_slice(&csr.ids[a as usize..b as usize]);
             }
         }
         let _ = n;
@@ -1168,7 +1279,8 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// a tree column's ids bucketed by value for base-symbol values (the pack's literals are base symbols): one counting sort
-    fn col_csr(&mut self, rel: TRel, col: u8) -> Rc<(Vec<u32>, Vec<u32>)> {
+    /// whose cost is the file's size (a reusable count array; only the values present are touched)
+    fn col_csr(&mut self, rel: TRel, col: u8) -> Rc<Csr> {
         if let Some(c) = self.cache.csr.get(&(rel as u8, col)) {
             return c.clone();
         }
@@ -1185,31 +1297,47 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
             }
         }
-        let mut off = vec![0u32; nb + 2];
+        let count = &mut self.cache.csr_count;
+        if count.len() < nb {
+            count.resize(nb, 0);
+        }
+        let mut touched: Vec<u32> = Vec::new();
         for &x in &vals {
             if (x as usize) < nb {
-                off[x as usize + 1] += 1;
+                if count[x as usize] == 0 {
+                    touched.push(x);
+                }
+                count[x as usize] += 1;
             }
         }
-        for i in 0..=nb {
-            off[i + 1] += off[i];
+        let mut at: FxMap<u32, (u32, u32)> = FxMap::default();
+        let mut pos = 0u32;
+        let mut starts: Vec<u32> = Vec::with_capacity(touched.len());
+        for &t in &touched {
+            let c = count[t as usize];
+            starts.push(pos);
+            count[t as usize] = pos;
+            pos += c;
         }
-        let mut fill = off.clone();
-        let mut ids = vec![0u32; off[nb] as usize];
+        let mut ids = vec![0u32; pos as usize];
         for (id, &x) in vals.iter().enumerate() {
             if (x as usize) < nb {
-                ids[fill[x as usize] as usize] = id as u32;
-                fill[x as usize] += 1;
+                ids[count[x as usize] as usize] = id as u32;
+                count[x as usize] += 1;
             }
+        }
+        for (k, &t) in touched.iter().enumerate() {
+            at.insert(t, (starts[k], count[t as usize]));
+            count[t as usize] = 0;
         }
         // buckets in start order (ids are pre-order nodes, then tokens)
-        for b in 0..nb {
-            let s = &mut ids[off[b] as usize..off[b + 1] as usize];
-            if s.windows(2).any(|w| v.start[w[0] as usize] > v.start[w[1] as usize]) {
-                s.sort_by_key(|&id| (v.start[id as usize], id));
+        for &(s0, e0) in at.values() {
+            let sl = &mut ids[s0 as usize..e0 as usize];
+            if sl.windows(2).any(|w| v.start[w[0] as usize] > v.start[w[1] as usize]) {
+                sl.sort_by_key(|&id| (v.start[id as usize], id));
             }
         }
-        let c = Rc::new((off, ids));
+        let c = Rc::new(Csr { at, ids });
         self.cache.csr.insert((rel as u8, col), c.clone());
         c
     }
@@ -1261,12 +1389,13 @@ impl<'a, 'p> Exec<'a, 'p> {
             let owner = self.cur_rule;
             let slot = self.outs.len() - 1;
             let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
-            let saved_regs = self.regs.clone();
+            let nr = prog.facts[rel as usize].nregs;
+            let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
             self.cur_rule = slot;
             for q in progs {
                 self.run_inner(q, 0);
             }
-            self.regs.copy_from_slice(&saved_regs);
+            self.regs[..nr].copy_from_slice(&saved_regs);
             let rows = std::mem::replace(&mut self.outs[slot], saved.1);
             let rows_len = rows.len();
             self.cur_rule = saved.0;
@@ -1727,6 +1856,17 @@ impl<'a, 'p> Exec<'a, 'p> {
                         }
                         self.regs[*out as usize] = id as u64;
                                 self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterFact { rel, col, val: Val::Reg(r), out } if self.prog.facts[*rel as usize].keyed.is_some_and(|k| k.0 == *col) => {
+                    let (a, b) = self.keyed_rows(*rel, self.regs[*r as usize]);
+                    for row in a..b {
+                        self.regs[*out as usize] = u64::from(row);
+                        self.c.visits += 1;
                         if self.run_inner(p, pc + 1) {
                             return true;
                         }

@@ -546,6 +546,14 @@ pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -
     for f in &nav.facts {
         e.s(&f.name);
         e.us(&f.kinds.iter().map(|&k| cell(k)).collect::<Vec<_>>());
+        e.u(f.nregs as u32);
+        match f.keyed {
+            None => e.u(u32::MAX),
+            Some((c, r)) => {
+                e.u(u32::from(c));
+                e.u(u32::from(r));
+            }
+        }
         match &f.made {
             None => e.u(0),
             Some((progs, keys, distinct, width)) => {
@@ -632,6 +640,9 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
     for _ in 0..n {
         let name = d.s();
         let kinds = d.us().iter().map(|&k| uncell(k)).collect::<Vec<_>>();
+        let nregs = d.u() as usize;
+        let kc = d.u();
+        let keyed = if kc == u32::MAX { None } else { Some((kc as u8, d.r())) };
         let made = if d.u() == 1 {
             let progs = d.progs().into_vec();
             let keys = d.us().iter().map(|&k| k as usize).collect();
@@ -652,7 +663,7 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
                 if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
             (model, relation)
         };
-        facts.push(FactRel { model, name, relation, kinds, made });
+        facts.push(FactRel { model, name, relation, kinds, made, keyed, nregs });
     }
     let n = d.u();
     let mut rules = Vec::new();

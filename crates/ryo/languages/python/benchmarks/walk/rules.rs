@@ -667,6 +667,7 @@ impl<'p> State<'p> {
         self.cache.const_idx.clear();
         self.cache.const_by.clear();
         self.cache.csr.clear();
+        self.cache.keyed_memo.clear();
         self.cache.sub_memo.clear();
         let nrules = nav.rules.len();
         let mut outs = std::mem::take(&mut self.outs);
