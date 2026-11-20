@@ -99,6 +99,21 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct RestSchema<'a> {
     pub(in crate::outbound::lint_store::adapters::postcard) covered: Vec<CoveredSchema<'a>>,
     /// The relations of each file read in part.
     pub(in crate::outbound::lint_store::adapters::postcard) partials: Vec<PartialSchema>,
+    /// Spike (ryo-fmx3, host3): the clean files of each bucket.
+    #[serde(borrow)]
+    pub(in crate::outbound::lint_store::adapters::postcard) clean: Vec<CleanSchema<'a>>,
+}
+
+/// Spike (ryo-fmx3, host3): one bucket's clean frame and the files clean in it: the proof as a proof row of the first file.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(in crate::outbound::lint_store::adapters::postcard) struct CleanSchema<'a> {
+    /// The frame's proof, written as the first file's proof row.
+    pub(in crate::outbound::lint_store::adapters::postcard) proof: FrontierProofSchema,
+    /// The frame's words.
+    #[serde(borrow, serialize_with = "as_bytes")]
+    pub(in crate::outbound::lint_store::adapters::postcard) words: Cow<'a, [u8]>,
+    /// The files clean in the bucket, ascending.
+    pub(in crate::outbound::lint_store::adapters::postcard) files: Vec<u32>,
 }
 
 pub(in crate::outbound::lint_store::adapters::postcard) fn rest_of<'a>(
@@ -168,6 +183,30 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn rest_of<'a>(
             proof_schema(row, place)
         })
         .collect();
+    let clean = stored
+        .clean
+        .iter()
+        .filter_map(|each| {
+            let first = *each.files.first()?;
+            let digest = each.frame.proof.rule_digest.0;
+            let place = *places.entry(digest).or_insert_with(|| {
+                digests.push(digest);
+                u32::try_from(digests.len() - 1).unwrap_or(u32::MAX)
+            });
+            Some(CleanSchema {
+                proof: proof_schema(
+                    &ryo_values::domain::stores::types::StoredFrontierProof {
+                        file: first,
+                        bucket: each.bucket,
+                        proof: each.frame.proof.clone(),
+                    },
+                    place,
+                ),
+                words: Cow::Borrowed(each.frame.words.0.as_slice()),
+                files: each.files.iter().map(|file| file.0).collect(),
+            })
+        })
+        .collect();
     RestSchema {
         observations,
         proofs,
@@ -196,6 +235,7 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn rest_of<'a>(
             .collect(),
         partials,
         strings: strings.texts,
+        clean,
     }
 }
 
@@ -242,8 +282,25 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn handed_of(
             });
         }
     }
+    let mut clean = Vec::with_capacity(rest.clean.len());
+    for each in &rest.clean {
+        let row = proof_row(&each.proof, &rest.digests)?;
+        let mut files: Vec<StoredFileNumber> = each.files.iter().map(|file| StoredFileNumber(*file)).collect();
+        files.sort_unstable();
+        files.dedup();
+        clean.push(ryo_values::domain::stores::types::StoredClean {
+            bucket: row.bucket,
+            frame: ryo_values::domain::records::types::CleanFrame {
+                proof: row.proof,
+                words: ryo_values::domain::stored_facts::types::PackedWords(each.words.to_vec()),
+            },
+            files,
+        });
+    }
+    clean.sort_by_key(|each| each.bucket);
     Ok(StoredHanded(
         ryo_values::domain::stores::types::HandedRows {
+            clean,
             proofs,
             observations: rest
                 .observations

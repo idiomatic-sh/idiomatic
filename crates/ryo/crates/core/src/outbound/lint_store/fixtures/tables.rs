@@ -242,6 +242,7 @@ pub fn stored(tag: u8) -> Stored {
 /// What the files of `stored(tag)` handed.
 fn handed(tag: u8) -> StoredHanded {
     StoredHanded(ryo_values::domain::stores::types::HandedRows {
+            clean: Vec::new(),
         observations: Vec::new(),
         proofs: vec![ryo_values::domain::stores::types::StoredFrontierProof {
             file: StoredFileNumber(0),

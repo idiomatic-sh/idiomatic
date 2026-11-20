@@ -345,7 +345,12 @@ pub fn embedded_source_at(
     elements: &Elements,
     at: Position,
 ) -> Option<ryo_relations::domain::elements::types::EmbeddedSource> {
-    holding(&engine(elements).embedded, at, |source| {
+    let embedded = &engine(elements).embedded;
+    // Spike (ryo-fmx3, host3): carriers ascend by root, so a position before the first root is held by none.
+    if embedded.first().is_none_or(|first| at < first.root) {
+        return None;
+    }
+    holding(embedded, at, |source| {
         source.root..source.end
     })
 }

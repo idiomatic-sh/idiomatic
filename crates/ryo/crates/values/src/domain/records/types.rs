@@ -110,6 +110,28 @@ pub struct Handed {
     pub governing: GoverningRules,
     /// The relations of it read in part.
     pub partials: Vec<StoredPartial>,
+    /// Spike (ryo-fmx3, host3): the buckets in which its frame holds no row and is complete, each with the bucket's one clean
+    /// frame, shared: kept as a clean file of the bucket, not as words of its own.
+    pub clean: Vec<HandedClean>,
+}
+
+/// Spike (ryo-fmx3, host3): a bucket a file hands its clean frame in.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HandedClean {
+    /// The bucket.
+    pub bucket: crate::domain::stored_facts::types::Bucket,
+    /// The bucket's clean frame, the same for every file clean in it.
+    pub frame: std::sync::Arc<CleanFrame>,
+}
+
+/// Spike (ryo-fmx3, host3): the frame of a bucket that holds no row and is complete: its proof and its words, which depend only
+/// on the rule, the input and the frame's columns, never on the file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CleanFrame {
+    /// The proof every clean frame of the bucket carries.
+    pub proof: FrontierProof,
+    /// The words, normalized as a moved frame's are.
+    pub words: crate::domain::stored_facts::types::PackedWords,
 }
 
 /// What a file's language noted of it for the project.

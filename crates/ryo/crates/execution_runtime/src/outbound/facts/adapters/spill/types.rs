@@ -1,4 +1,5 @@
 //! The types of the spill adapter: plain data, public fields and derives, with no constructor and no inherent impl.
+use ryo_values::domain::stored_facts::types::PackedWords;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -55,6 +56,20 @@ pub(crate) struct Spill {
     pub written: SpillOffset,
     /// The stretches of each bucket, in the order they were kept.
     pub stretches: BTreeMap<Bucket, Vec<SpillStretch>>,
+    /// Spike (ryo-fmx3, host3): the clean files of each bucket: its one clean frame and proof, and the files whose frame they are.
+    pub clean: BTreeMap<Bucket, CleanFiles>,
+}
+
+/// Spike (ryo-fmx3, host3): the files of a bucket whose frame holds no row and is complete, kept once: the frame's words and
+/// proof, the same for every one of them, and the files in the order they were kept.
+#[derive(Debug)]
+pub(crate) struct CleanFiles {
+    /// The words of the clean frame.
+    pub words: PackedWords,
+    /// The proof every clean frame of the bucket carries.
+    pub proof: ryo_values::domain::records::types::FrontierProof,
+    /// The files, in the order they were kept.
+    pub files: Vec<ryo_relations::domain::relations::types::FileId>,
 }
 
 /// Which worker of the adapter a spill file belongs to, in the order the workers were opened.

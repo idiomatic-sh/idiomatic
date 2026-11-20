@@ -50,6 +50,39 @@ pub(crate) fn node_outcome(
     node: Result<PlanNodeId, OperatingError>,
     step: StepId,
 ) -> RootOutcome {
+    // Spike (ryo-fmx3, host3): in a file read whole, an emitted node that holds no row answers complete and empty without
+    // its rows copied: no reader of the emitted root reads the columns of no row.
+    if let Ok(made) = &node
+        && at.evaluation.is_empty()
+        && at.publication.is_empty()
+        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietEmit)
+        && let Ok(selected) =
+            crate::application::file_dag::file_pass::service::selection::service::selected_step(
+                at.pass,
+                at.condition,
+                rule,
+                step,
+                *made,
+            )
+    {
+        let pass_program = at.pass;
+        if let Err(error) = ran_answering(&pass_program.program, selected, &mut |each| {
+            file_step(at, symbols, each)
+        }) {
+            return classify(error);
+        }
+        return match at.buffers.rows(selected) {
+            ryo_operators::domain::physical_plan::types::NodeRows::Materialized(table)
+                if table.count.0 == 0 =>
+            {
+                RootOutcome::Complete(Table::default())
+            }
+            _ => match ran_rows(&pass_program.program, &at.buffers, selected) {
+                Ok(table) => RootOutcome::Complete(table),
+                Err(error) => classify(error),
+            },
+        };
+    }
     match node_rows(at, symbols, rule, node, step) {
         Ok(NodeAnswer { table, coverage }) => match affected_files(&coverage) {
             None => RootOutcome::Complete(table),
@@ -93,6 +126,22 @@ pub(crate) fn node_rows(
         step,
         node,
     )?;
+    // Spike (ryo-fmx3, host3): a file read whole blocks no region and leaves no read partial: its node is run and its rows
+    // are complete, with no policy made per node.
+    if at.evaluation.is_empty()
+        && at.publication.is_empty()
+        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietWhole)
+    {
+        let pass_program = at.pass;
+        ran_answering(&pass_program.program, node, &mut |each| {
+            file_step(at, symbols, each)
+        })?;
+        let table = ran_rows(&pass_program.program, &at.buffers, node)?;
+        return Ok(NodeAnswer {
+            table,
+            coverage: CoverageState::Complete,
+        });
+    }
     let completion = CompletionPolicy::file_inputs(rule, at.file, at.evaluation, at.publication);
     if completion.region_admission(needs) == RegionAdmission::Blocked {
         let mut table = Table::default();

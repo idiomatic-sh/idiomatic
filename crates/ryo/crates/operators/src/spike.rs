@@ -82,6 +82,56 @@ pub fn probe_lever(name: &str) -> bool {
         .any(|off| off == name || off == "all")
 }
 
+/// Spike (ryo-fmx3, host3): a host lever, each a mechanism of host work that scales with the file, not the rule pack.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HostLever {
+    /// `roots`: a node's tree roots listed per root kind for the kinds the file holds.
+    Roots = 0,
+    /// `quiet`: a rule whose emitted and observed nodes hold no row in the file answers the shared clean outcome.
+    Quiet = 1,
+    /// `record`: a rule's recorded frontier digest reused when its words are the ones last digested.
+    Record = 2,
+    /// `facts`: provider facts produced on the first read of a relation in the file.
+    Facts = 3,
+    /// `buffers`: buffer reset proportional to the nodes touched.
+    Buffers = 4,
+    /// `startup`: startup work made cheaper or parallel.
+    Startup = 5,
+    /// `q-room`: part of `quiet`: rule records written into a room kept per worker thread.
+    QuietRoom = 6,
+    /// `q-outputs`: part of `quiet`: named outputs written into last file's room, readiness without a copy, whole files
+    /// admitted without a policy.
+    QuietOutputs = 7,
+    /// `q-frontier`: part of `quiet`: a frontier that is a named output read from the answer made in the file.
+    QuietFrontier = 8,
+    /// `q-whole`: part of `quiet`: a node of a file read whole run with no completion policy.
+    QuietWhole = 9,
+    /// `q-emit`: part of `quiet`: an empty complete emitted root withheld without a copy.
+    QuietEmit = 10,
+    /// `frames`: a rule that found nothing in a file is kept as one clean file of its buckets, not one frame per file.
+    Frames = 11,
+}
+
+/// Spike (ryo-fmx3, host3): whether host lever `lever` is on; `RYO_HOST_OFF` names the ones off (comma-separated, `roots`,
+/// `quiet`, `record`, `facts`, `buffers`, `startup`, or `all`), read once.
+pub fn host_lever(lever: HostLever) -> bool {
+    static ON: OnceLock<[bool; 12]> = OnceLock::new();
+    let on = ON.get_or_init(|| {
+        let off = std::env::var("RYO_HOST_OFF").unwrap_or_default();
+        let names = [
+            "roots", "quiet", "record", "facts", "buffers", "startup", "q-room", "q-outputs", "q-frontier", "q-whole",
+            "q-emit", "frames",
+        ];
+        let mut on = names.map(|name| !off.split(',').any(|each| each == name || each == "all"));
+        // A part of `quiet` is on only while `quiet` is.
+        for part in 6..=10 {
+            on[part] = on[part] && on[1];
+        }
+        on
+    });
+    on.get(lever as usize).copied().unwrap_or(true)
+}
+
 /// Whether the learned kill order is switched off, set once from `RYO_NO_KILLERS`.
 pub fn killers_off() -> bool {
     static OFF: OnceLock<bool> = OnceLock::new();

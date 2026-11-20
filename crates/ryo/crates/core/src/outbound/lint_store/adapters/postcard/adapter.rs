@@ -694,6 +694,7 @@ impl ReadStore for PostcardRead {
             let rest = section(&opened.file, tables.rest)
                 .map_err(|error| self.adapter.unreadable(&error))?;
             let previous = rest_from(&rest.0).ok_or_else(|| self.adapter.unreadable(&UNDECODED))?;
+            ryo_values::domain::stores::service::carry_clean(&mut stored.handed, &previous, kept);
             ryo_values::domain::stores::service::carry_proofs(&mut stored.handed, &previous, kept);
         }
         stored

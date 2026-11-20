@@ -35,6 +35,7 @@ pub fn materialized_handed(
     }
     Ok(StoredHanded(
         ryo_values::domain::stores::types::HandedRows {
+            clean: Vec::new(),
             observations: handed.observations,
             proofs: handed.proofs,
             frontier: rows,

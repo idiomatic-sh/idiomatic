@@ -14,6 +14,7 @@ pub use ryo_execution_runtime::application::file_dag::program::file_session::typ
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::Partiality;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RanRule;
+pub use ryo_execution_runtime::application::file_dag::program::file_session::service::given_back_rules;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RuleAfter;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;

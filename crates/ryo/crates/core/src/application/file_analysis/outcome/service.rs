@@ -51,6 +51,7 @@ impl FileAnalysis {
             });
         }
         let moved = moved_words(tables, number, base)?;
+        let clean = crate::domain::recording::service::clean_moved(tables, number, base)?;
         let layout = setting.program.observation_layout().0;
         let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
             (
@@ -83,11 +84,27 @@ impl FileAnalysis {
         };
         let mut flat = Flat::default();
         let in_order = ascending(&moved);
+        // Spike (ryo-fmx3, host3): buckets out of order are searched through their order by bucket, not scanned once per rule;
+        // and a rule's words digested in this worker before are not digested again.
+        let lever = ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Record);
+        let mut searched: Vec<&crate::domain::recording::types::BucketWords> = moved.iter().collect();
+        // Spike (ryo-fmx3, host3): a clean bucket is read with its moved clean frame, so each rule's digest is the one its words
+        // would make.
+        searched.extend(clean.iter().map(|(_, words)| words));
+        let in_order = in_order && clean.is_empty();
+        let searched_in_order = if lever && !in_order {
+            // A stable sort: a rule's buckets, made in input order, keep their order.
+            searched.sort_by_key(|each| each.bucket.0);
+            true
+        } else {
+            in_order
+        };
+        let searched = searched.as_slice();
         let frontier: Vec<Digest> = (0..setting.metadata.len())
             .map(|rule| {
                 frontier_flat_in(
-                    &moved,
-                    in_order,
+                    searched,
+                    searched_in_order,
                     observations,
                     slots,
                     setting,
@@ -96,6 +113,10 @@ impl FileAnalysis {
                 );
                 let digest = if flat.0.is_empty() {
                     Digest([0; 16])
+                } else if lever {
+                    crate::domain::recording::service::remembered_digest(rule, &flat, |words| {
+                        self.digest.digest_words(DigestWords(words))
+                    })
                 } else {
                     self.digest.digest_words(DigestWords(&flat.0))
                 };
@@ -109,6 +130,17 @@ impl FileAnalysis {
         let mut shown = vec![noted];
         shown.extend(frontier.iter().copied());
         let mut ran = made_ran(tables, number, self.digest.combine(&shown), moved, base);
+        if let ryo_values::domain::records::types::Handing::Made(handed) = &mut ran.handed {
+            handed.clean = tables
+                .clean
+                .iter()
+                .zip(&clean)
+                .map(|(bucket, (frame, _))| ryo_values::domain::records::types::HandedClean {
+                    bucket: *bucket,
+                    frame: std::sync::Arc::clone(frame),
+                })
+                .collect();
+        }
         ran.noted = noted;
         ran.frontier = frontier
             .iter()

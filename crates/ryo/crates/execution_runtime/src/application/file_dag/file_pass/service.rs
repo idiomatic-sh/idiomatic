@@ -98,16 +98,134 @@ pub(crate) fn file_roots(program: &ExecutableProgram) -> FileRoots {
         .max()
         .unwrap_or(0);
     let mut starts = vec![TreeStart::FromEveryNode; count];
-    for node in kinds.iter().flat_map(|root| &root.nodes) {
-        if let Some(start) = starts.get_mut(usize::try_from(node.0).unwrap_or(usize::MAX)) {
-            *start = TreeStart::FromKinds;
+    // Spike (ryo-fmx3, host3): a node of one root kind reads that kind's list, shared with every node of the kind.
+    let mut single = vec![u32::MAX; count];
+    let mut seen = vec![0_u8; count];
+    for (place, root) in kinds.iter().enumerate() {
+        for node in &root.nodes {
+            let at = usize::try_from(node.0).unwrap_or(usize::MAX);
+            if let Some(start) = starts.get_mut(at) {
+                *start = TreeStart::FromKinds;
+            }
+            if let (Some(times), Some(one)) = (seen.get_mut(at), single.get_mut(at)) {
+                *times = times.saturating_add(1);
+                *one = if *times == 1 {
+                    u32::try_from(place).unwrap_or(u32::MAX)
+                } else {
+                    u32::MAX
+                };
+            }
         }
     }
     FileRoots {
+        kind_lists: vec![Vec::new(); kinds.len()],
+        numbers: Vec::new(),
         kinds,
         starts,
         lists: vec![Vec::new(); count],
         all: Vec::new(),
+        single,
+        kinds_filled: Vec::new(),
+        nodes_filled: Vec::new(),
+        names_seen: Vec::new(),
+    }
+}
+
+/// Spike (ryo-fmx3, host3): [`fill_roots`] proportional to the file: each root kind's tree nodes listed once per file for the
+/// kinds the file holds, a node of one kind reading its kind's list, and only what the last file filled cleared; the kind
+/// numbers found once for every file that names the same kinds.
+fn fill_roots_by_kind(roots: &mut FileRoots, elements: &Elements, texts: &Texts<'_>, file: FileId) {
+    roots.all.clear();
+    roots
+        .all
+        .extend(positions(elements).map(|at| node_id(file, at)));
+    for kind in roots.kinds_filled.drain(..) {
+        if let Some(list) = roots.kind_lists.get_mut(usize::try_from(kind).unwrap_or(usize::MAX)) {
+            list.clear();
+        }
+    }
+    for node in roots.nodes_filled.drain(..) {
+        if let Some(list) = roots.lists.get_mut(usize::try_from(node).unwrap_or(usize::MAX)) {
+            list.clear();
+        }
+    }
+    let names = kind_names(elements);
+    let same = names.len() == roots.names_seen.len()
+        && names.iter().zip(&roots.names_seen).all(|(name, seen)| {
+            symbol_text(texts, *name).is_some_and(|found| found.0 == &**seen)
+        });
+    if !same {
+        roots.names_seen.clear();
+        roots.names_seen.extend(names.iter().map(|name| {
+            symbol_text(texts, *name).map_or_else(|| Box::from("\u{0}unnamed"), |found| Box::from(found.0))
+        }));
+        // A name with no text never matches a root kind, as `symbol_text` answering none never did.
+        let unnamed: Vec<bool> = names.iter().map(|name| symbol_text(texts, *name).is_none()).collect();
+        roots.numbers.clear();
+        let numbers: Vec<Option<u16>> = roots
+            .kinds
+            .iter()
+            .map(|root| {
+                roots
+                    .names_seen
+                    .iter()
+                    .zip(&unnamed)
+                    .position(|(seen, none)| !*none && **seen == *root.kind.0)
+                    .and_then(|kind| u16::try_from(kind).ok())
+            })
+            .collect();
+        roots.numbers = numbers;
+    }
+    let indexed = (0..names.len()).any(|kind| {
+        u16::try_from(kind).is_ok_and(|kind| !of_kind(elements, KindBits(kind)).is_empty())
+    });
+    for (place, root) in roots.kinds.iter().enumerate() {
+        let Some(Some(kind)) = roots.numbers.get(place).copied() else {
+            continue;
+        };
+        let Some(list) = roots.kind_lists.get_mut(place) else {
+            continue;
+        };
+        if indexed {
+            list.extend(
+                of_kind(elements, KindBits(kind))
+                    .iter()
+                    .map(|at| node_id(file, *at)),
+            );
+        } else {
+            list.extend(
+                positions(elements)
+                    .filter(|at| kind_at(elements, *at) == KindBits(kind))
+                    .map(|at| node_id(file, at)),
+            );
+        }
+        if list.is_empty() {
+            continue;
+        }
+        list.sort_unstable();
+        list.dedup();
+        roots
+            .kinds_filled
+            .push(u32::try_from(place).unwrap_or(u32::MAX));
+        // A node of several kinds holds every one of its kinds' tree nodes: within one file, tree order is node order.
+        for node in &root.nodes {
+            let at = usize::try_from(node.0).unwrap_or(usize::MAX);
+            if roots.single.get(at).is_some_and(|one| *one != u32::MAX) {
+                continue;
+            }
+            if let Some(own) = roots.lists.get_mut(at) {
+                if own.is_empty() {
+                    roots.nodes_filled.push(node.0);
+                }
+                own.extend_from_slice(list);
+            }
+        }
+    }
+    for node in &roots.nodes_filled {
+        if let Some(list) = roots.lists.get_mut(usize::try_from(*node).unwrap_or(usize::MAX)) {
+            list.sort_unstable();
+            list.dedup();
+        }
     }
 }
 
@@ -118,6 +236,9 @@ pub(crate) fn fill_roots(
     texts: &Texts<'_>,
     file: FileId,
 ) {
+    if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Roots) {
+        return fill_roots_by_kind(roots, elements, texts, file);
+    }
     roots.all.clear();
     roots
         .all
@@ -169,6 +290,18 @@ pub(crate) fn fill_roots(
 /// The tree nodes `node` starts from in the open file, in tree order.
 pub(crate) fn roots_of(roots: &FileRoots, node: PlanNodeId) -> Candidates<'_> {
     let at = usize::try_from(node.0).unwrap_or(usize::MAX);
+    // Spike (ryo-fmx3, host3): a node of one root kind reads its kind's list (empty when the file holds none of the kind).
+    if let Some(one) = roots.single.get(at)
+        && *one != u32::MAX
+        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Roots)
+    {
+        return Candidates(
+            roots
+                .kind_lists
+                .get(usize::try_from(*one).unwrap_or(usize::MAX))
+                .map_or(&[][..], Vec::as_slice),
+        );
+    }
     match (roots.starts.get(at), roots.lists.get(at)) {
         (Some(TreeStart::FromKinds), Some(list)) => Candidates(list),
         _ => Candidates(&roots.all),

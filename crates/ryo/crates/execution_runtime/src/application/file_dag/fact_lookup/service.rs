@@ -171,6 +171,15 @@ impl<'a, 's> FactLookup<'a, 's> {
     pub(crate) fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
         self.facts.keep(bucket, words)
     }
+
+    /// Spike (ryo-fmx3, host3): keeps a clean file of a bucket (`FactsWorker::keep_clean`).
+    ///
+    /// # Errors
+    ///
+    /// The storage's own failure.
+    pub(crate) fn keep_clean(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
+        self.facts.keep_clean(bucket, words)
+    }
 }
 
 /// Opens one file: every relation of `demanded` read, the active ones admitted. Any failure releases the rows written and stops

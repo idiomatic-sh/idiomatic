@@ -27,14 +27,37 @@ pub(crate) fn index(index: &mut SourceLineIndex, source: SourceLineBytes<'_>) {
 /// The one-based line of an endpoint, found in logarithmic time without rescanning the source.
 #[must_use]
 pub(crate) fn line(index: &SourceLineIndex, offset: SourceLineOffset) -> SourceLineNumber {
-    SourceLineNumber(
-        i64::try_from(index.0.partition_point(|start| *start <= offset)).unwrap_or(i64::MAX),
-    )
+    SourceLineNumber(i64::try_from(lines_through(index, offset)).unwrap_or(i64::MAX))
+}
+
+/// Spike (ryo-fmx3, host3): how many lines start at or before `offset`, as `partition_point` answers it, tried first at the
+/// line of this thread's last answer and the one after it: readers ask in source order, so the answer is mostly one of those.
+fn lines_through(index: &SourceLineIndex, offset: SourceLineOffset) -> usize {
+    thread_local! {
+        static LAST: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    }
+    let starts = &index.0;
+    let fits = |through: usize| {
+        through >= 1
+            && through <= starts.len()
+            && starts.get(through - 1).is_some_and(|start| *start <= offset)
+            && starts.get(through).is_none_or(|start| *start > offset)
+    };
+    let last = LAST.with(std::cell::Cell::get);
+    let through = if fits(last) {
+        last
+    } else if fits(last.saturating_add(1)) {
+        last.saturating_add(1)
+    } else {
+        starts.partition_point(|start| *start <= offset)
+    };
+    LAST.with(|cell| cell.set(through));
+    through
 }
 
 /// The zero-based UTF-8 byte column, including exclusive EOF endpoints.
 pub(crate) fn column(index: &SourceLineIndex, offset: SourceLineOffset) -> SourceByteColumn {
-    let line = index.0.partition_point(|start| *start <= offset);
+    let line = lines_through(index, offset);
     let start = line
         .checked_sub(1)
         .and_then(|line| index.0.get(line))

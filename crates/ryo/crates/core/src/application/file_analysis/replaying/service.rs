@@ -167,6 +167,36 @@ impl FileAnalysis {
                 }
             }
         };
+        // Spike (ryo-fmx3, host3): each bucket the file was clean in is handed its clean frame, as its own words were.
+        let mut ready = ready;
+        match &ran.handed {
+            Handing::Made(handed) => ready.buckets.extend(handed.clean.iter().map(|each| ReadyBucket {
+                bucket: each.bucket,
+                proof: &each.frame.proof,
+                held: Held::Words(&each.frame.words),
+            })),
+            Handing::Kept => {
+                if let Ok(place) = setting
+                    .stored
+                    .files
+                    .binary_search_by(|each| each.path.cmp(&record.path))
+                {
+                    let file = StoredFileNumber(u32::try_from(place).unwrap_or(u32::MAX));
+                    ready.buckets.extend(
+                        setting
+                            .handed
+                            .clean
+                            .iter()
+                            .filter(|each| each.files.binary_search(&file).is_ok())
+                            .map(|each| ReadyBucket {
+                                bucket: each.bucket,
+                                proof: &each.frame.proof,
+                                held: Held::Words(&each.frame.words),
+                            }),
+                    );
+                }
+            }
+        }
         hand_rest_again(
             &mut worker.tables,
             at,

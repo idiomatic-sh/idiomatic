@@ -22,4 +22,7 @@ pub struct CapturedFrontier {
     pub words: ryo_values::domain::stored_facts::types::PackedWords,
     /// How many rows the frontier holds: none for a file that hands the input nothing.
     pub rows: ryo_values::domain::rows::types::RowCount,
+    /// Spike (ryo-fmx3, host3): the frame holds no row and is complete: its words are the bucket's one clean frame, kept as
+    /// a clean file of the bucket, not as a frame of its own.
+    pub clean: bool,
 }
