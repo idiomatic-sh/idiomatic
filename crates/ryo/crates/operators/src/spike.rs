@@ -153,6 +153,14 @@ pub fn fanout_lookups() -> bool {
     *ON.get_or_init(|| fanout() && lazy() && std::env::var_os("RYO_NO_FANOUT_LOOKUPS").is_none())
 }
 
+/// Spike (ryo-r6ux): the folder `RYO_EXPORT` names, where an export run writes every relation the program reads for every
+/// file and the plans; none when the switch is off. Read once.
+pub fn export_dir() -> Option<&'static std::path::Path> {
+    static DIR: OnceLock<Option<std::path::PathBuf>> = OnceLock::new();
+    DIR.get_or_init(|| std::env::var_os("RYO_EXPORT").map(std::path::PathBuf::from))
+        .as_deref()
+}
+
 /// Whether the recorder is on.
 pub fn on() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
