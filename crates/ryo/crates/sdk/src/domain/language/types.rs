@@ -145,6 +145,17 @@ impl Language {
     /// Walks one file through the interface the new engine's file scan calls: what a language's own tests pin the walk it is linked
     /// with through. A language linked without one answers the walk of the language that reads nothing. Only with the `fixtures`
     /// feature, which only tests switch on: an edge hands a language to the engine through the SDK's edges.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo::languages::Language;
+    ///
+    /// /// Whether the language is linked with a walk the new engine can scan files through.
+    /// fn walks(language: &Language) -> bool {
+    ///     language.walk_engine().kind_count().0 > 0
+    /// }
+    /// ```
     #[cfg(feature = "fixtures")]
     #[must_use]
     pub fn walk_engine(&self) -> Arc<dyn WalkEngine> {
