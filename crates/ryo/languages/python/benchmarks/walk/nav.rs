@@ -1097,6 +1097,11 @@ impl<'a, 'p> Exec<'a, 'p> {
             return;
         }
         let t = Instant::now();
+        self.ensure_inner(rel, t);
+    }
+
+    fn ensure_inner(&mut self, rel: u16, t: Instant) {
+        let prog = self.prog;
         if let Some(a) = &prog.facts[rel as usize].made_asof {
             let prev = if self.c.prof.is_empty() { 0 } else { self.c.prof_switch(prog.shared.len() + 1) };
             self.asof_table(rel, a);
@@ -2172,7 +2177,10 @@ impl<'a, 'p> Exec<'a, 'p> {
         let q: &'p [Ins] = &self.prog.shared[t.entry as usize];
         self.c.subs += 1;
         let prev = if self.c.prof.is_empty() { 0 } else { self.c.prof_switch(self.prog.shared.len() + 1) };
+        // the registers are put back after the build: it runs between two steps of the waiting programs
+        let saved_regs = self.regs.clone();
         self.run_inner(q, 0);
+        self.regs = saved_regs;
         if !self.c.prof.is_empty() {
             self.c.prof_switch(prev);
         }
