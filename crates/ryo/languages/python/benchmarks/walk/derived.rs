@@ -763,8 +763,19 @@ fn rows_interpolated_string_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: u
 pub(crate) struct Shapes {
     /// class (representative id) of each node; u32::MAX when it has none
     pub class: Vec<u32>,
-    map: crate::sema::FxMap<Box<[u64]>, u32>,
+    /// hash-consing by a 128-bit fingerprint of the key words (two independent hashes; a collision would merge two classes)
+    map: crate::sema::FxMap<(u64, u64), u32>,
     words: Vec<u64>,
+    text: String,
+}
+
+pub(crate) fn fingerprint(words: &[u64]) -> (u64, u64) {
+    let (mut a, mut b) = (0x243f_6a88_85a3_08d3u64, 0x1319_8a2e_0370_7344u64);
+    for &w in words {
+        a = (a.rotate_left(5) ^ w).wrapping_mul(0x51_7c_c1_b7_27_22_0a_95);
+        b = (b ^ w.rotate_left(31)).wrapping_mul(0x9e37_79b9_7f4a_7c15).rotate_left(23);
+    }
+    (a ^ (words.len() as u64), b)
 }
 
 fn h(text: &str) -> u64 {
@@ -835,11 +846,17 @@ impl Shapes {
         match node {
             N::ExprName(n) => self.word(W_IDENT, h(n.id.as_str())),
             N::ExprStringLiteral(s) => {
-                let mut v = String::new();
-                for p in s.value.iter() {
-                    v.push_str(&p.value);
+                if s.value.is_implicit_concatenated() {
+                    let mut v = std::mem::take(&mut self.text);
+                    v.clear();
+                    for p in s.value.iter() {
+                        v.push_str(&p.value);
+                    }
+                    self.lit(&v);
+                    self.text = v;
+                } else {
+                    self.lit(s.value.to_str());
                 }
-                self.lit(&v);
             }
             N::InterpolatedStringLiteralElement(l) => self.lit(&l.value),
             N::ExprBytesLiteral(b) => {
@@ -854,16 +871,19 @@ impl Shapes {
             N::ExprNumberLiteral(n) => match &n.value {
                 ast::Number::Int(i) => {
                     self.prop("kind", "integer");
-                    self.prop("value", &i.to_string());
+                    match i.as_u64() {
+                        Some(v) => self.word(W_PROP ^ 1, v),
+                        None => self.prop("value", &i.to_string()),
+                    }
                 }
                 ast::Number::Float(f) => {
                     self.prop("kind", "float");
-                    self.prop("value", &f.to_bits().to_string());
+                    self.word(W_PROP ^ 2, f.to_bits());
                 }
                 ast::Number::Complex { real, imag } => {
                     self.prop("kind", "complex");
-                    self.prop("value", &real.to_bits().to_string());
-                    self.prop("imaginary", &imag.to_bits().to_string());
+                    self.word(W_PROP ^ 2, real.to_bits());
+                    self.word(W_PROP ^ 3, imag.to_bits());
                 }
             },
             N::ExprBooleanLiteral(b) => {
@@ -1112,13 +1132,7 @@ impl Shapes {
                 continue;
             }
             self.key(node);
-            let class = match self.map.get(self.words.as_slice()) {
-                Some(&c) => c,
-                None => {
-                    self.map.insert(self.words.clone().into_boxed_slice(), id as u32);
-                    id as u32
-                }
-            };
+            let class = *self.map.entry(fingerprint(&self.words)).or_insert(id as u32);
             self.class[id] = class;
         }
         true

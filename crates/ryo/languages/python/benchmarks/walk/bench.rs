@@ -192,6 +192,8 @@ struct Worker<'p> {
     provider: Option<ProviderState>,
     root: std::path::PathBuf,
     dstate: derived::State,
+    /// DERIVED_FILES=<dir>: per relation, the files where a loaded rule reading it may start (lazy runs); absent = not loaded
+    dfiles: Option<Vec<Option<Vec<bool>>>>,
 }
 
 struct ProviderState {
@@ -232,6 +234,22 @@ impl<'p> Worker<'p> {
             provider,
             root: std::path::PathBuf::new(),
             dstate: derived::State::default(),
+            dfiles: std::env::var("DERIVED_FILES").ok().map(|dir| {
+                derived::RELATIONS
+                    .iter()
+                    .map(|r| {
+                        std::fs::read_to_string(format!("{dir}/{r}.files")).ok().map(|text| {
+                            let mut v = vec![false; 1 << 16];
+                            for l in text.split_whitespace() {
+                                if let Ok(i) = l.parse::<usize>() {
+                                    v[i] = true;
+                                }
+                            }
+                            v
+                        })
+                    })
+                    .collect()
+            }),
         }
     }
 
@@ -300,6 +318,10 @@ impl<'p> Worker<'p> {
             });
             let n = derived::RELATIONS.len();
             self.dstate.view_file = None;
+            let wanted = match &self.dfiles {
+                Some(sets) => (0..n).fold(0u64, |m, i| if wanted & (1 << i) != 0 && sets[i].as_ref().is_some_and(|s| s[index]) { m | (1 << i) } else { m }),
+                None => wanted,
+            };
             if self.mode == "derived" {
                 let mut sink = derived::Count { counts: vec![0; n], touch: 0 };
                 for i in 0..n {
