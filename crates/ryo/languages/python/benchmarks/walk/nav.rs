@@ -11,9 +11,35 @@ use crate::view::View;
 use regex_automata::meta::Regex;
 use serde_json::Value;
 use std::rc::Rc;
-use std::time::Instant;
 
 pub(crate) type R = u16;
+
+thread_local! {
+    static CPU_CLOCK: bool = std::env::var_os("NAV_CPUCLOCK").is_some();
+}
+static EPOCH: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+
+/// The component clock (facts): the thread's own CPU time under NAV_CPUCLOCK (independent of the machine's load; a system call
+/// per read, so only the counter run uses it), the wall clock otherwise.
+#[derive(Clone, Copy)]
+pub(crate) struct Tick(u64);
+
+impl Tick {
+    pub(crate) fn now() -> Self {
+        if CPU_CLOCK.with(|c| *c) {
+            let t = rustix::time::clock_gettime(rustix::time::ClockId::ThreadCPUTime);
+            Self(t.tv_sec as u64 * 1_000_000_000 + t.tv_nsec as u64)
+        } else {
+            Self(EPOCH.get_or_init(std::time::Instant::now).elapsed().as_nanos() as u64)
+        }
+    }
+    pub(crate) fn elapsed(&self) -> std::time::Duration {
+        std::time::Duration::from_nanos(Self::now().0.saturating_sub(self.0))
+    }
+    pub(crate) fn since(&self, earlier: Tick) -> u64 {
+        self.0.saturating_sub(earlier.0)
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum TRel {
@@ -1710,7 +1736,7 @@ impl NavProgram {
             ("sink", &sink),
         ];
         for (name, f) in stages {
-            let t = Instant::now();
+            let t = Tick::now();
             let pass = |q: &mut Prog| *q = f(std::mem::take(q));
             if name == "memo" {
                 // memo specialisation reads the shared entries' free registers (entries only reference entries before them)
@@ -2586,7 +2612,33 @@ pub(crate) struct Counters {
     pub made_depth: u32,
     /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
     pub diag: bool,
+    /// facts (NAV_ACCT): what programs read of what is produced. Per fact relation, ACCT_NAMES order.
+    pub acct: bool,
+    pub rel_acct: Vec<[u64; NACCT]>,
+    /// view columns (VIEW_COLS order): reads, files with a read
+    pub view_reads: [u64; NVIEW],
+    pub view_files: [u64; NVIEW],
+    /// view ids over the run, distinct ids whose text was read (per file, summed), text reads of whole columns (index builds)
+    pub view_ids: u64,
+    pub view_tokens: u64,
+    pub text_distinct: u64,
+    /// whole-column passes over the view per (what, relation, column): 0 value buckets, 1 sorted value index
+    pub view_passes: FxMap<(u8, u8, u8), u64>,
+    /// files where a row of a model relation was read: [lexical relations, flow relations]; files where the lexical model was
+    /// built only for a derived relation's owner column
+    pub model_read_files: [u64; 2],
+    /// probes per (relation, column, 0 register key / 1 constants / 2 two constant columns) and cells read per (relation, column)
+    pub probe_cols: FxMap<(u16, u8, u8), u64>,
+    pub read_cols: FxMap<(u16, u8), u64>,
 }
+
+pub(crate) const NACCT: usize = 14;
+pub(crate) const ACCT_NAMES: [&str; NACCT] = [
+    "fills", "rows", "cells", "ns", "key_probes", "const_probes", "scans", "probes2", "rows_by_probe", "rows_by_scan", "cells_read",
+    "rows_touched", "files_probed_only", "files_scanned",
+];
+pub(crate) const NVIEW: usize = 9;
+pub(crate) const VIEW_COLS: [&str; NVIEW] = ["kind", "text", "start", "stop", "parent", "ordinal", "field", "children", "line"];
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
 #[derive(Default)]
@@ -2690,6 +2742,12 @@ pub(crate) struct FileCache {
     pub other: Vec<(u32, u32, u32)>,
     /// per file: (rule, branch) slot -> may find rows (no kind-anchored alternative has an empty bucket)
     pub enabled: Vec<bool>,
+    /// facts (NAV_ACCT): per relation the rows touched in this file (bitset) and flags (1 probed, 2 scanned); view columns read;
+    /// view ids whose text was read
+    pub acct_touched: Vec<Vec<u64>>,
+    pub acct_flags: Vec<u8>,
+    pub acct_view: [bool; NVIEW],
+    pub acct_text: Vec<u64>,
 }
 
 pub(crate) struct File<'a> {
@@ -2734,7 +2792,7 @@ fn span(s: u32, e: u32) -> u64 {
 
 impl<'a, 'p> Exec<'a, 'p> {
     pub(crate) fn build_kinds(&mut self) {
-        let t = Instant::now();
+        let t = Tick::now();
         let v = self.f.view;
         let maxk = v.kind.iter().copied().max().unwrap_or(0) as usize + 2;
         let off = &mut self.cache.kind_off;
@@ -2763,6 +2821,162 @@ impl<'a, 'p> Exec<'a, 'p> {
             return &[];
         }
         &self.cache.kind_ids[self.cache.kind_off[k] as usize..self.cache.kind_off[k + 1] as usize]
+    }
+
+    // ---- facts accounting (NAV_ACCT)
+    #[inline(never)]
+    fn acct_row(&mut self, rel: u16, row: u64, scan: bool) {
+        let r = rel as usize;
+        if self.c.rel_acct.len() < self.prog.facts.len() {
+            self.c.rel_acct.resize(self.prog.facts.len(), [0; NACCT]);
+        }
+        if self.cache.acct_touched.len() < self.prog.facts.len() {
+            self.cache.acct_touched.resize(self.prog.facts.len(), Vec::new());
+            self.cache.acct_flags.resize(self.prog.facts.len(), 0);
+        }
+        self.c.rel_acct[r][if scan { 9 } else { 8 }] += 1;
+        let t = &mut self.cache.acct_touched[r];
+        let w = (row / 64) as usize;
+        if t.len() <= w {
+            t.resize(w + 1, 0);
+        }
+        t[w] |= 1 << (row % 64);
+    }
+
+    #[inline(never)]
+    fn acct_probe(&mut self, rel: u16, what: usize) {
+        let r = rel as usize;
+        if self.c.rel_acct.len() < self.prog.facts.len() {
+            self.c.rel_acct.resize(self.prog.facts.len(), [0; NACCT]);
+        }
+        if self.cache.acct_touched.len() < self.prog.facts.len() {
+            self.cache.acct_touched.resize(self.prog.facts.len(), Vec::new());
+            self.cache.acct_flags.resize(self.prog.facts.len(), 0);
+        }
+        self.c.rel_acct[r][what] += 1;
+        self.cache.acct_flags[r] |= if what == 6 { 2 } else { 1 };
+    }
+
+    #[inline(never)]
+    fn acct_view(&mut self, col: usize, id: u64) {
+        self.c.view_reads[col] += 1;
+        self.cache.acct_view[col] = true;
+        if col == 1 {
+            let w = (id / 64) as usize;
+            if self.cache.acct_text.len() <= w {
+                self.cache.acct_text.resize(w + 1, 0);
+            }
+            self.cache.acct_text[w] |= 1 << (id % 64);
+        }
+    }
+
+    /// what one step reads of the view and of fact rows (the iterations mark their rows where they yield them)
+    #[inline(never)]
+    fn acct_ins(&mut self, i: &Ins) {
+        match i {
+            Ins::ReadCol { which, row, .. } => self.acct_view(*which as usize, self.regs[*row as usize]),
+            Ins::ReadChild { which, row, .. } => self.acct_view(4 + *which as usize, self.regs[*row as usize]),
+            Ins::Read { rel, col, row, .. } => {
+                let id = self.regs[*row as usize];
+                match (rel, col) {
+                    (TRel::Ss, 1) => self.acct_view(0, id),
+                    (TRel::Ss, 2) => self.acct_view(1, id),
+                    (TRel::Ss, 4) | (TRel::Sl, 2) | (TRel::Sl, 5) | (TRel::Sl, 6) | (TRel::Id, 3) => {
+                        self.acct_view(2, id);
+                        self.acct_view(3, id);
+                    }
+                    (TRel::Sc, 0) => self.acct_view(4, id),
+                    (TRel::Sc, 2) => self.acct_view(5, id),
+                    (TRel::Sc, 3) => self.acct_view(6, id),
+                    (TRel::Sl, 3) | (TRel::Sl, 4) | (TRel::Sl, 7) | (TRel::Sl, 8) => self.acct_view(8, id),
+                    _ => {}
+                }
+            }
+            Ins::Row { rel: TRel::Sc, key } => self.acct_view(4, self.regs[*key as usize]),
+            Ins::IterChildren { parent, .. } => self.acct_view(7, self.regs[*parent as usize]),
+            Ins::IterField { parent, .. } => {
+                self.acct_view(7, self.regs[*parent as usize]);
+                self.acct_view(6, self.regs[*parent as usize]);
+            }
+            Ins::Axis { dir, start, .. } => {
+                self.acct_view(if matches!(dir, Dir::Parent | Dir::Ancestor) { 4 } else { 7 }, self.regs[*start as usize])
+            }
+            Ins::Near { start, .. } | Ins::NearMemo { start, .. } | Ins::AncExists { start, .. } => self.acct_view(4, self.regs[*start as usize]),
+            Ins::Within { desc, .. } => self.acct_view(4, self.regs[*desc as usize]),
+            Ins::ChildToward { desc, field, .. } => {
+                self.acct_view(4, self.regs[*desc as usize]);
+                if field.is_some() {
+                    self.acct_view(6, self.regs[*desc as usize]);
+                }
+            }
+            Ins::Sibling { start, .. } => self.acct_view(7, self.regs[*start as usize]),
+            Ins::IterRange { .. } => self.acct_view(2, 0),
+            Ins::ReadFact { rel, row, col, .. } => {
+                let (rel, row) = (*rel, self.regs[*row as usize]);
+                *self.c.read_cols.entry((rel, *col)).or_default() += 1;
+                self.acct_row(rel, row, false);
+                self.c.rel_acct[rel as usize][8] -= 1;
+                self.c.rel_acct[rel as usize][10] += 1;
+            }
+            Ins::IterFact { rel, val, col, .. } => {
+                *self.c.probe_cols.entry((*rel, *col, u8::from(!matches!(val, Val::Reg(_))))).or_default() += 1;
+                self.acct_probe(*rel, if matches!(val, Val::Reg(_)) { 4 } else { 5 })
+            }
+            Ins::IterFact2 { rel, c1, c2, .. } => {
+                *self.c.probe_cols.entry((*rel, *c1, 2)).or_default() += 1;
+                *self.c.probe_cols.entry((*rel, *c2, 2)).or_default() += 1;
+                self.acct_probe(*rel, 7)
+            }
+            Ins::IterFactScan { rel, .. } => self.acct_probe(*rel, 6),
+            _ => {}
+        }
+    }
+
+    /// end of a file: the per-file marks into the run's counters
+    pub(crate) fn acct_file_end(&mut self) {
+        let prog = self.prog;
+        self.c.view_ids += self.f.view.len() as u64;
+        self.c.view_tokens += (self.f.view.len() - self.f.view.n_nodes) as u64;
+        for (k, f) in self.cache.acct_view.iter_mut().enumerate() {
+            self.c.view_files[k] += u64::from(*f);
+            *f = false;
+        }
+        self.c.text_distinct += self.cache.acct_text.iter().map(|w| u64::from(w.count_ones())).sum::<u64>();
+        self.cache.acct_text.clear();
+        let mut model = [false; 2];
+        for r in 0..self.cache.acct_touched.len() {
+            let n: u64 = self.cache.acct_touched[r].iter().map(|w| u64::from(w.count_ones())).sum();
+            self.cache.acct_touched[r].clear();
+            let flags = std::mem::take(&mut self.cache.acct_flags[r]);
+            let a = &mut self.c.rel_acct[r];
+            a[11] += n;
+            a[12] += u64::from(flags == 1);
+            a[13] += u64::from(flags & 2 != 0);
+            if let Some(mi) = prog.facts[r].model {
+                if n > 0 || flags != 0 {
+                    model[usize::from(mi >= 6)] = true;
+                }
+            }
+        }
+        self.c.model_read_files[0] += u64::from(model[0]);
+        self.c.model_read_files[1] += u64::from(model[1]);
+    }
+
+    /// a whole-relation fill, for the accounting: rows, cells and time
+    fn acct_fill(&mut self, rel: u16, ns: u64) {
+        if !self.c.acct {
+            return;
+        }
+        if self.c.rel_acct.len() < self.prog.facts.len() {
+            self.c.rel_acct.resize(self.prog.facts.len(), [0; NACCT]);
+        }
+        let cols = &self.cache.facts.as_ref().unwrap().cols[rel as usize];
+        let rows = cols.first().map_or(0, Vec::len) as u64;
+        let a = &mut self.c.rel_acct[rel as usize];
+        a[0] += 1;
+        a[1] += rows;
+        a[2] += rows * cols.len() as u64;
+        a[3] += ns;
     }
 
     fn ident(&mut self, id: u32) -> u32 {
@@ -2973,7 +3187,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         let f = &prog.facts[rel as usize];
         let (progs, keys, distinct, width) = f.made.as_ref().unwrap();
         let (_, param) = f.keyed.unwrap();
-        let t0 = Instant::now();
+        let t0 = Tick::now();
         let made_before = self.c.made_ns;
         let fact_before = self.c.fact_ns;
         let steps0 = self.c.steps;
@@ -3035,7 +3249,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(l) = self.cache.const_idx.get(&key) {
             return l.clone();
         }
-        let t0 = Instant::now();
+        let t0 = Tick::now();
         self.c.const_misses += 1;
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
         let wanted: Vec<u64> = match val {
@@ -3101,8 +3315,11 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(c) = self.cache.csr.get(&(rel as u8, col)) {
             return c.clone();
         }
-        let t_csr = Instant::now();
+        let t_csr = Tick::now();
         self.c.csr_builds += 1;
+        if self.c.acct {
+            *self.c.view_passes.entry((0, rel as u8, col)).or_default() += 1;
+        }
         let nb = self.sym.base_count();
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
         let v = self.f.view;
@@ -3162,7 +3379,10 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = self.cache.tree_idx.get(&key) {
             return i.clone();
         }
-        let t0 = Instant::now();
+        let t0 = Tick::now();
+        if self.c.acct {
+            *self.c.view_passes.entry((1, rel as u8, col)).or_default() += 1;
+        }
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
         let mut pairs: Vec<(u64, u32)> = Vec::with_capacity(n);
         for id in 0..n as u32 {
@@ -3193,7 +3413,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if facts.loaded[rel as usize] {
             return;
         }
-        let t = Instant::now();
+        let t = Tick::now();
         if let Some(om) = &prog.facts[rel as usize].made_om {
             self.ordered_match(rel, om);
             self.c.fact_ns += t.elapsed().as_nanos() as u64;
@@ -3201,7 +3421,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         if let Some((progs, keys, distinct, width)) = &prog.facts[rel as usize].made {
             let nkeys = &keys.len();
-            let made_t0 = Instant::now();
+            let made_t0 = Tick::now();
             self.c.made_depth += 1;
             let made_before = self.c.made_ns;
             let fact_before = self.c.fact_ns;
@@ -3279,7 +3499,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         match prog.facts[rel as usize].model {
             Some(mi) => {
                 if !self.cache.model_lex {
-                    let t = Instant::now();
+                    let t = Tick::now();
                     self.model.build_lexical(self.f.table, self.f.incomplete);
                     self.model.resolve_loads(self.f.table);
                     self.cache.model_lex = true;
@@ -3287,14 +3507,14 @@ impl<'a, 'p> Exec<'a, 'p> {
                     self.c.model_files += 1;
                 }
                 if mi >= 6 && !self.cache.model_flow {
-                    let t = Instant::now();
+                    let t = Tick::now();
                     self.model.build_flow(self.f.table);
                     self.model.build_resolution(self.f.table);
                     self.cache.model_flow = true;
                     self.c.model_flow_ns += t.elapsed().as_nanos() as u64;
                     self.c.flow_files += 1;
                 }
-                let t = Instant::now();
+                let t = Tick::now();
                 let facts = self.cache.facts.as_mut().unwrap();
                 let mut cols = std::mem::take(&mut facts.cols[rel as usize]);
                 crate::semrows::produce(self.model, self.f.table, mi, self.sym, &mut cols, &mut self.scratch);
@@ -3302,7 +3522,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                 let facts = self.cache.facts.as_mut().unwrap();
                 facts.cols[rel as usize] = cols;
                 facts.loaded[rel as usize] = true;
-                self.c.model_rows_ns += t.elapsed().as_nanos() as u64;
+                let ns = t.elapsed().as_nanos() as u64;
+                self.c.model_rows_ns += ns;
+                self.acct_fill(rel, ns);
             }
             None if !PROVIDER_ALL.with(|p| *p)
                 && (crate::derived::index_of(&prog.facts[rel as usize].name).is_some() || prog.facts[rel as usize].name.starts_with("filesystem.")) =>
@@ -3345,7 +3567,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         }
         let bytes = self.f.source.as_bytes();
-        let t = Instant::now();
+        let t = Tick::now();
         clear_symbols(&mut p.symbols);
         let request = ParseRequest {
             path: ryo_language::domain::files::types::SourcePath(self.f.path),
@@ -3436,7 +3658,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = self.cache.fact2.get(&(rel, c1, c2)) {
             return i.clone();
         }
-        let t0 = Instant::now();
+        let t0 = Tick::now();
         let facts = self.cache.facts.as_ref().unwrap();
         let (a, b) = (&facts.cols[rel as usize][c1 as usize], &facts.cols[rel as usize][c2 as usize]);
         let mut m: FxMap<(u64, u64), Vec<u32>> = FxMap::default();
@@ -3460,7 +3682,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = facts.idx.get(&(rel, col)) {
             return i.clone();
         }
-        let t0 = Instant::now();
+        let t0 = Tick::now();
         let c = &facts.cols[rel as usize][col as usize];
         let idx = if dense {
             let mut head = vec![u32::MAX; n_view + 1];
@@ -3562,7 +3784,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
     }
 
-    fn iter_fact_list(&mut self, p: &'p [Ins], pc: usize, idx: &FIdx, keys: &[u64], out: R) -> bool {
+    fn iter_fact_list(&mut self, p: &'p [Ins], pc: usize, rel: u16, idx: &FIdx, keys: &[u64], out: R) -> bool {
         for &k in keys {
             match idx {
                 FIdx::Dense { head, next } => {
@@ -3573,6 +3795,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                     while row != u32::MAX {
                         self.regs[out as usize] = row as u64;
                         self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(rel, u64::from(row), false);
+                        }
                         if self.run_inner(p, pc + 1) {
                             return true;
                         }
@@ -3584,6 +3809,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                         for &row in list {
                             self.regs[out as usize] = row as u64;
                             self.c.visits += 1;
+                            if self.c.acct {
+                                self.acct_row(rel, u64::from(row), false);
+                            }
                             if self.run_inner(p, pc + 1) {
                                 return true;
                             }
@@ -3754,6 +3982,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                 if let Some(prof) = self.c.prof.as_mut() {
                     *prof.entry(&p[pc] as *const Ins as usize).or_default() += 1;
                 }
+                if self.c.acct {
+                    self.acct_ins(&p[pc]);
+                }
             }
             match &p[pc] {
                 Ins::ReadCol { which, row, out } => {
@@ -3918,6 +4149,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for row in a..b {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(*rel, u64::from(row), false);
+                        }
                         if self.run_inner(p, pc + 1) {
                             return true;
                         }
@@ -3939,15 +4173,15 @@ impl<'a, 'p> Exec<'a, 'p> {
                         Val::Syms(s) => {
                             one = [0];
                             let _ = one;
-                            return self.iter_fact_list(p, pc, &idx, &s.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
+                            return self.iter_fact_list(p, pc, *rel, &idx, &s.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
                         }
                         Val::Nums(n) => {
                             one = [0];
                             let _ = one;
-                            return self.iter_fact_list(p, pc, &idx, &n.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
+                            return self.iter_fact_list(p, pc, *rel, &idx, &n.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
                         }
                     };
-                    return self.iter_fact_list(p, pc, &idx, keys, *out);
+                    return self.iter_fact_list(p, pc, *rel, &idx, keys, *out);
                 }
                 Ins::IterFact2 { rel, c1, v1, c2, v2, out } => {
                     let idx = self.fact_index2(*rel, *c1, *c2);
@@ -3955,6 +4189,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for &row in rows {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(*rel, u64::from(row), false);
+                        }
                         if self.run_inner(p, pc + 1) {
                             return true;
                         }
@@ -3966,7 +4203,10 @@ impl<'a, 'p> Exec<'a, 'p> {
                     let n = self.cache.facts.as_ref().unwrap().cols[*rel as usize].first().map_or(0, Vec::len);
                     for row in 0..n {
                         self.regs[*out as usize] = row as u64;
-                                self.c.visits += 1;
+                        self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(*rel, row as u64, true);
+                        }
                         if self.run_inner(p, pc + 1) {
                             return true;
                         }
@@ -4798,19 +5038,21 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// navwide: one derived relation (and the relation computed in the same pass) from derived.rs's rows form over the node
     /// table, decoded into the view's ids and the run's text codes
     fn load_derived(&mut self, rel: u16) {
-        let t = Instant::now();
+        let t = Tick::now();
         let rows0 = self.c.fact_rows;
         self.load_derived_inner(rel);
+        let ns = t.elapsed().as_nanos() as u64;
         let e = self.c.derived_by.entry(rel).or_default();
         e.0 += 1;
-        e.1 += t.elapsed().as_nanos() as u64;
+        e.1 += ns;
         e.2 += self.c.fact_rows - rows0;
+        self.acct_fill(rel, ns);
     }
 
     fn load_derived_inner(&mut self, rel: u16) {
-        let t = Instant::now();
+        let t = Tick::now();
         if !self.cache.model_lex {
-            let t = Instant::now();
+            let t = Tick::now();
             self.model.build_lexical(self.f.table, self.f.incomplete);
             self.model.resolve_loads(self.f.table);
             self.cache.model_lex = true;
@@ -4883,6 +5125,9 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.fact_rows += cols.first().map_or(0, Vec::len) as u64;
             facts.cols[*r as usize] = cols;
             facts.loaded[*r as usize] = true;
+        }
+        for (_, r) in targets.iter().skip(1) {
+            self.acct_fill(*r, 0);
         }
         self.c.derived_files += 1;
         self.c.derived_ns += t.elapsed().as_nanos() as u64;

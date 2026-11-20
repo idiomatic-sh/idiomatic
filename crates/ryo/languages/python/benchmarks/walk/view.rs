@@ -29,6 +29,8 @@ pub(crate) struct View {
     leaves: Vec<(Option<TokenKind>, u32, u32)>,
     counter: Vec<u32>,
     stack: Vec<u32>,
+    /// facts: build time by part over the run: leaves, node columns and fields, token loop, children, lines
+    pub split_ns: [u64; 5],
 }
 
 pub(crate) fn node_kind_name(node: AnyNodeRef<'_>) -> &'static str {
@@ -547,6 +549,7 @@ impl View {
     ) {
         let n = table.len();
         let tokens = parsed.tokens();
+        let tk0 = crate::nav::Tick::now();
         // the leaves of the lossless tree: the parser's tokens and a `whitespace` leaf for every gap between them
         self.leaves.clear();
         let mut prev = 0u32;
@@ -563,6 +566,8 @@ impl View {
         }
         let total = n + self.leaves.len();
         self.n_nodes = n;
+        let tk1 = crate::nav::Tick::now();
+        self.split_ns[0] += tk1.since(tk0);
         for v in [&mut self.kind, &mut self.text, &mut self.start, &mut self.stop, &mut self.parent, &mut self.field, &mut self.ordinal] {
             v.clear();
             v.resize(total, 0);
@@ -621,6 +626,8 @@ impl View {
                 }
             }
         }
+        let tk2 = crate::nav::Tick::now();
+        self.split_ns[1] += tk2.since(tk1);
         // tokens: parent = deepest node containing it, merged in source order; ordinals over nodes and tokens together
         self.counter.clear();
         self.counter.resize(total, 0);
@@ -736,6 +743,8 @@ impl View {
             ordinal_node(self, next_node);
             next_node += 1;
         }
+        let tk3 = crate::nav::Tick::now();
+        self.split_ns[2] += tk3.since(tk2);
         // children CSR in ordinal order (nodes and tokens merged)
         self.child_off.clear();
         self.child_off.resize(total + 1, 0);
@@ -759,6 +768,8 @@ impl View {
                 }
             }
         }
+        let tk4 = crate::nav::Tick::now();
+        self.split_ns[3] += tk4.since(tk3);
         // line starts
         self.lines.clear();
         self.lines.push(0);
@@ -767,6 +778,7 @@ impl View {
                 self.lines.push(i as u32 + 1);
             }
         }
+        self.split_ns[4] += crate::nav::Tick::now().since(tk4);
     }
 
     fn kind_is_kwonly(&self, role: u32, sym: &Symbols) -> bool {
