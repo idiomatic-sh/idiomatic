@@ -55,6 +55,7 @@ fn subject((scope, name): Input) -> Value {
         semantic: RefCell::default(),
         binding_analysis: RefCell::default(),
         binding_resolution: RefCell::default(),
+        lookup_scope: RefCell::default(),
         scratch: RefCell::default(),
         declared: RefCell::new(vec![
             ScopeDeclaration {

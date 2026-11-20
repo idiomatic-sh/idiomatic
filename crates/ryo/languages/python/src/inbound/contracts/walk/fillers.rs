@@ -124,6 +124,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         flow_edge: FlowEdge => NotYetRead;
         flow_member: FlowMember => NotYetRead;
         flow_step: FlowStep => NotYetRead;
+        lookup_scope: LookupScope => NotYetRead;
         manifest_diagnostic: ManifestDiagnostic => NotYetRead;
         mapping: Mapping => NotAKeyedDocument;
         mention: Mention => NoSuchConstruct;

@@ -67,6 +67,9 @@ pub(crate) mod binding_analysis;
 /// Spike (ryo-fmx3): schedule-order name resolution over the binding analysis.
 pub(crate) mod binding_resolution;
 
+/// The lookup path of each read or deletion: the namespaces its name is looked up in.
+pub(crate) mod lookup_path;
+
 /// Explicit uncertainty for repeated and exceptional namespace effects.
 pub(crate) mod binding_uncertainty;
 /// Lazy brace-format parsing, separate from percent-format parsing.
