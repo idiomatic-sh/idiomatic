@@ -561,6 +561,11 @@ fn words_any(side: KeyedSide<'_>, rows: &mut KeyedRows) -> Result<bool, Portable
     }
 }
 
+thread_local! {
+    /// Spike (ryo-jenl): each row's word of the index being built, one per worker, its room kept between builds.
+    static WORDS: std::cell::RefCell<Vec<u64>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
 /// Spike (ryo-jenl): `cells_read` for a key that is one word (`KeyWords`): each key hashed by its word's exact hash and
 /// compared by that hash alone, no row read back. Answers `false`, its rows to be keyed cell by cell, when a row's cell is
 /// not of its column's declared kind or a two-column key's node is in another file than the first key's.
@@ -577,12 +582,13 @@ fn words_read(
 ) -> Result<bool, PortableOperatorFault> {
     cleared(rows, count);
     let mut words = words;
-    let mut scratch = std::mem::take(&mut rows.scratch);
+    // The words are read once per build into the worker's one scratch, never an index's own room.
+    let mut scratch = WORDS.with(|words| std::mem::take(&mut *words.borrow_mut()));
     scratch.clear();
     let (mut low, mut high) = (u64::MAX, 0u64);
     for at in 0..count.0 {
         let Some(word) = word_read(&mut words, on, RowIndex(at), cell, true)? else {
-            rows.scratch = scratch;
+            WORDS.with(|words| *words.borrow_mut() = scratch);
             return Ok(false);
         };
         low = low.min(word);
@@ -626,10 +632,7 @@ fn words_read(
             insert(rows, hash, row, |run| hashed(run, hash));
         }
     }
-    // The words are read once per build: a build past the kept room gives its scratch back rather than hold it.
-    if scratch.capacity() <= crate::domain::kept_room::constants::KEPT_ROOM {
-        rows.scratch = scratch;
-    }
+    WORDS.with(|words| *words.borrow_mut() = scratch);
     rows.words = words;
     if crate::spike::keystats() {
         crate::spike::key_rows(6, usize::from(rows.census), count.0 as u64);

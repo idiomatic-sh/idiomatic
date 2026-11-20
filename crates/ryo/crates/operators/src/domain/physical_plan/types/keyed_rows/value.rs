@@ -24,8 +24,6 @@ pub(crate) struct KeyedRows {
     pub(crate) runs: Vec<KeyedRun>,
     /// Spike (ryo-jenl): the smallest word of a position-addressed index.
     pub(crate) base: u64,
-    /// Spike (ryo-jenl): each row's word, read once while the index is built.
-    pub(crate) scratch: Vec<u64>,
 }
 
 /// Spike (ryo-jenl): a slot of no key.
@@ -101,7 +99,6 @@ impl KeyedRows {
             slots: Vec::new(),
             runs: Vec::new(),
             base: 0,
-            scratch: Vec::new(),
         }
     }
 
@@ -143,7 +140,6 @@ impl crate::domain::kept_room::types::KeptRoom for KeyedRows {
         self.next.kept();
         self.slots.kept();
         self.runs.kept();
-        self.scratch.kept();
     }
 
     #[cfg(test)]
@@ -158,9 +154,8 @@ impl crate::domain::kept_room::types::Poolable for KeyedRows {
         use crate::domain::kept_room::constants::KEPT_ROOM;
         if self.keys.capacity() <= KEPT_ROOM
             && self.next.capacity() <= KEPT_ROOM
-            && self.slots.capacity() <= 4 * KEPT_ROOM
+            && self.slots.capacity() <= KEPT_ROOM
             && self.runs.capacity() <= KEPT_ROOM
-            && self.scratch.capacity() <= KEPT_ROOM
         {
             crate::domain::kept_room::types::RoomFit::Fits
         } else {
