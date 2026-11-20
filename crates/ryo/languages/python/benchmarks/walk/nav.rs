@@ -307,6 +307,10 @@ struct Loader<'a> {
     /// share: the pack's registers. A variable is one register in every rule that names it (a shared entry's formals and
     /// its own variables are the same for every caller); it was one numbering per rule
     regs: &'a mut FxMap<i64, R>,
+    /// share: while a rule's own programs load: the registers of the variables no shared entry or made table names.
+    /// Only that rule's programs read them, so every rule numbers them from the same place (after the pack's): the
+    /// rules' own registers overlap, as they did when each rule had its own numbering
+    own: Option<(&'a mut FxMap<i64, R>, usize)>,
     kinds: &'a serde_json::Map<String, Value>,
     facts: &'a mut Vec<FactRel>,
     regexes: &'a mut Vec<Regex>,
@@ -390,6 +394,13 @@ pub(crate) fn glob_to_regex(glob: &str) -> String {
 impl Loader<'_> {
     fn reg(&mut self, v: &Value) -> R {
         let k = v.as_i64().expect("var");
+        if let Some((own, base)) = self.own.as_mut() {
+            if let Some(&r) = self.regs.get(&k) {
+                return r;
+            }
+            let n = R::try_from(*base + own.len()).expect("more registers than a register index holds");
+            return *own.entry(k).or_insert(n);
+        }
         let n = self.regs.len();
         let n = if self.wrap16 { (n & 0xffff) as R } else { R::try_from(n).expect("more registers than a register index holds") };
         let r = *self.regs.entry(k).or_insert(n);
@@ -822,6 +833,8 @@ pub(crate) struct NavBuilder {
     shared: Vec<Prog>,
     out: Vec<NavRule>,
     regs: FxMap<i64, R>,
+    own_regs: FxMap<i64, R>,
+    max_own: usize,
     kinds: serde_json::Map<String, Value>,
     keyed: Vec<(u16, Box<[u8]>)>,
     table_slots: Vec<(u32, Box<[u8]>, Box<[u8]>)>,
@@ -838,6 +851,7 @@ impl NavBuilder {
         Loader {
             sym,
             regs: &mut self.regs,
+            own: None,
             kinds: &self.kinds,
             facts: &mut self.facts,
             regexes: &mut self.regexes,
@@ -978,7 +992,11 @@ impl NavBuilder {
 
     pub(crate) fn rule(&mut self, r: &Value, sym: &mut Symbols) {
         let nav = &r["nav"];
+        let mut own = std::mem::take(&mut self.own_regs);
+        own.clear();
+        let base = self.regs.len();
         let mut loader = self.loader(sym);
+        loader.own = Some((&mut own, base));
         let programs: Vec<Vec<Alt>> = nav["programs"]
             .as_array()
             .unwrap()
@@ -1007,6 +1025,8 @@ impl NavBuilder {
             })
             .collect();
         drop(loader);
+        self.max_own = self.max_own.max(own.len());
+        self.own_regs = own;
         self.named = Named::default();
         self.out.push(NavRule {
             id: r["id"].as_str().unwrap().to_owned(),
@@ -1018,11 +1038,11 @@ impl NavBuilder {
     }
 
     pub(crate) fn finish(self) -> NavProgram {
-        let NavBuilder { facts, regexes, regex_of: _, shared, out, regs, kinds: _, keyed, table_slots, need_slots, named: _, entry_named, fact_named, ins_seq } = self;
+        let NavBuilder { facts, regexes, regex_of: _, shared, out, regs, own_regs: _, max_own, kinds: _, keyed, table_slots, need_slots, named: _, entry_named, fact_named, ins_seq } = self;
         if let Some(q) = &ins_seq {
             eprintln!("{{\"navload\":{{\"instructions\":{},\"checksum\":{}}}}}", q.next, q.checksum);
         }
-        let max_regs = regs.len();
+        let max_regs = regs.len() + max_own;
         // share: per definition table, the registers its build can write: those its entry names and those of every shared
         // entry and made table it reaches
         let mut table_regs: FxMap<u32, Box<[R]>> = FxMap::default();
@@ -1050,8 +1070,9 @@ impl NavBuilder {
         }
         if std::env::var_os("NAV_LOAD_LOG").is_some() {
             eprintln!(
-                "L\tregisters={}\tshared={}\ttables={}\ttable_regs={}\tlargest={}",
+                "L\tregisters={}\tof which the largest rule's own={}\tshared={}\ttables={}\ttable_regs={}\tlargest={}",
                 max_regs,
+                max_own,
                 shared.len(),
                 table_regs.len(),
                 table_regs.values().map(|r| r.len()).sum::<usize>(),
@@ -1866,7 +1887,8 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.steps += 1;
             if let Some(seq) = &self.prog.ins_seq {
                 // share (diagnostic, NAV_INS_PROF): the step is this instruction's
-                if let Some(&i) = seq.get(&(std::ptr::from_ref(&p[pc]) as usize)) {
+                // (a program stopped by a table build's bound may be entered past its end: the check below returns first)
+                if let Some(&i) = p.get(pc).and_then(|ins| seq.get(&(std::ptr::from_ref(ins) as usize))) {
                     let i = i as usize;
                     if self.c.ins_steps.len() <= i {
                         let n = seq.len();

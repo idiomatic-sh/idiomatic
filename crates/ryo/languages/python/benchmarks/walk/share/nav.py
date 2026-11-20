@@ -248,10 +248,12 @@ class Lowerer:
         # keyed by a definition (its branches, formals, programs per binding pattern, costs, whether it is a table) and
         # every made table is kept across rules; what is a rule's own is set by `begin`
         self.made_all, self.made_by_node, self.nmade, self.serial = {}, {}, 0, 0
-        # share (diagnostic): the compiler's merged node a variable stands for a column of: the node of the plan step being
-        # flattened when it was minted (a copy keeps its original's; a definition's formals and a call's outputs are the
-        # definition's node). A profile charges each executed instruction to the node of the variable it binds or tests.
-        self.origin, self.cur, self.own_node = {}, None, {}
+        # share (diagnostic): where a variable comes from in the compiler's merged program: the chain of plan steps being
+        # flattened when it was minted, innermost last (`paths`: [parent path, merged node]; a copy keeps its original's
+        # chain; a definition's formals and a call's outputs are the definition's node alone). A profile charges each
+        # executed instruction to the innermost node of the variable it binds or tests, and to the largest sub-plan
+        # around it that several rules own.
+        self.origin, self.cur, self.own_node, self.paths = {}, None, {}, []
         self.body_serial, self.reused, self.planned, self.body_depth, self.body_cpu = {}, set(), 0, 0, 0.0
 
     def begin(self, rid, steps, step_nodes):
@@ -316,7 +318,7 @@ class Lowerer:
         return f"made:{self.nmade}"
 
     def made_done(self, op, s, name):
-        self.made[-1]["node"] = self.step_nodes[s]
+        self.made[-1]["plan_node"] = self.step_nodes[s]  # (diagnostic; "node" is a column of an as-of table)
         self.made_all[name] = self.made[-1]
         self.made_by_node[(op, self.step_nodes[s])] = name
 
@@ -393,11 +395,19 @@ class Lowerer:
 
     # ---- flatten
     def flat(self, s):
-        saved, self.cur = self.cur, self.step_nodes[s]
+        saved = self.cur
+        self.paths.append((-1 if saved is None else saved, self.step_nodes[s]))
+        self.cur = len(self.paths) - 1
         try:
             return self.flat1(s)
         finally:
             self.cur = saved
+
+    def root_path(self, node):
+        if node is None:
+            return None
+        self.paths.append((-1, node))
+        return len(self.paths) - 1
 
     def flat1(self, s):
         st = self.steps[s]
@@ -889,7 +899,8 @@ class Lowerer:
             self.defs[key] = bs
         body = self.defs[key]
         outs = []
-        saved, self.cur = self.cur, self.key_node(key) or self.cur
+        saved = self.cur
+        self.cur = self.root_path(self.key_node(key)) if self.key_node(key) is not None else self.cur
         for t in (body[0].out if body else []):
             outs.append(t if not is_var(t) and t[0] == "f" else self.fresh(self.tkind(t)))
         self.cur = saved
@@ -1068,7 +1079,7 @@ class Lowerer:
         the definition's sub-program reads them"""
         if key not in self.formal:
             body = self.defs[key]
-            saved, self.cur = self.cur, self.key_node(key)
+            saved, self.cur = self.cur, self.root_path(self.key_node(key))
             self.formal[key] = [self.fresh(self.tkind(t)) for t in (body[0].out if body else [])]
             self.cur = saved
         return self.formal[key]
@@ -1185,7 +1196,22 @@ class Lowerer:
             raise Blocked("program-size")
         return idxs
 
-    def rename(self, b):
+    def rebase(self, p, root, memo):
+        """share (diagnostic): the chain of a copy of a variable: THIS use's chain, then the original's from the copied step
+        (`root`, a merged node) down; None when the original was not minted under that step"""
+        if p == -1:
+            return None
+        if p not in memo:
+            parent, n = self.paths[p]
+            up = (-1 if self.cur is None else self.cur) if n == root else self.rebase(parent, root, memo)
+            if up is None:
+                memo[p] = None
+            else:
+                self.paths.append((up, n))
+                memo[p] = len(self.paths) - 1
+        return memo[p]
+
+    def rename(self, b, root=None):
         """fresh variables for the branch's own (top-level) variables; variables internal to a sub-branch keep their ids
         (a sub-program runs to completion before its enclosing program goes on, so two copies never hold them at once)"""
         vs = set()
@@ -1196,9 +1222,11 @@ class Lowerer:
             if s[0] == "nearc":
                 vs.update(t for t in [s[3], s[4]] if is_var(t))
         m = {v: self.fresh(self.kind[v]) for v in vs}
+        memo = {}
         for v, n in m.items():
             if v in self.origin:
-                self.origin[n] = self.origin[v]
+                q = self.rebase(self.origin[v], root, memo) if root is not None else None
+                self.origin[n] = self.origin[v] if q is None else q
         return self.subst(b.copy(), m)
 
     def rename_deep(self, b):
@@ -1256,7 +1284,7 @@ class Lowerer:
                     # lower: a step read several times whose flattening exceeds the bounds is ONE definition; every use is
                     # a call of it (never a copy)
                     return [self.cut(T, self.ck("step", s))]
-                bs = [self.rename(b) for b in T]
+                bs = [self.rename(b, self.step_nodes[s]) for b in T]
             if (JOIN_ITEM_CUT or len(bs) > UNION_CAP) and self.too_big(bs):
                 if BRANCH_CUT and 1 < len(bs) <= UNION_CAP and self.uses_of.get(s, 0) <= 1:
                     return [self.cut([b], self.ck("step", s, i)) if b.size() > ITEM_CAP else b for i, b in enumerate(bs) if b is not None]
@@ -2933,7 +2961,8 @@ def main():
     low = PACK[0]
     lowering = time.process_time() - c0
     pack = dict(kinds={str(k): v for k, v in low.kind.items()}, made=list(low.made_all.values()), shared=low.shared,
-                shared_meta=low.shared_meta, rules=out_rules, origin={str(k): v for k, v in low.origin.items()}) if low else \
+                shared_meta=low.shared_meta, rules=out_rules, origin={str(k): v for k, v in low.origin.items()},
+                paths=low.paths) if low else \
         dict(kinds={}, made=[], shared=[], shared_meta=[], rules=out_rules)
     before = (len(pack["shared"]), len(pack["made"]))
     pack = link(pack)
@@ -3543,7 +3572,7 @@ def link(pack, ids=None):
     out_shared = [tr(table[old]) for old in sorted(keep)]  # (before the kinds: it names registers too)
     return dict(kinds={k: v for k, v in pack["kinds"].items() if k in used}, made=out_made, shared=out_shared,
                 shared_meta=[meta[old] if old < len(meta) else [None, [], None, "sub"] for old in sorted(keep)], rules=out_rules,
-                origin={k: v for k, v in (pack.get("origin") or {}).items() if k in used})
+                origin={k: v for k, v in (pack.get("origin") or {}).items() if k in used}, paths=pack.get("paths") or [])
 
 
 # ====================================================================== asof (ryo-8hfg) =====================================
