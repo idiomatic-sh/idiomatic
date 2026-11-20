@@ -1170,6 +1170,7 @@ impl<'p> State<'p> {
             let c = &self.nc;
             let (sk, sm) = c.key_sites.values().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
             let (hk, hm) = c.hoist_sites.values().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
+            eprintln!("{{\"forks\":{{\"children\":{},\"disabled\":{}}}}}", c.fork_children, c.fork_disabled);
             eprintln!("{{\"memo\":{{\"near_allocs\":{},\"near_cells\":{},\"subkey_lookups\":{sk},\"subkey_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm}}}}}", c.memo_allocs, c.memo_cells);
             if let Some(prof) = &self.nc.prof {
                 eprintln!("PROFILE\n{}", crate::nav::profile_report(nav, prof));

@@ -2573,6 +2573,9 @@ pub(crate) struct Counters {
     /// per base made table over the run: (steps of its builds, builds) as a twin's buy price; twins switched
     pub twin_buy: FxMap<u16, (u64, u64)>,
     pub twin_switches: u64,
+    /// NAV_DIAG: fork children looked at, and those skipped as disabled in the file
+    pub fork_children: u64,
+    pub fork_disabled: u64,
     /// per twin over the run: (files using it, files where it switched to its base)
     pub twin_files: FxMap<u16, (u64, u64)>,
     /// NearMemo / AncExists memo arrays allocated (per file per site) and their cells
@@ -4391,8 +4394,14 @@ impl<'a, 'p> Exec<'a, 'p> {
                     return self.run_inner(q, 0);
                 }
                 Ins::Fork { subs } => {
+                    if self.c.diag {
+                        self.c.fork_children += subs.len() as u64;
+                    }
                     for (slots, q) in subs.iter() {
                         if !slots.iter().any(|&s| self.cache.enabled[s as usize]) {
+                            if self.c.diag {
+                                self.c.fork_disabled += 1;
+                            }
                             continue;
                         }
                         if self.c.diag {
