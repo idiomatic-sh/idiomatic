@@ -35,6 +35,7 @@ enum Src {
 
 #[derive(Clone, Debug)]
 enum Lit {
+    Glob(usize),
     Regex(usize),
     Num(i64),
     Text(usize),
@@ -57,6 +58,8 @@ struct Cmp {
     r: Opd,
     /// Whether text order applies (a symbol column on either side).
     text: bool,
+    /// Whether the left operand is a file column (globbed by path).
+    file_left: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -67,6 +70,9 @@ enum N {
     Join { l: Src, r: Src, lon: Vec<usize>, ron: Vec<usize>, out: Vec<(bool, usize)>, filt: Vec<Cmp> },
     Union { l: Src, r: Src },
     Group { src: Src, keys: Vec<usize>, distinct: Option<usize> },
+    Between { src: Src, start: usize, end: usize, width: usize },
+    Closure { edges: Src, keys: Vec<usize>, source: usize, dest: usize },
+    Occur { src: Src, span: usize, base_line: Option<usize>, regex: usize, width: usize },
     Anti { l: Src, r: Src, lon: Vec<usize>, ron: Vec<usize>, present: bool },
     Axis { from: Src, edges: usize, dom: Src, dir: Direction, id: usize, efrom: usize, eto: usize, dom_id: usize, dom_filt: Vec<Cmp>, out: Vec<(bool, usize)>, from_width: usize },
 }
@@ -87,6 +93,7 @@ struct Lowered {
     blocked: Vec<(String, String)>,
     lits: Vec<String>,
     regexes: Vec<ryo_matching::inbound::use_cases::matching::types::CompiledRegex>,
+    globs: Vec<ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
 }
 
 fn rel_no(relation: Relation) -> usize {
@@ -104,6 +111,7 @@ struct LowerCx<'a> {
     lits: &'a mut Vec<String>,
     lit_ids: &'a mut FxHashMap<String, usize>,
     regexes: &'a mut Vec<ryo_matching::inbound::use_cases::matching::types::CompiledRegex>,
+    globs: &'a mut Vec<ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
     nodes: Vec<N>,
     width: Vec<usize>,
     kinds: Vec<Vec<CellKind>>,
@@ -177,7 +185,7 @@ impl LowerCx<'_> {
         for c in cmps {
             match c.test {
                 Test::Equal | Test::NotEqual | Test::LessThan | Test::LessThanOrEqual | Test::GreaterThan
-                | Test::GreaterThanOrEqual | Test::In | Test::NotIn | Test::StartsWith | Test::EndsWith | Test::Matches => {}
+                | Test::GreaterThanOrEqual | Test::In | Test::NotIn | Test::StartsWith | Test::EndsWith | Test::Matches | Test::GlobAny | Test::NotGlobAny => {}
                 other => return Err(format!("test {other:?}")),
             }
             let mut text = false;
@@ -201,6 +209,22 @@ impl LowerCx<'_> {
             };
             let mut l = opd(&c.left, self)?;
             let mut r = opd(&c.right, self)?;
+            if matches!(c.test, Test::GlobAny | Test::NotGlobAny) {
+                let patterns: Vec<String> = match &r {
+                    Opd::Lit(Lit::Text(t)) => vec![self.lits[*t].clone()],
+                    Opd::Lit(Lit::Texts(ts)) => ts.iter().map(|t| self.lits[*t].clone()).collect(),
+                    _ => return Err("test GlobAny shape".into()),
+                };
+                let Opd::Col(_) = &l else { return Err("test GlobAny shape".into()) };
+                use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase as _;
+                let m = ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new();
+                let globs: Vec<ryo_matching::inbound::use_cases::matching::types::GlobPattern<'_>> =
+                    patterns.iter().map(|p| ryo_matching::inbound::use_cases::matching::types::GlobPattern(p)).collect();
+                self.globs.push(m.compile_text_globs(&globs));
+                r = Opd::Lit(Lit::Glob(self.globs.len() - 1));
+                out.push(Cmp { test: c.test, file_left: matches!(&l, Opd::Col(x) if k.get(*x) == Some(&CellKind::File)), l, r, text: true });
+                continue;
+            }
             if c.test == Test::Matches {
                 let (Opd::Col(_), Opd::Lit(Lit::Text(t))) = (&l, &r) else { return Err("test Matches shape".into()) };
                 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase as _;
@@ -210,7 +234,7 @@ impl LowerCx<'_> {
                     .map_err(|_| "test Matches invalid")?;
                 self.regexes.push(re);
                 r = Opd::Lit(Lit::Regex(self.regexes.len() - 1));
-                out.push(Cmp { test: c.test, l, r, text: true });
+                out.push(Cmp { test: c.test, file_left: matches!(&l, Opd::Col(x) if k.get(*x) == Some(&CellKind::File)), l, r, text: true });
                 continue;
             }
             // A flag equals the word it is shown as ("true", "false"); a literal of another kind than its column equals nothing.
@@ -235,7 +259,7 @@ impl LowerCx<'_> {
                 text = text && !matches!(f, Opd::Lit(_));
                 l = f;
             }
-            out.push(Cmp { test: c.test, l, r, text });
+            out.push(Cmp { test: c.test, file_left: false, l, r, text });
         }
         Ok(out)
     }
@@ -308,6 +332,42 @@ impl LowerCx<'_> {
                 let filt = self.cmps(filter, &rk)?;
                 let ok = out.iter().map(|(right, c)| if *right { rk[*c] } else { lk[*c] }).collect();
                 self.push(N::Join { l, r, lon, ron, out, filt }, ok)
+            }
+            Operation::SourceMatches { from, span, base_line, pattern, capture, .. } => {
+                if capture.is_some() {
+                    return Err("SourceMatches capture".into());
+                }
+                let src = self.input(from)?;
+                let mut k = self.src_kinds(src);
+                let width = k.len();
+                k.push(CellKind::Span);
+                if base_line.is_some() {
+                    k.push(CellKind::Number);
+                }
+                use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase as _;
+                let m = ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new();
+                let re = m
+                    .compile_regex(ryo_matching::inbound::use_cases::matching::types::RegexSource(&pattern.0))
+                    .map_err(|_| "SourceMatches invalid")?;
+                self.regexes.push(re);
+                let regex = self.regexes.len() - 1;
+                self.push(N::Occur { src, span: span.0 as usize, base_line: base_line.map(|c| c.0 as usize), regex, width }, k)
+            }
+            Operation::Closure { edges, keys, source, destination } => {
+                let src = self.input(edges)?;
+                let k = self.src_kinds(src);
+                let keys: Vec<usize> = keys.iter().map(|c| c.0 as usize).collect();
+                let mut ok: Vec<CellKind> = keys.iter().map(|c| k[*c]).collect();
+                ok.push(k[source.0 as usize]);
+                ok.push(k[destination.0 as usize]);
+                self.push(N::Closure { edges: src, keys, source: source.0 as usize, dest: destination.0 as usize }, ok)
+            }
+            Operation::SpanBetween { from, start, end } => {
+                let src = self.input(from)?;
+                let mut k = self.src_kinds(src);
+                let width = k.len();
+                k.push(CellKind::Span);
+                self.push(N::Between { src, start: start.0 as usize, end: end.0 as usize, width }, k)
             }
             Operation::GroupCount { from, keys, distinct } => {
                 let src = self.input(from)?;
@@ -391,6 +451,7 @@ fn lower_all(tapped: &TappedPlans, accepted: &FxHashSet<String>) -> Lowered {
     let mut lits = Vec::new();
     let mut lit_ids = FxHashMap::default();
     let mut regexes = Vec::new();
+    let mut globs = Vec::new();
     let mut rules = Vec::new();
     let mut blocked = Vec::new();
     for ((id, plan), bindings) in tapped.ids.iter().zip(&tapped.plans).zip(&tapped.bindings) {
@@ -400,6 +461,7 @@ fn lower_all(tapped: &TappedPlans, accepted: &FxHashSet<String>) -> Lowered {
             lits: &mut lits,
             lit_ids: &mut lit_ids,
             regexes: &mut regexes,
+            globs: &mut globs,
             nodes: Vec::new(),
             width: Vec::new(),
             kinds: Vec::new(),
@@ -439,7 +501,7 @@ fn lower_all(tapped: &TappedPlans, accepted: &FxHashSet<String>) -> Lowered {
             Err(why) => blocked.push((id.clone(), why)),
         }
     }
-    Lowered { rules, blocked, lits, regexes }
+    Lowered { rules, blocked, lits, regexes, globs }
 }
 
 // ---------------------------------------------------------------- per-file data
@@ -509,6 +571,12 @@ struct Counters {
     index_ns: Cell<u64>,
     est_calls: Cell<u64>,
     node_calls: [Cell<u64>; 8],
+    /// Anchor rows counted once per file per (relation, column, value) bucket: what a shared dispatch would start.
+    shared_anchor_rows: Cell<u64>,
+    shared_seen: RefCell<FxHashSet<(usize, usize, u64)>>,
+    /// Steps at which the running rule is stopped in this file (a rule the approach runs badly), and whether it was.
+    budget_end: Cell<u64>,
+    over: Cell<bool>,
 }
 
 struct Ctx<'a> {
@@ -518,9 +586,12 @@ struct Ctx<'a> {
     source: &'a [u8],
     lits: &'a [String],
     regexes: &'a [ryo_matching::inbound::use_cases::matching::types::CompiledRegex],
+    globs: &'a [ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs],
+    path: &'a str,
     group_memo: RefCell<FxHashMap<(usize, usize), Rc<Vec<Vec<W>>>>>,
     lit_words: RefCell<Vec<u64>>,
     idx: RefCell<FxHashMap<(usize, usize), Rc<Index>>>,
+    idx_fast: RefCell<Vec<Option<Rc<Index>>>>,
     bucket_n: RefCell<FxHashMap<(usize, usize, u64), u64>>,
     est_memo: &'a RefCell<FxHashMap<(usize, usize, u32), u64>>,
     c: &'a Counters,
@@ -569,13 +640,13 @@ impl Ctx<'_> {
         }
     }
     fn index(&self, r: usize, col: usize) -> Rc<Index> {
-        if let Some(i) = self.idx.borrow().get(&(r, col)) {
+        if let Some(Some(i)) = self.idx_fast.borrow().get(r * MAXW + col) {
             return Rc::clone(i);
         }
         let t = Instant::now();
         let built = Rc::new(Index::build(&self.facts[r][col].0, kinds(all()[r])[col]));
         self.c.index_ns.set(self.c.index_ns.get() + t.elapsed().as_nanos() as u64);
-        self.idx.borrow_mut().insert((r, col), Rc::clone(&built));
+        self.idx_fast.borrow_mut()[r * MAXW + col] = Some(Rc::clone(&built));
         built
     }
 
@@ -620,6 +691,22 @@ impl Ctx<'_> {
                 return hit == (c.test == Test::In);
             }
             _ => {}
+        }
+        if let (Test::GlobAny | Test::NotGlobAny, Opd::Lit(Lit::Glob(g)), Opd::Col(col)) = (c.test, &c.r, &c.l) {
+            use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase as _;
+            let a = row[*col];
+            // A file column globs the file's path; a name its text.
+            let owned;
+            let text: &str = if a == self.file && c.file_left {
+                self.path
+            } else {
+                owned = String::from_utf8_lossy(self.text(a)).into_owned();
+                &owned
+            };
+            let m = ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new();
+            let hit = m.matches_text_globs(&self.globs[*g], ryo_matching::inbound::use_cases::matching::types::SearchText(text))
+                == ryo_matching::inbound::use_cases::matching::types::MatchOutcome::Matches;
+            return hit == (c.test == Test::GlobAny);
         }
         if let (Test::Matches, Opd::Lit(Lit::Regex(re))) = (c.test, &c.r) {
             use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase as _;
@@ -694,6 +781,10 @@ impl Exec<'_, '_> {
     /// Rows of a relation matching `bound` and `cmps`; `f` returns false to stop. Returns false when stopped.
     fn rel(&self, r: usize, bound: &Bound, cmps: &[Cmp], f: &mut dyn FnMut(&[W]) -> bool) -> bool {
         let cx = self.cx;
+        if cx.c.steps.get() > cx.c.budget_end.get() {
+            cx.c.over.set(true);
+            return false;
+        }
         let k = kinds(all()[r]);
         let w = k.len();
         let mut b = *bound;
@@ -759,11 +850,17 @@ impl Exec<'_, '_> {
                 cx.c.steps.set(cx.c.steps.get() + steps);
                 if anchor {
                     cx.c.anchor_rows.set(cx.c.anchor_rows.get() + steps);
+                    if cx.c.shared_seen.borrow_mut().insert((r, c, b[c].unwrap_or(0))) {
+                        cx.c.shared_anchor_rows.set(cx.c.shared_anchor_rows.get() + steps);
+                    }
                 }
                 go
             }
             None => {
                 cx.c.anchor_rows.set(cx.c.anchor_rows.get() + n as u64);
+                if cx.c.shared_seen.borrow_mut().insert((r, usize::MAX, 0)) {
+                    cx.c.shared_anchor_rows.set(cx.c.shared_anchor_rows.get() + n as u64);
+                }
                 cx.c.steps.set(cx.c.steps.get() + n as u64);
                 for at in 0..n {
                     if visit(at, &mut row) == Some(false) {
@@ -810,19 +907,43 @@ impl Exec<'_, '_> {
         }
         match s {
             Src::Rel(r) => {
-                // A static cost: a bound node column is one row, another bound column (or literal) a bucket, else the relation.
+                // The file's own sizes: a bound node column is one row, another bound column (or literal) its bucket, else the relation.
                 let k = kinds(all()[r]);
-                let mut best = 3000;
+                let n = cx.rows(r) as u64;
+                if n == 0 {
+                    return 0;
+                }
+                let mut best = n;
                 for c in 0..k.len() {
-                    if k[c] == CellKind::File || b[c].is_none() {
+                    if k[c] == CellKind::File {
                         continue;
                     }
-                    best = best.min(if k[c] == CellKind::Node { 1 } else { 30 });
+                    let Some(v) = b[c] else { continue };
+                    if k[c] == CellKind::Node {
+                        best = best.min(1);
+                        continue;
+                    }
+                    let known = cx.bucket_n.borrow().get(&(r, c, v)).copied();
+                    let m = match known {
+                        Some(m) => m,
+                        None => {
+                            let idx = cx.index(r, c);
+                            let mut at = idx.first(v);
+                            let mut m = 0;
+                            while at != NONE {
+                                m += 1;
+                                at = idx.next(at);
+                            }
+                            cx.bucket_n.borrow_mut().insert((r, c, v), m);
+                            m
+                        }
+                    };
+                    best = best.min(m);
                 }
                 best
             }
             Src::Node(n) => {
-                // Estimates are static (by which columns are bound), kept per worker for the run: they only pick a driving side.
+                // Estimates are kept per file by which columns are bound, not by their values: they only pick a driving side.
                 let mut mask = 0u32;
                 for c in 0..self.rule.width[n] {
                     if b[c].is_some() {
@@ -861,6 +982,19 @@ impl Exec<'_, '_> {
                     self.est(*l, &lb, &[]).min(self.est(*r, &rb, filt))
                 }
                 N::Union { l, r } => self.est(*l, &b, &[]) + self.est(*r, &b, &[]),
+                N::Closure { edges, keys, source, .. } => {
+                    let mut cb = UNB;
+                    for (i, c) in keys.iter().enumerate() {
+                        cb[*c] = b[i];
+                    }
+                    cb[*source] = b[keys.len()];
+                    self.est(*edges, &cb, &[]).saturating_mul(4)
+                }
+                N::Between { src, width, .. } | N::Occur { src, width, .. } => {
+                    let mut cb = UNB;
+                    cb[..*width].copy_from_slice(&b[..*width]);
+                    self.est(*src, &cb, &[])
+                }
                 N::Group { src, keys, .. } => {
                     let cb = self.map_kept(&b, keys, self.width(*src));
                     self.est(*src, &cb, &[])
@@ -927,6 +1061,8 @@ impl Exec<'_, '_> {
             N::Group { .. } => 5,
             N::Anti { .. } => 6,
             N::Axis { .. } => 7,
+            N::Between { .. } | N::Occur { .. } => 2,
+            N::Closure { .. } => 5,
         };
         self.cx.c.node_calls[slot].set(self.cx.c.node_calls[slot].get() + 1);
         match &rule.nodes[n] {
@@ -972,6 +1108,177 @@ impl Exec<'_, '_> {
                 })
             }
             N::Union { l, r } => self.each(*l, b, &[], f) && self.each(*r, b, &[], f),
+            N::Closure { edges, keys, source, dest } => {
+                // Every pair joined by a chain of edges, within equal keys: walked from each start the bound columns allow.
+                let nk = keys.len();
+                let mut sb = UNB;
+                for (i, c) in keys.iter().enumerate() {
+                    sb[*c] = b[i];
+                }
+                sb[*source] = b[nk];
+                let want_dest = b[nk + 1];
+                let mut starts: Vec<Vec<W>> = Vec::new();
+                let mut seen_starts: FxHashSet<Vec<W>> = FxHashSet::default();
+                self.each(*edges, &sb, &[], &mut |r| {
+                    let mut st: Vec<W> = keys.iter().map(|c| r[*c]).collect();
+                    st.push(r[*source]);
+                    if seen_starts.insert(st.clone()) {
+                        starts.push(st);
+                    }
+                    true
+                });
+                starts.sort_unstable();
+                let mut row = Row::new(nk + 2);
+                let mut visited: FxHashSet<W> = FxHashSet::default();
+                let mut frontier: Vec<W> = Vec::new();
+                for st in &starts {
+                    visited.clear();
+                    frontier.clear();
+                    frontier.push(st[nk]);
+                    let mut reached: Vec<W> = Vec::new();
+                    while let Some(e) = frontier.pop() {
+                        let mut eb = UNB;
+                        for (i, c) in keys.iter().enumerate() {
+                            eb[*c] = Some(st[i]);
+                        }
+                        eb[*source] = Some(e);
+                        self.each(*edges, &eb, &[], &mut |r| {
+                            let d = r[*dest];
+                            if visited.insert(d) {
+                                reached.push(d);
+                                frontier.push(d);
+                            }
+                            true
+                        });
+                    }
+                    reached.sort_unstable();
+                    for d in reached {
+                        if want_dest.is_some_and(|w| w != d) {
+                            continue;
+                        }
+                        row.w[..nk + 1].copy_from_slice(st);
+                        row.w[nk + 1] = d;
+                        if !f(row.s()) {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
+            N::Occur { src, span, base_line, regex, width } => {
+                use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase as _;
+                let m = ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new();
+                let no_span: u64 = {
+                    let s = ryo_relations::domain::relations::constants::NO_SPAN;
+                    ((s.start.0 as u64) << 32) | s.end.0 as u64
+                };
+                let mut cb = UNB;
+                cb[..*width].copy_from_slice(&b[..*width]);
+                let out_w = width + 1 + usize::from(base_line.is_some());
+                let want: Vec<(usize, u64)> = (*width..out_w).filter_map(|c| b[c].map(|v| (c, v))).collect();
+                let source = self.cx.source;
+                let mut row = Row::new(out_w);
+                self.each(*src, &cb, &[], &mut |r| {
+                    let sp = r[*span];
+                    if sp == no_span {
+                        return true;
+                    }
+                    let (start, end) = ((sp >> 32) as usize, (sp & 0xffff_ffff) as usize);
+                    if start > end || end > source.len() {
+                        return true;
+                    }
+                    let Ok(text) = std::str::from_utf8(&source[start..end]) else { return true };
+                    let mut line: Option<i64> = match base_line {
+                        Some(c) => {
+                            let n = r[*c] as i64;
+                            if n <= 0 {
+                                return true;
+                            }
+                            Some(n)
+                        }
+                        None => None,
+                    };
+                    let bytes = text.as_bytes();
+                    let mut cursor = 0usize;
+                    let mut pending_cr = false;
+                    let mut go = true;
+                    let _ = m.visit_regex_matches(
+                        &self.cx.regexes[*regex],
+                        ryo_matching::inbound::use_cases::matching::types::SearchText(text),
+                        &mut |found| {
+                            let (ws, we) = (found.0.start, found.0.end);
+                            if let Some(current) = line.as_mut() {
+                                // The line of the occurrence's first byte, counted as the engine counts it (CR, LF, CRLF).
+                                for &byte in &bytes[cursor..ws.max(cursor)] {
+                                    if pending_cr {
+                                        *current += 1;
+                                        pending_cr = false;
+                                        if byte == b'\n' {
+                                            continue;
+                                        }
+                                    }
+                                    if byte == b'\r' {
+                                        pending_cr = true;
+                                    } else if byte == b'\n' {
+                                        *current += 1;
+                                    }
+                                }
+                                cursor = ws.max(cursor);
+                                if pending_cr && source.get(start + cursor) != Some(&b'\n') {
+                                    *current += 1;
+                                    pending_cr = false;
+                                }
+                            }
+                            row.w[..*width].copy_from_slice(r);
+                            row.w[*width] = (((start + ws) as u64) << 32) | (start + we) as u64;
+                            if let Some(current) = line {
+                                row.w[width + 1] = current as u64;
+                            }
+                            if want.iter().any(|(c, v)| row.w[*c] != *v) {
+                                return std::ops::ControlFlow::Continue(());
+                            }
+                            if f(row.s()) {
+                                std::ops::ControlFlow::Continue(())
+                            } else {
+                                go = false;
+                                std::ops::ControlFlow::Break(())
+                            }
+                        },
+                    );
+                    go
+                })
+            }
+            N::Between { src, start, end, width } => {
+                const NO_SPAN: u64 = {
+                    let s = ryo_relations::domain::relations::constants::NO_SPAN;
+                    ((s.start.0 as u64) << 32) | s.end.0 as u64
+                };
+                let mut cb = UNB;
+                cb[..*width].copy_from_slice(&b[..*width]);
+                let want = b[*width];
+                let mut row = Row::new(width + 1);
+                let len = self.cx.source.len() as u64;
+                self.each(*src, &cb, &[], &mut |r| {
+                    let (a, z) = (r[*start], r[*end]);
+                    let bad = |s: u64| s != NO_SPAN && ((s >> 32) > (s & 0xffff_ffff) || (s & 0xffff_ffff) > len);
+                    if bad(a) || bad(z) {
+                        return true;
+                    }
+                    let v = if a == NO_SPAN || z == NO_SPAN {
+                        NO_SPAN
+                    } else if (a >> 32) > (z & 0xffff_ffff) {
+                        return true;
+                    } else {
+                        (a & !0xffff_ffff) | (z & 0xffff_ffff)
+                    };
+                    if want.is_some_and(|w| w != v) {
+                        return true;
+                    }
+                    row.w[..*width].copy_from_slice(r);
+                    row.w[*width] = v;
+                    f(row.s())
+                })
+            }
             N::Group { src, keys, distinct } => {
                 let nk = keys.len();
                 let count_bound = b[nk];
@@ -1040,12 +1347,55 @@ impl Exec<'_, '_> {
                 let (lb, rb) = self.split(b, out, *l, *r, lon, ron);
                 let lu = self.useful(*l, &lb);
                 let ru = self.useful(*r, &rb);
+                // A side whose only output columns are its keys is read for existence only (a semijoin): one match is enough.
+                let r_exist = out.iter().all(|(right, c)| !*right || ron.contains(c));
+                let l_exist = out.iter().all(|(right, c)| *right || lon.contains(c));
                 let drive_left = match (lu, ru) {
                     (true, false) => true,
                     (false, true) => false,
                     _ => self.est(*l, &lb, &[]) <= self.est(*r, &rb, filt),
                 };
                 let mut row = Row::new(out.len());
+                if drive_left && r_exist {
+                    return self.each(*l, &lb, &[], &mut |lr| {
+                        let mut ob = rb;
+                        for (a, z) in lon.iter().zip(ron) {
+                            ob[*z] = Some(lr[*a]);
+                        }
+                        if !self.exists(*r, &ob, filt) {
+                            return true;
+                        }
+                        for (i, (right, c)) in out.iter().enumerate() {
+                            row.w[i] = if *right {
+                                let k = ron.iter().position(|z| z == c).unwrap_or(0);
+                                lr[lon[k]]
+                            } else {
+                                lr[*c]
+                            };
+                        }
+                        f(row.s())
+                    });
+                }
+                if !drive_left && l_exist {
+                    return self.each(*r, &rb, filt, &mut |rr| {
+                        let mut ob = lb;
+                        for (a, z) in lon.iter().zip(ron) {
+                            ob[*a] = Some(rr[*z]);
+                        }
+                        if !self.exists(*l, &ob, &[]) {
+                            return true;
+                        }
+                        for (i, (right, c)) in out.iter().enumerate() {
+                            row.w[i] = if *right {
+                                rr[*c]
+                            } else {
+                                let k = lon.iter().position(|a| a == c).unwrap_or(0);
+                                rr[ron[k]]
+                            };
+                        }
+                        f(row.s())
+                    });
+                }
                 if drive_left {
                     self.each(*l, &lb, &[], &mut |lr| {
                         let mut ob = rb;
@@ -1217,6 +1567,9 @@ struct Phase {
     files: u64,
     est_calls: u64,
     node_calls: [u64; 8],
+    shared_anchor_rows: u64,
+    rule_runs: u64,
+    rule_runs_started: u64,
     rejected: u64,
     rows: u64,
 }
@@ -1254,6 +1607,7 @@ pub(crate) fn main() -> Result<(), String> {
     let mode = std::env::var("BLOCKS_MODE").unwrap_or_default();
     let threads: usize = std::env::var("BLOCKS_THREADS").ok().and_then(|t| t.parse().ok()).unwrap_or(4);
     let per_rule = std::env::var("BLOCKS_PER_RULE").is_ok();
+    let budget: u64 = std::env::var("BLOCKS_BUDGET").ok().and_then(|t| t.parse().ok()).unwrap_or(u64::MAX / 4);
     let t0 = Instant::now();
     let cpu0 = cpu_time::ProcessTime::now();
     let req: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&request_path).map_err(|e| e.to_string())?)
@@ -1301,7 +1655,8 @@ pub(crate) fn main() -> Result<(), String> {
                 let srcs: Vec<Src> = match n {
                     N::Sel { src, .. } | N::Proj { src, .. } | N::Ext { src, .. } => vec![*src],
                     N::Join { l, r, .. } | N::Union { l, r } | N::Anti { l, r, .. } => vec![*l, *r],
-                    N::Group { src, .. } => vec![*src],
+                    N::Group { src, .. } | N::Between { src, .. } | N::Occur { src, .. } => vec![*src],
+                    N::Closure { edges, .. } => vec![*edges],
                     N::Axis { from, edges, dom, .. } => vec![*from, Src::Rel(*edges), *dom],
                 };
                 for s in srcs {
@@ -1344,7 +1699,7 @@ pub(crate) fn main() -> Result<(), String> {
     let next = AtomicUsize::new(0);
     let nrel = all().len();
     let nrules = lowered.rules.len();
-    let results: Vec<(Vec<Finding>, Phase, Vec<(u64, u64, u64)>, Vec<Duration>, Vec<u64>)> = std::thread::scope(|scope| {
+    let results: Vec<(Vec<Finding>, Phase, Vec<(u64, u64, u64)>, Vec<Duration>, Vec<u64>, Vec<u64>)> = std::thread::scope(|scope| {
         let handles: Vec<_> = (0..threads)
             .map(|_| {
                 let engine = Arc::clone(&engine);
@@ -1368,6 +1723,7 @@ pub(crate) fn main() -> Result<(), String> {
                     let mut fill_split = vec![Duration::ZERO; wanted_nos.len() + 1];
                     let est_memo: RefCell<FxHashMap<(usize, usize, u32), u64>> = RefCell::new(FxHashMap::default());
                     let mut rel_rows = vec![0u64; wanted_nos.len()];
+                    let mut over_budget = vec![0u64; nrules];
                     loop {
                         let at = next.fetch_add(1, Ordering::Relaxed);
                         if at >= files.len() {
@@ -1441,6 +1797,7 @@ pub(crate) fn main() -> Result<(), String> {
                             ph.rejected += 1;
                         }
                         let counters = Counters::default();
+                        est_memo.borrow_mut().clear();
                         let cx = Ctx {
                             facts: &facts,
                             file: at as u64,
@@ -1448,9 +1805,12 @@ pub(crate) fn main() -> Result<(), String> {
                             source: &bytes,
                             lits: &lowered.lits,
                             regexes: &lowered.regexes,
+                            globs: &lowered.globs,
+                            path: &files[at],
                             group_memo: RefCell::new(FxHashMap::default()),
                             lit_words: RefCell::new(vec![u64::MAX; lowered.lits.len()]),
                             idx: RefCell::new(FxHashMap::default()),
+                            idx_fast: RefCell::new(vec![None; all().len() * MAXW]),
                             bucket_n: RefCell::new(FxHashMap::default()),
                             est_memo: &est_memo,
                             c: &counters,
@@ -1472,6 +1832,8 @@ pub(crate) fn main() -> Result<(), String> {
                             let tr = if per_rule { Some(Instant::now()) } else { None };
                             let a0 = counters.anchor_rows.get();
                             let s0 = counters.steps.get();
+                            counters.budget_end.set(counters.steps.get() + budget);
+                            counters.over.set(false);
                             let ex = Exec { ri, rule, cx: &cx };
                             let span_col = rule.top_kinds.iter().position(|k| *k == CellKind::Span);
                             seen_rows.clear();
@@ -1488,6 +1850,13 @@ pub(crate) fn main() -> Result<(), String> {
                                 }
                                 true
                             });
+                            if counters.over.get() {
+                                over_budget[ri] += 1;
+                            }
+                            ph.rule_runs += 1;
+                            if counters.anchor_rows.get() > a0 {
+                                ph.rule_runs_started += 1;
+                            }
                             let st = &mut rule_stats[ri];
                             st.0 += counters.anchor_rows.get() - a0;
                             st.1 += counters.steps.get() - s0;
@@ -1501,6 +1870,7 @@ pub(crate) fn main() -> Result<(), String> {
                         ph.steps += counters.steps.get();
                         ph.lookups += counters.lookups.get();
                         ph.est_calls += counters.est_calls.get();
+                        ph.shared_anchor_rows += counters.shared_anchor_rows.get();
                         for i in 0..8 {
                             ph.node_calls[i] += counters.node_calls[i].get();
                         }
@@ -1510,28 +1880,34 @@ pub(crate) fn main() -> Result<(), String> {
                             rel_rows[i] += n;
                         }
                     }
-                    (findings, ph, rule_stats, fill_split, rel_rows)
+                    (findings, ph, rule_stats, fill_split, rel_rows, over_budget)
                 })
             })
             .collect();
-        handles.into_iter().map(|h| h.join().unwrap_or_else(|_| (Vec::new(), Phase::default(), Vec::new(), Vec::new(), Vec::new()))).collect()
+        handles.into_iter().map(|h| h.join().unwrap_or_else(|_| (Vec::new(), Phase::default(), Vec::new(), Vec::new(), Vec::new(), Vec::new()))).collect()
     });
     let mut all_findings: Vec<(String, String, u32, u32)> = Vec::new();
     let mut tot = Phase::default();
     let mut rule_tot = vec![(0u64, 0u64, 0u64); nrules];
     let mut split_tot = vec![0f64; wanted_nos.len() + 1];
     let mut rows_tot = vec![0u64; wanted_nos.len()];
-    for (_, _, _, _, rr) in &results {
+    let mut over_tot = vec![0u64; nrules];
+    for (_, _, _, _, _, ob) in &results {
+        for (i, n) in ob.iter().enumerate() {
+            over_tot[i] += n;
+        }
+    }
+    for (_, _, _, _, rr, _) in &results {
         for (i, n) in rr.iter().enumerate() {
             rows_tot[i] += n;
         }
     }
-    for (_, _, _, sp, _) in &results {
+    for (_, _, _, sp, _, _) in &results {
         for (i, d) in sp.iter().enumerate() {
             split_tot[i] += d.as_secs_f64();
         }
     }
-    for (fs, ph, rs, _, _) in &results {
+    for (fs, ph, rs, _, _, _) in &results {
         for f in fs {
             all_findings.push((lowered.rules[f.rule as usize].id.clone(), files[f.file as usize].clone(), f.start, f.end));
         }
@@ -1545,6 +1921,9 @@ pub(crate) fn main() -> Result<(), String> {
         tot.steps += ph.steps;
         tot.lookups += ph.lookups;
         tot.est_calls += ph.est_calls;
+        tot.shared_anchor_rows += ph.shared_anchor_rows;
+        tot.rule_runs += ph.rule_runs;
+        tot.rule_runs_started += ph.rule_runs_started;
         for i in 0..8 {
             tot.node_calls[i] += ph.node_calls[i];
         }
@@ -1570,7 +1949,8 @@ pub(crate) fn main() -> Result<(), String> {
             .rules
             .iter()
             .zip(&rule_tot)
-            .map(|(r, t)| serde_json::json!({"rule": r.id, "core": r.core, "nodes": r.nodes.len(), "anchor_rows": t.0, "steps": t.1, "ns": t.2}))
+            .zip(&over_tot)
+            .map(|((r, t), o)| serde_json::json!({"rule": r.id, "core": r.core, "nodes": r.nodes.len(), "anchor_rows": t.0, "steps": t.1, "ns": t.2, "files_over_budget": o}))
             .collect();
         let mut blocked_by: FxHashMap<String, u32> = FxHashMap::default();
         for (_, why) in &lowered.blocked {
@@ -1587,6 +1967,7 @@ pub(crate) fn main() -> Result<(), String> {
             "thread_s": {"read": tot.read.as_secs_f64(), "parse": tot.parse.as_secs_f64(), "fill": tot.fill.as_secs_f64(),
                          "buckets": tot.buckets.as_secs_f64(), "rules_incl_index": tot.rules.as_secs_f64(), "index": tot.index_ns as f64 / 1e9},
             "anchor_rows": tot.anchor_rows, "est_calls": tot.est_calls,
+            "shared_anchor_rows": tot.shared_anchor_rows, "rule_file_runs": tot.rule_runs, "rule_file_runs_with_candidates": tot.rule_runs_started,
             "node_calls": {"sel": tot.node_calls[0], "proj": tot.node_calls[1], "ext": tot.node_calls[2], "join": tot.node_calls[3],
                            "union": tot.node_calls[4], "group": tot.node_calls[5], "anti": tot.node_calls[6], "axis": tot.node_calls[7]}, "steps": tot.steps, "lookups": tot.lookups,
             "rules_loaded": lowered.rules.len(), "rules_core_only": lowered.rules.iter().filter(|r| r.core).count(),
