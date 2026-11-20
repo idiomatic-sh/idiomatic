@@ -111,6 +111,9 @@ pub(crate) enum Ins {
     Hoist { id: u32, key: Box<[R]>, seg: Prog, caps: Box<[R]> },
     /// pushes the registers' values onto the running hoist's capture buffer
     Capture { regs: Box<[R]> },
+    /// a Hoist whose replay keeps only the tuples whose captured register `probe.0` equals register `probe.1` (an index on it,
+    /// built with the tuples once per file per key)
+    HoistProbe { id: u32, key: Box<[R]>, seg: Prog, caps: Box<[R]>, probe: (u32, R) },
     /// a negated check whose failure holds for every later element of the range walk that encloses it (monotone in the walk's
     /// start: its only use of the walk is an upper bound on a walk of the same bucket): failing ends that walk
     SubFirst { subs: Box<[Prog]> },
@@ -183,13 +186,13 @@ pub(crate) struct OrderedDfs {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const NINS: usize = 46;
+pub(crate) const NINS: usize = 47;
 pub(crate) const INS_NAMES: [&str; NINS] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
     "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
     "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture", "sub_first",
     "collect", "closure", "union", "let", "shared", "text_fn", "capture_text", "replace", "near_derived", "sibling", "sub_memo",
-    "near_memo", "sub_key", "anc_exists",
+    "near_memo", "sub_key", "anc_exists", "hoist_probe",
 ];
 
 impl Ins {
@@ -242,6 +245,7 @@ impl Ins {
             Ins::NearMemo { .. } => 43,
             Ins::SubKey { .. } => 44,
             Ins::AncExists { .. } => 45,
+            Ins::HoistProbe { .. } => 46,
         }
     }
 }
@@ -262,7 +266,7 @@ pub(crate) fn subs_mut(i: &mut Ins, f: &mut dyn FnMut(&mut Prog)) {
             domain.iter_mut().for_each(f);
         }
         Ins::Fork { subs } => subs.iter_mut().for_each(|(_, q)| f(q)),
-        Ins::Hoist { seg, .. } => f(seg),
+        Ins::Hoist { seg, .. } | Ins::HoistProbe { seg, .. } => f(seg),
         Ins::AncExists { cond, .. } => f(cond),
         _ => {}
     }
@@ -284,7 +288,7 @@ pub(crate) fn subs_ref<'x>(i: &'x Ins, f: &mut dyn FnMut(&'x [Ins])) {
             domain.iter().for_each(|q| f(q));
         }
         Ins::Fork { subs } => subs.iter().for_each(|(_, q)| f(q)),
-        Ins::Hoist { seg, .. } => f(seg),
+        Ins::Hoist { seg, .. } | Ins::HoistProbe { seg, .. } => f(seg),
         Ins::AncExists { cond, .. } => f(cond),
         _ => {}
     }
@@ -839,6 +843,12 @@ fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
             sub(std::slice::from_ref(seg), reads);
             defs.extend(caps.iter().copied());
         }
+        Ins::HoistProbe { key, seg, caps, probe, .. } => {
+            reads.extend(key.iter().copied());
+            reads.push(probe.1);
+            sub(std::slice::from_ref(seg), reads);
+            defs.extend(caps.iter().copied());
+        }
         Ins::Capture { regs } => reads.extend(regs.iter().copied()),
         Ins::SubFirst { subs } => sub(subs, reads),
         Ins::Collect { regs } => reads.extend(regs.iter().copied()),
@@ -969,6 +979,11 @@ fn reads_defs_top(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
             reads.extend(key.iter().copied());
             defs.extend(caps.iter().copied());
         }
+        Ins::HoistProbe { key, caps, probe, .. } => {
+            reads.extend(key.iter().copied());
+            reads.push(probe.1);
+            defs.extend(caps.iter().copied());
+        }
         _ => {}
     }
 }
@@ -1079,7 +1094,7 @@ pub(crate) fn sink(p: Prog) -> Prog {
         subs_mut(i, &mut |q| *q = sink(std::mem::take(q)));
     }
     let stop = |i: &Ins| {
-        matches!(i, Ins::Emit { .. } | Ins::Yield | Ins::Fork { .. } | Ins::Collect { .. } | Ins::Capture { .. } | Ins::Hoist { .. } | Ins::Shared { .. })
+        matches!(i, Ins::Emit { .. } | Ins::Yield | Ins::Fork { .. } | Ins::Collect { .. } | Ins::Capture { .. } | Ins::Hoist { .. } | Ins::HoistProbe { .. } | Ins::Shared { .. })
     };
     let mut k = v.len();
     while k > 0 {
@@ -1245,7 +1260,7 @@ pub(crate) fn mark_first(p: Prog) -> Prog {
         let mut bound_after: Vec<R> = vec![ost, oout];
         let mut j = i + 1;
         while j < v.len() {
-            if is_iter(&v[j]) || matches!(v[j], Ins::Fork { .. } | Ins::Emit { .. } | Ins::Hoist { .. } | Ins::Yield) {
+            if is_iter(&v[j]) || matches!(v[j], Ins::Fork { .. } | Ins::Emit { .. } | Ins::Hoist { .. } | Ins::HoistProbe { .. } | Ins::Yield) {
                 break;
             }
             let ok = match &v[j] {
@@ -1326,36 +1341,83 @@ pub(crate) fn hoist(p: Prog) -> Prog {
     if std::env::var("NAV_HOIST").is_ok_and(|v| v == "0") {
         return p;
     }
+    hoist_rec(p, false)
+}
+
+/// the registers an instruction needs from outside: its own reads plus its sub-programs' free registers (not what the step
+/// itself sets for them)
+fn ins_free_reads(i: &Ins) -> Vec<R> {
+    let mut has = false;
+    subs_ref(i, &mut |_| has = true);
+    let (mut r, mut d) = (Vec::new(), Vec::new());
+    if !has {
+        reads_defs(i, &mut r, &mut d);
+        return r;
+    }
+    reads_defs_top(i, &mut r, &mut d);
+    let own: Vec<R> = match i {
+        Ins::Closure { xin, .. } | Ins::NearDerived { xin, .. } => vec![*xin],
+        Ins::Near { out, .. } | Ins::NearMemo { out, .. } | Ins::AncExists { out, .. } => vec![*out],
+        _ => Vec::new(),
+    };
+    subs_ref(i, &mut |q| r.extend(free_regs(q).into_iter().filter(|x| !own.contains(x))));
+    if let Ins::NearDerived { out, .. } = i {
+        r.retain(|x| x != out);
+    }
+    r
+}
+
+thread_local! {
+    static SKI: bool = !std::env::var("NAV_SKI").is_ok_and(|v| v == "0");
+    static PROVIDER_ALL: bool = std::env::var_os("NAV_PROVIDER").is_some();
+    static HOIST_CONST: bool = !std::env::var("NAV_HOIST_CONST").is_ok_and(|v| v == "0");
+    static HOIST_DEFER: bool = !std::env::var("NAV_HOIST_DEFER").is_ok_and(|v| v == "0");
+    static HOIST_PROBE: bool = !std::env::var("NAV_HOIST_PROBE").is_ok_and(|v| v == "0");
+}
+
+fn is_test(i: &Ins) -> bool {
+    matches!(i, Ins::Test { .. } | Ins::TestEqC { .. } | Ins::TestNeC { .. } | Ins::TestEqR { .. } | Ins::TestNeR { .. } | Ins::TestInC { .. })
+}
+
+fn hoist_rec(p: Prog, nested: bool) -> Prog {
     let mut v: Vec<Ins> = p.into_vec();
     // recurse first
     for i in v.iter_mut() {
-        subs_mut(i, &mut |q| *q = hoist(std::mem::take(q)));
+        let sub_nested = !matches!(i, Ins::Fork { .. }) || nested;
+        subs_mut(i, &mut |q| *q = hoist_rec(std::mem::take(q), sub_nested));
     }
     let mut def_at: FxMap<R, usize> = FxMap::default();
     let mut s = 0;
     while s < v.len() {
         let mut reads = Vec::new();
         let mut defs = Vec::new();
-        // the full reads (every nested sub-program) only for an iteration that may be hoisted; definitions are top level
+        // the registers an iteration needs from outside (its sub-programs' free registers); definitions are top level
+        reads_defs_top(&v[s], &mut reads, &mut defs);
         if is_iter(&v[s]) {
-            reads_defs(&v[s], &mut reads, &mut defs);
-        } else {
-            reads_defs_top(&v[s], &mut reads, &mut defs);
+            reads = ins_free_reads(&v[s]);
         }
-        let candidate = is_iter(&v[s]) && !reads.is_empty() && reads.iter().all(|r| def_at.contains_key(r)) && {
-            let mut k = reads.clone();
-            k.sort_unstable();
-            k.dedup();
-            k.len() <= 2
-        };
+        let full = if is_iter(&v[s]) { reads.clone() } else { Vec::new() };
+        // a constant iteration (no register read) inside a loop or a repeatedly run sub-program: once per file (NAV_HOIST_CONST)
+        let konst = is_iter(&v[s]) && full.is_empty() && HOIST_CONST.with(|h| *h) && (nested || (0..s).any(|j| is_iter(&v[j])));
+        let candidate = konst
+            || is_iter(&v[s]) && !reads.is_empty() && reads.iter().all(|r| def_at.contains_key(r)) && {
+                let mut k = reads.clone();
+                k.sort_unstable();
+                k.dedup();
+                k.len() <= 2
+            };
         if candidate {
-            let d = reads.iter().map(|r| def_at[r]).max().unwrap();
+            let d = reads.iter().filter_map(|r| def_at.get(r)).copied().max().unwrap_or(0);
             // inside a loop whose body re-derives the same key (an iteration after the key's binding), or (NAV_HOIST_ANY) any
             // loop at all: the runtime turns a site's memo off when its keys do not repeat
-            let enclosing = (d + 1..s).any(|j| is_iter(&v[j])) || (HOIST_ANY.with(|h| *h) && (0..s).any(|j| is_iter(&v[j])));
+            // a hoist's replay is a loop too
+            let is_loop = |i: &Ins| is_iter(i) || matches!(i, Ins::Hoist { .. } | Ins::HoistProbe { .. });
+            let enclosing = konst || (d + 1..s).any(|j| is_loop(&v[j])) || (HOIST_ANY.with(|h| *h) && (0..s).any(|j| is_loop(&v[j])));
             if enclosing {
                 // grow the segment while each step reads only the key or what the segment defined
-                let key: Vec<R> = {
+                let key: Vec<R> = if konst {
+                    Vec::new()
+                } else {
                     let mut k = reads.clone();
                     k.sort_unstable();
                     k.dedup();
@@ -1363,36 +1425,69 @@ pub(crate) fn hoist(p: Prog) -> Prog {
                 };
                 let mut local: Vec<R> = defs.clone();
                 let mut t = s + 1;
+                // tests reading something bound outside the segment are deferred past it (filters commute; NAV_HOIST_DEFER)
+                let mut deferred: Vec<usize> = Vec::new();
+                let mut inside: Vec<usize> = vec![s];
                 while t < v.len() {
-                    if matches!(v[t], Ins::Emit { .. } | Ins::Yield | Ins::Fork { .. } | Ins::Hoist { .. } | Ins::Collect { .. } | Ins::Shared { .. }) {
+                    if matches!(v[t], Ins::Emit { .. } | Ins::Yield | Ins::Fork { .. } | Ins::Hoist { .. } | Ins::HoistProbe { .. } | Ins::Collect { .. } | Ins::Shared { .. }) {
                         break;
                     }
-                    let (mut r2, mut d2) = (Vec::new(), Vec::new());
-                    reads_defs(&v[t], &mut r2, &mut d2);
+                    let r2 = ins_free_reads(&v[t]);
                     if !r2.iter().all(|r| key.contains(r) || local.contains(r)) {
+                        if is_test(&v[t]) && HOIST_DEFER.with(|h| *h) {
+                            deferred.push(t);
+                            t += 1;
+                            continue;
+                        }
                         break;
                     }
+                    let (mut r3, mut d2) = (Vec::new(), Vec::new());
+                    reads_defs_top(&v[t], &mut r3, &mut d2);
                     local.extend(d2);
+                    inside.push(t);
                     t += 1;
                 }
-                if t - s >= 3 && t < v.len() {
-                    // captured: segment definitions read later
+                // deferred tests at the segment's end only count when the segment still has its own steps after the first
+                if inside.len() >= 3 && t < v.len() {
+                    // captured: segment definitions read later (deferred tests included)
                     let mut later = Vec::new();
-                    for j in &v[t..] {
+                    for j in deferred.iter().map(|&j| &v[j]).chain(v[t..].iter()) {
                         let mut d3 = Vec::new();
                         reads_defs(j, &mut later, &mut d3);
                     }
                     let mut caps: Vec<R> = local.iter().copied().filter(|r| later.contains(r)).collect();
                     caps.sort_unstable();
                     caps.dedup();
-                    let mut seg: Vec<Ins> = v.drain(s..t).collect();
+                    // an equality between a captured register and one bound outside: the replay probes an index on it
+                    let probe = if HOIST_PROBE.with(|h| *h) {
+                        deferred.iter().find_map(|&j| match &v[j] {
+                            Ins::TestEqR { a, b } | Ins::Test { test: T::Eq, l: Opd::Reg(a), r: Opd::Reg(b), .. } => {
+                                match (caps.iter().position(|c| c == a), caps.iter().position(|c| c == b)) {
+                                    (Some(i), None) if !local.contains(b) => Some((i as u32, *b)),
+                                    (None, Some(i)) if !local.contains(a) => Some((i as u32, *a)),
+                                    _ => None,
+                                }
+                            }
+                            _ => None,
+                        })
+                    } else {
+                        None
+                    };
+                    let mut taken: Vec<Option<Ins>> = v.drain(s..t).map(Some).collect();
+                    let mut seg: Vec<Ins> = inside.iter().map(|&j| taken[j - s].take().unwrap()).collect();
+                    let tests: Vec<Ins> = deferred.iter().map(|&j| taken[j - s].take().unwrap()).collect();
                     seg.push(Ins::Capture { regs: caps.clone().into() });
                     let id = HOIST_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     for r in &caps {
                         def_at.insert(*r, s);
                     }
-                    v.insert(s, Ins::Hoist { id, key: key.into(), seg: seg.into(), caps: caps.into() });
-                    s += 1;
+                    let n_tests = tests.len();
+                    let h = match probe {
+                        Some((pc, pr)) => Ins::HoistProbe { id, key: key.into(), seg: seg.into(), caps: caps.into(), probe: (pc, pr) },
+                        None => Ins::Hoist { id, key: key.into(), seg: seg.into(), caps: caps.into() },
+                    };
+                    v.splice(s..s, std::iter::once(h).chain(tests));
+                    s += 1 + n_tests;
                     continue;
                 }
             }
@@ -1421,6 +1516,12 @@ impl NavProgram {
             reads.sort_unstable();
             reads.dedup();
             SHARED_READS.with(|t| t.borrow_mut().push(reads));
+        }
+        // the shared entries' free registers (hoisting reads them; recomputed before the memo pass)
+        SHARED_FREE.with(|t| t.borrow_mut().clear());
+        for q in &self.shared {
+            let fr = free_regs(q);
+            SHARED_FREE.with(|t| t.borrow_mut().push(fr));
         }
         // each pass over every program, timed (NAV_VERBOSE)
         let stages: [(&str, &dyn Fn(Prog) -> Prog); 7] = [
@@ -2116,6 +2217,7 @@ fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
         | Ins::TestNeR { .. }
         | Ins::TestInC { .. }
         | Ins::Hoist { .. }
+        | Ins::HoistProbe { .. }
         | Ins::Capture { .. }
         | Ins::NearMemo { .. }
         | Ins::SubKey { .. }
@@ -2250,6 +2352,9 @@ pub(crate) struct Counters {
     /// per base made table over the run: (steps of its builds, builds) as a twin's buy price; twins switched
     pub twin_buy: FxMap<u16, (u64, u64)>,
     pub twin_switches: u64,
+    /// NearMemo / AncExists memo arrays allocated (per file per site) and their cells
+    pub memo_allocs: u64,
+    pub memo_cells: u64,
     /// per derived relation: (files, ns, rows)
     pub derived_by: FxMap<u16, (u64, u64, u64)>,
     pub made_depth: u32,
@@ -2335,6 +2440,8 @@ pub(crate) struct FileCache {
     pub twin_bought: std::collections::HashSet<u16, std::hash::BuildHasherDefault<crate::sema::Fx>>,
     /// hoisted inner enumerations per (site, key values): captured tuples, flattened
     pub hoisted: FxMap<(u32, u64, u64), Rc<Vec<u64>>>,
+    /// HoistProbe: per (site, key values) the captured tuples indexed by the probed register
+    pub probed: FxMap<(u32, u64, u64), Rc<FxMap<u64, Vec<u64>>>>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
     /// join: NearMemo answers per site (indexed by node id) and SubKey answers per (site, key value)
@@ -2553,7 +2660,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         // ski rental (NAV_SKI=0 turns it off): per file, keyed builds run until their steps exceed what building the base table
         // once costs (the run's average so far); then the base is built and indexed by the key, and every later key is served
         // from it
-        if f.base != u16::MAX && !std::env::var("NAV_SKI").is_ok_and(|v| v == "0") {
+        if f.base != u16::MAX && SKI.with(|s| *s) {
             let bought = self.cache.twin_bought.contains(&rel);
             let rent = self.cache.twin_rent.get(&rel).copied().unwrap_or(0);
             let (buy_steps, buys) = self.c.twin_buy.get(&f.base).copied().unwrap_or((0, 0));
@@ -2950,7 +3057,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 facts.loaded[rel as usize] = true;
                 self.c.model_rows_ns += t.elapsed().as_nanos() as u64;
             }
-            None if std::env::var_os("NAV_PROVIDER").is_none()
+            None if !PROVIDER_ALL.with(|p| *p)
                 && (crate::derived::index_of(&prog.facts[rel as usize].name).is_some() || prog.facts[rel as usize].name.starts_with("filesystem.")) =>
             {
                 self.load_derived(rel);
@@ -3503,12 +3610,16 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::IterValue { rel, col, val, out } => {
                     let idx = self.tree_index(*rel, *col);
-                    let keys: Vec<u32> = match val {
-                        Val::Reg(r) => vec![self.regs[*r as usize] as u32],
-                        Val::Syms(s) => s.to_vec(),
-                        Val::Nums(n) => n.iter().map(|&x| x as u32).collect(),
+                    let one;
+                    let keys: &[u32] = match val {
+                        Val::Reg(r) => {
+                            one = [self.regs[*r as usize] as u32];
+                            &one
+                        }
+                        Val::Syms(s) => s,
+                        Val::Nums(_) => unreachable!("a constant value walk takes the constant list"),
                     };
-                    for k in keys {
+                    for &k in keys {
                         for &id in idx.get(k) {
                             self.regs[*out as usize] = id as u64;
                             self.c.visits += 1;
@@ -3552,6 +3663,10 @@ impl<'a, 'p> Exec<'a, 'p> {
                             one = [self.regs[*r as usize]];
                             &one
                         }
+                        Val::Syms(s) if s.len() == 1 => {
+                            one = [u64::from(s[0])];
+                            &one
+                        }
                         Val::Syms(s) => {
                             one = [0];
                             let _ = one;
@@ -3563,8 +3678,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                             return self.iter_fact_list(p, pc, &idx, &n.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
                         }
                     };
-                    let keys = keys.to_vec();
-                    return self.iter_fact_list(p, pc, &idx, &keys, *out);
+                    return self.iter_fact_list(p, pc, &idx, keys, *out);
                 }
                 Ins::IterFactScan { rel, out } => {
                     self.ensure(*rel);
@@ -3640,11 +3754,12 @@ impl<'a, 'p> Exec<'a, 'p> {
                         Val::Reg(_) => (Some(self.tree_index(*rel, *col)), None),
                         _ => (None, Some(self.const_list(*rel, *col, val, true))),
                     };
-                    let keys: Vec<u32> = match val {
-                        Val::Reg(r) => vec![self.regs[*r as usize] as u32],
-                        _ => vec![0],
+                    let k1 = match val {
+                        Val::Reg(r) => self.regs[*r as usize] as u32,
+                        _ => 0,
                     };
-                    for k in keys {
+                    {
+                        let k = k1;
                         let list: &[u32] = match (&tidx, &clist) {
                             (Some(t), _) => t.get(k),
                             (_, Some(c)) => c,
@@ -3698,7 +3813,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     return false;
                 }
                 Ins::Hoist { id, key, seg, caps } => {
-                    let hk = (*id, self.regs[key[0] as usize], key.get(1).map_or(0, |&r| self.regs[r as usize]));
+                    let hk = (*id, key.first().map_or(0, |&r| self.regs[r as usize]), key.get(1).map_or(0, |&r| self.regs[r as usize]));
                     // per site over the run: (lookups, misses); a site whose keys do not repeat stops memoising
                     let site = self.c.hoist_sites.entry(*id).or_default();
                     site.0 += 1;
@@ -3726,6 +3841,39 @@ impl<'a, 'p> Exec<'a, 'p> {
                         }
                         if caps.is_empty() && tup.is_empty() {
                             continue;
+                        }
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::HoistProbe { id, key, seg, caps, probe } => {
+                    let hk = (*id, key.first().map_or(0, |&r| self.regs[r as usize]), key.get(1).map_or(0, |&r| self.regs[r as usize]));
+                    let idx = match self.cache.probed.get(&hk) {
+                        Some(x) => x.clone(),
+                        None => {
+                            let saved = std::mem::take(&mut self.cap_buf);
+                            self.run_inner(seg, 0);
+                            let t = std::mem::replace(&mut self.cap_buf, saved);
+                            self.c.hoist_misses += 1;
+                            let w = caps.len().max(1);
+                            let mut m: FxMap<u64, Vec<u64>> = FxMap::default();
+                            for tup in t.chunks(w) {
+                                m.entry(tup[probe.0 as usize]).or_default().extend_from_slice(tup);
+                            }
+                            let x = Rc::new(m);
+                            self.cache.probed.insert(hk, x.clone());
+                            x
+                        }
+                    };
+                    self.c.hoist_runs += 1;
+                    let want = self.regs[probe.1 as usize];
+                    let Some(tuples) = idx.get(&want) else { return false };
+                    let w = caps.len().max(1);
+                    for tup in tuples.chunks(w) {
+                        for (k, &r) in caps.iter().enumerate() {
+                            self.regs[r as usize] = tup[k];
                         }
                         if self.run_inner(p, pc + 1) {
                             return true;
@@ -4083,7 +4231,11 @@ impl<'a, 'p> Exec<'a, 'p> {
             return None;
         }
         let site = subs.as_ptr() as usize;
-        let mut memo = self.cache.near_memo.remove(&site).unwrap_or_else(|| vec![UNKNOWN; v.len()]);
+        let mut memo = self.cache.near_memo.remove(&site).unwrap_or_else(|| {
+            self.c.memo_allocs += 1;
+            self.c.memo_cells += v.len() as u64;
+            vec![UNKNOWN; v.len()]
+        });
         let mut stack: Vec<u32> = Vec::new();
         let mut x = s;
         let res = loop {
@@ -4123,7 +4275,11 @@ impl<'a, 'p> Exec<'a, 'p> {
             return false;
         }
         let site = cond.as_ptr() as usize;
-        let mut memo = self.cache.near_memo.remove(&site).unwrap_or_else(|| vec![UNKNOWN; v.len()]);
+        let mut memo = self.cache.near_memo.remove(&site).unwrap_or_else(|| {
+            self.c.memo_allocs += 1;
+            self.c.memo_cells += v.len() as u64;
+            vec![UNKNOWN; v.len()]
+        });
         let mut stack: Vec<u32> = Vec::new();
         let mut x = s;
         let res = loop {

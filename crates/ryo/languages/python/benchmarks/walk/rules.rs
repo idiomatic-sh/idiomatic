@@ -446,8 +446,13 @@ impl Program {
     pub(crate) fn write_pack(path: &str, out: &str) -> usize {
         let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
         PACKING.with(|p| p.set(true));
-        let p = Self::build(&v, Symbols::default(), None);
-        crate::pack::write(&v, &p.symbols, p.nav.as_ref().expect("nav program"), out)
+        let mut p = Self::build(&v, Symbols::default(), None);
+        let nav = p.nav.as_mut().expect("nav program");
+        // the pack stores the programs after every load-time pass: a run reads them as they execute
+        let t = Instant::now();
+        nav.specialize_all();
+        eprintln!("{{\"pack_specialise_s\":{:.3}}}", t.elapsed().as_secs_f64());
+        crate::pack::write(&v, &p.symbols, p.nav.as_ref().unwrap(), out)
     }
 
     fn build(v: &Value, mut symbols: Symbols, prebuilt: Option<crate::nav::NavProgram>) -> Self {
@@ -723,6 +728,7 @@ impl<'p> State<'p> {
         self.cache.twin_rent.clear();
         self.cache.twin_bought.clear();
         self.cache.hoisted.clear();
+        self.cache.probed.clear();
         self.cache.sub_memo.clear();
         self.cache.near_memo.clear();
         self.cache.key_memo.clear();
@@ -1158,6 +1164,10 @@ impl<'p> State<'p> {
             db.sort_by(|a, b| b.1.1.cmp(&a.1.1));
             let db: Vec<String> = db.iter().map(|(k, v)| format!("[\"{}\",{},{},{}]", nav.facts[*k as usize].name, v.0, v.1, v.2)).collect();
             eprintln!("{{\"derived_by\":[{}]}}", db.join(","));
+            let c = &self.nc;
+            let (sk, sm) = c.key_sites.values().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
+            let (hk, hm) = c.hoist_sites.values().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
+            eprintln!("{{\"memo\":{{\"near_allocs\":{},\"near_cells\":{},\"subkey_lookups\":{sk},\"subkey_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm}}}}}", c.memo_allocs, c.memo_cells);
             if let Some(prof) = &self.nc.prof {
                 eprintln!("PROFILE\n{}", crate::nav::profile_report(nav, prof));
             }

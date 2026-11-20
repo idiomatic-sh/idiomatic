@@ -211,19 +211,57 @@ impl Enc {
                 self.u(u32::from(*out));
                 self.u(u32::from(*field_out));
             }
-            Ins::ReadCol { .. }
-            | Ins::ReadChild { .. }
-            | Ins::TestEqC { .. }
-            | Ins::TestNeC { .. }
-            | Ins::TestEqR { .. }
-            | Ins::TestNeR { .. }
-            | Ins::TestInC { .. }
-            | Ins::Hoist { .. }
-            | Ins::Capture { regs: _ }
-            | Ins::NearMemo { .. }
-            | Ins::SubKey { .. }
-            | Ins::AncExists { .. }
-            | Ins::SubFirst { .. } => panic!("specialised instructions are not stored in the pack"),
+            // load-time specialisations (pack version 4 stores the specialised programs)
+            Ins::ReadCol { which, row, out } | Ins::ReadChild { which, row, out } => {
+                self.u(u32::from(*which));
+                self.u(u32::from(*row));
+                self.u(u32::from(*out));
+            }
+            Ins::TestEqC { reg, c } | Ins::TestNeC { reg, c } => {
+                self.u(u32::from(*reg));
+                self.i(*c as i64);
+            }
+            Ins::TestEqR { a, b } | Ins::TestNeR { a, b } => {
+                self.u(u32::from(*a));
+                self.u(u32::from(*b));
+            }
+            Ins::TestInC { reg, set, negate } => {
+                self.u(u32::from(*reg));
+                self.us(set);
+                self.u(u32::from(*negate));
+            }
+            Ins::Hoist { id, key, seg, caps } => {
+                self.u(*id);
+                self.regs(key);
+                self.prog(seg);
+                self.regs(caps);
+            }
+            Ins::HoistProbe { id, key, seg, caps, probe } => {
+                self.u(*id);
+                self.regs(key);
+                self.prog(seg);
+                self.regs(caps);
+                self.u(probe.0);
+                self.u(u32::from(probe.1));
+            }
+            Ins::Capture { regs } => self.regs(regs),
+            Ins::SubFirst { subs } => self.progs(subs),
+            Ins::NearMemo { start, out, subs } => {
+                self.u(u32::from(*start));
+                self.u(u32::from(*out));
+                self.progs(subs);
+            }
+            Ins::SubKey { negate, key, subs } => {
+                self.u(u32::from(*negate));
+                self.u(u32::from(*key));
+                self.progs(subs);
+            }
+            Ins::AncExists { negate, start, out, cond } => {
+                self.u(u32::from(*negate));
+                self.u(u32::from(*start));
+                self.u(u32::from(*out));
+                self.prog(cond);
+            }
             Ins::Fork { subs } => {
                 self.u(subs.len() as u32);
                 for (slots, q) in subs.iter() {
@@ -379,7 +417,8 @@ impl Dec<'_> {
         (0..n).map(|_| self.prog()).collect::<Vec<_>>().into()
     }
     fn ins(&mut self) -> Ins {
-        match self.u() {
+        let code = self.u();
+        match code {
             0 => {
                 let kinds = self.us();
                 Ins::IterKind { kinds, out: self.r() }
@@ -555,6 +594,57 @@ impl Dec<'_> {
             42 => {
                 let negate = self.u() != 0;
                 Ins::SubMemo { negate, subs: self.progs() }
+            }
+            22 | 23 => {
+                let which = self.u() as u8;
+                let row = self.r();
+                let out = self.r();
+                if code == 22 { Ins::ReadCol { which, row, out } } else { Ins::ReadChild { which, row, out } }
+            }
+            24 | 25 => {
+                let reg = self.r();
+                let c = self.i() as u64;
+                if code == 24 { Ins::TestEqC { reg, c } } else { Ins::TestNeC { reg, c } }
+            }
+            26 | 27 => {
+                let a = self.r();
+                let b = self.r();
+                if code == 26 { Ins::TestEqR { a, b } } else { Ins::TestNeR { a, b } }
+            }
+            28 => {
+                let reg = self.r();
+                let set = self.us();
+                Ins::TestInC { reg, set, negate: self.u() != 0 }
+            }
+            29 | 46 => {
+                let id = self.u();
+                let key = self.regs();
+                let seg = self.prog();
+                let caps = self.regs();
+                if code == 29 {
+                    Ins::Hoist { id, key, seg, caps }
+                } else {
+                    let pc = self.u();
+                    Ins::HoistProbe { id, key, seg, caps, probe: (pc, self.r()) }
+                }
+            }
+            30 => Ins::Capture { regs: self.regs() },
+            31 => Ins::SubFirst { subs: self.progs() },
+            43 => {
+                let start = self.r();
+                let out = self.r();
+                Ins::NearMemo { start, out, subs: self.progs() }
+            }
+            44 => {
+                let negate = self.u() != 0;
+                let key = self.r();
+                Ins::SubKey { negate, key, subs: self.progs() }
+            }
+            45 => {
+                let negate = self.u() != 0;
+                let start = self.r();
+                let out = self.r();
+                Ins::AncExists { negate, start, out, cond: self.prog() }
             }
             c => panic!("ins code {c}"),
         }
@@ -766,7 +856,7 @@ pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -
         e.prog(&g.prog);
     }
     let mut bytes: Vec<u8> = Vec::new();
-    for x in [MAGIC, 3, tails.len() as u32, e.w.len() as u32] {
+    for x in [MAGIC, 4, tails.len() as u32, e.w.len() as u32] {
         bytes.extend_from_slice(&x.to_le_bytes());
     }
     bytes.extend_from_slice(tails.as_bytes());
@@ -785,7 +875,7 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
     let bytes = std::fs::read(path).expect("pack");
     let word = |i: usize| u32::from_le_bytes(bytes[i * 4..i * 4 + 4].try_into().unwrap());
     assert_eq!(word(0), MAGIC, "pack magic");
-    assert_eq!(word(1), 3, "pack version");
+    assert_eq!(word(1), 4, "pack version");
     let tails_len = word(2) as usize;
     let nwords = word(3) as usize;
     let t0 = std::time::Instant::now();
@@ -910,6 +1000,9 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
     }
     let t_nav = t0.elapsed().as_secs_f64();
     if std::env::var("NAV_VERBOSE").is_ok() {
+        eprintln!("pack sizes: Ins {} B, Opd {} B, Val {} B", std::mem::size_of::<Ins>(), std::mem::size_of::<Opd>(), std::mem::size_of::<Val>());
+    }
+    if std::env::var("NAV_VERBOSE").is_ok() {
         eprintln!(
             "pack read: tails json {t_tails:.3} symbols {t_sym:.3} regexes {t_re:.3} nav {t_nav:.3} done {:.3} (cumulative s); {} regexes",
             t0.elapsed().as_secs_f64(),
@@ -917,10 +1010,6 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
         );
     }
     let mut nav = NavProgram { groups, slot_of, slot_rule, nslots, rules, shared, facts, regexes, regex_patterns: Vec::new(), max_regs, needs_provider };
-    let t1 = std::time::Instant::now();
-    nav.specialize_all();
-    if std::env::var("NAV_VERBOSE").is_ok() {
-        eprintln!("pack specialise: {:.3} s", t1.elapsed().as_secs_f64());
-    }
+    // the pack stores the specialised programs (written after specialize_all)
     (symbols, tails, nav)
 }
