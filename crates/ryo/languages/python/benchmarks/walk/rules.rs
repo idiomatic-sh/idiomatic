@@ -642,6 +642,7 @@ impl<'p> State<'p> {
         let mut regs = std::mem::take(&mut self.regs);
         regs.resize(nav.max_regs.max(1), 0);
         let fact_before = self.nc.fact_ns;
+        let mut aux_rows: Vec<(usize, Vec<(u32, Vec<u8>, Vec<u64>)>)> = Vec::new();
         {
             let f = crate::nav::File { view: &view, table, source, path, file: index, incomplete: !parsed.errors().is_empty() };
             let mut ex = crate::nav::Exec {
@@ -657,6 +658,7 @@ impl<'p> State<'p> {
                 outs,
                 cur_rule: 0,
                 collect: Vec::new(),
+                union_memo: FxMap::default(),
             };
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {
@@ -736,6 +738,13 @@ impl<'p> State<'p> {
                 ex.cur_rule = ri as usize;
                 ex.run(p, 0);
             }
+            // navwide: auxiliary relations of the rules whose core has rows
+            for (ri, rule) in nav.rules.iter().enumerate() {
+                if !rule.aux.is_empty() && !ex.outs[ri].is_empty() {
+                    let rows = ex.run_aux(ri);
+                    aux_rows.push((ri, rows));
+                }
+            }
             ex.cache.dispatch = dispatch;
             ex.cache.dispatch_used = used;
             ex.cache.other = other;
@@ -756,10 +765,17 @@ impl<'p> State<'p> {
             let nr = &nav.rules[r];
             let rel = Rel { kinds: nr.kinds.clone(), data: rows.clone() };
             self.memo.insert(nr.xmerged, std::rc::Rc::new(rel));
+            let mine: Vec<u32> = aux_rows.iter().filter(|(ri, _)| *ri == r).flat_map(|(_, a)| a.iter()).map(|(m, kinds, data)| {
+                self.memo.insert(*m, std::rc::Rc::new(Rel { kinds: kinds.clone(), data: data.clone() }));
+                *m
+            }).collect();
             let rule = &program.rules[r];
             self.cur = r;
             let emit = self.demand(rule.root, &ctx);
             self.memo.remove(&nr.xmerged);
+            for m in mine {
+                self.memo.remove(&m);
+            }
             if emit.arity() == 0 {
                 continue;
             }

@@ -95,7 +95,7 @@ pub(crate) enum Ins {
     /// a closure edge sub-program's answer: the registers are pushed to the collect buffer
     Collect { regs: Box<[R]> },
     /// a union as one step: each sub-program collects the free output registers; the distinct tuples continue the program
-    Union { outs: Box<[R]>, subs: Box<[Prog]> },
+    Union { outs: Box<[R]>, subs: Box<[Prog]>, memo: bool },
     /// a register takes a value (an equality whose one side nothing else binds)
     Let { from: Opd, out: R },
     /// runs entry `idx` of the shared sub-program table in place (a sub-program used more than once in a rule)
@@ -106,6 +106,9 @@ pub(crate) enum Ins {
     Capture { text: Opd, pattern: Box<str>, outs: Box<[R]> },
     /// RyoQL `replace`: the text with every regex match replaced by the literal
     Replace { text: Opd, regex: usize, replacement: Box<str>, out: R },
+    /// nearest ancestor over derived edges: breadth-first up the edge sub-programs (each collects the reached node with
+    /// `xin` bound) until a level holds a node the domain sub-programs admit; the first such node goes on
+    NearDerived { start: R, out: R, xin: R, edges: Box<[Prog]>, domain: Box<[Prog]> },
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -120,6 +123,19 @@ pub(crate) struct OrderedMatch {
     pub ro: usize,
     pub number: bool,
     pub output: Vec<(bool, usize)>,
+    /// navwide: an ordered depth-first walk instead (roots = left, edges = right)
+    pub dfs: Option<OrderedDfs>,
+}
+
+/// the columns of an ordered depth-first walk (navwide)
+pub(crate) struct OrderedDfs {
+    pub root: usize,
+    pub source: usize,
+    pub destination: usize,
+    pub order: usize,
+    pub edge: usize,
+    pub root_keys: Vec<usize>,
+    pub edge_keys: Vec<usize>,
 }
 
 pub(crate) type Prog = Box<[Ins]>;
@@ -139,6 +155,8 @@ pub(crate) struct NavRule {
     pub xmerged: u32,
     pub kinds: Vec<u8>,
     pub nregs: usize,
+    /// navwide: relations the tail reads that its interpreter does not serve: (merged id, scan programs, cell kinds)
+    pub aux: Vec<(u32, Vec<Prog>, Vec<u8>)>,
 }
 
 pub(crate) struct FactRel {
@@ -452,10 +470,18 @@ impl Loader<'_> {
             }
             "clos" => self.closure_ins(a),
             "shared" => Ins::Shared { idx: (self.shared_base + a[1].as_u64().unwrap() as usize) as u32 },
+            "nearc" => Ins::NearDerived {
+                start: self.reg(&a[1]),
+                out: self.reg(&a[2]),
+                xin: self.reg(&a[3]),
+                edges: a[5].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+                domain: a[6].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+            },
             "let" => Ins::Let { from: self.opd(&a[1]), out: self.reg(&a[2]) },
             "or" => Ins::Union {
                 outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
                 subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+                memo: a.len() > 3,
             },
             "collect" => Ins::Collect { regs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into() },
             o => panic!("ins {o}"),
@@ -510,6 +536,34 @@ impl NavProgram {
                         _ => CellKind::Number,
                     })
                     .collect();
+                if m["op"] == "ordered_dfs" {
+                    let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
+                    let right: Vec<Prog> = m["right_programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+                    let n = |k: &str| m[k].as_u64().unwrap() as usize;
+                    let om = OrderedMatch {
+                        left: progs,
+                        right,
+                        lw: n("width"),
+                        rw: n("right_width"),
+                        left_on: Vec::new(),
+                        right_on: Vec::new(),
+                        lo: 0,
+                        ro: 0,
+                        number: m["order_number"].as_bool().unwrap_or(false),
+                        output: Vec::new(),
+                        dfs: Some(OrderedDfs {
+                            root: n("root"),
+                            source: n("source"),
+                            destination: n("destination"),
+                            order: n("order"),
+                            edge: n("edge"),
+                            root_keys: cols(&m["root_keys"]),
+                            edge_keys: cols(&m["edge_keys"]),
+                        }),
+                    };
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om) });
+                    continue;
+                }
                 if m["op"] == "ordered_match" {
                     let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
                     let right: Vec<Prog> = m["right_programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
@@ -524,6 +578,7 @@ impl NavProgram {
                         ro: m["right_order"].as_u64().unwrap() as usize,
                         number: m["order_number"].as_bool().unwrap_or(false),
                         output: m["output"].as_array().unwrap().iter().map(|o| (o[0].as_u64().unwrap() == 1, o[1].as_u64().unwrap() as usize)).collect(),
+                        dfs: None,
                     };
                     loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om) });
                     continue;
@@ -562,6 +617,17 @@ impl NavProgram {
                         .collect()
                 })
                 .collect();
+            let aux: Vec<(u32, Vec<Prog>, Vec<u8>)> = nav["aux"]
+                .as_array()
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+                .iter()
+                .map(|a| {
+                    let progs = a["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+                    let kinds = a["columns"].as_array().unwrap().iter().map(|c| cell_kind(c.as_str().unwrap())).collect();
+                    (a["merged"].as_u64().unwrap() as u32, progs, kinds)
+                })
+                .collect();
             let nregs = loader.regs.len();
             max_regs = max_regs.max(nregs);
             out.push(NavRule {
@@ -570,6 +636,7 @@ impl NavProgram {
                 xmerged: nav["xmerged"].as_u64().unwrap() as u32,
                 kinds: nav["columns"].as_array().unwrap().iter().map(|c| cell_kind(c.as_str().unwrap())).collect(),
                 nregs,
+                aux,
             });
         }
         Self { rules: out, shared, facts, regexes, max_regs }
@@ -681,6 +748,8 @@ pub(crate) struct Exec<'a, 'p> {
     pub cur_rule: usize,
     /// the collect buffer of the innermost running closure edge sub-program (navwide)
     pub collect: Vec<u64>,
+    /// per-file rows of unions that read no bound variable, by their sub-program list (navwide)
+    pub union_memo: FxMap<usize, Rc<Vec<u64>>>,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -1416,7 +1485,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     return false;
                 }
                 Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
-                Ins::Union { outs, subs } => return self.union(p, pc, outs, subs),
+                Ins::Union { outs, subs, memo } => return self.union(p, pc, outs, subs, *memo),
                 Ins::Let { from, out } => self.regs[*out as usize] = self.opd(from),
                 Ins::TextFn { lower, args, out } => {
                     let mut t = String::new();
@@ -1433,6 +1502,12 @@ impl<'a, 'p> Exec<'a, 'p> {
                     self.regs[*out as usize] = self.sym.minted(t) as u64;
                 }
                 Ins::Capture { text, pattern, outs } => return self.capture(p, pc, text, pattern, outs),
+                Ins::NearDerived { start, out, xin, edges, domain } => {
+                    match self.near_derived(*start, *out, *xin, edges, domain) {
+                        Some(n) => self.regs[*out as usize] = n,
+                        None => return false,
+                    }
+                }
                 Ins::Replace { text, regex, replacement, out } => {
                     let v = self.opd(text);
                     let r = match self.text_of(text, v).map(str::to_owned) {
@@ -1566,19 +1641,33 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// Ins::Union (navwide): every sub-program's collected tuples, distinct, each continuing the program
-    fn union(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog]) -> bool {
+    fn union(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], memo: bool) -> bool {
         let w = outs.len();
-        let saved = std::mem::take(&mut self.collect);
-        for q in subs {
-            self.c.subs += 1;
-            self.run_inner(q, 0);
-        }
-        let rows = std::mem::replace(&mut self.collect, saved);
-        let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
-        for row in rows.chunks(w) {
-            if !seen.insert(row) {
-                continue;
+        let key = subs.as_ptr() as usize;
+        let rows: Rc<Vec<u64>> = match self.union_memo.get(&key) {
+            Some(r) if memo => r.clone(),
+            _ => {
+                let saved = std::mem::take(&mut self.collect);
+                for q in subs {
+                    self.c.subs += 1;
+                    self.run_inner(q, 0);
+                }
+                let rows = std::mem::replace(&mut self.collect, saved);
+                let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+                let mut distinct = Vec::with_capacity(rows.len());
+                for row in rows.chunks(w.max(1)) {
+                    if seen.insert(row) {
+                        distinct.extend_from_slice(row);
+                    }
+                }
+                let r = Rc::new(distinct);
+                if memo {
+                    self.union_memo.insert(key, r.clone());
+                }
+                r
             }
+        };
+        for row in rows.chunks(w.max(1)) {
             for (i, r) in outs.iter().enumerate() {
                 self.regs[*r as usize] = row[i];
             }
@@ -1610,6 +1699,62 @@ impl<'a, 'p> Exec<'a, 'p> {
             (Some(a), Some(b)) => numeric_cmp(a, b).is_some_and(|o| o.is_ge()),
             _ => false,
         }
+    }
+
+    /// navwide: the rows of a rule's auxiliary relations (scan programs), for its tail
+    pub(crate) fn run_aux(&mut self, rule: usize) -> Vec<(u32, Vec<u8>, Vec<u64>)> {
+        let prog = self.prog;
+        let slot = self.outs.len() - 1;
+        let mut out = Vec::new();
+        for (merged, progs, kinds) in &prog.rules[rule].aux {
+            let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
+            self.cur_rule = slot;
+            for q in progs {
+                self.run_inner(q, 0);
+            }
+            let rows = std::mem::replace(&mut self.outs[slot], saved.1);
+            self.cur_rule = saved.0;
+            out.push((*merged, kinds.clone(), rows));
+        }
+        out
+    }
+
+    /// Ins::NearDerived (navwide)
+    fn near_derived(&mut self, start: R, out: R, xin: R, edges: &'p [Prog], domain: &'p [Prog]) -> Option<u64> {
+        let mut seen: std::collections::HashSet<u64, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+        let mut level = vec![self.regs[start as usize]];
+        let saved = std::mem::take(&mut self.collect);
+        let mut answer = None;
+        'up: while !level.is_empty() {
+            let mut next = Vec::new();
+            for &n in &level {
+                self.regs[xin as usize] = n;
+                self.collect.clear();
+                for q in edges {
+                    self.c.subs += 1;
+                    self.run_inner(q, 0);
+                }
+                for &y in &self.collect {
+                    if seen.insert(y) {
+                        next.push(y);
+                    }
+                }
+            }
+            for &y in &next {
+                self.regs[out as usize] = y;
+                self.c.visits += 1;
+                if domain.iter().any(|q| {
+                    self.c.subs += 1;
+                    self.run_inner(q, 0)
+                }) {
+                    answer = Some(y);
+                    break 'up;
+                }
+            }
+            level = next;
+        }
+        self.collect = saved;
+        answer
     }
 
     /// Ins::Capture (navwide)
@@ -1654,6 +1799,15 @@ impl<'a, 'p> Exec<'a, 'p> {
         let ls = distinct(&lrows, om.lw);
         let rs = distinct(&rrows, om.rw);
         let key = |o: u64| -> i128 { if om.number { i128::from(o as i64) } else { i128::from(o) } };
+        if let Some(d) = &om.dfs {
+            let cols = ordered_dfs(d, &ls, &rs, key);
+            self.c.made_tables += 1;
+            self.c.made_rows += cols.first().map_or(0, Vec::len) as u64;
+            let facts = self.cache.facts.as_mut().unwrap();
+            facts.cols[rel as usize] = cols;
+            facts.loaded[rel as usize] = true;
+            return;
+        }
         let mut groups: FxMap<Vec<u64>, (Vec<usize>, Vec<usize>)> = FxMap::default();
         let mut order: Vec<Vec<u64>> = Vec::new();
         for (i, r) in ls.iter().enumerate() {
@@ -1697,6 +1851,59 @@ impl<'a, 'p> Exec<'a, 'p> {
         facts.cols[rel as usize] = cols;
         facts.loaded[rel as usize] = true;
     }
+}
+
+/// RyoQL `ordered_dfs` (navwide): per distinct (root keys, root), depth-first, out-edges in ascending order, the root seen first;
+/// every edge visit is a row (root keys.., root, source, destination, edge, ordinal from 0); unseen destinations are entered at once
+fn ordered_dfs(d: &OrderedDfs, roots: &[Vec<u64>], edges: &[Vec<u64>], key: impl Fn(u64) -> i128) -> Vec<Vec<u64>> {
+    let mut adj: FxMap<(Vec<u64>, u64), Vec<usize>> = FxMap::default();
+    for (i, e) in edges.iter().enumerate() {
+        let k: Vec<u64> = d.edge_keys.iter().map(|&c| e[c]).collect();
+        adj.entry((k, e[d.source])).or_default().push(i);
+    }
+    for list in adj.values_mut() {
+        list.sort_by_key(|&i| key(edges[i][d.order]));
+    }
+    let mut cols: Vec<Vec<u64>> = vec![Vec::new(); d.root_keys.len() + 5];
+    let mut done: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+    for r in roots {
+        let rk: Vec<u64> = d.root_keys.iter().map(|&c| r[c]).collect();
+        let root = r[d.root];
+        let mut id = rk.clone();
+        id.push(root);
+        if !done.insert(id) {
+            continue;
+        }
+        let mut seen: std::collections::HashSet<u64, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+        seen.insert(root);
+        let mut ordinal = 0u64;
+        let mut stack: Vec<(u64, usize)> = vec![(root, 0)];
+        while let Some(top) = stack.last_mut() {
+            let (node, at) = *top;
+            let list = adj.get(&(rk.clone(), node));
+            let Some(&e) = list.and_then(|l| l.get(at)) else {
+                stack.pop();
+                continue;
+            };
+            top.1 += 1;
+            let row = &edges[e];
+            for (c, v) in rk.iter().enumerate() {
+                cols[c].push(*v);
+            }
+            let n = rk.len();
+            cols[n].push(root);
+            cols[n + 1].push(row[d.source]);
+            cols[n + 2].push(row[d.destination]);
+            cols[n + 3].push(row[d.edge]);
+            cols[n + 4].push(ordinal);
+            ordinal += 1;
+            let dst = row[d.destination];
+            if seen.insert(dst) {
+                stack.push((dst, 0));
+            }
+        }
+    }
+    cols
 }
 
 /// RyoQL `capture` (navwide copy of the walk interpreter's): every way the text matches the slot pattern
