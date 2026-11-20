@@ -561,6 +561,7 @@ pub(crate) struct State<'p> {
     pub tail_files: u64,
     regs: Vec<u64>,
     outs: Vec<Vec<u64>>,
+    model: crate::model::Model,
 }
 
 impl<'p> State<'p> {
@@ -597,6 +598,7 @@ impl<'p> State<'p> {
             tail_files: 0,
             regs: Vec::new(),
             outs: Vec::new(),
+            model: crate::model::Model::default(),
         }
     }
 
@@ -626,6 +628,8 @@ impl<'p> State<'p> {
             self.provider = Some(crate::nav::Provider::new());
         }
         self.cache.facts = None;
+        self.cache.model_lex = false;
+        self.cache.model_flow = false;
         self.cache.ident = None;
         self.cache.tree_idx.clear();
         self.cache.sub_memo.clear();
@@ -639,13 +643,15 @@ impl<'p> State<'p> {
         regs.resize(nav.max_regs.max(1), 0);
         let fact_before = self.nc.fact_ns;
         {
-            let f = crate::nav::File { view: &view, table, source, path, file: index };
+            let f = crate::nav::File { view: &view, table, source, path, file: index, incomplete: !parsed.errors().is_empty() };
             let mut ex = crate::nav::Exec {
                 prog: nav,
                 f: &f,
                 sym: &mut self.sym,
                 cache: &mut self.cache,
                 provider: self.provider.as_mut().unwrap(),
+                model: &mut self.model,
+                scratch: String::new(),
                 c: &mut self.nc,
                 regs,
                 outs,
@@ -960,9 +966,9 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"visits\":{},\"per_rule\":{{{}}}}}}}",
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"visits\":{},\"per_rule\":{{{}}}}}}}",
                 self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, self.tail_ns, self.tail_files, c.steps,
-                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.visits,
+                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.visits,
                 self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
                     .map(|(i, r)| format!("\"{}\":[{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i]))
                     .collect::<Vec<_>>().join(",")

@@ -107,6 +107,8 @@ pub(crate) struct NavRule {
 }
 
 pub(crate) struct FactRel {
+    /// the model relation that serves it (index into semrows::RELATIONS); None: the provider's reader
+    pub model: Option<usize>,
     pub name: String,
     pub relation: ryo_relations::domain::relations::types::Relation,
     pub kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
@@ -234,7 +236,8 @@ impl Loader<'_> {
         use ryo_relations::domain::labels::types::NameRef;
         use ryo_relations::domain::relations::service::{kinds, relation_named};
         let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
-        self.facts.push(FactRel { name: name.to_owned(), relation, kinds: kinds(relation).to_vec() });
+        let model = if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
+        self.facts.push(FactRel { model, name: name.to_owned(), relation, kinds: kinds(relation).to_vec() });
         (self.facts.len() - 1) as u16
     }
 
@@ -452,6 +455,12 @@ pub(crate) struct Counters {
     pub fact_ns: u64,
     pub provider_build_ns: u64,
     pub kind_index_ns: u64,
+    pub model_lex_ns: u64,
+    pub model_flow_ns: u64,
+    pub model_rows_ns: u64,
+    pub model_files: u64,
+    pub flow_files: u64,
+    pub provider_files: u64,
     pub visits: u64,
     pub rule_steps: Vec<u64>,
     pub rule_visits: Vec<u64>,
@@ -462,6 +471,8 @@ pub(crate) struct Counters {
 #[derive(Default)]
 pub(crate) struct Facts {
     pub cols: Vec<Vec<Vec<u64>>>,
+    pub loaded: Vec<bool>,
+    pub provider_done: bool,
     pub idx: FxMap<(u16, u8), Rc<FIdx>>,
 }
 
@@ -502,6 +513,8 @@ pub(crate) struct FileCache {
     pub tree_idx: FxMap<(u8, u8), Rc<FxMap<u32, Vec<u32>>>>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
+    pub model_lex: bool,
+    pub model_flow: bool,
     /// per-file dispatch: kind code -> (rule, branch, alternative) anchored on it
     pub dispatch: Vec<Vec<(u32, u32, u32)>>,
     pub dispatch_used: Vec<u32>,
@@ -514,6 +527,7 @@ pub(crate) struct File<'a> {
     pub source: &'a str,
     pub path: &'a str,
     pub file: usize,
+    pub incomplete: bool,
 }
 
 pub(crate) struct Exec<'a, 'p> {
@@ -522,6 +536,8 @@ pub(crate) struct Exec<'a, 'p> {
     pub sym: &'a mut Symbols,
     pub cache: &'a mut FileCache,
     pub provider: &'a mut Provider,
+    pub model: &'a mut crate::model::Model,
+    pub scratch: String,
     pub c: &'a mut Counters,
     pub regs: Vec<u64>,
     pub outs: Vec<Vec<u64>>,
@@ -667,19 +683,64 @@ impl<'a, 'p> Exec<'a, 'p> {
         m
     }
 
-    // ---- facts from the provider, once per file on first demand
-    fn facts(&mut self) -> &Facts {
-        if self.cache.facts.is_none() {
-            let t = Instant::now();
-            let facts = self.load_facts();
-            self.cache.facts = Some(facts);
-            self.c.fact_ns += t.elapsed().as_nanos() as u64;
-            self.c.fact_files += 1;
+    // ---- facts: the model's relations one at a time on first demand; the provider's readers once per file for the rest
+    fn ensure(&mut self, rel: u16) {
+        let prog = self.prog;
+        let facts = self.cache.facts.get_or_insert_with(|| Facts {
+            cols: prog.facts.iter().map(|f| vec![Vec::new(); f.kinds.len()]).collect(),
+            loaded: vec![false; prog.facts.len()],
+            provider_done: false,
+            idx: FxMap::default(),
+        });
+        if facts.loaded[rel as usize] {
+            return;
         }
-        self.cache.facts.as_ref().unwrap()
+        let t = Instant::now();
+        match prog.facts[rel as usize].model {
+            Some(mi) => {
+                if !self.cache.model_lex {
+                    let t = Instant::now();
+                    self.model.build_lexical(self.f.table, self.f.incomplete);
+                    self.model.resolve_loads(self.f.table);
+                    self.cache.model_lex = true;
+                    self.c.model_lex_ns += t.elapsed().as_nanos() as u64;
+                    self.c.model_files += 1;
+                }
+                if mi >= 6 && !self.cache.model_flow {
+                    let t = Instant::now();
+                    self.model.build_flow(self.f.table);
+                    self.model.build_resolution(self.f.table);
+                    self.cache.model_flow = true;
+                    self.c.model_flow_ns += t.elapsed().as_nanos() as u64;
+                    self.c.flow_files += 1;
+                }
+                let t = Instant::now();
+                let facts = self.cache.facts.as_mut().unwrap();
+                let mut cols = std::mem::take(&mut facts.cols[rel as usize]);
+                crate::semrows::produce(self.model, self.f.table, mi, self.sym, &mut cols, &mut self.scratch);
+                self.c.fact_rows += cols.first().map_or(0, Vec::len) as u64;
+                let facts = self.cache.facts.as_mut().unwrap();
+                facts.cols[rel as usize] = cols;
+                facts.loaded[rel as usize] = true;
+                self.c.model_rows_ns += t.elapsed().as_nanos() as u64;
+            }
+            None => {
+                let loaded = self.load_facts();
+                let facts = self.cache.facts.as_mut().unwrap();
+                for (i, cols) in loaded.into_iter().enumerate() {
+                    if prog.facts[i].model.is_none() {
+                        facts.cols[i] = cols;
+                        facts.loaded[i] = true;
+                    }
+                }
+                facts.provider_done = true;
+                self.c.fact_files += 1;
+            }
+        }
+        self.c.fact_ns += t.elapsed().as_nanos() as u64;
     }
 
-    fn load_facts(&mut self) -> Facts {
+    fn load_facts(&mut self) -> Vec<Vec<Vec<u64>>> {
         use ryo_language::domain::elements::service::{end_at, kind_at, kind_names, start_at};
         use ryo_language::domain::symbols::service::{clear_symbols, text_of};
         use ryo_language::domain::symbols::types::ByteSlice;
@@ -687,7 +748,8 @@ impl<'a, 'p> Exec<'a, 'p> {
         use ryo_relations::domain::relations::types::{CellKind, FactColumn, FileId, Position};
         use ryo_relations::domain::terms::types::Symbol;
         let prog = self.prog;
-        let wanted: Vec<_> = prog.facts.iter().map(|f| f.relation).collect();
+        let wanted: Vec<_> = prog.facts.iter().filter(|f| f.model.is_none()).map(|f| f.relation).collect();
+        self.c.provider_files += 1;
         let p = &mut *self.provider;
         if p.columns.len() != prog.facts.len() {
             p.columns = prog.facts.iter().map(|f| (0..f.kinds.len()).map(|_| FactColumn(Vec::new())).collect()).collect();
@@ -707,15 +769,19 @@ impl<'a, 'p> Exec<'a, 'p> {
             notes: NoteRequest::Unwanted,
             fields: FieldRequest::Wanted,
         };
-        let mut out = Facts::default();
+        let mut out: Vec<Vec<Vec<u64>>> = Vec::new();
         if p.engine.build_file(request, &mut p.elements, &mut p.symbols, &wanted).is_err() {
-            out.cols = prog.facts.iter().map(|f| vec![Vec::new(); f.kinds.len()]).collect();
-            return out;
+            return prog.facts.iter().map(|f| vec![Vec::new(); f.kinds.len()]).collect();
         }
         self.c.provider_build_ns += t.elapsed().as_nanos() as u64;
         {
-            let mut cols: ryo_execution_runtime::outbound::facts::types::ColumnsMut<'_> =
-                prog.facts.iter().zip(p.columns.iter_mut()).map(|(f, c)| (f.relation, c.as_mut_slice())).collect();
+            let mut cols: ryo_execution_runtime::outbound::facts::types::ColumnsMut<'_> = prog
+                .facts
+                .iter()
+                .zip(p.columns.iter_mut())
+                .filter(|(f, _)| f.model.is_none())
+                .map(|(f, c)| (f.relation, c.as_mut_slice()))
+                .collect();
             p.engine.walk_file(&mut p.elements, &mut p.symbols, ByteSlice(bytes), FileId(self.f.file as u32), &wanted, &mut cols);
         }
         // decode: provider positions -> view ids by (start, end, kind name); provider symbols -> the run's codes
@@ -770,13 +836,13 @@ impl<'a, 'p> Exec<'a, 'p> {
                 self.c.fact_rows += if ci == 0 { col.len() as u64 } else { 0 };
                 rel_cols.push(col);
             }
-            out.cols.push(rel_cols);
+            out.push(rel_cols);
         }
         out
     }
 
     fn fact_index(&mut self, rel: u16, col: u8) -> Rc<FIdx> {
-        self.facts();
+        self.ensure(rel);
         let n_view = self.f.view.len();
         let dense = matches!(self.prog.facts[rel as usize].kinds[col as usize], ryo_relations::domain::relations::types::CellKind::Node);
         let facts = self.cache.facts.as_mut().unwrap();
@@ -1047,7 +1113,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                     return self.iter_fact_list(p, pc, &idx, &keys, *out);
                 }
                 Ins::IterFactScan { rel, out } => {
-                    let n = self.facts().cols[*rel as usize].first().map_or(0, Vec::len);
+                    self.ensure(*rel);
+                    let n = self.cache.facts.as_ref().unwrap().cols[*rel as usize].first().map_or(0, Vec::len);
                     for row in 0..n {
                         self.regs[*out as usize] = row as u64;
                                 self.c.visits += 1;
@@ -1163,8 +1230,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                     self.regs[*start as usize] = x >> 32;
                     self.regs[*end as usize] = x & 0xffff_ffff;
                 }
-                Ins::SourceMatches { span, base, regex, group, outs, capture_text, capture_line } => {
-                    let sp = self.opd(span);
+                Ins::SourceMatches { span: sarg, base, regex, group, outs, capture_text, capture_line } => {
+                    let sp = self.opd(sarg);
                     let base_line = base.as_ref().map(|b| self.opd(b));
                     let bytes = self.f.source.as_bytes();
                     let (s, e) = ((sp >> 32) as usize, (sp & 0xffff_ffff) as usize);

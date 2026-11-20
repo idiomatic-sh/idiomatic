@@ -15,8 +15,12 @@
 )]
 
 mod nav;
+mod builtins;
+mod model;
+mod rows;
 mod rules;
 mod sema;
+mod semrows;
 mod symbols;
 mod table;
 mod view;
@@ -37,6 +41,21 @@ pub(crate) struct Totals {
     pub scopes: AtomicU64,
     pub kinds_present: AtomicU64,
     pub extra: [AtomicU64; 8],
+    pub rows: [AtomicU64; 11],
+    /// thread-ns per stage: 0 parse, 1 table, 2 lexical model, 3 flow model, 4 policy, 5.. rows per relation, 16 lexical resolution of every name load
+    pub ns: [AtomicU64; 17],
+}
+
+/// Thread CPU time (CLOCK_THREAD_CPUTIME_ID): a stage's own CPU, not counting time the thread is preempted.
+struct Clock(u64);
+impl Clock {
+    fn now() -> Self {
+        let t = rustix::time::clock_gettime(rustix::time::ClockId::ThreadCPUTime);
+        Self(t.tv_sec as u64 * 1_000_000_000 + t.tv_nsec as u64)
+    }
+    fn elapsed(&self) -> std::time::Duration {
+        std::time::Duration::from_nanos(Self::now().0 - self.0)
+    }
 }
 
 fn main() {
@@ -80,6 +99,21 @@ fn main() {
             .collect();
         handles.into_iter().map(|h| h.join().expect("worker")).collect()
     });
+    if let Some(dir) = mode.strip_prefix("dump:") {
+        // per-relation files, lines tagged "<relation index>\t" by the workers
+        let mut files: Vec<std::io::BufWriter<std::fs::File>> = rows::RELATIONS
+            .iter()
+            .map(|r| std::io::BufWriter::new(std::fs::File::create(format!("{dir}/{r}.tsv")).expect("create")))
+            .collect();
+        use std::io::Write as _;
+        for line in outputs.iter().flatten() {
+            let (i, rest) = line.split_once('\t').expect("tag");
+            writeln!(files[i.parse::<usize>().unwrap()], "{rest}").ok();
+        }
+        let r: Vec<u64> = totals.rows.iter().map(|x| x.load(Ordering::Relaxed)).collect();
+        eprintln!("{{\"mode\":\"dump\",\"rows\":{r:?}}}");
+        return;
+    }
     let mut lines: Vec<String> = outputs.into_iter().flatten().collect();
     lines.sort();
     use std::io::Write as _;
@@ -90,7 +124,9 @@ fn main() {
     }
     let e: Vec<u64> = totals.extra.iter().map(|x| x.load(Ordering::Relaxed)).collect();
     eprintln!(
-        "{{\"mode\":\"{mode}\",\"files\":{},\"bytes\":{},\"nodes\":{},\"scopes\":{},\"bindings\":{},\"resolved\":{},\"kinds_present\":{},\"extra\":{:?},\"findings\":{}}}",
+        "{{\"mode\":\"{mode}\",\"ns\":{:?},\"rows\":{:?},\"files\":{},\"bytes\":{},\"nodes\":{},\"scopes\":{},\"bindings\":{},\"resolved\":{},\"kinds_present\":{},\"extra\":{:?},\"findings\":{}}}",
+        totals.ns.iter().map(|x| x.load(Ordering::Relaxed)).collect::<Vec<_>>(),
+        totals.rows.iter().map(|x| x.load(Ordering::Relaxed)).collect::<Vec<_>>(),
         files.len(),
         totals.bytes.load(Ordering::Relaxed),
         totals.nodes.load(Ordering::Relaxed),
@@ -106,6 +142,8 @@ fn main() {
 struct Worker<'p> {
     mode: String,
     sema: sema::Sema,
+    model: model::Model,
+    scratch: String,
     rules: Option<rules::State<'p>>,
     provider: Option<ProviderState>,
 }
@@ -142,6 +180,8 @@ impl<'p> Worker<'p> {
         Self {
             mode: mode.to_owned(),
             sema: sema::Sema::default(),
+            model: model::Model::default(),
+            scratch: String::new(),
             rules: program.map(rules::State::new),
             provider,
         }
@@ -175,16 +215,67 @@ impl<'p> Worker<'p> {
             return;
         }
         let Ok(source) = std::str::from_utf8(bytes) else { return };
+        let t_parse = Clock::now();
         let parsed = ruff_python_parser::parse_unchecked(source, options());
+        totals.ns[0].fetch_add(t_parse.elapsed().as_nanos() as u64, Ordering::Relaxed);
         if self.mode == "parse" {
             totals.nodes.fetch_add(parsed.tokens().len() as u64, Ordering::Relaxed);
             return;
         }
+        let t_table = Clock::now();
         let mut table = table::Table::default();
         table.build(parsed.syntax());
+        totals.ns[1].fetch_add(t_table.elapsed().as_nanos() as u64, Ordering::Relaxed);
         totals.nodes.fetch_add(table.len() as u64, Ordering::Relaxed);
         totals.kinds_present.fetch_add(u64::from(table.present.count_ones()), Ordering::Relaxed);
         if self.mode == "table" {
+            return;
+        }
+        if matches!(self.mode.as_str(), "lex" | "model" | "policy" | "rows" | "rows-lex") || self.mode.starts_with("dump:") {
+            let incomplete = !parsed.errors().is_empty();
+            let t = Clock::now();
+            self.model.build_lexical(&table, incomplete);
+            totals.ns[2].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            let t = Clock::now();
+            self.model.resolve_loads(&table);
+            totals.ns[16].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            if self.mode == "lex" {
+                return;
+            }
+            let flow = self.mode != "rows-lex";
+            if flow {
+                let t = Clock::now();
+                self.model.build_flow(&table);
+                totals.ns[3].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                totals.bindings.fetch_add(self.model.events.len() as u64, Ordering::Relaxed);
+                if self.mode == "model" {
+                    return;
+                }
+                let t = Clock::now();
+                self.model.build_resolution(&table);
+                totals.ns[4].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                if self.mode == "policy" {
+                    return;
+                }
+            }
+            let wanted: u16 = std::env::var("SEMA_WANT").ok().and_then(|w| w.parse().ok()).unwrap_or(if flow { 0x7ff } else { 0x3f });
+            let mut dump: Option<Box<[Vec<String>; 11]>> = self.mode.starts_with("dump:").then(|| Box::new(Default::default()));
+            let mut o = rows::Out { lines: dump.as_deref_mut(), counts: [0; 11], path: path.to_owned() };
+            for i in 0..11 {
+                if wanted & (1 << i) != 0 {
+                    let t = Clock::now();
+                    rows::produce(&mut self.model, &table, index, 1 << i, &mut o, &mut self.scratch);
+                    totals.ns[5 + i].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                }
+            }
+            for (i, n) in o.counts.iter().enumerate() {
+                totals.rows[i].fetch_add(*n, Ordering::Relaxed);
+            }
+            if let Some(d) = dump {
+                for (i, v) in d.into_iter().enumerate() {
+                    out.extend(v.into_iter().map(|l| format!("{i}\t{l}")));
+                }
+            }
             return;
         }
         if self.mode == "sema" {
