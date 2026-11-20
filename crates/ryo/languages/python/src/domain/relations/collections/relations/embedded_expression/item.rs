@@ -1,4 +1,6 @@
 //! Parsed annotation expressions retain their host, context, and physical mapping.
+use crate::domain::file_view::types::PythonWalk;
+use crate::domain::node::service::{fixed, table_id};
 use crate::domain::semantic_syntax::constants::{DEFERRED_CONTEXT, EXACT_MAPPING, HOST_MAPPING};
 use crate::domain::semantic_syntax::types::Visibility;
 use crate::domain::{
@@ -21,6 +23,31 @@ ryo::reads! {
                 languages::EmbeddedMapping::WholeHost => HOST_MAPPING,
             }));
             row { root: node(embedded.root), host: node(embedded.host), context: value(context), mapping: value(mapping), file: file, span: span(embedded.root), }
+        }
+    }
+}
+
+// The engine fills `embedded-expression` from the walked file: every row of the file, once. The walk embeds the expression of a
+// string only where the language reads the string as a type expression, so every segment it wrote is a row.
+ryo::fills! {
+    EmbeddedExpressionItem => languages::EmbeddedExpression, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::EmbeddedExpression as languages::CatalogRelation>::Row;
+        let memo = &mut file.buffers.fixed;
+        let segments = file.syntax.tree.segments;
+        for segment in segments {
+            let span = languages::node_table::span_of(file.syntax.table, segment.root);
+            rows.write(Row {
+                root: languages::node_id(file.syntax.file, segment.root),
+                host: languages::node_id(file.syntax.file, table_id(segments, segment.host)),
+                context: fixed(words, memo, languages::NameText(DEFERRED_CONTEXT)),
+                mapping: fixed(words, memo, languages::NameText(match segment.mapping {
+                    languages::EmbeddedMapping::Exact(_) => EXACT_MAPPING,
+                    languages::EmbeddedMapping::WholeHost => HOST_MAPPING,
+                })),
+                file: file.syntax.file,
+                span: languages::Span { start: span.start, end: span.end },
+            });
         }
     }
 }

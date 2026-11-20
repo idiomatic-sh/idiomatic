@@ -3,7 +3,6 @@
 use super::service::build;
 use super::types::ScheduleSource;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::model::lexical::types::TypedTree;
 use crate::domain::model::types::{BindingAction, BindingAnnotationTiming, BindingSchedule};
 use crate::domain::model::view::types::{ModelPart, ModelView as _};
 use crate::outbound::syntax::fixtures::model_view::{ModelFixture, viewed};
@@ -89,7 +88,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject((source, timing): Input) -> Value {
     let mut schedule = BindingSchedule::default();
     viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
-        let tree = TypedTree { table: view.table, nodes: view.nodes };
+        let tree = view.tree;
         let model = view.semantics(ModelPart::Lexical).model;
         build(
             &mut schedule,

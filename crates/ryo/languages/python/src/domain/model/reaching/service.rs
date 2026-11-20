@@ -7,14 +7,13 @@ use crate::domain::model::frames::service::{lookup, wildcard_frame};
 use crate::domain::model::frames::types::{Doubt, FrameCode, FrameModel, NameAbsence};
 use crate::domain::model::lexical::constants::MODULE;
 use crate::domain::model::declarations::service::{binding_scope, redirected};
-use crate::domain::model::lexical::service::{entry, id_of, name_of, node_at, scope_at, scope_form};
+use crate::domain::model::lexical::service::{entry, id_of, name_of, node_at, parent_of, scope_at, scope_form, subtree_end_of};
 use crate::domain::model::lexical::types::{NamespaceKey, NodeClass, ScopeForm};
 use crate::domain::model::names::constants::NO_NAME;
 use crate::domain::model::names::service::builtin_of;
 use crate::domain::model::names::types::NameCode;
 use crate::domain::model::types::BindingAction;
 use ruff_python_ast::AnyNodeRef;
-use ryo::languages::node_table::{parent_of, subtree_end_of};
 use ryo::languages::{Count, Position};
 
 /// Forgets the file's candidates and mutations, keeping the buffers.
@@ -26,7 +25,7 @@ pub(crate) fn clear(model: &mut ReachModel) {
 
 /// Whether the binding step at `at` gives its name a value: the target of an annotation without a value does not.
 fn binds(source: FlowSource<'_, '_, '_>, at: Position) -> Binds {
-    if let Some(AnyNodeRef::StmtAnnAssign(statement)) = node_at(source.tree, parent_of(source.tree.table, at))
+    if let Some(AnyNodeRef::StmtAnnAssign(statement)) = node_at(source.tree, parent_of(source.tree, at))
         && statement.value.is_none()
     {
         Binds::Nothing
@@ -109,7 +108,7 @@ pub(crate) fn reach(
     reason = "six of the parser's node kinds repeat what is in them; every other runs it once"
 )]
 fn repeats(source: FlowSource<'_, '_, '_>, reference: Position, region: Position) -> RegionRepeat {
-    let table = source.tree.table;
+    let tree = source.tree;
     let Some(node) = node_at(source.tree, region) else {
         return RegionRepeat::Once;
     };
@@ -121,7 +120,7 @@ fn repeats(source: FlowSource<'_, '_, '_>, reference: Position, region: Position
                 if at == region || at == MODULE {
                     break false;
                 }
-                let parent = parent_of(table, at);
+                let parent = parent_of(tree, at);
                 if parent == region {
                     break id_of(&*statement.iter) != at;
                 }
@@ -133,7 +132,7 @@ fn repeats(source: FlowSource<'_, '_, '_>, reference: Position, region: Position
         | AnyNodeRef::ExprDictComp(_)
         | AnyNodeRef::ExprGenerator(_) => {
             let scope = scope_at(source.lexical, reference);
-            region <= scope && scope < subtree_end_of(table, region)
+            region <= scope && scope < subtree_end_of(tree, region)
         }
         _ => false,
     };
@@ -150,15 +149,15 @@ pub(crate) fn refine(
     name: NameCode,
     state: FlowReadState,
 ) -> FlowReadState {
-    let table = source.tree.table;
-    let key = NamespaceKey { scope: binding_scope(source.lexical, table, reference, name), name };
+    let tree = source.tree;
+    let key = NamespaceKey { scope: binding_scope(source.lexical, tree, reference, name), name };
     let Some(list) = model.mutations.get(&key).copied() else {
         return state;
     };
     let Some(relevant) = model.mutation_lists.get_mut(usize::from(list)).map(std::mem::take) else {
         return state;
     };
-    let within = |inner: Position, region: Position| region <= inner && inner < subtree_end_of(table, region);
+    let within = |inner: Position, region: Position| region <= inner && inner < subtree_end_of(tree, region);
     let mut at = reference;
     let mut uncertain = false;
     loop {
@@ -166,7 +165,7 @@ pub(crate) fn refine(
         let widens = (handler || repeats(source, reference, at) == RegionRepeat::Repeats)
             && !(state == FlowReadState::Unique && model.candidates.iter().all(|candidate| within(candidate.binding, at)));
         if widens {
-            let protected = if handler { node_at(source.tree, parent_of(table, at)) } else { None };
+            let protected = if handler { node_at(source.tree, parent_of(tree, at)) } else { None };
             for mutation in &relevant {
                 if mutation.phase != phase {
                     continue;
@@ -194,7 +193,7 @@ pub(crate) fn refine(
         if at == phase || at == MODULE {
             break;
         }
-        at = parent_of(table, at);
+        at = parent_of(tree, at);
     }
     if let Some(slot) = model.mutation_lists.get_mut(usize::from(list)) {
         *slot = relevant;
@@ -208,7 +207,7 @@ fn mutated(source: FlowSource<'_, '_, '_>, at: Position) -> Option<NamespaceKey>
         return Some(NamespaceKey { scope: definition.owner, name: definition.name });
     }
     let name = name_of(source.lexical, at);
-    (name != NO_NAME).then(|| NamespaceKey { scope: binding_scope(source.lexical, source.tree.table, at, name), name })
+    (name != NO_NAME).then(|| NamespaceKey { scope: binding_scope(source.lexical, source.tree, at, name), name })
 }
 
 /// Lists, per name of each namespace, the steps that bind or unbind it.

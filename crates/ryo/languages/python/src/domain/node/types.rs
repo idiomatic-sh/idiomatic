@@ -3,8 +3,10 @@
 //! typed node of each id is kept beside the engine's node table.
 
 use crate::domain::labels::types::Field;
+use crate::domain::model::lexical::types::{EmbeddedSite, TypedTree};
+use crate::domain::model::types::BindingAnnotationTiming;
 use ruff_python_ast::AnyNodeRef;
-use ryo::languages::{FileId, NameText, NodeTable, Position, SyntaxCompleteness};
+use ryo::languages::{FileId, NameText, NodeTable, NodeTableBuilder, Position, SyntaxCompleteness};
 
 /// Whether the parser read the whole file, and whether its lexer did.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,6 +22,18 @@ pub(crate) struct Wholeness {
 pub(crate) struct WalkedTree<'t> {
     /// The typed node of each syntax node, by its id.
     pub(crate) nodes: Vec<AnyNodeRef<'t>>,
+    /// The parent of each syntax node, by its id; the root is its own.
+    pub(crate) parents: Vec<Position>,
+    /// Where the subtree of each syntax node ends, by its id: the id after its last descendant.
+    pub(crate) ends: Vec<Position>,
+    /// Whether the module postpones the evaluation of its annotations.
+    pub(crate) annotations: BindingAnnotationTiming,
+    /// The string literals the walk met since it last asked which of them are type expressions.
+    pub(crate) strings: Vec<StringSite>,
+    /// The imported names the walk met: the places of the aliases of the file's import statements.
+    pub(crate) imports: Vec<Position>,
+    /// The embedded segments written so far, in the order they were written.
+    pub(crate) segments: Vec<EmbeddedSite>,
     /// The text the parser read: the file's own bytes when they are UTF-8.
     pub(crate) text: NameText<'t>,
     /// Whether the file was read whole.
@@ -31,8 +45,11 @@ pub(crate) struct WalkedTree<'t> {
 pub(crate) struct SyntaxFile<'f> {
     /// The node table the walk wrote.
     pub(crate) table: &'f NodeTable,
-    /// The typed node of each syntax node, by its id.
+    /// The typed node of each syntax node of the file's own tree, by its id.
     pub(crate) nodes: &'f [AnyNodeRef<'f>],
+    /// Every typed node by its place, with its parent and the end of its subtree: the file's own tree, then the nodes of each
+    /// embedded segment.
+    pub(crate) tree: TypedTree<'f, 'f>,
     /// The text the parser read.
     pub(crate) text: NameText<'f>,
     /// The number the run gave the file.
@@ -78,4 +95,32 @@ pub(crate) struct FixedWords {
     pub(crate) texts: Vec<NameText<'static>>,
     /// The word of each text.
     pub(crate) words: Vec<ryo::languages::Symbol>,
+}
+
+/// Where a string literal stands, as its syntax alone says it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AnnotationSeed {
+    /// In an annotation: of a parameter, of a return, of an annotated assignment; or in a string already read as a type.
+    Annotation,
+    /// Anywhere else: a type expression only where a typing form above it says so.
+    Candidate,
+}
+
+/// A string literal the walk met, with where it stands.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct StringSite {
+    /// The place of the string literal.
+    pub(crate) at: Position,
+    /// Where it stands.
+    pub(crate) seed: AnnotationSeed,
+}
+
+/// What a walk hands its caller, and what it asks of it.
+#[derive(Debug)]
+pub(crate) enum Walked<'b, 'w, 't> {
+    /// The tree so far, with the strings the walk met since it last asked: the caller answers the places of those the language
+    /// reads as type expressions, and the walk embeds the expression of each that parses as one.
+    Strings(&'b WalkedTree<'t>),
+    /// The whole tree, whose table the builder holds, lent while the parses live: the caller reads it and answers nothing.
+    Whole(&'b mut NodeTableBuilder<'w>, WalkedTree<'t>),
 }

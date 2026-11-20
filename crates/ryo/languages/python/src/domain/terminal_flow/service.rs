@@ -62,7 +62,7 @@ fn sequence(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position, field: Field) 
 }
 
 /// Check whether a terminal summary includes a return path.
-fn has_return(value: TerminalOutcome) -> Returns {
+pub(crate) fn has_return(value: TerminalOutcome) -> Returns {
     Returns(matches!(
         value,
         TerminalOutcome::Return
@@ -72,7 +72,7 @@ fn has_return(value: TerminalOutcome) -> Returns {
 }
 
 /// Compose sequential statement outcomes from left to right.
-fn and_then(left: TerminalOutcome, right: TerminalOutcome) -> TerminalOutcome {
+pub(crate) fn and_then(left: TerminalOutcome, right: TerminalOutcome) -> TerminalOutcome {
     use crate::domain::terminal_flow::types::TerminalOutcome::{
         ConditionalReturn, Implicit, None, Raise, RaiseOrReturn, Return,
     };
@@ -89,7 +89,7 @@ fn and_then(left: TerminalOutcome, right: TerminalOutcome) -> TerminalOutcome {
 }
 
 /// Join outcomes from alternate branches.
-fn branch(left: TerminalOutcome, right: TerminalOutcome) -> TerminalOutcome {
+pub(crate) fn branch(left: TerminalOutcome, right: TerminalOutcome) -> TerminalOutcome {
     use crate::domain::terminal_flow::types::TerminalOutcome::{
         ConditionalReturn, Implicit, None, Raise, RaiseOrReturn, Return,
     };

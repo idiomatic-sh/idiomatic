@@ -2,18 +2,19 @@
 //! routes the bindings of a name to another namespace; a deletion leaves the origin of its name unproven after it.
 
 use crate::domain::model::lexical::constants::MODULE;
-use crate::domain::model::lexical::service::{entry, name_of, scope_at, scope_form};
-use crate::domain::model::lexical::types::{LexicalModel, NameHazard, NamespaceKey, NodeClass, ScopeForm, ScopeRedirect};
+use crate::domain::model::lexical::service::{entry, name_of, parent_of, scope_at, scope_form, subtree_end_of};
+use crate::domain::model::lexical::types::{
+    LexicalModel, NameHazard, NamespaceKey, NodeClass, ScopeForm, ScopeRedirect, TypedTree,
+};
 use crate::domain::model::names::types::NameCode;
-use ryo::languages::node_table::{parent_of, subtree_end_of};
-use ryo::languages::{NodeTable, Position};
+use ryo::languages::Position;
 
 /// The scope whose namespace the node `at` binds in, before any `global` or `nonlocal`: a named expression's target binds
 /// outside the comprehensions around it.
 #[must_use]
-pub(crate) fn lexical_scope(model: &LexicalModel, table: &NodeTable, at: Position) -> Position {
+pub(crate) fn lexical_scope(model: &LexicalModel, tree: TypedTree<'_, '_>, at: Position) -> Position {
     let mut scope = scope_at(model, at);
-    let parent = parent_of(table, at);
+    let parent = parent_of(tree, at);
     if entry(&model.class, parent) == NodeClass::NamedExpr && parent.0.saturating_add(1) == at.0 {
         while matches!(
             scope_form(entry(&model.class, scope)),
@@ -55,12 +56,12 @@ pub(crate) fn redirected(model: &LexicalModel, scope: Position, name: NameCode) 
 
 /// The scope whose namespace the node `at` binds the name `name` in.
 #[must_use]
-pub(crate) fn binding_scope(model: &LexicalModel, table: &NodeTable, at: Position, name: NameCode) -> Position {
-    redirected(model, lexical_scope(model, table, at), name)
+pub(crate) fn binding_scope(model: &LexicalModel, tree: TypedTree<'_, '_>, at: Position, name: NameCode) -> Position {
+    redirected(model, lexical_scope(model, tree, at), name)
 }
 
 /// Records the names the `global` and `nonlocal` statements declare: the first declaration of a name in a scope holds.
-fn declare(model: &mut LexicalModel, table: &NodeTable) {
+fn declare(model: &mut LexicalModel, tree: TypedTree<'_, '_>) {
     for number in 1..u32::try_from(model.nodes.0).unwrap_or(u32::MAX) {
         let at = Position(number);
         let class = entry(&model.class, at);
@@ -72,27 +73,27 @@ fn declare(model: &mut LexicalModel, table: &NodeTable) {
             continue;
         };
         let scope = scope_at(model, at);
-        let end = subtree_end_of(table, at);
+        let end = subtree_end_of(tree, at);
         let mut child = Position(number.saturating_add(1));
         while child < end {
             if entry(&model.class, child) == NodeClass::Identifier {
                 let key = NamespaceKey { scope, name: name_of(model, child) };
                 let _: &mut ScopeRedirect = model.declared.entry(key).or_insert(redirect);
             }
-            child = subtree_end_of(table, child);
+            child = subtree_end_of(tree, child);
         }
     }
 }
 
 /// Records the file's declarations and its deletions, once every node's scope and name are known.
-pub(crate) fn build(model: &mut LexicalModel, table: &NodeTable) {
-    declare(model, table);
+pub(crate) fn build(model: &mut LexicalModel, tree: TypedTree<'_, '_>) {
+    declare(model, tree);
     for number in 0..model.deleted.len() {
         let Some(at) = model.deleted.get(number).copied() else {
             continue;
         };
         let name = name_of(model, at);
-        let scope = binding_scope(model, table, at, name);
+        let scope = binding_scope(model, tree, at, name);
         model.hazards.push(NameHazard { scope, at, name });
     }
     model.hazards.sort_unstable_by_key(|hazard| hazard.at);

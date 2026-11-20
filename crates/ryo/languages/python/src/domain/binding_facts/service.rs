@@ -76,7 +76,7 @@ fn event_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, 
         kind: held_word(words, &mut known.fixed, event_word(event.kind)),
         ordinal: event.ordinal,
         file: read.file,
-        span: span_at(read.table, event.at),
+        span: span_at(read, event.at),
         lexical: node(read, event.lexical),
     }
 }
@@ -117,7 +117,7 @@ fn read_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, e
         since_major: since.major,
         since_minor: since.minor,
         file: read.file,
-        span: span_at(read.table, each.at),
+        span: span_at(read, each.at),
     }
 }
 
@@ -151,7 +151,7 @@ fn use_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, ea
         context: held_word(words, &mut known.fixed, context_word(each.context)),
         certainty: held_word(words, &mut known.fixed, NameText(certainty)),
         file: read.file,
-        span: span_at(read.table, each.at),
+        span: span_at(read, each.at),
     }
 }
 

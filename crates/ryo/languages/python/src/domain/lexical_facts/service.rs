@@ -12,11 +12,12 @@ use crate::domain::model::resolution::service::{proof_of, resolved_at};
 use crate::domain::model::resolution::types::OriginProof;
 use crate::domain::model::lexical::constants::MODULE;
 use crate::domain::syntax::constants::DOT;
-use crate::domain::model::lexical::service::{entry, name_of, scope_at, scope_form};
+use crate::domain::model::lexical::service::{entry, name_of, parent_of, scope_at, scope_form};
 use crate::domain::model::lexical::types::{ImportOrigin, ImportRename, NameUse, NodeClass, ScopeForm};
 use crate::domain::model::names::service::{builtin_of, held_word, name_word, text_of, word};
 use crate::domain::model::names::types::{FactWords, HeldWords, NameTable};
-use crate::domain::model::view::types::{ModelPart, ModelRead, ModelView};
+use crate::domain::model::view::types::{ModelPart, ModelRead, ModelView, SemanticModel};
+use crate::domain::node::service::table_id;
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
 use crate::domain::qualification::constants::{
@@ -25,21 +26,29 @@ use crate::domain::qualification::constants::{
 use crate::domain::qualification::service::builtin_named;
 use crate::domain::relations::collections::relations::implicit_symbol::constants as implicit;
 use crate::domain::relations::collections::relations::implicit_symbol::item::{BUILTIN_ATTRIBUTES, MODULE_GLOBALS};
-use ryo::languages::node_table::{parent_of, span_of};
+use ryo::languages::node_table::span_of;
 use ryo::languages::{
-    DefinesRow, FileWords, Fill, ImplicitSymbolRow, Integer, NameText, NodeId, NodeTable, Position, QualifiedNameRow,
+    DefinesRow, FileWords, Fill, ImplicitSymbolRow, Integer, NameText, NodeId, Position, QualifiedNameRow,
     ReferenceRow, ResolvesRow, Rows, ScopeRow, Span, node_id,
 };
 
 /// The bytes of the node `at`.
-pub(crate) fn span_at(table: &NodeTable, at: Position) -> Span {
-    let span = span_of(table, at);
+pub(crate) fn span_at(read: ModelRead<'_>, at: Position) -> Span {
+    let span = span_of(read.table, table_id(read.tree.segments, at));
     Span { start: span.start, end: span.end }
 }
 
 /// The node cell of the node `at` of the file being read.
 pub(crate) fn node(read: ModelRead<'_>, at: Position) -> NodeId {
-    node_id(read.file, at)
+    node_id(read.file, table_id(read.tree.segments, at))
+}
+
+/// The places of the nodes of the file's own tree, in id order: the relations that state the file's own names leave the nodes of
+/// embedded expressions out.
+fn own_positions(read: ModelRead<'_>) -> impl Iterator<Item = Position> + use<> {
+    let all = u32::try_from(read.model.lexical.class.len()).unwrap_or(u32::MAX);
+    let own = read.tree.segments.first().map_or(all, |segment| segment.first.0.min(all));
+    (0..own).map(Position)
 }
 
 /// The positions of the file's nodes, in id order.
@@ -53,13 +62,13 @@ fn scope_row(read: ModelRead<'_>, at: Position) -> Option<ScopeRow> {
     let lexical = &read.model.lexical;
     let _: ScopeForm = scope_form(entry(&lexical.class, at))?;
     let parent = if at == MODULE { MODULE } else { scope_at(lexical, at) };
-    Some(ScopeRow { parent: node(read, parent), child: node(read, at), file: read.file, span: span_at(read.table, at) })
+    Some(ScopeRow { parent: node(read, parent), child: node(read, at), file: read.file, span: span_at(read, at) })
 }
 
 /// Writes one row per scope.
 pub(crate) fn scope_rows<V: ModelView>(file: &mut V, _words: &mut FileWords, rows: &mut dyn Rows<ScopeRow>) -> Fill {
     let read = file.semantics(ModelPart::Lexical);
-    for at in positions(read) {
+    for at in own_positions(read) {
         if let Some(row) = scope_row(read, at) {
             rows.write(row);
         }
@@ -117,10 +126,10 @@ pub(crate) fn defines_rows<V: ModelView>(file: &mut V, words: &mut FileWords, ro
 
 /// The name expression the name or attribute expression `at` starts from: itself, or the innermost object of a chain of
 /// attributes; none when the chain starts from another kind of expression.
-fn base_of(read: ModelRead<'_>, at: Position) -> Option<Position> {
+fn base_of(model: &SemanticModel, at: Position) -> Option<Position> {
     let mut base = at;
     loop {
-        let class = entry(&read.model.lexical.class, base);
+        let class = entry(&model.lexical.class, base);
         if class == NodeClass::Name {
             return Some(base);
         }
@@ -132,13 +141,13 @@ fn base_of(read: ModelRead<'_>, at: Position) -> Option<Position> {
 }
 
 /// Appends to `path` the attributes read from the base of the chain up to `at`, each after a dot.
-fn append_attributes(read: ModelRead<'_>, at: Position, path: &mut QualifiedPath) {
-    if entry(&read.model.lexical.class, at) != NodeClass::Attribute {
+fn append_attributes(model: &SemanticModel, at: Position, path: &mut QualifiedPath) {
+    if entry(&model.lexical.class, at) != NodeClass::Attribute {
         return;
     }
-    append_attributes(read, Position(at.0.saturating_add(1)), path);
+    append_attributes(model, Position(at.0.saturating_add(1)), path);
     path.0.push_str(DOT);
-    if let Some(text) = text_of(&read.model.names, name_of(&read.model.lexical, at)) {
+    if let Some(text) = text_of(&model.names, name_of(&model.lexical, at)) {
         path.0.push_str(text.0);
     }
 }
@@ -154,25 +163,25 @@ fn reference_row(read: ModelRead<'_>, words: &mut FileWords, path: &mut Qualifie
     if !used {
         return None;
     }
-    let parent = parent_of(read.table, at);
+    let parent = parent_of(read.tree, at);
     let object_of_read = entry(&lexical.class, parent) == NodeClass::Attribute
         && parent.0.saturating_add(1) == at.0
         && entry(&lexical.usage, parent) == NameUse::Load;
     if object_of_read {
         return None;
     }
-    let base = base_of(read, at)?;
+    let base = base_of(read.model, at)?;
     path.0.clear();
     if let Some(text) = text_of(&read.model.names, name_of(lexical, base)) {
         path.0.push_str(text.0);
     }
-    append_attributes(read, at, path);
+    append_attributes(read.model, at, path);
     Some(ReferenceRow {
         occurrence: node(read, at),
         owner: node(read, scope_at(lexical, at)),
         target: word(words, NameText(&path.0)),
         file: read.file,
-        span: span_at(read.table, at),
+        span: span_at(read, at),
     })
 }
 
@@ -180,7 +189,7 @@ fn reference_row(read: ModelRead<'_>, words: &mut FileWords, path: &mut Qualifie
 pub(crate) fn reference_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<ReferenceRow>) -> Fill {
     let read = file.semantics(ModelPart::Lexical);
     let mut path = QualifiedPath::default();
-    for at in positions(read) {
+    for at in own_positions(read) {
         if let Some(row) = reference_row(read, words, &mut path, at) {
             rows.write(row);
         }
@@ -201,7 +210,7 @@ fn resolves_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWord
         name: name_word(&read.model.names, words, &mut known.names, name_of(lexical, at)),
         definition: node(read, definition),
         file: read.file,
-        span: span_at(read.table, at),
+        span: span_at(read, at),
     })
 }
 
@@ -209,7 +218,7 @@ fn resolves_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWord
 pub(crate) fn resolves_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<ResolvesRow>) -> Fill {
     let read = file.semantics(ModelPart::Resolution);
     let mut known = read.model.words.borrow_mut();
-    for at in positions(read) {
+    for at in own_positions(read) {
         if let Some(row) = resolves_row(read, words, &mut known, at) {
             rows.write(row);
         }
@@ -234,10 +243,10 @@ fn import_path(names: &NameTable, origin: &ImportOrigin, path: &mut QualifiedPat
     }
 }
 
-/// Where the name or attribute expression `at` comes from, with its path left in `path` when it has one.
-fn qualify(read: ModelRead<'_>, at: Position, path: &mut QualifiedPath) -> NameProvenance {
-    let model = read.model;
-    let Some(base) = base_of(read, at) else {
+/// Where the name or attribute expression `at` comes from, with its path left in `path` when it has one. It reads the model's
+/// lexical part and its static resolution, and no node table.
+pub(crate) fn qualify(model: &SemanticModel, at: Position, path: &mut QualifiedPath) -> NameProvenance {
+    let Some(base) = base_of(model, at) else {
         return NameProvenance::Unresolved;
     };
     let name = name_of(&model.lexical, base);
@@ -265,7 +274,7 @@ fn qualify(read: ModelRead<'_>, at: Position, path: &mut QualifiedPath) -> NameP
     } else {
         return NameProvenance::Unresolved;
     };
-    append_attributes(read, at, path);
+    append_attributes(model, at, path);
     provenance
 }
 
@@ -284,7 +293,7 @@ fn qualified_name_row(
     {
         return None;
     }
-    let provenance = qualify(read, at, path);
+    let provenance = qualify(read.model, at, path);
     let (label, since) = match provenance {
         NameProvenance::Import => (labels.import, NOT_APPLICABLE),
         NameProvenance::Builtin(since) => (labels.builtin, since),
@@ -300,7 +309,7 @@ fn qualified_name_row(
         since_major: since.major,
         since_minor: since.minor,
         file: read.file,
-        span: span_at(read.table, at),
+        span: span_at(read, at),
     })
 }
 

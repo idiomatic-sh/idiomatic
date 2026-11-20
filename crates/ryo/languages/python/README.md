@@ -44,6 +44,20 @@ its lines; what its literals are and hold; the names its imports, decorators, ba
 The parser's own tree of one file read in place: the id and the typed node of each syntax node, the text and the row cells of
 an element, and the field each child fills under its parent, read from the typed parent.
 
+### `string_annotations`
+
+Which string literals of a walked file the language reads as type expressions: in an annotation, as a type operand of a
+generic class or of `Annotated`, as a type argument of `cast`, `NewType` or `TypeVar`, as the value of a `TypeAlias`; never as
+an operand of `Literal`. The walk asks before it finishes its table, embeds the expression of each such string as a segment of
+the table, and asks again for the strings of those expressions. A name is resolved only when an import of the file brings it
+from a module with typing forms.
+
+### `terminal_facts`, `type_facts`, `key_facts`, `shape_facts`, `spec_facts`
+
+The fillers' readings of a walked file from the parser's own nodes: how a function's body ends; the basic type an expression's
+syntax gives it; which constants are equal as Python values; which expressions are written with the same structure; where the
+format specifications of an f-string stand.
+
 ### extras
 
 The python domain's `extras` concept: the kinds of its trees that `ruff_python_ast` has no name for.

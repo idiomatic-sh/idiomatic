@@ -22,6 +22,29 @@ pub fn read_keys(elements: &languages::Elements) -> Keys {
     }))
 }
 
+/// How many elements the file's own tree has in today's table: the embedded expressions follow them.
+#[must_use]
+pub fn read_own_count(elements: &languages::Elements) -> usize {
+    if languages::end_of(elements).0 == 0 {
+        0
+    } else {
+        usize::from(languages::last_at(elements, Position(0))) + 1
+    }
+}
+
+/// The key of every element of today's table: the file's own tree, then the embedded expressions it holds, the ones the
+/// language reads as type expressions and the others alike.
+#[must_use]
+pub fn read_keys_all(elements: &languages::Elements) -> Keys {
+    keyed((0..languages::end_of(elements).0).map(|at| {
+        (
+            languages::kind_at(elements, Position(at)),
+            languages::start_at(elements, Position(at)),
+            languages::end_at(elements, Position(at)),
+        )
+    }))
+}
+
 /// Where each element of today's table stands, sorted. The table must have been read with its fields wanted.
 #[must_use]
 pub fn read_placements(elements: &languages::Elements, keys: &Keys) -> Vec<Placement> {

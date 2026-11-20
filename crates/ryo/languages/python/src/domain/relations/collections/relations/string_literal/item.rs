@@ -49,7 +49,7 @@ ryo::fills! {
         /// One row of the relation.
         type Row = <languages::StringLiteral as languages::CatalogRelation>::Row;
         // The owner of a node is the scope the model says it is evaluated in.
-        built(file.model, &mut file.built, ModelPart::Lexical, file.syntax.table, file.syntax.nodes);
+        built(file.model, &mut file.built, ModelPart::Lexical, file.syntax.tree);
         let owned = &file.model.lexical.scope_of;
         let joined = &mut file.buffers.text;
         for kind in [Node::Constant, Node::JoinedStr, Node::TemplateStr] {

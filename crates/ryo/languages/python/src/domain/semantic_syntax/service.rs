@@ -88,6 +88,13 @@ fn typing_name(
     let Some(path) = languages::text_of(symbols, tree.source, answer.path) else {
         return TypingForm::Other;
     };
+    typing_form(path)
+}
+
+/// The typing form a qualified name names: a generic constructor, one of the forms of `typing` that read some of their
+/// operands as types, or neither.
+#[must_use]
+pub(crate) fn typing_form(path: languages::NameText<'_>) -> TypingForm {
     if super::generic_subscription::service::operands(path) == TypeContext::Type {
         return TypingForm::Generic;
     }

@@ -45,7 +45,7 @@ fn child(key: &mut ShapeKey<'_>, field: Field, at: Position) {
     }
 }
 /// Operators are meaningful; separators, redundant parentheses and lexical trivia are not.
-fn significant(token: Token) -> Option<Token> {
+pub(crate) fn significant(token: Token) -> Option<Token> {
     matches!(
         token,
         Token::Name

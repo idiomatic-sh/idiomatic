@@ -9,7 +9,7 @@ use super::writer::visit_element;
 use crate::domain::extras::types::Extra;
 use crate::domain::labels::types::Field;
 use crate::domain::node::service::{field_code, token_field};
-use crate::domain::node::types::Placed;
+use crate::domain::node::types::{AnnotationSeed, Placed, StringSite};
 use crate::domain::node_fields::service::child_fields;
 use crate::domain::syntax::constants::{
     MODULE_FUTURE_ANNOTATIONS, MODULE_FUTURE_ANNOTATIONS_DISABLED,
@@ -17,19 +17,27 @@ use crate::domain::syntax::constants::{
 };
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
-use ruff_python_ast::visitor::source_order::{SourceOrderVisitor, TraversalSignal};
-use ruff_python_ast::{AnyNodeRef, HasNodeIndex as _, InterpolatedStringElement, NodeIndex};
-use ruff_text_size::Ranged as _;
+use ruff_python_ast::visitor::source_order::{
+    SourceOrderVisitor, TraversalSignal, walk_annotation,
+};
+use ruff_python_ast::{AnyNodeRef, Expr, HasNodeIndex as _, InterpolatedStringElement, NodeIndex};
+use ruff_text_size::{Ranged as _, TextSize};
 use ryo::languages::{
-    DiagnosticMetadata, DiagnosticPhase, FieldCode, NameText, Offset, TreeImpact, node_table,
+    DiagnosticMetadata, DiagnosticPhase, FieldCode, NameText, Offset, Position, TreeImpact,
+    node_table,
 };
 
+/// Where an offset the library gives is in the text being walked, which starts at `origin` among the library's offsets.
+fn placed(origin: Offset, at: TextSize) -> Offset {
+    Offset(at.to_u32().saturating_sub(origin.0))
+}
+
 impl Walker<'_, '_, '_> {
-    /// Where the next token not written starts; the end of the file when every token is written.
+    /// Where the next token not written starts; the end of the text when every token is written.
     fn next_start(&self) -> Offset {
         self.tokens
             .get(self.next.0)
-            .map_or(self.length, |token| Offset(token.start().to_u32()))
+            .map_or(self.length, |token| placed(self.origin, token.start()))
     }
 
     /// Writes the white space between the last token written and `to`, as far as the next token, as one `whitespace` token: the
@@ -55,9 +63,9 @@ impl Walker<'_, '_, '_> {
             return;
         };
         self.next.0 += 1;
-        self.fill(Offset(token.start().to_u32()));
-        let start = Offset(token.start().to_u32()).max(self.written);
-        let end = Offset(token.end().to_u32()).max(start);
+        self.fill(placed(self.origin, token.start()));
+        let start = placed(self.origin, token.start()).max(self.written);
+        let end = placed(self.origin, token.end()).max(start);
         let kind = token_kind(token.kind());
         let field = match (self.open.last(), kind) {
             (Some(open), Kind::Token(named)) => token_field(open.node, token.kind(), named),
@@ -71,9 +79,10 @@ impl Walker<'_, '_, '_> {
     /// innermost open node ends is outside that node, so it waits until the node is closed.
     fn write_before(&mut self, at: Offset) {
         let edge = self.ends.last().copied();
+        let origin = self.origin;
         while self.tokens.get(self.next.0).is_some_and(|token| {
-            token.end().to_u32() <= at.0
-                && !(token.range().is_empty() && Some(Offset(token.start().to_u32())) == edge)
+            placed(origin, token.end()) <= at
+                && !(token.range().is_empty() && Some(placed(origin, token.start())) == edge)
         }) {
             self.write_next();
         }
@@ -81,11 +90,10 @@ impl Walker<'_, '_, '_> {
 
     /// Writes every token that starts before `at` and ends at or before it: what is inside a node that ends there.
     fn write_within(&mut self, at: Offset) {
-        while self
-            .tokens
-            .get(self.next.0)
-            .is_some_and(|token| token.start().to_u32() < at.0 && token.end().to_u32() <= at.0)
-        {
+        let origin = self.origin;
+        while self.tokens.get(self.next.0).is_some_and(|token| {
+            placed(origin, token.start()) < at && placed(origin, token.end()) <= at
+        }) {
             self.write_next();
         }
     }
@@ -117,12 +125,18 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         visit_element(self, element);
     }
 
+    fn visit_annotation(&mut self, annotation: &'t Expr) {
+        self.annotating.0 += 1;
+        walk_annotation(self, annotation);
+        self.annotating.0 = self.annotating.0.saturating_sub(1);
+    }
+
     fn enter_node(&mut self, node: AnyNodeRef<'t>) -> TraversalSignal {
         let root = self.open.is_empty();
         let start = if root {
             Offset(0)
         } else {
-            Offset(node.start().to_u32())
+            placed(self.origin, node.start())
         };
         self.write_before(start);
         self.fill(start);
@@ -150,6 +164,28 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             );
         }
         self.nodes.push(node);
+        let at = Position(id);
+        // The root of a file is its own parent; the root of a string's expression has the string for its parent.
+        self.parents.push(
+            self.open
+                .last()
+                .map_or_else(|| self.host.unwrap_or(at), |open| open.at),
+        );
+        if matches!(node, AnyNodeRef::ExprStringLiteral(_)) {
+            self.literals.push(StringSite {
+                at,
+                seed: if self.annotating.0 > 0 {
+                    AnnotationSeed::Annotation
+                } else {
+                    AnnotationSeed::Candidate
+                },
+            });
+        } else if matches!(node, AnyNodeRef::Alias(_)) {
+            self.imports.push(at);
+        } else {
+            // No other node is kept apart for the reader of the tree.
+        }
+        self.subtree_ends.push(Position(id.saturating_add(1)));
         let from = FieldIndex(self.fields.len());
         child_fields(
             Placed {
@@ -161,6 +197,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         );
         self.open.push(OpenWalked {
             node,
+            at,
             from,
             next: from,
         });
@@ -186,7 +223,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         self.ends.push(if root {
             self.length
         } else {
-            Offset(node.end().to_u32())
+            placed(self.origin, node.end())
         });
         TraversalSignal::Traverse
     }
@@ -203,13 +240,17 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             }
             self.length
         } else {
-            let end = Offset(node.end().to_u32());
+            let end = placed(self.origin, node.end());
             self.write_within(end);
             end
         };
         self.fill(end);
         if let Some(open) = self.open.pop() {
             self.fields.truncate(open.from.0);
+            let after = Position(u32::try_from(self.nodes.len()).unwrap_or(u32::MAX));
+            if let Some(subtree_end) = self.subtree_ends.get_mut(usize::from(open.at)) {
+                *subtree_end = after;
+            }
         }
         node_table::leave_node(self.builder, end);
     }

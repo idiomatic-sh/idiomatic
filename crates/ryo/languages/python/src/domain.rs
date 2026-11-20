@@ -110,3 +110,21 @@ pub(crate) mod lexical_facts;
 
 /// The rows of the binding relations, written from the model.
 pub(crate) mod binding_facts;
+
+/// How the body of a function ends, from the parser's own statements.
+pub(crate) mod terminal_facts;
+
+/// The basic type the syntax of an expression gives it, from the parser's own nodes.
+pub(crate) mod type_facts;
+
+/// Which constants are equal as Python values, from the parser's own nodes.
+pub(crate) mod key_facts;
+
+/// Which expressions are written with the same structure, from the parser's own nodes.
+pub(crate) mod shape_facts;
+
+/// The format specifications a file writes, from the parser's own nodes.
+pub(crate) mod spec_facts;
+
+/// Which strings the language reads as type expressions, from the parser's own nodes and the model's resolution.
+pub(crate) mod string_annotations;

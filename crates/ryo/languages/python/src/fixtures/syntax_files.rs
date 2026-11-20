@@ -1,10 +1,12 @@
 //! A walked file for the tests of the concepts that read one: the source walked into a table by the language's own walk, and the
 //! typed nodes of a second parse numbered in the same order, which stand for the nodes the walk lends only inside a visit.
 
+use crate::domain::model::lexical::types::TypedTree;
+use crate::domain::model::types::BindingAnnotationTiming;
 use crate::domain::node::types::{SyntaxFile, Wholeness};
 use ruff_python_ast::visitor::source_order::{SourceOrderVisitor, TraversalSignal};
 use ruff_python_ast::{AnyNodeRef, HasNodeIndex as _, InterpolatedStringElement, NodeIndex};
-use ryo::languages::{FileId, NameText, NodeTable, SyntaxCompleteness};
+use ryo::languages::{FileId, NameText, NodeTable, Position, SyntaxCompleteness, node_table};
 
 /// The visitor that numbers the nodes as the walk does: in the order it opens them, a format spec entered as the node it is.
 struct Numbering<'n, 't>(&'n mut Vec<AnyNodeRef<'t>>);
@@ -37,6 +39,18 @@ impl<'t> SourceOrderVisitor<'t> for Numbering<'_, 't> {
     }
 }
 
+/// The parent of each node of a finished table and where its subtree ends, by id: what the walk lends beside its typed nodes.
+pub(crate) fn outline(table: &NodeTable) -> (Vec<Position>, Vec<Position>) {
+    let ids =
+        || (0..u32::try_from(node_table::node_count(table).0).unwrap_or(u32::MAX)).map(Position);
+    (
+        ids().map(|id| node_table::parent_of(table, id)).collect(),
+        ids()
+            .map(|id| node_table::subtree_end_of(table, id))
+            .collect(),
+    )
+}
+
 /// Walks `source` and hands `read` the walked file.
 ///
 /// # Panics
@@ -63,9 +77,17 @@ pub(crate) fn with_file(source: &str, read: &mut dyn FnMut(&SyntaxFile<'_>)) {
     let mut nodes = Vec::new();
     let mut numbering = Numbering(&mut nodes);
     numbering.visit_mod(parsed.syntax());
+    let (parents, ends) = outline(&table);
     read(&SyntaxFile {
         table: &table,
         nodes: &nodes,
+        tree: TypedTree {
+            segments: &[],
+            parents: &parents,
+            ends: &ends,
+            nodes: &nodes,
+            annotations: BindingAnnotationTiming::Immediate,
+        },
         text: NameText(source),
         file: FileId(0),
         completeness: Wholeness {

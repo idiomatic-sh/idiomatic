@@ -1,18 +1,41 @@
 //! The types of the model's `lexical` part: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::model::names::types::{KeyHasher, NameCode};
+use crate::domain::model::types::BindingAnnotationTiming;
 use ruff_python_ast::AnyNodeRef;
-use ryo::languages::{Count, NodeTable, Position};
+use ryo::languages::{Count, EmbeddedMapping, Position};
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 
-/// The file as the model's passes read it: the node table and the parser's own node of each id.
+/// The file as the model's passes read it: the parser's own node of each place, its parent and where its subtree ends. A place
+/// is the node's id for a node of the file's own tree; the walk hands the three columns over before its table is finished.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TypedTree<'t, 'a> {
-    /// The node table: parents, subtree ends and spans by id.
-    pub(crate) table: &'t NodeTable,
-    /// The parser's node of each node id, in id order.
+    /// The embedded segments among the places, in the order of their first place: a place before the first of them is a node
+    /// of the file's own tree, and its id.
+    pub(crate) segments: &'t [EmbeddedSite],
+    /// The parent of each node, by its place; the root is its own.
+    pub(crate) parents: &'t [Position],
+    /// Where the subtree of each node ends, by its place: the place after its last descendant.
+    pub(crate) ends: &'t [Position],
+    /// The parser's node of each place.
     pub(crate) nodes: &'t [AnyNodeRef<'a>],
+    /// Whether the module postpones the evaluation of its annotations (`from __future__ import annotations`).
+    pub(crate) annotations: BindingAnnotationTiming,
+}
+
+/// An embedded segment the walk wrote: the expression of a string the language reads as a type expression. The nodes of a
+/// segment have consecutive places after the file's own nodes, and consecutive ids in the table from its root's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EmbeddedSite {
+    /// The place of the string literal that holds the expression.
+    pub(crate) host: Position,
+    /// The place of the segment's root: its first node.
+    pub(crate) first: Position,
+    /// The id the table gave the segment's root.
+    pub(crate) root: Position,
+    /// How the segment's bytes map to the file's.
+    pub(crate) mapping: EmbeddedMapping,
 }
 
 /// What a node is to the language's name rules.

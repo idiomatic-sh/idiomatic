@@ -197,16 +197,15 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         source_kind: PythonSourceKind,
         reported: crate::outbound::syntax::types::ReportedSyntax,
         builder: &mut languages::NodeTableBuilder<'_>,
-        lend: &mut dyn FnMut(
-            &mut languages::NodeTableBuilder<'_>,
-            crate::domain::node::types::WalkedTree<'_>,
-        ),
+        read: &mut dyn FnMut(
+            crate::domain::node::types::Walked<'_, '_, '_>,
+        ) -> Vec<languages::Position>,
     ) {
         #[cfg(test)]
         let _previous = self
             .file_parses
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        super::walk::walked(&self.settings, text, source_kind, reported, builder, lend);
+        super::walk::walked(&self.settings, text, source_kind, reported, builder, read);
     }
 }
 

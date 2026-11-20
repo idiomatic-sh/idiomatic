@@ -1,5 +1,9 @@
 //! Read one terminal outcome for every visible function definition.
 use super::constants::INCOMPLETE;
+use crate::domain::file_view::types::PythonWalk;
+use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at};
+use crate::domain::node::types::Numbered;
+use crate::domain::terminal_facts::service::outcome as ending;
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -35,6 +39,31 @@ ryo::reads! {
             given outcome = outcome(&index,function)?;
             given outcome = languages::intern_derived(symbols, tree.source, outcome);
             row { id: node(function), outcome: value(outcome), file: file, span: span(function), }
+        }
+    }
+}
+
+// The engine fills `function-terminal` from the walked file: every row of the file, once.
+ryo::fills! {
+    FunctionTerminalItem => languages::FunctionTerminal, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::FunctionTerminal as languages::CatalogRelation>::Row;
+        if file.syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
+            rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
+        }
+        let memo = &mut file.buffers.fixed;
+        for kind in [Node::FunctionDef, Node::AsyncFunctionDef] {
+            for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(kind)) {
+                let ruff_python_ast::AnyNodeRef::StmtFunctionDef(function) = node else {
+                    continue;
+                };
+                rows.write(Row {
+                    id: node_cell(&file.syntax, id),
+                    outcome: fixed(words, memo, ending(function)),
+                    file: file.syntax.file,
+                    span: span_at(&file.syntax, id),
+                });
+            }
         }
     }
 }

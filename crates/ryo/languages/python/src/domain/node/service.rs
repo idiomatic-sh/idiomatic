@@ -4,6 +4,7 @@
 use super::types::{FixedWords, Numbered, SyntaxFile};
 use crate::domain::labels::service::field_bits;
 use crate::domain::labels::types::Field;
+use crate::domain::model::lexical::types::EmbeddedSite;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -25,14 +26,40 @@ pub(crate) fn id_of<'t>(node: impl Into<AnyNodeRef<'t>>) -> Option<Position> {
     node.into().node_index().load().as_u32().map(Position)
 }
 
+/// The id the table gave the node at `place`: the place itself in the file's own tree, counted from its segment's root in an
+/// embedded segment.
+#[must_use]
+pub(crate) fn table_id(segments: &[EmbeddedSite], place: Position) -> Position {
+    let after = segments.partition_point(|segment| segment.first <= place);
+    after
+        .checked_sub(1)
+        .and_then(|within| segments.get(within))
+        .map_or(place, |segment| {
+            Position(
+                segment
+                    .root
+                    .0
+                    .saturating_add(place.0.saturating_sub(segment.first.0)),
+            )
+        })
+}
+
+/// The id after the last element of the file's own tree: its nodes, then its tokens. The embedded segments follow.
+#[must_use]
+pub(crate) fn own_end(file: &SyntaxFile<'_>) -> Position {
+    file.tree.segments.first().map_or_else(
+        || Position(u32::try_from(node_table::element_count(file.table).0).unwrap_or(u32::MAX)),
+        |segment| segment.root,
+    )
+}
+
 /// The typed node of a syntax node id; none for a token and for an id the file does not have.
 #[must_use]
 pub(crate) fn node_at<'f>(file: &SyntaxFile<'f>, id: Position) -> Option<AnyNodeRef<'f>> {
     file.nodes.get(usize::from(id)).copied()
 }
 
-/// The syntax nodes of the file, in id order. Read by the walk's cases alone until a filler reads every node of a file.
-#[cfg(test)]
+/// The syntax nodes of the file, in id order.
 pub(crate) fn typed_nodes<'f>(
     file: &SyntaxFile<'f>,
 ) -> impl Iterator<Item = Numbered<'f>> + use<'f> {

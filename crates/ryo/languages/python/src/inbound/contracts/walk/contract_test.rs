@@ -7,7 +7,7 @@ use crate::domain::labels::types::Field;
 use crate::domain::syntax::service::{kind_name, kind_of, kinds};
 use crate::fixtures::table_laws::broken_laws;
 use crate::fixtures::today::{Read, read, read_keys, read_placements};
-use crate::fixtures::walking::{Placement, walked, walked_keys, walked_placements};
+use crate::fixtures::walking::{Placement, walked, walked_own_keys, walked_placements};
 use crate::outbound::syntax::fixtures::library::fixture_sources;
 use ryo::languages::{
     self, ByteSlice, FileFacts, FileId, FileVisit, NodeTable, Offset, RelationNeeds, Walk,
@@ -124,7 +124,7 @@ fn tree_differences(folder: &str, bytes: &[u8]) -> Result<String, WalkError> {
         &mut table,
         &mut scratch,
         &mut |file| {
-            new = walked_placements(file.table, &walked_keys(file.table));
+            new = walked_placements(file.table, &walked_own_keys(file.table));
             accepted =
                 node_table::acceptance_of(file.table) == languages::SyntaxAcceptance::Accepted;
         },

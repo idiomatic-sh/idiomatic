@@ -3,6 +3,7 @@
 use crate::domain::model::definitions::types::DefinitionModel;
 use crate::domain::model::flow::types::FlowModel;
 use crate::domain::model::lexical::types::LexicalModel;
+use crate::domain::model::lexical::types::TypedTree;
 use crate::domain::model::names::types::{FactWords, NameTable};
 use crate::domain::model::resolution::types::ResolutionModel;
 use crate::domain::model::types::BindingSchedule;
@@ -36,6 +37,8 @@ pub(crate) struct ModelRead<'v> {
     pub model: &'v SemanticModel,
     /// The file's node table.
     pub table: &'v NodeTable,
+    /// The parser's nodes, as the model read them.
+    pub tree: TypedTree<'v, 'v>,
     /// The file's number in the run.
     pub file: FileId,
 }
