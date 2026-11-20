@@ -80,6 +80,11 @@ pub(crate) enum Ins {
     Axis { dir: Dir, start: R, out: R },
     /// `anc` is a proper ancestor of `desc` (both bound): one walk up the parent chain
     Within { anc: R, desc: R },
+    /// a value bucket of a tree relation walked in start order between bounds (load-time fusion of IterValue, the read of the
+    /// row's start and the range tests on it): binary search to the lower bound, stop at the upper
+    IterRange { rel: TRel, col: u8, val: Val, out: R, start: R, lo: Option<(R, bool)>, hi: Option<(R, bool)> },
+    /// the children of `parent` under one field (load-time fusion of IterChildren, the field read and its equality test)
+    IterField { parent: R, field: u32, out: R, field_out: R },
     Near { start: R, out: R, subs: Box<[Prog]> },
     Sub { negate: bool, subs: Box<[Prog]> },
     Emit { cols: Box<[Opd]> },
@@ -91,9 +96,9 @@ pub(crate) enum Ins {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const INS_NAMES: [&str; 19] = [
+pub(crate) const INS_NAMES: [&str; 21] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
-    "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within",
+    "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field",
 ];
 
 impl Ins {
@@ -119,6 +124,8 @@ impl Ins {
             Ins::SpanBounds { .. } => 16,
             Ins::SourceMatches { .. } => 17,
             Ins::Within { .. } => 18,
+            Ins::IterRange { .. } => 19,
+            Ins::IterField { .. } => 20,
         }
     }
 }
@@ -291,7 +298,7 @@ impl Loader<'_> {
     }
 
     fn prog(&mut self, p: &Value) -> Prog {
-        p.as_array().unwrap().iter().map(|i| self.ins(i)).collect::<Vec<_>>().into()
+        fuse(p.as_array().unwrap().iter().map(|i| self.ins(i)).collect::<Vec<_>>()).into()
     }
 
     fn ins(&mut self, i: &Value) -> Ins {
@@ -437,6 +444,80 @@ impl Loader<'_> {
             o => panic!("ins {o}"),
         }
     }
+}
+
+/// Load-time fusion (NAV_FUSE=0 turns it off): a value bucket followed by the read of the row's start and range tests on it
+/// becomes one range walk; children followed by the field read and an equality on it become a per-field walk.
+pub(crate) fn fuse(p: Vec<Ins>) -> Vec<Ins> {
+    if std::env::var("NAV_FUSE").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut out: Vec<Ins> = Vec::with_capacity(p.len());
+    let mut it = p.into_iter().peekable();
+    let mut rest: Vec<Ins> = Vec::new();
+    while let Some(ins) = it.next() {
+        rest.clear();
+        match ins {
+            Ins::IterValue { rel, col, val, out: o } if matches!(rel, TRel::Ss | TRel::Sl) => {
+                let Some(Ins::Read { rel: TRel::Sl, col: 5, row, out: st }) = it.peek() else {
+                    out.push(Ins::IterValue { rel, col, val, out: o });
+                    continue;
+                };
+                if *row != o {
+                    out.push(Ins::IterValue { rel, col, val, out: o });
+                    continue;
+                }
+                let st = *st;
+                it.next();
+                let (mut lo, mut hi) = (None, None);
+                while let Some(Ins::Test { test, l: Opd::Reg(a), r: Opd::Reg(b), text: false, .. }) = it.peek() {
+                    let (test, a, b) = (*test, *a, *b);
+                    let bound = match (a == st, b == st, test) {
+                        (true, false, T::Ge) => (true, (b, true)),
+                        (true, false, T::Gt) => (true, (b, false)),
+                        (true, false, T::Lt) => (false, (b, false)),
+                        (true, false, T::Le) => (false, (b, true)),
+                        (false, true, T::Le) => (true, (a, true)),
+                        (false, true, T::Lt) => (true, (a, false)),
+                        (false, true, T::Gt) => (false, (a, false)),
+                        (false, true, T::Ge) => (false, (a, true)),
+                        _ => break,
+                    };
+                    let slot = if bound.0 { &mut lo } else { &mut hi };
+                    if slot.is_some() {
+                        break;
+                    }
+                    *slot = Some(bound.1);
+                    it.next();
+                }
+                out.push(Ins::IterRange { rel, col, val, out: o, start: st, lo, hi });
+            }
+            Ins::IterChildren { parent, out: o } => {
+                let fused = match it.peek() {
+                    Some(Ins::Read { rel: TRel::Sc, col: 3, row, out: f }) if *row == o => Some(*f),
+                    _ => None,
+                };
+                let Some(f) = fused else {
+                    out.push(Ins::IterChildren { parent, out: o });
+                    continue;
+                };
+                let read = it.next().unwrap();
+                match it.peek() {
+                    Some(Ins::Test { test: T::Eq, l: Opd::Reg(a), r: Opd::Sym(x), .. }) if *a == f => {
+                        let x = *x;
+                        it.next();
+                        out.push(Ins::IterField { parent, field: x, out: o, field_out: f });
+                    }
+                    _ => {
+                        out.push(Ins::IterChildren { parent, out: o });
+                        out.push(read);
+                    }
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    out
 }
 
 impl NavProgram {
@@ -732,6 +813,25 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
             }
         })
+    }
+
+    /// a tree relation's value index with each list in start order (for range walks)
+    fn tree_index_sorted(&mut self, rel: TRel, col: u8) -> Rc<FxMap<u32, Vec<u32>>> {
+        let key = (rel as u8 | 0x80, col);
+        if let Some(i) = self.cache.tree_idx.get(&key) {
+            return i.clone();
+        }
+        let base = self.tree_index(rel, col);
+        let v = self.f.view;
+        let mut m: FxMap<u32, Vec<u32>> = FxMap::default();
+        for (k, list) in base.iter() {
+            let mut l = list.clone();
+            l.sort_by_key(|&id| (v.start[id as usize], id));
+            m.insert(*k, l);
+        }
+        let m = Rc::new(m);
+        self.cache.tree_idx.insert(key, m.clone());
+        m
     }
 
     fn row_exists(&mut self, rel: TRel, id: u32) -> bool {
@@ -1308,6 +1408,61 @@ impl<'a, 'p> Exec<'a, 'p> {
                             return false;
                         }
                     }
+                }
+                Ins::IterRange { rel, col, val, out, start, lo, hi } => {
+                    let idx = self.tree_index_sorted(*rel, *col);
+                    let keys: Vec<u32> = match val {
+                        Val::Reg(r) => vec![self.regs[*r as usize] as u32],
+                        Val::Syms(s) => s.to_vec(),
+                        Val::Nums(n) => n.iter().map(|&x| x as u32).collect(),
+                    };
+                    let v = self.f.view;
+                    let lo = lo.map(|(r, incl)| (self.regs[r as usize] as i64, incl));
+                    let hi = hi.map(|(r, incl)| (self.regs[r as usize] as i64, incl));
+                    for k in keys {
+                        let Some(list) = idx.get(&k) else { continue };
+                        let first = match lo {
+                            Some((x, true)) => list.partition_point(|&id| (v.start[id as usize] as i64) < x),
+                            Some((x, false)) => list.partition_point(|&id| (v.start[id as usize] as i64) <= x),
+                            None => 0,
+                        };
+                        for &id in &list[first..] {
+                            let st = v.start[id as usize] as i64;
+                            match hi {
+                                Some((x, true)) if st > x => break,
+                                Some((x, false)) if st >= x => break,
+                                _ => {}
+                            }
+                            self.regs[*out as usize] = id as u64;
+                            self.regs[*start as usize] = st as u64;
+                            self.c.visits += 1;
+                            if self.run_inner(p, pc + 1) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterField { parent, field, out, field_out } => {
+                    let par = self.regs[*parent as usize] as u32;
+                    let v = self.f.view;
+                    if par as usize >= v.len() {
+                        return false;
+                    }
+                    let (s, e) = (v.child_off[par as usize] as usize, v.child_off[par as usize + 1] as usize);
+                    for k in s..e {
+                        let ch = v.children[k];
+                        if v.field[ch as usize] != *field {
+                            continue;
+                        }
+                        self.regs[*out as usize] = ch as u64;
+                        self.regs[*field_out as usize] = *field as u64;
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
                 }
                 Ins::Within { anc, desc } => {
                     let (a, d) = (self.regs[*anc as usize] as u32, self.regs[*desc as usize] as u32);
