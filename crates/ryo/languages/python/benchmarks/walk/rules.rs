@@ -729,6 +729,7 @@ impl<'p> State<'p> {
         self.cache.twin_bought.clear();
         self.cache.hoisted.clear();
         self.cache.probed.clear();
+        self.cache.dkey_built = false;
         self.cache.sub_memo.clear();
         self.cache.near_memo.clear();
         self.cache.key_memo.clear();

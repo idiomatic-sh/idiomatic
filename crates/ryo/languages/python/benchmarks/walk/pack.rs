@@ -244,6 +244,18 @@ impl Enc {
                 self.u(probe.0);
                 self.u(u32::from(probe.1));
             }
+            Ins::ChildToward { parent, desc, out, field } => {
+                self.u(u32::from(*parent));
+                self.u(u32::from(*desc));
+                self.u(u32::from(*out));
+                match field {
+                    None => self.u(u32::MAX),
+                    Some((f, fo)) => {
+                        self.u(*f);
+                        self.u(u32::from(*fo));
+                    }
+                }
+            }
             Ins::Capture { regs } => self.regs(regs),
             Ins::SubFirst { subs } => self.progs(subs),
             Ins::NearMemo { start, out, subs } => {
@@ -628,6 +640,14 @@ impl Dec<'_> {
                     Ins::HoistProbe { id, key, seg, caps, probe: (pc, self.r()) }
                 }
             }
+            47 => {
+                let parent = self.r();
+                let desc = self.r();
+                let out = self.r();
+                let f = self.u();
+                let field = if f == u32::MAX { None } else { Some((f, self.r())) };
+                Ins::ChildToward { parent, desc, out, field }
+            }
             30 => Ins::Capture { regs: self.regs() },
             31 => Ins::SubFirst { subs: self.progs() },
             43 => {
@@ -883,6 +903,8 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
     let t_tails = t0.elapsed().as_secs_f64();
     let off = (16 + tails_len).div_ceil(4) * 4;
     let words: Vec<u32> = bytes[off..off + nwords * 4].chunks_exact(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
+    // the file's bytes are not needed past this point (peak memory: the words and the decoded programs only)
+    drop(bytes);
     let mut d = Dec { w: &words, at: 0 };
     let mut symbols = Symbols::default();
     let n = d.u();

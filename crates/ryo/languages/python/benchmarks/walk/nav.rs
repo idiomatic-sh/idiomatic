@@ -114,6 +114,9 @@ pub(crate) enum Ins {
     /// a Hoist whose replay keeps only the tuples whose captured register `probe.0` equals register `probe.1` (an index on it,
     /// built with the tuples once per file per key)
     HoistProbe { id: u32, key: Box<[R]>, seg: Prog, caps: Box<[R]>, probe: (u32, R) },
+    /// the child `out` of `parent` that is a proper ancestor of `desc` (one walk up from `desc`), optionally only under one
+    /// field (its register set): the load-time fusion of a child walk followed by a containment test against it
+    ChildToward { parent: R, desc: R, out: R, field: Option<(u32, R)> },
     /// a negated check whose failure holds for every later element of the range walk that encloses it (monotone in the walk's
     /// start: its only use of the walk is an upper bound on a walk of the same bucket): failing ends that walk
     SubFirst { subs: Box<[Prog]> },
@@ -186,13 +189,13 @@ pub(crate) struct OrderedDfs {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const NINS: usize = 47;
+pub(crate) const NINS: usize = 48;
 pub(crate) const INS_NAMES: [&str; NINS] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
     "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
     "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture", "sub_first",
     "collect", "closure", "union", "let", "shared", "text_fn", "capture_text", "replace", "near_derived", "sibling", "sub_memo",
-    "near_memo", "sub_key", "anc_exists", "hoist_probe",
+    "near_memo", "sub_key", "anc_exists", "hoist_probe", "child_toward",
 ];
 
 impl Ins {
@@ -246,6 +249,7 @@ impl Ins {
             Ins::SubKey { .. } => 44,
             Ins::AncExists { .. } => 45,
             Ins::HoistProbe { .. } => 46,
+            Ins::ChildToward { .. } => 47,
         }
     }
 }
@@ -849,6 +853,14 @@ fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
             sub(std::slice::from_ref(seg), reads);
             defs.extend(caps.iter().copied());
         }
+        Ins::ChildToward { parent, desc, out, field } => {
+            reads.push(*parent);
+            reads.push(*desc);
+            defs.push(*out);
+            if let Some((_, fo)) = field {
+                defs.push(*fo);
+            }
+        }
         Ins::Capture { regs } => reads.extend(regs.iter().copied()),
         Ins::SubFirst { subs } => sub(subs, reads),
         Ins::Collect { regs } => reads.extend(regs.iter().copied()),
@@ -997,6 +1009,39 @@ fn anc_shape(subs: &[Prog]) -> Option<(R, R)> {
     let Some(Ins::Axis { dir: Dir::Ancestor, start, out }) = q.first() else { return None };
     let free = free_regs(&q[1..]);
     free.iter().all(|r| r == out).then_some((*start, *out))
+}
+
+/// Child walk + containment (NAV_TOWARD=0 turns it off): a child (or per-field child) walk whose next step tests that the child
+/// is a proper ancestor of a register bound before becomes one walk up from that register (ChildToward).
+pub(crate) fn fuse_within(p: Prog) -> Prog {
+    if std::env::var("NAV_TOWARD").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut v: Vec<Ins> = p.into_vec();
+    for i in v.iter_mut() {
+        subs_mut(i, &mut |q| *q = fuse_within(std::mem::take(q)));
+    }
+    let mut out: Vec<Ins> = Vec::with_capacity(v.len());
+    let mut it = v.into_iter().peekable();
+    while let Some(i) = it.next() {
+        let (parent, x, field) = match &i {
+            Ins::IterChildren { parent, out } => (*parent, *out, None),
+            Ins::IterField { parent, field, out, field_out } => (*parent, *out, Some((*field, *field_out))),
+            _ => {
+                out.push(i);
+                continue;
+            }
+        };
+        match it.peek() {
+            Some(Ins::Within { anc, desc }) if *anc == x && *desc != x && *desc != parent => {
+                let desc = *desc;
+                it.next();
+                out.push(Ins::ChildToward { parent, desc, out: x, field });
+            }
+            _ => out.push(i),
+        }
+    }
+    out.into()
 }
 
 /// Detached components (NAV_DETACH_LOAD=0 turns it off): in a program run for existence (the sub-programs of absence and
@@ -1524,8 +1569,9 @@ impl NavProgram {
             SHARED_FREE.with(|t| t.borrow_mut().push(fr));
         }
         // each pass over every program, timed (NAV_VERBOSE)
-        let stages: [(&str, &dyn Fn(Prog) -> Prog); 7] = [
+        let stages: [(&str, &dyn Fn(Prog) -> Prog); 8] = [
             ("specialise", &specialize),
+            ("toward", &fuse_within),
             ("detach", &detach),
             ("fold", &|q| fold(q, &none)),
             ("hoist", &hoist),
@@ -1577,7 +1623,7 @@ impl NavProgram {
         if std::env::var("NAV_RESHARE").is_ok_and(|v| v == "0") {
             return;
         }
-        let min: usize = std::env::var("NAV_RESHARE_MIN").ok().and_then(|v| v.parse().ok()).unwrap_or(24);
+        let min: usize = std::env::var("NAV_RESHARE_MIN").ok().and_then(|v| v.parse().ok()).unwrap_or(6);
         let mut hc = Hc::default();
         let mut all: Vec<&mut Prog> = Vec::new();
         for g in &mut self.groups {
@@ -2218,6 +2264,7 @@ fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
         | Ins::TestInC { .. }
         | Ins::Hoist { .. }
         | Ins::HoistProbe { .. }
+        | Ins::ChildToward { .. }
         | Ins::Capture { .. }
         | Ins::NearMemo { .. }
         | Ins::SubKey { .. }
@@ -2352,6 +2399,8 @@ pub(crate) struct Counters {
     /// per base made table over the run: (steps of its builds, builds) as a twin's buy price; twins switched
     pub twin_buy: FxMap<u16, (u64, u64)>,
     pub twin_switches: u64,
+    /// per twin over the run: (files using it, files where it switched to its base)
+    pub twin_files: FxMap<u16, (u64, u64)>,
     /// NearMemo / AncExists memo arrays allocated (per file per site) and their cells
     pub memo_allocs: u64,
     pub memo_cells: u64,
@@ -2449,6 +2498,10 @@ pub(crate) struct FileCache {
     pub key_memo: FxMap<(usize, u64), bool>,
     /// navwide: reusable state of the derived relations (derived.rs)
     pub dstate: crate::derived::State,
+    /// derived key cells: (start, stop, kind) -> view id for the current file (dkey_built), kind names -> base symbols
+    pub dkey_at: FxMap<(u32, u32, u32), u32>,
+    pub dkey_built: bool,
+    pub dkind: FxMap<usize, u32>,
     pub model_lex: bool,
     pub model_flow: bool,
     /// per-file dispatch: kind code -> (rule, branch, alternative) anchored on it
@@ -2664,14 +2717,27 @@ impl<'a, 'p> Exec<'a, 'p> {
             let bought = self.cache.twin_bought.contains(&rel);
             let rent = self.cache.twin_rent.get(&rel).copied().unwrap_or(0);
             let (buy_steps, buys) = self.c.twin_buy.get(&f.base).copied().unwrap_or((0, 0));
-            let budget = if buys == 0 { 20_000 } else { buy_steps / buys };
-            if bought || rent > budget {
+            // per twin over the run: (files using it, files where it switched); a twin that switched in most files it served
+            // switches at once
+            let first_use = !self.cache.twin_rent.contains_key(&rel) && !bought;
+            let (used, switched) = self.c.twin_files.get(&rel).copied().unwrap_or((0, 0));
+            if first_use {
+                self.c.twin_files.entry(rel).or_default().0 += 1;
+            }
+            let budget = if used >= 8 && switched * 2 >= used {
+                0
+            } else if buys == 0 {
+                20_000
+            } else {
+                buy_steps / buys
+            };
+            if bought || rent > budget || budget == 0 {
                 return self.keyed_from_base(rel, value);
             }
         }
         let steps_at = self.c.steps;
         let r = self.keyed_build(rel, value);
-        *self.cache.twin_rent.entry(rel).or_default() += self.c.steps - steps_at;
+        *self.cache.twin_rent.entry(rel).or_default() += (self.c.steps - steps_at).max(1);
         r
     }
 
@@ -2682,6 +2748,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         let base = f.base;
         let col = f.keyed.unwrap().0;
         if self.cache.twin_bought.insert(rel) {
+            self.c.twin_files.entry(rel).or_default().1 += 1;
             let loaded = self.cache.facts.as_ref().is_some_and(|x| x.loaded[base as usize]);
             if !loaded {
                 let s0 = self.c.steps;
@@ -3891,6 +3958,29 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                     return false;
                 }
+                Ins::ChildToward { parent, desc, out, field } => {
+                    let (p0, d) = (self.regs[*parent as usize] as u32, self.regs[*desc as usize] as u32);
+                    let v = self.f.view;
+                    if d as usize >= v.len() || p0 as usize >= v.len() {
+                        return false;
+                    }
+                    // the ancestor of `desc` whose parent is `parent` (never `desc` itself: the containment is proper)
+                    let mut y = v.parent[d as usize];
+                    while y != u32::MAX && v.parent[y as usize] != p0 {
+                        y = v.parent[y as usize];
+                    }
+                    if y == u32::MAX {
+                        return false;
+                    }
+                    if let Some((f, fo)) = field {
+                        if v.field[y as usize] != *f {
+                            return false;
+                        }
+                        self.regs[*fo as usize] = u64::from(*f);
+                    }
+                    self.c.visits += 1;
+                    self.regs[*out as usize] = u64::from(y);
+                }
                 Ins::Within { anc, desc } => {
                     let (a, d) = (self.regs[*anc as usize] as u32, self.regs[*desc as usize] as u32);
                     let v = self.f.view;
@@ -4452,20 +4542,27 @@ impl<'a, 'p> Exec<'a, 'p> {
             model: self.model,
             incomplete: self.f.incomplete,
         };
+        let mut at = std::mem::take(&mut self.cache.dkey_at);
+        let mut kinds = std::mem::take(&mut self.cache.dkind);
         let mut sink = DSink {
             targets: targets.iter().map(|(d, r)| (*d, prog.facts[*r as usize].kinds.len())).collect(),
             out: targets.iter().map(|(_, r)| vec![Vec::new(); prog.facts[*r as usize].kinds.len()]).collect(),
             sym: self.sym,
             view: self.f.view,
-            at: None,
+            at: &mut at,
+            at_built: &mut self.cache.dkey_built,
+            kinds: &mut kinds,
         };
         let mut st = std::mem::take(&mut self.cache.dstate);
         st.view_file = None;
         let mut buf = std::mem::take(&mut self.scratch);
         crate::derived::produce(&ctx, wanted, &mut sink, &mut buf, &mut st);
+        let out = std::mem::take(&mut sink.out);
+        drop(sink);
+        self.cache.dkey_at = at;
+        self.cache.dkind = kinds;
         self.scratch = buf;
         self.cache.dstate = st;
-        let out = sink.out;
         let facts = self.cache.facts.as_mut().unwrap();
         for ((_, r), cols) in targets.iter().zip(out) {
             self.c.fact_rows += cols.first().map_or(0, Vec::len) as u64;
@@ -4826,7 +4923,11 @@ struct DSink<'s> {
     out: Vec<Vec<Vec<u64>>>,
     sym: &'s mut Symbols,
     view: &'s View,
-    at: Option<FxMap<(u32, u32, u32), u32>>,
+    /// join: (start, stop, kind) -> view id, built once per file and kept across the file's derived relations
+    at: &'s mut FxMap<(u32, u32, u32), u32>,
+    at_built: &'s mut bool,
+    /// a key cell's kind name (static text, by address) -> its base symbol, kept for the run
+    kinds: &'s mut FxMap<usize, u32>,
 }
 
 impl crate::derived::Sink for DSink<'_> {
@@ -4839,15 +4940,26 @@ impl crate::derived::Sink for DSink<'_> {
                 Cell::Node(n) => u64::from(n),
                 Cell::Key(k, a, b) => {
                     let v = self.view;
-                    let at = self.at.get_or_insert_with(|| {
-                        let mut m: FxMap<(u32, u32, u32), u32> = FxMap::default();
+                    if !*self.at_built {
+                        self.at.clear();
+                        self.at.reserve(v.len());
                         for id in (0..v.len()).rev() {
-                            m.insert((v.start[id], v.stop[id], v.kind[id]), id as u32);
+                            self.at.insert((v.start[id], v.stop[id], v.kind[id]), id as u32);
                         }
-                        m
-                    });
-                    let kc = self.sym.get_base(k).unwrap_or(NULL);
-                    u64::from(at.get(&(a, b, kc)).copied().unwrap_or(u32::MAX - 1))
+                        *self.at_built = true;
+                    }
+                    let kc = match self.kinds.get(&(k.as_ptr() as usize)) {
+                        Some(&c) => c,
+                        None => {
+                            // a kind not yet a base symbol may become one when a later file names it: only hits are kept
+                            let c = self.sym.get_base(k).unwrap_or(NULL);
+                            if c != NULL {
+                                self.kinds.insert(k.as_ptr() as usize, c);
+                            }
+                            c
+                        }
+                    };
+                    u64::from(self.at.get(&(a, b, kc)).copied().unwrap_or(u32::MAX - 1))
                 }
                 Cell::Text(t) => u64::from(self.sym.text(t)),
                 Cell::Null => u64::from(NULL),
