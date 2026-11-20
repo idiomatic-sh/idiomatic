@@ -9,6 +9,7 @@ pub(crate) mod fact_notes;
 pub(crate) mod fields;
 pub(crate) mod file_view;
 pub(crate) mod imports;
+pub(crate) mod keyed_rows;
 pub(crate) mod labels;
 pub(crate) mod language;
 pub(crate) mod layout_facts;

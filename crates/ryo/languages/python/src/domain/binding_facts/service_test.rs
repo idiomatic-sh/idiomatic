@@ -1,24 +1,22 @@
 //! The `binding_facts` service's cases: each filler's rows for a source, against the rows today's reader of the relation writes
-//! for the same source; the selection that is no fact of the provider; and the files today's readers do not answer (a file
-//! with a syntax error, a name with more events than today's chain limit), which the fillers answer in full.
+//! for the same source; and the files today's readers do not answer (a file with a syntax error, a name with more events than
+//! today's chain limit), which the fillers answer in full. That the selection among events is no fact of the provider is a
+//! case of the walk's contract, where the language answers the relation.
 
-use super::service::{
-    binding_event_rows, binding_read_rows, binding_resolution_rows, binding_shadow_rows, binding_use_rows,
-};
+use super::service::{binding_event_rows, binding_read_rows, binding_shadow_rows, binding_use_rows};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::lexical_facts::fixtures::{CONSTRUCTS, Compared, compared, filled};
+use crate::domain::lexical_facts::fixtures::{CONSTRUCTS, Compared, compared};
 use crate::fixtures::model_rows::{Counted, counted};
 use crate::domain::lexical_facts::service::{
     defines_rows, implicit_symbol_rows, qualified_name_rows, reference_rows, resolves_rows, scope_rows,
 };
-use ryo::languages::{self, AbsenceCause};
+use ryo::languages;
 
 /// The relation and the source.
 type Input = (Filler, &'static str);
 /// How the filler's rows stand against today's.
 type Value = Compared;
-/// Why a relation is not read at all.
-type Failure = AbsenceCause;
+type Failure = ();
 
 /// The fillers of this concept.
 #[derive(Clone, Copy, Debug)]
@@ -31,8 +29,6 @@ enum Filler {
     Use,
     /// `binding-shadow`.
     Shadow,
-    /// `binding-resolution`.
-    Resolution,
 }
 
 /// The fillers' rows equal today's readers' rows: `rows` of them, none differing, no cause.
@@ -66,22 +62,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Filler::Shadow, CONSTRUCTS),
         expect: equal(11),
     },
-    Case {
-        name: CaseName("the_selection_among_events_is_not_a_fact_of_the_provider"),
-        word: Word::Refuses,
-        input: || (Filler::Resolution, CONSTRUCTS),
-        expect: Expect::Error(AbsenceCause::NotYetRead),
-    },
 ];
 
 fn subject((filler, source): Input) -> Result<Value, Failure> {
     Ok(match filler {
-        Filler::Resolution => {
-            let told = filled::<languages::BindingResolution>(source, |view, words, rows| {
-                binding_resolution_rows(view, words, rows)
-            });
-            return told.absent.map_or_else(|| Ok(Compared { rows: told.rows.len(), ..Compared::default() }), Err);
-        }
         Filler::Event => {
             compared::<languages::BindingEvent>(source, |view, words, rows| binding_event_rows(view, words, rows))
         }
@@ -245,9 +229,4 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
     run(EVERY, Word::Succeeds, |input| Ok(every(input)));
     run(UNANSWERED, Word::Succeeds, |input| Ok(unanswered(input)));
-}
-
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
 }

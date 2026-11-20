@@ -64,5 +64,5 @@ workspace = true
 # Established generated parser timing identities; native CPU/RSS are not inferred from Divan.
 [package.metadata.ryo.performance]
 schema = "divan-timing/v1"
-workloads = { generated_every_relation = [2500, 10000] }
+workloads = { generated_every_relation = [2500, 10000], fillers_whole_and_by_key = [2000, 8000] }
 metrics = ["median-ns"]

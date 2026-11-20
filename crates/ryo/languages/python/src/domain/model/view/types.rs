@@ -28,6 +28,10 @@ pub(crate) enum ModelPart {
     Resolution,
     /// The lexical part, and the schedule interpreted: events, reads, uses and shadows.
     Flow,
+    /// The flow part, and its reads listed by the name each reads: what a fill of the reads of one name looks its name up in.
+    ReadsByName,
+    /// The flow part, and its shadows listed by the binding of each: what a fill of the shadows of one binding looks it up in.
+    ShadowsByBinding,
 }
 
 /// What a filler reads once the model is built.
@@ -83,4 +87,8 @@ pub(crate) struct Built {
     pub resolution: PartState,
     /// The flow part.
     pub flow: PartState,
+    /// The reads listed by name.
+    pub reads_by_name: PartState,
+    /// The shadows listed by binding.
+    pub shadows_by_binding: PartState,
 }

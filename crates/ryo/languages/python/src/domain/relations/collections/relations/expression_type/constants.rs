@@ -12,3 +12,5 @@ pub(super) const NO_TYPE: &str = "";
 
 /// Required literal payloads were not supplied completely.
 pub(super) const INCOMPLETE: &str = "basic expression types require complete parser payloads";
+/// The texts of this concept a filler writes that are the same in every file: fixed names of the run.
+pub(crate) const FIXED_NAMES: &[&str] = &[ATOM, UNION, UNKNOWN, TYPE_ERROR, NO_TYPE];
