@@ -129,6 +129,7 @@ pub(crate) const RELATIONS: &[&str] = &[
     "indent-region",
     "function-terminal",
     "constant-key",
+    "token-link",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -1863,6 +1864,63 @@ fn rows_constant_key(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, k: &mut C
     }
 }
 
+// ------------------------------------------------------------------------------------------------ token-link
+/// `token_links::scan`: one linear pass over the parser's tokens: each token's next token, every bracket's matching closer, and
+/// the innermost open bracket enclosing each token; an error token or an unbalanced bracket loses the pairing from there on.
+pub(crate) fn token_links(c: &Ctx<'_, '_>, out: &mut dyn FnMut(usize, usize, &'static str)) {
+    use ruff_python_ast::token::TokenKind as T;
+    let tokens = c.parsed.tokens();
+    let mut stack: Vec<(T, usize)> = Vec::new();
+    let mut previous: Option<usize> = None;
+    for (at, t) in tokens.iter().enumerate() {
+        let token = t.kind();
+        if matches!(token, T::Unknown) {
+            previous = None;
+            stack.clear();
+            continue;
+        }
+        let mut paired = None;
+        let mut enclosing = stack.last().map(|o| o.1);
+        if matches!(token, T::Lpar | T::Lsqb | T::Lbrace) {
+            stack.push((token, at));
+        } else if matches!(token, T::Rpar | T::Rsqb | T::Rbrace) {
+            match stack.pop() {
+                Some((open, o))
+                    if matches!((open, token), (T::Lpar, T::Rpar) | (T::Lsqb, T::Rsqb) | (T::Lbrace, T::Rbrace)) =>
+                {
+                    paired = Some(o);
+                    enclosing = stack.last().map(|o| o.1);
+                }
+                _ => {
+                    stack.clear();
+                    enclosing = None;
+                }
+            }
+        }
+        if let Some(p) = previous.replace(at) {
+            out(p, at, "next-token");
+        }
+        if let Some(o) = paired {
+            out(o, at, "matching-delimiter");
+        }
+        if let Some(e) = enclosing {
+            out(at, e, "enclosing-delimiter");
+        }
+    }
+}
+
+fn rows_token_link(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
+    let tokens = c.parsed.tokens();
+    let key = |i: usize| {
+        let t = &tokens[i];
+        Cell::Key(crate::view::token_kind_name(t.kind()), t.start().to_u32(), t.end().to_u32())
+    };
+    token_links(c, &mut |s, t, k| {
+        let st = &tokens[s];
+        sink.row(rel, &[key(s), key(t), Cell::Text(k), Cell::File, Cell::Span(st.start().to_u32(), st.end().to_u32())]);
+    });
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
@@ -1947,6 +2005,9 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     }
     if let Some(r) = want("constant-key") {
         rows_constant_key(c, sink, r, &mut st.constant_keys);
+    }
+    if let Some(r) = want("token-link") {
+        rows_token_link(c, sink, r);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
