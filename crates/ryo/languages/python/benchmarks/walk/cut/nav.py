@@ -57,6 +57,32 @@ ANCHOR_CUT = os.environ.get("NAV_ANCHOR_CUT", "1") == "1"      # a forced cut ta
 MADE_COST = os.environ.get("NAV_MADE_COST", "1") == "1"        # a made table is sized from its input's plan and costs its build once
 TOP_INLINE = os.environ.get("NAV_TOP_INLINE", "1") == "1"      # the core's branches are top programs up to the product bound (no top cut)
 REQUIRE = os.environ.get("NAV_REQUIRE", "1") == "1"            # kind buckets a branch needs through its definitions prove it empty per file
+# the probe's build is weighed against a tenth of the candidates the plan expects: estimates of candidates err upward
+# (most files hold none), a keyed call costs nothing without one, the build is paid whole once one arrives
+PROBE_BIAS = float(os.environ.get("NAV_PROBE_BIAS", "0.1"))
+# a bucket iterated inside a candidate keeps its penalty (BUCKET_X) as its RANK only; the plan's cost and rows use its size, so
+# plans from different anchors compare on what they would run (last round the penalty also multiplied the rows after it)
+RANK_SPLIT = os.environ.get("NAV_RANK_SPLIT", "1") == "1"
+# a literal of a symbol column with no value counts (more than 256 distinct values on the corpus): at most the column's
+# rows over 256 on average (it was 1% of the rows), and no 10x inside a candidate (a specific name, not a class of rows)
+RARE_LITERAL = os.environ.get("NAV_RARE_LITERAL", "1") == "1"
+# the item bound cuts one BRANCH of a joined pair (a definition of one branch), not a whole side: every joined branch keeps its
+# own anchor choice (a side cut whole hides the selective anchors of some of its branches behind the wide ones of others)
+PAIR_CUT = os.environ.get("NAV_PAIR_CUT", "0") == "1"
+# a step within the branch bound whose flattening has branches over the item bound: only those branches become uses of
+# one-branch definitions; the others stay inline with their own anchors (last round the whole step became one use)
+BRANCH_CUT = os.environ.get("NAV_BRANCH_CUT", "1") == "1"
+# a test that costs this many steps or more waits for a keyed fact lookup (at most about one row: rank up to TEST_WAIT_RANK)
+# that may drop the candidate first; a cheaper test runs as soon as its args are bound (as before)
+TEST_WAIT_STEPS = float(os.environ.get("NAV_TEST_WAIT_STEPS", "10"))
+TEST_WAIT_RANK = float(os.environ.get("NAV_TEST_WAIT_RANK", "1.35"))
+# a closure walked along tree child edges is a descendant walk (30, as the axis); walked the other way an ancestor walk (8);
+# last round every closure cost 8, so a test that walks all descendants looked cheaper than it runs
+CLOS_COST = os.environ.get("NAV_CLOS_COST", "1") == "1"
+# a nearest-over-derived-edges walk whose reached end is bound and whose start is not runs from the reached end: back over the
+# edges through nodes the domain does not admit (the only starts whose nearest admitted node can be the reached one), each
+# such start then checked by the forward walk. Before, the start had to come from another atom (every token of the file).
+NEARC_INV = os.environ.get("NAV_NEARC_INV", "1") == "1"
 KEYED_STEPS = float(os.environ.get("NAV_KEYED_STEPS", "20"))   # steps of a well-keyed call: a call ranks as its rows, or its steps over this
 
 
@@ -290,7 +316,7 @@ class Lowerer:
                     R_ = [self.cut(R_, ("join", s, "right"))]
                 else:
                     L = [self.cut(L, ("join", s, "left"))]
-            if JOIN_ITEM_CUT and L and R_ and max(x.size() for x in L) + max(x.size() for x in R_) > ITEM_CAP:
+            if JOIN_ITEM_CUT and not PAIR_CUT and L and R_ and max(x.size() for x in L) + max(x.size() for x in R_) > ITEM_CAP:
                 # the joined branch would exceed the item bound: one side becomes a definition's use (cut: the side
                 # without the cheapest anchor, see cut_right)
                 if self.cut_right(L, R_, lambda bs: max(x.size() for x in bs)):
@@ -298,8 +324,20 @@ class Lowerer:
                 else:
                     L = [self.cut(L, ("join", s, "left"))]
             out = []
-            for bl in L:
-                for br0 in R_:
+            cut_l, cut_r = {}, {}
+            for li, bl in enumerate(L):
+                for ri, br0 in enumerate(R_):
+                    if JOIN_ITEM_CUT and PAIR_CUT and bl.size() + br0.size() > ITEM_CAP:
+                        # cut: this joined pair would exceed the item bound: one of its two branches becomes the use of a
+                        # one-branch definition (the one without the cheapest anchor), stored once per branch
+                        if self.cut_right([bl], [br0], lambda bs: max(x.size() for x in bs)):
+                            if ri not in cut_r:
+                                cut_r[ri] = self.cut([br0], ("join", s, "right", ri))
+                            br0 = cut_r[ri]
+                        else:
+                            if li not in cut_l:
+                                cut_l[li] = self.cut([bl], ("join", s, "left", li))
+                            bl = cut_l[li]
                     br = br0.copy() if len(L) > 1 else br0
                     br = self.select(br, p["filter"]) if p["filter"] else br
                     if br is None:
@@ -1003,6 +1041,8 @@ class Lowerer:
                     return [self.cut(T, ("step", s))]
                 bs = [self.rename(b) for b in T]
             if (JOIN_ITEM_CUT or len(bs) > UNION_CAP) and self.too_big(bs):
+                if BRANCH_CUT and 1 < len(bs) <= UNION_CAP and self.uses_of.get(s, 0) <= 1:
+                    return [self.cut([b], ("step", s, i)) if b.size() > ITEM_CAP else b for i, b in enumerate(bs) if b is not None]
                 return [self.cut(bs, ("step", s))]
             return bs
         raise Blocked("input")
@@ -1164,7 +1204,14 @@ class Lowerer:
             return sum(st.get(str(v) if not isinstance(v, bool) else str(int(v)), 0) for v in vals) / files
         if val[0] in ("n", "ns"):
             return rows * 0.3 * len(vals)
+        if RARE_LITERAL:
+            return rows / 256.0 * len(vals)
         return rows * 0.01 * len(vals)
+
+    def rare_literal(self, rel, col, val):
+        """a text literal of a fact column the corpus statistics hold no value counts for (a high-cardinality column)"""
+        return RARE_LITERAL and rel not in TREE and val[0] in ("t", "ts") and \
+            self.freq.get("facts", {}).get(rel, {}).get(str(col)) is None
 
     def plan(self, b, bound, outvars, sub):
         if sub:
@@ -1451,23 +1498,31 @@ class Lowerer:
             if s[0] in ("or", "call"):
                 return True
             if s[0] == "nearc":
-                return tbound(s[1])
+                return tbound(s[1]) or (NEARC_INV and tbound(s[2]))
             return tbound(s[2]) or tbound(s[3])
 
         flush_filters()
         while atoms or specials or negs:
             best = None
+            best_fan = 0.0
             for i in atoms:
                 if first is not None and not bound and first != ("a", i):
                     continue
                 for c, kind, arg in accesses(i):
                     if not bound and kind in ("key", "children"):
                         continue
+                    fan = c
                     if bound and (kind in ("kind", "value", "scan") and not (kind == "value" and is_var(arg[1])) or
                                   kind == "by" and not is_var(arg[1]) and not self.schema[b.atoms[i][0]]["columns"][arg[0]]["key"]):
-                        c = c + 10.0 if not BUCKET_X else c * BUCKET_X + 10.0  # a bucket inside a candidate is a cross product
+                        if kind == "by" and self.rare_literal(b.atoms[i][0], arg[0], arg[1]):
+                            c = c + 10.0
+                        else:
+                            c = c + 10.0 if not BUCKET_X else c * BUCKET_X + 10.0  # a bucket inside a candidate is a cross product
+                    if not RANK_SPLIT:
+                        fan = c
                     if best is None or c < best[0]:
                         best = (c, "atom", i, (kind, arg))
+                        best_fan = fan
             for j, s in enumerate(specials):
                 if first is not None and first[0] == "s" and not bound and first != ("s", j):
                     continue
@@ -1486,9 +1541,9 @@ class Lowerer:
                     elif s[0] == "near" and not tbound(s[1]):
                         c = 30.0
                     elif s[0] == "clos":
-                        c = 8.0
+                        c = self.clos_cost(s, tbound(s[1])) if CLOS_COST else 8.0
                     elif s[0] == "nearc":
-                        c = 10.0
+                        c = 10.0 if tbound(s[1]) else 12.0
                     elif s[0] == "or":
                         c = (3.0 * len(s[2])) if any(tbound(t) for t in s[1]) else (200.0 * len(s[2]) if bound else 1e6)
                     elif s[0] == "call":
@@ -1507,7 +1562,16 @@ class Lowerer:
                         best = (c, "special", j, None)
             ready_negs = [k for k, (m, key, args) in enumerate(negs)
                           if all(t in bound for t in args if t is not None and is_var(t) and t in E)]
-            if ready_negs and (best is None or best[0] > 1.0):
+            if ready_negs and CALL_COST and TEST_WAIT_STEPS > 0:
+                # cut: the cheapest ready test first; a dear one lets a keyed fact lookup go before it
+                eff = cost[1] * self.mult
+                tc = [(self.test_cost(negs[k][1], negs[k][2], tbound, eff), k) for k in ready_negs]
+                per0, k0 = min(tc)
+                ready_negs = [k0]
+                wait = TEST_WAIT_RANK if per0 >= TEST_WAIT_STEPS else 1.0
+            else:
+                wait = 1.0
+            if ready_negs and (best is None or best[0] > wait):
                 k = ready_negs[0]
                 m, key, args = negs.pop(k)
                 per, once = self.place_test(prog, m, key, args, tbound, cost[1] * self.mult)
@@ -1565,10 +1629,11 @@ class Lowerer:
                     cost[0] += self.made_cost[rel0] * min(1.0, cost[1] * self.mult)
             if not bound and cost[0] == 0.0:
                 self.last_anchor = best[0]
-            cost[0] += cost[1] * best[0]
+            step = best_fan if best[1] == "atom" else best[0]
+            cost[0] += cost[1] * step
             if not (best[1] == "atom" and best[3][0] == "key") and not (best[1] == "special" and best[0] <= 1.0) and \
                     not (best[1] == "special" and specials[best[2]][0] == "fn"):
-                cost[1] *= max(best[0], 0.05)
+                cost[1] *= max(step, 0.05)
             if best[1] == "atom":
                 place_atom(best[2], best[3])
             else:
@@ -1586,6 +1651,8 @@ class Lowerer:
                             bound.add(t)
                     prog.append(["fn", s[1], s[2], outs, s[4]])
                     prog.extend(post)
+                elif s[0] == "nearc" and not tbound(s[1]):
+                    self.place_nearc_inverse(prog, s, bound)
                 elif s[0] == "nearc":
                     _, start, reached, x, y, EB, D = s
                     eprogs = [self.plan(z, bound | {x}, None, [y]) for z in EB]
@@ -1881,7 +1948,7 @@ class Lowerer:
                 fan = min(fan, 1.0)
             once = c0 * min(1.0, eff)
             per = 1.0 + fan
-            if best is None or once + eff * per < eff * best[2]:
+            if best is None or once + eff * PROBE_BIAS * per < eff * PROBE_BIAS * best[2]:
                 best = ("probe", max(fan, (once / max(eff, 1e-6) + per) / KEYED_STEPS, 1.05), per, once, fan)
         if best is None:
             # no pattern left and no probe: last round's degraded use (uncorrelated rows, args tested after)
@@ -1907,6 +1974,55 @@ class Lowerer:
             else:
                 prog.append(["let", args[c], F[c]])
         return m
+
+    def place_nearc_inverse(self, prog, s, bound):
+        """a nearest-over-derived-edges walk entered from its reached end (bound): a closure back over the edges from the
+        reached node, going on only through nodes the domain does not admit, yields every start whose shortest way to an
+        admitted node can end at the reached one (a superset); the forward walk from each start then decides."""
+        _, start, reached, x, y, EB, D = s
+        back = [self.plan(z, bound | {y}, None, [x]) for z in EB]
+        dom_y = [self.plan(z, bound | {y}, None, True) for z in self.subst_all(D, reached, y)]
+        subs = [[["test", "=", y, reached]] + q for q in back] + [[["neg", dom_y]] + q for q in back]
+        prog.append(["clos", reached, start, y, x, [], [], subs])
+        bound.add(start)
+        tmp = self.fresh("node")
+        eprogs = [self.plan(z, bound | {x}, None, [y]) for z in EB]
+        dprogs = [self.plan(z, bound | {tmp}, None, True) for z in self.subst_all(D, reached, tmp)]
+        prog.append(["nearc", start, tmp, x, y, eprogs, dprogs])
+        prog.append(["test", "=", tmp, reached])
+
+    def clos_cost(self, s, from_source):
+        """rows a closure reaches per start: 30 when it walks the tree's parent-to-child edges away from the start (all
+        descendants), 8 otherwise (towards the root, or over another relation)"""
+        _, a, bb, kv, x, y, kx, D = s
+        down = up = False
+        for z in D:
+            for rel, ts in z.atoms:
+                if rel in PARENT_COL:
+                    if ts[PARENT_COL[rel]] == x and ts[TREE[rel]] == y:
+                        down = True
+                    if ts[PARENT_COL[rel]] == y and ts[TREE[rel]] == x:
+                        up = True
+        return 30.0 if (down if from_source else up) else 8.0
+
+    def test_cost(self, key, args, tbound, eff):
+        """steps per candidate of a use of a definition as a test here (the cheaper of its keyed sub-program and a probe
+        of its uncorrelated rows; place_test takes the same choice)"""
+        if not self.defs[key]:
+            return 1.0
+        cols = tuple(c for c, t in enumerate(args) if t is not None)
+        mask = tuple(c for c in cols if tbound(args[c]))
+        if not mask:
+            return 1.0
+        cm = None
+        if self.mask_room(key, mask):
+            cm = self.def_cost(key, mask, None, eff)[0] + 1.0
+        allc = self.all_cols(key)
+        if PROBE and all(c in allc for c in mask):
+            once = self.def_cost(key, (), allc)[0] * min(1.0, eff)
+            if cm is None or once + eff * PROBE_BIAS < eff * PROBE_BIAS * cm:
+                return 1.0 + once / max(eff, 1e-6)
+        return cm if cm is not None else 5.0
 
     def place_test(self, prog, m, key, args, tbound, eff=1.0):
         """a use of a definition as an absence or existence test. Returns (steps per candidate, one-off steps).
@@ -1940,7 +2056,7 @@ class Lowerer:
         if PROBE and all(c in allc for c in mask):
             c0 = self.def_cost(key, (), allc)[0]
             once = c0 * min(1.0, eff)
-            if cm is None or once + eff * 1.0 < eff * (cm + 1.0):
+            if cm is None or once + eff * PROBE_BIAS < eff * PROBE_BIAS * (cm + 1.0):
                 idxs = self.body(key, (), allc)
                 prog.append([m + "-probe", [[["shared", i]] for i in idxs], [allc.index(c) for c in mask], [args[c] for c in mask], len(allc)])
                 return 1.0, once

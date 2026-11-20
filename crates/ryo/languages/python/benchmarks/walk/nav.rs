@@ -1889,6 +1889,18 @@ impl<'a, 'p> Exec<'a, 'p> {
         false
     }
 
+    /// cut: what names a memoised sub-program list: its shared entry when it is one (every call site of the same definition
+    /// program with the same args then shares the answer), else the list itself
+    fn memo_seed(subs: &[Prog]) -> u64 {
+        match subs {
+            [q] => match &q[..] {
+                [Ins::Shared { idx }] => 0x5bd1_e995_0000_0000u64 | u64::from(*idx),
+                _ => subs.as_ptr() as u64,
+            },
+            _ => subs.as_ptr() as u64,
+        }
+    }
+
     /// cut: the uncorrelated rows of a definition's sub-programs, collected once per file (shared by every instruction that
     /// names the same shared entry)
     fn definition_rows(&mut self, subs: &'p [Prog]) -> Rc<Vec<u64>> {
@@ -1954,7 +1966,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         let w = outs.len().max(1);
         let nk = keys.len();
         let mut h = crate::sema::Fx::default();
-        h.write_u64(subs.as_ptr() as u64);
+        h.write_u64(Self::memo_seed(subs));
         for k in keys {
             h.write_u64(self.regs[*k as usize]);
         }
@@ -2002,7 +2014,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         use std::hash::Hasher;
         let nk = keys.len();
         let mut h = crate::sema::Fx::default();
-        h.write_u64(subs.as_ptr() as u64 ^ 0x9e37_79b9_7f4a_7c15);
+        h.write_u64(Self::memo_seed(subs) ^ 0x9e37_79b9_7f4a_7c15);
         for k in keys {
             h.write_u64(self.regs[*k as usize]);
         }
