@@ -468,7 +468,15 @@ impl Program {
                 *nav_count += 1;
             }
         }
-        struct Rules<'a>(&'a mut State);
+        /// share: the elements of one of the program's lists, each loaded and dropped: the rules, the pack's made tables,
+        /// the pack's shared entries
+        #[derive(Clone, Copy)]
+        enum Piece {
+            Rule,
+            Made,
+            Shared,
+        }
+        struct Rules<'a>(&'a mut State, Piece);
         impl<'de> DeserializeSeed<'de> for Rules<'_> {
             type Value = ();
             fn deserialize<D: Deserializer<'de>>(self, d: D) -> Result<(), D::Error> {
@@ -482,7 +490,11 @@ impl Program {
             }
             fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<(), A::Error> {
                 while let Some(r) = seq.next_element::<Value>()? {
-                    one_rule(&r, self.0);
+                    match self.1 {
+                        Piece::Rule => one_rule(&r, self.0),
+                        Piece::Made => self.0.nav_builder.made(&r, &mut self.0.symbols),
+                        Piece::Shared => self.0.nav_builder.shared(&r, &mut self.0.symbols),
+                    }
                 }
                 Ok(())
             }
@@ -496,7 +508,10 @@ impl Program {
             fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<(), A::Error> {
                 while let Some(k) = map.next_key::<String>()? {
                     match k.as_str() {
-                        "rules" => map.next_value_seed(Rules(&mut *self.0))?,
+                        "rules" => map.next_value_seed(Rules(&mut *self.0, Piece::Rule))?,
+                        "made" => map.next_value_seed(Rules(&mut *self.0, Piece::Made))?,
+                        "shared" => map.next_value_seed(Rules(&mut *self.0, Piece::Shared))?,
+                        "kinds" => self.0.nav_builder.kinds(map.next_value::<serde_json::Map<String, Value>>()?),
                         "census" => self.0.census = Some(map.next_value::<Value>()?),
                         _ => {
                             map.next_value::<IgnoredAny>()?;

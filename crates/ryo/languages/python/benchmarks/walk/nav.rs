@@ -242,7 +242,6 @@ pub(crate) struct NavRule {
     pub programs: Vec<Vec<Alt>>,
     pub xmerged: u32,
     pub kinds: Vec<u8>,
-    pub nregs: usize,
     /// navwide: relations the tail reads that its interpreter does not serve: (merged id, scan programs, cell kinds)
     pub aux: Vec<(u32, Vec<Prog>, Vec<u8>)>,
 }
@@ -263,7 +262,9 @@ pub(crate) struct FactRel {
 
 pub(crate) struct NavProgram {
     pub rules: Vec<NavRule>,
-    /// shared sub-programs of every rule (navwide)
+    /// share: the pack's shared sub-programs: the programs of each DISTINCT definition (one per binding pattern), whichever
+    /// rules reach it. Per-file state (a definition's rows, its probe indexes, its keyed memo, a need's answer) is keyed
+    /// by the entry, so it is built on first demand and every rule reads the same one
     pub shared: Vec<Prog>,
     pub facts: Vec<FactRel>,
     pub regexes: Vec<Regex>,
@@ -299,21 +300,23 @@ pub(crate) fn cell_kind(name: &str) -> u8 {
 
 struct Loader<'a> {
     sym: &'a mut Symbols,
-    regs: FxMap<i64, R>,
+    /// share: the pack's registers. A variable is one register in every rule that names it (a shared entry's formals and
+    /// its own variables are the same for every caller); it was one numbering per rule
+    regs: &'a mut FxMap<i64, R>,
     kinds: &'a serde_json::Map<String, Value>,
     facts: &'a mut Vec<FactRel>,
     regexes: &'a mut Vec<Regex>,
-    regex_of: FxMap<(String, bool), usize>,
-    /// the rule's first entry in the shared sub-program table (navwide)
-    shared_base: usize,
+    regex_of: &'a mut FxMap<(String, bool), usize>,
     /// asof: the program's keyed-index table
     keyed: &'a mut Vec<(u16, Box<[u8]>)>,
     /// asof: the program's definition-table index slots: (entry, key places, collected places)
     table_slots: &'a mut Vec<(u32, Box<[u8]>, Box<[u8]>)>,
     /// bind (diagnostic, NAV_REG16): registers numbered modulo 65,536, as before the fix
     wrap16: bool,
-    /// bind: the per-file state slot of each distinct need (by the rule's first shared entry and the instruction's text)
-    need_slots: &'a mut FxMap<(usize, String), u32>,
+    /// bind: the per-file state slot of each distinct need and of each distinct probe index, by the instruction's text.
+    /// share: the text names pack-wide shared entries, so two rules that ask the same question share the slot (it was
+    /// one per rule)
+    need_slots: &'a mut FxMap<String, u32>,
 }
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
@@ -425,7 +428,7 @@ impl Loader<'_> {
     /// shared an address and read each other's index)
     fn probe_slot(&mut self, subs: &Value, kcols: &Value, ocols: &Value) -> u32 {
         let n = self.need_slots.len() as u32;
-        *self.need_slots.entry((self.shared_base, format!("probe {subs} {kcols} {ocols}"))).or_insert(n)
+        *self.need_slots.entry(format!("probe {subs} {kcols} {ocols}")).or_insert(n)
     }
 
     /// asof: `[entry, width, [key places], [collected places]]`
@@ -433,7 +436,7 @@ impl Loader<'_> {
         let a = v?.as_array()?;
         let places = |x: &Value| -> Box<[u8]> { x.as_array().unwrap().iter().map(|c| c.as_u64().unwrap() as u8).collect::<Vec<_>>().into() };
         // bind: the entry is written as the one-program list [[["shared", entry]]]
-        let entry = (self.shared_base + a[0][0][0][1].as_u64().unwrap() as usize) as u32;
+        let entry = a[0][0][0][1].as_u64().unwrap() as u32;
         let (kcols, fcols) = (places(&a[2]), places(&a[3]));
         let slot = match self.table_slots.iter().position(|(e, k, f)| *e == entry && *k == kcols && *f == fcols) {
             Some(i) => i,
@@ -618,7 +621,7 @@ impl Loader<'_> {
                 }
             }
             "clos" => self.closure_ins(a),
-            "shared" => Ins::Shared { idx: (self.shared_base + a[1].as_u64().unwrap() as usize) as u32 },
+            "shared" => Ins::Shared { idx: a[1].as_u64().unwrap() as u32 },
             "nearc" => Ins::NearDerived {
                 start: self.reg(&a[1]),
                 out: self.reg(&a[2]),
@@ -673,7 +676,7 @@ impl Loader<'_> {
             // bind: ["need", [kind literals], [[relation, column | null, literal | null]], [test programs]]
             "need" => {
                 let n = self.need_slots.len() as u32;
-                let slot = *self.need_slots.entry((self.shared_base, i.to_string())).or_insert(n);
+                let slot = *self.need_slots.entry(i.to_string()).or_insert(n);
                 let kinds = a[1]
                     .as_array()
                     .unwrap()
@@ -741,39 +744,54 @@ impl Loader<'_> {
     }
 }
 
-/// bind: the program built one rule at a time, so the loader can drop each rule's JSON before it reads the next (the whole
-/// pack's JSON as one tree was most of the peak memory of a run)
+/// bind: the program built one piece at a time, so the loader can drop each piece's JSON before it reads the next (the
+/// whole pack's JSON as one tree was most of the peak memory of a run). share: the pieces are the pack's register kinds,
+/// its made tables, its shared entries, then each rule's own programs
 #[derive(Default)]
 pub(crate) struct NavBuilder {
     facts: Vec<FactRel>,
     regexes: Vec<Regex>,
+    regex_of: FxMap<(String, bool), usize>,
     shared: Vec<Prog>,
     out: Vec<NavRule>,
-    max_regs: usize,
+    regs: FxMap<i64, R>,
+    kinds: serde_json::Map<String, Value>,
     keyed: Vec<(u16, Box<[u8]>)>,
     table_slots: Vec<(u32, Box<[u8]>, Box<[u8]>)>,
-    need_slots: FxMap<(usize, String), u32>,
+    need_slots: FxMap<String, u32>,
 }
 
 impl NavBuilder {
-    pub(crate) fn rule(&mut self, r: &Value, sym: &mut Symbols) {
-        let NavBuilder { facts, regexes, shared, out, max_regs, keyed, table_slots, need_slots } = self;
-        let nav = &r["nav"];
-        let kinds = nav["kinds"].as_object().unwrap();
-        let mut loader = Loader {
+    fn loader<'a>(&'a mut self, sym: &'a mut Symbols) -> Loader<'a> {
+        Loader {
             sym,
-            regs: FxMap::default(),
-            kinds,
-            facts: &mut *facts,
-            regexes: &mut *regexes,
-            regex_of: FxMap::default(),
-            shared_base: shared.len(),
-            keyed: &mut *keyed,
-            table_slots: &mut *table_slots,
+            regs: &mut self.regs,
+            kinds: &self.kinds,
+            facts: &mut self.facts,
+            regexes: &mut self.regexes,
+            regex_of: &mut self.regex_of,
+            keyed: &mut self.keyed,
+            table_slots: &mut self.table_slots,
             wrap16: std::env::var_os("NAV_REG16").is_some(),
-            need_slots: &mut *need_slots,
-        };
-        for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+            need_slots: &mut self.need_slots,
+        }
+    }
+
+    /// share: the kinds of the pack's registers
+    pub(crate) fn kinds(&mut self, kinds: serde_json::Map<String, Value>) {
+        self.kinds = kinds;
+    }
+
+    /// share: one entry of the pack's shared table
+    pub(crate) fn shared(&mut self, q: &Value, sym: &mut Symbols) {
+        let p = self.loader(sym).prog(q);
+        self.shared.push(p);
+    }
+
+    /// share: one made table of the pack (a rule's own before)
+    pub(crate) fn made(&mut self, m: &Value, sym: &mut Symbols) {
+        let mut loader = self.loader(sym);
+        {
             use ryo_relations::domain::relations::types::CellKind;
             let progs: Vec<Prog> = m["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
             let kinds = m["kinds"]
@@ -805,7 +823,7 @@ impl NavBuilder {
                 let probes: Vec<Prog> = m["right_programs"].as_array().map(Vec::as_slice).unwrap_or(&[]).iter().map(|p| loader.prog(p)).collect();
                 let asof = AsOf { shape, events: progs, probes, w: n("width"), levels: n("levels") as u32, jkeys: cols(&m["jkeys"]), node: n("node"), target: n("target") };
                 loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: None, made_asof: Some(asof) });
-                continue;
+                return;
             }
             if m["op"] == "ordered_dfs" {
                 let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
@@ -833,7 +851,7 @@ impl NavBuilder {
                     }),
                 };
                 loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), made_asof: None });
-                continue;
+                return;
             }
             if m["op"] == "ordered_match" {
                 let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
@@ -852,7 +870,7 @@ impl NavBuilder {
                     dfs: None,
                 };
                 loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), made_asof: None });
-                continue;
+                return;
             }
             loader.facts.push(FactRel {
                 made_om: None,
@@ -869,10 +887,11 @@ impl NavBuilder {
                 )),
             });
         }
-        for q in nav["shared"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
-            let p = loader.prog(q);
-            shared.push(p);
-        }
+    }
+
+    pub(crate) fn rule(&mut self, r: &Value, sym: &mut Symbols) {
+        let nav = &r["nav"];
+        let mut loader = self.loader(sym);
         let programs: Vec<Vec<Alt>> = nav["programs"]
             .as_array()
             .unwrap()
@@ -900,20 +919,19 @@ impl NavBuilder {
                 (a["merged"].as_u64().unwrap() as u32, progs, kinds)
             })
             .collect();
-        let nregs = loader.regs.len();
-        *max_regs = (*max_regs).max(nregs);
-        out.push(NavRule {
+        drop(loader);
+        self.out.push(NavRule {
             id: r["id"].as_str().unwrap().to_owned(),
             programs,
             xmerged: nav["xmerged"].as_u64().unwrap() as u32,
             kinds: nav["columns"].as_array().unwrap().iter().map(|c| cell_kind(c.as_str().unwrap())).collect(),
-            nregs,
             aux,
         });
     }
 
     pub(crate) fn finish(self) -> NavProgram {
-        let NavBuilder { facts, regexes, shared, out, max_regs, keyed, table_slots: _, need_slots } = self;
+        let NavBuilder { facts, regexes, regex_of: _, shared, out, regs, kinds: _, keyed, table_slots: _, need_slots } = self;
+        let max_regs = regs.len();
         let needs_provider = std::env::var_os("NAV_PROVIDER").is_some()
             || facts.iter().any(|f| {
                 f.model.is_none()
@@ -924,16 +942,6 @@ impl NavBuilder {
                     && !f.name.starts_with("filesystem.")
             });
         NavProgram { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed, need_slots: need_slots.len() }
-    }
-}
-
-impl NavProgram {
-    pub(crate) fn load(rules: &[&Value], sym: &mut Symbols) -> Self {
-        let mut b = NavBuilder::default();
-        for r in rules {
-            b.rule(r, sym);
-        }
-        b.finish()
     }
 }
 
