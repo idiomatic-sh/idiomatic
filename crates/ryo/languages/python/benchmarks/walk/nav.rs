@@ -2639,10 +2639,10 @@ pub(crate) struct Counters {
     pub read_cols: FxMap<(u16, u8), u64>,
 }
 
-pub(crate) const NACCT: usize = 18;
+pub(crate) const NACCT: usize = 19;
 pub(crate) const ACCT_NAMES: [&str; NACCT] = [
     "fills", "rows", "cells", "ns", "key_probes", "const_probes", "scans", "probes2", "rows_by_probe", "rows_by_scan", "cells_read",
-    "rows_touched", "files_probed_only", "files_scanned", "key_fills", "key_rows", "key_ns", "key_hits",
+    "rows_touched", "files_probed_only", "files_scanned", "key_fills", "key_rows", "key_ns", "key_hits", "rows_touched_by_key",
 ];
 pub(crate) const NVIEW: usize = 9;
 pub(crate) const VIEW_COLS: [&str; NVIEW] = ["kind", "text", "start", "stop", "parent", "ordinal", "field", "children", "line"];
@@ -2814,6 +2814,8 @@ pub(crate) struct FileCache {
     pub key_stats: Vec<(u32, u32)>,
     pub key_whole: Vec<bool>,
     pub acct_touched: Vec<Vec<u64>>,
+    /// the rows a register probe yielded (what a plan that never probed by constant would read)
+    pub acct_keyed: Vec<Vec<u64>>,
     pub acct_flags: Vec<u8>,
     pub acct_view: [bool; NVIEW],
     pub acct_text: Vec<u64>,
@@ -2894,7 +2896,9 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     // ---- facts accounting (NAV_ACCT)
     #[inline(never)]
-    fn acct_row(&mut self, rel: u16, row: u64, scan: bool) {
+    fn acct_row(&mut self, rel: u16, row: u64, how: u8) {
+        // how: 0 a constant probe yielded the row, 1 a scan, 2 a register probe
+        let scan = how == 1;
         let r = rel as usize;
         if self.c.rel_acct.len() < self.prog.facts.len() {
             self.c.rel_acct.resize(self.prog.facts.len(), [0; NACCT]);
@@ -2902,6 +2906,17 @@ impl<'a, 'p> Exec<'a, 'p> {
         if self.cache.acct_touched.len() < self.prog.facts.len() {
             self.cache.acct_touched.resize(self.prog.facts.len(), Vec::new());
             self.cache.acct_flags.resize(self.prog.facts.len(), 0);
+        }
+        if how == 2 {
+            if self.cache.acct_keyed.len() < self.prog.facts.len() {
+                self.cache.acct_keyed.resize(self.prog.facts.len(), Vec::new());
+            }
+            let t = &mut self.cache.acct_keyed[r];
+            let w = (row / 64) as usize;
+            if t.len() <= w {
+                t.resize(w + 1, 0);
+            }
+            t[w] |= 1 << (row % 64);
         }
         self.c.rel_acct[r][if scan { 9 } else { 8 }] += 1;
         let t = &mut self.cache.acct_touched[r];
@@ -2983,7 +2998,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             Ins::ReadFact { rel, row, col, .. } => {
                 let (rel, row) = (*rel, self.regs[*row as usize]);
                 *self.c.read_cols.entry((rel, *col)).or_default() += 1;
-                self.acct_row(rel, row, false);
+                self.acct_row(rel, row, 0);
                 self.c.rel_acct[rel as usize][8] -= 1;
                 self.c.rel_acct[rel as usize][10] += 1;
             }
@@ -3038,6 +3053,10 @@ impl<'a, 'p> Exec<'a, 'p> {
         for r in 0..self.cache.acct_touched.len() {
             let n: u64 = self.cache.acct_touched[r].iter().map(|w| u64::from(w.count_ones())).sum();
             self.cache.acct_touched[r].clear();
+            if let Some(k) = self.cache.acct_keyed.get_mut(r) {
+                self.c.rel_acct[r][18] += k.iter().map(|w| u64::from(w.count_ones())).sum::<u64>();
+                k.clear();
+            }
             let flags = std::mem::take(&mut self.cache.acct_flags[r]);
             let a = &mut self.c.rel_acct[r];
             a[11] += n;
@@ -4188,7 +4207,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
     }
 
-    fn iter_fact_list(&mut self, p: &'p [Ins], pc: usize, rel: u16, idx: &FIdx, keys: &[u64], out: R) -> bool {
+    fn iter_fact_list(&mut self, p: &'p [Ins], pc: usize, rel: u16, idx: &FIdx, keys: &[u64], out: R, how: u8) -> bool {
         for &k in keys {
             match idx {
                 FIdx::Dense { head, next } => {
@@ -4200,7 +4219,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         self.regs[out as usize] = row as u64;
                         self.c.visits += 1;
                         if self.c.acct {
-                            self.acct_row(rel, u64::from(row), false);
+                            self.acct_row(rel, u64::from(row), how);
                         }
                         if self.run_inner(p, pc + 1) {
                             return true;
@@ -4219,7 +4238,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         self.regs[out as usize] = row as u64;
                         self.c.visits += 1;
                         if self.c.acct {
-                            self.acct_row(rel, u64::from(row), false);
+                            self.acct_row(rel, u64::from(row), how);
                         }
                         if self.run_inner(p, pc + 1) {
                             return true;
@@ -4233,7 +4252,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                             self.regs[out as usize] = row as u64;
                             self.c.visits += 1;
                             if self.c.acct {
-                                self.acct_row(rel, u64::from(row), false);
+                                self.acct_row(rel, u64::from(row), how);
                             }
                             if self.run_inner(p, pc + 1) {
                                 return true;
@@ -4572,7 +4591,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
                         if self.c.acct {
-                            self.acct_row(*rel, u64::from(row), false);
+                            self.acct_row(*rel, u64::from(row), 2);
                         }
                         if self.run_inner(p, pc + 1) {
                             return true;
@@ -4586,7 +4605,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
                         if self.c.acct {
-                            self.acct_row(*rel, u64::from(row), false);
+                            self.acct_row(*rel, u64::from(row), 2);
                         }
                         if self.run_inner(p, pc + 1) {
                             return true;
@@ -4609,15 +4628,15 @@ impl<'a, 'p> Exec<'a, 'p> {
                         Val::Syms(s) => {
                             one = [0];
                             let _ = one;
-                            return self.iter_fact_list(p, pc, *rel, &idx, &s.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
+                            return self.iter_fact_list(p, pc, *rel, &idx, &s.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out, 0);
                         }
                         Val::Nums(n) => {
                             one = [0];
                             let _ = one;
-                            return self.iter_fact_list(p, pc, *rel, &idx, &n.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
+                            return self.iter_fact_list(p, pc, *rel, &idx, &n.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out, 0);
                         }
                     };
-                    return self.iter_fact_list(p, pc, *rel, &idx, keys, *out);
+                    return self.iter_fact_list(p, pc, *rel, &idx, keys, *out, if matches!(val, Val::Reg(_)) { 2 } else { 0 });
                 }
                 Ins::IterFact2 { rel, c1, v1, c2, v2, out } if self.key_fillable(*rel, *c1) || self.key_fillable(*rel, *c2) => {
                     // a keyed column probed by a constant: the per-key function's rows, the other constant tested on each
@@ -4630,7 +4649,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
                         if self.c.acct {
-                            self.acct_row(*rel, u64::from(row), false);
+                            self.acct_row(*rel, u64::from(row), 0);
                         }
                         if self.run_inner(p, pc + 1) {
                             return true;
@@ -4645,7 +4664,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
                         if self.c.acct {
-                            self.acct_row(*rel, u64::from(row), false);
+                            self.acct_row(*rel, u64::from(row), 0);
                         }
                         if self.run_inner(p, pc + 1) {
                             return true;
@@ -4662,7 +4681,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         self.regs[*out as usize] = row as u64;
                         self.c.visits += 1;
                         if self.c.acct {
-                            self.acct_row(*rel, row as u64, true);
+                            self.acct_row(*rel, row as u64, 1);
                         }
                         if self.run_inner(p, pc + 1) {
                             return true;
