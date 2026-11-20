@@ -2015,52 +2015,12 @@ fn rows_constant_key(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, k: &mut C
 }
 
 // ------------------------------------------------------------------------------------------------ token-link
-/// `token_links::scan`: one linear pass over the parser's tokens: each token's next token, every bracket's matching closer, and
-/// the innermost open bracket enclosing each token; an error token or an unbalanced bracket loses the pairing from there on.
-pub(crate) fn token_links(c: &Ctx<'_, '_>, out: &mut dyn FnMut(usize, usize, &'static str)) {
-    use ruff_python_ast::token::TokenKind as T;
-    let tokens = c.parsed.tokens();
-    let mut stack: Vec<(T, usize)> = Vec::new();
-    let mut previous: Option<usize> = None;
-    for (at, t) in tokens.iter().enumerate() {
-        let token = t.kind();
-        if matches!(token, T::Unknown) {
-            previous = None;
-            stack.clear();
-            continue;
-        }
-        let mut paired = None;
-        let mut enclosing = stack.last().map(|o| o.1);
-        if matches!(token, T::Lpar | T::Lsqb | T::Lbrace) {
-            stack.push((token, at));
-        } else if matches!(token, T::Rpar | T::Rsqb | T::Rbrace) {
-            match stack.pop() {
-                Some((open, o))
-                    if matches!((open, token), (T::Lpar, T::Rpar) | (T::Lsqb, T::Rsqb) | (T::Lbrace, T::Rbrace)) =>
-                {
-                    paired = Some(o);
-                    enclosing = stack.last().map(|o| o.1);
-                }
-                _ => {
-                    stack.clear();
-                    enclosing = None;
-                }
-            }
-        }
-        if let Some(p) = previous.replace(at) {
-            out(p, at, "next-token");
-        }
-        if let Some(o) = paired {
-            out(o, at, "matching-delimiter");
-        }
-        if let Some(e) = enclosing {
-            out(at, e, "enclosing-delimiter");
-        }
-    }
-}
-
-fn rows_token_link(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option<u32>) {
+/// `token_links::scan`: each token's next token, every bracket's matching closer, and the innermost open bracket enclosing each
+/// token; an error token or an unbalanced bracket loses the pairing from there on. One definition (facts): the bracket arrays
+/// of `Links`, read here in token order for the whole relation and at one token by `token_link_key`.
+fn rows_token_link(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, links: &mut Links, flag: &mut u8, only: Option<u32>) {
     let _ = only;
+    once(flag, 4, || links.build(c));
     let tokens = c.parsed.tokens();
     let direct = c.view.is_some();
     let key = |i: usize| {
@@ -2070,10 +2030,25 @@ fn rows_token_link(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Optio
         let t = &tokens[i];
         Cell::Key(crate::view::token_kind_name(t.kind()), t.start().to_u32(), t.end().to_u32())
     };
-    token_links(c, &mut |s, t, k| {
+    let mut row = |s: usize, t: usize, k: &'static str| {
         let st = &tokens[s];
         sink.row(rel, &[key(s), key(t), Cell::Word(k), Cell::File, Cell::Span(st.start().to_u32(), st.end().to_u32())]);
-    });
+    };
+    for at in 0..tokens.len() {
+        if !links.live[at] {
+            continue;
+        }
+        if at > 0 && links.live[at - 1] {
+            row(at - 1, at, "next-token");
+        }
+        let m = links.mate[at];
+        if m != NO_TOKEN && (m as usize) < at {
+            row(m as usize, at, "matching-delimiter");
+        }
+        if links.encl[at] != NO_TOKEN {
+            row(at, links.encl[at] as usize, "enclosing-delimiter");
+        }
+    }
 }
 
 /// The index of the string token spanning exactly `[start, end)` (zero-width tokens may share its start).
@@ -3196,7 +3171,7 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
         rows_constant_key(c, sink, r, &mut st.constant_keys, &mut st.built[3], only);
     }
     if let Some(r) = want("token-link") {
-        rows_token_link(c, sink, r, only);
+        rows_token_link(c, sink, r, &mut st.links, &mut st.built[4], only);
     }
     let (fp, ff) = (want("format-parse"), want("format-field"));
     if fp.is_some() || ff.is_some() {
