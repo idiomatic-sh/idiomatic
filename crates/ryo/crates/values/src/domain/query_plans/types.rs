@@ -89,3 +89,29 @@ pub struct Emit {
     /// The headings of the answer's columns: text that leaves the engine.
     pub headings: Vec<Heading>,
 }
+
+/// The digest of a step and everything it reads: its operation and constants, where it runs, the value each parameter it names
+/// is bound to, and its inputs' digests. Equal sub-plans of any two rules have equal digests, whatever their places in their
+/// plans.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::query_plans::types::NodeDigest;
+///
+/// assert_ne!(NodeDigest([0; 16]), NodeDigest([1; 16]));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NodeDigest(pub [u8; 16]);
+
+/// The digest of each step of a plan, in step order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::query_plans::types::NodeDigests;
+///
+/// assert!(NodeDigests::default().0.is_empty());
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NodeDigests(pub Vec<NodeDigest>);

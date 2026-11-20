@@ -258,7 +258,7 @@ impl LintUseCase for LintUseCaseImpl {
             )
         };
         let scan = asked(&request, &rules, &ids, &placed, &answering, &listing);
-        let scanning = self.visits.scanning(scan, &plans)?;
+        let scanning = self.visits.scanning(scan, &plans, compiled.bindings())?;
         if scanning.mode() == EngineMode::New {
             return Ok(self.visits.answered(&scanning, &request.files)?.into());
         }

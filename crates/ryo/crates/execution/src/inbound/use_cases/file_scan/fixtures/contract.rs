@@ -47,6 +47,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 fn answer(scan: &dyn FileScanUseCase, question: Question) -> Result<Value, Failure> {
     let session = scan.load(ScanLoadRequest {
         plans: &[],
+        bindings: &[],
         given: ryo_values::domain::stored_facts::types::Digest([0; 16]),
         stored: &[],
     })?;

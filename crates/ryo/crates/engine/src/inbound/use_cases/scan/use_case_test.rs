@@ -1,10 +1,12 @@
 //! What the `scan` use case promises: a rule set with no program scans a file, finds nothing and asks the language for nothing.
 
+mod growth;
+
 use super::interface::ScanUseCase as _;
 use super::use_case::ScanUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::findings::types::{
-    FoundCells, FoundRows, FoundTarget, InstructionCount, ScanCounters,
+    FoundCells, FoundRows, FoundTarget, InstructionCount, ScanCounters, WorkNotice,
 };
 use crate::domain::programs::service::scratch_for;
 use crate::domain::programs::types::Programs;
@@ -46,6 +48,8 @@ impl FoundRows for Found {
     fn found(&mut self, _target: FoundTarget, _row: FoundCells<'_>, _words: &FileWords) {
         self.0 = self.0.saturating_add(1);
     }
+
+    fn noticed(&mut self, _notice: WorkNotice) {}
 }
 
 type Input = ();
@@ -63,6 +67,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
             steps: InstructionCount(0),
             candidates: InstructionCount(0),
             made_rows: InstructionCount(0),
+            fill_rows: InstructionCount(0),
+            visited: InstructionCount(0),
         },
         0,
         0,

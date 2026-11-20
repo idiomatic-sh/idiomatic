@@ -309,11 +309,12 @@ pub(crate) fn ran_node(
 ) -> Result<(), OperatingError> {
     // Spike (ryo-fmx3): a node the file holds or found empty is answered with no resources built and no entity sources bound.
     if ryo_operators::spike::lazy()
-        && let Some(answer) = ryo_operators::domain::physical_plan::service::answered_without_running(
-            physical(&at.pass.program),
-            &mut at.buffers,
-            node,
-        )
+        && let Some(answer) =
+            ryo_operators::domain::physical_plan::service::answered_without_running(
+                physical(&at.pass.program),
+                &mut at.buffers,
+                node,
+            )
     {
         return answer.map_err(|fault| {
             if let PortableOperatorFault::RenderRefused { refusal } = fault {
@@ -337,12 +338,15 @@ pub(crate) fn ran_node(
         refusals: &mut at.refusals,
     };
     if at.request.observer.is_none() && at.inputs.lookup.partials().is_empty() {
-        ryo_operators::domain::physical_plan::service::bind_requested_entity_sources(&mut at.buffers, physical(&at.pass.program), &resources.texts(), |relation| {
-            match at.inputs.lookup.columns(relation) {
+        ryo_operators::domain::physical_plan::service::bind_requested_entity_sources(
+            &mut at.buffers,
+            physical(&at.pass.program),
+            &resources.texts(),
+            |relation| match at.inputs.lookup.columns(relation) {
                 Ok(view) => Some(view),
                 Err(_) => None,
-            }
-        });
+            },
+        );
     }
     run_node(at.pass, node, &mut at.buffers, &at.inputs, &mut resources).map_err(|fault| {
         if let PortableOperatorFault::RenderRefused { refusal } = fault {

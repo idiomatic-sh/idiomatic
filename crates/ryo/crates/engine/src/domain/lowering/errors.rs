@@ -1,32 +1,36 @@
-//! Why the lowering refuses a rule.
+//! Why the lowering, or the encoding after it, refuses a rule.
 
-use super::types::PlanShape;
+use super::types::LoadRefusal;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
-/// Why a rule's plan has no programs.
+/// Why a rule has no programs: the rule, and what of it cannot be evaluated or written. One shape for the lowering and the
+/// encoding; `load` answers it as the rule's `RefusedRule`.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_engine::domain::lowering::errors::LoweringError;
+/// use ryo_engine::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode};
 /// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 ///
-/// assert_eq!(LoweringError::Budget { rule: SelectedRuleOrdinal(2) }.to_string(), "rule SelectedRuleOrdinal(2) not loaded: program over budget");
+/// let rule = SelectedRuleOrdinal(2);
+/// assert_eq!(
+///     LoweringError::Refused { rule, refusal: LoadRefusal::Unlowerable(PlanNode(4)) }.to_string(),
+///     "rule SelectedRuleOrdinal(2) not loaded: step PlanNode(4) cannot be evaluated"
+/// );
+/// assert_eq!(
+///     LoweringError::Refused { rule, refusal: LoadRefusal::Budget(PastWidth::TableColumns) }.to_string(),
+///     "rule SelectedRuleOrdinal(2) not loaded: more than 65,535 columns in one table"
+/// );
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum LoweringError {
-    /// The plan has a shape the lowering cannot express.
-    #[error("rule {rule:?} not loaded: {shape:?}")]
-    Unlowerable {
+    /// The rule is not loaded.
+    #[error("rule {rule:?} not loaded: {refusal}")]
+    Refused {
         /// The rule.
         rule: SelectedRuleOrdinal,
-        /// What of its plan the lowering cannot express.
-        shape: PlanShape,
-    },
-    /// The rule's program exceeds the budget: 4,096 instructions or 50 ms of lowering.
-    #[error("rule {rule:?} not loaded: program over budget")]
-    Budget {
-        /// The rule.
-        rule: SelectedRuleOrdinal,
+        /// Why.
+        refusal: LoadRefusal,
     },
 }

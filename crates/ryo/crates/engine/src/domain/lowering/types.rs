@@ -1,5 +1,11 @@
-//! The types of the `lowering` concept: the rules it lowers and the plan shapes a refusal names.
+//! The types of the `lowering` concept: the rules it lowers and what a refusal names.
 
+use super::constants::{
+    CANNOT_BE_EVALUATED, PAST_REGISTERS, PAST_SITES, PAST_TABLE_COLUMNS, PAST_VOCABULARY,
+    PAST_WORD_OPERANDS, PAST_WORDS, STEP,
+};
+use crate::domain::lowered::types::LoweredPack;
+use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
@@ -10,10 +16,11 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 /// ```
 /// use ryo_engine::domain::lowering::fixtures::named;
 /// use ryo_engine::domain::lowering::types::SelectedRule;
+/// use ryo_values::domain::query_bindings::types::RuleBindings;
 /// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 ///
 /// let plan = named("one tree rule");
-/// let rule = SelectedRule { rule: SelectedRuleOrdinal(0), plan: &plan };
+/// let rule = SelectedRule { rule: SelectedRuleOrdinal(0), plan: &plan, bindings: RuleBindings(&[]) };
 /// assert_eq!(rule.rule, SelectedRuleOrdinal(0));
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -22,6 +29,8 @@ pub struct SelectedRule<'a> {
     pub rule: SelectedRuleOrdinal,
     /// Its compiled plan.
     pub plan: &'a Plan,
+    /// What the host bound each of the plan's parameters to, in the plan's order: a parameter is a constant from the lowering on.
+    pub bindings: RuleBindings<'a>,
 }
 
 /// The selected rules, in rule order.
@@ -48,21 +57,96 @@ pub struct SelectedRules<'a>(pub &'a [SelectedRule<'a>]);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PlanNode(pub u32);
 
-/// The plan shapes a refusal names.
+/// A rule the load did not accept.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::lowering::types::{PlanNode, PlanShape};
+/// use ryo_engine::domain::lowering::types::{LoadRefusal, PlanNode, RefusedRule};
+/// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 ///
-/// assert_ne!(PlanShape::Step(PlanNode(0)), PlanShape::Unbound(PlanNode(0)));
+/// let refused = RefusedRule { rule: SelectedRuleOrdinal(1), refusal: LoadRefusal::Unlowerable(PlanNode(0)) };
+/// assert_eq!(refused.rule, SelectedRuleOrdinal(1));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlanShape {
-    /// A step whose operation the lowering does not express.
-    Step(PlanNode),
-    /// A correlated sub-plan whose variables the lowering cannot bind.
-    Unbound(PlanNode),
-    /// More alternatives than the budget.
-    Alternatives(PlanNode),
+pub struct RefusedRule {
+    /// The rule.
+    pub rule: SelectedRuleOrdinal,
+    /// Why.
+    pub refusal: LoadRefusal,
+}
+
+/// Why a rule is not loaded: it cannot be evaluated, or it cannot be written. Never its cost, and never its size.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode};
+///
+/// assert_eq!(LoadRefusal::Unlowerable(PlanNode(0)).to_string(), "step PlanNode(0) cannot be evaluated");
+/// assert_eq!(LoadRefusal::Budget(PastWidth::Registers).to_string(), "more than 4,294,967,295 registers in the pack");
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LoadRefusal {
+    /// A step that cannot be evaluated, by its place in the rule's plan.
+    Unlowerable(PlanNode),
+    /// A count of the rule's programs, or of the pack as it stood when the rule was written, does not fit the width the code
+    /// gives it.
+    Budget(PastWidth),
+}
+
+/// What was counted past its width. The first three are counted in 16 bits (65,535), the others in 32.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::lowering::types::PastWidth;
+///
+/// assert_eq!(PastWidth::TableColumns.to_string(), "more than 65,535 columns in one table");
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PastWidth {
+    /// The operands of one word: the values of a match, the bodies of an `Or`, the slots of a `Fork`, the columns of a row.
+    WordOperands,
+    /// The columns of one table or definition.
+    TableColumns,
+    /// The kinds or the fields of the language's vocabulary.
+    Vocabulary,
+    /// The registers of the pack.
+    Registers,
+    /// The words of the pack, and the slots of its pool.
+    Words,
+    /// The sites of one of the pack's tables: memos, needs, indexes, points, constants.
+    Sites,
+}
+
+impl std::fmt::Display for LoadRefusal {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unlowerable(step) => write!(formatter, "{STEP} {step:?} {CANNOT_BE_EVALUATED}"),
+            Self::Budget(width) => width.fmt(formatter),
+        }
+    }
+}
+
+impl std::fmt::Display for PastWidth {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::WordOperands => PAST_WORD_OPERANDS,
+            Self::TableColumns => PAST_TABLE_COLUMNS,
+            Self::Vocabulary => PAST_VOCABULARY,
+            Self::Registers => PAST_REGISTERS,
+            Self::Words => PAST_WORDS,
+            Self::Sites => PAST_SITES,
+        })
+    }
+}
+
+/// What the lowering answers: the pack of the rules it accepted, and each rule it refused.
+#[derive(Debug, Default)]
+pub(crate) struct LoweredRules {
+    /// The pack of the accepted rules.
+    pub(crate) pack: LoweredPack,
+    /// The refused rules, in rule order.
+    pub(crate) refused: Vec<RefusedRule>,
 }

@@ -162,6 +162,7 @@ impl FileScanUseCase for FileScanUseCaseImpl {
             self.harness(),
             HarnessRequest {
                 plans: request.plans,
+                bindings: request.bindings,
                 given: request.given,
                 stored: request.stored,
             },

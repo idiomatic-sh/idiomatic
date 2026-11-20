@@ -4,9 +4,7 @@
 use super::super::super::service::{file_roots, fill_roots, roots_of};
 use ryo_execution_domain::domain::executable_program::service::{assemble, logical};
 use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-use ryo_execution_domain::domain::executable_program::types::{
-    RuleBindings, RuleInput, RuleObservations,
-};
+use ryo_execution_domain::domain::executable_program::types::{RuleInput, RuleObservations};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
@@ -26,6 +24,7 @@ use ryo_values::domain::plan_parts::types::{
     QueryLiteral, RepeatedRows, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::{Emit, Plan};
 use std::borrow::Cow;
 use std::sync::Arc;

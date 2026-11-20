@@ -13,20 +13,9 @@ use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::observations::types::BoundObservationInput;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText, QueryLiteral, StepScope};
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::Plan;
 use std::sync::Arc;
-
-/// What a rule's parameters are bound to, by parameter id.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_domain::domain::executable_program::types::RuleBindings;
-/// assert!(RuleBindings(&[]).0.is_empty());
-/// ```
-#[derive(Clone, Copy, Debug)]
-pub struct RuleBindings<'a>(pub &'a [ParameterBinding]);
 
 /// The schemas of a rule's bound inputs, by binding id.
 ///
@@ -44,7 +33,8 @@ pub struct RuleObservations<'a>(pub &'a [BoundObservationInput]);
 /// # Examples
 ///
 /// ```
-/// use ryo_execution_domain::domain::executable_program::types::{RuleBindings, RuleInput, RuleObservations};
+/// use ryo_execution_domain::domain::executable_program::types::{RuleInput, RuleObservations};
+/// use ryo_values::domain::query_bindings::types::RuleBindings;
 /// use ryo_values::domain::query_plans::types::Plan;
 /// fn rule(plan: &std::sync::Arc<Plan>) -> RuleInput<'_> {
 ///     RuleInput { plan, bindings: RuleBindings(&[]), observations: RuleObservations(&[]) }

@@ -175,6 +175,7 @@ fn asked_of_the_store(mode: EngineMode, holding: &[&str]) -> Result<Value, Failu
         .map(|each| {
             let request = LoadRequest {
                 plans: &rules.iter().collect::<Vec<&Plan>>(),
+                bindings: &[],
                 given: given(1),
                 kinds: each,
                 stored: &[],

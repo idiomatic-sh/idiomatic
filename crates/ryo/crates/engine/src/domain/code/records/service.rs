@@ -1,0 +1,216 @@
+//! The services of the `records` part: the one place a pool record and a need record are written and read. A reader answers
+//! none for a place the slots do not reach and for a tag no record has.
+
+use super::types::{BodyRecord, BoundFormal, CollectedRead, NeedRecord, PooledOperand, ReadBody};
+use crate::domain::code::types::{
+    CodeEntry, ConstantNumber, IndexSite, MemoSite, NeedSite, PoolAt, RelationNumber, WordSlot,
+};
+use crate::domain::steps::types::{MadeTableId, Register};
+
+/// How many slots an operand takes.
+pub(crate) const OPERAND_SLOTS: WordSlot = WordSlot(2);
+
+/// The place the next slot written to `slots` takes; past the width of a place it saturates, which the encoding refuses when
+/// it counts its slots.
+#[must_use]
+pub(crate) fn next_place(slots: &[WordSlot]) -> PoolAt {
+    PoolAt(u32::try_from(slots.len()).unwrap_or(u32::MAX))
+}
+
+/// The slot `ahead` places after `at`, when the slots reach it.
+fn slot_at(slots: &[WordSlot], at: WordSlot, ahead: WordSlot) -> Option<WordSlot> {
+    let place = at.0.checked_add(ahead.0)?;
+    slots
+        .get(usize::try_from(place).unwrap_or(usize::MAX))
+        .copied()
+}
+
+/// How many items a record holds, as the slot that says so.
+fn count_of<T>(items: &[T]) -> WordSlot {
+    WordSlot(u32::try_from(items.len()).unwrap_or(u32::MAX))
+}
+
+/// Writes a list: its length, then its items.
+pub(crate) fn push_list(pool: &mut Vec<WordSlot>, items: &[WordSlot]) -> PoolAt {
+    let at = next_place(pool);
+    pool.push(count_of(items));
+    pool.extend_from_slice(items);
+    at
+}
+
+/// Writes an operand: its tag, then its value.
+pub(crate) fn push_operand(pool: &mut Vec<WordSlot>, operand: PooledOperand) {
+    let (tag, value) = match operand {
+        PooledOperand::Register(register) => (0, register.0),
+        PooledOperand::Constant(constant) => (1, constant.0),
+        PooledOperand::Constants(list) => (2, list.0),
+        PooledOperand::File => (3, 0),
+    };
+    pool.extend_from_slice(&[WordSlot(tag), WordSlot(value)]);
+}
+
+/// The operand at a place of the pool.
+#[must_use]
+pub(crate) fn operand_at(pool: &[WordSlot], at: PoolAt) -> Option<PooledOperand> {
+    let value = slot_at(pool, WordSlot(at.0), WordSlot(1))?.0;
+    Some(match slot_at(pool, WordSlot(at.0), WordSlot(0))?.0 {
+        0 => PooledOperand::Register(Register(value)),
+        1 => PooledOperand::Constant(ConstantNumber(value)),
+        2 => PooledOperand::Constants(PoolAt(value)),
+        3 => PooledOperand::File,
+        4..=u32::MAX => return None,
+    })
+}
+
+/// Writes the record of an inline body.
+pub(crate) fn push_inline_body(pool: &mut Vec<WordSlot>, entry: CodeEntry) -> PoolAt {
+    let at = next_place(pool);
+    pool.extend_from_slice(&[WordSlot(0), WordSlot(entry.0)]);
+    at
+}
+
+/// Writes the record of a use of a pattern in call form.
+pub(crate) fn push_call_body(
+    pool: &mut Vec<WordSlot>,
+    entry: CodeEntry,
+    memo: MemoSite,
+    bound: &[BoundFormal],
+) -> PoolAt {
+    let at = next_place(pool);
+    let count = count_of(bound);
+    pool.extend_from_slice(&[WordSlot(1), WordSlot(entry.0), WordSlot(memo.0), count]);
+    for each in bound {
+        pool.push(WordSlot(each.formal.0));
+        push_operand(pool, each.value);
+    }
+    at
+}
+
+/// The place of the entry in the record of a use of a pattern in call form that starts at `record`: what the encoding writes
+/// again once the pattern's program has its place.
+#[must_use]
+pub(crate) const fn call_entry_place(record: PoolAt) -> PoolAt {
+    PoolAt(record.0.saturating_add(1))
+}
+
+/// Writes the record of a use of a pattern in table form.
+pub(crate) fn push_table_body(
+    pool: &mut Vec<WordSlot>,
+    index: IndexSite,
+    values: &[PooledOperand],
+    reads: &[CollectedRead],
+) -> PoolAt {
+    let at = next_place(pool);
+    pool.extend_from_slice(&[WordSlot(2), WordSlot(index.0), count_of(values)]);
+    for value in values {
+        push_operand(pool, *value);
+    }
+    pool.push(count_of(reads));
+    for read in reads {
+        pool.extend_from_slice(&[WordSlot(u32::from(read.column.0)), WordSlot(read.out.0)]);
+    }
+    at
+}
+
+/// The body record at a place of the pool, and the place after it.
+#[must_use]
+pub(crate) fn body_at(pool: &[WordSlot], at: PoolAt) -> Option<ReadBody> {
+    let slot = |ahead| slot_at(pool, WordSlot(at.0), WordSlot(ahead));
+    let (record, slots) = match slot(0)?.0 {
+        0 => (
+            BodyRecord::Inline {
+                entry: CodeEntry(slot(1)?.0),
+            },
+            2,
+        ),
+        1 => {
+            let bound = slot(3)?;
+            let record = BodyRecord::Call {
+                entry: CodeEntry(slot(1)?.0),
+                memo: MemoSite(slot(2)?.0),
+                bound,
+                formals: PoolAt(at.0.checked_add(4)?),
+            };
+            (
+                record,
+                bound
+                    .0
+                    .checked_mul(OPERAND_SLOTS.0.checked_add(1)?)?
+                    .checked_add(4)?,
+            )
+        }
+        2 => {
+            let bound = slot(2)?;
+            let values = bound.0.checked_mul(OPERAND_SLOTS.0)?;
+            let collected = slot(values.checked_add(3)?)?;
+            let record = BodyRecord::Table {
+                index: IndexSite(slot(1)?.0),
+                bound,
+                values: PoolAt(at.0.checked_add(3)?),
+                collected,
+                reads: PoolAt(at.0.checked_add(values)?.checked_add(4)?),
+            };
+            (
+                record,
+                collected
+                    .0
+                    .checked_mul(2)?
+                    .checked_add(values)?
+                    .checked_add(4)?,
+            )
+        }
+        3..=u32::MAX => return None,
+    };
+    Some(ReadBody {
+        record,
+        after: PoolAt(at.0.checked_add(slots)?),
+    })
+}
+
+/// Writes a need record, answering its place among the records.
+pub(crate) fn push_need(needs: &mut Vec<WordSlot>, record: NeedRecord) -> WordSlot {
+    let at = WordSlot(next_place(needs).0);
+    match record {
+        NeedRecord::Unknown => needs.push(WordSlot(0)),
+        NeedRecord::Kinds(kinds) => needs.extend_from_slice(&[WordSlot(1), WordSlot(kinds.0)]),
+        NeedRecord::Row {
+            relation,
+            column,
+            constant,
+        } => {
+            needs.extend_from_slice(&[WordSlot(2), WordSlot(relation.0), column, constant]);
+        }
+        NeedRecord::Site(site) => needs.extend_from_slice(&[WordSlot(3), WordSlot(site.0)]),
+        NeedRecord::Table(table) => needs.extend_from_slice(&[WordSlot(4), WordSlot(table.0)]),
+        // The offsets of the parts follow the count: the caller writes them, each the place of a part's record.
+        NeedRecord::All { parts, .. } => needs.extend_from_slice(&[WordSlot(5), parts]),
+        NeedRecord::Any { parts, .. } => needs.extend_from_slice(&[WordSlot(6), parts]),
+    }
+    at
+}
+
+/// The need record at a place among the needs.
+#[must_use]
+pub(crate) fn need_at(needs: &[WordSlot], at: WordSlot) -> Option<NeedRecord> {
+    let slot = |ahead| slot_at(needs, at, WordSlot(ahead));
+    Some(match slot(0)?.0 {
+        0 => NeedRecord::Unknown,
+        1 => NeedRecord::Kinds(PoolAt(slot(1)?.0)),
+        2 => NeedRecord::Row {
+            relation: RelationNumber(slot(1)?.0),
+            column: slot(2)?,
+            constant: slot(3)?,
+        },
+        3 => NeedRecord::Site(NeedSite(slot(1)?.0)),
+        4 => NeedRecord::Table(MadeTableId(slot(1)?.0)),
+        5 => NeedRecord::All {
+            parts: slot(1)?,
+            offsets: WordSlot(at.0.checked_add(2)?),
+        },
+        6 => NeedRecord::Any {
+            parts: slot(1)?,
+            offsets: WordSlot(at.0.checked_add(2)?),
+        },
+        7..=u32::MAX => return None,
+    })
+}

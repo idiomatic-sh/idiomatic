@@ -3,9 +3,10 @@
 
 use crate::outbound::engine::fixtures::fake::{Counted, no_kinds, visiting};
 use crate::outbound::engine::interface::EnginePort;
-use ryo_engine::domain::lowering::types::SelectedRules;
+use ryo_engine::domain::lowering::types::{RefusedRule, SelectedRules};
 use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
 use ryo_engine::domain::programs::types::Programs;
+use ryo_engine::domain::statistics::types::StatisticsBytes;
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_engine::inbound::use_cases::project::errors::ProjectPassError;
@@ -52,6 +53,8 @@ pub enum Question {
 pub enum ContractFault {
     /// `load` refused.
     Load(LoadError),
+    /// `load` answered a rule among the refused.
+    Refused(RefusedRule),
     /// The fixture language refused the file.
     Walk(WalkError),
     /// The fixture language lent no file.
@@ -147,13 +150,17 @@ fn answer(adapter: &dyn EnginePort, question: Question) -> Result<Value, Failure
     let (kinds, digest) = (no_kinds(), PackDigest([7; 32]));
     let nothing = || {
         adapter
-            .load(LoadSource::Plans(SelectedRules(&[])), &kinds)
+            .load(
+                LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])),
+                &kinds,
+            )
+            .map(|loaded| loaded.programs)
             .map_err(ContractFault::Load)
     };
     let read_back = |bytes: &[u8], digest| {
         adapter
             .load(LoadSource::Pack(PackBytes(bytes), digest), &kinds)
-            .map(|programs| Count(adapter.accepted(&programs).len()))
+            .map(|loaded| Count(adapter.accepted(&loaded.programs).len()))
             .map_err(ContractFault::Load)
     };
     match question {

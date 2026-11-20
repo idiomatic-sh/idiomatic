@@ -13,16 +13,18 @@ use super::types::{
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestBytes;
 use crate::outbound::engine::interface::EnginePort;
-use ryo_engine::domain::lowering::types::{SelectedRule, SelectedRules};
+use ryo_engine::domain::lowering::types::{LoadRefusal, SelectedRule, SelectedRules};
 use ryo_engine::domain::packs::constants::ENGINE_VERSION;
 use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
 use ryo_engine::domain::programs::types::Programs;
+use ryo_engine::domain::statistics::types::StatisticsBytes;
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_operators::spike::{EngineMode, engine_loaded, engine_unpacked};
 use ryo_relations::domain::relations::types::{Bytes, Count};
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
+use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::{PackKey, StoredPack};
@@ -101,9 +103,10 @@ pub fn kept(
     let key = pack_key(digest, request.given, request.kinds);
     let stored = request.stored.iter().find(|pack| pack.key == key)?;
     let read = LoadSource::Pack(PackBytes(&stored.bytes.0), PackDigest(key.0));
-    let Ok(programs) = engine.load(read, request.kinds) else {
+    let Ok(loaded) = engine.load(read, request.kinds) else {
         return None;
     };
+    let programs = loaded.programs;
     let accepted = engine.accepted(&programs);
     // The host reads a rule's rows by what the pack says the rule emits: a pack that does not say it of each rule its programs
     // run is not this rule set's.
@@ -119,10 +122,10 @@ pub fn kept(
     })
 }
 
-/// The rule set of a run: the store's pack of the same key read back, with nothing lowered (`kept`); otherwise each selected
-/// rule lowered alone, the refused ones counted by why, then the accepted ones together, and their pack written for the store
-/// with what a row of each of them emits. A stored pack the engine refuses (another engine version, bytes that do not decode) is
-/// lowered again.
+/// The rule set of a run: the store's pack of the same key read back, with nothing lowered (`kept`); otherwise every selected
+/// rule lowered in one load, each with what it binds its parameters to, the refused ones counted by why, and the pack of the
+/// accepted ones written for the store with what a row of each of them emits. A stored pack the engine refuses (another engine
+/// version, bytes that do not decode) is lowered again.
 ///
 /// # Examples
 ///
@@ -136,9 +139,9 @@ pub fn kept(
 /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
 /// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
 /// let given = Digest([0; 16]);
-/// let cold = loaded(&engine, &digest, LoadRequest { plans: &[], given, kinds: &kinds, stored: &[] });
+/// let cold = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], given, kinds: &kinds, stored: &[] });
 /// let stored = [cold.pack];
-/// let warm = loaded(&engine, &digest, LoadRequest { plans: &[], given, kinds: &kinds, stored: &stored });
+/// let warm = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], given, kinds: &kinds, stored: &stored });
 /// assert_eq!(warm.from, LoadedFrom::Pack);
 /// ```
 #[must_use]
@@ -156,32 +159,38 @@ pub fn loaded(
         return load;
     }
     let key = pack_key(digest, request.given, request.kinds);
-    let mut refusals = Refusals::default();
-    let mut accepted: Vec<SelectedRule<'_>> = Vec::new();
-    for (place, plan) in request.plans.iter().enumerate() {
-        let rule = SelectedRule {
+    let selected: Vec<SelectedRule<'_>> = request
+        .plans
+        .iter()
+        .enumerate()
+        .map(|(place, plan)| SelectedRule {
             rule: SelectedRuleOrdinal(u32::try_from(place).unwrap_or(u32::MAX)),
             plan,
-        };
-        match engine.load(LoadSource::Plans(SelectedRules(&[rule])), request.kinds) {
-            Ok(_) => accepted.push(rule),
-            Err(LoadError::Budget { .. }) => {
-                refusals.over_budget = Count(refusals.over_budget.0.saturating_add(1));
+            bindings: RuleBindings(request.bindings.get(place).map_or(&[][..], Vec::as_slice)),
+        })
+        .collect();
+    // One load of every selected rule: a sub-plan two rules share is lowered once, and each refused rule is answered with why.
+    let source = LoadSource::Plans(SelectedRules(&selected), StatisticsBytes(&[]));
+    let (programs, refusals) = match engine.load(source, request.kinds) {
+        Ok(loaded) => {
+            let mut refusals = Refusals::default();
+            for refused in &loaded.refused {
+                let count = match refused.refusal {
+                    LoadRefusal::Unlowerable(_) => &mut refusals.unlowerable,
+                    LoadRefusal::Budget(_) => &mut refusals.over_budget,
+                };
+                *count = Count(count.0.saturating_add(1));
             }
-            Err(_) => refusals.unlowerable = Count(refusals.unlowerable.0.saturating_add(1)),
+            (loaded.programs, refusals)
         }
-    }
-    // Rules lowered alone and refused together are refused: the rule set runs none of them.
-    let programs = match engine.load(LoadSource::Plans(SelectedRules(&accepted)), request.kinds) {
-        Ok(programs) => programs,
-        Err(LoadError::Budget { .. }) => {
-            refusals.over_budget = Count(refusals.over_budget.0.saturating_add(accepted.len()));
-            Programs::default()
-        }
-        Err(_) => {
-            refusals.unlowerable = Count(refusals.unlowerable.0.saturating_add(accepted.len()));
-            Programs::default()
-        }
+        // Plans are never a pack's fault: an engine that fails them loads no rule, and each is counted as not lowered.
+        Err(LoadError::PackVersion | LoadError::PackDigest | LoadError::PackCorrupt) => (
+            Programs::default(),
+            Refusals {
+                unlowerable: Count(selected.len()),
+                over_budget: Count(0),
+            },
+        ),
     };
     let accepted = engine.accepted(&programs);
     let pack = StoredPack {
@@ -315,7 +324,7 @@ pub fn read_back(
 /// use ryo_operators::spike::EngineMode;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = HarnessRequest { plans: &[], given: Digest([0; 16]), stored: &[] };
+/// let request = HarnessRequest { plans: &[], bindings: &[], given: Digest([0; 16]), stored: &[] };
 /// assert!(harnessed(EngineMode::Old, None, request).is_ok_and(|loads| loads.is_empty()));
 /// ```
 pub fn harnessed(
@@ -334,6 +343,7 @@ pub fn harnessed(
             harness.digest,
             LoadRequest {
                 plans: request.plans,
+                bindings: request.bindings,
                 given: request.given,
                 kinds,
                 stored: request.stored,
