@@ -94,6 +94,28 @@ impl<'a> SourceOrderVisitor<'a> for Table<'a> {
         TraversalSignal::Traverse
     }
 
+    /// The parser's walk enters no node for an interpolation's format spec; the provider has one (`joined-str`), so the table
+    /// enters it too (bead ryo-ger6), between the interpolated expression and the spec's own elements.
+    fn visit_interpolated_string_element(&mut self, element: &'a ruff_python_ast::InterpolatedStringElement) {
+        let node = AnyNodeRef::from(element);
+        match element {
+            ruff_python_ast::InterpolatedStringElement::Interpolation(i) if i.format_spec.is_some() => {
+                if self.enter_node(node).is_traverse() {
+                    self.visit_expr(&i.expression);
+                    let spec = i.format_spec.as_deref().expect("spec");
+                    let spec_node = AnyNodeRef::from(spec);
+                    self.enter_node(spec_node);
+                    for e in spec.elements.iter() {
+                        self.visit_interpolated_string_element(e);
+                    }
+                    self.leave_node(spec_node);
+                }
+                self.leave_node(node);
+            }
+            _ => ruff_python_ast::visitor::source_order::walk_interpolated_string_element(self, element),
+        }
+    }
+
     fn leave_node(&mut self, _node: AnyNodeRef<'a>) {
         if let Some(id) = self.stack.pop() {
             self.end[id as usize] = self.kind.len() as u32;

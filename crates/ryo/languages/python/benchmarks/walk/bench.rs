@@ -16,6 +16,7 @@
 
 mod nav;
 mod builtins;
+mod derived;
 mod model;
 mod rows;
 mod rules;
@@ -44,6 +45,23 @@ pub(crate) struct Totals {
     pub rows: [AtomicU64; 11],
     /// thread-ns per stage: 0 parse, 1 table, 2 lexical model, 3 flow model, 4 policy, 5.. rows per relation, 16 lexical resolution of every name load
     pub ns: [AtomicU64; 17],
+    /// derived relations: rows and thread-ns per relation (derived::RELATIONS order)
+    pub drows: Counters,
+    pub dns: Counters,
+    pub touch: AtomicU64,
+}
+
+pub(crate) struct Counters(pub [AtomicU64; 64]);
+impl Default for Counters {
+    fn default() -> Self {
+        Self(std::array::from_fn(|_| AtomicU64::new(0)))
+    }
+}
+impl std::ops::Index<usize> for Counters {
+    type Output = AtomicU64;
+    fn index(&self, i: usize) -> &AtomicU64 {
+        &self.0[i]
+    }
 }
 
 /// Thread CPU time (CLOCK_THREAD_CPUTIME_ID): a stage's own CPU, not counting time the thread is preempted.
@@ -84,6 +102,7 @@ fn main() {
                 std::thread::Builder::new().stack_size(256 << 20).spawn_scoped(scope, || {
                     let mut out = Vec::new();
                     let mut worker = Worker::new(&mode, program.as_ref());
+                    worker.root = root.clone();
                     loop {
                         let index = cursor.fetch_add(1, Ordering::Relaxed);
                         let Some(path) = files.get(index) else { break };
@@ -99,6 +118,33 @@ fn main() {
             .collect();
         handles.into_iter().map(|h| h.join().expect("worker")).collect()
     });
+    if let Some(dir) = mode.strip_prefix("ddump:") {
+        let mut files: Vec<std::io::BufWriter<std::fs::File>> = derived::RELATIONS
+            .iter()
+            .map(|r| std::io::BufWriter::new(std::fs::File::create(format!("{dir}/{r}.tsv")).expect("create")))
+            .collect();
+        use std::io::Write as _;
+        for line in outputs.iter().flatten() {
+            let (i, rest) = line.split_once('\t').expect("tag");
+            writeln!(files[i.parse::<usize>().unwrap()], "{rest}").ok();
+        }
+    }
+    if mode == "derived" || mode.starts_with("ddump:") {
+        let rows: Vec<String> = derived::RELATIONS
+            .iter()
+            .enumerate()
+            .map(|(i, r)| format!("\"{r}\":[{},{}]", totals.drows[i].load(Ordering::Relaxed), totals.dns[i].load(Ordering::Relaxed)))
+            .collect();
+        eprintln!(
+            "{{\"mode\":\"{mode}\",\"ns\":{:?},\"files\":{},\"nodes\":{},\"touch\":{},\"relations\":{{{}}}}}",
+            totals.ns.iter().map(|x| x.load(Ordering::Relaxed)).collect::<Vec<_>>(),
+            files.len(),
+            totals.nodes.load(Ordering::Relaxed),
+            totals.touch.load(Ordering::Relaxed),
+            rows.join(",")
+        );
+        return;
+    }
     if let Some(dir) = mode.strip_prefix("dump:") {
         // per-relation files, lines tagged "<relation index>\t" by the workers
         let mut files: Vec<std::io::BufWriter<std::fs::File>> = rows::RELATIONS
@@ -146,6 +192,10 @@ struct Worker<'p> {
     scratch: String,
     rules: Option<rules::State<'p>>,
     provider: Option<ProviderState>,
+    root: std::path::PathBuf,
+    dstate: derived::State,
+    /// DERIVED_FILES=<dir>: per relation, the files where a loaded rule reading it may start (lazy runs); absent = not loaded
+    dfiles: Option<Vec<Option<Vec<bool>>>>,
 }
 
 struct ProviderState {
@@ -184,6 +234,24 @@ impl<'p> Worker<'p> {
             scratch: String::new(),
             rules: program.map(rules::State::new),
             provider,
+            root: std::path::PathBuf::new(),
+            dstate: derived::State::default(),
+            dfiles: std::env::var("DERIVED_FILES").ok().map(|dir| {
+                derived::RELATIONS
+                    .iter()
+                    .map(|r| {
+                        std::fs::read_to_string(format!("{dir}/{r}.files")).ok().map(|text| {
+                            let mut v = vec![false; 1 << 16];
+                            for l in text.split_whitespace() {
+                                if let Ok(i) = l.parse::<usize>() {
+                                    v[i] = true;
+                                }
+                            }
+                            v
+                        })
+                    })
+                    .collect()
+            }),
         }
     }
 
@@ -229,6 +297,67 @@ impl<'p> Worker<'p> {
         totals.nodes.fetch_add(table.len() as u64, Ordering::Relaxed);
         totals.kinds_present.fetch_add(u64::from(table.present.count_ones()), Ordering::Relaxed);
         if self.mode == "table" {
+            return;
+        }
+        if self.mode == "derived" || self.mode.starts_with("ddump:") {
+            let incomplete = !parsed.errors().is_empty();
+            let t = Clock::now();
+            self.model.build_lexical(&table, incomplete);
+            totals.ns[2].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            if std::env::var_os("DERIVED_FLOW").is_some() {
+                // floor + the whole semantic model (lexical, every load resolved, flow), as sema's `model` mode
+                let t = Clock::now();
+                self.model.resolve_loads(&table);
+                totals.ns[16].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                let t = Clock::now();
+                self.model.build_flow(&table);
+                totals.ns[3].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
+            let full = self.root.join(path);
+            let ctx = derived::Ctx { parsed: &parsed, path: &full, table: &table, source, model: &self.model, incomplete };
+            let wanted: u64 = std::env::var("DERIVED_WANT").ok().map_or(u64::MAX, |w| {
+                w.split(',').filter_map(derived::index_of).fold(0, |m, i| m | (1 << i))
+            });
+            let n = derived::RELATIONS.len();
+            self.dstate.view_file = None;
+            let wanted = match &self.dfiles {
+                Some(sets) => (0..n).fold(0u64, |m, i| if wanted & (1 << i) != 0 && sets[i].as_ref().is_some_and(|s| s[index]) { m | (1 << i) } else { m }),
+                None => wanted,
+            };
+            if self.mode == "derived" {
+                let mut sink = derived::Count { counts: vec![0; n], touch: 0 };
+                let unclocked = std::env::var_os("DERIVED_NOCLOCK").is_some();
+                if unclocked {
+                    // timed runs: every wanted relation in one call, no per-relation clock reads
+                    derived::produce(&ctx, wanted, &mut sink, &mut self.scratch, &mut self.dstate);
+                }
+                for i in (0..n).filter(|_| !unclocked) {
+                    if wanted & (1 << i) != 0 {
+                        // a pair read from one parse (format-parse + format-field, ...) is produced once, timed on its first
+                        let partner = derived::partner(i);
+                        if partner.is_some_and(|p| p < i && wanted & (1 << p) != 0) {
+                            continue;
+                        }
+                        let mask = (1u64 << i) | partner.map_or(0, |p| if wanted & (1 << p) != 0 { 1u64 << p } else { 0 });
+                        let t = Clock::now();
+                        derived::produce(&ctx, mask, &mut sink, &mut self.scratch, &mut self.dstate);
+                        totals.dns[i].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                    }
+                }
+                for (i, c) in sink.counts.iter().enumerate() {
+                    totals.drows[i].fetch_add(*c, Ordering::Relaxed);
+                }
+                totals.touch.fetch_add(sink.touch, Ordering::Relaxed);
+            } else {
+                let mut sink = derived::Dump { table: &table, file: index, lines: vec![Vec::new(); n], counts: vec![0; n] };
+                derived::produce(&ctx, wanted, &mut sink, &mut self.scratch, &mut self.dstate);
+                for (i, c) in sink.counts.iter().enumerate() {
+                    totals.drows[i].fetch_add(*c, Ordering::Relaxed);
+                }
+                for (i, v) in sink.lines.into_iter().enumerate() {
+                    out.extend(v.into_iter().map(|l| format!("{i}\t{l}")));
+                }
+            }
             return;
         }
         if matches!(self.mode.as_str(), "lex" | "model" | "policy" | "rows" | "rows-lex") || self.mode.starts_with("dump:") {
