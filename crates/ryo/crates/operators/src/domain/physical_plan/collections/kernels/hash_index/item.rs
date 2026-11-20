@@ -53,17 +53,6 @@ fn cleared(rows: &mut KeyedRows, count: RowCount) {
     rows.next.resize(count.0, NO_ROW);
 }
 
-/// Spike (ryo-jenl): a hashed build holds no position-addressed room (one representation's room per index, so a pooled
-/// index never keeps both).
-fn hashed_only(rows: &mut KeyedRows) {
-    if rows.slots.capacity() > 0 {
-        rows.slots = Vec::new();
-    }
-    if rows.runs.capacity() > 0 {
-        rows.runs = Vec::new();
-    }
-}
-
 /// Adds `row` to the key `same` finds under `hash`, or as a key of its own.
 fn insert(
     rows: &mut KeyedRows,
@@ -152,7 +141,6 @@ pub(crate) fn texts(
     rows: &mut KeyedRows,
 ) {
     cleared(rows, rows_of(view));
-    hashed_only(rows);
     if crate::spike::keystats() {
         crate::spike::key_rows(5, 2, rows_of(view).0 as u64);
     }
@@ -246,7 +234,6 @@ fn cells_by_cells(
     census(side, rows);
     let count = count_of(side.rows);
     cleared(rows, count);
-    hashed_only(rows);
     for at in 0..count.0 {
         let probe = KeyedRowAt {
             side,
@@ -463,7 +450,6 @@ pub(crate) fn cells_read(
     rows: &mut KeyedRows,
 ) -> Result<(), PortableOperatorFault> {
     cleared(rows, count);
-    hashed_only(rows);
     rows.keys.reserve(count.0.min(1 << 16), |run| run.hash.0);
     for at in 0..count.0 {
         let hash = hash_read(on, RowIndex(at), cell)?;
@@ -607,9 +593,6 @@ fn words_read(
     if count.0 > 0 && crate::spike::dense_levers()[3] && span < 4 * count.0 as u64 + 64 {
         // Position-addressed: each key's place in `runs` at its word less the smallest; the slots cleared are at most four
         // per row.
-        if rows.keys.capacity() > 0 {
-            rows.keys = hashbrown::HashTable::new();
-        }
         rows.base = low;
         rows.slots.clear();
         rows.slots.resize(usize::try_from(span).unwrap_or(0) + 1, NO_SLOT);
@@ -636,7 +619,6 @@ fn words_read(
             }
         }
     } else {
-        hashed_only(rows);
         rows.keys.reserve(count.0.min(1 << 16), |run| run.hash.0);
         for (at, word) in scratch.iter().enumerate() {
             let hash = word_hash(*word);
