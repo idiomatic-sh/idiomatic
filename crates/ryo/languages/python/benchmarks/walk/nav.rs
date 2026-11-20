@@ -783,7 +783,7 @@ pub(crate) fn specialize(p: Prog) -> Prog {
 }
 
 /// Registers an instruction reads (sub-programs: every register they read, an over-approximation) and defines (top level).
-fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
+pub(crate) fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
     let o = |x: &Opd, r: &mut Vec<R>| {
         if let Opd::Reg(x) = x {
             r.push(*x);
@@ -972,7 +972,7 @@ fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
 
 thread_local! {
     /// the free registers of each shared entry (read and not defined inside it; set by specialize_all)
-    static SHARED_FREE: std::cell::RefCell<Vec<Vec<R>>> = const { std::cell::RefCell::new(Vec::new()) };
+    pub(crate) static SHARED_FREE: std::cell::RefCell<Vec<Vec<R>>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
 /// Registers a program reads that nothing inside it defines (every nested sub-program included; a shared entry contributes its
@@ -1002,7 +1002,7 @@ pub(crate) fn free_regs(p: &[Ins]) -> Vec<R> {
 
 /// reads_defs without the sub-programs' reads (free_regs walks those itself); a closure's or nearest-derived walk's input
 /// register counts as defined (the step sets it before its sub-programs run)
-fn reads_defs_top(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
+pub(crate) fn reads_defs_top(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
     let mut has_subs = false;
     subs_ref(i, &mut |_| has_subs = true);
     if !has_subs {
@@ -1449,7 +1449,7 @@ pub(crate) fn mark_first(p: Prog) -> Prog {
     v.into()
 }
 
-fn is_iter(i: &Ins) -> bool {
+pub(crate) fn is_iter(i: &Ins) -> bool {
     matches!(
         i,
         Ins::IterKind { .. }
@@ -1488,7 +1488,7 @@ pub(crate) fn hoist(p: Prog) -> Prog {
 
 /// the registers an instruction needs from outside: its own reads plus its sub-programs' free registers (not what the step
 /// itself sets for them)
-fn ins_free_reads(i: &Ins) -> Vec<R> {
+pub(crate) fn ins_free_reads(i: &Ins) -> Vec<R> {
     let mut has = false;
     subs_ref(i, &mut |_| has = true);
     let (mut r, mut d) = (Vec::new(), Vec::new());
@@ -1521,7 +1521,7 @@ thread_local! {
     static HOIST_IDS: std::cell::RefCell<FxMap<String, u32>> = std::cell::RefCell::new(FxMap::default());
 }
 
-fn is_test(i: &Ins) -> bool {
+pub(crate) fn is_test(i: &Ins) -> bool {
     matches!(i, Ins::Test { .. } | Ins::TestEqC { .. } | Ins::TestNeC { .. } | Ins::TestEqR { .. } | Ins::TestNeR { .. } | Ins::TestInC { .. })
 }
 
@@ -1697,18 +1697,45 @@ impl NavProgram {
             let fr = free_regs(q);
             SHARED_FREE.with(|t| t.borrow_mut().push(fr));
         }
-        // each pass over every program, timed (NAV_VERBOSE)
-        let stages: [(&str, &dyn Fn(Prog) -> Prog); 9] = [
-            ("specialise", &specialize),
-            ("toward", &fuse_within),
-            ("fact2", &fuse_fact2),
-            ("detach", &detach),
-            ("fold", &|q| fold(q, &none)),
-            ("hoist", &hoist),
-            ("first", &mark_first),
-            ("memo", &memoize),
-            ("sink", &sink),
-        ];
+        // each pass over every program, timed (NAV_VERBOSE). NAV_PIPELINE=join: the joined engine's order (hoist before the
+        // first-element marks and the memo pass, then the sink). Otherwise (plan): the structural passes first, then the measured
+        // order (NAV_PLAN=<statistics>), then the hoist; a unit with no learned order takes the sink as its prior.
+        // NAV_PLAN_STAGE=stats stops before the plan: the programs a statistics run executes.
+        let join = std::env::var("NAV_PIPELINE").is_ok_and(|v| v == "join");
+        let stats_stage = std::env::var("NAV_PLAN_STAGE").is_ok_and(|v| v == "stats");
+        let fold_none = |q: Prog| fold(q, &none);
+        let ident = |q: Prog| q;
+        let stages: Vec<(&str, &dyn Fn(Prog) -> Prog)> = if join {
+            vec![
+                ("specialise", &specialize),
+                ("toward", &fuse_within),
+                ("fact2", &fuse_fact2),
+                ("detach", &detach),
+                ("fold", &fold_none),
+                ("hoist", &hoist),
+                ("first", &mark_first),
+                ("memo", &memoize),
+                ("sink", &sink),
+            ]
+        } else {
+            let mut v: Vec<(&str, &dyn Fn(Prog) -> Prog)> = vec![
+                ("specialise", &specialize),
+                ("toward", &fuse_within),
+                ("fact2", &fuse_fact2),
+                ("detach", &detach),
+                ("fold", &fold_none),
+                ("first", &mark_first),
+                ("memo", &memoize),
+            ];
+            if !stats_stage {
+                v.push(("plan", &ident));
+                v.push(("hoist", &hoist));
+                v.push(("sink", &sink));
+            }
+            v
+        };
+        // units with a learned order (they skip the sink)
+        let mut planned: Option<(Vec<bool>, Vec<bool>, bool)> = None;
         for (name, f) in stages {
             let t = Instant::now();
             let pass = |q: &mut Prog| *q = f(std::mem::take(q));
@@ -1720,13 +1747,29 @@ impl NavProgram {
                     SHARED_FREE.with(|t| t.borrow_mut().push(fr));
                 }
             }
-            for g in &mut self.groups {
-                pass(&mut g.prog);
+            if name == "plan" {
+                planned = crate::plan::plan(self);
+                if std::env::var("NAV_VERBOSE").is_ok() {
+                    eprintln!("pass {name}: {:.3} s", t.elapsed().as_secs_f64());
+                }
+                continue;
             }
-            for q in &mut self.shared {
-                pass(q);
+            let skip = name == "sink";
+            for (g, grp) in self.groups.iter_mut().enumerate() {
+                if skip && planned.as_ref().is_some_and(|p| p.0[g]) {
+                    continue;
+                }
+                pass(&mut grp.prog);
             }
-            for fr in &mut self.facts {
+            if !(skip && planned.as_ref().is_some_and(|p| p.2)) {
+                for q in &mut self.shared {
+                    pass(q);
+                }
+            }
+            for (i, fr) in self.facts.iter_mut().enumerate() {
+                if skip && planned.as_ref().is_some_and(|p| p.1[i]) {
+                    continue;
+                }
                 if let Some((progs, ..)) = &mut fr.made {
                     progs.iter_mut().for_each(pass);
                 }
@@ -2554,12 +2597,20 @@ pub(crate) struct Counters {
     /// made-table rows and the steps spent building made tables, per rule that demanded them
     pub rule_made_rows: Vec<u64>,
     pub rule_made_steps: Vec<u64>,
+    /// plan: anchor candidates, exclusive made-table ns and index-build ns per rule that demanded them
+    pub rule_cands: Vec<u64>,
+    pub rule_made_ns: Vec<u64>,
+    pub rule_index_ns: Vec<u64>,
+    /// the rule running when the outermost made-table build began
+    pub top_rule: usize,
     /// steps per instruction kind (index: Ins::code)
     pub op_steps: Vec<u64>,
     /// (rule, branch) -> (runs, steps)
     pub branch_steps: FxMap<(u32, u32), (u64, u64)>,
     /// NAV_PROFILE: steps per instruction site (its address)
-    pub prof: Option<FxMap<usize, u64>>,
+    pub prof: Option<FxMap<(usize, u32), u64>>,
+    /// NAV_PROFILE: per program (the address of its first instruction) entered at its start: (runs, inclusive steps)
+    pub pincl: FxMap<usize, (u64, u64)>,
     /// steps executed inside batched loops
     pub batched_steps: u64,
     /// steps spent building made tables (outermost builds), excluded from per-program accounting
@@ -2586,6 +2637,22 @@ pub(crate) struct Counters {
     pub made_depth: u32,
     /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
     pub diag: bool,
+}
+
+impl Counters {
+    /// index-build time charged to the rule that demanded it (the outermost build's demander inside a made table)
+    fn charge_index(&mut self, cur: usize, ns: u64) {
+        let r = if self.made_depth > 0 { self.top_rule } else { cur };
+        if let Some(x) = self.rule_index_ns.get_mut(r) {
+            *x += ns;
+        }
+    }
+    fn charge_made(&mut self, ns: u64) {
+        let r = self.top_rule;
+        if let Some(x) = self.rule_made_ns.get_mut(r) {
+            *x += ns;
+        }
+    }
 }
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
@@ -2977,6 +3044,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         let made_before = self.c.made_ns;
         let fact_before = self.c.fact_ns;
         let steps0 = self.c.steps;
+        if self.c.made_depth == 0 {
+            self.c.top_rule = self.cur_rule;
+        }
         self.c.made_depth += 1;
         self.ensure_facts();
         let slot = self.outs.len() - 1;
@@ -3005,6 +3075,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.c.made_tables += 1;
         self.c.made_rows += u64::from(end - start) + (rows.len() / width.max(&1)) as u64;
         let excl = t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before) - (self.c.made_ns - made_before);
+        self.c.charge_made(excl);
         self.c.made_ns = made_before + t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before);
         let e = self.c.made_by.entry(rel).or_default();
         e.0 += 1;
@@ -3068,6 +3139,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             out.sort_by_key(|&id| (v.start[id as usize], id));
             self.c.made_tables += 1;
             self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.charge_index(self.cur_rule, t0.elapsed().as_nanos() as u64);
             self.c.index_split[1] += t0.elapsed().as_nanos() as u64;
             let l = Rc::new(out);
             self.cache.const_idx.insert(key, l.clone());
@@ -3088,6 +3160,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.c.made_tables += 1;
         self.c.made_rows += out.len() as u64;
         self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.charge_index(self.cur_rule, t0.elapsed().as_nanos() as u64);
         self.c.index_split[1] += t0.elapsed().as_nanos() as u64;
         let l = Rc::new(out);
         self.cache.const_idx.insert(key, l.clone());
@@ -3175,6 +3248,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.c.made_tables += 1;
         self.c.made_rows += n as u64;
         self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.charge_index(self.cur_rule, t0.elapsed().as_nanos() as u64);
         self.c.index_split[0] += t0.elapsed().as_nanos() as u64;
         let m = Rc::new(idx);
         self.cache.tree_idx.insert(key, m.clone());
@@ -3202,6 +3276,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some((progs, keys, distinct, width)) = &prog.facts[rel as usize].made {
             let nkeys = &keys.len();
             let made_t0 = Instant::now();
+            if self.c.made_depth == 0 {
+                self.c.top_rule = self.cur_rule;
+            }
             self.c.made_depth += 1;
             let made_before = self.c.made_ns;
             let fact_before = self.c.fact_ns;
@@ -3260,6 +3337,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.made_rows += cols[*nkeys].len() as u64;
             facts.loaded[rel as usize] = true;
             let excl = made_t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before) - (self.c.made_ns - made_before);
+            self.c.charge_made(excl);
             self.c.made_ns = made_before + made_t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before);
             let e = self.c.made_by.entry(rel).or_default();
             e.0 += 1;
@@ -3446,6 +3524,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.c.made_tables += 1;
         self.c.made_rows += a.len() as u64;
         self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.charge_index(self.cur_rule, t0.elapsed().as_nanos() as u64);
         self.c.index_split[2] += t0.elapsed().as_nanos() as u64;
         let m = Rc::new(m);
         self.cache.fact2.insert((rel, c1, c2), m.clone());
@@ -3481,6 +3560,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.c.made_tables += 1;
         self.c.made_rows += c.len() as u64;
         self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.charge_index(self.cur_rule, t0.elapsed().as_nanos() as u64);
         self.c.index_split[2] += t0.elapsed().as_nanos() as u64;
         let m = Rc::new(idx);
         facts.idx.insert((rel, col), m.clone());
@@ -3573,7 +3653,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     while row != u32::MAX {
                         self.regs[out as usize] = row as u64;
                         self.c.visits += 1;
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                         row = next[row as usize];
@@ -3584,7 +3664,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         for &row in list {
                             self.regs[out as usize] = row as u64;
                             self.c.visits += 1;
-                            if self.run_inner(p, pc + 1) {
+                            if self.run_core(p, pc + 1) {
                                 return true;
                             }
                         }
@@ -3600,7 +3680,12 @@ impl<'a, 'p> Exec<'a, 'p> {
         let mut pc = pc;
         let steps0 = self.c.steps;
         let visits0 = self.c.visits;
-        let flow = self.run_inner(p, pc);
+        let flow = self.run_core(p, pc);
+        if self.c.diag && self.c.prof.is_some() {
+            let e = self.c.pincl.entry(p.as_ptr() as usize).or_default();
+            e.0 += 1;
+            e.1 += self.c.steps - steps0;
+        }
         let r = self.cur_rule;
         self.c.rule_steps[r] = self.c.rule_steps[r].wrapping_add(self.c.steps - steps0);
         self.c.rule_visits[r] = self.c.rule_visits[r].wrapping_add(self.c.visits - visits0);
@@ -3742,7 +3827,22 @@ impl<'a, 'p> Exec<'a, 'p> {
         cols.truncate(base);
     }
 
+    /// Runs `p` from `pc` (a sub-program, a fork child or a made table's program from its start; NAV_PROFILE records each
+    /// such run's inclusive steps per program).
+    #[inline]
     fn run_inner(&mut self, p: &'p [Ins], pc: usize) -> bool {
+        if pc == 0 && self.c.diag && self.c.prof.is_some() {
+            let s0 = self.c.steps;
+            let y = self.run_core(p, 0);
+            let e = self.c.pincl.entry(p.as_ptr() as usize).or_default();
+            e.0 += 1;
+            e.1 += self.c.steps - s0;
+            return y;
+        }
+        self.run_core(p, pc)
+    }
+
+    fn run_core(&mut self, p: &'p [Ins], pc: usize) -> bool {
         let mut pc = pc;
         loop {
             self.c.steps += 1;
@@ -3751,8 +3851,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                     self.c.op_steps.resize(NINS, 0);
                 }
                 self.c.op_steps[p[pc].code()] += 1;
+                let r = if self.c.made_depth > 0 { self.c.top_rule } else { self.cur_rule } as u32;
                 if let Some(prof) = self.c.prof.as_mut() {
-                    *prof.entry(&p[pc] as *const Ins as usize).or_default() += 1;
+                    *prof.entry((&p[pc] as *const Ins as usize, r)).or_default() += 1;
                 }
             }
             match &p[pc] {
@@ -3841,7 +3942,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for k in s..e {
                         self.regs[*out as usize] = v.children[k] as u64;
                         self.c.visits += 1;
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -3859,7 +3960,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         for i in s..e {
                             self.regs[*out as usize] = self.cache.kind_ids[i] as u64;
                             self.c.visits += 1;
-                            if self.run_inner(p, pc + 1) {
+                            if self.run_core(p, pc + 1) {
                                 return true;
                             }
                         }
@@ -3871,7 +3972,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for &id in list.iter() {
                         self.regs[*out as usize] = id as u64;
                         self.c.visits += 1;
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -3892,7 +3993,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         for &id in idx.get(k) {
                             self.regs[*out as usize] = id as u64;
                             self.c.visits += 1;
-                            if self.run_inner(p, pc + 1) {
+                            if self.run_core(p, pc + 1) {
                                 return true;
                             }
                         }
@@ -3907,7 +4008,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         }
                         self.regs[*out as usize] = id as u64;
                                 self.c.visits += 1;
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -3918,7 +4019,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for row in a..b {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -3955,7 +4056,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for &row in rows {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -3967,7 +4068,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for row in 0..n {
                         self.regs[*out as usize] = row as u64;
                                 self.c.visits += 1;
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -3992,7 +4093,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                             while a != u32::MAX {
                                 self.regs[*out as usize] = a as u64;
                                 self.c.visits += 1;
-                                if self.run_inner(p, pc + 1) {
+                                if self.run_core(p, pc + 1) {
                                     return true;
                                 }
                                 a = v.parent[a as usize];
@@ -4004,7 +4105,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                             for k in b..e {
                                 self.regs[*out as usize] = v.children[k] as u64;
                         self.c.visits += 1;
-                                if self.run_inner(p, pc + 1) {
+                                if self.run_core(p, pc + 1) {
                                     return true;
                                 }
                             }
@@ -4017,7 +4118,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                             while let Some(d) = stack.pop() {
                                 self.regs[*out as usize] = d as u64;
                                 self.c.visits += 1;
-                                if self.run_inner(p, pc + 1) {
+                                if self.run_core(p, pc + 1) {
                                     return true;
                                 }
                                 let (b, e) = (v.child_off[d as usize] as usize, v.child_off[d as usize + 1] as usize);
@@ -4061,7 +4162,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                             self.regs[*out as usize] = id as u64;
                             self.regs[*start as usize] = st as u64;
                             self.c.visits += 1;
-                            if self.run_inner(p, pc + 1) {
+                            if self.run_core(p, pc + 1) {
                                 return true;
                             }
                             if self.first_fail {
@@ -4087,7 +4188,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         self.regs[*out as usize] = ch as u64;
                         self.regs[*field_out as usize] = *field as u64;
                         self.c.visits += 1;
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -4127,7 +4228,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         if caps.is_empty() && tup.is_empty() {
                             continue;
                         }
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -4160,7 +4261,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                         for (k, &r) in caps.iter().enumerate() {
                             self.regs[r as usize] = tup[k];
                         }
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -4478,7 +4579,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                             }
                         }
                         self.c.visits += 1;
-                        if self.run_inner(p, pc + 1) {
+                        if self.run_core(p, pc + 1) {
                             return true;
                         }
                     }
@@ -4535,7 +4636,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             for (i, r) in kout.iter().enumerate() {
                 self.regs[*r as usize] = row[1 + i];
             }
-            if self.run_inner(p, pc + 1) {
+            if self.run_core(p, pc + 1) {
                 return true;
             }
         }
@@ -4672,7 +4773,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 self.regs[*r as usize] = row[i];
             }
             self.c.visits += 1;
-            if self.run_inner(p, pc + 1) {
+            if self.run_core(p, pc + 1) {
                 return true;
             }
         }
@@ -4707,7 +4808,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.regs[xin as usize] = saved_x;
         for &y in &found {
             self.regs[out as usize] = y;
-            if self.run_inner(p, pc + 1) {
+            if self.run_core(p, pc + 1) {
                 return true;
             }
         }
@@ -4746,7 +4847,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 self.regs[*r as usize] = row[i];
             }
             self.c.visits += 1;
-            if self.run_inner(p, pc + 1) {
+            if self.run_core(p, pc + 1) {
                 return true;
             }
         }
@@ -4965,7 +5066,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 self.regs[outs[i] as usize] = id as u64;
             }
             self.c.visits += 1;
-            if self.run_inner(p, pc + 1) {
+            if self.run_core(p, pc + 1) {
                 return true;
             }
         }
@@ -5299,64 +5400,3 @@ impl crate::derived::Sink for DSink<'_> {
     }
 }
 
-/// NAV_PROFILE report: the hottest instruction sites, each with its rule, branch, path and instruction.
-pub(crate) fn profile_report(prog: &NavProgram, prof: &FxMap<usize, u64>) -> String {
-    let mut sites: FxMap<usize, String> = FxMap::default();
-    let owner_of = |slots: &[u32]| -> String {
-        let mut ids: Vec<&str> = slots.iter().map(|&s| prog.rules[prog.slot_rule[s as usize] as usize].id.as_str()).collect();
-        ids.dedup();
-        if ids.len() > 3 { format!("{}+{}more", ids[0], ids.len() - 1) } else { ids.join("+") }
-    };
-    fn walk(p: &[Ins], path: String, owner: &str, sites: &mut FxMap<usize, String>, owner_of: &dyn Fn(&[u32]) -> String) {
-        for (pc, ins) in p.iter().enumerate() {
-            let here = format!("{path}.{pc}");
-            let text = format!("{ins:?}");
-            let text: String = text.chars().take(160).collect();
-            sites.insert(ins as *const Ins as usize, format!("{owner} {here} {text}"));
-            match ins {
-                Ins::Fork { subs } => {
-                    for (k, (slots, q)) in subs.iter().enumerate() {
-                        let o = owner_of(slots);
-                        walk(q, format!("{here}/{k}"), &o, sites, owner_of);
-                    }
-                }
-                _ => {
-                    let mut k = 0;
-                    subs_ref(ins, &mut |q| {
-                        walk(q, format!("{here}/{k}"), owner, sites, owner_of);
-                        k += 1;
-                    });
-                }
-            }
-        }
-    }
-    for (g, grp) in prog.groups.iter().enumerate() {
-        let o = owner_of(&grp.slots);
-        walk(&grp.prog, format!("g{g}"), &o, &mut sites, &owner_of);
-    }
-    for f in &prog.facts {
-        if let Some((progs, ..)) = &f.made {
-            for (k, q) in progs.iter().enumerate() {
-                walk(q, format!("p{k}"), &f.name, &mut sites, &owner_of);
-            }
-        }
-        if let Some(om) = &f.made_om {
-            for (k, q) in om.left.iter().chain(om.right.iter()).enumerate() {
-                walk(q, format!("o{k}"), &f.name, &mut sites, &owner_of);
-            }
-        }
-    }
-    for (k, q) in prog.shared.iter().enumerate() {
-        walk(q, format!("s{k}"), "shared", &mut sites, &owner_of);
-    }
-    for r in &prog.rules {
-        for (k, (_, ps, _)) in r.aux.iter().enumerate() {
-            for q in ps {
-                walk(q, format!("a{k}"), &r.id, &mut sites, &owner_of);
-            }
-        }
-    }
-    let mut v: Vec<(usize, u64)> = prof.iter().map(|(&k, &n)| (k, n)).collect();
-    v.sort_by(|a, b| b.1.cmp(&a.1));
-    v.iter().take(1_000_000).map(|(k, n)| format!("{n:>12} {}", sites.get(k).map_or("?", String::as_str))).collect::<Vec<_>>().join("\n")
-}

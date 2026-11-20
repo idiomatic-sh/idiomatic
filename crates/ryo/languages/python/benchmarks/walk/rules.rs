@@ -765,7 +765,7 @@ impl<'p> State<'p> {
                 cap_buf: Vec::new(),
                 first_fail: false,
             };
-            if ex.c.prof.is_none() && std::env::var("NAV_PROFILE").is_ok() {
+            if ex.c.prof.is_none() && (std::env::var("NAV_PROFILE").is_ok() || std::env::var_os("NAV_PLAN_STATS").is_some()) {
                 ex.c.prof = Some(FxMap::default());
             }
             ex.c.diag = ex.c.prof.is_some() || std::env::var_os("NAV_DIAG").is_some();
@@ -776,6 +776,9 @@ impl<'p> State<'p> {
                 ex.c.rule_starts = vec![0; nrules + 1];
                 ex.c.rule_made_rows = vec![0; nrules + 1];
                 ex.c.rule_made_steps = vec![0; nrules + 1];
+                ex.c.rule_cands = vec![0; nrules + 1];
+                ex.c.rule_made_ns = vec![0; nrules + 1];
+                ex.c.rule_index_ns = vec![0; nrules + 1];
             }
             // per file: a branch with a kind-anchored alternative over an empty bucket finds nothing (every atom must hold); the
             // others are enabled, and the merged programs (shared prefixes across branches and rules) run their enabled children
@@ -799,7 +802,9 @@ impl<'p> State<'p> {
                     ex.c.starts += 1;
                     ex.c.rule_starts[ri] += 1;
                     if let Some(kinds) = &alts[0].anchor {
-                        ex.c.candidates += kinds.iter().map(|&k| ex.bucket(k).len() as u64).sum::<u64>();
+                        let n = kinds.iter().map(|&k| ex.bucket(k).len() as u64).sum::<u64>();
+                        ex.c.candidates += n;
+                        ex.c.rule_cands[ri] += n;
                     }
                 }
             }
@@ -1141,9 +1146,13 @@ impl<'p> State<'p> {
                 self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.batched_steps, c.const_misses, c.csr_builds, c.csr_ns, c.hoist_runs, c.hoist_misses, c.twin_switches, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
                 c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits,
                 crate::nav::INS_NAMES.iter().enumerate().map(|(i, n)| format!("\"{n}\":{}", c.op_steps.get(i).copied().unwrap_or(0))).collect::<Vec<_>>().join(","),
-                self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
-                    .map(|(i, r)| format!("\"{}\":[{},{},{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i], c.rule_made_rows[i], c.rule_made_steps[i]))
-                    .collect::<Vec<_>>().join(",")
+                {
+                    let nav = self.program.nav.as_ref().unwrap();
+                    let n = nav.rules.len();
+                    nav.rules.iter().map(|r| r.id.as_str()).chain(std::iter::once("_shared")).enumerate().filter(|(i, _)| *i < c.rule_steps.len() && *i <= n)
+                        .map(|(i, id)| format!("\"{}\":[{},{},{},{},{},{},{},{}]", id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i], c.rule_made_rows[i], c.rule_made_steps[i], c.rule_cands[i], c.rule_made_ns[i], c.rule_index_ns[i]))
+                        .collect::<Vec<_>>().join(",")
+                }
             );
         }
         if self.program.nav.is_some() {
@@ -1173,7 +1182,12 @@ impl<'p> State<'p> {
             eprintln!("{{\"forks\":{{\"children\":{},\"disabled\":{}}}}}", c.fork_children, c.fork_disabled);
             eprintln!("{{\"memo\":{{\"near_allocs\":{},\"near_cells\":{},\"subkey_lookups\":{sk},\"subkey_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm}}}}}", c.memo_allocs, c.memo_cells);
             if let Some(prof) = &self.nc.prof {
-                eprintln!("PROFILE\n{}", crate::nav::profile_report(nav, prof));
+                if std::env::var_os("NAV_PLAN_STATS").is_some() {
+                    eprintln!("{}", crate::plan::stats_json(nav, prof, &self.nc.pincl));
+                    eprintln!("{}", crate::plan::units_json(nav));
+                } else {
+                    eprintln!("PROFILE\n{}", crate::plan::profile_report(nav, prof));
+                }
             }
         }
         let ops: Vec<String> = OP_NAMES

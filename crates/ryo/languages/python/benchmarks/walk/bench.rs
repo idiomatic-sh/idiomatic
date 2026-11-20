@@ -21,6 +21,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 mod nav;
 mod pack;
+mod plan;
 mod builtins;
 mod derived;
 mod model;
