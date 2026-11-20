@@ -1,11 +1,15 @@
 //! The types of the `file_view` concept: the Python language as the engine's walk and its fillers name it, the view of one walked
 //! file the fillers read, and the buffers a worker keeps from file to file.
 
+use crate::domain::indentation::types::IndentationRegion;
+use crate::domain::layout_facts::types::FileLines;
+use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::model::view::service::built;
 use crate::domain::model::view::types::{Built, ModelPart, ModelRead, ModelView, SemanticModel};
-use crate::domain::node::types::SyntaxFile;
+use crate::domain::node::types::{FixedWords, SyntaxFile};
 use crate::domain::owner_facts::types::Owners;
 use crate::domain::standard_library::types::TargetVersion;
+use crate::domain::token_links::types::Opener;
 use ryo::languages::ByteSlice;
 
 /// The Python language as the engine walks it, over the ports `P` its walk calls. Its fillers call no port, so a `fills!` item
@@ -32,6 +36,8 @@ pub(crate) struct PythonFile<'f> {
     pub built: Built,
     /// The scope each node is evaluated in, worked out by the first filler that names an owner.
     pub owners: &'f mut Owners,
+    /// The buffers the fillers write through, lent from the worker's.
+    pub buffers: &'f mut FillBuffers,
 }
 
 impl ModelView for PythonFile<'_> {
@@ -59,4 +65,21 @@ pub(crate) struct PythonScratch {
     pub model: SemanticModel,
     /// The owners' buffer.
     pub owners: Owners,
+    /// The fillers' buffers.
+    pub buffers: FillBuffers,
+}
+
+/// The buffers the fillers of a file write through: kept by the worker from file to file, so a fill allocates none of its own.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct FillBuffers {
+    /// A text a filler builds for one row.
+    pub text: TextBuffer,
+    /// The fixed words this file has interned.
+    pub fixed: FixedWords,
+    /// The open brackets of a scan of the tokens.
+    pub brackets: Vec<Opener>,
+    /// The indentation regions of the file.
+    pub regions: Vec<IndentationRegion>,
+    /// Where the lines of the file start.
+    pub lines: FileLines,
 }

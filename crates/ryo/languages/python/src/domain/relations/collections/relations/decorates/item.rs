@@ -3,7 +3,6 @@
 
 use crate::domain::extras::types::Extra;
 use crate::domain::file_view::types::PythonWalk;
-use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::model::types::Declarations;
 use crate::domain::name_facts::service::{decoration, decorator_ordinal as placed_among};
 use crate::domain::names::service::unknown;
@@ -39,10 +38,10 @@ ryo::fills! {
     DecoratesItem => languages::Decorates, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::Decorates as languages::CatalogRelation>::Row;
-        let mut names = TextBuffer::default();
+        let names = &mut file.buffers.text;
         for Numbered { id, .. } in nodes_of_kind(&file.syntax, Kind::Extra(Extra::Decorator)) {
             let ordinal = placed_among(&file.syntax, id);
-            if let Some(found) = decoration(&file.syntax, id, &mut names) {
+            if let Some(found) = decoration(&file.syntax, id, names) {
                 rows.write(Row {
                     occurrence: node_cell(&file.syntax, id),
                     declaration: node_cell(&file.syntax, node_table::parent_of(file.syntax.table, id)),

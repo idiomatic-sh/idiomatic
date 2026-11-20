@@ -226,6 +226,31 @@ pub(crate) fn string_value<'b>(
     }
 }
 
+/// What the format spec of an interpolation holds: its literal text, or that it interpolates. None for any other node.
+pub(crate) fn format_spec_value<'b>(
+    node: AnyNodeRef<'b>,
+    buffer: &'b mut TextBuffer,
+) -> Option<StringValue<'b>> {
+    let AnyNodeRef::InterpolatedStringFormatSpec(spec) = node else {
+        return None;
+    };
+    buffer.0.clear();
+    // Every literal piece is read before the answer: a spec that interpolates anywhere holds no text a file states.
+    let mut interpolates = Interpolation::Static;
+    for element in &spec.elements {
+        match element {
+            InterpolatedStringElement::Literal(literal) => buffer.0.push_str(&literal.value),
+            InterpolatedStringElement::Interpolation(_) => {
+                interpolates = Interpolation::Interpolates;
+            }
+        }
+    }
+    Some(match interpolates {
+        Interpolation::Interpolates => StringValue::Interpolated,
+        Interpolation::Static => StringValue::Known(NameText(buffer.0.as_str())),
+    })
+}
+
 /// Whether the string at `id` names a module a call loads: the first argument of `__import__(..)` or of
 /// `importlib.import_module(..)`, the callee as it is written.
 #[must_use]

@@ -13,12 +13,19 @@ use crate::domain::brace_format::types::{
     BraceFieldContext, BraceFormatError, BraceFormatResult, BraceFormatState, BraceSelector,
     SelectorRange,
 };
+use crate::domain::file_view::types::PythonWalk;
 use crate::domain::format_syntax::types::DynamicInput;
+use crate::domain::format_syntax::types::FormatInput;
+use crate::domain::literal_facts::service::{format_spec_value, string_value};
+use crate::domain::literal_facts::types::{StringValue, TextBuffer};
+use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at, word};
+use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::{
     model::types::Declarations, nodes::types::Node, semantic_syntax::types::Visibility,
     syntax::service::kind_bits, syntax::types::Kind,
 };
 use crate::outbound::brace_format::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
+use crate::outbound::brace_format::interface::BraceFormatSyntaxPort as _;
 use ryo::languages;
 
 /// One outcome row per source string occurrence.
@@ -203,6 +210,100 @@ ryo::reads! {
         when state(&index) {
             BraceFormatState::Fresh | BraceFormatState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
             BraceFormatState::Complete => {}
+        }
+    }
+}
+
+/// Hands `each` every string occurrence of a walked file with its brace-format parse: a string, an f-string and the format spec
+/// of an interpolation are parsed as their decoded text; one that interpolates has an input no file states, and no parse.
+fn parsed_strings(
+    file: &SyntaxFile<'_>,
+    joined: &mut TextBuffer,
+    each: &mut dyn FnMut(languages::Position, Option<&BraceFormatResult>, DynamicInput),
+) {
+    for kind in [Node::Constant, Node::JoinedStr] {
+        for Numbered { id, node } in nodes_of_kind(file, Kind::Node(kind)) {
+            let value = match format_spec_value(node, joined) {
+                Some(spec) => Some(spec),
+                None => string_value(node, joined),
+            };
+            match value {
+                Some(StringValue::Known(text)) => {
+                    let parsed = RuffLiteralBraceFormat.parse(FormatInput(text.0));
+                    each(id, Some(&parsed), DynamicInput::NotObserved);
+                }
+                Some(StringValue::Interpolated) => each(id, None, DynamicInput::Observed),
+                None => {}
+            }
+        }
+    }
+}
+
+// The engine fills `brace-format-parse` from the walked file: every row of the file, once.
+ryo::fills! {
+    BraceFormatParseItem => languages::BraceFormatParse, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::BraceFormatParse as languages::CatalogRelation>::Row;
+        let memo = &mut file.buffers.fixed;
+        let syntax = file.syntax;
+        let mut whole = languages::SyntaxCompleteness::Complete;
+        parsed_strings(&syntax, &mut file.buffers.text, &mut |id, parsed, unknown| {
+            if matches!(parsed, Some(BraceFormatResult::Unavailable)) {
+                whole = languages::SyntaxCompleteness::Incomplete;
+            }
+            let labels = outcome(parsed, unknown);
+            let found = counts(parsed);
+            rows.write(Row {
+                id: node_cell(&syntax, id),
+                representation: fixed(words, memo, languages::NameText(DECODED_STRING)),
+                outcome: fixed(words, memo, labels.outcome),
+                error_category: fixed(words, memo, labels.error),
+                automatic_count: found.automatic,
+                indexed_count: found.indexed,
+                keyword_count: found.keyword,
+                nested_field_count: found.nested,
+                file: syntax.file,
+                span: span_at(&syntax, id),
+            });
+        });
+        if whole == languages::SyntaxCompleteness::Incomplete {
+            rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
+        }
+    }
+}
+
+// The engine fills `brace-format-field` from the walked file: every row of the file, once.
+ryo::fills! {
+    BraceFormatFieldItem => languages::BraceFormatField, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::BraceFormatField as languages::CatalogRelation>::Row;
+        let memo = &mut file.buffers.fixed;
+        let syntax = file.syntax;
+        let mut whole = languages::SyntaxCompleteness::Complete;
+        parsed_strings(&syntax, &mut file.buffers.text, &mut |id, parsed, _unknown| {
+            if matches!(parsed, Some(BraceFormatResult::Unavailable)) {
+                whole = languages::SyntaxCompleteness::Incomplete;
+            }
+            let Some(BraceFormatResult::Parsed(parsed)) = parsed else {
+                return;
+            };
+            for field in &parsed.fields {
+                rows.write(Row {
+                    id: node_cell(&syntax, id),
+                    ordinal: languages::Integer(i64::try_from(field.ordinal.0).unwrap_or(i64::MAX)),
+                    context: fixed(words, memo, context_name(&field.context)),
+                    parent_ordinal: parent_ordinal(&field.context),
+                    selector_kind: fixed(words, memo, selector_kind(&field.selector)),
+                    selector_index: selector_index(&field.selector),
+                    index_overflow: selector_overflow(&field.selector),
+                    selector_name: word(words, selector_name(&field.selector)),
+                    file: syntax.file,
+                    span: span_at(&syntax, id),
+                });
+            }
+        });
+        if whole == languages::SyntaxCompleteness::Incomplete {
+            rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
         }
     }
 }

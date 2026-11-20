@@ -1,6 +1,6 @@
 //! Project the frontend-owned module flag; no linter visitation or source-order snapshots.
 use crate::domain::file_view::types::PythonWalk;
-use crate::domain::node::service::word;
+use crate::domain::node::service::fixed;
 use crate::domain::node::types::PostponedAnnotations;
 use crate::domain::{
     model::types::Declarations,
@@ -45,9 +45,10 @@ ryo::fills! {
     CompilerFeatureItem => languages::CompilerFeature, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::CompilerFeature as languages::CatalogRelation>::Row;
+        let memo = &mut file.buffers.fixed;
         rows.write(Row {
             file: file.syntax.file,
-            feature: word(words, languages::NameText(super::constants::FUTURE_ANNOTATIONS)),
+            feature: fixed(words, memo, languages::NameText(super::constants::FUTURE_ANNOTATIONS)),
             enabled: match file.syntax.annotations {
                 PostponedAnnotations::Postponed => languages::Flag::Raised,
                 PostponedAnnotations::Evaluated => languages::Flag::Lowered,

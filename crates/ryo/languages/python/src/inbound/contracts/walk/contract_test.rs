@@ -219,3 +219,5 @@ fn refuses() {
 
 #[cfg(test)]
 mod rows_test;
+#[cfg(test)]
+mod today_test;

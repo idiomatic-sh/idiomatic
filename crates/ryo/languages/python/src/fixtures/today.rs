@@ -3,6 +3,7 @@
 
 use super::walking::{Keys, Placement, Seen, column_kinds, element, keyed, plain, special};
 use ryo::languages::{self, ByteSlice, CellKind, FileId, Offset, Position, Relation, contract};
+use std::collections::HashMap;
 
 /// The key of each element of the file's own tree in today's table: the embedded expressions after it are left out.
 #[must_use]
@@ -88,19 +89,35 @@ pub fn read(
     )
 }
 
-/// The rows of `relation` today's reading wrote, sorted.
+/// The rows today's reading wrote, by relation, each as its words: split once for a file, then read relation by relation.
 #[must_use]
-pub fn read_rows(read: &Read, bytes: &[u8], keys: &Keys, relation: Relation) -> Vec<Vec<Seen>> {
+pub fn rows_by_relation(read: &Read) -> HashMap<Relation, Vec<Vec<u64>>> {
+    let mut by_relation: HashMap<Relation, Vec<Vec<u64>>> = HashMap::new();
+    for (relation, words) in read.rows.rows() {
+        by_relation.entry(relation).or_default().push(words);
+    }
+    by_relation
+}
+
+/// The rows of `relation` among the rows today's reading wrote, sorted.
+#[must_use]
+pub fn read_rows(
+    read: &Read,
+    rows: &HashMap<Relation, Vec<Vec<u64>>>,
+    bytes: &[u8],
+    keys: &Keys,
+    relation: Relation,
+) -> Vec<Vec<Seen>> {
     let kinds = column_kinds(relation);
-    let mut rows: Vec<Vec<Seen>> = read
-        .rows
-        .rows()
-        .into_iter()
-        .filter(|(each, _)| *each == relation)
-        .map(|(_, words)| {
+    let mut seen: Vec<Vec<Seen>> = rows
+        .get(&relation)
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+        .iter()
+        .map(|words| {
             kinds
                 .iter()
-                .zip(&words)
+                .zip(words)
                 .map(|(kind, word)| match kind {
                     CellKind::Node => element(keys, *word),
                     CellKind::Symbol => special(*word).unwrap_or_else(|| {
@@ -119,8 +136,8 @@ pub fn read_rows(read: &Read, bytes: &[u8], keys: &Keys, relation: Relation) -> 
                 .collect()
         })
         .collect();
-    rows.sort_unstable();
-    rows
+    seen.sort_unstable();
+    seen
 }
 
 /// The offset of a point of a text: its line and its column, both from one, the column in bytes.

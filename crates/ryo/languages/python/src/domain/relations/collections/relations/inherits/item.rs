@@ -4,7 +4,6 @@
 
 use crate::domain::extras::types::Extra;
 use crate::domain::file_view::types::PythonWalk;
-use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::model::types::Declarations;
 use crate::domain::name_facts::service::base as named_base;
 use crate::domain::names::service::base_target;
@@ -42,7 +41,7 @@ ryo::fills! {
     InheritsItem => languages::Inherits, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::Inherits as languages::CatalogRelation>::Row;
-        let mut name = TextBuffer::default();
+        let name = &mut file.buffers.text;
         for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(Node::ClassDef)) {
             let AnyNodeRef::StmtClassDef(class) = node else {
                 continue;
@@ -54,7 +53,7 @@ ryo::fills! {
                 let Some(at) = id_of(expression) else {
                     continue;
                 };
-                let target = match named_base(expression, &mut name) {
+                let target = match named_base(expression, name) {
                     Some(reason) => unknown(reason),
                     None => word(words, languages::NameText(&name.0)),
                 };

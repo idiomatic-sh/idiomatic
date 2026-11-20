@@ -52,6 +52,9 @@ impl Walk for PythonWalk<WalkPorts> {
         };
         let target = self.ports.settings.target_version().components();
         scratch.owners.ready = Readiness::Pending;
+        // The words of the last file are forgotten: so are the fixed words it interned.
+        scratch.buffers.fixed.texts.clear();
+        scratch.buffers.fixed.words.clear();
         self.ports.syntax.walk(
             SourceText(request.source.0),
             source_kind(request.path),
@@ -73,6 +76,7 @@ impl Walk for PythonWalk<WalkPorts> {
                     model: &mut scratch.model,
                     built: Built::default(),
                     owners: &mut scratch.owners,
+                    buffers: &mut scratch.buffers,
                 };
                 let mut source = fillers::file_source::<Self>(&mut file);
                 visit.visit(FileFacts {

@@ -59,11 +59,15 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         Self: 'f;
 
     written! {
+        brace_format_field: BraceFormatField => crate::inbound::contracts::parse::readers::brace_format::composition::BraceFormatFieldItem;
+        brace_format_parse: BraceFormatParse => crate::inbound::contracts::parse::readers::brace_format::composition::BraceFormatParseItem;
         bytes_literal: BytesLiteral => crate::domain::relations::collections::relations::bytes_literal::item::BytesLiteralItem;
         call_argument: CallArgument => crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
         comment: Comment => crate::domain::relations::collections::relations::comment::item::CommentItem;
         compiler_feature: CompilerFeature => crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem;
         decorates: Decorates => crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
+        format_field: FormatField => crate::inbound::contracts::parse::readers::format::composition::FormatFieldItem;
+        format_parse: FormatParse => crate::inbound::contracts::parse::readers::format::composition::FormatParseItem;
         function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
         identifier: Identifier => crate::domain::relations::collections::relations::identifier::item::IdentifierItem;
         indent_region: IndentRegion => crate::domain::relations::collections::relations::indent_region::item::IndentRegionItem;
@@ -73,6 +77,8 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         literal_properties: LiteralProperties => crate::domain::relations::collections::relations::literal_properties::item::LiteralPropertiesItem;
         numeric_literal: NumericLiteral => crate::domain::relations::collections::relations::numeric_literal::item::NumericLiteralItem;
         parameter: Parameter => crate::domain::relations::collections::relations::parameter::item::ParameterItem;
+        raw_format_field: RawFormatField => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatFieldItem;
+        raw_format_segment: RawFormatSegment => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatSegmentItem;
         source_location: SourceLocation => super::source_location::SourceLocationItem;
         static_import: StaticImport => crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
         string_literal: StringLiteral => crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
@@ -98,8 +104,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         annotates: Annotates => NotYetRead;
         assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NoSuchConstruct;
-        brace_format_field: BraceFormatField => NotYetRead;
-        brace_format_parse: BraceFormatParse => NotYetRead;
         constant_key: ConstantKey => NotYetRead;
         directive: Directive => NoSuchConstruct;
         embedded_expression: EmbeddedExpression => NotYetRead;
@@ -115,8 +119,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         flow_edge: FlowEdge => NotYetRead;
         flow_member: FlowMember => NotYetRead;
         flow_step: FlowStep => NotYetRead;
-        format_field: FormatField => NotYetRead;
-        format_parse: FormatParse => NotYetRead;
         format_specification: FormatSpecification => NotYetRead;
         function_terminal: FunctionTerminal => NotYetRead;
         literal_expression_parse: LiteralExpressionParse => NotYetRead;
@@ -130,8 +132,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         pattern_syntax: PatternSyntax => NotYetRead;
         project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
         prose: Prose => NotADocument;
-        raw_format_field: RawFormatField => NotYetRead;
-        raw_format_segment: RawFormatSegment => NotYetRead;
         sequence_element: SequenceElement => NotAKeyedDocument;
         source_dependency: SourceDependency => NotYetRead;
         standard_library_import: StandardLibraryImport => NotYetRead;

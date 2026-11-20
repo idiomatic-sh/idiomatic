@@ -2,9 +2,9 @@
 //! field it fills under its parent, and the tokens between the nodes, and keeps the typed node of each id.
 use super::constants::{ELSE_WITHOUT_EXCEPT, ELSE_WITHOUT_EXCEPT_CODE};
 use super::future::{else_without_except, unknown_futures};
-use super::lexical::{decoded_of, opens};
+use super::lexical::opens;
 use super::schemas::{concrete_node_kind, token_kind};
-use super::types::{Decoded, FieldIndex, OpenWalked, ParserRefusal, Said, Strings, Walker};
+use super::types::{FieldIndex, OpenWalked, ParserRefusal, Said, Strings, Walker};
 use super::writer::visit_element;
 use crate::domain::extras::types::Extra;
 use crate::domain::labels::types::Field;
@@ -13,12 +13,11 @@ use crate::domain::node::types::Placed;
 use crate::domain::node_fields::service::child_fields;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
-use crate::domain::tokens::types::Token;
 use ruff_python_ast::visitor::source_order::{SourceOrderVisitor, TraversalSignal};
 use ruff_python_ast::{AnyNodeRef, HasNodeIndex as _, InterpolatedStringElement, NodeIndex};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{
-    DiagnosticMetadata, DiagnosticPhase, FieldCode, NameText, Offset, TreeImpact, node_table,
+    DiagnosticMetadata, DiagnosticPhase, FieldCode, Offset, TreeImpact, node_table,
 };
 
 impl Walker<'_, '_, '_> {
@@ -45,9 +44,9 @@ impl Walker<'_, '_, '_> {
         }
     }
 
-    /// Writes the next token, after the white space before it, with the field it fills under the open node; with the text the
-    /// library decoded for it when it is a string's.
-    fn write_next(&mut self, decoded: Option<Decoded<'_>>) {
+    /// Writes the next token, after the white space before it, with the field it fills under the open node. Its text stays in the
+    /// file: the table holds its span, and what the library decoded of a string is read from the typed node.
+    fn write_next(&mut self) {
         let Some(token) = self.tokens.get(self.next.0) else {
             return;
         };
@@ -60,23 +59,7 @@ impl Walker<'_, '_, '_> {
             (Some(open), Kind::Token(named)) => token_field(open.node, token.kind(), named),
             (Some(_) | None, Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) => Field::None,
         };
-        // Only a string's tokens are written with the text the library decoded; any other token inside the node is written as itself.
-        match (kind, decoded) {
-            (
-                Kind::Token(Token::String | Token::FstringMiddle | Token::TstringMiddle),
-                Some(text),
-            ) => node_table::decoded_token(
-                self.builder,
-                kind_bits(kind),
-                field_code(field),
-                start,
-                end,
-                NameText(text.0),
-            ),
-            (Kind::Node(_) | Kind::Token(_) | Kind::Extra(_), _) => {
-                node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
-            }
-        }
+        node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
         self.written = end;
     }
 
@@ -88,18 +71,18 @@ impl Walker<'_, '_, '_> {
             token.end().to_u32() <= at.0
                 && !(token.range().is_empty() && Some(Offset(token.start().to_u32())) == edge)
         }) {
-            self.write_next(None);
+            self.write_next();
         }
     }
 
     /// Writes every token that starts before `at` and ends at or before it: what is inside a node that ends there.
-    fn write_within(&mut self, at: Offset, decoded: Option<Decoded<'_>>) {
+    fn write_within(&mut self, at: Offset) {
         while self
             .tokens
             .get(self.next.0)
             .is_some_and(|token| token.start().to_u32() < at.0 && token.end().to_u32() <= at.0)
         {
-            self.write_next(decoded);
+            self.write_next();
         }
     }
 }
@@ -201,12 +184,12 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         // The node stays open while its last tokens are written: they are its own.
         let end = if self.open.len() <= 1 {
             while self.next.0 < self.tokens.len() {
-                self.write_next(None);
+                self.write_next();
             }
             self.length
         } else {
             let end = Offset(node.end().to_u32());
-            self.write_within(end, decoded_of(node));
+            self.write_within(end);
             end
         };
         self.fill(end);

@@ -2,7 +2,6 @@
 use super::constants::INCOMPLETE;
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::literal_facts::service::bytes_hex;
-use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::owner_facts::service::{owner_of, owners};
@@ -76,9 +75,9 @@ ryo::fills! {
         /// One row of the relation.
         type Row = <languages::BytesLiteral as languages::CatalogRelation>::Row;
         let owned = owners(&file.syntax, file.owners);
-        let mut hex = TextBuffer::default();
+        let hex = &mut file.buffers.text;
         for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(Node::Constant)) {
-            if bytes_hex(node, &mut hex).is_some() {
+            if bytes_hex(node, hex).is_some() {
                 rows.write(Row {
                     occurrence: node_cell(&file.syntax, id),
                     owner: node_cell(&file.syntax, owner_of(owned, id)),

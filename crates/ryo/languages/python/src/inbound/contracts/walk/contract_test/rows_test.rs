@@ -130,6 +130,42 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Relation::SourceLocation, "source_location"),
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("the_filler_of_format_parse_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::FormatParse, "format_parse"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_format_field_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::FormatField, "format_field"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_brace_format_parse_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::BraceFormatParse, "brace_format_parse"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_brace_format_field_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::BraceFormatField, "brace_format_field"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_raw_format_segment_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::RawFormatSegment, "raw_format_segment"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_raw_format_field_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::RawFormatField, "raw_format_field"),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 /// The rows of one side the other lacks, shown.

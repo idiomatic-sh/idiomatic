@@ -1,7 +1,7 @@
 //! The `node` service: free functions over a walked file. The id of a typed node, the typed node of an id, the text and the row
 //! cells of an element, and the field a token fills under the node that holds it.
 
-use super::types::{Numbered, SyntaxFile};
+use super::types::{FixedWords, Numbered, SyntaxFile};
 use crate::domain::labels::service::field_bits;
 use crate::domain::labels::types::Field;
 use crate::domain::syntax::service::kind_bits;
@@ -91,6 +91,27 @@ pub(crate) fn written<'f>(file: &SyntaxFile<'f>, id: Position) -> NameText<'f> {
 /// A text as a row's text cell: a word of the file.
 pub(crate) fn word(words: &mut languages::FileWords, text: NameText<'_>) -> Symbol {
     Symbol(u32::try_from(languages::facts::intern(words, text).0).unwrap_or(u32::MAX))
+}
+
+/// A fixed word of the language as a row's text cell: interned the first time a filler of the file writes it, read from `kept`
+/// every time after. The words of a file are forgotten with the file, so `kept` is emptied when a file begins.
+pub(crate) fn fixed(
+    words: &mut languages::FileWords,
+    kept: &mut FixedWords,
+    text: NameText<'static>,
+) -> Symbol {
+    // The same constant is the same place in the program: the address is compared before the text.
+    let found = kept
+        .texts
+        .iter()
+        .position(|each| std::ptr::eq(each.0, text.0) || each.0 == text.0);
+    if let Some(word) = found.and_then(|at| kept.words.get(at)) {
+        return *word;
+    }
+    let interned = word(words, text);
+    kept.texts.push(text);
+    kept.words.push(interned);
+    interned
 }
 
 /// `field` for a token that is an operator of an expression, none for a bracket, a comma and trivia.

@@ -4,7 +4,6 @@
 
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::imports::service::{import_binding, import_target};
-use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::model::types::Declarations;
 use crate::domain::name_facts::service::imported as imported_names;
 use crate::domain::names::service::unknown;
@@ -43,9 +42,9 @@ ryo::fills! {
         /// One row of the relation.
         type Row = <languages::StaticImport as languages::CatalogRelation>::Row;
         let owned = owners(&file.syntax, file.owners);
-        let mut names = TextBuffer::default();
+        let names = &mut file.buffers.text;
         for Numbered { id, .. } in nodes_of_kind(&file.syntax, Kind::Node(Node::Alias)) {
-            if let Some(found) = imported_names(&file.syntax, id, &mut names) {
+            if let Some(found) = imported_names(&file.syntax, id, names) {
                 rows.write(Row {
                     occurrence: node_cell(&file.syntax, id),
                     owner: node_cell(&file.syntax, owner_of(owned, id)),

@@ -38,12 +38,12 @@ ryo::fills! {
     IndentRegionItem => languages::IndentRegion, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::IndentRegion as languages::CatalogRelation>::Row;
-        let mut regions = Vec::new();
-        if indent_regions(&file.syntax, &mut regions) == languages::SyntaxCompleteness::Incomplete {
+        let regions = &mut file.buffers.regions;
+        if indent_regions(&file.syntax, regions) == languages::SyntaxCompleteness::Incomplete {
             rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
             return;
         }
-        for region in &regions {
+        for region in regions.iter() {
             let indentation = text_between(&file.syntax, region.span.start, region.indentation_end);
             rows.write(Row {
                 id: node_cell(&file.syntax, region.id),

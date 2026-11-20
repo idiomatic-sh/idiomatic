@@ -4,7 +4,6 @@
 
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::layout_facts::service::{line_place, line_starts};
-use crate::domain::layout_facts::types::FileLines;
 use crate::domain::node::service::{node_cell, span_at};
 use ryo::languages::{self, Integer, Position, node_table};
 
@@ -15,12 +14,12 @@ ryo::fills! {
     SourceLocationItem => languages::SourceLocation, walk(PythonWalk) |file, _words, rows| {
         /// One row of the relation.
         type Row = <languages::SourceLocation as languages::CatalogRelation>::Row;
-        let mut lines = FileLines::default();
-        line_starts(&file.syntax, &mut lines);
+        let lines = &mut file.buffers.lines;
+        line_starts(&file.syntax, lines);
         let count = u32::try_from(node_table::element_count(file.syntax.table).0).unwrap_or(u32::MAX);
         for id in (0..count).map(Position) {
             let span = span_at(&file.syntax, id);
-            let (start, end) = (line_place(&lines, span.start), line_place(&lines, span.end));
+            let (start, end) = (line_place(lines, span.start), line_place(lines, span.end));
             rows.write(Row {
                 id: node_cell(&file.syntax, id),
                 file: file.syntax.file,

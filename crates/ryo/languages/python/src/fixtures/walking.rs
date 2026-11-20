@@ -216,12 +216,23 @@ pub(crate) fn element(keys: &Keys, word: u64) -> Seen {
 
 /// A text cell that holds no text of the file: no text, the unknown value of its reason, or a word of a closed vocabulary.
 pub(crate) fn special(word: u64) -> Option<Seen> {
-    use languages::{ParameterKind, Term as _};
+    use languages::{ParameterKind, Term as _, UnknownReason};
     let symbol = languages::Symbol(u32::try_from(word).unwrap_or(u32::MAX));
     if symbol == languages::NO_SYMBOL {
         return Some(Seen::NoText);
     }
-    let kinds = [
+    // The reserved words stand in blocks after every word a file interns, the unknown values last: a symbol below the block of
+    // the parameter kinds is a text (or a word of another closed vocabulary, which its own text shows).
+    let first_unknown = languages::unknown_symbol(UnknownReason(0)).0;
+    if symbol.0 >= first_unknown {
+        return u8::try_from(symbol.0 - first_unknown)
+            .ok()
+            .map(Seen::Unknown);
+    }
+    if symbol < languages::term_symbol(ParameterKind::Receiver) {
+        return None;
+    }
+    [
         ParameterKind::Receiver,
         ParameterKind::Positional,
         ParameterKind::PositionalOrKeyword,
@@ -229,16 +240,10 @@ pub(crate) fn special(word: u64) -> Option<Seen> {
         ParameterKind::VariadicPositional,
         ParameterKind::VariadicKeyword,
         ParameterKind::Result,
-    ];
-    if let Some(kind) = kinds
-        .into_iter()
-        .find(|kind| languages::term_symbol(*kind) == symbol)
-    {
-        return Some(Seen::Text(kind.text().0.to_owned()));
-    }
-    (0..=u8::MAX)
-        .find(|reason| languages::unknown_symbol(languages::UnknownReason(*reason)) == symbol)
-        .map(Seen::Unknown)
+    ]
+    .into_iter()
+    .find(|kind| languages::term_symbol(*kind) == symbol)
+    .map(|kind| Seen::Text(kind.text().0.to_owned()))
 }
 
 /// The rows of `relation` the walk's fillers write for a lent file, sorted; and how the fill answered.

@@ -6,7 +6,7 @@ use crate::domain::semantic_syntax::types::Visibility;
 use crate::domain::fact_notes::service::specifier;
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::literal_facts::service::{specifier as loaded, string_value};
-use crate::domain::literal_facts::types::{StringValue, TextBuffer};
+use crate::domain::literal_facts::types::StringValue;
 use crate::domain::model::types::Declarations;
 use crate::domain::names::service::string_or_unknown;
 use crate::domain::names::service::unknown;
@@ -48,10 +48,10 @@ ryo::fills! {
         /// One row of the relation.
         type Row = <languages::StringLiteral as languages::CatalogRelation>::Row;
         let owned = owners(&file.syntax, file.owners);
-        let mut joined = TextBuffer::default();
+        let joined = &mut file.buffers.text;
         for kind in [Node::Constant, Node::JoinedStr, Node::TemplateStr] {
             for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(kind)) {
-                let value = match string_value(node, &mut joined) {
+                let value = match string_value(node, joined) {
                     Some(StringValue::Known(text)) => word(words, text),
                     Some(StringValue::Interpolated) => unknown(Unresolved::InterpolatedString),
                     None => continue,

@@ -82,3 +82,13 @@ pub(crate) struct Placed<'t> {
     /// Its parent; none for the root.
     pub parent: Option<AnyNodeRef<'t>>,
 }
+
+/// The fixed words of the language a file's fillers have written so far, each with the word the file interned it as: a fixed
+/// word is interned once for a file and written from here after that.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct FixedWords {
+    /// The texts, in the order they were first written.
+    pub texts: Vec<NameText<'static>>,
+    /// The word of each text.
+    pub words: Vec<ryo::languages::Symbol>,
+}

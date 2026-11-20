@@ -54,12 +54,6 @@ name = "provider"
 path = "benchmarks/provider/bench.rs"
 harness = false
 
-# The row-equality and cost tool of the walk: run with a pinned request and its corpus root, never by `cargo test`.
-[[bench]]
-name = "fillers"
-path = "benchmarks/fillers/bench.rs"
-harness = false
-
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo/fixtures", "dep:serde_json"]
