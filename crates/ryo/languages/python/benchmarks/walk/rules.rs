@@ -734,6 +734,7 @@ impl<'p> State<'p> {
         self.cache.near_memo.clear();
         self.cache.key_memo.clear();
         self.cache.union_key_memo.clear();
+        self.cache.fact2.clear();
         let nrules = nav.rules.len();
         let mut outs = std::mem::take(&mut self.outs);
         outs.resize_with(nrules + 1, Vec::new);

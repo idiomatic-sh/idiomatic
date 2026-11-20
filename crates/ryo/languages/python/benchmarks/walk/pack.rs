@@ -261,6 +261,14 @@ impl Enc {
                 self.u(u32::from(*key));
                 self.progs(subs);
             }
+            Ins::IterFact2 { rel, c1, v1, c2, v2, out } => {
+                self.u(u32::from(*rel));
+                self.u(u32::from(*c1));
+                self.i(*v1 as i64);
+                self.u(u32::from(*c2));
+                self.i(*v2 as i64);
+                self.u(u32::from(*out));
+            }
             Ins::Capture { regs } => self.regs(regs),
             Ins::SubFirst { subs } => self.progs(subs),
             Ins::NearMemo { start, out, subs } => {
@@ -657,6 +665,14 @@ impl Dec<'_> {
                 let outs = self.regs();
                 let key = self.r();
                 Ins::UnionKey { outs, subs: self.progs(), key }
+            }
+            49 => {
+                let rel = self.u() as u16;
+                let c1 = self.u() as u8;
+                let v1 = self.i() as u64;
+                let c2 = self.u() as u8;
+                let v2 = self.i() as u64;
+                Ins::IterFact2 { rel, c1, v1, c2, v2, out: self.r() }
             }
             30 => Ins::Capture { regs: self.regs() },
             31 => Ins::SubFirst { subs: self.progs() },

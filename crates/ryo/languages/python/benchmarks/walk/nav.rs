@@ -148,6 +148,9 @@ pub(crate) enum Ins {
     ChildToward { parent: R, desc: R, out: R, field: Option<(u32, R)> },
     /// a union whose sub-programs read one outer register: its distinct rows memoised per file per value of `key`
     UnionKey { outs: Box<[R]>, subs: Box<[Prog]>, key: R },
+    /// the rows of fact `rel` whose column `c1` holds `v1` and column `c2` holds `v2` (a per-file index on both columns): the
+    /// load-time fusion of a constant fact walk with a later constant equality on another column of its row
+    IterFact2 { rel: u16, c1: u8, v1: u64, c2: u8, v2: u64, out: R },
     /// a negated check whose failure holds for every later element of the range walk that encloses it (monotone in the walk's
     /// start: its only use of the walk is an upper bound on a walk of the same bucket): failing ends that walk
     SubFirst { subs: Box<[Prog]> },
@@ -220,13 +223,13 @@ pub(crate) struct OrderedDfs {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const NINS: usize = 49;
+pub(crate) const NINS: usize = 50;
 pub(crate) const INS_NAMES: [&str; NINS] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
     "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
     "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture", "sub_first",
     "collect", "closure", "union", "let", "shared", "text_fn", "capture_text", "replace", "near_derived", "sibling", "sub_memo",
-    "near_memo", "sub_key", "anc_exists", "hoist_probe", "child_toward", "union_key",
+    "near_memo", "sub_key", "anc_exists", "hoist_probe", "child_toward", "union_key", "iter_fact2",
 ];
 
 impl Ins {
@@ -282,6 +285,7 @@ impl Ins {
             Ins::HoistProbe { .. } => 46,
             Ins::ChildToward { .. } => 47,
             Ins::UnionKey { .. } => 48,
+            Ins::IterFact2 { .. } => 49,
         }
     }
 }
@@ -900,6 +904,7 @@ fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
             sub(subs, reads);
             defs.extend(outs.iter().copied());
         }
+        Ins::IterFact2 { out, .. } => defs.push(*out),
         Ins::Capture { regs } => reads.extend(regs.iter().copied()),
         Ins::SubFirst { subs } => sub(subs, reads),
         Ins::Collect { regs } => reads.extend(regs.iter().copied()),
@@ -1085,6 +1090,45 @@ pub(crate) fn fuse_within(p: Prog) -> Prog {
         }
     }
     out.into()
+}
+
+/// Two-column constant walks (NAV_FACT2=0 turns it off): a fact walk on one column's constant whose row is tested equal to a
+/// constant on another column (read and tested in the straight run that follows) walks a per-file index on both columns.
+pub(crate) fn fuse_fact2(p: Prog) -> Prog {
+    if std::env::var("NAV_FACT2").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut v: Vec<Ins> = p.into_vec();
+    for i in v.iter_mut() {
+        subs_mut(i, &mut |q| *q = fuse_fact2(std::mem::take(q)));
+    }
+    for k in 0..v.len() {
+        let (rel, c1, v1, o) = match &v[k] {
+            Ins::IterFact { rel, col, val: Val::Syms(s), out } if s.len() == 1 => (*rel, *col, u64::from(s[0]), *out),
+            Ins::IterFact { rel, col, val: Val::Nums(n), out } if n.len() == 1 => (*rel, *col, n[0] as u64, *out),
+            _ => continue,
+        };
+        // the straight run after it: reads of the row and tests; the first constant equality on a column read from the row
+        let mut col_of: FxMap<R, u8> = FxMap::default();
+        let mut found = None;
+        for j in k + 1..v.len() {
+            match &v[j] {
+                Ins::ReadFact { rel: r2, col, row, out } if *r2 == rel && *row == o => {
+                    col_of.insert(*out, *col);
+                }
+                Ins::TestEqC { reg, c } if col_of.get(reg).is_some_and(|&c2| c2 != c1) => {
+                    found = Some((col_of[reg], *c));
+                    break;
+                }
+                i if is_test(i) || matches!(i, Ins::ReadFact { .. } | Ins::ReadCol { .. } | Ins::ReadChild { .. } | Ins::Read { .. } | Ins::Row { .. }) => {}
+                _ => break,
+            }
+        }
+        if let Some((c2, v2)) = found {
+            v[k] = Ins::IterFact2 { rel, c1, v1, c2, v2, out: o };
+        }
+    }
+    v.into()
 }
 
 /// Detached components (NAV_DETACH_LOAD=0 turns it off): in a program run for existence (the sub-programs of absence and
@@ -1421,6 +1465,7 @@ fn is_iter(i: &Ins) -> bool {
             | Ins::Closure { .. }
             | Ins::Union { .. }
             | Ins::UnionKey { .. }
+            | Ins::IterFact2 { .. }
             | Ins::CaptureText { .. }
     )
 }
@@ -1653,9 +1698,10 @@ impl NavProgram {
             SHARED_FREE.with(|t| t.borrow_mut().push(fr));
         }
         // each pass over every program, timed (NAV_VERBOSE)
-        let stages: [(&str, &dyn Fn(Prog) -> Prog); 8] = [
+        let stages: [(&str, &dyn Fn(Prog) -> Prog); 9] = [
             ("specialise", &specialize),
             ("toward", &fuse_within),
+            ("fact2", &fuse_fact2),
             ("detach", &detach),
             ("fold", &|q| fold(q, &none)),
             ("hoist", &hoist),
@@ -2392,6 +2438,7 @@ fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
             Ins::AncExists { negate: *negate, start, out, cond: p(cond, f) }
         }
         Ins::SubFirst { subs } => Ins::SubFirst { subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() },
+        Ins::IterFact2 { rel, c1, v1, c2, v2, out } => Ins::IterFact2 { rel: *rel, c1: *c1, v1: *v1, c2: *c2, v2: *v2, out: f(*out) },
         Ins::UnionKey { outs, subs, key } => {
             let outs = outs.iter().map(|&r| f(r)).collect::<Vec<_>>().into();
             let key = f(*key);
@@ -2624,6 +2671,8 @@ pub(crate) struct FileCache {
     pub near_memo: FxMap<usize, Vec<u32>>,
     pub key_memo: FxMap<(usize, u64), bool>,
     pub union_key_memo: FxMap<(usize, u64), Rc<Vec<u64>>>,
+    /// IterFact2: per (fact, column, column) the rows by both values
+    pub fact2: FxMap<(u16, u8, u8), Rc<FxMap<(u64, u64), Vec<u32>>>>,
     /// navwide: reusable state of the derived relations (derived.rs)
     pub dstate: crate::derived::State,
     /// derived key cells: (start, stop, kind) -> view id for the current file (dkey_built), kind names -> base symbols
@@ -3378,6 +3427,28 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
 
+    /// a fact's rows by the values of two columns, one pass per file
+    fn fact_index2(&mut self, rel: u16, c1: u8, c2: u8) -> Rc<FxMap<(u64, u64), Vec<u32>>> {
+        self.ensure(rel);
+        if let Some(i) = self.cache.fact2.get(&(rel, c1, c2)) {
+            return i.clone();
+        }
+        let t0 = Instant::now();
+        let facts = self.cache.facts.as_ref().unwrap();
+        let (a, b) = (&facts.cols[rel as usize][c1 as usize], &facts.cols[rel as usize][c2 as usize]);
+        let mut m: FxMap<(u64, u64), Vec<u32>> = FxMap::default();
+        for (row, (&x, &y)) in a.iter().zip(b.iter()).enumerate() {
+            m.entry((x, y)).or_default().push(row as u32);
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += a.len() as u64;
+        self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.index_split[2] += t0.elapsed().as_nanos() as u64;
+        let m = Rc::new(m);
+        self.cache.fact2.insert((rel, c1, c2), m.clone());
+        m
+    }
+
     fn fact_index(&mut self, rel: u16, col: u8) -> Rc<FIdx> {
         self.ensure(rel);
         let n_view = self.f.view.len();
@@ -3874,6 +3945,18 @@ impl<'a, 'p> Exec<'a, 'p> {
                         }
                     };
                     return self.iter_fact_list(p, pc, &idx, keys, *out);
+                }
+                Ins::IterFact2 { rel, c1, v1, c2, v2, out } => {
+                    let idx = self.fact_index2(*rel, *c1, *c2);
+                    let Some(rows) = idx.get(&(*v1, *v2)) else { return false };
+                    for &row in rows {
+                        self.regs[*out as usize] = u64::from(row);
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
                 }
                 Ins::IterFactScan { rel, out } => {
                     self.ensure(*rel);
