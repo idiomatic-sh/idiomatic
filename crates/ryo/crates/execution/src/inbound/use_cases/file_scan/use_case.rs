@@ -21,6 +21,27 @@ use ryo_values::domain::scan_rows::types::ScanRow;
 use ryo_values::domain::stores::types::StoredPack;
 
 /// Runs a request's files with the new engine the edge composed.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase as _;
+/// use ryo_execution::inbound::use_cases::file_scan::types::{FileScanSetting, ScanEngine, ScanLanguage};
+/// use ryo_execution::inbound::use_cases::file_scan::use_case::FileScanUseCaseImpl;
+/// use ryo_operators::spike::EngineMode;
+/// use ryo_values::domain::descriptions::types::KindVocabularies;
+/// use std::sync::Arc;
+///
+/// let scan = FileScanUseCaseImpl::new(FileScanSetting {
+///     engine: ScanEngine::NotComposed,
+///     digest: Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
+///     walks: Vec::new(),
+///     vocabularies: KindVocabularies(Vec::new()),
+///     language: ScanLanguage::EveryLinked,
+///     mode: EngineMode::Old,
+/// });
+/// assert_eq!(scan.mode(), EngineMode::Old);
+/// ```
 #[derive(Debug)]
 pub struct FileScanUseCaseImpl {
     /// What the edge composed.
