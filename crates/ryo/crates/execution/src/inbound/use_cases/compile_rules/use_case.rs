@@ -10,6 +10,22 @@ use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_operators::domain::patterns::types::PatternMatcher;
 use std::sync::Arc;
 
+/// Spike (ryo-v1np): the per-rule plans of one compile, for a standalone engine prototype.
+#[derive(Debug)]
+pub struct TappedPlans {
+    /// Rule ids in rule order.
+    pub ids: Vec<String>,
+    /// Plans in rule order.
+    pub plans: Vec<std::sync::Arc<ryo_values::domain::plans::types::Plan>>,
+    /// Bindings in rule order.
+    pub bindings: Vec<Vec<ryo_values::domain::query_bindings::types::ParameterBinding>>,
+}
+/// Spike (ryo-v1np): the panic payload that stops a tapped run.
+#[derive(Debug)]
+pub struct TappedPlansStop;
+/// Spike (ryo-v1np): armed only by the bake-off bench.
+pub static PLAN_TAP: std::sync::OnceLock<std::sync::Mutex<Option<TappedPlans>>> = std::sync::OnceLock::new();
+
 /// Compiles rules over the query compiler and digest it is given, keeping their plans in a bounded cache.
 pub struct CompileRulesUseCaseImpl {
     compilation: RuleCompilation,
@@ -52,6 +68,18 @@ impl CompileRulesUseCase for CompileRulesUseCaseImpl {
             vocabularies,
         } = request;
         let inner = self.compilation.prepare(rules, hosted)?;
+        // Spike (ryo-v1np): a standalone engine bake-off takes the per-rule plans here and stops the run; nothing is tapped unless
+        // its bench armed the tap.
+        if let Some(tap) = PLAN_TAP.get() {
+            let mut slot = tap.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            *slot = Some(TappedPlans {
+                ids: rules.iter().map(|rule| rule.id.0.to_string()).collect(),
+                plans: inner.plans.clone(),
+                bindings: inner.bindings.clone(),
+            });
+            drop(slot);
+            std::panic::panic_any(TappedPlansStop);
+        }
         observed(
             rules,
             &inner.plans,

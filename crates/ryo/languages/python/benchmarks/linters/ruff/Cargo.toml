@@ -23,6 +23,14 @@ tempfile.workspace = true
 cpu-time.workspace = true
 toml.workspace = true
 dunce.workspace = true
+# Spike (ryo-v1np): the blocks bake-off bench.
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../../../../../crates/language" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../../../../crates/relations" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../../../../crates/values" }
+ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../../../../../crates/execution" }
+ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../../../../../crates/execution_runtime" }
+rustc-hash.workspace = true
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../../../../crates/matching" }
 
 
 [lints]
@@ -31,6 +39,11 @@ workspace = true
 [[bench]]
 name = "ruff"
 path = "bench.rs"
+harness = false
+
+[[bench]]
+name = "blocks"
+path = "blocks.rs"
 harness = false
 
 [[test]]
