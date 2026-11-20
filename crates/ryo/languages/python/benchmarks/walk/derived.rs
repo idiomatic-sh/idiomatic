@@ -121,6 +121,7 @@ pub(crate) const RELATIONS: &[&str] = &[
     "interpolated-string-literal",
     "filesystem.executable",
     "expression-shape",
+    "expression-type",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -1120,11 +1121,230 @@ fn rows_expression_shape(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, shape
     }
 }
 
+// ------------------------------------------------------------------------------------------------ expression-type
+/// `expression_types::build`: one bottom-up pass of basic types: literals by their kind, displays and comprehensions by what they
+/// build, f-strings are strings, `not` is a boolean, unary and binary arithmetic by Python's numeric tower, conditional and boolean
+/// expressions the union of their branches (a type included in another folds into the wider); everything else unknown.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Res {
+    Atom(u8),
+    Union(u16),
+    Unknown,
+    TypeError,
+}
+
+pub(crate) const TYPES: [&str; 14] =
+    ["boolean", "integer", "float", "complex", "string", "bytes", "list", "tuple", "set", "dict", "generator", "null", "ellipsis", "unknown"];
+const T_BOOL: u8 = 0;
+const T_INT: u8 = 1;
+const T_FLOAT: u8 = 2;
+const T_COMPLEX: u8 = 3;
+const T_STR: u8 = 4;
+const T_BYTES: u8 = 5;
+const T_LIST: u8 = 6;
+const T_TUPLE: u8 = 7;
+const T_SET: u8 = 8;
+const T_DICT: u8 = 9;
+const T_GEN: u8 = 10;
+const T_NULL: u8 = 11;
+const T_ELLIPSIS: u8 = 12;
+
+fn included(a: u8, b: u8) -> bool {
+    a == b || matches!((a, b), (T_BOOL, T_INT | T_FLOAT | T_COMPLEX) | (T_INT, T_FLOAT | T_COMPLEX) | (T_FLOAT, T_COMPLEX))
+}
+
+fn union(l: Res, r: Res) -> Res {
+    let add = |mut mask: u16, t: u8| {
+        if !(0..14u8).any(|k| mask & (1 << k) != 0 && included(t, k)) {
+            mask |= 1 << t;
+        }
+        mask
+    };
+    match (l, r) {
+        (Res::TypeError, _) | (_, Res::TypeError) => Res::TypeError,
+        (Res::Unknown, _) | (_, Res::Unknown) => Res::Unknown,
+        (Res::Atom(a), Res::Atom(b)) => {
+            if included(a, b) {
+                Res::Atom(b)
+            } else if included(b, a) {
+                Res::Atom(a)
+            } else {
+                Res::Union((1 << a) | (1 << b))
+            }
+        }
+        (Res::Atom(a), Res::Union(m)) | (Res::Union(m), Res::Atom(a)) => Res::Union(add(m, a)),
+        (Res::Union(m), Res::Union(n)) => Res::Union((0..14u8).filter(|k| n & (1 << k) != 0).fold(m, add)),
+    }
+}
+
+fn binary(op: ast::Operator, l: Res, r: Res) -> Res {
+    use ast::Operator as O;
+    if op == O::Mod {
+        match l {
+            Res::Atom(T_STR) => return Res::Atom(T_STR),
+            Res::Atom(T_BYTES) => return Res::Atom(T_BYTES),
+            _ => {}
+        }
+    }
+    let (Res::Atom(a), Res::Atom(b)) = (l, r) else { return Res::Unknown };
+    let num = |t: u8| matches!(t, T_BOOL | T_INT | T_FLOAT | T_COMPLEX);
+    let (na, nb) = (num(a), num(b));
+    let coerced = if a == T_COMPLEX || b == T_COMPLEX {
+        T_COMPLEX
+    } else if a == T_FLOAT || b == T_FLOAT {
+        T_FLOAT
+    } else {
+        T_INT
+    };
+    match op {
+        O::Add => match (a, b) {
+            (T_STR, T_STR) => Res::Atom(T_STR),
+            (T_BYTES, T_BYTES) => Res::Atom(T_BYTES),
+            (T_LIST, T_LIST) => Res::Atom(T_LIST),
+            (T_TUPLE, T_TUPLE) => Res::Atom(T_TUPLE),
+            _ if na && nb => Res::Atom(coerced),
+            _ => Res::TypeError,
+        },
+        O::Sub => match (a, b) {
+            (T_SET, T_SET) => Res::Atom(T_SET),
+            _ if na && nb => Res::Atom(coerced),
+            _ => Res::TypeError,
+        },
+        O::Mod => {
+            if na && nb {
+                Res::Atom(coerced)
+            } else {
+                Res::Unknown
+            }
+        }
+        O::Mult => match (a, b) {
+            (T_STR, T_INT) | (T_INT, T_STR) => Res::Atom(T_STR),
+            _ if na && nb => Res::Atom(coerced),
+            _ => Res::TypeError,
+        },
+        O::FloorDiv | O::Pow => {
+            if na && nb {
+                Res::Atom(coerced)
+            } else {
+                Res::TypeError
+            }
+        }
+        O::Div => {
+            if na && nb {
+                Res::Atom(if coerced == T_INT { T_FLOAT } else { coerced })
+            } else {
+                Res::TypeError
+            }
+        }
+        O::BitAnd | O::BitOr | O::BitXor | O::LShift | O::RShift => {
+            if na && nb && coerced == T_INT {
+                Res::Atom(T_INT)
+            } else {
+                Res::TypeError
+            }
+        }
+        O::MatMult => Res::Unknown,
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct Types {
+    pub res: Vec<Res>,
+}
+
+impl Types {
+    pub(crate) fn build(&mut self, c: &Ctx<'_, '_>) -> bool {
+        use AnyNodeRef as N;
+        let n = c.table.len();
+        self.res.clear();
+        self.res.resize(n, Res::Unknown);
+        if c.incomplete {
+            return false;
+        }
+        let at = |res: &Vec<Res>, e: &Expr| res[id_of(e.into()) as usize];
+        for id in (0..n).rev() {
+            let node = c.table.node[id];
+            let r = match node {
+                N::ExprDict(_) | N::ExprDictComp(_) => Res::Atom(T_DICT),
+                N::ExprSet(_) | N::ExprSetComp(_) => Res::Atom(T_SET),
+                N::ExprList(_) | N::ExprListComp(_) => Res::Atom(T_LIST),
+                N::ExprTuple(_) => Res::Atom(T_TUPLE),
+                N::ExprGenerator(_) => Res::Atom(T_GEN),
+                N::ExprFString(_) | N::InterpolatedStringFormatSpec(_) => Res::Atom(T_STR),
+                N::ExprNamed(x) => at(&self.res, &x.value),
+                N::ExprIf(x) => union(at(&self.res, &x.body), at(&self.res, &x.orelse)),
+                N::ExprBoolOp(b) => {
+                    let mut it = b.values.iter().map(|v| at(&self.res, v));
+                    it.next().map_or(Res::Unknown, |first| it.fold(first, union))
+                }
+                N::ExprUnaryOp(u) => {
+                    let operand = at(&self.res, &u.operand);
+                    match u.op {
+                        ast::UnaryOp::Not => Res::Atom(T_BOOL),
+                        ast::UnaryOp::Invert => match operand {
+                            Res::Atom(T_BOOL | T_INT) => Res::Atom(T_INT),
+                            Res::Atom(_) => Res::TypeError,
+                            _ => Res::Unknown,
+                        },
+                        ast::UnaryOp::UAdd | ast::UnaryOp::USub => match operand {
+                            Res::Atom(T_BOOL) => Res::Atom(T_INT),
+                            Res::Atom(t @ (T_INT | T_FLOAT | T_COMPLEX)) => Res::Atom(t),
+                            Res::Atom(_) => Res::TypeError,
+                            _ => Res::Unknown,
+                        },
+                    }
+                }
+                N::ExprBinOp(b) => binary(b.op, at(&self.res, &b.left), at(&self.res, &b.right)),
+                _ => match literal_properties(node) {
+                    Some(p) => Res::Atom(match p.kind {
+                        "boolean" => T_BOOL,
+                        "integer" => T_INT,
+                        "float" => T_FLOAT,
+                        "complex" => T_COMPLEX,
+                        "string" => T_STR,
+                        "bytes" => T_BYTES,
+                        "null" => T_NULL,
+                        _ => T_ELLIPSIS,
+                    }),
+                    None => Res::Unknown,
+                },
+            };
+            self.res[id] = r;
+        }
+        true
+    }
+}
+
+fn rows_expression_type(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, types: &mut Types) {
+    if !types.build(c) {
+        return;
+    }
+    for id in 0..c.table.len() as u32 {
+        if !is_expression(c.table.node[id as usize]) {
+            continue;
+        }
+        let row = |sink: &mut dyn Sink, res: &'static str, t: &'static str| sink.row(rel, &[Cell::Node(id), Cell::Text(res), Cell::Text(t), Cell::File, c.span(id)]);
+        match types.res[id as usize] {
+            Res::Atom(t) => row(sink, "atom", TYPES[t as usize]),
+            Res::Union(m) => {
+                for k in 0..14 {
+                    if m & (1 << k) != 0 {
+                        row(sink, "union", TYPES[k]);
+                    }
+                }
+            }
+            Res::Unknown => row(sink, "unknown", ""),
+            Res::TypeError => row(sink, "type-error", ""),
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
 pub(crate) struct State {
     pub shapes: Shapes,
+    pub types: Types,
 }
 
 pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
@@ -1181,6 +1401,9 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     }
     if let Some(r) = want("expression-shape") {
         rows_expression_shape(c, sink, r, &mut st.shapes);
+    }
+    if let Some(r) = want("expression-type") {
+        rows_expression_type(c, sink, r, &mut st.types);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
