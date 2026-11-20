@@ -29,6 +29,9 @@ pub(crate) struct View {
     leaves: Vec<(Option<TokenKind>, u32, u32)>,
     counter: Vec<u32>,
     stack: Vec<u32>,
+    /// facts: the parser's token index -> leaf index (the token's id is n_nodes + leaf) and back (u32::MAX: a gap)
+    pub tok_leaf: Vec<u32>,
+    pub leaf_tok: Vec<u32>,
     /// facts: build time by part over the run: leaves, node columns and fields, token loop, children, lines
     pub split_ns: [u64; 5],
 }
@@ -552,17 +555,23 @@ impl View {
         let tk0 = crate::nav::Tick::now();
         // the leaves of the lossless tree: the parser's tokens and a `whitespace` leaf for every gap between them
         self.leaves.clear();
+        self.tok_leaf.clear();
+        self.leaf_tok.clear();
         let mut prev = 0u32;
-        for token in tokens.iter() {
+        for (ti, token) in tokens.iter().enumerate() {
             let (ts, te) = (token.start().to_u32(), token.end().to_u32());
             if ts > prev {
                 self.leaves.push((None, prev, ts));
+                self.leaf_tok.push(u32::MAX);
             }
+            self.tok_leaf.push(self.leaves.len() as u32);
+            self.leaf_tok.push(ti as u32);
             self.leaves.push((Some(token.kind()), ts, te));
             prev = prev.max(te);
         }
         if (source.len() as u32) > prev {
             self.leaves.push((None, prev, source.len() as u32));
+            self.leaf_tok.push(u32::MAX);
         }
         let total = n + self.leaves.len();
         self.n_nodes = n;

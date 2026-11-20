@@ -342,7 +342,8 @@ impl<'p> Worker<'p> {
                 totals.ns[3].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
             }
             let full = self.root.join(path);
-            let ctx = derived::Ctx { parsed: &parsed, path: &full, table: &table, source, model: &self.model, incomplete };
+            self.dstate.new_file();
+            let ctx = derived::Ctx { parsed: &parsed, path: &full, table: &table, source, model: &self.model, incomplete, view: None };
             let wanted: u64 = std::env::var("DERIVED_WANT").ok().map_or(u64::MAX, |w| {
                 w.split(',').filter_map(derived::index_of).fold(0, |m, i| m | (1 << i))
             });
@@ -357,7 +358,7 @@ impl<'p> Worker<'p> {
                 let unclocked = std::env::var_os("DERIVED_NOCLOCK").is_some();
                 if unclocked {
                     // timed runs: every wanted relation in one call, no per-relation clock reads
-                    derived::produce(&ctx, wanted, &mut sink, &mut self.scratch, &mut self.dstate);
+                    derived::produce(&ctx, wanted, &mut sink, &mut self.scratch, &mut self.dstate, None);
                 }
                 for i in (0..n).filter(|_| !unclocked) {
                     if wanted & (1 << i) != 0 {
@@ -368,7 +369,7 @@ impl<'p> Worker<'p> {
                         }
                         let mask = (1u64 << i) | partner.map_or(0, |p| if wanted & (1 << p) != 0 { 1u64 << p } else { 0 });
                         let t = Clock::now();
-                        derived::produce(&ctx, mask, &mut sink, &mut self.scratch, &mut self.dstate);
+                        derived::produce(&ctx, mask, &mut sink, &mut self.scratch, &mut self.dstate, None);
                         totals.dns[i].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
                     }
                 }
@@ -378,7 +379,7 @@ impl<'p> Worker<'p> {
                 totals.touch.fetch_add(sink.touch, Ordering::Relaxed);
             } else {
                 let mut sink = derived::Dump { table: &table, file: index, lines: vec![Vec::new(); n], counts: vec![0; n] };
-                derived::produce(&ctx, wanted, &mut sink, &mut self.scratch, &mut self.dstate);
+                derived::produce(&ctx, wanted, &mut sink, &mut self.scratch, &mut self.dstate, None);
                 for (i, c) in sink.counts.iter().enumerate() {
                     totals.drows[i].fetch_add(*c, Ordering::Relaxed);
                 }

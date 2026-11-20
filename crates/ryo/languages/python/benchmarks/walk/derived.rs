@@ -13,6 +13,8 @@ use ruff_text_size::Ranged as _;
 #[derive(Clone, Copy)]
 pub(crate) enum Cell<'s> {
     Node(u32),
+    /// a token of the parser's token array, by its index (facts: no lookup by span)
+    Token(u32),
     Key(&'static str, u32, u32),
     Text(&'s str),
     /// a text fixed in the program (join: decoded through a per-run cache by address)
@@ -39,7 +41,7 @@ impl Sink for Count {
         self.counts[rel] += 1;
         for c in cells {
             self.touch = self.touch.wrapping_add(match *c {
-                Cell::Node(n) => u64::from(n),
+                Cell::Node(n) | Cell::Token(n) => u64::from(n),
                 Cell::Key(_, a, b) => u64::from(a ^ b),
                 Cell::Text(t) => t.len() as u64,
                 Cell::Word(t) => t.len() as u64,
@@ -86,6 +88,9 @@ impl Sink for Dump<'_, '_> {
                 }
                 Cell::Key(k, a, b) => {
                     let _ = write!(s, "{k}@{a}:{b}");
+                }
+                Cell::Token(i) => {
+                    let _ = write!(s, "token#{i}");
                 }
                 Cell::Text(t) | Cell::Word(t) => esc_into(&mut s, t),
                 Cell::Null => s.push_str("\\N"),
@@ -165,6 +170,8 @@ pub(crate) struct Ctx<'c, 'a> {
     pub source: &'c str,
     pub model: &'c Model,
     pub incomplete: bool,
+    /// the run's view, for token ids (facts; None in the rows-only modes)
+    pub view: Option<&'c crate::view::View>,
 }
 
 impl<'a> Ctx<'_, 'a> {
@@ -185,6 +192,70 @@ impl<'a> Ctx<'_, 'a> {
 
 fn id_of(node: AnyNodeRef<'_>) -> u32 {
     Table::id_of(node)
+}
+
+/// The nodes a rows form runs over: the kind's bucket, or (facts: the per-key form) the one node asked for when it is of the kind.
+fn ids<'x>(c: &'x Ctx<'_, '_>, k: NodeKind, only: &'x Option<u32>) -> &'x [u32] {
+    match only {
+        Some(id) => {
+            if (*id as usize) < c.table.len() && c.table.kind[*id as usize] == k as u8 {
+                std::slice::from_ref(id)
+            } else {
+                &[]
+            }
+        }
+        None => c.kind(k),
+    }
+}
+
+/// Every node, or the one asked for.
+fn all_ids(c: &Ctx<'_, '_>, only: Option<u32>) -> std::ops::Range<u32> {
+    match only {
+        Some(id) if (id as usize) < c.table.len() => id..id + 1,
+        Some(_) => 0..0,
+        None => 0..c.table.len() as u32,
+    }
+}
+
+/// The relations with a per-key function and the column it is keyed on (facts): "the rows of R whose column c is this node",
+/// computed at that node from the tree, with no pass over the file (the whole-file analyses of shapes, types, terminals and
+/// constant keys run once per file, then answer per node).
+pub(crate) const KEYED: &[(&str, u8)] = &[
+    ("literal-properties", 0),
+    ("string-literal", 0),
+    ("static-import", 0),
+    ("numeric-literal", 0),
+    ("call-argument", 0),
+    ("call-argument", 2),
+    ("function", 0),
+    ("parameter", 0),
+    ("decorates", 0),
+    ("decorates", 1),
+    ("bytes-literal", 0),
+    ("expression-shape", 0),
+    ("expression-shape", 1),
+    ("expression-type", 0),
+    ("function-terminal", 0),
+    ("constant-key", 0),
+    ("token-link", 0),
+    ("token-link", 1),
+    ("format-parse", 0),
+    ("format-field", 0),
+    ("brace-format-parse", 0),
+    ("brace-format-field", 0),
+    ("literal-expression-parse", 0),
+    ("raw-format-segment", 0),
+    ("raw-format-field", 0),
+];
+
+/// Bitmask of the columns of `name` that have a per-key function.
+pub(crate) fn key_columns(name: &str) -> u16 {
+    KEYED.iter().filter(|(n, _)| *n == name).fold(0, |m, (_, c)| m | (1 << c))
+}
+
+/// Whether the relation's rows read the lexical model (the scope a node is evaluated in).
+pub(crate) fn needs_model(name: &str) -> bool {
+    matches!(name, "string-literal" | "static-import" | "bytes-literal" | "embedded-expression")
 }
 
 // ------------------------------------------------------------------------------------------------ identifier
@@ -248,11 +319,11 @@ pub(crate) fn identifiers_of(node: AnyNodeRef<'_>, out: &mut dyn FnMut(&'static 
     }
 }
 
-fn rows_identifier(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
+fn rows_identifier(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option<u32>) {
     if c.incomplete {
         return;
     }
-    for id in 0..c.table.len() as u32 {
+    for id in all_ids(c, only) {
         let node = c.table.node[id as usize];
         if let AnyNodeRef::ExprName(n) = node {
             sink.row(rel, &[Cell::Node(id), Cell::Text(n.id.as_str()), Cell::File, c.span(id)]);
@@ -301,9 +372,9 @@ const LITERAL_KINDS: [NodeKind; 6] = [
     NodeKind::ExprEllipsisLiteral,
 ];
 
-fn rows_literal_properties(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
+fn rows_literal_properties(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option<u32>) {
     for k in LITERAL_KINDS {
-        for &id in c.kind(k) {
+        for &id in ids(c, k, &only) {
             if let Some(p) = literal_properties(c.table.node[id as usize]) {
                 sink.row(rel, &[Cell::Node(id), Cell::Text(p.kind), Cell::Flag(p.zero), Cell::Flag(p.empty), Cell::Flag(p.boolean), Cell::File, c.span(id)]);
             }
@@ -377,9 +448,9 @@ fn specifier(c: &Ctx<'_, '_>, id: u32) -> bool {
 
 const STRING_KINDS: [NodeKind; 3] = [NodeKind::ExprStringLiteral, NodeKind::ExprFString, NodeKind::ExprTString];
 
-fn rows_string_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
+fn rows_string_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, only: Option<u32>) {
     for k in STRING_KINDS {
-        for &id in c.kind(k) {
+        for &id in ids(c, k, &only) {
             let node = c.table.node[id as usize];
             let value = match string_value(node, buf) {
                 Some(v) => Cell::Text(v),
@@ -427,8 +498,8 @@ pub(crate) fn static_import<'n>(c: &Ctx<'_, '_>, id: u32, buf: &'n mut String) -
     Some((buf.as_str(), split, wildcard))
 }
 
-fn rows_static_import(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
-    for &id in c.kind(NodeKind::Alias) {
+fn rows_static_import(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, only: Option<u32>) {
+    for &id in ids(c, NodeKind::Alias, &only) {
         if let Some((text, split, wildcard)) = static_import(c, id, buf) {
             let binding = if wildcard { Cell::Null } else { Cell::Text(&text[..split]) };
             sink.row(rel, &[Cell::Node(id), c.owner(id), binding, Cell::Text(&text[split..]), Cell::File, c.span(id)]);
@@ -469,8 +540,8 @@ pub(crate) fn numeric_literal<'n>(c: &Ctx<'_, '_>, id: u32, buf: &'n mut String)
     }
 }
 
-fn rows_numeric_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
-    for &id in c.kind(NodeKind::ExprNumberLiteral) {
+fn rows_numeric_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, only: Option<u32>) {
+    for &id in ids(c, NodeKind::ExprNumberLiteral, &only) {
         if let Some((kind, value, exact)) = numeric_literal(c, id, buf) {
             sink.row(rel, &[Cell::Node(id), Cell::Text(kind), Cell::Text(value), Cell::Flag(exact), Cell::File, c.span(id)]);
         }
@@ -496,8 +567,8 @@ pub(crate) fn call_arguments<'n>(c: &Ctx<'_, 'n>, call: u32, out: &mut dyn FnMut
     }
 }
 
-fn rows_call_argument(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
-    for &id in c.kind(NodeKind::ExprCall) {
+fn rows_call_argument(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option<u32>) {
+    for &id in ids(c, NodeKind::ExprCall, &only) {
         call_arguments(c, id, &mut |position, e, passes| {
             sink.row(rel, &[Cell::Node(id), Cell::Num(i64::from(position)), Cell::Node(e), passes.map_or(Cell::Null, Cell::Text), Cell::File, c.span(e)]);
         });
@@ -573,11 +644,11 @@ pub(crate) fn embedded_expression(c: &Ctx<'_, '_>, id: u32) -> Option<(&'static 
     }
 }
 
-fn rows_embedded_expression(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
+fn rows_embedded_expression(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option<u32>) {
     if !c.model.annotation.iter().any(|a| *a) {
         return;
     }
-    for &id in c.kind(NodeKind::ExprStringLiteral) {
+    for &id in ids(c, NodeKind::ExprStringLiteral, &only) {
         if let Some((kind, s, e, exact)) = embedded_expression(c, id) {
             sink.row(rel, &[Cell::Key(kind, s, e), Cell::Node(id), Cell::Text("deferred-type-expression"), Cell::Text(if exact { "exact-content" } else { "whole-host" }), Cell::File, Cell::Span(s, e)]);
         }
@@ -585,8 +656,8 @@ fn rows_embedded_expression(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
 }
 
 // ------------------------------------------------------------------------------------------------ function, parameter
-fn rows_function(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
-    for &id in c.kind(NodeKind::StmtFunctionDef) {
+fn rows_function(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option<u32>) {
+    for &id in ids(c, NodeKind::StmtFunctionDef, &only) {
         let AnyNodeRef::StmtFunctionDef(f) = c.table.node[id as usize] else { continue };
         sink.row(rel, &[Cell::Node(id), Cell::Text(f.name.as_str()), Cell::File, c.span(id)]);
     }
@@ -636,8 +707,8 @@ pub(crate) fn parameter_place(c: &Ctx<'_, '_>, id: u32) -> Option<(&'static str,
     None
 }
 
-fn rows_parameter(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
-    for &id in c.kind(NodeKind::Parameter) {
+fn rows_parameter(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option<u32>) {
+    for &id in ids(c, NodeKind::Parameter, &only) {
         let AnyNodeRef::Parameter(p) = c.table.node[id as usize] else { continue };
         if let Some((kind, word, ordinal, callable)) = parameter_place(c, id) {
             sink.row(rel, &[Cell::Node(id), Cell::Text(kind), Cell::Text(word), Cell::Text(p.name.as_str()), Cell::Num(ordinal), Cell::Node(callable), Cell::File, c.span(id)]);
@@ -686,8 +757,8 @@ pub(crate) fn decorator<'n>(c: &Ctx<'_, '_>, id: u32, buf: &'n mut String) -> Op
     Some((known, split))
 }
 
-fn rows_decorates(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
-    for &id in c.kind(NodeKind::Decorator) {
+fn rows_decorates(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, only: Option<u32>) {
+    for &id in ids(c, NodeKind::Decorator, &only) {
         let parent = c.table.parent[id as usize];
         let ordinal = match c.table.node[parent as usize] {
             AnyNodeRef::StmtFunctionDef(f) => f.decorator_list.iter().position(|d| id_of(d.into()) == id),
@@ -717,8 +788,8 @@ pub(crate) fn base_target(e: &Expr, buf: &mut String) -> bool {
     ok
 }
 
-fn rows_inherits(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
-    for &id in c.kind(NodeKind::StmtClassDef) {
+fn rows_inherits(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, only: Option<u32>) {
+    for &id in ids(c, NodeKind::StmtClassDef, &only) {
         let AnyNodeRef::StmtClassDef(k) = c.table.node[id as usize] else { continue };
         let Some(args) = &k.arguments else { continue };
         for base in args.args.iter() {
@@ -730,9 +801,9 @@ fn rows_inherits(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut Str
 }
 
 // ------------------------------------------------------------------------------------------------ bytes-literal, interpolated-string-literal
-fn rows_bytes_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
+fn rows_bytes_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, only: Option<u32>) {
     use std::fmt::Write as _;
-    for &id in c.kind(NodeKind::ExprBytesLiteral) {
+    for &id in ids(c, NodeKind::ExprBytesLiteral, &only) {
         let AnyNodeRef::ExprBytesLiteral(b) = c.table.node[id as usize] else { continue };
         buf.clear();
         for byte in b.value.bytes() {
@@ -760,8 +831,8 @@ pub(crate) fn fstring_fragments<'n>(node: AnyNodeRef<'n>, out: &mut dyn FnMut(&'
     }
 }
 
-fn rows_interpolated_string_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
-    for &id in c.kind(NodeKind::ExprFString) {
+fn rows_interpolated_string_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option<u32>) {
+    for &id in ids(c, NodeKind::ExprFString, &only) {
         fstring_fragments(c.table.node[id as usize], &mut |k, s, e, v| {
             sink.row(rel, &[Cell::Key(k, s, e), Cell::Node(id), Cell::Text(v), Cell::File, Cell::Span(s, e)]);
         });
@@ -1153,11 +1224,31 @@ impl Shapes {
     }
 }
 
-fn rows_expression_shape(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, shapes: &mut Shapes) {
-    if !shapes.build(c) {
+/// A whole-file analysis runs once per file (facts): 0 not yet, 1 built, 2 built and empty.
+fn once(flag: &mut u8, build: impl FnOnce() -> bool) -> bool {
+    if *flag == 0 {
+        let t = crate::nav::Tick::now();
+        *flag = if build() { 1 } else { 2 };
+        BUILD_NS.with(|b| b.set(b.get() + t.elapsed().as_nanos() as u64));
+    }
+    *flag == 1
+}
+
+/// A whole fill's caller clocks all of it: the analyses' own clock is dropped.
+pub(crate) fn drop_build_clock() {
+    BUILD_NS.with(|b| b.set(0));
+}
+
+thread_local! {
+    /// time in the whole-file analyses on this thread (read into the state after each call)
+    static BUILD_NS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+fn rows_expression_shape(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, shapes: &mut Shapes, flag: &mut u8, only: Option<u32>) {
+    if !once(flag, || shapes.build(c)) {
         return;
     }
-    for id in 0..c.table.len() as u32 {
+    for id in all_ids(c, only) {
         if is_expression(c.table.node[id as usize]) {
             let class = shapes.class[id as usize];
             sink.row(rel, &[Cell::Node(id), Cell::Node(class), Cell::File, c.span(id)]);
@@ -1359,11 +1450,11 @@ impl Types {
     }
 }
 
-fn rows_expression_type(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, types: &mut Types) {
-    if !types.build(c) {
+fn rows_expression_type(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, types: &mut Types, flag: &mut u8, only: Option<u32>) {
+    if !once(flag, || types.build(c)) {
         return;
     }
-    for id in 0..c.table.len() as u32 {
+    for id in all_ids(c, only) {
         if !is_expression(c.table.node[id as usize]) {
             continue;
         }
@@ -1404,7 +1495,7 @@ fn ensure_view(c: &Ctx<'_, '_>, st: &mut State) {
     }
 }
 
-fn rows_syntax_child(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, st: &mut State) {
+fn rows_syntax_child(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, st: &mut State, only: Option<u32>) {
     ensure_view(c, st);
     let v = &st.view;
     let sym = &st.sym;
@@ -1437,7 +1528,7 @@ fn kind_static(name: &str) -> &'static str {
 /// `syntax-tree` (= `semantic-syntax` on Python), `source-location`, `comment`, `indent-region` from walk's view: every node and
 /// token of the lossless tree with its kind and text (tokens and whitespace only), its lines and columns, the comments, and the
 /// indentation regions (the module is region 0).
-fn rows_view(c: &Ctx<'_, '_>, sink: &mut dyn Sink, which: &str, rel: usize, st: &mut State) {
+fn rows_view(c: &Ctx<'_, '_>, sink: &mut dyn Sink, which: &str, rel: usize, st: &mut State, only: Option<u32>) {
     ensure_view(c, st);
     let v = &st.view;
     let sym = &st.sym;
@@ -1686,11 +1777,11 @@ impl Terminals {
     }
 }
 
-fn rows_function_terminal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, t: &mut Terminals) {
-    if !t.build(c) {
+fn rows_function_terminal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, t: &mut Terminals, flag: &mut u8, only: Option<u32>) {
+    if !once(flag, || t.build(c)) {
         return;
     }
-    for &id in c.kind(NodeKind::StmtFunctionDef) {
+    for &id in ids(c, NodeKind::StmtFunctionDef, &only) {
         sink.row(rel, &[Cell::Node(id), Cell::Text(t.outcome(id)), Cell::File, c.span(id)]);
     }
 }
@@ -1902,9 +1993,12 @@ impl ConstantKeys {
     }
 }
 
-fn rows_constant_key(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, k: &mut ConstantKeys) {
-    k.build(c);
-    for id in 0..c.table.len() as u32 {
+fn rows_constant_key(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, k: &mut ConstantKeys, flag: &mut u8, only: Option<u32>) {
+    once(flag, || {
+        k.build(c);
+        true
+    });
+    for id in all_ids(c, only) {
         let key = k.key[id as usize];
         if key != u32::MAX {
             sink.row(rel, &[Cell::Node(id), Cell::Node(key), Cell::File, c.span(id)]);
@@ -1957,9 +2051,14 @@ pub(crate) fn token_links(c: &Ctx<'_, '_>, out: &mut dyn FnMut(usize, usize, &'s
     }
 }
 
-fn rows_token_link(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
+fn rows_token_link(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, only: Option<u32>) {
+    let _ = only;
     let tokens = c.parsed.tokens();
+    let direct = c.view.is_some();
     let key = |i: usize| {
+        if direct {
+            return Cell::Token(i as u32);
+        }
         let t = &tokens[i];
         Cell::Key(crate::view::token_kind_name(t.kind()), t.start().to_u32(), t.end().to_u32())
     };
@@ -1967,6 +2066,231 @@ fn rows_token_link(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
         let st = &tokens[s];
         sink.row(rel, &[key(s), key(t), Cell::Word(k), Cell::File, Cell::Span(st.start().to_u32(), st.end().to_u32())]);
     });
+}
+
+/// The index of the string token spanning exactly `[start, end)` (zero-width tokens may share its start).
+fn token_at(c: &Ctx<'_, '_>, start: u32, end: u32) -> Option<u32> {
+    let tokens = c.parsed.tokens();
+    let mut i = tokens.partition_point(|t| t.start().to_u32() < start);
+    while let Some(t) = tokens.get(i) {
+        if t.start().to_u32() != start {
+            return None;
+        }
+        if t.end().to_u32() == end && matches!(t.kind(), ruff_python_ast::token::TokenKind::String) {
+            return Some(i as u32);
+        }
+        i += 1;
+    }
+    None
+}
+
+/// The bracket structure of the token array (facts): per token its matching bracket and its innermost enclosing open bracket,
+/// and whether it is a live token (not an error token). One pass per file, on the first link asked for; the links themselves are
+/// index arithmetic on the token array.
+#[derive(Default)]
+pub(crate) struct Links {
+    pub mate: Vec<u32>,
+    pub encl: Vec<u32>,
+    pub live: Vec<bool>,
+}
+
+const NO_TOKEN: u32 = u32::MAX;
+
+impl Links {
+    pub(crate) fn build(&mut self, c: &Ctx<'_, '_>) -> bool {
+        use ruff_python_ast::token::TokenKind as T;
+        let tokens = c.parsed.tokens();
+        let n = tokens.len();
+        self.mate.clear();
+        self.mate.resize(n, NO_TOKEN);
+        self.encl.clear();
+        self.encl.resize(n, NO_TOKEN);
+        self.live.clear();
+        self.live.resize(n, true);
+        let mut stack: Vec<(T, usize)> = Vec::new();
+        for (at, t) in tokens.iter().enumerate() {
+            let token = t.kind();
+            if matches!(token, T::Unknown) {
+                self.live[at] = false;
+                stack.clear();
+                continue;
+            }
+            let mut enclosing = stack.last().map(|o| o.1);
+            if matches!(token, T::Lpar | T::Lsqb | T::Lbrace) {
+                stack.push((token, at));
+            } else if matches!(token, T::Rpar | T::Rsqb | T::Rbrace) {
+                match stack.pop() {
+                    Some((open, o)) if matches!((open, token), (T::Lpar, T::Rpar) | (T::Lsqb, T::Rsqb) | (T::Lbrace, T::Rbrace)) => {
+                        self.mate[o] = at as u32;
+                        self.mate[at] = o as u32;
+                        enclosing = stack.last().map(|o| o.1);
+                    }
+                    _ => {
+                        stack.clear();
+                        enclosing = None;
+                    }
+                }
+            }
+            if let Some(e) = enclosing {
+                self.encl[at] = e as u32;
+            }
+        }
+        true
+    }
+}
+
+/// `token-link` at one token (facts): the rows whose source (column 0) or target (column 1) is the token with view id `key`.
+fn token_link_key(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, col: u8, key: u32, links: &mut Links, flag: &mut u8) {
+    let Some(view) = c.view else { return };
+    let Some(leaf) = (key as usize).checked_sub(view.n_nodes) else { return };
+    let Some(&t) = view.leaf_tok.get(leaf) else { return };
+    if t == NO_TOKEN {
+        return;
+    }
+    once(flag, || links.build(c));
+    let tokens = c.parsed.tokens();
+    let t = t as usize;
+    if !links.live[t] {
+        return;
+    }
+    let mut row = |s: usize, d: usize, k: &'static str| {
+        let st = &tokens[s];
+        sink.row(rel, &[Cell::Token(s as u32), Cell::Token(d as u32), Cell::Word(k), Cell::File, Cell::Span(st.start().to_u32(), st.end().to_u32())]);
+    };
+    if col == 0 {
+        if t + 1 < tokens.len() && links.live[t + 1] {
+            row(t, t + 1, "next-token");
+        }
+        let m = links.mate[t];
+        if m != NO_TOKEN && m as usize > t {
+            row(t, m as usize, "matching-delimiter");
+        }
+        if links.encl[t] != NO_TOKEN {
+            row(t, links.encl[t] as usize, "enclosing-delimiter");
+        }
+    } else {
+        if t > 0 && links.live[t - 1] {
+            row(t - 1, t, "next-token");
+        }
+        let m = links.mate[t];
+        if m != NO_TOKEN && (m as usize) < t {
+            row(m as usize, t, "matching-delimiter");
+        }
+        // the tokens directly inside the bracket `t`: up to its closer, or to the end when nothing closes it
+        use ruff_python_ast::token::TokenKind as T;
+        if matches!(tokens[t].kind(), T::Lpar | T::Lsqb | T::Lbrace) {
+            let end = if m != NO_TOKEN { m as usize } else { tokens.len() };
+            for x in t + 1..end {
+                if links.encl[x] == t as u32 {
+                    row(x, t, "enclosing-delimiter");
+                }
+            }
+        }
+    }
+}
+
+/// The per-key form (facts): the rows of relation `di` whose column `col` holds the node (or token) `key`.
+pub(crate) fn produce_key(c: &Ctx<'_, '_>, di: usize, col: u8, key: u32, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
+    produce_key_inner(c, di, col, key, sink, buf, st);
+    st.clock();
+}
+
+/// `expression-shape` by class (column 1): the members of the class `key` names, from a chain per class built in one pass over
+/// the class array on the first such probe in the file.
+fn shape_members(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, key: u32, st: &mut State) {
+    if !once(&mut st.built[0], || st.shapes.build(c)) {
+        return;
+    }
+    let n = c.table.len();
+    if !st.class_built {
+        let t = crate::nav::Tick::now();
+        st.class_head.clear();
+        st.class_head.resize(n, u32::MAX);
+        st.class_next.clear();
+        st.class_next.resize(n, u32::MAX);
+        for id in (0..n).rev() {
+            let class = st.shapes.class[id];
+            if class != u32::MAX && (class as usize) < n && is_expression(c.table.node[id]) {
+                st.class_next[id] = st.class_head[class as usize];
+                st.class_head[class as usize] = id as u32;
+            }
+        }
+        st.class_built = true;
+        BUILD_NS.with(|b| b.set(b.get() + t.elapsed().as_nanos() as u64));
+    }
+    if (key as usize) >= n {
+        return;
+    }
+    let mut id = st.class_head[key as usize];
+    while id != u32::MAX {
+        sink.row(rel, &[Cell::Node(id), Cell::Node(key), Cell::File, c.span(id)]);
+        id = st.class_next[id as usize];
+    }
+}
+
+fn produce_key_inner(c: &Ctx<'_, '_>, di: usize, col: u8, key: u32, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
+    let only = Some(key);
+    match RELATIONS[di] {
+        "token-link" => token_link_key(c, sink, di, col, key, &mut st.links, &mut st.built[4]),
+        "literal-properties" => rows_literal_properties(c, sink, di, only),
+        "string-literal" => rows_string_literal(c, sink, di, buf, only),
+        "static-import" => rows_static_import(c, sink, di, buf, only),
+        "numeric-literal" => rows_numeric_literal(c, sink, di, buf, only),
+        "call-argument" if col == 0 => rows_call_argument(c, sink, di, only),
+        "call-argument" => {
+            // column 2, the argument: its call is above it (behind a keyword), and the row is the call's row for it
+            if (key as usize) >= c.table.len() {
+                return;
+            }
+            let mut up = c.table.parent[key as usize];
+            if up != u32::MAX && matches!(c.table.node[up as usize], AnyNodeRef::Keyword(_)) {
+                up = c.table.parent[up as usize];
+            }
+            if up == u32::MAX || !matches!(c.table.node[up as usize], AnyNodeRef::Arguments(_)) {
+                return;
+            }
+            let call = c.table.parent[up as usize];
+            if call == u32::MAX {
+                return;
+            }
+            call_arguments(c, call, &mut |position, e, passes| {
+                if e == key {
+                    sink.row(di, &[Cell::Node(call), Cell::Num(i64::from(position)), Cell::Node(e), passes.map_or(Cell::Null, Cell::Text), Cell::File, c.span(e)]);
+                }
+            });
+        }
+        "function" => rows_function(c, sink, di, only),
+        "parameter" => rows_parameter(c, sink, di, only),
+        "decorates" if col == 0 => rows_decorates(c, sink, di, buf, only),
+        "decorates" => {
+            // column 1, the decorated definition: its decorators
+            if (key as usize) >= c.table.len() {
+                return;
+            }
+            let list: &[ast::Decorator] = match c.table.node[key as usize] {
+                AnyNodeRef::StmtFunctionDef(f) => &f.decorator_list,
+                AnyNodeRef::StmtClassDef(k) => &k.decorator_list,
+                _ => return,
+            };
+            for d in list {
+                rows_decorates(c, sink, di, buf, Some(id_of(d.into())));
+            }
+        }
+        "bytes-literal" => rows_bytes_literal(c, sink, di, buf, only),
+        "expression-shape" if col == 0 => rows_expression_shape(c, sink, di, &mut st.shapes, &mut st.built[0], only),
+        "expression-shape" => shape_members(c, sink, di, key, st),
+        "expression-type" => rows_expression_type(c, sink, di, &mut st.types, &mut st.built[1], only),
+        "function-terminal" => rows_function_terminal(c, sink, di, &mut st.terminals, &mut st.built[2], only),
+        "constant-key" => rows_constant_key(c, sink, di, &mut st.constant_keys, &mut st.built[3], only),
+        "format-parse" => rows_format(c, sink, Some(di), None, buf, st, only),
+        "format-field" => rows_format(c, sink, None, Some(di), buf, st, only),
+        "brace-format-parse" => rows_brace_format(c, sink, Some(di), None, buf, only),
+        "brace-format-field" => rows_brace_format(c, sink, None, Some(di), buf, only),
+        "literal-expression-parse" => rows_literal_expression(c, sink, di, buf, st, only),
+        "raw-format-segment" => rows_raw_format(c, sink, Some(di), None, st, only),
+        "raw-format-field" => rows_raw_format(c, sink, None, Some(di), st, only),
+        _ => {}
+    }
 }
 
 // ------------------------------------------------------------------------------------------------ format-parse, format-field
@@ -2172,10 +2496,10 @@ pub(crate) fn format_input<'n>(node: AnyNodeRef<'n>, buf: &'n mut String) -> Opt
     }
 }
 
-fn rows_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usize>, field_rel: Option<usize>, buf: &mut String, st: &mut State) {
+fn rows_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usize>, field_rel: Option<usize>, buf: &mut String, st: &mut State, only: Option<u32>) {
     let fields = &mut st.cfields;
     for k in [NodeKind::ExprStringLiteral, NodeKind::ExprFString] {
-        for &id in c.kind(k) {
+        for &id in ids(c, k, &only) {
             let Some(input) = format_input(c.table.node[id as usize], buf) else { continue };
             let head = [Cell::Node(id), Cell::Text("percent-string"), Cell::Text("decoded-string")];
             let tail = |sink: &mut dyn Sink, outcome: &str, cat: &str, ch: Option<char>, idx: usize, s: cformat::Summary| {
@@ -2423,9 +2747,9 @@ pub(crate) mod braceformat {
     }
 }
 
-fn rows_brace_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usize>, field_rel: Option<usize>, buf: &mut String) {
+fn rows_brace_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usize>, field_rel: Option<usize>, buf: &mut String, only: Option<u32>) {
     for k in [NodeKind::ExprStringLiteral, NodeKind::ExprFString, NodeKind::InterpolatedStringFormatSpec] {
-        for &id in c.kind(k) {
+        for &id in ids(c, k, &only) {
             let node = c.table.node[id as usize];
             let input: Option<&str> = match node {
                 AnyNodeRef::InterpolatedStringFormatSpec(spec) => {
@@ -2520,9 +2844,12 @@ pub(crate) fn literal_expression(c: &Ctx<'_, '_>, id: u32, carrier: &mut String,
     Some(outcome)
 }
 
-fn rows_literal_expression(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, st: &mut State) {
-    st.carriers.clear();
-    for &id in c.kind(NodeKind::ExprStringLiteral) {
+fn rows_literal_expression(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, st: &mut State, only: Option<u32>) {
+    if only.is_none() {
+        // the memo is by carrier text (a pure function of it): cleared per whole fill only to bound its size
+        st.carriers.clear();
+    }
+    for &id in ids(c, NodeKind::ExprStringLiteral, &only) {
         if let Some(o) = literal_expression(c, id, buf, &mut st.carriers) {
             sink.row(rel, &[Cell::Node(id), Cell::Text("python-string-annotation"), Cell::Text(o), Cell::File, c.span(id)]);
         }
@@ -2537,11 +2864,11 @@ const FLAG_SPELLINGS: [&str; 32] = [
     "#+0", " #+0", "-0", " -0", "#-0", " #-0", "+-0", " +-0", "#+-0", " #+-0",
 ];
 
-fn rows_raw_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, seg_rel: Option<usize>, field_rel: Option<usize>, st: &mut State) {
+fn rows_raw_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, seg_rel: Option<usize>, field_rel: Option<usize>, st: &mut State, only: Option<u32>) {
     let mut fields: Vec<cformat::Field> = Vec::new();
     let mut parsed: Vec<(u32, u32, Result<cformat::Summary, Option<cformat::Error>>, Vec<cformat::Field>)> = Vec::new();
     let _ = st;
-    for &id in c.kind(NodeKind::ExprStringLiteral) {
+    for &id in ids(c, NodeKind::ExprStringLiteral, &only) {
         let AnyNodeRef::ExprStringLiteral(s) = c.table.node[id as usize] else { continue };
         parsed.clear();
         let mut complete = true;
@@ -2561,7 +2888,10 @@ fn rows_raw_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, seg_rel: Option<usize>,
         }
         let mut first_field = 0usize;
         for (ordinal, (ps, pe, r, fs)) in parsed.iter().enumerate() {
-            let seg = Cell::Key("string", *ps, *pe);
+            let seg = match token_at(c, *ps, *pe) {
+                Some(i) if c.view.is_some() => Cell::Token(i),
+                _ => Cell::Key("string", *ps, *pe),
+            };
             if let Some(rel) = seg_rel {
                 let (outcome, cat, ch, idx, sm) = match r {
                     Ok(sm) => ("parsed", "none", None, 0, *sm),
@@ -2650,7 +2980,7 @@ fn recognize(raw: &str, nested: bool, target: (i64, i64)) -> SpecOutcome {
     if chars.next().is_some() { SpecOutcome::OtherError } else { SpecOutcome::Recognized }
 }
 
-fn rows_format_specification(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
+fn rows_format_specification(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, only: Option<u32>) {
     let emit = |sink: &mut dyn Sink, id: u32, ordinal: usize, parent: Option<usize>, origin: u32, kind: &str, value: Option<&str>, o: SpecOutcome, selector: &str, conversion: &str| {
         let mut b = [0u8; 4];
         let (label, invalid) = match o {
@@ -2662,7 +2992,7 @@ fn rows_format_specification(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, b
         sink.row(rel, &[Cell::Node(id), Cell::Num(ordinal as i64), Cell::Num(parent.map_or(-1, |p| p as i64)), Cell::Node(origin), Cell::Text(kind), value.map_or(Cell::Null, Cell::Text), Cell::Text(label), Cell::Text(invalid), Cell::Text(selector), Cell::Text(conversion), Cell::File, c.span(origin)]);
     };
     // brace strings: string literals whose brace parse succeeded
-    for &id in c.kind(NodeKind::ExprStringLiteral) {
+    for &id in ids(c, NodeKind::ExprStringLiteral, &only) {
         let Some(text) = string_value(c.table.node[id as usize], buf) else { continue };
         let Ok(p) = braceformat::parse(text) else { continue };
         for f in &p.fields {
@@ -2736,27 +3066,52 @@ pub(crate) struct State {
     pub constant_keys: ConstantKeys,
     pub cfields: Vec<cformat::Field>,
     pub carriers: crate::sema::FxMap<u64, &'static str>,
+    /// facts: the whole-file analyses built for the current file (shapes, types, terminals, constant keys, token links)
+    pub built: [u8; 5],
+    pub links: Links,
+    /// time in whole-file analyses: over the run, and the running total a caller compares before and after a call
+    pub build_ns: u64,
+    pub build_total_ns: u64,
+    /// members of each shape class, chained by node id (built on the first probe by class)
+    pub class_head: Vec<u32>,
+    pub class_next: Vec<u32>,
+    pub class_built: bool,
 }
 
-pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
+impl State {
+    /// a new file: nothing of the last one is built
+    pub(crate) fn new_file(&mut self) {
+        self.built = [0; 5];
+        self.view_file = None;
+        self.class_built = false;
+    }
+
+    fn clock(&mut self) {
+        let ns = BUILD_NS.with(|b| b.replace(0));
+        self.build_ns += ns;
+        self.build_total_ns += ns;
+    }
+}
+
+pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State, only: Option<u32>) {
     let want = |name: &str| index_of(name).filter(|i| wanted & (1 << i) != 0);
     if let Some(r) = want("identifier") {
-        rows_identifier(c, sink, r);
+        rows_identifier(c, sink, r, only);
     }
     if let Some(r) = want("literal-properties") {
-        rows_literal_properties(c, sink, r);
+        rows_literal_properties(c, sink, r, only);
     }
     if let Some(r) = want("string-literal") {
-        rows_string_literal(c, sink, r, buf);
+        rows_string_literal(c, sink, r, buf, only);
     }
     if let Some(r) = want("static-import") {
-        rows_static_import(c, sink, r, buf);
+        rows_static_import(c, sink, r, buf, only);
     }
     if let Some(r) = want("numeric-literal") {
-        rows_numeric_literal(c, sink, r, buf);
+        rows_numeric_literal(c, sink, r, buf, only);
     }
     if let Some(r) = want("call-argument") {
-        rows_call_argument(c, sink, r);
+        rows_call_argument(c, sink, r, only);
     }
     if let Some(r) = want("language-target") {
         sink.row(r, &[Cell::File, Cell::Num(TARGET.0), Cell::Num(TARGET.1)]);
@@ -2770,66 +3125,66 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
         sink.row(r, &[Cell::File]);
     }
     if let Some(r) = want("embedded-expression") {
-        rows_embedded_expression(c, sink, r);
+        rows_embedded_expression(c, sink, r, only);
     }
     if let Some(r) = want("function") {
-        rows_function(c, sink, r);
+        rows_function(c, sink, r, only);
     }
     if let Some(r) = want("parameter") {
-        rows_parameter(c, sink, r);
+        rows_parameter(c, sink, r, only);
     }
     if let Some(r) = want("decorates") {
-        rows_decorates(c, sink, r, buf);
+        rows_decorates(c, sink, r, buf, only);
     }
     if let Some(r) = want("inherits") {
-        rows_inherits(c, sink, r, buf);
+        rows_inherits(c, sink, r, buf, only);
     }
     if let Some(r) = want("bytes-literal") {
-        rows_bytes_literal(c, sink, r, buf);
+        rows_bytes_literal(c, sink, r, buf, only);
     }
     if let Some(r) = want("interpolated-string-literal") {
-        rows_interpolated_string_literal(c, sink, r);
+        rows_interpolated_string_literal(c, sink, r, only);
     }
     if let Some(r) = want("expression-shape") {
-        rows_expression_shape(c, sink, r, &mut st.shapes);
+        rows_expression_shape(c, sink, r, &mut st.shapes, &mut st.built[0], only);
     }
     if let Some(r) = want("expression-type") {
-        rows_expression_type(c, sink, r, &mut st.types);
+        rows_expression_type(c, sink, r, &mut st.types, &mut st.built[1], only);
     }
     if let Some(r) = want("syntax-child") {
-        rows_syntax_child(c, sink, r, st);
+        rows_syntax_child(c, sink, r, st, only);
     }
     for which in ["syntax-tree", "source-location", "comment", "indent-region"] {
         if let Some(r) = want(which) {
-            rows_view(c, sink, which, r, st);
+            rows_view(c, sink, which, r, st, only);
         }
     }
     if let Some(r) = want("function-terminal") {
-        rows_function_terminal(c, sink, r, &mut st.terminals);
+        rows_function_terminal(c, sink, r, &mut st.terminals, &mut st.built[2], only);
     }
     if let Some(r) = want("constant-key") {
-        rows_constant_key(c, sink, r, &mut st.constant_keys);
+        rows_constant_key(c, sink, r, &mut st.constant_keys, &mut st.built[3], only);
     }
     if let Some(r) = want("token-link") {
-        rows_token_link(c, sink, r);
+        rows_token_link(c, sink, r, only);
     }
     let (fp, ff) = (want("format-parse"), want("format-field"));
     if fp.is_some() || ff.is_some() {
-        rows_format(c, sink, fp, ff, buf, st);
+        rows_format(c, sink, fp, ff, buf, st, only);
     }
     let (bp, bf) = (want("brace-format-parse"), want("brace-format-field"));
     if bp.is_some() || bf.is_some() {
-        rows_brace_format(c, sink, bp, bf, buf);
+        rows_brace_format(c, sink, bp, bf, buf, only);
     }
     if let Some(r) = want("literal-expression-parse") {
-        rows_literal_expression(c, sink, r, buf, st);
+        rows_literal_expression(c, sink, r, buf, st, only);
     }
     let (rs, rf) = (want("raw-format-segment"), want("raw-format-field"));
     if rs.is_some() || rf.is_some() {
-        rows_raw_format(c, sink, rs, rf, st);
+        rows_raw_format(c, sink, rs, rf, st, only);
     }
     if let Some(r) = want("format-specification") {
-        rows_format_specification(c, sink, r, buf);
+        rows_format_specification(c, sink, r, buf, only);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)

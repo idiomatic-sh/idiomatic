@@ -734,6 +734,8 @@ impl<'p> State<'p> {
         self.cache.hoisted.clear();
         self.cache.probed.clear();
         self.cache.dkey_built = false;
+        self.cache.key_rows.clear();
+        self.cache.dstate.new_file();
         self.cache.sub_memo.clear();
         self.cache.near_memo.clear();
         self.cache.key_memo.clear();
@@ -906,6 +908,7 @@ impl<'p> State<'p> {
             if ex.c.acct {
                 ex.acct_file_end();
             }
+            ex.key_policy_roll();
             ex.cache.dispatch = dispatch;
             ex.cache.dispatch_used = used;
             ex.cache.other = other;
@@ -1185,8 +1188,9 @@ impl<'p> State<'p> {
                 let reads: Vec<String> = c.read_cols.iter().map(|((r, col), n)| format!("[\"{}\",{col},{n}]", nav.facts[*r as usize].name)).collect();
                 eprintln!("{{\"acct_cols\":{{\"probes\":[{}],\"reads\":[{}]}}}}", probes.join(","), reads.join(","));
                 eprintln!(
-                    "{{\"acct\":{{\"rel\":{{{}}},\"view_reads\":{:?},\"view_files\":{:?},\"view_ids\":{},\"view_tokens\":{},\"text_distinct\":{},\"view_passes\":[{}],\"model_read_files\":{:?},\"view_split_ns\":{:?}}}}}",
-                    rels.join(","), c.view_reads, c.view_files, c.view_ids, c.view_tokens, c.text_distinct, passes.join(","), c.model_read_files, self.view.split_ns
+                    "{{\"acct\":{{\"rel\":{{{}}},\"view_reads\":{:?},\"view_files\":{:?},\"view_ids\":{},\"view_tokens\":{},\"text_distinct\":{},\"view_passes\":[{}],\"model_read_files\":{:?},\"view_split_ns\":{:?},\"extra\":{{\"key_fills\":{},\"key_rows\":{},\"key_lookups\":{},\"key_fill_ns\":{},\"analysis_ns\":{}}}}}}}",
+                    rels.join(","), c.view_reads, c.view_files, c.view_ids, c.view_tokens, c.text_distinct, passes.join(","), c.model_read_files, self.view.split_ns,
+                    c.key_fills, c.key_rows, c.key_lookups, c.key_fill_ns, self.cache.dstate.build_total_ns
                 );
             }
             let mut db: Vec<_> = self.nc.derived_by.iter().map(|(&k, &v)| (k, v)).collect();

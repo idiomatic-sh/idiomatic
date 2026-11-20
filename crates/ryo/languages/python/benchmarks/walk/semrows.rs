@@ -21,17 +21,44 @@ fn t(sym: &mut Symbols, text: Option<&str>) -> u64 {
     }
 }
 
-/// Fills `cols` (one vector per column) with the rows of relation `rel` (index into RELATIONS).
-pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mut Symbols, cols: &mut [Vec<u64>], scratch: &mut String) {
+/// The columns of relation `rel` with a per-key function (facts): a scope by its node (column 1); a reference, a resolution and a
+/// qualified name by the name or attribute expression (column 0). The flow relations are arrays of the model, filled whole.
+pub(crate) fn key_columns(rel: usize) -> u16 {
+    match rel {
+        0 => 1 << 1,
+        2..=4 => 1,
+        _ => 0,
+    }
+}
+
+/// Fills `cols` (one vector per column) with the rows of relation `rel` (index into RELATIONS); with `only = (column, node)`,
+/// just the rows whose key column holds that node (the per-key function: nothing else of the relation is computed).
+pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mut Symbols, cols: &mut [Vec<u64>], scratch: &mut String, only: Option<(u8, u32)>) {
     let mut push = |cols: &mut [Vec<u64>], cells: &[u64]| {
         for (c, &v) in cols.iter_mut().zip(cells) {
             c.push(v);
         }
     };
     let n = table.len();
+    let one = only.map(|(_, id)| id).filter(|id| (*id as usize) < n);
+    if only.is_some() && one.is_none() {
+        return;
+    }
+    let all = |k: usize| -> &[u32] {
+        match &one {
+            Some(id) => {
+                if table.kind[*id as usize] == k as u8 {
+                    std::slice::from_ref(id)
+                } else {
+                    &[]
+                }
+            }
+            None => table.of_kind(k as u8),
+        }
+    };
     match rel {
         0 => {
-            for id in 0..n as u32 {
+            for id in one.map_or(0..n as u32, |id| id..id + 1) {
                 if matches!(
                     table.node[id as usize],
                     AnyNodeRef::ModModule(_)
@@ -75,7 +102,7 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
         }
         2..=4 => {
             for &kind in &[ruff_python_ast::NodeKind::ExprName as u8, ruff_python_ast::NodeKind::ExprAttribute as u8] {
-                for &id in table.of_kind(kind) {
+                for &id in all(kind as usize) {
                     let i = id as usize;
                     let is_name = matches!(table.node[i], AnyNodeRef::ExprName(_));
                     let ctx_store = if is_name { model.store[i] == 1 } else { !load(table, i) };
