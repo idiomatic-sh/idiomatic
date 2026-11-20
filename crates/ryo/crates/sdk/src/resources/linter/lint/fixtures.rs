@@ -38,4 +38,6 @@ pub(crate) mod shared_calls;
 #[cfg(test)]
 pub(crate) mod unbound_export;
 #[cfg(test)]
+pub(crate) mod words;
+#[cfg(test)]
 pub(crate) mod zero_finding_producer;

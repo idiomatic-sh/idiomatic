@@ -95,6 +95,8 @@ pub(crate) fn build_engine(
         build,
         memory,
         cache,
+        scan_engine: Arc::new(ryo_execution_runtime::outbound::engine::factory::use_case()),
+        engines: ryo_operators::spike::engine_mode(),
     }
 }
 
@@ -136,6 +138,7 @@ pub(crate) fn build(
     let plans = engine.plans.clone();
     let pool = Arc::clone(&engine.scheduler);
     let workers = engine.workers;
+    let (scan_engine, engines) = (Arc::clone(&engine.scan_engine), engine.engines);
     compose(LinterLintParts {
         service: move || {
             let files: Arc<dyn corpus::interface::CorpusPort> = match reading {
@@ -158,7 +161,8 @@ pub(crate) fn build(
                     Arc::clone(&analysis_digest),
                     Arc::clone(&analysis_memory),
                 )
-                .scanning(Arc::new(ryo_execution_runtime::outbound::engine::factory::use_case())),
+                .scanning(scan_engine)
+                .running(engines),
                 ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                     &analysis_corpus,
                 ), Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
