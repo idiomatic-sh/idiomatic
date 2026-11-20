@@ -1,14 +1,14 @@
 //! The `node_table` service's cases: the id-space laws (nodes in pre-order, then tokens in source order, then embedded segments),
 //! subtree ends, children merged in source order, kinds present past the fourth word, and texts kept by id after tokens are
-//! numbered.
+//! numbered, and which nodes the parser implied.
 
 use super::service::{
-    acceptance_of, builder, children_of, decoded_of, decoded_token, diagnose, embed, enter_node,
-    finished, ids_of_kind, kind_of, kinds_present, leave_node, node_count, node_property,
-    ordinal_of, parent_of, property_of, set_syntax_acceptance, span_of, subtree_end_of,
-    syntax_error_count, token,
+    acceptance_of, builder, children_of, decoded_of, decoded_token, diagnose, embed,
+    enter_implied_node, enter_node, finished, ids_of_kind, implied_of, kind_of, kinds_present,
+    leave_node, node_count, node_property, ordinal_of, parent_of, property_of,
+    set_syntax_acceptance, span_of, subtree_end_of, syntax_error_count, token,
 };
-use super::types::{EmbeddedText, FieldCode, NodeTable, NodeTableBuilder};
+use super::types::{EmbeddedText, FieldCode, Implied, NodeTable, NodeTableBuilder};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::types::SyntaxAcceptance;
 use ryo_relations::domain::elements::types::EmbeddedMapping;
@@ -33,6 +33,9 @@ enum Law {
     /// The other readers: the second node's ordinal, the ids of the first token's kind, the root's property's length, whether the
     /// parser rejected the file, and how many diagnostics it reported.
     Readers,
+    /// Whether each of six ids is an implied node, over `node[ implied[ node ] tok implied ]` (four nodes, a token, and an id the
+    /// table does not hold), written into a table whose earlier writing had an implied node at the first id.
+    Implied,
 }
 
 /// Writes `node(1)[ tok(10) node(2)[ tok(11) ] tok(12) ]` over the bytes `a b c` (`kinds` kinds).
@@ -121,6 +124,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Law::Readers,
         expect: Expect::Value([1, 1, 3, 1, 1, 0]),
     },
+    Case {
+        name: CaseName("an_implied_node_says_so_and_no_other_id_does"),
+        word: Word::Succeeds,
+        input: || Law::Implied,
+        expect: Expect::Value([0, 1, 0, 1, 0, 0]),
+    },
 ];
 
 fn subject(law: Input) -> Result<Value, Failure> {
@@ -200,6 +209,32 @@ fn subject(law: Input) -> Result<Value, Failure> {
                     .unwrap_or(0),
                 u32::try_from(children_of(read, Position(1)).len()).unwrap_or(0),
             ]
+        }
+        Law::Implied => {
+            let mut earlier = builder(&mut table, Count(16));
+            enter_implied_node(&mut earlier, KindBits(2), FieldCode(0));
+            leave_node(&mut earlier, Offset(0));
+            let _earlier = finished(&mut earlier);
+            let mut writer = builder(&mut table, Count(16));
+            enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+            enter_implied_node(&mut writer, KindBits(3), FieldCode(0));
+            enter_node(&mut writer, KindBits(4), FieldCode(0), Offset(0));
+            leave_node(&mut writer, Offset(1));
+            leave_node(&mut writer, Offset(1));
+            token(
+                &mut writer,
+                KindBits(10),
+                FieldCode(0),
+                Offset(1),
+                Offset(2),
+            );
+            enter_implied_node(&mut writer, KindBits(5), FieldCode(0));
+            leave_node(&mut writer, Offset(2));
+            leave_node(&mut writer, Offset(2));
+            let read = finished(&mut writer);
+            (0..6)
+                .map(|id| u32::from(implied_of(read, Position(id)) == Implied::Yes))
+                .collect()
         }
         Law::Readers => {
             let mut writer = builder(&mut table, Count(16));

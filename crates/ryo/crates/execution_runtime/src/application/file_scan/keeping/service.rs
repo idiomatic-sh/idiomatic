@@ -5,8 +5,8 @@ use super::super::types::{EmitColumns, PlaceColumns, ScanReport};
 use ryo_engine::domain::findings::types::{ColumnKinds, FoundCells, FoundRows, FoundTarget};
 use ryo_language::domain::facts::service::text;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
-use ryo_language::domain::node_table::service::{element_count, span_of};
-use ryo_language::domain::node_table::types::NodeTable;
+use ryo_language::domain::node_table::service::{element_count, implied_of, span_of};
+use ryo_language::domain::node_table::types::{Implied, NodeTable};
 use ryo_relations::domain::relations::service::{from_bits, location, node_file, node_position};
 use ryo_relations::domain::relations::types::{Bits, CellKind, FileId, Locatedness, Span, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -31,6 +31,7 @@ pub(in crate::application::file_scan) struct RowKeeper<'a> {
 
 impl RowKeeper<'_> {
     /// Where a finding is in the file: the stretch of the first of `places` that holds a stretch of the file, or a node of it.
+    /// A node the parser implied is in no byte of the file and places nothing, as in the old engine's rendering.
     fn placed(&self, places: &[ColumnIndex], kinds: &ColumnKinds, row: &[CellWord]) -> RowPlace {
         places
             .iter()
@@ -42,7 +43,8 @@ impl RowKeeper<'_> {
                     Value::Node(node) => {
                         let position = node_position(node);
                         let within = usize::from(position) < element_count(self.table).0;
-                        (node_file(node) == self.file && within).then(|| {
+                        let written = implied_of(self.table, position) == Implied::No;
+                        (node_file(node) == self.file && within && written).then(|| {
                             let span = span_of(self.table, position);
                             Span {
                                 start: span.start,

@@ -69,6 +69,8 @@ pub(crate) struct NodeTableEngine {
     pub(crate) acceptance: SyntaxAcceptance,
     /// The embedded segments, in the order they were written.
     pub(crate) embedded: Vec<EmbeddedSegment>,
+    /// The nodes the parser implied, in id order.
+    pub(crate) implied: Vec<Position>,
 }
 
 /// One embedded segment of the table.
@@ -100,6 +102,29 @@ pub struct ByteSpan {
     pub start: Offset,
     /// The byte after the last.
     pub end: Offset,
+}
+
+/// Whether the parser implied a node: such a node is in no byte of the file, so nothing is placed by it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, enter_implied_node, finished, implied_of, leave_node};
+/// use ryo_language::domain::node_table::types::{FieldCode, Implied, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_implied_node(&mut writer, KindBits(1), FieldCode(0));
+/// leave_node(&mut writer, Offset(0));
+/// assert_eq!(implied_of(finished(&mut writer), Position(0)), Implied::Yes);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Implied {
+    /// The file wrote the node or token: its span is where it is.
+    No,
+    /// The parser implied the node: it stands zero wide at the furthest byte the walk had written.
+    Yes,
 }
 
 /// A field code in the language's own numbering; zero is "fills no field".

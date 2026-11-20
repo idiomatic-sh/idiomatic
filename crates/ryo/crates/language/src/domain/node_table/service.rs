@@ -6,8 +6,8 @@
 use super::constants::PRESENCE_BITS;
 use super::types::{
     BuilderSegment, BuilderState, ByteSpan, ChildPlace, EmbeddedRoot, EmbeddedSegment,
-    EmbeddedText, FieldCode, Finish, KindsPresent, LogicalText, NodeTable, NodeTableBuilder,
-    PendingToken, PresenceWord,
+    EmbeddedText, FieldCode, Finish, Implied, KindsPresent, LogicalText, NodeTable,
+    NodeTableBuilder, PendingToken, PresenceWord,
 };
 use crate::domain::diagnostics::constants::UNSPECIFIED_CODE;
 use crate::domain::diagnostics::service::{clear, record};
@@ -60,6 +60,7 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     clear(&mut columns.diagnostics);
     columns.acceptance = SyntaxAcceptance::Undetermined;
     columns.embedded.clear();
+    columns.implied.clear();
     NodeTableBuilder(BuilderState {
         table,
         kinds,
@@ -174,6 +175,7 @@ pub fn enter_implied_node(builder: &mut NodeTableBuilder<'_>, kind: KindBits, fi
     let id = id_after(Count(builder.0.table.0.kind.len()));
     enter_node(builder, kind, field, at_cursor);
     builder.0.implied.push(id);
+    builder.0.table.0.implied.push(id);
 }
 
 /// Closes the innermost open node, which ends at `end`, and records where its subtree ends. A segment's root closing ends the
@@ -1075,6 +1077,34 @@ pub fn property_of(table: &NodeTable, id: Position, property: PropertyId) -> Opt
     match records.binary_search_by_key(&(id, property), |each| (each.element, each.property)) {
         Ok(place) => records.get(place).map(|record| text_of(table, record)),
         Err(_) => None,
+    }
+}
+
+/// Whether the parser implied the node `id`: a node written through `enter_implied_node`. Every other node, every token and an
+/// id the table does not hold answer `Implied::No`.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, enter_implied_node, enter_node, finished, implied_of, leave_node};
+/// use ryo_language::domain::node_table::types::{FieldCode, Implied, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// enter_implied_node(&mut writer, KindBits(1), FieldCode(0));
+/// leave_node(&mut writer, Offset(0));
+/// leave_node(&mut writer, Offset(3));
+/// let read = finished(&mut writer);
+/// assert_eq!(implied_of(read, Position(0)), Implied::No);
+/// assert_eq!(implied_of(read, Position(1)), Implied::Yes);
+/// ```
+#[must_use]
+pub fn implied_of(table: &NodeTable, id: Position) -> Implied {
+    match table.0.implied.binary_search(&id) {
+        Ok(_) => Implied::Yes,
+        Err(_) => Implied::No,
     }
 }
 

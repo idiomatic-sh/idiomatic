@@ -1,5 +1,6 @@
 //! The test support of the `walk` use case: the fillers concept's fixture language walked over a file of words (`*.walk`), one node
-//! over one token per word, a diagnostic for each `!`. A file whose bytes are `FAILING` makes its parser fail.
+//! over one token per word, a diagnostic for each `!`, an implied node for each `~` (a word the writer left out). A file whose
+//! bytes are `FAILING` makes its parser fail.
 
 use super::errors::WalkError;
 use super::interface::WalkUseCase;
@@ -7,7 +8,9 @@ use super::types::{FileVisit, RelationNeeds, WalkRequest};
 use crate::domain::facts::types::FileFacts;
 use crate::domain::fillers::fixtures::{Walking, WalkingFile};
 use crate::domain::fillers::service::file_source;
-use crate::domain::node_table::service::{diagnose, enter_node, finished, leave_node, token};
+use crate::domain::node_table::service::{
+    diagnose, enter_implied_node, enter_node, finished, leave_node, token,
+};
 use crate::domain::node_table::types::{FieldCode, NodeTableBuilder};
 use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
@@ -15,7 +18,7 @@ use ryo_relations::domain::terms::types::NameText;
 /// The bytes the fixture's parser fails on.
 pub const FAILING: &[u8] = b"\xff";
 
-/// The kind of the fixture's one node.
+/// The kind of the fixture's nodes: the sentence, and a word the writer left out.
 const SENTENCE: KindBits = KindBits(1);
 
 /// The kind of a word.
@@ -51,6 +54,10 @@ impl WalkUseCase for Walking {
                     start = None;
                 }
                 _ => {}
+            }
+            if *byte == b'~' {
+                enter_implied_node(builder, SENTENCE, FieldCode(0));
+                leave_node(builder, offset(at));
             }
             if *byte == b'!' {
                 diagnose(

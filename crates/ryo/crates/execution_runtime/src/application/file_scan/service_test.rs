@@ -1,6 +1,6 @@
 //! The file scan's cases, over the fixture language and the engine port's fake: a walked and scanned file gives the fixture rule's
 //! rows in the report; text found in a file survives the file; a row is placed by the first of its rule's key columns, then its
-//! subject, that is a stretch of the file or a node of it; a file the language refuses or fails on, and a rule's fault, are
+//! subject, that is a stretch of the file or a node of it the parser did not imply; a file the language refuses or fails on, and a rule's fault, are
 //! reported and the run goes on.
 
 use super::errors::FileScanError;
@@ -41,6 +41,8 @@ enum Scenario {
     Faults,
     /// A rule of the one tree rule's shape that keeps the element, the file, the span and the text, keyed by the element.
     KeyedByNode,
+    /// The same rule keyed by the element, over a file whose first word the writer left out: an implied node.
+    KeyedByImpliedNode,
     /// The same rule keyed by the span.
     KeyedBySpan,
     /// The same rule keyed by the text, its subject the file: no column places its rows.
@@ -93,6 +95,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::KeyedByNode,
         expect: Expect::Value(Cow::Borrowed(
             "found file 1 rule 0 at 0..3: 4294967297\t1\t3\ttwo\nfound file 1 rule 0 at 0..7: 4294967296\t1\t7\t\nfound file 1 rule 0 at 4..7: 4294967298\t1\t17179869191\tone",
+        )),
+    },
+    Case {
+        name: CaseName("a_row_keyed_by_an_implied_node_has_no_place"),
+        word: Word::Succeeds,
+        input: || Scenario::KeyedByImpliedNode,
+        expect: Expect::Value(Cow::Borrowed(
+            "found file 1 rule 0 at nowhere: 4294967297\t1\t0\t\nfound file 1 rule 0 at 0..1: 4294967298\t1\t1\t~\nfound file 1 rule 0 at 0..5: 4294967296\t1\t5\t\nfound file 1 rule 0 at 2..5: 4294967299\t1\t8589934597\tone",
         )),
     },
     Case {
@@ -270,13 +280,20 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ];
             Ok(lines(&reported([worked(&tree, &files)])))
         }
-        Scenario::KeyedByNode | Scenario::KeyedBySpan | Scenario::KeyedByText => {
+        Scenario::KeyedByNode
+        | Scenario::KeyedByImpliedNode
+        | Scenario::KeyedBySpan
+        | Scenario::KeyedByText => {
             let key = match scenario {
-                Scenario::KeyedByNode => 0,
+                Scenario::KeyedByNode | Scenario::KeyedByImpliedNode => 0,
                 Scenario::KeyedBySpan => 2,
                 _ => 3,
             };
-            let files = [file("a.walk", 1, b"two one")];
+            let text: &[u8] = match scenario {
+                Scenario::KeyedByImpliedNode => b"~ one",
+                _ => b"two one",
+            };
+            let files = [file("a.walk", 1, text)];
             Ok(lines(&reported([worked(&keeping(key), &files)])))
         }
         Scenario::Taken => {
