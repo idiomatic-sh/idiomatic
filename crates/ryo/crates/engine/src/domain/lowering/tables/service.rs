@@ -131,8 +131,8 @@ pub(crate) const fn walk_of(direction: Direction) -> Option<TreeAxis> {
         Direction::Ancestor => Some(TreeAxis::Along(AxisDirection::Ancestor)),
         Direction::Descendant => Some(TreeAxis::Along(AxisDirection::Descendant)),
         Direction::NearestAncestor => Some(TreeAxis::Nearest),
-        Direction::Parent
-        | Direction::Child
+        Direction::Parent => Some(TreeAxis::Along(AxisDirection::Parent)),
+        Direction::Child
         | Direction::Deep
         | Direction::PreviousSibling
         | Direction::NextSibling => None,

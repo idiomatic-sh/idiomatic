@@ -37,6 +37,7 @@ fn accesses<'a>(
         uses: uses_of(branch, start.2),
         environment,
         written: start.1,
+        missed: 0,
     };
     for at in &plan.order {
         if let Some(atom) = branch.atoms.get(*at) {
@@ -137,6 +138,16 @@ fn step_of(access: Emitted) -> ProgramStep {
             start,
             out,
         },
+        Emitted::Children {
+            relation,
+            parent,
+            out,
+        } => ProgramStep::Children {
+            relation,
+            parent,
+            field: None,
+            out,
+        },
         Emitted::Within {
             relation,
             ancestor,
@@ -195,6 +206,9 @@ pub(crate) fn branch_program(
 ) -> Option<StepProgram> {
     let start = (Environment::default(), Vec::new(), None);
     let emitter = accesses(drafts, kinds, branch, plan, (UnitRole::Branch, None), start);
+    if emitter.missed > 0 {
+        return None;
+    }
     let columns = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
     let steps = emitter.written.into_iter().map(step_of);
     Some(program(
@@ -259,7 +273,11 @@ pub(crate) fn pattern_program(
     read.extend(pattern.bound.0.iter().copied());
     let read = ColumnMask(read.into());
     let start = (environment, tests, Some(&read));
-    let emitter = accesses(drafts, kinds, branch, plan, (UnitRole::Pattern, Some(pattern.definition)), start);
+    let unit = (UnitRole::Pattern, Some(pattern.definition));
+    let emitter = accesses(drafts, kinds, branch, plan, unit, start);
+    if emitter.missed > 0 {
+        return None;
+    }
     let mut steps: Vec<ProgramStep> = Vec::new();
     let mut row = Vec::with_capacity(pattern.collected.0.len());
     for column in &pattern.collected.0 {
@@ -381,6 +399,16 @@ fn stage_of(access: Emitted, first: bool) -> Option<FillStage> {
             start,
             out,
         },
+        Emitted::Children {
+            relation,
+            parent,
+            out,
+        } => FillStage::Walk {
+            relation,
+            walk: TreeWalk::Children(None),
+            start: parent,
+            out,
+        },
         // A pipeline holds no test of containment, no walk with a condition and no `Let`.
         Emitted::Within { .. } | Emitted::Nearest { .. } | Emitted::Let { .. } => return None,
     })
@@ -397,6 +425,9 @@ pub(crate) fn pipeline(
 ) -> Option<Pipeline> {
     let start = (Environment::default(), Vec::new(), None);
     let emitter = accesses(drafts, kinds, branch, plan, (UnitRole::Pipeline, unit), start);
+    if emitter.missed > 0 {
+        return None;
+    }
     let row = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
     let mut stages = Vec::with_capacity(emitter.written.len());
     for (place, access) in emitter.written.into_iter().enumerate() {

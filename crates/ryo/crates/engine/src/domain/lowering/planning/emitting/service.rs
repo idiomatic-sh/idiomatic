@@ -540,29 +540,39 @@ fn walked(
         (from_start, from_reached, contained, emitter.role)
     {
         let registers = (register_of(emitter, ancestor), register_of(emitter, descendant));
-        if let (Some(ancestor), Some(descendant)) = registers {
-            emitter.written.push(Emitted::Within {
+        match registers {
+            (Some(ancestor), Some(descendant)) => emitter.written.push(Emitted::Within {
                 relation,
                 ancestor,
                 descendant,
-            });
+            }),
+            (None, _) | (_, None) => emitter.missed = emitter.missed.saturating_add(1),
         }
         return;
     }
+    // From the start, along the axis; from what is reached, back along it: a parent's children are a walk of their own.
     let (walk, from, to) = if from_start {
         (Some(direction), ends.0, ends.1)
     } else {
         (reversed(direction), ends.1, ends.0)
     };
-    let (Some(walk), Some(start)) = (walk, register_of(emitter, from)) else {
+    let Some(start) = register_of(emitter, from) else {
+        emitter.missed = emitter.missed.saturating_add(1);
         return;
     };
     let out = fresh_register(emitter.drafts);
-    emitter.written.push(Emitted::Axis {
-        relation,
-        direction: walk,
-        start,
-        out,
+    emitter.written.push(match walk {
+        Some(direction) => Emitted::Axis {
+            relation,
+            direction,
+            start,
+            out,
+        },
+        None => Emitted::Children {
+            relation,
+            parent: start,
+            out,
+        },
     });
     given_or_tested(emitter, to, out);
 }
@@ -577,6 +587,7 @@ fn nearest(
     reached: FlatTerm,
 ) {
     let Some(from) = register_of(emitter, start) else {
+        emitter.missed = emitter.missed.saturating_add(1);
         return;
     };
     emitter.environment.enumerated = Enumerated::Already;
@@ -590,6 +601,7 @@ fn nearest(
             let (Some(bound), Some(collected)) =
                 (column_of(emitter, start), column_of(emitter, reached))
             else {
+                emitter.missed = emitter.missed.saturating_add(1);
                 return;
             };
             let (bound, collected) = (ColumnMask([bound].into()), ColumnMask([collected].into()));
@@ -641,6 +653,7 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
                 .collect();
             let (Some(key), Some(bound)) = (operands, operand(&emitter.environment, *bound))
             else {
+                emitter.missed = emitter.missed.saturating_add(1);
                 return;
             };
             let out = fresh_register(emitter.drafts);
@@ -684,6 +697,7 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
                 operand(&emitter.environment, *left),
                 operand(&emitter.environment, *right),
             ) else {
+                emitter.missed = emitter.missed.saturating_add(1);
                 return;
             };
             emitter.written.push(Emitted::Test {

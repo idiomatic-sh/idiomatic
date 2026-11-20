@@ -106,6 +106,15 @@ pub(crate) enum Emitted {
         /// The element reached.
         out: Register,
     },
+    /// Each child of an element.
+    Children {
+        /// The node relation whose tree is walked.
+        relation: Relation,
+        /// The parent.
+        parent: Register,
+        /// The child.
+        out: Register,
+    },
     /// The test that one element is a proper ancestor of another: a program's only.
     Within {
         /// The node relation whose tree is walked.
@@ -196,4 +205,6 @@ pub(crate) struct Emitter<'a> {
     pub(crate) environment: Environment,
     /// The accesses written so far.
     pub(crate) written: Vec<Emitted>,
+    /// How many atoms could not be written: a term that should have been given was not. A branch with one has no form.
+    pub(crate) missed: usize,
 }

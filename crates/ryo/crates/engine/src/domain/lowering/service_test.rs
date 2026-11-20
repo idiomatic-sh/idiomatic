@@ -92,4 +92,26 @@ fn printed() {
         println!("== {scene:?}");
         println!("{}", subject(*scene).unwrap_or_default());
     }
+    for kind in ryo_values::domain::query_operators::types::OperationKind::ALL {
+        let plan = super::fixtures::growth::growth_plan(*kind);
+        let bindings = super::fixtures::pending::growth_bindings(&plan);
+        let rules = [SelectedRule {
+            rule: SelectedRuleOrdinal(0),
+            plan: &plan,
+            bindings: RuleBindings(&bindings),
+        }];
+        let kinds = KindVocabulary {
+            language: LanguageName("walking".into()),
+            kinds: Vec::new(),
+        };
+        for stage in [SampleStage::Absent, SampleStage::First] {
+            let lowered = lowered_at(SelectedRules(&rules), stage, &Statistics::default(), &kinds);
+            let said = match (lowered.refused.first(), crate::domain::encoding::service::encoded(&lowered.pack)) {
+                (Some(refused), _) => format!("refused: {}", refused.refusal),
+                (None, Ok(code)) => format!("encoded: {:?}", code_census(&code)),
+                (None, Err(error)) => format!("NOT ENCODED: {error}\n{}", described(&lowered.pack).join("\n")),
+            };
+            println!("growth {kind:?} {stage:?}: {said}");
+        }
+    }
 }

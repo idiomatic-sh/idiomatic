@@ -7,8 +7,8 @@ use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::service::{stage_class, step_class};
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
 use crate::domain::steps::types::{
-    CostClass, DefinitionId, MadeTableId, NearestEdges, ProgramStep, StepBody, StepProgram,
-    StepRows,
+    CostClass, DefinitionId, MadeTableId, NearestEdges, ProgramStep, StepBody, StepOperand,
+    StepProgram, StepRows,
 };
 
 /// Where a program stands.
@@ -110,6 +110,13 @@ const fn whole_read(step: &ProgramStep) -> bool {
     }
 }
 
+/// Whether a test's operands can be written: the left a register or a constant, the right a register, a constant or a set.
+/// The file is no operand of a test: a program puts it in a register first.
+const fn test_written(left: &StepOperand, right: &StepOperand) -> bool {
+    let left = matches!(left, StepOperand::Register(_) | StepOperand::Word(_));
+    left && !matches!(right, StepOperand::File)
+}
+
 /// Holds a program to the invariant: a file-sized step, and a whole read of a definition's rows, stand only first in a
 /// rule's branch; every program a step runs stands under a key. Programs are walked from a list, never by recursion.
 fn program_proved(program: &StepProgram, standing: Standing) -> Result<(), ProofFault> {
@@ -121,6 +128,11 @@ fn program_proved(program: &StepProgram, standing: Standing) -> Result<(), Proof
             let whole = whole_read(&placed.step);
             let row_read = matches!(placed.step, ProgramStep::EachRow { .. });
             if (sized && !anchors) || (whole && !(anchors && row_read)) {
+                return Err(ProofFault::Misplaced);
+            }
+            if let ProgramStep::Test { left, right, .. } = &placed.step
+                && !test_written(left, right)
+            {
                 return Err(ProofFault::Misplaced);
             }
             let (programs, count) = held(&placed.step);
@@ -147,9 +159,9 @@ fn pipeline_proved(pipeline: &Pipeline, products: ProductStated) -> Result<(), P
                 operands_fit(values.0.len())?;
                 !sized
             }
+            FillStage::Keep { left, right, .. } => !sized && test_written(left, right),
             FillStage::Latest { .. }
             | FillStage::Read { .. }
-            | FillStage::Keep { .. }
             | FillStage::Call { .. }
             | FillStage::Render { .. }
             | FillStage::Walk { .. } => !sized,
