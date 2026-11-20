@@ -10,6 +10,7 @@ pub(crate) mod choosing;
 pub(crate) mod corpus_copies;
 pub(crate) mod crossing;
 pub(crate) mod finish;
+pub(crate) mod found_rows;
 pub(crate) mod handing;
 pub(crate) mod keeping;
 pub(crate) mod listing;

@@ -24,7 +24,7 @@ use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
 use ryo_execution_runtime::outbound::facts::interface::{FactsPort, FactsWorker};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::WorkerNumber;
-use ryo_values::domain::files::types::CorpusInput;
+use ryo_values::domain::files::types::{CorpusInput, FileSize};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::row_texts::types::{RowTotal, RowsTextView};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -91,21 +91,7 @@ impl FileVisits {
             };
             states.push(Worker::new(tables_for(WorkerNumber(number)), facts));
         }
-        let (mut headings, limit) = match run.answering {
-            Answering::Findings => (
-                vec![
-                    Heading(rule_heading().into()),
-                    Heading(path_heading().into()),
-                    Heading(key_heading().into()),
-                    Heading(columns_heading().into()),
-                ],
-                RowTotal(u64::MAX),
-            ),
-            Answering::Rows(answer) => (answer.headings.clone(), answer.limit),
-        };
-        headings.push(Heading(line_heading().into()));
-        headings.push(Heading(column_heading().into()));
-        self.rows.begin(&headings);
+        let limit = self.begun(run.answering);
         let streaming = Streaming {
             ordered: Mutex::new(Ordered {
                 limit,
@@ -158,27 +144,43 @@ impl FileVisits {
         }))
     }
 
-    /// The job of one file: wait to be admitted, visit the file, and write its findings when it is the file's turn, or when the
-    /// files before it have left.
-    fn process(&self, course: &Course<'_>, worker: &mut Worker, job: JobNumber) {
-        let place = FileOrder(usize::try_from(job.0).unwrap_or(usize::MAX));
-        let size = size_at(course.files, place);
-        let stream = course.streaming;
-        {
-            let mut ordered = stream
-                .ordered
-                .lock()
+    /// Begins the answer: the headings of its columns go to the rows port, before the first row. Answers how many rows may leave.
+    pub(in crate::application::file_analysis) fn begun(&self, answering: &Answering) -> RowTotal {
+        let (mut headings, limit) = match answering {
+            Answering::Findings => (
+                vec![
+                    Heading(rule_heading().into()),
+                    Heading(path_heading().into()),
+                    Heading(key_heading().into()),
+                    Heading(columns_heading().into()),
+                ],
+                RowTotal(u64::MAX),
+            ),
+            Answering::Rows(answer) => (answer.headings.clone(), answer.limit),
+        };
+        headings.push(Heading(line_heading().into()));
+        headings.push(Heading(column_heading().into()));
+        self.rows.begin(&headings);
+        limit
+    }
+
+    /// Waits until a file of `size` bytes may be read, and counts it among the files being read.
+    pub(in crate::application::file_analysis) fn admit(stream: &Streaming, size: FileSize) {
+        let mut ordered = stream
+            .ordered
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        while admitted(&ordered, size) == Admittance::Waits {
+            ordered = stream
+                .turn
+                .wait(ordered)
                 .unwrap_or_else(PoisonError::into_inner);
-            while admitted(&ordered, size) == Admittance::Waits {
-                ordered = stream
-                    .turn
-                    .wait(ordered)
-                    .unwrap_or_else(PoisonError::into_inner);
-            }
-            ordered.inflight.0 += size.0;
         }
-        self.analysis
-            .visit_file(worker, course.visit, course.files, job);
+        ordered.inflight.0 += size.0;
+    }
+
+    /// Counts a file of `size` bytes out of the files being read, and wakes the workers that wait for room.
+    pub(in crate::application::file_analysis) fn release(stream: &Streaming, size: FileSize) {
         stream
             .ordered
             .lock()
@@ -186,8 +188,37 @@ impl FileVisits {
             .inflight
             .0 -= size.0;
         stream.turn.notify_all();
-        // The file's turn: its findings leave now, or wait for the files before it.
+    }
+
+    /// The job of one file: wait to be admitted, visit the file, and write its findings when it is the file's turn, or when the
+    /// files before it have left.
+    fn process(&self, course: &Course<'_>, worker: &mut Worker, job: JobNumber) {
+        let place = FileOrder(usize::try_from(job.0).unwrap_or(usize::MAX));
+        let size = size_at(course.files, place);
+        Self::admit(course.streaming, size);
+        self.analysis
+            .visit_file(worker, course.visit, course.files, job);
+        Self::release(course.streaming, size);
         let rendered = std::mem::take(&mut worker.tables.rendered);
+        let run = StreamRun {
+            files: course.files,
+            answering: course.visit.setting.answering,
+            only: course.only,
+        };
+        worker.tables.rendered =
+            self.leave(course.streaming, place, rendered, &run, course.counted);
+    }
+
+    /// The turn of the file at `place`: its rows, `rendered`, leave now, or wait for the files before it; the rows of the files
+    /// that waited for it leave after them. Answers an emptied buffer for the worker's next file.
+    pub(in crate::application::file_analysis) fn leave(
+        &self,
+        stream: &Streaming,
+        place: FileOrder,
+        rendered: Rendered,
+        run: &StreamRun<'_>,
+        counted: &AtomicU64,
+    ) -> Rendered {
         let mut ordered = stream
             .ordered
             .lock()
@@ -203,17 +234,17 @@ impl FileVisits {
         let mut ready = offer(&mut ordered, Turn(place.0), rendered);
         let mut spare = None;
         while let Some(mut each) = ready {
-            let written = match course.visit.setting.answering {
+            let written = match run.answering {
                 Answering::Findings => {
                     crate::domain::ordering::service::account(&mut ordered, &each);
-                    self.write_findings(&each, course.only).0
+                    self.write_findings(&each, run.only).0
                 }
                 Answering::Rows(_) => {
                     let allowed = crate::domain::ordering::service::allowance(&mut ordered, &each);
                     self.write_rows(&each, allowed).0
                 }
             };
-            let _counted_before = course.counted.fetch_add(written, Ordering::Relaxed);
+            let _counted_before = counted.fetch_add(written, Ordering::Relaxed);
             if spare.is_none() {
                 crate::domain::ordering::service::clear(&mut each);
                 spare = Some(each);
@@ -222,9 +253,10 @@ impl FileVisits {
             }
             ready = crate::domain::ordering::service::next_ready(&mut ordered);
         }
-        worker.tables.rendered = spare.or_else(|| ordered.spares.pop()).unwrap_or_default();
+        let emptied = spare.or_else(|| ordered.spares.pop()).unwrap_or_default();
         drop(ordered);
         stream.turn.notify_all();
+        emptied
     }
 
     /// Writes the findings of one file to the rows port, those of the files asked for, in the order they were put in.

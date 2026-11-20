@@ -1,46 +1,39 @@
 //! The `file_scan` service. Each worker walks a file through its language and scans it through the engine; every found row is
-//! kept as owned text and numbers before the file's words are cleared; the run's report is its workers' rows, sorted. On the
-//! build branch `both` compares that report's rows with the old engine's, per rule and file. Nothing here is done per rule for a
-//! file: a rule whose anchors are absent from a file costs the host nothing.
+//! kept as owned text and numbers, with where in the file it is, before the file's words and its table are gone; the run's report
+//! is its workers' rows, sorted. Nothing here is done per rule for a file: a rule whose anchors are absent from a file costs the
+//! host nothing, and a found row is looked up by its rule ordinal.
 
-use super::constants::CELL_SEPARATOR;
 use super::errors::FileScanError;
-use super::types::{
-    EmitColumns, FaultedFile, FrontierRow, HarnessDifference, HarnessRows, KeptCell, KeptText,
-    RowText, RuleFile, ScanReport, ScanRow, ScanRun, ScanWorker,
-};
+use super::keeping::service::RowKeeper;
+use super::types::{EmitColumns, FaultedFile, PlaceColumns, ScanReport, ScanRun, ScanWorker};
 use crate::outbound::engine::interface::EnginePort;
-use ryo_engine::domain::findings::types::{
-    FoundCells, FoundRows, FoundTarget, InstructionCount, ScanCounters,
-};
+use ryo_engine::domain::findings::types::{FoundTarget, InstructionCount, ScanCounters};
 use ryo_engine::domain::programs::service::needs;
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_language::domain::facts::service::text;
-use ryo_language::domain::facts::types::{FileFacts, FileWords};
+use ryo_language::domain::facts::types::FileFacts;
 use ryo_language::domain::node_table::types::NodeTable;
+use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, WalkEngine, WalkRequest};
-use ryo_operators::spike::{engine_compared, engine_difference};
-use ryo_relations::domain::relations::types::{CellKind, Count, FileId};
-use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_relations::domain::relations::types::FileId;
+use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::scan_rows::types::{FaultOf, FaultSentence, ScanFault, ScanRow};
 use std::sync::Arc;
 
-/// What every file of a run is scanned with: the rule set, and the columns of each accepted rule's rows, asked of the engine
-/// once and laid out by rule ordinal.
+/// The columns of each accepted rule's rows, asked of the engine once for the run and laid out by rule ordinal.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
-/// use ryo_execution_runtime::application::file_scan::service::run;
+/// use ryo_execution_runtime::application::file_scan::service::emit_columns;
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
-/// assert!(run(&engine, &Programs::default()).columns.0.is_empty());
+/// assert!(emit_columns(&engine, &Programs::default()).0.is_empty());
 /// ```
 #[must_use]
-pub fn run<'a>(engine: &dyn EnginePort, programs: &'a Programs) -> ScanRun<'a> {
+pub fn emit_columns(engine: &dyn EnginePort, programs: &Programs) -> EmitColumns {
     let mut columns = EmitColumns::default();
     for (rule, held) in engine
         .accepted(programs)
@@ -57,7 +50,34 @@ pub fn run<'a>(engine: &dyn EnginePort, programs: &'a Programs) -> ScanRun<'a> {
             *slot = held;
         }
     }
-    ScanRun { programs, columns }
+    columns
+}
+
+/// The columns that place a row of each selected rule, by rule ordinal: the key columns of its plan's emit, then its subject.
+/// `plans` are the selected rules' plans, in rule order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_scan::service::place_columns;
+///
+/// assert!(place_columns(&[]).0.is_empty());
+/// ```
+#[must_use]
+pub fn place_columns(plans: &[&Plan]) -> PlaceColumns {
+    PlaceColumns(
+        plans
+            .iter()
+            .map(|plan| {
+                plan.emit
+                    .key
+                    .iter()
+                    .chain(std::iter::once(&plan.emit.subject))
+                    .copied()
+                    .collect()
+            })
+            .collect(),
+    )
 }
 
 /// A worker's state for a rule set, before its first file.
@@ -90,83 +110,39 @@ pub fn worker(
     }
 }
 
-/// Keeps the found rows of one file: every word cell is copied to owned text while the file's words are lent.
-struct Keeping<'a> {
-    /// The columns of each selected rule's rows.
-    columns: &'a EmitColumns,
-    /// The file being scanned.
-    file: FileId,
-    /// Where the worker keeps what it found.
-    report: &'a mut ScanReport,
-    /// The first target a row did not fit the columns of.
-    misfit: Option<FoundTarget>,
-}
-
-impl FoundRows for Keeping<'_> {
-    fn found(&mut self, target: FoundTarget, row: FoundCells<'_>, words: &FileWords) {
-        let of_rule = |rule: SelectedRuleOrdinal| {
-            self.columns
-                .0
-                .get(usize::try_from(rule.0).unwrap_or(usize::MAX))
-        };
-        let kinds = match target {
-            FoundTarget::Rule(rule) => of_rule(rule).map(|columns| &columns.emit),
-            FoundTarget::Frontier(rule, input) => {
-                of_rule(rule).and_then(|columns| columns.frontier.get(input.0))
-            }
-        };
-        let Some(kinds) = kinds.filter(|kinds| kinds.0.len() == row.0.len()) else {
-            if self.misfit.is_none() {
-                self.misfit = Some(target);
-            }
-            return;
-        };
-        let cells = row
-            .0
-            .iter()
-            .zip(&kinds.0)
-            .map(|(cell, kind)| match kind {
-                CellKind::Symbol => KeptCell::Text(KeptText(text(words, *cell).0.into())),
-                CellKind::Node
-                | CellKind::File
-                | CellKind::Span
-                | CellKind::Number
-                | CellKind::Flag => KeptCell::Number(*cell),
-            })
-            .collect();
-        let file = self.file;
-        match target {
-            FoundTarget::Rule(rule) => self.report.found.push(ScanRow { file, rule, cells }),
-            FoundTarget::Frontier(rule, input) => self.report.frontier.push(FrontierRow {
-                file,
-                rule,
-                input,
-                cells,
-            }),
-        }
-    }
-}
-
 /// The visit that scans the file its language lends.
 struct Visiting<'a> {
     /// The engine.
     engine: &'a dyn EnginePort,
-    /// The rule set.
-    programs: &'a Programs,
+    /// What every file of the run is scanned with.
+    run: &'a ScanRun<'a>,
+    /// The file being scanned.
+    file: FileId,
     /// The worker's per-file engine state.
     state: &'a mut ScanScratch,
-    /// Where the found rows go.
-    keeping: Keeping<'a>,
+    /// Where the worker keeps what it found.
+    report: &'a mut ScanReport,
+    /// The first target a row did not fit the columns of.
+    misfit: Option<FoundTarget>,
     /// What the scan answered; nothing until the language lends the file.
     answer: Option<Result<ScanCounters, ScanError>>,
 }
 
 impl FileVisit for Visiting<'_> {
     fn visit(&mut self, file: FileFacts<'_>) {
-        self.answer = Some(
-            self.engine
-                .scan(self.programs, file, self.state, &mut self.keeping),
-        );
+        let mut keeping = RowKeeper {
+            columns: self.run.columns,
+            places: self.run.places,
+            file: self.file,
+            table: file.table,
+            report: &mut *self.report,
+            misfit: &mut self.misfit,
+        };
+        self.answer =
+            Some(
+                self.engine
+                    .scan(self.run.programs, file, self.file, self.state, &mut keeping),
+            );
     }
 }
 
@@ -180,14 +156,11 @@ fn scanned(
 ) -> Result<ScanCounters, FileScanError> {
     let mut visiting = Visiting {
         engine,
-        programs: run.programs,
+        run,
+        file: file.file,
         state: &mut worker.scan,
-        keeping: Keeping {
-            columns: &run.columns,
-            file: file.file,
-            report: &mut worker.report,
-            misfit: None,
-        },
+        report: &mut worker.report,
+        misfit: None,
         answer: None,
     };
     let (table, buffers) = (&mut worker.table, &mut *worker.buffers);
@@ -195,7 +168,7 @@ fn scanned(
     let walked = worker
         .language
         .walk_file(file, needs, table, buffers, &mut visiting);
-    match (walked, visiting.answer, visiting.keeping.misfit) {
+    match (walked, visiting.answer, visiting.misfit) {
         (Err(cause), _, _) => Err(FileScanError::Walk { cause }),
         (Ok(()), None, _) => Err(FileScanError::NotLent),
         (Ok(()), Some(Err(fault)), _) => Err(FileScanError::Rule { fault }),
@@ -204,16 +177,19 @@ fn scanned(
     }
 }
 
-/// The files one worker took, each scanned in order: a faulted file is listed in the worker's report with its fault (`Walk` when
-/// the language does not read it or its parser fails, `NotLent`, `Rule` when a rule's program read a relation refused or filled
-/// in part, `Columns` when a found row does not fit the columns the run holds) and the run goes on.
-/// Answers what the scans counted together.
+/// One file, in the worker that took it, its findings taken out of the worker: they are moved to `rows`, after what it holds,
+/// sorted by rule, where they start and end, and cells. The frontier rows the file handed stay in the worker's report.
+///
+/// # Errors
+///
+/// The fault of the file's scan, as [`ran`] lists it; the rows found before it are in `rows` all the same.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
-/// use ryo_execution_runtime::application::file_scan::service::{ran, run, worker};
+/// use ryo_execution_runtime::application::file_scan::service::{taken, worker};
+/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, PlaceColumns, ScanRun};
 /// use ryo_language::domain::files::types::SourcePath;
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
@@ -226,7 +202,84 @@ fn scanned(
 /// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
 /// let mut worker = worker(&language, &engine, &programs);
 /// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
-/// let run = run(&engine, &programs);
+/// let (columns, places) = (EmitColumns::default(), PlaceColumns::default());
+/// let run = ScanRun { programs: &programs, columns: &columns, places: &places };
+/// let mut rows = Vec::new();
+/// assert!(taken(&engine, &run, &mut worker, file, &mut rows).is_err());
+/// ```
+pub fn taken(
+    engine: &dyn EnginePort,
+    run: &ScanRun<'_>,
+    worker: &mut ScanWorker,
+    file: WalkRequest<'_>,
+    rows: &mut Vec<ScanRow>,
+) -> Result<ScanCounters, FileScanError> {
+    let answered = scanned(engine, run, worker, file);
+    let from = rows.len();
+    rows.append(&mut worker.report.found);
+    if let Some(found) = rows.get_mut(from..) {
+        found.sort_unstable();
+    }
+    answered
+}
+
+/// A file's fault as it crosses to whoever answers the run: whose fault it is, and the sentence that says why.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_scan::errors::FileScanError;
+/// use ryo_execution_runtime::application::file_scan::service::crossed;
+/// use ryo_values::domain::scan_rows::types::FaultOf;
+///
+/// assert_eq!(crossed(&FileScanError::NotLent).of, FaultOf::File);
+/// ```
+#[must_use]
+pub fn crossed(fault: &FileScanError) -> ScanFault {
+    let of = match fault {
+        FileScanError::Walk {
+            cause: WalkError::Unsupported,
+        } => FaultOf::NoLanguage,
+        FileScanError::Walk {
+            cause: WalkError::Library,
+        }
+        | FileScanError::NotLent
+        | FileScanError::Columns { .. } => FaultOf::File,
+        FileScanError::Rule {
+            fault: ScanError::Refused { rule, .. } | ScanError::Partial { rule, .. },
+        } => FaultOf::Rule(*rule),
+    };
+    ScanFault {
+        of,
+        sentence: FaultSentence(fault.to_string().into()),
+    }
+}
+
+/// The files one worker took, each scanned in order: a faulted file is listed in the worker's report with its fault (`Walk` when
+/// the language does not read it or its parser fails, `NotLent`, `Rule` when a rule's program read a relation refused or filled
+/// in part, `Columns` when a found row does not fit the columns the run holds) and the run goes on.
+/// Answers what the scans counted together.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::programs::types::Programs;
+/// use ryo_execution_runtime::application::file_scan::service::{ran, worker};
+/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, PlaceColumns, ScanRun};
+/// use ryo_language::domain::files::types::SourcePath;
+/// use ryo_language::domain::symbols::types::ByteSlice;
+/// use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
+/// use ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl;
+/// use ryo_relations::domain::relations::types::FileId;
+/// use std::sync::Arc;
+///
+/// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
+/// let programs = Programs::default();
+/// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
+/// let mut worker = worker(&language, &engine, &programs);
+/// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
+/// let (columns, places) = (EmitColumns::default(), PlaceColumns::default());
+/// let run = ScanRun { programs: &programs, columns: &columns, places: &places };
 /// let _counted = ran(&engine, &run, &mut worker, &[file]);
 /// assert_eq!(worker.report.faults.len(), 1);
 /// ```
@@ -258,8 +311,8 @@ pub fn ran(
     total
 }
 
-/// The run's report from its workers': the findings sorted by file, rule and cells; the frontier rows by file, rule and entry,
-/// in the order each file handed them; the faulted files by file.
+/// The run's report from its workers': the findings sorted by file, rule, where they start and end, and cells; the frontier rows by
+/// file, rule and entry, in the order each file handed them; the faulted files by file.
 ///
 /// # Examples
 ///
@@ -286,112 +339,4 @@ pub fn reported(workers: impl IntoIterator<Item = ScanReport>) -> ScanReport {
     });
     report.faults.sort_by_key(|faulted| faulted.file);
     report
-}
-
-/// A report's findings as the harness compares them: per rule and file, each row as its text, sorted.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::service::harness_rows;
-/// use ryo_execution_runtime::application::file_scan::types::ScanReport;
-///
-/// assert!(harness_rows(&ScanReport::default()).0.is_empty());
-/// ```
-#[must_use]
-pub fn harness_rows(report: &ScanReport) -> HarnessRows {
-    let mut rows = HarnessRows::default();
-    for row in &report.found {
-        let mut written = String::new();
-        for (place, cell) in row.cells.iter().enumerate() {
-            if place > 0 {
-                written.push(CELL_SEPARATOR);
-            }
-            match cell {
-                KeptCell::Text(word) => written.push_str(&word.0),
-                KeptCell::Number(number) => written.push_str(&number.0.to_string()),
-            }
-        }
-        let at = RuleFile {
-            rule: row.rule,
-            file: row.file,
-        };
-        rows.0.entry(at).or_default().push(RowText(written.into()));
-    }
-    for each in rows.0.values_mut() {
-        each.sort_unstable();
-    }
-    rows
-}
-
-/// Compares the two engines' rows of the accepted rules, per rule and file; answers how many rules were compared.
-///
-/// # Errors
-///
-/// The first rule and file whose rows differ.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::service::compared;
-/// use ryo_execution_runtime::application::file_scan::types::HarnessRows;
-/// use ryo_relations::domain::relations::types::Count;
-///
-/// assert_eq!(compared(&HarnessRows::default(), &HarnessRows::default(), &[]), Ok(Count(0)));
-/// ```
-pub fn compared(
-    old: &HarnessRows,
-    new: &HarnessRows,
-    accepted: &[SelectedRuleOrdinal],
-) -> Result<Count, HarnessDifference> {
-    let places: std::collections::BTreeSet<RuleFile> = old
-        .0
-        .keys()
-        .chain(new.0.keys())
-        .filter(|place| accepted.contains(&place.rule))
-        .copied()
-        .collect();
-    for at in places {
-        let (before, after) = (
-            old.0.get(&at).cloned().unwrap_or_default(),
-            new.0.get(&at).cloned().unwrap_or_default(),
-        );
-        if before != after {
-            return Err(HarnessDifference {
-                at,
-                old: before,
-                new: after,
-            });
-        }
-    }
-    Ok(Count(accepted.len()))
-}
-
-/// `both`'s comparison of a run on the build branch: the old engine's rows against the report's findings, for the rules the new
-/// engine accepted, reported by count.
-///
-/// # Errors
-///
-/// `EngineHarness` naming the first rule and file whose rows differ.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::service::both;
-/// use ryo_execution_runtime::application::file_scan::types::{HarnessRows, ScanReport};
-///
-/// assert!(both(&HarnessRows::default(), &ScanReport::default(), &[]).is_ok());
-/// ```
-pub fn both(
-    old: &HarnessRows,
-    report: &ScanReport,
-    accepted: &[SelectedRuleOrdinal],
-) -> Result<Count, OperatingError> {
-    let compared = compared(old, &harness_rows(report), accepted).map_err(|difference| {
-        OperatingError::EngineHarness {
-            reason: engine_difference(&difference),
-        }
-    })?;
-    engine_compared(compared.0);
-    Ok(compared)
 }

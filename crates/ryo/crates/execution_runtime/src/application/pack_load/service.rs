@@ -1,8 +1,7 @@
 //! The `pack_load` service: the rule set of a run, loaded once before the files. The store's pack of the same key is read back,
 //! and nothing is lowered; otherwise the selected rules are lowered and their pack is written for the store. On the build branch
 //! it is where the `RYO_ENGINE` harness starts (scope-engine2 2.9, `old|new|both`): what the new engine's `load` accepted is
-//! reported by count, and a run the new engine cannot finish is stopped. The comparison of the two engines' rows is the file
-//! scan's; the use case that runs the files composes the two.
+//! reported by count. The use case that runs the files composes it with the file scan.
 
 use super::constants::{NO_ENGINE_COMPOSED, NO_LANGUAGE};
 use super::types::{Harness, HarnessLoad, HarnessRequest, LoadRequest, LoadedFrom, Refusals};
@@ -16,9 +15,7 @@ use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_operators::spike::{
-    EngineMode, engine_loaded, engine_mode, engine_refusal, engine_unpacked,
-};
+use ryo_operators::spike::{EngineMode, engine_loaded, engine_unpacked};
 use ryo_relations::domain::relations::types::{Bytes, Count};
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -151,26 +148,25 @@ fn lowered_against<'a>(
 }
 
 /// The harness of a request's file phase in `mode`, before any file. The old engine: nothing is loaded, and the store's packs
-/// stay as they were. `new` and `both`: one rule set for each linked language (or for the one the request names), loaded
+/// are not asked for. `new` and `both`: one rule set for each linked language (or for the one the request names), loaded
 /// against that language's kinds and reported by count. Answers the loads: each one's pack is what the store keeps, and its
-/// accepted rules are what `both` compares after the files.
+/// accepted rules are what the files are scanned with, and what `both` compares.
 ///
 /// # Errors
 ///
-/// `EngineHarness` when the edge composed no engine, when there is no language to lower against, and when the new engine would
-/// have to run files the host does not run through it yet.
+/// `EngineHarness` when the edge composed no engine, and when there is no language to lower against.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_execution_runtime::application::pack_load::service::harnessed_in;
+/// use ryo_execution_runtime::application::pack_load::service::harnessed;
 /// use ryo_execution_runtime::application::pack_load::types::HarnessRequest;
 /// use ryo_operators::spike::EngineMode;
 ///
 /// let request = HarnessRequest { plans: &[], digests: &[], stored: &[] };
-/// assert!(harnessed_in(EngineMode::Old, None, request).is_ok_and(|loads| loads.is_empty()));
+/// assert!(harnessed(EngineMode::Old, None, request).is_ok_and(|loads| loads.is_empty()));
 /// ```
-pub fn harnessed_in(
+pub fn harnessed(
     mode: EngineMode,
     harness: Option<Harness<'_>>,
     request: HarnessRequest<'_>,
@@ -184,7 +180,7 @@ pub fn harnessed_in(
     if languages.is_empty() {
         return Err(stopped(NO_LANGUAGE.into()));
     }
-    let (mut loads, mut accepted) = (Vec::new(), Count(0));
+    let mut loads = Vec::new();
     for kinds in languages {
         let load = loaded(
             harness.engine,
@@ -207,38 +203,7 @@ pub fn harnessed_in(
             ),
             LoadedFrom::Pack => engine_unpacked(mode, ran, selected),
         }
-        accepted = Count(accepted.0.saturating_add(ran));
         loads.push(load);
     }
-    if mode == EngineMode::New || accepted.0 > 0 {
-        return Err(stopped(engine_refusal(mode, accepted.0)));
-    }
     Ok(loads)
-}
-
-/// The harness of a request's file phase, in the mode `RYO_ENGINE` selects: see [`harnessed_in`].
-///
-/// # Errors
-///
-/// As [`harnessed_in`].
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::pack_load::service::harnessed;
-/// use ryo_execution_runtime::application::pack_load::types::{Harness, HarnessRequest};
-/// use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
-///
-/// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
-/// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
-/// let only = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
-/// let vocabularies = KindVocabularies(vec![only]);
-/// let harness = Harness { engine: &engine, digest: &digest, vocabularies: &vocabularies, named: None };
-/// let _loads = harnessed(Some(harness), HarnessRequest { plans: &[], digests: &[], stored: &[] });
-/// ```
-pub fn harnessed(
-    harness: Option<Harness<'_>>,
-    request: HarnessRequest<'_>,
-) -> Result<Vec<HarnessLoad>, OperatingError> {
-    harnessed_in(engine_mode(), harness, request)
 }

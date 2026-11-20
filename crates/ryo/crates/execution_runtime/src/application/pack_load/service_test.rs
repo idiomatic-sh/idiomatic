@@ -1,9 +1,9 @@
 //! The pack load's cases, over the engine port's fake and the engine itself: a first run lowers and writes the pack; the same rules
 //! read it back and lower nothing; a changed rule, another kind vocabulary or a pack that does not decode lowers again; and the
-//! harness keeps the store's packs under the old engine, keeps the rule set's pack when `both` compares nothing, and stops a run
-//! the new engine cannot finish.
+//! harness loads nothing under the old engine, answers a rule set for each linked language under `new` and `both`, and stops a run
+//! that has no engine or no language to lower against.
 
-use super::service::{harnessed, harnessed_in, loaded, pack_key};
+use super::service::{harnessed, loaded, pack_key};
 use super::types::{Harness, HarnessLoad, HarnessRequest, LoadRequest};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::digest::factory::blake3;
@@ -11,8 +11,7 @@ use crate::outbound::engine::factory::use_case;
 use crate::outbound::engine::fixtures::fake::EngineFake;
 use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::lowering::fixtures::named;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_operators::spike::{EngineMode, engine_mode};
+use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::Bytes;
 use ryo_values::domain::descriptions::types::{
     KindVocabularies, KindVocabulary, KindWord, LanguageName,
@@ -42,7 +41,7 @@ enum Scenario {
     BothNothingAccepted,
     /// `both`, with two languages linked and the second named.
     NamedLanguage,
-    /// `new`, with a rule the fake accepts.
+    /// `new`, with a rule the fake accepts: the harness answers the load, and stops nothing.
     NewEngine,
     /// `both`, with a rule the fake accepts.
     BothAccepted,
@@ -125,20 +124,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed("[\"words\", \"signs\"]; the rule set's pack")),
     },
     Case {
-        name: CaseName("new_stops_a_run_the_host_cannot_scan_yet"),
-        word: Word::Refuses,
+        name: CaseName("new_with_an_accepted_rule_answers_its_rule_set"),
+        word: Word::Succeeds,
         input: || Scenario::NewEngine,
-        expect: Expect::Error(Cow::Borrowed(
-            "engine harness: RYO_ENGINE=new: the new engine accepts 1 rules and runs no file yet (the host does not run the files through the new engine yet)",
-        )),
+        expect: Expect::Value(Cow::Borrowed("[\"words\"]; another pack; accepted [[0]]")),
     },
     Case {
-        name: CaseName("both_with_an_accepted_rule_stops_a_run_the_host_cannot_scan_yet"),
-        word: Word::Refuses,
+        name: CaseName("both_with_an_accepted_rule_answers_its_rule_set"),
+        word: Word::Succeeds,
         input: || Scenario::BothAccepted,
-        expect: Expect::Error(Cow::Borrowed(
-            "engine harness: RYO_ENGINE=both: the new engine accepts 1 rules and runs no file yet (the host does not run the files through the new engine yet)",
-        )),
+        expect: Expect::Value(Cow::Borrowed("[\"words\"]; another pack; accepted [[0]]")),
     },
     Case {
         name: CaseName("an_edge_that_composed_no_engine_stops_the_run"),
@@ -230,7 +225,7 @@ fn harness(
         vocabularies: &vocabularies,
         named,
     });
-    harnessed_in(mode, harness, request).map_err(|error| Cow::Owned(error.to_string()))
+    harnessed(mode, harness, request).map_err(|error| Cow::Owned(error.to_string()))
 }
 
 /// What the harness loaded: each load's language, and whether the first load's pack is `expected`.
@@ -309,7 +304,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 digests: &digests(&[1, 2, 3]),
                 stored: std::slice::from_ref(&pack),
             };
-            let load = harnessed_in(EngineMode::Old, None, request)
+            let load = harnessed(EngineMode::Old, None, request)
                 .map_err(|error| Cow::Owned(error.to_string()))?;
             Ok(kept(&load, &pack))
         }
@@ -360,7 +355,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     harness(both, Some(&fake), &[], vec![words, signs], Some(&tongues))
                 }
             }?;
-            Ok(kept(&packs, &StoredPack::default()))
+            let accepted: Vec<Vec<u32>> = packs
+                .iter()
+                .map(|load| load.accepted.iter().map(|rule| rule.0).collect())
+                .collect();
+            Ok(Cow::Owned(format!(
+                "{}; accepted {accepted:?}",
+                kept(&packs, &StoredPack::default())
+            )))
         }
     }
 }
@@ -375,20 +377,6 @@ fn succeeds() {
     assert!(
         key(1, "word") != key(1, "token"),
         "other kinds are another key"
-    );
-    let request = HarnessRequest {
-        plans: &[],
-        digests: &[],
-        stored: &[],
-    };
-    let said = |answer: Result<Vec<HarnessLoad>, OperatingError>| {
-        answer.map_or_else(|error| error.to_string(), |loads| loads.len().to_string())
-    };
-    let here = said(harnessed(None, request));
-    assert_eq!(
-        here,
-        said(harnessed_in(engine_mode(), None, request)),
-        "the mode of the process"
     );
     run(CASES, Word::Succeeds, subject);
 }

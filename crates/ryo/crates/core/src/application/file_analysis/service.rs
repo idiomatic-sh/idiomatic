@@ -26,6 +26,11 @@ use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::memory::interface::MemoryPort;
 use crate::outbound::scheduler::types::JobNumber;
+use ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase;
+use ryo_execution::inbound::use_cases::file_scan::types::{
+    FileScanSetting, ScanEngine, ScanLanguage,
+};
+use ryo_execution::inbound::use_cases::file_scan::use_case::FileScanUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
@@ -33,6 +38,7 @@ use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_execution_runtime::outbound::engine::interface::EnginePort;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_language::domain::elements::service::syntax_acceptance;
+use ryo_operators::spike::{EngineMode, engine_mode};
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::CorpusInput;
@@ -55,6 +61,8 @@ pub struct FileAnalysis {
     memory: Arc<dyn MemoryPort>,
     /// The new engine, when the edge composed one: what the build branch's `RYO_ENGINE` harness loads the rules into.
     engine: Option<Arc<dyn EnginePort>>,
+    /// Which engines run the files, when the edge says so; otherwise the ones `RYO_ENGINE` selects.
+    mode: Option<EngineMode>,
 }
 
 impl std::fmt::Debug for FileAnalysis {
@@ -113,6 +121,7 @@ impl FileAnalysis {
             digest,
             memory,
             engine: None,
+            mode: None,
         }
     }
 
@@ -134,9 +143,52 @@ impl FileAnalysis {
         self
     }
 
-    /// The new engine, when the edge composed one.
-    pub(crate) fn engine(&self) -> Option<Arc<dyn EnginePort>> {
-        self.engine.clone()
+    /// The same, with the engines that run the files said here, whatever `RYO_ENGINE` selects.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_core::application::file_analysis::service::FileAnalysis;
+    /// use ryo_operators::spike::EngineMode;
+    ///
+    /// fn with_the_old_engine_alone(analysis: FileAnalysis) -> FileAnalysis {
+    ///     analysis.running(EngineMode::Old)
+    /// }
+    /// ```
+    #[must_use]
+    pub const fn running(mut self, mode: EngineMode) -> Self {
+        self.mode = Some(mode);
+        self
+    }
+
+    /// The new engine's scan of a request's files: over the engine the edge composed, the linked languages' walks and kinds, and
+    /// the language the request names, when it names one.
+    pub(crate) fn scanner(
+        &self,
+        named: Option<&ryo_values::domain::descriptions::types::LanguageName>,
+    ) -> impl FileScanUseCase + use<> {
+        FileScanUseCaseImpl::new(FileScanSetting {
+            engine: match &self.engine {
+                Some(engine) => ScanEngine::Composed(Arc::clone(engine)),
+                None => ScanEngine::NotComposed,
+            },
+            digest: Arc::clone(&self.digest),
+            walks: self.language.walks(),
+            vocabularies: self.language.kind_vocabularies(),
+            language: named
+                .cloned()
+                .map_or(ScanLanguage::EveryLinked, ScanLanguage::Named),
+            mode: self.mode.unwrap_or_else(engine_mode),
+        })
+    }
+
+    /// Reads the file `entry` names into `into`, as a visit does.
+    pub(crate) fn read_into(
+        &self,
+        entry: &ryo_values::domain::files::types::CorpusEntry,
+        into: &mut ryo_values::domain::files::types::FileBytes,
+    ) -> Result<(), CorpusError> {
+        self.corpus.read(entry, into)
     }
 
     /// The visit of one file, in the worker that took its job: read it, decide which rules govern it, parse it, and run their

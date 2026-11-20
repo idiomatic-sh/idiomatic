@@ -3,6 +3,7 @@ use ryo_values::domain::files::types::CorpusInput;
 
 // The application handles and protocol traits the contract is made of.
 pub use ryo_execution_runtime::application::file_dag::frontiers::errors::FrontiersError;
+pub use ryo_execution_runtime::application::file_dag::program::file_session::service::given_back_rules;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::EmittedRoot;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::FileEnd;
@@ -14,7 +15,6 @@ pub use ryo_execution_runtime::application::file_dag::program::file_session::typ
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::Partiality;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RanRule;
-pub use ryo_execution_runtime::application::file_dag::program::file_session::service::given_back_rules;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RuleAfter;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;

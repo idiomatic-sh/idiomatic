@@ -155,6 +155,17 @@ pub(crate) struct RowLayout<'a> {
     pub shown: Shown<'a>,
 }
 
+/// How one row's cells are laid out: which are shown, what the rule emits, and how many columns the row has.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ShownRow<'a> {
+    /// Which cells.
+    pub shown: Shown<'a>,
+    /// What a row of the rule emits: its subject, its key and its headings.
+    pub emit: &'a Emit,
+    /// How many columns the row has.
+    pub width: ryo_values::domain::plan_parts::types::RowWidth,
+}
+
 /// What one call renders: the rule that gave the rows, the rows, what a row emits, the cells shown of it, the file they are of, and
 /// how many rows may be made into cells.
 #[derive(Clone, Copy)]

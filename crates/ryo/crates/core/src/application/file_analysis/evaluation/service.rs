@@ -174,7 +174,8 @@ impl FileAnalysis {
                     // Spike (ryo-fmx3, host3): a clean frame is kept once per bucket and worker; the file is named clean in it.
                     let same = match tables.clean_frames.get(&capture.bucket) {
                         Some(template) => {
-                            template.kept.proof == capture.proof && template.kept.words.0 == capture.words
+                            template.kept.proof == capture.proof
+                                && template.kept.words.0 == capture.words
                         }
                         None => {
                             let _ = tables.clean_frames.insert(

@@ -1,14 +1,11 @@
 //! The file scan's cases, over the fixture language and the engine port's fake: a walked and scanned file gives the fixture rule's
-//! rows in the report; text found in a file survives the file; a file the language refuses or fails on, and a rule's fault, are
-//! reported and the run goes on; and the harness's comparison: equal rows compare, a planted difference is the first place they
-//! differ, a rule the new engine refused is not compared.
+//! rows in the report; text found in a file survives the file; a row is placed by the first of its rule's key columns, then its
+//! subject, that is a stretch of the file or a node of it; a file the language refuses or fails on, and a rule's fault, are
+//! reported and the run goes on.
 
 use super::errors::FileScanError;
-use super::service::{both, compared, harness_rows, ran, reported, run as run_of, worker};
-use super::types::{
-    EmitColumns, HarnessDifference, HarnessRows, KeptCell, RowText, RuleFile, ScanReport, ScanRun,
-    ScanWorker,
-};
+use super::service::{crossed, emit_columns, place_columns, ran, reported, taken, worker};
+use super::types::{EmitColumns, PlaceColumns, ScanReport, ScanRun, ScanWorker};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::fixtures::fake::{EngineFake, no_kinds};
 use crate::outbound::engine::interface::EnginePort as _;
@@ -23,185 +20,154 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::fixtures::FAILING;
 use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
-use ryo_relations::domain::relations::types::{Count, FileId};
+use ryo_relations::domain::labels::types::NameRef;
+use ryo_relations::domain::relations::service::{column_named, columns};
+use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, Input as StepInput};
+use ryo_values::domain::plans::types::{Operation, Plan};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_values::domain::scan_rows::types::{KeptCell, RowPlace};
 use std::borrow::Cow;
 use std::sync::Arc;
 
 /// What a row does.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
-    /// Both engines found the same row of rule 0 in file 1.
-    Equal,
-    /// The new engine found a row the old one did not: the planted difference.
-    Planted,
-    /// They differ only for rule 1, which the new engine refused.
-    Refused,
     /// One file of two words, scanned by one worker.
     FixtureFile,
     /// Two files whose words have the same codes and other texts, each scanned by another worker, the second file first.
     TwoFiles,
     /// A file scanned, one no language reads, one the parser fails on, one whose relation is filled in part, and one more scanned.
     Faults,
-    /// The fixture file's rows against themselves as the old engine's.
-    BothEqual,
-    /// The fixture file's rows against the old engine's with one more, planted.
-    BothPlanted,
+    /// A rule of the one tree rule's shape that keeps the element, the file, the span and the text, keyed by the element.
+    KeyedByNode,
+    /// The same rule keyed by the span.
+    KeyedBySpan,
+    /// The same rule keyed by the text, its subject the file: no column places its rows.
+    KeyedByText,
+    /// Three files taken one at a time: two words out of order, a file no language reads, a file read in part.
+    Taken,
     /// The fixture file scanned by a run that holds no columns for its rule.
     NoColumns,
     /// A file the fixture language does not read.
     Unread,
 }
 
-/// What a row saw.
-#[derive(Debug, PartialEq, Eq)]
-enum Seen {
-    /// How many rules the harness compared.
-    Compared(Count),
-    /// The run's report, a line for each finding, frontier row and faulted file.
-    Report(Cow<'static, str>),
-}
-
-/// Why a row was refused.
-#[derive(Debug, PartialEq, Eq)]
-enum Refusal {
-    /// The first place the engines' rows differ, without the rows.
-    Differs(HarnessDifference),
-    /// The fault of a file's scan.
-    Fault(FileScanError),
-    /// `both` stopped the run on a difference.
-    Stopped,
-}
-
 type Input = Scenario;
-type Value = Seen;
-type Failure = Refusal;
-
-/// The first place of a difference: rule 0 in file 1.
-const FIRST_PLACE: HarnessDifference = HarnessDifference {
-    at: RuleFile {
-        rule: SelectedRuleOrdinal(0),
-        file: FileId(1),
-    },
-    old: Vec::new(),
-    new: Vec::new(),
-};
+/// The run's report, a line for each finding, frontier row and faulted file.
+type Value = Cow<'static, str>;
+/// The fault of a file's scan.
+type Failure = FileScanError;
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("equal_rows_of_the_accepted_rules_compare"),
-        word: Word::Succeeds,
-        input: || Scenario::Equal,
-        expect: Expect::Value(Seen::Compared(Count(1))),
-    },
-    Case {
-        name: CaseName("a_rule_the_new_engine_refused_is_not_compared"),
-        word: Word::Succeeds,
-        input: || Scenario::Refused,
-        expect: Expect::Value(Seen::Compared(Count(1))),
-    },
     Case {
         name: CaseName(
             "a_fixture_file_walked_and_scanned_gives_the_fixture_rules_rows_in_the_report",
         ),
         word: Word::Succeeds,
         input: || Scenario::FixtureFile,
-        expect: Expect::Value(Seen::Report(Cow::Borrowed(
-            "found file 1 rule 0: 0\t3\tone\n\
-             found file 1 rule 0: 4\t7\ttwo\n\
-             frontier file 1 rule 0 entry 0: one\n\
-             frontier file 1 rule 0 entry 0: two",
-        ))),
+        expect: Expect::Value(Cow::Borrowed(
+            "found file 1 rule 0 at nowhere: 0\t3\tone\nfound file 1 rule 0 at nowhere: 4\t7\ttwo\nfrontier file 1 rule 0 entry 0: one\nfrontier file 1 rule 0 entry 0: two",
+        )),
     },
     Case {
         name: CaseName("stored_and_frontier_text_survives_the_file"),
         word: Word::Succeeds,
         input: || Scenario::TwoFiles,
-        expect: Expect::Value(Seen::Report(Cow::Borrowed(
-            "found file 1 rule 0: 0\t5\talpha\n\
-             found file 1 rule 0: 6\t10\tbeta\n\
-             found file 2 rule 0: 0\t5\tgamma\n\
-             found file 2 rule 0: 6\t11\tdelta\n\
-             frontier file 1 rule 0 entry 0: alpha\n\
-             frontier file 1 rule 0 entry 0: beta\n\
-             frontier file 2 rule 0 entry 0: gamma\n\
-             frontier file 2 rule 0 entry 0: delta",
-        ))),
+        expect: Expect::Value(Cow::Borrowed(
+            "found file 1 rule 0 at nowhere: 0\t5\talpha\nfound file 1 rule 0 at nowhere: 6\t10\tbeta\nfound file 2 rule 0 at nowhere: 0\t5\tgamma\nfound file 2 rule 0 at nowhere: 6\t11\tdelta\nfrontier file 1 rule 0 entry 0: alpha\nfrontier file 1 rule 0 entry 0: beta\nfrontier file 2 rule 0 entry 0: gamma\nfrontier file 2 rule 0 entry 0: delta",
+        )),
     },
     Case {
         name: CaseName("a_file_fault_is_reported_and_the_run_goes_on"),
         word: Word::Succeeds,
         input: || Scenario::Faults,
-        expect: Expect::Value(Seen::Report(Cow::Borrowed(
-            "found file 1 rule 0: 0\t3\tone\n\
-             found file 5 rule 0: 0\t3\tend\n\
-             frontier file 1 rule 0 entry 0: one\n\
-             frontier file 5 rule 0 entry 0: end\n\
-             fault file 2: file not walked: the language does not read this file\n\
-             fault file 3: file not walked: the parser failed\n\
-             fault file 4: rule SelectedRuleOrdinal(0): relation SyntaxError read in part: \
-             PartialCause(\"a question the fixture cannot read\")",
-        ))),
+        expect: Expect::Value(Cow::Borrowed(
+            "found file 1 rule 0 at nowhere: 0\t3\tone\nfound file 5 rule 0 at nowhere: 0\t3\tend\nfrontier file 1 rule 0 entry 0: one\nfrontier file 5 rule 0 entry 0: end\nfault file 2: file not walked: the language does not read this file\nfault file 3: file not walked: the parser failed\nfault file 4: rule SelectedRuleOrdinal(0): relation SyntaxError read in part: PartialCause(\"a question the fixture cannot read\")",
+        )),
     },
     Case {
-        name: CaseName("both_engines_equal_on_the_fixture_file_compare"),
+        name: CaseName("a_row_keyed_by_a_node_is_placed_where_the_node_is"),
         word: Word::Succeeds,
-        input: || Scenario::BothEqual,
-        expect: Expect::Value(Seen::Compared(Count(1))),
+        input: || Scenario::KeyedByNode,
+        expect: Expect::Value(Cow::Borrowed(
+            "found file 1 rule 0 at 0..3: 4294967297\t1\t3\ttwo\nfound file 1 rule 0 at 0..7: 4294967296\t1\t7\t\nfound file 1 rule 0 at 4..7: 4294967298\t1\t17179869191\tone",
+        )),
     },
     Case {
-        name: CaseName("a_planted_difference_is_the_first_place_the_rows_differ"),
-        word: Word::Refuses,
-        input: || Scenario::Planted,
-        expect: Expect::Error(Refusal::Differs(FIRST_PLACE)),
+        name: CaseName("a_row_keyed_by_a_span_is_placed_at_the_span"),
+        word: Word::Succeeds,
+        input: || Scenario::KeyedBySpan,
+        expect: Expect::Value(Cow::Borrowed(
+            "found file 1 rule 0 at 0..3: 4294967297\t1\t3\ttwo\nfound file 1 rule 0 at 0..7: 4294967296\t1\t7\t\nfound file 1 rule 0 at 4..7: 4294967298\t1\t17179869191\tone",
+        )),
     },
     Case {
-        name: CaseName("a_planted_old_row_fails_both_on_the_fixture_file"),
-        word: Word::Refuses,
-        input: || Scenario::BothPlanted,
-        expect: Expect::Error(Refusal::Stopped),
+        name: CaseName("a_row_no_column_places_has_no_place"),
+        word: Word::Succeeds,
+        input: || Scenario::KeyedByText,
+        expect: Expect::Value(Cow::Borrowed(
+            "found file 1 rule 0 at nowhere: 4294967296\t1\t7\t\nfound file 1 rule 0 at nowhere: 4294967297\t1\t3\ttwo\nfound file 1 rule 0 at nowhere: 4294967298\t1\t17179869191\tone",
+        )),
+    },
+    Case {
+        name: CaseName("a_file_taken_hands_its_rows_sorted_and_its_fault_as_a_sentence"),
+        word: Word::Succeeds,
+        input: || Scenario::Taken,
+        expect: Expect::Value(Cow::Borrowed(
+            "file 1: [\"\", \"two\", \"one\"]; left in the worker 0; fault None\nfile 2: []; left in the worker 0; fault Some((NoLanguage, \"file not walked: the language does not read this file\"))\nfile 3: []; left in the worker 0; fault Some((Rule(SelectedRuleOrdinal(0)), \"rule SelectedRuleOrdinal(0): relation SyntaxError read in part: PartialCause(\\\"a question the fixture cannot read\\\")\"))",
+        )),
     },
     Case {
         name: CaseName("a_found_row_that_fits_no_columns_is_a_fault_of_the_file"),
         word: Word::Refuses,
         input: || Scenario::NoColumns,
-        expect: Expect::Error(Refusal::Fault(FileScanError::Columns {
+        expect: Expect::Error(FileScanError::Columns {
             target: FoundTarget::Rule(SelectedRuleOrdinal(0)),
-        })),
+        }),
     },
     Case {
         name: CaseName("a_file_the_language_does_not_read_is_a_fault_of_the_file"),
         word: Word::Refuses,
         input: || Scenario::Unread,
-        expect: Expect::Error(Refusal::Fault(FileScanError::Walk {
+        expect: Expect::Error(FileScanError::Walk {
             cause: WalkError::Unsupported,
-        })),
+        }),
     },
 ];
 
-/// Rule 0's rows in file 1, one row of `text`, and rule 1's row `other`.
-fn rows(text: &str, other: &str) -> HarnessRows {
-    let place = |rule| RuleFile {
-        rule: SelectedRuleOrdinal(rule),
-        file: FileId(1),
-    };
-    HarnessRows(
-        [
-            (place(0), vec![RowText(text.into())]),
-            (place(1), vec![RowText(other.into())]),
-        ]
-        .into_iter()
-        .collect(),
-    )
+/// The place of a column of the tree's relation among its columns.
+fn column(name: &str) -> ColumnIndex {
+    let relation = Relation::SyntaxTree;
+    let place = column_named(relation, NameRef(name))
+        .and_then(|named| columns(relation).iter().position(|each| *each == named));
+    ColumnIndex(u32::try_from(place.unwrap_or(usize::MAX)).unwrap_or(u32::MAX))
 }
 
-/// The rule set of the fake's one accepted rule, the lowering fixture's one tree rule.
-fn accepted(engine: &EngineFake) -> Programs {
-    let plan = named("one tree rule");
+/// A rule of the one tree rule's shape as a compile leaves it: one step keeping the element, the file, the span and the text of
+/// the tree's relation, its subject the file and its key the kept column `key`.
+fn keeping(key: u32) -> Plan {
+    let mut plan = named("one tree rule");
+    let names = ["id", "file", "span", "text"];
+    if let Some(step) = plan.steps.first_mut() {
+        step.operation = Operation::Select {
+            from: StepInput::Relation(Relation::SyntaxTree),
+            comparisons: Vec::new(),
+            kept: names.iter().map(|name| column(name)).collect(),
+        };
+    }
+    plan.emit.subject = ColumnIndex(1);
+    plan.emit.key = vec![ColumnIndex(key)];
+    plan.emit.headings = names.iter().map(|name| Heading((*name).into())).collect();
+    plan
+}
+
+/// The rule set of the fake's one accepted rule, `plan`.
+fn accepted(engine: &EngineFake, plan: &Plan) -> Programs {
     let rule = SelectedRule {
         rule: SelectedRuleOrdinal(0),
-        plan: &plan,
+        plan,
     };
     engine
         .load(LoadSource::Plans(SelectedRules(&[rule])), &no_kinds())
@@ -222,12 +188,18 @@ fn file<'a>(path: &'a str, number: u32, bytes: &'a [u8]) -> WalkRequest<'a> {
     }
 }
 
-/// What one worker found in `files`, scanned in order by the fake over the fixture language.
-fn worked(files: &[WalkRequest<'_>]) -> ScanReport {
+/// What one worker found in `files`, scanned in order by the fake's rule of `plan` over the fixture language.
+fn worked(plan: &Plan, files: &[WalkRequest<'_>]) -> ScanReport {
     let engine = EngineFake::default();
-    let programs = accepted(&engine);
+    let programs = accepted(&engine, plan);
     let mut worker = worker(&words(), &engine, &programs);
-    let counted = ran(&engine, &run_of(&engine, &programs), &mut worker, files);
+    let (columns, places) = (emit_columns(&engine, &programs), place_columns(&[plan]));
+    let run = ScanRun {
+        programs: &programs,
+        columns: &columns,
+        places: &places,
+    };
+    let counted = ran(&engine, &run, &mut worker, files);
     assert_eq!(
         counted.steps, counted.candidates,
         "the fake steps once per candidate"
@@ -236,13 +208,8 @@ fn worked(files: &[WalkRequest<'_>]) -> ScanReport {
     report
 }
 
-/// The fixture file: one file of two words.
-fn fixture_file() -> ScanReport {
-    reported([worked(&[file("a.walk", 1, b"one two")])])
-}
-
 /// A report as lines: its findings, its frontier rows, its faulted files.
-fn lines(report: &ScanReport) -> Seen {
+fn lines(report: &ScanReport) -> Value {
     let cells = |cells: &[KeptCell]| {
         let written: Vec<String> = cells
             .iter()
@@ -255,7 +222,14 @@ fn lines(report: &ScanReport) -> Seen {
     };
     let found = report.found.iter().map(|row| {
         let (file, rule) = (row.file.0, row.rule.0);
-        format!("found file {file} rule {rule}: {}", cells(&row.cells))
+        let place = match row.place {
+            RowPlace::Unplaced => "nowhere".to_owned(),
+            RowPlace::At(span) => format!("{}..{}", span.start.0, span.end.0),
+        };
+        format!(
+            "found file {file} rule {rule} at {place}: {}",
+            cells(&row.cells)
+        )
     });
     let frontier = report.frontier.iter().map(|row| {
         let (file, rule, entry) = (row.file.0, row.rule.0, row.input.0);
@@ -269,34 +243,20 @@ fn lines(report: &ScanReport) -> Seen {
         .iter()
         .map(|each| format!("fault file {}: {}", each.file.0, each.fault));
     let all: Vec<String> = found.chain(frontier).chain(faults).collect();
-    Seen::Report(Cow::Owned(all.join("\n")))
-}
-
-/// The first place a comparison differs, without its rows.
-fn first_place(difference: HarnessDifference) -> Refusal {
-    Refusal::Differs(HarnessDifference {
-        old: Vec::new(),
-        new: Vec::new(),
-        ..difference
-    })
+    Cow::Owned(all.join("\n"))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let rule = [SelectedRuleOrdinal(0)];
-    let hand = |old: &HarnessRows, new: &HarnessRows| {
-        compared(old, new, &rule)
-            .map(Seen::Compared)
-            .map_err(first_place)
-    };
+    let tree = named("one tree rule");
     match scenario {
-        Scenario::Equal => hand(&rows("a", "b"), &rows("a", "b")),
-        Scenario::Refused => hand(&rows("a", "b"), &rows("a", "c")),
-        Scenario::Planted => hand(&rows("a", "b"), &rows("z", "b")),
-        Scenario::FixtureFile => Ok(lines(&fixture_file())),
+        Scenario::FixtureFile => Ok(lines(&reported([worked(
+            &tree,
+            &[file("a.walk", 1, b"one two")],
+        )]))),
         Scenario::TwoFiles => {
             let (first, second) = (
-                worked(&[file("b.walk", 2, b"gamma delta")]),
-                worked(&[file("a.walk", 1, b"alpha beta")]),
+                worked(&tree, &[file("b.walk", 2, b"gamma delta")]),
+                worked(&tree, &[file("a.walk", 1, b"alpha beta")]),
             );
             Ok(lines(&reported([first, second])))
         }
@@ -308,31 +268,68 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 file("d.walk", 4, b"why?"),
                 file("e.walk", 5, b"end"),
             ];
-            Ok(lines(&reported([worked(&files)])))
+            Ok(lines(&reported([worked(&tree, &files)])))
         }
-        Scenario::BothEqual | Scenario::BothPlanted => {
-            let report = fixture_file();
-            let mut old = harness_rows(&report);
-            if matches!(scenario, Scenario::BothPlanted) {
-                for found in old.0.values_mut() {
-                    found.push(RowText("planted".into()));
-                }
+        Scenario::KeyedByNode | Scenario::KeyedBySpan | Scenario::KeyedByText => {
+            let key = match scenario {
+                Scenario::KeyedByNode => 0,
+                Scenario::KeyedBySpan => 2,
+                _ => 3,
+            };
+            let files = [file("a.walk", 1, b"two one")];
+            Ok(lines(&reported([worked(&keeping(key), &files)])))
+        }
+        Scenario::Taken => {
+            let (engine, plan) = (EngineFake::default(), keeping(3));
+            let programs = accepted(&engine, &plan);
+            let mut worker = worker(&words(), &engine, &programs);
+            let (columns, places) = (emit_columns(&engine, &programs), place_columns(&[&plan]));
+            let run = ScanRun {
+                programs: &programs,
+                columns: &columns,
+                places: &places,
+            };
+            let files = [
+                file("a.walk", 1, b"two one"),
+                file("b.txt", 2, b"two"),
+                file("c.walk", 3, b"why?"),
+            ];
+            let (mut rows, mut said) = (Vec::new(), Vec::new());
+            for each in files {
+                let before = rows.len();
+                let fault = taken(&engine, &run, &mut worker, each, &mut rows).err();
+                let texts: Vec<String> = rows
+                    .iter()
+                    .skip(before)
+                    .filter_map(|row| match row.cells.last() {
+                        Some(KeptCell::Text(word)) => Some(word.0.to_string()),
+                        Some(KeptCell::Number(_)) | None => None,
+                    })
+                    .collect();
+                let fault = fault.map(|fault| crossed(&fault));
+                said.push(format!(
+                    "file {}: {texts:?}; left in the worker {}; fault {:?}",
+                    each.file.0,
+                    worker.report.found.len(),
+                    fault.map(|fault| (fault.of, fault.sentence.0)),
+                ));
             }
-            both(&old, &report, &rule)
-                .map(Seen::Compared)
-                .map_err(|_| Refusal::Stopped)
+            Ok(Cow::Owned(said.join("\n")))
         }
         Scenario::NoColumns | Scenario::Unread => {
             let engine = EngineFake::default();
-            let programs = accepted(&engine);
+            let programs = accepted(&engine, &tree);
             let mut worker = worker(&words(), &engine, &programs);
             // The run of a host that holds no columns for the rule.
-            let run = match scenario {
-                Scenario::Unread => run_of(&engine, &programs),
-                _ => ScanRun {
-                    programs: &programs,
-                    columns: EmitColumns::default(),
+            let (held, none) = (emit_columns(&engine, &programs), EmitColumns::default());
+            let places = PlaceColumns::default();
+            let run = ScanRun {
+                programs: &programs,
+                columns: match scenario {
+                    Scenario::Unread => &held,
+                    _ => &none,
                 },
+                places: &places,
             };
             let path = match scenario {
                 Scenario::Unread => "a.txt",
@@ -340,7 +337,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             };
             let _counted = ran(&engine, &run, &mut worker, &[file(path, 1, b"one two")]);
             match worker.report.faults.pop() {
-                Some(faulted) => Err(Refusal::Fault(faulted.fault)),
+                Some(faulted) => Err(faulted.fault),
                 None => Ok(lines(&worker.report)),
             }
         }

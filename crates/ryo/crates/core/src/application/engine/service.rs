@@ -14,13 +14,10 @@ use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionPr
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::prepare::types::{
-    HarnessLanguage, HarnessSetting, PrepareRequest,
-};
+use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
-use ryo_execution_runtime::outbound::engine::interface::EnginePort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 
 /// The engine's rule compilation, with the plans it keeps.
@@ -71,41 +68,6 @@ impl Execution {
     #[must_use]
     pub fn new(operators: Arc<dyn OperatorsPort>) -> Self {
         Self(PrepareUseCaseImpl::new(operators))
-    }
-
-    /// The same, with the new engine the build branch's `RYO_ENGINE` harness loads a request's rules into, when the edge composed
-    /// one: its packs are keyed with `digest`, and its rules are lowered against the kinds of the one linked language, or of the
-    /// one the request names.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_core::application::engine::service::Execution;
-    /// use ryo_values::domain::descriptions::types::KindVocabularies;
-    /// use std::sync::Arc;
-    ///
-    /// fn without_the_new_engine(execution: Execution) -> Execution {
-    ///     let digest = Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3());
-    ///     execution.harnessing(None, digest, KindVocabularies(Vec::new()), None)
-    /// }
-    /// ```
-    #[must_use]
-    pub fn harnessing(
-        self,
-        engine: Option<Arc<dyn EnginePort>>,
-        digest: Arc<dyn DigestPort>,
-        vocabularies: ryo_values::domain::descriptions::types::KindVocabularies,
-        named: Option<ryo_values::domain::descriptions::types::LanguageName>,
-    ) -> Self {
-        match engine {
-            Some(engine) => Self(self.0.harnessing(HarnessSetting {
-                engine,
-                digest,
-                vocabularies,
-                language: named.map_or(HarnessLanguage::OnlyLinked, HarnessLanguage::Named),
-            })),
-            None => self,
-        }
     }
 
     /// Begins the execution of a prepared program over the corpus it runs on, telling `observer` of the engine's work.

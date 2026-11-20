@@ -10,6 +10,7 @@ use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_engine::inbound::use_cases::project::errors::ProjectPassError;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
 use ryo_language::domain::facts::types::{FileFacts, ProjectFacts};
+use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
@@ -48,7 +49,7 @@ pub trait EnginePort: Send + Sync + std::fmt::Debug {
     /// A worker's per-file state for a rule set.
     fn state_for(&self, programs: &Programs) -> ScanScratch;
 
-    /// Runs the rule set on one lent file, handing every found row to `found`.
+    /// Runs the rule set on one lent file, the run's file `number`, handing every found row to `found`.
     ///
     /// # Errors
     ///
@@ -57,6 +58,7 @@ pub trait EnginePort: Send + Sync + std::fmt::Debug {
         &self,
         programs: &Programs,
         file: FileFacts<'_>,
+        number: FileId,
         scratch: &mut ScanScratch,
         found: &mut dyn FoundRows,
     ) -> Result<ScanCounters, ScanError>;

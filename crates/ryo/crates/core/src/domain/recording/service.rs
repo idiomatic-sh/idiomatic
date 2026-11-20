@@ -2,7 +2,6 @@
 
 use super::constants::PHYSICAL_FACTS_INCOMPLETE;
 use super::types::{BucketWords, Flat, InterfaceBytes, WordCount};
-use std::borrow::Borrow;
 use crate::domain::handing::service::stored_of;
 use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
@@ -33,6 +32,7 @@ use ryo_values::domain::stored_facts::types::{
 };
 use ryo_values::domain::table_words::service::{pack, unpacked};
 use ryo_values::domain::table_words::types::WordSlice;
+use std::borrow::Borrow;
 
 /// Whether [`cover`] names a rule that reads as `needs` at a file read in part as `partials`: a relation of the file the rule reads
 /// is read in part there, so the rule's unknown at the file is already given with the relation and why.
@@ -126,7 +126,12 @@ pub(crate) fn clean_moved(
     tables: &Tables,
     number: FileId,
     base: ArenaBase,
-) -> Option<Vec<&(std::sync::Arc<ryo_values::domain::records::types::CleanFrame>, BucketWords)>> {
+) -> Option<
+    Vec<&(
+        std::sync::Arc<ryo_values::domain::records::types::CleanFrame>,
+        BucketWords,
+    )>,
+> {
     let mut made = Vec::with_capacity(tables.clean.len());
     for bucket in &tables.clean {
         let template = tables.clean_frames.get(bucket)?;
@@ -222,7 +227,11 @@ pub(crate) fn frontier_flat_in<W: std::borrow::Borrow<BucketWords>>(
     } else {
         moved
     };
-    for each in window.iter().map(Borrow::borrow).filter(|each| inside(each)) {
+    for each in window
+        .iter()
+        .map(Borrow::borrow)
+        .filter(|each| inside(each))
+    {
         flat.0.extend([
             u64::from(each.bucket.0),
             u64::try_from(each.word_count.0).unwrap_or(u64::MAX),
@@ -264,7 +273,11 @@ const REMEMBERED_WORDS: usize = 64;
 
 /// Spike (ryo-fmx3, host3): the digest of `flat`, the words of rule `rule`'s frontier, remembered in this worker: words the
 /// same as the rule's last are not digested again. The digest is of the words alone, so a remembered one is the same digest.
-pub(crate) fn remembered_digest(rule: usize, flat: &Flat, digest: impl FnOnce(&[u64]) -> Digest) -> Digest {
+pub(crate) fn remembered_digest(
+    rule: usize,
+    flat: &Flat,
+    digest: impl FnOnce(&[u64]) -> Digest,
+) -> Digest {
     thread_local! {
         static LAST: std::cell::RefCell<Vec<(Vec<u64>, Digest)>> = const { std::cell::RefCell::new(Vec::new()) };
     }

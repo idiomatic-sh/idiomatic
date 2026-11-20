@@ -28,6 +28,12 @@ pub trait LanguagePort: Send + Sync {
     /// The kinds each linked language has, in the order they were linked: what a query may name when it compares the kind of a node.
     fn kind_vocabularies(&self) -> KindVocabularies;
 
+    /// The walk of every linked language for the new engine, in the order they were linked: one for each of `kind_vocabularies`. A
+    /// language linked without its walk has the walk that reads nothing, which has no kind.
+    fn walks(
+        &self,
+    ) -> Vec<std::sync::Arc<dyn ryo_language::inbound::use_cases::walk::types::WalkEngine>>;
+
     /// The reasons the linked languages declare for a value they cannot resolve statically, every language's together, each once.
     fn unknown_reasons(&self) -> UnknownReasons;
 

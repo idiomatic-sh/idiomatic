@@ -198,6 +198,16 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
+        name: CaseName("each_linked_language_has_a_walk_for_the_new_engine"),
+        word: Word::Succeeds,
+        input: || {
+            |language: &dyn LanguagePort| {
+                Ok(language.walks().len() == language.kind_vocabularies().0.len())
+            }
+        },
+        expect: Expect::Value(true),
+    },
+    Case {
         name: CaseName("every_linked_language_answers_for_a_relation"),
         word: Word::Succeeds,
         input: || every_linked_language_answers_for_a_relation,

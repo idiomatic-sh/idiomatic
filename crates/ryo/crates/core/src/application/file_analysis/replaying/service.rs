@@ -170,11 +170,15 @@ impl FileAnalysis {
         // Spike (ryo-fmx3, host3): each bucket the file was clean in is handed its clean frame, as its own words were.
         let mut ready = ready;
         match &ran.handed {
-            Handing::Made(handed) => ready.buckets.extend(handed.clean.iter().map(|each| ReadyBucket {
-                bucket: each.bucket,
-                proof: &each.frame.proof,
-                held: Held::Words(&each.frame.words),
-            })),
+            Handing::Made(handed) => {
+                ready
+                    .buckets
+                    .extend(handed.clean.iter().map(|each| ReadyBucket {
+                        bucket: each.bucket,
+                        proof: &each.frame.proof,
+                        held: Held::Words(&each.frame.words),
+                    }))
+            }
             Handing::Kept => {
                 if let Ok(place) = setting
                     .stored

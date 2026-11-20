@@ -6,13 +6,13 @@ use ryo_language::domain::elements::service::start_at;
 use ryo_language::domain::names::service::places_of;
 use ryo_language::domain::symbols::service::place_of;
 use ryo_relations::domain::relations::service::{node_file, node_position};
-use ryo_relations::domain::relations::types::{Integer, Name, NodeId, Value};
+use ryo_relations::domain::relations::types::{Integer, Name, NodeId};
 
 use super::constants::rule_heading;
 use super::types::{
     AnswerCell, AnswerColumns, Answering, ColumnPlace, FindingParts, FindingRule, KeyCount,
     KeyOffset, RenderInput, Rendered, RowKey, RowLayout, RowLimit, RowNumber, RowOrder, RowsAnswer,
-    RuleRow, Shown, TableRow,
+    RuleRow, Shown, ShownRow, TableRow,
 };
 use crate::domain::finish::errors::FinishError;
 use crate::domain::finish::service::{
@@ -25,13 +25,14 @@ use {
 };
 
 use crate::domain::value_cells::service::value_cell;
-use crate::domain::value_cells::types::Scene;
-use ryo_values::domain::plan_parts::types::Heading;
-use ryo_values::domain::plans::types::{Emit, Plan};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, RowWidth};
+use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::service::{keep, lent};
+use ryo_values::domain::row_texts::types::RenderedText;
 use ryo_values::domain::row_texts::types::{
     Cell, CellText, RowEnds, RowTotal, RowsTextView, TextRange,
 };
+use ryo_values::domain::rows::errors::RowsError;
 use {
     ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::positions,
     ryo_values::domain::rows::service::row_in,
@@ -221,72 +222,96 @@ pub(crate) fn render_rows(
         }
         let place = offset_of(row, emit, &nodes, &names)
             .map_or(unplaced, |offset| place_in(scene.source, starts, offset));
-        match layout.shown {
-            Shown::All => {
-                for value in row {
-                    let made = value_cell(&mut into.text, *value, scene);
-                    into.cells.push(made);
-                }
-            }
-            Shown::Placed(placed) => render_placed(into, placed, row, scene),
-            Shown::Finding(finding_rule) => render_finding(into, finding_rule, row, emit, scene)?,
-        }
-        into.cells.push(line_cell(place));
-        into.cells.push(column_cell(place));
-        let number = next_row(into);
-        end_row(into);
-        into.order.push(RowOrder {
-            rule,
-            line: place.line,
-            column: place.column,
-            row: number,
-        });
+        let shape = ShownRow {
+            shown: layout.shown,
+            emit,
+            width: RowWidth(row.len()),
+        };
+        shown_cells(into, shape, &mut |text, index| {
+            cell(row, index).map(|value| value_cell(text, value, scene))
+        })?;
+        placed_row(into, rule, place);
     }
     into.keys = kept;
     Ok(())
 }
 
-/// Makes the cells of one rule's row among the columns of the answer: the rule's id, then each column of the answer, the rule's own
-/// or empty.
-fn render_placed(into: &mut Rendered, placed: RuleRow<'_>, row: &[Value], scene: Scene<'_>) {
-    let id = keep(&mut into.text, Cell::Text(CellText(placed.rule.0)));
-    into.cells.push(Some(id));
-    for each in placed.cells {
-        let made = match each {
-            AnswerCell::Column(column) => row
-                .get(column.0)
-                .and_then(|value| value_cell(&mut into.text, *value, scene)),
-            AnswerCell::Empty => None,
-        };
-        into.cells.push(made);
-    }
+/// Ends the row whose cells were just made: the line and the character of its place follow its cells, and it takes its turn
+/// among the rows rendered, as `rule`'s.
+pub(crate) fn placed_row(into: &mut Rendered, rule: RuleNumber, place: Point) {
+    into.cells.push(line_cell(place));
+    into.cells.push(column_cell(place));
+    let number = next_row(into);
+    end_row(into);
+    into.order.push(RowOrder {
+        rule,
+        line: place.line,
+        column: place.column,
+        row: number,
+    });
 }
 
-/// Makes the cells of one finding's row, as [`Shown::Finding`] lays them out: the id of its rule, its subject, how many key columns it
-/// has and the value of each, then each of its columns as its heading and its value.
-fn render_finding(
+/// Makes the cells of one row as its shape lays them out, before its line and character: `made` answers the cell of the row's
+/// column at an index, its text kept at the end of the text it is handed. One row of the old engine's table and one row the new
+/// engine's scan kept are laid out here, and nowhere else.
+///
+/// # Errors
+///
+/// What `made` refuses: `NoSuchColumn` for a column the row lacks.
+pub(crate) fn shown_cells(
     into: &mut Rendered,
-    rule: FindingRule<'_>,
-    row: &[Value],
-    emit: &Emit,
-    scene: Scene<'_>,
+    shape: ShownRow<'_>,
+    made: &mut dyn FnMut(
+        &mut RenderedText,
+        ColumnIndex,
+    ) -> Result<Option<Cell<TextRange>>, RowsError>,
 ) -> Result<(), FinishError> {
-    let id = keep(&mut into.text, Cell::Text(CellText(rule.0)));
-    into.cells.push(Some(id));
-    let subject = value_cell(&mut into.text, cell(row, emit.subject)?, scene);
-    into.cells.push(subject);
-    into.cells.push(Some(key_count(KeyCount(emit.key.len()))));
-    for index in &emit.key {
-        let made = value_cell(&mut into.text, cell(row, *index)?, scene);
-        into.cells.push(made);
-    }
-    for (heading, value) in emit.headings.iter().zip(row) {
-        let named = keep(&mut into.text, Cell::Text(CellText(&heading.0)));
-        into.cells.push(Some(named));
-        let made = value_cell(&mut into.text, *value, scene);
-        into.cells.push(made);
+    let columns = (0..shape.width.0).map(ColumnPlace).map(column_at);
+    match shape.shown {
+        Shown::All => {
+            for column in columns {
+                let cell = made(&mut into.text, column)?;
+                into.cells.push(cell);
+            }
+        }
+        Shown::Placed(placed) => {
+            let id = keep(&mut into.text, Cell::Text(CellText(placed.rule.0)));
+            into.cells.push(Some(id));
+            for each in placed.cells {
+                let cell = match each {
+                    AnswerCell::Column(own) if own.0 < shape.width.0 => {
+                        made(&mut into.text, column_at(*own))?
+                    }
+                    AnswerCell::Column(_) | AnswerCell::Empty => None,
+                };
+                into.cells.push(cell);
+            }
+        }
+        Shown::Finding(rule) => {
+            let emit = shape.emit;
+            let id = keep(&mut into.text, Cell::Text(CellText(rule.0)));
+            into.cells.push(Some(id));
+            let subject = made(&mut into.text, emit.subject)?;
+            into.cells.push(subject);
+            into.cells.push(Some(key_count(KeyCount(emit.key.len()))));
+            for index in &emit.key {
+                let cell = made(&mut into.text, *index)?;
+                into.cells.push(cell);
+            }
+            for (heading, column) in emit.headings.iter().zip(columns) {
+                let named = keep(&mut into.text, Cell::Text(CellText(&heading.0)));
+                into.cells.push(Some(named));
+                let cell = made(&mut into.text, column)?;
+                into.cells.push(cell);
+            }
+        }
     }
     Ok(())
+}
+
+/// The column at a place among a row's columns.
+fn column_at(place: ColumnPlace) -> ColumnIndex {
+    ColumnIndex(u32::try_from(place.0).unwrap_or(u32::MAX))
 }
 
 /// The cells of the row numbered `row` among the rows whose ends are `ends`: none for a row they do not have.

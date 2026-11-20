@@ -1,16 +1,15 @@
-//! The types of the `file_scan` operation: a worker's state, the columns a found row is read by, the rows kept as owned text and
-//! numbers, the run's report, and the harness's comparison of two engines' rows.
+//! The types of the `file_scan` operation: a worker's state, the columns a found row is read and placed by, and the run's report
+//! of the rows kept as owned text and numbers.
 
 use super::errors::FileScanError;
 use ryo_engine::domain::findings::types::RuleColumns;
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
-use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 use ryo_relations::domain::relations::types::FileId;
-use ryo_values::domain::plan_parts::types::InputNumber;
-use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::scan_rows::types::{FrontierRow, ScanRow};
 use std::sync::Arc;
 
 /// The columns of every selected rule, by rule ordinal: read from the engine's rule set, once for the run.
@@ -25,82 +24,17 @@ use std::sync::Arc;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EmitColumns(pub Vec<RuleColumns>);
 
-/// The text a word of a file stood for, owned: it outlives the file's words.
+/// The columns that say where a rule's row is, for every selected rule, by rule ordinal: its key columns, then its subject.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_execution_runtime::application::file_scan::types::KeptText;
+/// use ryo_execution_runtime::application::file_scan::types::PlaceColumns;
 ///
-/// assert_eq!(&*KeptText("os".into()).0, "os");
+/// assert!(PlaceColumns::default().0.is_empty());
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct KeptText(pub Box<str>);
-
-/// One cell of a kept row: owned text, or a number (a node, a span bound, a count, a flag) as its bits. Never a word of a file.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::types::{KeptCell, KeptText};
-/// use ryo_language::domain::facts::types::CellWord;
-///
-/// assert!(KeptCell::Text(KeptText("os".into())) < KeptCell::Number(CellWord(0)));
-/// ```
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum KeptCell {
-    /// The text a word stood for while its file was scanned.
-    Text(KeptText),
-    /// A number.
-    Number(CellWord),
-}
-
-/// One finding a rule found in a file, kept: ordered by file, then rule, then cells.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::types::ScanRow;
-/// use ryo_relations::domain::relations::types::FileId;
-/// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
-///
-/// let row = |file, rule| ScanRow { file: FileId(file), rule: SelectedRuleOrdinal(rule), cells: Vec::new() };
-/// assert!(row(0, 1) < row(1, 0));
-/// ```
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ScanRow {
-    /// The file.
-    pub file: FileId,
-    /// The rule.
-    pub rule: SelectedRuleOrdinal,
-    /// The row's cells, in the emit's column order.
-    pub cells: Vec<KeptCell>,
-}
-
-/// One row a file hands a cross-file rule's frontier entry, kept for the project pass.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::types::FrontierRow;
-/// use ryo_relations::domain::relations::types::FileId;
-/// use ryo_values::domain::plan_parts::types::InputNumber;
-/// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
-///
-/// let row = FrontierRow { file: FileId(0), rule: SelectedRuleOrdinal(0), input: InputNumber(0), cells: Vec::new() };
-/// assert_eq!(row.input, InputNumber(0));
-/// ```
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FrontierRow {
-    /// The file.
-    pub file: FileId,
-    /// The rule.
-    pub rule: SelectedRuleOrdinal,
-    /// The frontier entry, by its place in the rule's plan frontier.
-    pub input: InputNumber,
-    /// The row's cells.
-    pub cells: Vec<KeptCell>,
-}
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PlaceColumns(pub Vec<Vec<ColumnIndex>>);
 
 /// A file whose scan faulted, and why.
 ///
@@ -177,89 +111,25 @@ impl std::fmt::Debug for ScanWorker {
     }
 }
 
-/// What every file of a run is scanned with: the rule set, and the columns of its rules' rows as the engine says them. Made by
-/// `service::run`.
+/// What every file of a run is scanned with: the rule set, the columns of its rules' rows as the engine says them
+/// (`service::emit_columns`), and the columns that place a row, as the rules' plans say them (`service::place_columns`).
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
-/// use ryo_execution_runtime::application::file_scan::service::run;
+/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, PlaceColumns, ScanRun};
 ///
-/// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
-/// let programs = Programs::default();
-/// assert!(run(&engine, &programs).columns.0.is_empty());
+/// let (programs, columns, places) = (Programs::default(), EmitColumns::default(), PlaceColumns::default());
+/// let run = ScanRun { programs: &programs, columns: &columns, places: &places };
+/// assert!(run.places.0.is_empty());
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct ScanRun<'a> {
     /// The rule set.
     pub programs: &'a Programs,
     /// The columns of each selected rule's rows, by rule ordinal.
-    pub columns: EmitColumns,
-}
-
-/// One engine's rows of the compared rules: per rule and file, each row as its owned text, sorted.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::types::HarnessRows;
-///
-/// assert!(HarnessRows::default().0.is_empty());
-/// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct HarnessRows(pub std::collections::BTreeMap<RuleFile, Vec<RowText>>);
-
-/// A rule and a file.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::types::RuleFile;
-/// use ryo_relations::domain::relations::types::FileId;
-/// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
-///
-/// assert!(RuleFile { rule: SelectedRuleOrdinal(0), file: FileId(1) } < RuleFile { rule: SelectedRuleOrdinal(1), file: FileId(0) });
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RuleFile {
-    /// The rule.
-    pub rule: SelectedRuleOrdinal,
-    /// The file.
-    pub file: FileId,
-}
-
-/// A row as owned text: its cells, each a word's text or a number, joined by tabs.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::types::RowText;
-///
-/// assert_eq!(&*RowText("3\t9\tos".into()).0, "3\t9\tos");
-/// ```
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RowText(pub Box<str>);
-
-/// The first place the two engines' rows differ.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::types::{HarnessDifference, RowText, RuleFile};
-/// use ryo_relations::domain::relations::types::FileId;
-/// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
-///
-/// let at = RuleFile { rule: SelectedRuleOrdinal(0), file: FileId(1) };
-/// let difference = HarnessDifference { at, old: vec![RowText("a".into())], new: Vec::new() };
-/// assert_eq!(difference.old.len(), 1);
-/// ```
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct HarnessDifference {
-    /// The rule and the file.
-    pub at: RuleFile,
-    /// The old engine's rows there.
-    pub old: Vec<RowText>,
-    /// The new engine's rows there.
-    pub new: Vec<RowText>,
+    pub columns: &'a EmitColumns,
+    /// The columns that place each selected rule's rows, by rule ordinal.
+    pub places: &'a PlaceColumns,
 }

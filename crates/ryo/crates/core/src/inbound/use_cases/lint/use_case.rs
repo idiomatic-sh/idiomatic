@@ -12,7 +12,7 @@ use crate::application::cross_file::types::PhasePorts;
 use crate::application::engine::service::{Compilation, Execution};
 use crate::application::file_analysis::service::FileAnalysis;
 use crate::application::file_analysis::streaming::service::FileVisits;
-use crate::application::file_analysis::types::{FileVisit, RequestVisitSetting};
+use crate::application::file_analysis::types::{FileVisit, RequestVisitSetting, ScanRequest};
 use crate::application::metadata::service::kernel_metadata;
 use crate::application::persisting::service::handed_of;
 use crate::application::storing::service::Storing;
@@ -240,12 +240,7 @@ impl LintUseCase for LintUseCaseImpl {
             Reuse::Whole,
         );
         let unknown = self.language.unknown_reasons();
-        let execution = Execution::new(Arc::clone(&self.operators)).harnessing(
-            analysis.engine(),
-            Arc::clone(&self.digest),
-            self.language.kind_vocabularies(),
-            named_provider(&request.source_language).cloned(),
-        );
+        let execution = Execution::new(Arc::clone(&self.operators));
         let digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let request_failed = |error: &dyn std::fmt::Display| {
             ryo_values::domain::rule_requests::service::failed(
@@ -253,6 +248,20 @@ impl LintUseCase for LintUseCaseImpl {
                 error,
             )
         };
+        let scanning = self.visits.scanning(ScanRequest {
+            named: named_provider(&request.source_language),
+            plans: &plans,
+            digests: &digests,
+            ids: &ids,
+            placed: &placed,
+            answering: &answering,
+            files: &listing.files,
+        })?;
+        if scanning.mode() == ryo_operators::spike::EngineMode::New {
+            let scanned = self.visits.scanned(&scanning, &request.files)??;
+            self.rows.end(scanned.counts, &scanned.unread)?;
+            return Ok(scanned.into());
+        }
         let program = Arc::new(
             execution
                 .prepare(PrepareRequest {

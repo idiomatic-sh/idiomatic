@@ -771,18 +771,18 @@ pub fn engine_compared(rules: usize) {
     eprintln!("ryo engine both: compared {rules} rules, 0 differences");
 }
 
-/// Spike (ryo-fmx3.1): why the harness stops a run the new engine would have to run files for, while the host runs none through it.
+/// Spike (ryo-fmx3.1): why the harness stops a run whose files a language linked without its walk would have to be scanned of.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_operators::spike::{EngineMode, engine_refusal};
+/// use ryo_operators::spike::{EngineMode, engine_unwalked};
 ///
-/// assert!(engine_refusal(EngineMode::New, 0).starts_with("RYO_ENGINE=new"));
+/// assert!(engine_unwalked(EngineMode::New, &"words").starts_with("RYO_ENGINE=new"));
 /// ```
-pub fn engine_refusal(mode: EngineMode, accepted: usize) -> String {
+pub fn engine_unwalked(mode: EngineMode, language: &dyn std::fmt::Display) -> String {
     format!(
-        "RYO_ENGINE={}: the new engine accepts {accepted} rules and runs no file yet (the host does not run the files through the new engine yet)",
+        "RYO_ENGINE={}: the language `{language}` is linked without its walk, so the new engine scans none of its files",
         engine_name(mode)
     )
 }

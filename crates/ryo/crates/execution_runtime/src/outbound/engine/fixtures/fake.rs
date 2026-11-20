@@ -1,16 +1,18 @@
-//! Controlled stand-in for the engine port. It accepts the lowering fixture's one tree rule and refuses every other plan, writes the
-//! rules it accepted after the engine's own pack header, and for each rule it runs finds, per word of a scanned file, a row
-//! (start, end, word) and a frontier row (word). Before it finds a row it reads `syntax-error`, and faults when the language
-//! filled it only in part. It counts the rule sets it lowered and the packs it read back, and the rules it runs are those of the
-//! rule set it loaded last: the engine's programs are sealed, so a fake cannot put them there.
+//! Controlled stand-in for the engine port. It accepts the lowering fixture's one tree rule, and a compiled rule of the same shape
+//! (one step that keeps columns of a relation read in place from the node table: the element, its file, its span, a token's
+//! text; of every element, or of the elements whose kind is a word of the language's), and refuses every other plan; it writes
+//! the rules it accepted, with the columns of their rows, after the engine's own pack header. For each rule it runs it finds a
+//! row for each element the rule names of a scanned file: the fixture rule's, per word, is (start, end, word) with a frontier
+//! row (word); a compiled rule's is the columns it keeps. Before it finds a row it reads `syntax-error`, and
+//! faults when the language filled it only in part. It counts the rule sets it lowered and the packs it read back, and the rules
+//! it runs are those of the rule set it loaded last: the engine's programs are sealed, so a fake cannot put them there.
 
+use super::rules::{Anchor, FixtureRule, Held, lowered, named_rules, written};
 use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::findings::types::{
     ColumnKinds, FoundCells, FoundRows, FoundTarget, FrontierSource, InstructionCount, RuleColumns,
     ScanCounters,
 };
-use ryo_engine::domain::lowering::fixtures::named;
-use ryo_engine::domain::lowering::types::{PlanNode, PlanShape};
 use ryo_engine::domain::packs::service::encoded;
 use ryo_engine::domain::packs::types::{EncodedPack, PackBytes, PackDigest};
 use ryo_engine::domain::programs::service::scratch_for;
@@ -26,9 +28,12 @@ use ryo_language::domain::facts::service::{base_words, clear_words, file_words, 
 use ryo_language::domain::facts::types::{
     CellWord, FactAnswer, FileFacts, FileWords, FilledColumns, ProjectFacts,
 };
-use ryo_language::domain::node_table::service::{element_count, node_count, span_of};
+use ryo_language::domain::node_table::service::{element_count, kind_of, node_count, span_of};
 use ryo_language::inbound::use_cases::walk::types::FileVisit;
-use ryo_relations::domain::relations::types::{CellKind, Count, Position, Relation};
+use ryo_relations::domain::relations::service::{node_id, to_bits};
+use ryo_relations::domain::relations::types::{
+    CellKind, Count, FileId, Offset, Position, Relation, Span, Value,
+};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -45,14 +50,22 @@ pub struct EngineFake {
     /// How many packs it was asked to read back.
     pub unpacked: AtomicUsize,
     /// The rules of the rule set it loaded last.
-    last: Mutex<Vec<SelectedRuleOrdinal>>,
+    last: Mutex<Vec<FixtureRule>>,
 }
 
 impl EngineFake {
     /// Remembers the rules of the rule set just loaded.
-    fn loaded(&self, rules: Vec<SelectedRuleOrdinal>) -> Programs {
+    fn loaded(&self, rules: Vec<FixtureRule>) -> Programs {
         *self.last.lock().unwrap_or_else(PoisonError::into_inner) = rules;
         Programs::default()
+    }
+
+    /// The rules it runs now.
+    fn rules(&self) -> Vec<FixtureRule> {
+        self.last
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 }
 
@@ -95,37 +108,14 @@ fn counted(calls: &AtomicUsize) {
     let _before = calls.fetch_add(1, Ordering::Relaxed);
 }
 
-/// The rules a fake's pack names after the engine's header: each ordinal as four little-endian bytes.
-fn named_rules(tail: &[u8]) -> Result<Vec<SelectedRuleOrdinal>, LoadError> {
-    let (rules, rest) = tail.as_chunks::<{ size_of::<u32>() }>();
-    if rest.is_empty() {
-        Ok(rules
-            .iter()
-            .map(|rule| SelectedRuleOrdinal(u32::from_le_bytes(*rule)))
-            .collect())
-    } else {
-        Err(LoadError::PackCorrupt)
-    }
-}
-
 impl EnginePort for EngineFake {
     fn load(&self, source: LoadSource<'_>, kinds: &KindVocabulary) -> Result<Programs, LoadError> {
         match source {
             LoadSource::Plans(rules) => {
                 counted(&self.lowered);
-                let (tree, heavy) = (named("one tree rule"), named("program over budget"));
-                for rule in rules.0 {
-                    if *rule.plan == heavy {
-                        return Err(LoadError::Budget { rule: rule.rule });
-                    }
-                    if *rule.plan != tree {
-                        return Err(LoadError::Unlowerable {
-                            rule: rule.rule,
-                            shape: PlanShape::Step(PlanNode(0)),
-                        });
-                    }
-                }
-                Ok(self.loaded(rules.0.iter().map(|rule| rule.rule).collect()))
+                let rules: Result<Vec<FixtureRule>, LoadError> =
+                    rules.0.iter().map(|rule| lowered(rule, kinds)).collect();
+                Ok(self.loaded(rules?))
             }
             LoadSource::Pack(bytes, digest) => {
                 counted(&self.unpacked);
@@ -140,25 +130,36 @@ impl EnginePort for EngineFake {
     }
 
     fn accepted(&self, _programs: &Programs) -> Vec<SelectedRuleOrdinal> {
-        self.last
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
+        self.rules().iter().map(|rule| rule.rule).collect()
     }
 
-    fn columns(&self, programs: &Programs) -> Vec<RuleColumns> {
-        let word = || ColumnKinds(vec![CellKind::Symbol]);
-        let found = RuleColumns {
-            emit: ColumnKinds(vec![CellKind::Number, CellKind::Number, CellKind::Symbol]),
-            frontier: vec![word()],
+    fn columns(&self, _programs: &Programs) -> Vec<RuleColumns> {
+        let kind = |held: &Held| match held {
+            Held::Start | Held::End => CellKind::Number,
+            Held::Word => CellKind::Symbol,
+            Held::Node => CellKind::Node,
+            Held::File => CellKind::File,
+            Held::Span => CellKind::Span,
         };
-        vec![found; self.accepted(programs).len()]
+        self.rules()
+            .iter()
+            .map(|rule| RuleColumns {
+                emit: ColumnKinds(rule.cells.iter().map(kind).collect()),
+                frontier: if rule.frontier {
+                    vec![ColumnKinds(vec![CellKind::Symbol])]
+                } else {
+                    Vec::new()
+                },
+            })
+            .collect()
     }
 
     fn encoded(&self, programs: &Programs, digest: PackDigest) -> EncodedPack {
         let mut pack = encoded(programs, digest);
-        for rule in self.accepted(programs) {
-            pack.0.extend_from_slice(&rule.0.to_le_bytes());
+        for rule in self.rules() {
+            for word in written(&rule) {
+                pack.0.extend_from_slice(&word.to_le_bytes());
+            }
         }
         pack
     }
@@ -169,13 +170,14 @@ impl EnginePort for EngineFake {
 
     fn scan(
         &self,
-        programs: &Programs,
+        _programs: &Programs,
         file: FileFacts<'_>,
+        number: FileId,
         _scratch: &mut ScanScratch,
         found: &mut dyn FoundRows,
     ) -> Result<ScanCounters, ScanError> {
-        let accepted = self.accepted(programs);
-        let Some(first) = accepted.first() else {
+        let rules = self.rules();
+        let Some(first) = rules.first() else {
             return Ok(ScanCounters::default());
         };
         let mut words = file_words(&base_words(&[]));
@@ -185,7 +187,7 @@ impl EnginePort for EngineFake {
                 .fill(read, &mut words, &mut FilledColumns(Vec::new()))
         {
             return Err(ScanError::Partial {
-                rule: *first,
+                rule: first.rule,
                 relation: read,
                 cause: PartialCause(partial.cause.0),
                 missing: partial.missing,
@@ -195,35 +197,53 @@ impl EnginePort for EngineFake {
         clear_words(&mut words);
         let (nodes, elements) = (node_count(file.table).0, element_count(file.table).0);
         let mut candidates = InstructionCount(0);
-        for rule in &accepted {
-            for token in nodes..elements {
-                let span = span_of(
-                    file.table,
-                    Position(u32::try_from(token).unwrap_or(u32::MAX)),
-                );
+        for rule in &rules {
+            let anchored = match rule.anchor {
+                Anchor::Tokens => nodes..elements,
+                Anchor::Every | Anchor::Kind(_) => 0..elements,
+            };
+            for element in anchored {
+                let position = Position(u32::try_from(element).unwrap_or(u32::MAX));
+                if matches!(rule.anchor, Anchor::Kind(kind) if kind_of(file.table, position) != kind)
+                {
+                    continue;
+                }
+                let span = span_of(file.table, position);
                 let range = usize::from(Position(span.start.0))..usize::from(Position(span.end.0));
+                // A node has no text of its own: its row's word is the empty one.
                 let text = file
                     .source
                     .0
                     .get(range)
+                    .filter(|_| element >= nodes)
                     .map_or_else(Default::default, |bytes| {
                         std::str::from_utf8(bytes).unwrap_or_default()
                     });
                 let word = intern(&mut words, NameText(text));
-                let (start, end) = (
-                    CellWord(u64::from(span.start.0)),
-                    CellWord(u64::from(span.end.0)),
-                );
-                found.found(
-                    FoundTarget::Rule(*rule),
-                    FoundCells(&[start, end, word]),
-                    &words,
-                );
-                found.found(
-                    FoundTarget::Frontier(*rule, InputNumber(0)),
-                    FoundCells(&[word]),
-                    &words,
-                );
+                let whole = Span {
+                    start: Offset(span.start.0),
+                    end: Offset(span.end.0),
+                };
+                let cells: Vec<CellWord> = rule
+                    .cells
+                    .iter()
+                    .map(|held| match held {
+                        Held::Start => CellWord(u64::from(span.start.0)),
+                        Held::End => CellWord(u64::from(span.end.0)),
+                        Held::Word => word,
+                        Held::Node => CellWord(to_bits(Value::Node(node_id(number, position))).0),
+                        Held::File => CellWord(to_bits(Value::File(number)).0),
+                        Held::Span => CellWord(to_bits(Value::Span(whole)).0),
+                    })
+                    .collect();
+                found.found(FoundTarget::Rule(rule.rule), FoundCells(&cells), &words);
+                if rule.frontier {
+                    found.found(
+                        FoundTarget::Frontier(rule.rule, InputNumber(0)),
+                        FoundCells(&[word]),
+                        &words,
+                    );
+                }
                 candidates = InstructionCount(candidates.0.saturating_add(1));
             }
         }
