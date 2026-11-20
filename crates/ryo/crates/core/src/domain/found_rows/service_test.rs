@@ -1,8 +1,9 @@
 //! The `found_rows` service's cases, on values alone: the rows a scan kept render as the cells the old engine's rows of the same
-//! values render as; a row past the limit is counted and not rendered; and a row that lacks its subject is refused.
+//! values render as; a row past the limit is counted and not rendered; a row that lacks its subject is refused; and two
+//! renderings of a file compare by their rows' cells, whatever the engines number a node.
 
-use super::service::render_found;
-use super::types::FoundInput;
+use super::service::{first_difference, render_found};
+use super::types::{Compared, FoundInput};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
 use crate::domain::finish::types::LineStarts;
@@ -43,6 +44,12 @@ enum Scenario {
     AsTheOldEngine,
     /// The two rows with a limit of one.
     Limited,
+    /// The two renderings compared when the new engine numbers the words' nodes otherwise.
+    OtherNodeNumbers,
+    /// The two renderings compared when the new engine's second row is one byte shorter.
+    OtherSpan,
+    /// The two renderings compared when the new engine found one row only.
+    OneRowLess,
     /// A row with no file column, whose rule's subject is the file.
     NoSubject,
 }
@@ -77,6 +84,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Limited,
         expect: Expect::Value(Cow::Borrowed(
             "1 of 2 rows\n'words' file a.walk 1 'a.walk#1' 'id' 'a.walk#1' 'file' file a.walk 'span' 0..3 'text' 'two' 1 1",
+        )),
+    },
+    Case {
+        name: CaseName("rows_that_differ_only_in_a_nodes_number_compare_equal"),
+        word: Word::Succeeds,
+        input: || Scenario::OtherNodeNumbers,
+        expect: Expect::Value(Cow::Borrowed("None")),
+    },
+    Case {
+        name: CaseName("a_planted_span_is_the_first_row_that_differs"),
+        word: Word::Succeeds,
+        input: || Scenario::OtherSpan,
+        expect: Expect::Value(Cow::Borrowed(
+            "Some(RowDifference { rule: RuleNumber(0), old: Some(ComparedRow(\"words\\ta.walk\\t1\\t#\\tid\\t#\\tfile\\ta.walk\\tspan\\t5..8\\ttext\\tone\\t2\\t2\")), new: Some(ComparedRow(\"words\\ta.walk\\t1\\t#\\tid\\t#\\tfile\\ta.walk\\tspan\\t5..7\\ttext\\ton\\t2\\t2\")) })",
+        )),
+    },
+    Case {
+        name: CaseName("a_missing_row_is_the_first_row_that_differs"),
+        word: Word::Succeeds,
+        input: || Scenario::OneRowLess,
+        expect: Expect::Value(Cow::Borrowed(
+            "Some(RowDifference { rule: RuleNumber(0), old: Some(ComparedRow(\"words\\ta.walk\\t1\\t#\\tid\\t#\\tfile\\ta.walk\\tspan\\t5..8\\ttext\\tone\\t2\\t2\")), new: None })",
         )),
     },
     Case {
@@ -258,6 +287,23 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let (nothing, bare) = (Symbols::default(), Elements::default());
     let new_scene = scene(&nothing, &bare, &paths);
     let (mut symbols, mut elements) = (Symbols::default(), Elements::default());
+    let emit = emit();
+    let compared = |rule: RuleNumber| {
+        (rule == RuleNumber(0)).then_some(Compared {
+            shown: FINDING.shown,
+            emit: &emit,
+            kinds: &KINDS,
+        })
+    };
+    let differing = |rows: &[ScanRow]| -> Result<Value, Failure> {
+        let (mut names, mut tree) = (Symbols::default(), Elements::default());
+        let before = old(&mut names, &mut tree, &paths);
+        let after = found(rows, new_scene, usize::MAX)?;
+        Ok(Cow::Owned(format!(
+            "{:?}",
+            first_difference(&before, &after, &compared)
+        )))
+    };
     match scenario {
         Scenario::Found => Ok(Cow::Owned(lines(&found(
             &kept(0, 0),
@@ -279,6 +325,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             )))
         }
         Scenario::Limited => Ok(Cow::Owned(lines(&found(&kept(0, 0), new_scene, 1)?))),
+        Scenario::OtherNodeNumbers => differing(&kept(7, 0)),
+        Scenario::OtherSpan => differing(&kept(0, 1)),
+        Scenario::OneRowLess => differing(kept(0, 0).get(..1).unwrap_or_default()),
         Scenario::NoSubject => {
             let mut rows = kept(0, 0);
             for row in &mut rows {

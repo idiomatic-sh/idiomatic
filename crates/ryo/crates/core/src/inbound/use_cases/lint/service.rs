@@ -175,7 +175,7 @@ pub(super) fn answer(
         mut met,
         counted,
         total,
-    } = visits.visited(&stream, visit)??;
+    } = visits.visited(&stream, visit, run.scanning)??;
     let fresh = order(&mut met);
     let WorkersMet {
         observations,

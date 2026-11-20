@@ -369,6 +369,7 @@ impl LintUseCase for LintUseCaseImpl {
             skipped: &alone_skipped,
             handed: &handed.handed,
             wanted: &handed.wanted,
+            scanning: &scanning,
         };
         let visit = FileVisit {
             store: listing.read.as_deref(),

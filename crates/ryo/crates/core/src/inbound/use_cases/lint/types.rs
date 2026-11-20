@@ -323,6 +323,8 @@ pub(super) struct LintRun<'a> {
     pub handed: &'a ReadHanded,
     /// The buckets of what the files handed that the run read.
     pub wanted: &'a BucketsWanted,
+    /// The new engine's part of the run: under both engines, what each file's rows are compared with.
+    pub scanning: &'a crate::application::file_analysis::types::Scanning<'a>,
 }
 
 use ryo_values::domain::rule_requests::types::{Given, RuleSpec};

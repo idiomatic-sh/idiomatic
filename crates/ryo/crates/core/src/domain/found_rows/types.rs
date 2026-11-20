@@ -1,7 +1,7 @@
 //! The types of the `found_rows` concept: plain data, public fields and derives, with no constructor and no inherent impl. What
-//! the rows a rule found in a file are rendered with.
+//! the rows a rule found in a file are rendered with, and where two renderings of one file differ.
 
-use crate::domain::render::types::{RowLayout, RowLimit};
+use crate::domain::render::types::{RowLayout, RowLimit, Shown};
 use crate::domain::value_cells::types::Scene;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plans::types::Emit;
@@ -23,4 +23,41 @@ pub(crate) struct FoundInput<'a> {
     pub scene: Scene<'a>,
     /// How many rows are made into cells; the rest are counted.
     pub limit: RowLimit,
+}
+
+/// How the rows of one rule are compared between the two engines' renderings of a file: which cells a row shows, what the rule
+/// emits, and what each of its columns holds. A cell that holds a node is not compared: the engines number nodes differently.
+#[derive(Clone, Copy)]
+pub(crate) struct Compared<'a> {
+    /// Which cells a row of the rule shows.
+    pub shown: Shown<'a>,
+    /// What a row of the rule emits.
+    pub emit: &'a Emit,
+    /// What each column of the rule's rows holds, in column order.
+    pub kinds: &'a [CellKind],
+}
+
+/// Whether a cell of a rendered row is compared between the two engines.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CellCompared {
+    /// It is: a file, a text, a number or a span.
+    Compared,
+    /// It is not: it holds a node, which the engines number differently.
+    Node,
+}
+
+/// A rendered row as the text it is compared by: its cells joined by tabs, a node's cell left out.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ComparedRow(pub Box<str>);
+
+/// The first row at which the two engines' renderings of one file differ, for the first rule whose rows do: the row each engine
+/// has there, none for the engine that has no more rows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RowDifference {
+    /// The rule.
+    pub rule: RuleNumber,
+    /// The old engine's row.
+    pub old: Option<ComparedRow>,
+    /// The new engine's row.
+    pub new: Option<ComparedRow>,
 }

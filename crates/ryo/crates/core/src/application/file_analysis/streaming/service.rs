@@ -2,7 +2,9 @@
 //! the rows port in the order of the files; the changed files read alone; and the project made on the scheduler's pool.
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
-use super::super::types::{Course, FileVisit, RequestVisitSetting, StreamRun, Streaming, Worker};
+use super::super::types::{
+    Course, FileVisit, RequestVisitSetting, ScanState, Scanning, StreamRun, Streaming, Worker,
+};
 use crate::domain::choosing::service::chosen;
 use crate::domain::ordering::service::{PENDING_LIMIT, admitted, offer, sort_findings};
 use crate::domain::ordering::types::{Admittance, Ordered, Turn};
@@ -81,6 +83,7 @@ impl FileVisits {
         &self,
         run: &StreamRun<'_>,
         visit: &FileVisit<'_>,
+        scanning: &Scanning<'_>,
     ) -> Result<Result<Visited<Box<dyn FactsWorker>>, FileAnalysisError>, SchedulerError> {
         let _reading = tracing::info_span!("read").entered();
         let mut states = Vec::new();
@@ -106,11 +109,16 @@ impl FileVisits {
             streaming: &streaming,
             only: run.only,
             counted: &counted,
+            scanning,
         };
+        // Beside the old engine, each worker scans its files with the new engine too, and compares the rows.
+        let mut scans: Vec<_> = states.iter().map(|_| Self::comparing(scanning)).collect();
         let mut jobs: Vec<Box<dyn FnMut(JobNumber) + Send + '_>> = Vec::new();
-        for state in &mut states {
+        for (state, scan) in states.iter_mut().zip(&mut scans) {
             let course = &course;
-            jobs.push(Box::new(move |job| self.process(course, state, job)));
+            jobs.push(Box::new(move |job| {
+                self.process(course, state, scan.as_mut(), job);
+            }));
         }
         let count = JobCount(u32::try_from(run.files.len()).unwrap_or(u32::MAX));
         self.scheduler.run(&mut jobs, count)?;
@@ -125,6 +133,10 @@ impl FileVisits {
             workers.push(state.facts);
             absorb(&mut met, state.tables);
         }
+        if let Some(error) = scans.into_iter().flatten().find_map(|scan| scan.failure) {
+            return Ok(Err(error));
+        }
+        Self::compared(scanning);
         let counted = RowTotal(counted.load(Ordering::Relaxed));
         let total = match run.answering {
             Answering::Findings => counted,
@@ -192,12 +204,21 @@ impl FileVisits {
 
     /// The job of one file: wait to be admitted, visit the file, and write its findings when it is the file's turn, or when the
     /// files before it have left.
-    fn process(&self, course: &Course<'_>, worker: &mut Worker, job: JobNumber) {
+    fn process(
+        &self,
+        course: &Course<'_>,
+        worker: &mut Worker,
+        scan: Option<&mut ScanState>,
+        job: JobNumber,
+    ) {
         let place = FileOrder(usize::try_from(job.0).unwrap_or(usize::MAX));
         let size = size_at(course.files, place);
         Self::admit(course.streaming, size);
         self.analysis
             .visit_file(worker, course.visit, course.files, job);
+        if let Some(state) = scan {
+            self.compare(course.scanning, state, &worker.tables.rendered, job);
+        }
         Self::release(course.streaming, size);
         let rendered = std::mem::take(&mut worker.tables.rendered);
         let run = StreamRun {

@@ -121,6 +121,8 @@ pub(crate) struct Course<'a> {
     pub only: &'a [ryo_language::domain::files::types::FilePath],
     /// How many findings the workers wrote.
     pub counted: &'a std::sync::atomic::AtomicU64,
+    /// The new engine's part of the run: what each file's rows are compared with, when the run compares the two engines.
+    pub scanning: &'a Scanning<'a>,
 }
 
 /// What the project is made from: the files listed, the session, the manifests, the relations the rules read, and what the rules
@@ -284,4 +286,34 @@ pub(crate) struct ScanRequest<'a, 'l> {
     pub answering: &'a crate::domain::render::types::Answering,
     /// The files the run lists, in the order of their paths.
     pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+}
+
+/// Where the two engines' rows differ, as the harness says it: the rule, the file, and the first row each engine has that the
+/// other has not there; none for the engine that has no more rows.
+#[derive(Debug)]
+pub(crate) struct RowsDiffer<'a> {
+    /// The rule's id.
+    #[expect(
+        dead_code,
+        reason = "read by the harness's sentence, which is this value's `Debug`"
+    )]
+    pub rule: Option<&'a ryo_values::domain::runs::types::RuleId>,
+    /// The file's path.
+    #[expect(
+        dead_code,
+        reason = "read by the harness's sentence, which is this value's `Debug`"
+    )]
+    pub file: Option<&'a ryo_language::domain::files::types::FilePath>,
+    /// The old engine's row.
+    #[expect(
+        dead_code,
+        reason = "read by the harness's sentence, which is this value's `Debug`"
+    )]
+    pub old: Option<crate::domain::found_rows::types::ComparedRow>,
+    /// The new engine's row.
+    #[expect(
+        dead_code,
+        reason = "read by the harness's sentence, which is this value's `Debug`"
+    )]
+    pub new: Option<crate::domain::found_rows::types::ComparedRow>,
 }
