@@ -15,6 +15,7 @@
 )]
 
 mod nav;
+mod pack;
 mod builtins;
 mod model;
 mod rows;
@@ -61,6 +62,13 @@ impl Clock {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let mode = args.get(1).cloned().unwrap_or_default();
+    if mode == "pack" {
+        // walk pack <program.json> <out.pack>: compile the rule pack once
+        let t = std::time::Instant::now();
+        let bytes = rules::Program::write_pack(&args[2], &args[3]);
+        eprintln!("{{\"pack_bytes\":{bytes},\"pack_compile_s\":{:.3}}}", t.elapsed().as_secs_f64());
+        return;
+    }
     let request: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&args[2]).expect("request")).expect("json");
     let root = std::path::PathBuf::from(&args[3]);
@@ -71,11 +79,15 @@ fn main() {
         .map(|f| f.as_str().unwrap().to_owned())
         .collect();
     let threads: usize = std::env::var("WALK_THREADS").ok().and_then(|t| t.parse().ok()).unwrap_or(4);
+    let t_load = std::time::Instant::now();
     let program = if mode == "rules" || mode == "nav" {
         Some(rules::Program::load(&args[4]))
     } else {
         None
     };
+    if program.is_some() {
+        eprintln!("{{\"program_load_s\":{:.3}}}", t_load.elapsed().as_secs_f64());
+    }
     let cursor = AtomicUsize::new(0);
     let totals = Totals::default();
     let outputs: Vec<Vec<String>> = std::thread::scope(|scope| {

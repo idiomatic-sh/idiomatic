@@ -28,6 +28,11 @@ impl Symbols {
         id
     }
 
+    /// every base symbol, in id order (the compiled pack's constant pool)
+    pub(crate) fn base_texts(&self) -> &[String] {
+        &self.base_text
+    }
+
     pub(crate) fn get_base(&self, text: &str) -> Option<u32> {
         self.base_map.get(text).copied()
     }

@@ -178,6 +178,8 @@ pub(crate) struct NavProgram {
     pub rules: Vec<NavRule>,
     pub facts: Vec<FactRel>,
     pub regexes: Vec<Regex>,
+    /// each regex's pattern (the compiled pack stores these)
+    pub regex_patterns: Vec<String>,
     pub max_regs: usize,
 }
 
@@ -208,6 +210,7 @@ struct Loader<'a> {
     kinds: &'a serde_json::Map<String, Value>,
     facts: &'a mut Vec<FactRel>,
     regexes: &'a mut Vec<Regex>,
+    patterns: &'a mut Vec<String>,
     regex_of: &'a mut FxMap<(String, bool), usize>,
     /// a made table's name -> the fact index of the identical made table already loaded (shared across rules)
     alias: &'a mut FxMap<String, u16>,
@@ -317,6 +320,7 @@ impl Loader<'_> {
         }
         let pattern = if glob { glob_to_regex(text) } else { text.to_owned() };
         self.regexes.push(Regex::new(&pattern).unwrap_or_else(|e| panic!("regex {pattern}: {e}")));
+        self.patterns.push(pattern.clone());
         self.regex_of.insert((text.to_owned(), glob), self.regexes.len() - 1);
         self.regexes.len() - 1
     }
@@ -551,6 +555,7 @@ impl NavProgram {
         let mut out = Vec::new();
         let mut max_regs = 0;
         let mut regex_of = FxMap::default();
+        let mut patterns: Vec<String> = Vec::new();
         let mut alias: FxMap<String, u16> = FxMap::default();
         // canonical form of a made table (its programs with registers numbered from 0, keys, kinds) -> its fact index
         let mut canon: FxMap<String, u16> = FxMap::default();
@@ -564,6 +569,7 @@ impl NavProgram {
                 kinds,
                 facts: &mut facts,
                 regexes: &mut regexes,
+                patterns: &mut patterns,
                 regex_of: &mut regex_of,
                 alias: &mut alias,
                 rule: u32::MAX,
@@ -637,7 +643,7 @@ impl NavProgram {
                 nregs,
             });
         }
-        let mut me = Self { groups: Vec::new(), slot_of: Vec::new(), slot_rule: Vec::new(), nslots: 0, rules: out, facts, regexes, max_regs };
+        let mut me = Self { groups: Vec::new(), slot_of: Vec::new(), slot_rule: Vec::new(), nslots: 0, rules: out, facts, regexes, regex_patterns: patterns, max_regs };
         me.build_groups();
         me
     }
@@ -870,6 +876,11 @@ pub(crate) struct Counters {
     pub fact_rows: u64,
     pub fact_ns: u64,
     pub provider_build_ns: u64,
+    /// time in made-table builds (their programs' steps included, nested builds counted once) and in value-index builds
+    pub made_ns: u64,
+    pub index_ns: u64,
+    /// per made table (fact index): (builds, exclusive ns, input rows, steps)
+    pub made_by: FxMap<u16, (u64, u64, u64, u64)>,
     pub kind_index_ns: u64,
     pub model_lex_ns: u64,
     pub model_flow_ns: u64,
@@ -1115,6 +1126,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = self.cache.tree_idx.get(&key) {
             return i.clone();
         }
+        let t0 = Instant::now();
         let mut m: FxMap<u32, Vec<u32>> = FxMap::default();
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
         for id in 0..n as u32 {
@@ -1124,6 +1136,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         self.c.made_tables += 1;
         self.c.made_rows += n as u64;
+        self.c.index_ns += t0.elapsed().as_nanos() as u64;
         let m = Rc::new(m);
         self.cache.tree_idx.insert(key, m.clone());
         m
@@ -1144,6 +1157,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         let t = Instant::now();
         if let Some((progs, keys, distinct, width)) = &prog.facts[rel as usize].made {
             let nkeys = &keys.len();
+            let made_t0 = Instant::now();
+            let made_before = self.c.made_ns;
+            let fact_before = self.c.fact_ns;
             let steps0 = self.c.steps;
             let owner = self.cur_rule;
             let slot = self.outs.len() - 1;
@@ -1187,6 +1203,13 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.made_tables += 1;
             self.c.made_rows += cols[*nkeys].len() as u64;
             facts.loaded[rel as usize] = true;
+            let excl = made_t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before) - (self.c.made_ns - made_before);
+            self.c.made_ns = made_before + made_t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before);
+            let e = self.c.made_by.entry(rel).or_default();
+            e.0 += 1;
+            e.1 += excl;
+            e.2 += (rows_len / width.max(&1)) as u64;
+            e.3 += self.c.steps - steps0;
             if owner < self.c.rule_made_rows.len() {
                 self.c.rule_made_rows[owner] += cols[*nkeys].len() as u64 + (rows_len / width.max(&1)) as u64;
                 self.c.rule_made_steps[owner] += self.c.steps - steps0;
@@ -1346,6 +1369,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = facts.idx.get(&(rel, col)) {
             return i.clone();
         }
+        let t0 = Instant::now();
         let c = &facts.cols[rel as usize][col as usize];
         let idx = if dense {
             let mut head = vec![u32::MAX; n_view + 1];
@@ -1365,6 +1389,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         };
         self.c.made_tables += 1;
         self.c.made_rows += c.len() as u64;
+        self.c.index_ns += t0.elapsed().as_nanos() as u64;
         let m = Rc::new(idx);
         facts.idx.insert((rel, col), m.clone());
         m

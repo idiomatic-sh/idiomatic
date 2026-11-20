@@ -201,10 +201,15 @@ fn regex_syntax_escape(c: char) -> String {
 struct Loader<'a> {
     sym: &'a mut Symbols,
     pos: FxMap<u64, usize>,
+    /// compiled pack: inputs named by merged node id -> position in the rule
+    mpos: FxMap<u64, usize>,
 }
 
 impl Loader<'_> {
     fn input(&self, v: &Value) -> Result<Input, String> {
+        if let Some(m) = v.get("m") {
+            return self.mpos.get(&m.as_u64().unwrap()).map(|&p| Input::Step(p)).ok_or("unknown merged node".into());
+        }
         if let Some(s) = v.get("step") {
             return self.pos.get(&s.as_u64().unwrap()).map(|&p| Input::Step(p)).ok_or("unknown step".into());
         }
@@ -423,16 +428,40 @@ impl Loader<'_> {
 
 impl Program {
     pub(crate) fn load(path: &str) -> Self {
+        if path.ends_with(".pack") {
+            let (symbols, tails, nav) = crate::pack::read(path);
+            return Self::build(&tails, symbols, Some(nav));
+        }
         let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
-        let mut symbols = Symbols::default();
+        Self::build(&v, Symbols::default(), None)
+    }
+
+    /// Compiles the program JSON into the binary pack; returns its size in bytes.
+    pub(crate) fn write_pack(path: &str, out: &str) -> usize {
+        let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
+        let p = Self::build(&v, Symbols::default(), None);
+        crate::pack::write(&v, &p.symbols, p.nav.as_ref().expect("nav program"), out)
+    }
+
+    fn build(v: &Value, mut symbols: Symbols, prebuilt: Option<crate::nav::NavProgram>) -> Self {
         let mut rules = Vec::new();
         let mut nav_rules: Vec<&Value> = Vec::new();
         for r in v["rules"].as_array().unwrap() {
-            let mut loader = Loader { sym: &mut symbols, pos: FxMap::default() };
-            let steps_v = r["steps"].as_array().unwrap();
-            for (i, s) in steps_v.iter().enumerate() {
-                loader.pos.insert(s["step"].as_u64().unwrap(), i);
-            }
+            let mut loader = Loader { sym: &mut symbols, pos: FxMap::default(), mpos: FxMap::default() };
+            // the compiled pack names each merged node once ("nodes") and lists each rule's merged ids in step order
+            let (steps_v, merged): (Vec<&Value>, Vec<u64>) = if let Some(nodes) = v.get("nodes") {
+                let ids: Vec<u64> = r["ids"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap()).collect();
+                for (i, &m) in ids.iter().enumerate().rev() {
+                    loader.mpos.insert(m, i);
+                }
+                (ids.iter().map(|m| &nodes[m.to_string().as_str()]).collect(), ids)
+            } else {
+                let sv = r["steps"].as_array().unwrap();
+                for (i, s) in sv.iter().enumerate() {
+                    loader.pos.insert(s["step"].as_u64().unwrap(), i);
+                }
+                (sv.iter().collect(), sv.iter().map(|s| s["merged"].as_u64().unwrap()).collect())
+            };
             let mut steps = Vec::new();
             let mut anchors = Vec::new();
             let mut failed = None;
@@ -453,8 +482,8 @@ impl Program {
                 eprintln!("skip {id}: {e}");
                 continue;
             }
-            let root = loader.pos[&r["root"].as_u64().unwrap()];
-            let nodes = steps_v.iter().map(|s| s["merged"].as_u64().unwrap() as u32).collect();
+            let root = if v.get("nodes").is_some() { r["root"].as_u64().unwrap() as usize } else { loader.pos[&r["root"].as_u64().unwrap()] };
+            let nodes = merged.iter().map(|&m| m as u32).collect();
             rules.push(Rule { id, steps, anchors, nodes, root, emit_key: Loader::cols(&r["emit_key"]) });
             if r.get("nav").is_some() {
                 nav_rules.push(r);
@@ -481,7 +510,10 @@ impl Program {
             }
         }
         // node kind names are base symbols before any literal (the view interns them as base symbols per file otherwise)
-        let nav = if nav_rules.is_empty() {
+        let nav = if let Some(n) = prebuilt {
+            assert_eq!(n.rules.len(), rules.len(), "every nav rule's tail loads");
+            Some(n)
+        } else if nav_rules.is_empty() {
             None
         } else {
             assert_eq!(nav_rules.len(), rules.len(), "every nav rule's tail loads");
@@ -983,8 +1015,8 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
-                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, self.tail_ns, self.tail_files, c.steps,
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"made_ns\":{},\"index_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
+                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.made_ns, c.index_ns, self.tail_ns, self.tail_files, c.steps,
                 c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.visits,
                 crate::nav::INS_NAMES.iter().enumerate().map(|(i, n)| format!("\"{n}\":{}", c.op_steps[i])).collect::<Vec<_>>().join(","),
                 self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
@@ -1005,6 +1037,10 @@ impl<'p> State<'p> {
                 })
                 .collect();
             eprintln!("{{\"branches\":[{}]}}", top.join(","));
+            let mut mb: Vec<_> = self.nc.made_by.iter().map(|(&k, &v)| (k, v)).collect();
+            mb.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+            let mb: Vec<String> = mb.iter().take(40).map(|(k, v)| format!("[\"{}\",{},{},{},{}]", nav.facts[*k as usize].name, v.0, v.1, v.2, v.3)).collect();
+            eprintln!("{{\"made_by\":[{}]}}", mb.join(","));
             if let Some(prof) = &self.nc.prof {
                 eprintln!("PROFILE\n{}", crate::nav::profile_report(nav, prof));
             }
