@@ -118,6 +118,9 @@ pub(crate) enum Ins {
     /// lower: a call of a definition's sub-program that binds rows (as `Union`), its distinct rows memoised per file by the
     /// values of the `keys` registers (the formals the call wrote): the same call with the same args runs once per file
     UnionKeyed { outs: Box<[R]>, subs: Box<[Prog]>, keys: Box<[R]> },
+    /// lower: an absence/existence test of a definition, its answer memoised per file by the values of the `keys` registers
+    /// (the formals the call wrote): nested correlated tests asked again with the same args answer from the memo
+    SubKeyed { negate: bool, subs: Box<[Prog]>, keys: Box<[R]> },
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -499,6 +502,11 @@ impl Loader<'_> {
                 outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
                 subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 memo: a.len() > 3,
+            },
+            "neg-keyed" | "exists-keyed" => Ins::SubKeyed {
+                negate: a[0] == "neg-keyed",
+                subs: a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+                keys: a[2].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
             },
             "or-keyed" => Ins::UnionKeyed {
                 outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
@@ -1532,6 +1540,11 @@ impl<'a, 'p> Exec<'a, 'p> {
                 Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
                 Ins::Union { outs, subs, memo } => return self.union(p, pc, outs, subs, *memo),
                 Ins::UnionKeyed { outs, subs, keys } => return self.union_keyed(p, pc, outs, subs, keys),
+                Ins::SubKeyed { negate, subs, keys } => {
+                    if self.sub_keyed(subs, keys) == *negate {
+                        return false;
+                    }
+                }
                 Ins::Let { from, out } => self.regs[*out as usize] = self.opd(from),
                 Ins::SubMemo { negate, subs } => {
                     let key = subs.as_ptr() as usize;
@@ -1805,6 +1818,33 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         }
         false
+    }
+
+    /// Ins::SubKeyed (lower): whether any sub-program holds, memoised per file in `union_memo` under an odd key (hash of
+    /// the sub-program list and the key registers' values); the stored entry is the key values then the answer
+    fn sub_keyed(&mut self, subs: &'p [Prog], keys: &[R]) -> bool {
+        use std::hash::Hasher;
+        let nk = keys.len();
+        let mut h = crate::sema::Fx::default();
+        h.write_u64(subs.as_ptr() as u64 ^ 0x9e37_79b9_7f4a_7c15);
+        for k in keys {
+            h.write_u64(self.regs[*k as usize]);
+        }
+        let key = (h.finish() as usize) | 1;
+        if let Some(r) = self.union_memo.get(&key) {
+            if r.len() == nk + 1 && keys.iter().enumerate().all(|(i, k)| r[i] == self.regs[*k as usize]) {
+                return r[nk] != 0;
+            }
+        }
+        let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+        let any = subs.iter().any(|q| {
+            self.c.subs += 1;
+            self.run_inner(q, 0)
+        });
+        let mut entry = vals;
+        entry.push(u64::from(any));
+        self.union_memo.insert(key, Rc::new(entry));
+        any
     }
 
     /// navwide: `numeric>=` and `natural<`; a number register is a number, a text register is read as canonical numeric text
