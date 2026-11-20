@@ -265,11 +265,13 @@ pub(super) fn every_stage() -> Pipeline {
                 out: reg(39),
             },
             FillStage::Walk {
+                relation: Relation::SyntaxTree,
                 walk: TreeWalk::Axis(AxisDirection::Ancestor),
                 start: reg(30),
                 out: reg(40),
             },
             FillStage::Walk {
+                relation: Relation::SyntaxTree,
                 walk: TreeWalk::Children(Some(FieldCode(6))),
                 start: reg(40),
                 out: reg(41),

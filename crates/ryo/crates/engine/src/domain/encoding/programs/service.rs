@@ -11,20 +11,15 @@ use crate::domain::code::controlling::types::{EmitWord, ExistsWord, ForkWord, Or
 use crate::domain::code::deciding::service::{call, let_value, render, test};
 use crate::domain::code::deciding::types::LetWord;
 use crate::domain::code::records::service::{next_place, push_list};
-use crate::domain::code::small_codes::service::direction_code;
 use crate::domain::code::types::{CodeEntry, CodeWord, MemoSite, WordFlag, WordSlot};
-use crate::domain::code::walking::service::{
-    axis, children, children_of_field, closure, nearest, nearest_derived, within,
-};
-use crate::domain::code::walking::types::{
-    AxisWord, ChildrenOfFieldWord, ChildrenWord, ClosureWord, NearestWord, WithinWord,
-};
+use crate::domain::code::walking::service::{closure, nearest, nearest_derived};
+use crate::domain::code::walking::types::{ClosureWord, NearestWord};
 use crate::domain::encoding::bodies::service::{push_body, ready_body};
 use crate::domain::encoding::comparisons::service::{
     call_operands, latest_operands, render_operands, test_operands,
 };
 use crate::domain::encoding::matches::service::{
-    kind_word, match_word, range_word, read_word, row_word,
+    extent_flag, kind_word, match_word, range_word, read_word, row_word,
 };
 use crate::domain::encoding::programs::types::{
     DerivedEdges, KeptAnswer, NearestRows, NearestWalk, RangeRead,
@@ -34,12 +29,13 @@ use crate::domain::encoding::sites::service::{
 };
 use crate::domain::encoding::types::{Encoding, PlacedWord, ProgramRole};
 use crate::domain::encoding::units::service::{placed, point};
+use crate::domain::encoding::walks::service::{axis_word, children_word, within_word};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::service::step_class;
 use crate::domain::steps::types::{
     CostClass, EmitTarget, NearestEdges, Polarity, ProgramStep, Register, RegisterList, StepBody,
-    StepMemo, StepOperand, StepOperands, StepProgram,
+    StepMemo, StepOperand, StepOperands, StepProgram, StepRows,
 };
 use ryo_relations::domain::relations::types::Count;
 
@@ -101,7 +97,7 @@ fn nearest_word(
 ) -> Result<CodeWord, LoweringError> {
     let condition = ready_body(encoding, walk.condition, None, program_entry)?;
     let derived = match walk.edges {
-        NearestEdges::Tree => None,
+        NearestEdges::Tree(_) => None,
         NearestEdges::Derived { edges, from } => Some(DerivedEdges {
             edges: ready_body(encoding, edges, None, program_entry)?,
             from: *from,
@@ -118,10 +114,14 @@ fn nearest_word(
         .code
         .pool
         .extend_from_slice(&[WordSlot(walk.element.0), WordSlot(answer.site.0)]);
-    let flag = if answer.storage == WordFlag(0) {
+    let kept = if answer.storage == WordFlag(0) {
         WordFlag(0)
     } else {
         KEPT
+    };
+    let flag = match walk.edges {
+        NearestEdges::Tree(of) => WordFlag(kept.0 | extent_flag(StepRows::Node(*of)).0),
+        NearestEdges::Derived { .. } => kept,
     };
     let operands = NearestWord {
         flag,
@@ -280,33 +280,23 @@ fn step_word(encoding: &mut Encoding<'_>, step: &ProgramStep) -> Result<CodeWord
             },
         )?,
         ProgramStep::EachRow { source, out } => row_word(encoding, *source, *out)?,
-        ProgramStep::Children { parent, field, out } => match field {
-            Some(field) => children_of_field(ChildrenOfFieldWord {
-                field: *field,
-                parent: *parent,
-                out: *out,
-            }),
-            None => children(ChildrenWord {
-                parent: *parent,
-                out: *out,
-            }),
-        },
+        ProgramStep::Children {
+            relation,
+            parent,
+            field,
+            out,
+        } => children_word(*relation, *parent, *field, *out),
         ProgramStep::Axis {
+            relation,
             direction,
             start,
             out,
-        } => axis(AxisWord {
-            direction: direction_code(*direction),
-            start: *start,
-            out: *out,
-        }),
+        } => axis_word(*relation, *direction, *start, *out),
         ProgramStep::Within {
+            relation,
             ancestor,
             descendant,
-        } => within(WithinWord {
-            ancestor: *ancestor,
-            descendant: *descendant,
-        }),
+        } => within_word(*relation, *ancestor, *descendant),
         ProgramStep::Nearest {
             edges,
             condition,
