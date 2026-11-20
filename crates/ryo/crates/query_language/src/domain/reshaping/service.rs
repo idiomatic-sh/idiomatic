@@ -1,4 +1,4 @@
-//! The `reshaping` service: the calls that count, digest, capture, split or rank rows, lowered to steps.
+//! The `reshaping` service: the calls that count, digest, bound, place, capture, split or rank rows, or write them, lowered to steps.
 
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::terms::types::Vocabulary;
@@ -9,14 +9,17 @@ use crate::domain::lowering::types::{
 };
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::{
-    argument_named, bad_argument, column_of, find_parameter, input_argument, parameter_of,
-    position, positions_of, word_of, words_of,
+    argument_named, bad_argument, column_of, find_parameter, input_argument, number_order,
+    parameter_of, position, positions_of, word_of, words_of,
 };
 use crate::domain::syntax::constants::slot_name;
 use crate::domain::syntax::types::ArgumentSlot;
+use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
+use ryo_values::domain::query_syntax::types::ArgumentValue;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
+use ryo_values::domain::written_rows::types::{RowsSource, WrittenRow, WrittenRows};
 
 /// Lowers a `group_count` call: one row for each group of the key columns with how many rows (or distinct values) it holds, as the step `name`.
 pub(crate) fn call_group_count(
@@ -168,9 +171,7 @@ pub(crate) fn call_rank(
             ArgumentFault::ExpectedTextColumn,
         ));
     }
-    let ryo_values::domain::query_syntax::types::ArgumentValue::Parameter(declared) =
-        argument_named(call, ArgumentSlot::Sets)?
-    else {
+    let ArgumentValue::Parameter(declared) = argument_named(call, ArgumentSlot::Sets)? else {
         return Err(bad_argument(
             call,
             Some(ArgumentSlot::Sets),
@@ -209,39 +210,138 @@ pub(crate) fn call_rank(
     Ok(())
 }
 
-/// `rows(from=$tables, columns=["key", …])`: a row for each table of the parameter, a text column for each key.
+/// Lowers a `group-min` or `group-max` call: the rows of each group of the key columns at one end of a number order, every row
+/// tied there, as the step `name`.
+pub(crate) fn call_group_bound(
+    builder: &mut Builder<'_>,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
+    end: GroupEnd,
+) -> Result<(), LoweringError> {
+    let Sourced {
+        input: from,
+        fields,
+    } = input_argument(builder, call, ArgumentSlot::From)?;
+    let keys = positions_of(builder, &fields, &words_of(call, ArgumentSlot::Keys)?)?;
+    let order = number_order(call, &fields, ArgumentSlot::Order)?;
+    let operation = plans::Operation::GroupBound {
+        from,
+        keys,
+        order,
+        end,
+    };
+    push(builder, Some(name), operation, fields);
+    Ok(())
+}
+
+/// Lowers a `group-ordinal` call: its input's distinct rows, each with its place in its group of the key columns by a number
+/// order, under a column name the input does not have, as the step `name`.
+pub(crate) fn call_group_ordinal(
+    builder: &mut Builder<'_>,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    call: &ryo_values::domain::query_syntax::types::Call,
+) -> Result<(), LoweringError> {
+    let Sourced {
+        input: from,
+        mut fields,
+    } = input_argument(builder, call, ArgumentSlot::From)?;
+    let keys = positions_of(builder, &fields, &words_of(call, ArgumentSlot::Keys)?)?;
+    let order = number_order(call, &fields, ArgumentSlot::Order)?;
+    let place = word_of(call, ArgumentSlot::Output)?;
+    if fields.iter().any(|field| field.name == place) {
+        return Err(LoweringError::DuplicateOutput {
+            name: place.0.to_string(),
+            span: call.span,
+        });
+    }
+    fields.push(PlannedColumn {
+        name: place,
+        kind: CellKind::Number,
+        unique: Uniqueness::Shared,
+        words: Vocabulary::Open,
+    });
+    let operation = plans::Operation::GroupOrdinal { from, keys, order };
+    push(builder, Some(name), operation, fields);
+    Ok(())
+}
+
+/// The rows a `rows` call writes, each a list of as many texts as the call names columns; a row of another width is refused.
+fn written_rows(
+    call: &ryo_values::domain::query_syntax::types::Call,
+    rows: &[ArgumentValue],
+    columns: &[ryo_values::domain::descriptions::types::ColumnName],
+) -> Result<WrittenRows, LoweringError> {
+    let width = columns.len();
+    let expected = || bad_argument(call, Some(ArgumentSlot::From), ArgumentFault::ExpectedRows);
+    let mut written = Vec::with_capacity(rows.len());
+    for (at, row) in rows.iter().enumerate() {
+        let ArgumentValue::List(cells) = row else {
+            return Err(expected());
+        };
+        if cells.len() != width {
+            return Err(LoweringError::WrittenRowWidth {
+                row: at.saturating_add(1),
+                expected: width,
+                found: cells.len(),
+                span: call.span,
+            });
+        }
+        let mut texts = Vec::with_capacity(width);
+        for cell in cells {
+            let ArgumentValue::Text(text) = cell else {
+                return Err(expected());
+            };
+            texts.push(parts::LiteralText(text.0.clone()));
+        }
+        written.push(WrittenRow(texts));
+    }
+    Ok(WrittenRows(written))
+}
+
+/// `rows(from=$tables, columns=["key", …])`: a row for each table of the parameter, a text column for each key. Or
+/// `rows(from=[["a", "b"], …], columns=[…])`: the rows written in the query, a text column for each name.
 pub(crate) fn call_rows(
     builder: &mut Builder<'_>,
     name: &ryo_values::domain::query_tokens::types::StepName,
     call: &ryo_values::domain::query_syntax::types::Call,
 ) -> Result<(), LoweringError> {
-    let ryo_values::domain::query_syntax::types::ArgumentValue::Parameter(declared) =
-        argument_named(call, ArgumentSlot::From)?
-    else {
-        return Err(bad_argument(
-            call,
-            Some(ArgumentSlot::From),
-            ArgumentFault::ExpectedTables,
-        ));
-    };
-    let parameter = find_parameter(builder.parameters, |each| {
-        if each.parameter == *declared {
-            SearchMatch::Matches
-        } else {
-            SearchMatch::Differs
-        }
-    })
-    .ok_or_else(|| bad_argument(call, Some(ArgumentSlot::From), ArgumentFault::Undeclared))?;
-    if *parameter_of(&builder.kinds, parameter)
-        != ryo_values::domain::query_bindings::types::ParameterType::Tables
-    {
-        return Err(bad_argument(
-            call,
-            Some(ArgumentSlot::From),
-            ArgumentFault::ExpectedTables,
-        ));
-    }
     let names = words_of(call, ArgumentSlot::Columns)?;
+    let source = match argument_named(call, ArgumentSlot::From)? {
+        ArgumentValue::List(rows) => RowsSource::Written(written_rows(call, rows, &names)?),
+        ArgumentValue::Parameter(declared) => {
+            let parameter = find_parameter(builder.parameters, |each| {
+                if each.parameter == *declared {
+                    SearchMatch::Matches
+                } else {
+                    SearchMatch::Differs
+                }
+            })
+            .ok_or_else(|| {
+                bad_argument(call, Some(ArgumentSlot::From), ArgumentFault::Undeclared)
+            })?;
+            if *parameter_of(&builder.kinds, parameter)
+                != ryo_values::domain::query_bindings::types::ParameterType::Tables
+            {
+                return Err(bad_argument(
+                    call,
+                    Some(ArgumentSlot::From),
+                    ArgumentFault::ExpectedTables,
+                ));
+            }
+            RowsSource::Parameter(parameter)
+        }
+        ArgumentValue::Text(_)
+        | ArgumentValue::Number(_)
+        | ArgumentValue::Word(_)
+        | ArgumentValue::Step(_)
+        | ArgumentValue::Map(_) => {
+            return Err(bad_argument(
+                call,
+                Some(ArgumentSlot::From),
+                ArgumentFault::ExpectedTables,
+            ));
+        }
+    };
     let keys = names
         .iter()
         .map(|each| parts::TableKey(each.0.clone()))
@@ -258,7 +358,7 @@ pub(crate) fn call_rows(
     push(
         builder,
         Some(name),
-        plans::Operation::Rows { parameter, keys },
+        plans::Operation::Rows { source, keys },
         fields,
     );
     Ok(())

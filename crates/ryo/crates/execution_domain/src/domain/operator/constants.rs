@@ -8,36 +8,6 @@ use ryo_values::domain::descriptions::types::FieldRequirement::{Optional, Requir
 use ryo_values::domain::descriptions::types::OperatorDescription;
 use ryo_values::domain::query_operators::types::QueryOperator;
 
-/// Every operator, in the order the documentation lists them.
-pub const OPERATORS: [QueryOperator; 26] = [
-    QueryOperator::SpanBetween,
-    QueryOperator::SpanBounds,
-    QueryOperator::SourceMatches,
-    QueryOperator::RenderSyntax,
-    QueryOperator::FitsRendered,
-    QueryOperator::Replace,
-    QueryOperator::OrderedMatch,
-    QueryOperator::OrderedDfs,
-    QueryOperator::Worklist,
-    QueryOperator::Select,
-    QueryOperator::Project,
-    QueryOperator::Extend,
-    QueryOperator::Join,
-    QueryOperator::Union,
-    QueryOperator::Intersection,
-    QueryOperator::Difference,
-    QueryOperator::Antijoin,
-    QueryOperator::GroupCount,
-    QueryOperator::GroupDigest,
-    QueryOperator::Capture,
-    QueryOperator::Words,
-    QueryOperator::Rank,
-    QueryOperator::Axis,
-    QueryOperator::Rows,
-    QueryOperator::Closure,
-    QueryOperator::Cycles,
-];
-
 /// What an operator is, what it takes and an example.
 #[must_use]
 #[expect(
@@ -55,6 +25,19 @@ pub fn describe(operator: QueryOperator) -> OperatorDescription {
         QueryOperator::OrderedDfs => crate::domain::describing::constants::ordered_dfs(),
         QueryOperator::Worklist => crate::domain::describing::constants::worklist(),
         QueryOperator::OrderedMatch => crate::domain::describing::constants::ordered_match(),
+        QueryOperator::AsOf => crate::domain::describing::constants::as_of(),
+        QueryOperator::GroupMin => crate::domain::describing::constants::group_bound(
+            "group-min",
+            "Keep each group's rows with the least number order; ties are all kept.",
+            r#"let placed = span-bounds(from="function", span="span", start-output="start", end-output="end"); let example = group-min(from=placed, keys=[file], order="start"); emit example subject file key(name);"#,
+        ),
+        QueryOperator::GroupMax => crate::domain::describing::constants::group_bound(
+            "group-max",
+            "Keep each group's rows with the greatest number order; ties are all kept.",
+            r#"let placed = span-bounds(from="function", span="span", start-output="start", end-output="end"); let example = group-max(from=placed, keys=[file], order="start"); emit example subject file key(name);"#,
+        ),
+        QueryOperator::GroupOrdinal => crate::domain::describing::constants::group_ordinal(),
+        QueryOperator::Follow => crate::domain::describing::constants::follow(),
         QueryOperator::Select => described(
             SELECT,
             "Keep rows for which every comparison is true.",
@@ -320,11 +303,11 @@ pub fn describe(operator: QueryOperator) -> OperatorDescription {
         ),
         QueryOperator::Rows => described(
             "rows",
-            "The rows a `list<table>` parameter holds: one for each table, a text column for each key named.",
+            "The rows a `list<table>` parameter holds, or the rows written in the query: one for each table or written row, a text column for each key named.",
             vec![
                 field(
                     "from",
-                    "Parameter of type list<table>: the tables, each a row.",
+                    "Parameter of type list<table>: the tables, each a row; or a written list of rows, each a list of as many texts as there are columns.",
                     Required,
                 ),
                 field(

@@ -45,6 +45,11 @@ pub(super) fn expected(operator: QueryOperator) -> Vec<Finding> {
         QueryOperator::FitsRendered => fits_rendered::expected(),
         QueryOperator::SpanBounds => span_bounds::expected(),
         QueryOperator::OrderedMatch => ordered_match::expected(),
+        QueryOperator::AsOf => as_of::expected(),
+        QueryOperator::GroupMin => group_min::expected(),
+        QueryOperator::GroupMax => group_max::expected(),
+        QueryOperator::GroupOrdinal => group_ordinal::expected(),
+        QueryOperator::Follow => follow::expected(),
         QueryOperator::OrderedDfs => ordered_dfs::expected(),
         QueryOperator::Worklist => worklist::expected(),
         QueryOperator::Antijoin => antijoin::expected(),
@@ -65,6 +70,31 @@ pub(super) fn expected(operator: QueryOperator) -> Vec<Finding> {
         QueryOperator::Union => union::expected(),
         QueryOperator::Words => words::expected(),
     }
+}
+
+/// The findings `tests/fixtures/operators/as_of/expected.rs` states for the `as-of` operator.
+mod as_of {
+    include!("../../../../../tests/fixtures/operators/as_of/expected.rs");
+}
+
+/// The findings `tests/fixtures/operators/group_min/expected.rs` states for the `group-min` operator.
+mod group_min {
+    include!("../../../../../tests/fixtures/operators/group_min/expected.rs");
+}
+
+/// The findings `tests/fixtures/operators/group_max/expected.rs` states for the `group-max` operator.
+mod group_max {
+    include!("../../../../../tests/fixtures/operators/group_max/expected.rs");
+}
+
+/// The findings `tests/fixtures/operators/group_ordinal/expected.rs` states for the `group-ordinal` operator.
+mod group_ordinal {
+    include!("../../../../../tests/fixtures/operators/group_ordinal/expected.rs");
+}
+
+/// The findings `tests/fixtures/operators/follow/expected.rs` states for the `follow` operator.
+mod follow {
+    include!("../../../../../tests/fixtures/operators/follow/expected.rs");
 }
 
 /// The findings `tests/fixtures/operators/antijoin/expected.rs` states for the `antijoin` operator.

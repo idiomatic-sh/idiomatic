@@ -284,6 +284,10 @@ pub(crate) enum ArgumentFault {
     MatchingKeys,
     /// It should be a direction.
     ExpectedDirection,
+    /// The bound of an `as-of` is not one of its four words.
+    ExpectedBound,
+    /// The rows of a `rows` call are neither a table parameter nor a list of rows of text.
+    ExpectedRows,
     /// A sibling is walked over the syntax tree's own edges, which keep the children's order.
     SiblingOverTree,
     /// It names a parameter nobody declared.

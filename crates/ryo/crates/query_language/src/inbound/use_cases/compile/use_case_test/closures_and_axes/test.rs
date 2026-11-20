@@ -74,6 +74,10 @@ fn named(steps: &[PlanStep]) -> String {
 /// What an operation is, for the answer.
 fn operation_name(operation: &Operation) -> &'static str {
     match operation {
+        Operation::AsOf { .. } => "as-of",
+        Operation::GroupBound { .. } => "group-bound",
+        Operation::GroupOrdinal { .. } => "group-ordinal",
+        Operation::Follow { .. } => "follow",
         Operation::SpanBetween { .. } => "span-between",
         Operation::SpanBounds { .. } => "span-bounds",
         Operation::SourceMatches { .. } => "source-matches",
@@ -134,7 +138,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 match operator {
                     QueryOperator::OrderedDfs => call_ordered_dfs(&mut builder, &step.name, call)?,
                     QueryOperator::Axis => call_axis(&mut builder, &step.name, call)?,
-                    QueryOperator::Closure | QueryOperator::Cycles => {
+                    QueryOperator::Closure | QueryOperator::Cycles | QueryOperator::Follow => {
                         call_closure(&mut builder, &step.name, call, operator)?;
                     }
                     QueryOperator::Replace
@@ -144,6 +148,10 @@ fn subject(text: Input) -> Result<Value, Failure> {
                     | QueryOperator::RenderSyntax
                     | QueryOperator::FitsRendered
                     | QueryOperator::OrderedMatch
+                    | QueryOperator::AsOf
+                    | QueryOperator::GroupMin
+                    | QueryOperator::GroupMax
+                    | QueryOperator::GroupOrdinal
                     | QueryOperator::Worklist
                     | QueryOperator::Select
                     | QueryOperator::Project

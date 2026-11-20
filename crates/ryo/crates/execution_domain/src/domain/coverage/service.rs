@@ -118,6 +118,11 @@ fn file_key(operation: &Operation, probed: &[CellKind], out: &Table) -> Option<K
         | Operation::FitsRendered { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
+        // The kinds this engine never runs (`EXPANDED`): they reach it as the operations they expand into.
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Select { .. }

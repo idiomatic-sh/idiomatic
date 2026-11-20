@@ -41,9 +41,7 @@ const GROUPED: &str = "let a = select * from \"syntax-tree\" where (kind = \"a\"
 
 const UNCLOSED: &str = "let a = select * from \"syntax-tree\" where (kind = \"a\" or kind = \"b\";\nemit a subject \"file\" key(\"span\");";
 
-const LIST_AFTER_IN: &str = "let found = select * from \"function\" where name in [\"a\", \"b\"]; emit found subject \"file\" key(\"span\");";
-/// Where the list of [`LIST_AFTER_IN`] begins.
-const LIST_AT: usize = 51;
+const LIST_AFTER_IN: &str = "let found = select * from \"function\" where name in [\"a\", \"b\"] and name not in [\"c\", \"d\"]; emit found subject \"file\" key(\"span\");";
 
 const DANGLING_OR: &str = "let a = select * from \"syntax-tree\" where kind = \"a\" or;\nemit a subject \"file\" key(\"span\");";
 
@@ -136,11 +134,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::ListsOfStrings => lists_of_strings_read(&program),
         Scenario::OrPrecedence => or_precedence_read(&program),
         Scenario::Grouped => grouped_read(&program),
+        Scenario::ListAfterIn => list_after_in_read(&program),
         Scenario::MisspelledKeyword
         | Scenario::TwoEmits
         | Scenario::Unclosed
         | Scenario::DanglingOr
-        | Scenario::ListAfterIn
         | Scenario::Grammar(_)
         | Scenario::Check(_) => {}
     }
@@ -193,6 +191,18 @@ fn or_precedence_read(program: &WrittenProgram) {
     };
     assert_eq!(select.filters.len(), 1);
     assert_eq!(alternatives(&select.filters[0]), vec![1, 2]);
+}
+
+/// `name in ["a", "b"] and name not in ["c", "d"]` of `LIST_AFTER_IN` is one `or` of an equality for each value written, and
+/// an inequality for each value of the second list.
+fn list_after_in_read(program: &WrittenProgram) {
+    let Expression::Select(select) = &program.steps[0].expression else {
+        panic!("the step is a select");
+    };
+    assert_eq!(select.filters.len(), 3);
+    assert_eq!(alternatives(&select.filters[0]), vec![1, 1]);
+    let tests: Vec<_> = [1, 2].map(|place| test_at(select, place).test).into();
+    assert_eq!(tests, [WrittenTest::NotEqual; 2]);
 }
 
 /// `(a or b) and c and (d and e)` of `GROUPED` is an `or` and three tests: the group with no `or` is read as its tests.
@@ -391,14 +401,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| selects!(matches!(error, SyntaxError::Unreadable { .. }))),
     },
     Case {
-        name: CaseName("a_list_after_in_is_refused_where_it_begins"),
-        word: Word::Refuses,
+        name: CaseName("a_list_after_in_is_an_alternative_for_each_value_written"),
+        word: Word::Succeeds,
         input: || Scenario::ListAfterIn,
-        expect: Expect::Refusal(|error| {
-            selects!(
-                matches!(error, SyntaxError::Unreadable { span, .. } if span.start.0 == LIST_AT),
-            )
-        }),
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("fragment_emit_is_rejected_at_its_original_module_span"),
@@ -546,6 +552,7 @@ fn misread(name: &str, text: &str) -> usize {
         "condition" => whole(parsers::condition, text),
         "conjunction" => whole(parsers::conjunction, text),
         "factor" => whole(parsers::factor, text),
+        "written_membership" => whole(parsers::written_membership, text),
         "filter" => whole(parsers::filter, text),
         "float_text_filter" => whole(parsers::float_text_filter, text),
         "numeric_filter" => whole(parsers::numeric_filter, text),

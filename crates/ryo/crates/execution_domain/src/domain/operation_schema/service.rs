@@ -13,6 +13,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::written_rows::types::RowsSource;
 
 /// A fused join's logical RHS remains the original closure projection, without executing edges.
 pub(crate) fn reach_kinds(
@@ -32,6 +33,15 @@ fn same_vertices(
     destination: ColumnIndex,
 ) -> Result<(), OperatingError> {
     if projected(kinds, &[source])? == projected(kinds, &[destination])? {
+        Ok(())
+    } else {
+        Err(OperatingError::ShapeMismatch)
+    }
+}
+
+/// Refuses an order column that does not hold numbers: an order is a number, never text.
+fn numbered(kinds: &[CellKind], order: ColumnIndex) -> Result<(), OperatingError> {
+    if projected(kinds, &[order])? == [CellKind::Number] {
         Ok(())
     } else {
         Err(OperatingError::ShapeMismatch)
@@ -103,9 +113,29 @@ pub fn schema_of(
         }
         Operation::Axis { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. } => TraversalShape::new(inputs).of(operation, bindings),
+        // The rows at one end of each group are rows of the input; a place is one number more. The order is a number.
+        Operation::GroupBound { keys, order, .. } => {
+            let input = first()?;
+            check_columns(input.kinds, keys)?;
+            numbered(input.kinds, *order)?;
+            Ok(input.kinds.to_vec())
+        }
+        Operation::GroupOrdinal { keys, order, .. } => {
+            let input = first()?;
+            check_columns(input.kinds, keys)?;
+            numbered(input.kinds, *order)?;
+            appended(input.kinds, &[], CellKind::Number)
+        }
         Operation::Closure {
+            keys,
+            source,
+            destination,
+            ..
+        }
+        | Operation::Follow {
             keys,
             source,
             destination,
@@ -128,7 +158,15 @@ pub fn schema_of(
             same_vertices(input.kinds, *source, *destination)?;
             Ok(answer)
         }
-        Operation::Rows { parameter, keys } => BindingShape::new(bindings).rows(*parameter, keys),
+        Operation::Rows { source, keys } => match source {
+            RowsSource::Parameter(parameter) => BindingShape::new(bindings).rows(*parameter, keys),
+            RowsSource::Written(rows) => {
+                if rows.0.iter().any(|row| row.0.len() != keys.len()) {
+                    return Err(OperatingError::ShapeMismatch);
+                }
+                Ok(vec![CellKind::Symbol; keys.len()])
+            }
+        },
         Operation::Hosted { .. } => Ok(schema_input(inputs, InputPlace(0))?.kinds.to_vec()),
         Operation::SpanBetween { start, end, .. } => {
             let input = first()?;

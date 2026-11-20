@@ -300,8 +300,10 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
+        | Operation::GroupOrdinal { .. }
         | Operation::FitsRendered { .. } => widened(first, kinds),
         Operation::Antijoin { .. }
+        | Operation::GroupBound { .. }
         | Operation::Difference { .. }
         | Operation::Intersection { .. } => first,
         Operation::Union { .. } => either(&first, &second),
@@ -318,6 +320,12 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
             right_on,
             output,
             ..
+        }
+        | Operation::AsOf {
+            left_on,
+            right_on,
+            output,
+            ..
         } => joined(&first, left_on, &second, right_on, output, &[], kinds),
         Operation::GroupCount { keys, .. } | Operation::GroupDigest { keys, .. } => {
             if keys
@@ -330,6 +338,12 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
             }
         }
         Operation::Closure {
+            keys,
+            source,
+            destination,
+            ..
+        }
+        | Operation::Follow {
             keys,
             source,
             destination,

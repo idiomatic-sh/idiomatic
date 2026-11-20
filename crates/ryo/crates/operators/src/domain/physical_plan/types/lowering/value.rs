@@ -169,15 +169,16 @@ pub(crate) enum Lowering {
     Unlowered,
 }
 
-/// What a bound scan reads: the host's rows of a declared relation, or the tables a `list<table>` parameter is bound to.
+/// What a bound scan reads: the host's rows of a declared relation, the tables a `list<table>` parameter is bound to, or
+/// the rows a query wrote.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum BoundScan {
     /// The host's rows of a declared relation.
     Hosted(ryo_values::domain::plan_parts::types::HostedNumber),
-    /// One row for each table of a parameter, the text under each key in key order.
+    /// One row for each table of a parameter, the text under each key in key order; or one row for each row written.
     Rows {
-        /// The parameter.
-        parameter: ryo_values::domain::plan_parts::types::ParameterId,
+        /// The parameter, or the rows written.
+        source: ryo_values::domain::written_rows::types::RowsSource,
         /// The keys, in order.
         keys: Vec<ryo_values::domain::plan_parts::types::TableKey>,
         /// What the node's parameters are bound to.

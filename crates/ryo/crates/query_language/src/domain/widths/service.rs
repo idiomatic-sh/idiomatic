@@ -22,7 +22,7 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
                     counted(kept)
                 }
             }
-            Operation::Join { output, .. } => counted(output),
+            Operation::Join { output, .. } | Operation::AsOf { output, .. } => counted(output),
             Operation::Project { columns, .. } => counted(columns),
             Operation::Axis { from, output, .. } => {
                 if output.is_empty() {
@@ -48,6 +48,15 @@ pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
             | Operation::Intersection { left, .. }
             | Operation::Difference { left, .. }
             | Operation::Antijoin { left, .. } => width_of(steps, *left),
+            // The rows at one end of a group are rows of its input; a place is one column more.
+            Operation::GroupBound { from, .. } => width_of(steps, *from),
+            Operation::GroupOrdinal { from, .. } => {
+                width_of(steps, *from).map(|width| InputWidth(width.0.saturating_add(1)))
+            }
+            // A follow answers its keys, its source and the fixed point reached.
+            Operation::Follow { keys, .. } => {
+                counted(keys).map(|width| InputWidth(width.0.saturating_add(2)))
+            }
             Operation::Replace { .. }
             | Operation::SpanBounds { .. }
             | Operation::SourceMatches { .. }

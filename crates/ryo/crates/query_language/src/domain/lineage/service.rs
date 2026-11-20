@@ -83,6 +83,12 @@ fn step_kind(
             right,
             output,
             ..
+        }
+        | Operation::AsOf {
+            left,
+            right,
+            output,
+            ..
         } => {
             let JoinColumn { side, column: at } = *column_in(output, column)?;
             match side {
@@ -114,6 +120,8 @@ fn step_kind(
         | Operation::Difference { left, .. }
         | Operation::Antijoin { left, .. } => column_kind(steps, memo, *left, column),
         Operation::Extend { from, .. }
+        | Operation::GroupBound { from, .. }
+        | Operation::GroupOrdinal { from, .. }
         | Operation::Capture { from, .. }
         | Operation::Rank { from, .. }
         | Operation::Replace { from, .. }
@@ -126,6 +134,7 @@ fn step_kind(
         Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => None,
@@ -210,10 +219,13 @@ fn step_origins(
         Operation::Intersection { left, .. }
         | Operation::Difference { left, .. }
         | Operation::Antijoin { left, .. } => value_origins(steps, memo, *left, column),
+        // The rows at one end of a group are rows of its input.
+        Operation::GroupBound { from, .. } => value_origins(steps, memo, *from, column),
         Operation::GroupCount { from, keys, .. } | Operation::GroupDigest { from, keys, .. } => {
             value_origins(steps, memo, *from, *column_in(keys, column)?)
         }
         Operation::Extend { from, .. }
+        | Operation::GroupOrdinal { from, .. }
         | Operation::Capture { from, .. }
         | Operation::Rank { from, .. }
         | Operation::Replace { from, .. }
@@ -229,10 +241,12 @@ fn step_origins(
                 .flatten()
         }
         Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
         | Operation::Axis { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => None,

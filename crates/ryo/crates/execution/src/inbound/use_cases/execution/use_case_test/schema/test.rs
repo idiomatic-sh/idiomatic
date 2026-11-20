@@ -40,7 +40,7 @@ type Input = Evaluation;
 type Value = Shapes;
 type Failure = OperatingError;
 
-/// The shapes of every operator: 27 variants, each compared once, every schema matched.
+/// The shapes of every operator this engine runs: 27 variants, each compared once, every schema matched.
 const EVERY_SHAPE_MATCHES: Shapes = Shapes {
     operators: 27,
     repeated: 0,
@@ -65,7 +65,12 @@ fn subject(evaluation: Input) -> Result<Value, Failure> {
         mismatched: Cow::Owned(Vec::new()),
         hosted_rows_kept: true,
     };
-    for operation in operations() {
+    // The kinds this engine never runs reach it expanded into the others: no operation of theirs is evaluated here.
+    let run = |operation: &Operation| {
+        !ryo_operators::domain::physical_plan::constants::EXPANDED
+            .contains(&ryo_values::domain::plans::service::kind_of(operation))
+    };
+    for operation in operations().into_iter().filter(run) {
         shapes.repeated += usize::from(!variants.insert(std::mem::discriminant(&operation)));
         let tables = tables(&operation, symbol, populated);
         let schemas: Vec<_> = tables

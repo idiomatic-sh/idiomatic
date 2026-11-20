@@ -19,7 +19,9 @@ use ryo_values::domain::{
         service::push_row,
         types::{RowCount, Table},
     },
+    written_rows::types::RowsSource,
 };
+pub mod expanded;
 /// A named column index for the fixture's mixed row.
 pub(crate) fn col(value: u32) -> ColumnIndex {
     ColumnIndex(value)
@@ -301,13 +303,14 @@ pub(crate) fn graph_operations() -> Vec<Operation> {
         },
     ]
 }
-/// Every current Operation variant exactly once, including a real Hosted request source.
+/// Every current Operation variant exactly once, including a real Hosted request source and the kinds this engine never runs.
 pub fn operations() -> Vec<Operation> {
     let mut values = unary();
     values.extend(binary());
     values.extend(graph_operations());
+    values.extend(expanded::expanded_operations());
     values.push(Operation::Rows {
-        parameter: ParameterId(6),
+        source: RowsSource::Parameter(ParameterId(6)),
         keys: vec![TableKey("name".into()), TableKey("name".into())],
     });
     values.push(Operation::Hosted {
@@ -330,7 +333,9 @@ pub fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> Vec<Tab
             push_row(&mut domain, &[node(1)]);
             vec![first, graph, domain]
         }
-        Operation::Closure { .. } | Operation::Cycles { .. } => vec![graph],
+        Operation::Closure { .. } | Operation::Follow { .. } | Operation::Cycles { .. } => {
+            vec![graph]
+        }
         Operation::OrderedDfs { .. } => vec![first, graph],
         Operation::Worklist { .. } => vec![first.clone(), graph, first],
         Operation::Rows { .. } => Vec::new(),
@@ -348,11 +353,14 @@ pub fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> Vec<Tab
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::Antijoin { .. }
-        | Operation::OrderedMatch { .. } => vec![first, second],
+        | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. } => vec![first, second],
         Operation::Select { .. }
         | Operation::Project { .. }
         | Operation::Extend { .. }
         | Operation::GroupCount { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }

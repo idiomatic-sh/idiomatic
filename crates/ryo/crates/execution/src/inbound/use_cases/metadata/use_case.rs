@@ -144,7 +144,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         )
     }
     fn operators(&self) -> &'static [QueryOperator] {
-        &ryo_execution_domain::domain::operator::constants::OPERATORS
+        &ryo_values::domain::query_operators::constants::OPERATORS
     }
     fn describe(&self, operator: QueryOperator) -> OperatorDescription {
         ryo_execution_domain::domain::operator::constants::describe(operator)

@@ -129,9 +129,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_catalog_lists_every_operation_way_of_comparing_direction_and_relation"),
         word: Word::Succeeds,
         input: || Ask::Catalog,
-        // The feature catalog includes the internal Hosted operation as well as
-        // the 26 public operators. The 77 relations include ProjectNamespaceMembership, AttributePath and the four flow relations.
-        expect: Expect::Value(Answer::Features(27 + 17 + 8 + 77)),
+        // The feature catalog lists the 31 kinds of operation: the internal Hosted operation and one for each of
+        // the 31 public operators, `group-min` and `group-max` sharing one. The 77 relations include ProjectNamespaceMembership, AttributePath and the four flow relations.
+        expect: Expect::Value(Answer::Features(31 + 17 + 8 + 77)),
     },
     Case {
         name: CaseName("a_select_is_fed_the_rows_of_its_input"),
@@ -174,7 +174,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Ask::FedOverNothing,
         expect: Expect::Value(Answer::Told {
-            features: 27 + 17 + 8 + 77,
+            features: 31 + 17 + 8 + 77,
             unfed: true,
         }),
     },

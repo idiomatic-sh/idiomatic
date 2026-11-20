@@ -54,6 +54,22 @@ fn ordered_match_on_a_span_and_a_file_after_the_files_is_kept() {
     kept_with_a_file_key_after_the_files(Compared::OrderedMatch);
 }
 
+fn as_of_on_a_span_and_a_file_after_the_files_is_kept() {
+    kept_with_a_file_key_after_the_files(Compared::AsOf);
+}
+
+fn group_bound_on_a_span_and_a_file_after_the_files_is_kept() {
+    kept_with_a_file_key_after_the_files(Compared::GroupBound);
+}
+
+fn group_ordinal_on_a_span_and_a_file_after_the_files_is_kept() {
+    kept_with_a_file_key_after_the_files(Compared::GroupOrdinal);
+}
+
+fn follow_on_a_span_and_a_file_after_the_files_is_kept() {
+    kept_with_a_file_key_after_the_files(Compared::Follow);
+}
+
 fn group_count_on_a_span_and_a_file_after_the_files_is_kept() {
     kept_with_a_file_key_after_the_files(Compared::GroupCount);
 }
@@ -101,6 +117,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ordered_match_on_a_span_and_a_file_after_the_files_is_kept"),
         word: Word::Succeeds,
         input: || ordered_match_on_a_span_and_a_file_after_the_files_is_kept,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("as_of_on_a_span_and_a_file_after_the_files_is_kept"),
+        word: Word::Succeeds,
+        input: || as_of_on_a_span_and_a_file_after_the_files_is_kept,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("group_bound_on_a_span_and_a_file_after_the_files_is_kept"),
+        word: Word::Succeeds,
+        input: || group_bound_on_a_span_and_a_file_after_the_files_is_kept,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("group_ordinal_on_a_span_and_a_file_after_the_files_is_kept"),
+        word: Word::Succeeds,
+        input: || group_ordinal_on_a_span_and_a_file_after_the_files_is_kept,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("follow_on_a_span_and_a_file_after_the_files_is_kept"),
+        word: Word::Succeeds,
+        input: || follow_on_a_span_and_a_file_after_the_files_is_kept,
         expect: Expect::Value(()),
     },
     Case {

@@ -304,6 +304,10 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Words { .. }

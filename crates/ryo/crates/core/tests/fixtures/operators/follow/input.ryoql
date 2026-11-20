@@ -1,0 +1,4 @@
+let selves = select id as "node", id as "target", file from "function" where name = "outer";
+let others = select l.id as "node", r.id as "target", l.file as file from "function" as l join "function" as r on l.file = r.file where l.name = "inner" and r.name != "inner";
+let pointers = union(left=selves, right=others);
+let a = follow(edges=pointers, source="node", destination="target", keys=[file]); emit a subject node key(target);

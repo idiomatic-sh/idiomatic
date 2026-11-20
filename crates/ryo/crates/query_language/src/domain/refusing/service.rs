@@ -12,8 +12,8 @@ use ryo_values::domain::plans::types as plans;
 
 /// Refuses a step from `from` on of the plan under construction that compares rows on spans alone, with no file or node key,
 /// over rows made after the files: a span states no file, so equal spans of two files would meet, merge or cancel. Such a step is
-/// kept only when every input is per-file, so it runs inside one file. This covers a join, an antijoin, an ordered match, a group
-/// count or digest, a closure, an ordered depth-first visit, the cycles of a graph, a union, an intersection, a difference, and
+/// kept only when every input is per-file, so it runs inside one file. This covers a join, an antijoin, an ordered match, an as-of,
+/// a group count, digest, bound or ordinal, a closure, a follow, an ordered depth-first visit, the cycles of a graph, a union, an intersection, a difference, and
 /// the distinct rows of a projection whose rows hold a span and no file or node.
 pub(crate) fn refuse_spans_alone(
     builder: &Builder<'_>,
@@ -46,9 +46,13 @@ pub(crate) fn refuse_spans_alone(
             plans::Operation::Join { .. }
             | plans::Operation::Antijoin { .. }
             | plans::Operation::OrderedMatch { .. }
+            | plans::Operation::AsOf { .. }
             | plans::Operation::GroupCount { .. }
+            | plans::Operation::GroupBound { .. }
+            | plans::Operation::GroupOrdinal { .. }
             | plans::Operation::GroupDigest { .. }
             | plans::Operation::Closure { .. }
+            | plans::Operation::Follow { .. }
             | plans::Operation::OrderedDfs { .. }
             | plans::Operation::Worklist { .. }
             | plans::Operation::Cycles { .. }
@@ -85,7 +89,7 @@ pub(crate) fn refuse_spans_alone(
     Ok(())
 }
 
-/// Refuses a closure or cycles step from `from` on of the plan under construction whose source and destination are of two kinds:
+/// Refuses a closure, follow or cycles step from `from` on of the plan under construction whose source and destination are of two kinds:
 /// a walk goes from a source to a destination that is the next source, so both are of one kind, and where the step runs is decided
 /// on its source alone.
 pub(crate) fn refuse_mixed_vertices(
@@ -95,6 +99,12 @@ pub(crate) fn refuse_mixed_vertices(
     let first = usize::try_from(from.0).unwrap_or(usize::MAX);
     for step in builder.steps.iter().skip(first) {
         let (plans::Operation::Closure {
+            edges,
+            source,
+            destination,
+            ..
+        }
+        | plans::Operation::Follow {
             edges,
             source,
             destination,

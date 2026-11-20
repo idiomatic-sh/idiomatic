@@ -126,6 +126,9 @@ pub(crate) fn placed(
         plans::Operation::OrderedMatch {
             left_on, right_on, ..
         }
+        | plans::Operation::AsOf {
+            left_on, right_on, ..
+        }
         | plans::Operation::Join {
             left_on, right_on, ..
         }
@@ -140,7 +143,10 @@ pub(crate) fn placed(
         | plans::Operation::Difference { .. } => {
             keyed(first, held) == FileOrigin::Held && keyed(second, held) == FileOrigin::Held
         }
-        plans::Operation::GroupCount { keys, .. } | plans::Operation::GroupDigest { keys, .. } => {
+        plans::Operation::GroupCount { keys, .. }
+        | plans::Operation::GroupBound { keys, .. }
+        | plans::Operation::GroupOrdinal { keys, .. }
+        | plans::Operation::GroupDigest { keys, .. } => {
             keyed_on(first, keys, held) == FileOrigin::Held
         }
         plans::Operation::OrderedDfs {
@@ -163,7 +169,8 @@ pub(crate) fn placed(
                     || keyed_on(second, edge_keys, held) == FileOrigin::Held)
         }
         plans::Operation::Axis { id, .. } => keyed_on(first, &[*id], held) == FileOrigin::Held,
-        plans::Operation::Closure { source, keys, .. } => {
+        plans::Operation::Closure { source, keys, .. }
+        | plans::Operation::Follow { source, keys, .. } => {
             keyed_on(first, &[*source], held) == FileOrigin::Held
                 || keyed_on(first, keys, held) == FileOrigin::Held
         }

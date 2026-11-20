@@ -201,6 +201,104 @@ pub(crate) fn ordered_match() -> OperatorDescription {
     )
 }
 
+/// The description of `as-of`.
+pub(crate) fn as_of() -> OperatorDescription {
+    let keys = |name, summary| field(name, summary, Required);
+    described(
+        "as-of",
+        "Pair each left row with the nearest right row of its key group by a number order; rows tied for nearest are all returned; a left row with none has no output.",
+        vec![
+            field("left", "Left input.", Required),
+            field("right", "Right input.", Required),
+            keys(
+                ryo_values::domain::descriptions::constants::LEFT_ON,
+                "Left equality keys; none means one group.",
+            ),
+            keys(
+                ryo_values::domain::descriptions::constants::RIGHT_ON,
+                "Right equality keys.",
+            ),
+            field("left-order", "Left number order.", Required),
+            field("right-order", "Right number order.", Required),
+            field(
+                "bound",
+                "Which right rows are nearest: before, at-or-before, after or at-or-after the left order.",
+                Required,
+            ),
+            field(
+                OUTPUT,
+                "Named columns with explicit input sources.",
+                Required,
+            ),
+        ],
+        &[],
+        r#"let replies = extend(from="function", values={sequence: 2}); let requests = extend(from="function", values={sequence: 1}); let example = as-of(left=replies, right=requests, left-on=[file,name], right-on=[file,name], left-order="sequence", right-order="sequence", bound=before, output={file: [left,file], name: [right,name]}); emit example subject file key(name);"#,
+    )
+}
+
+/// The description of `group-min` or `group-max`, each with its own name, sentence and example.
+pub(crate) fn group_bound(name: &str, summary: &str, example: &str) -> OperatorDescription {
+    described(
+        name,
+        summary,
+        vec![
+            field("from", "Rows to group.", Required),
+            field(
+                "keys",
+                "Columns identifying one group; none means one group.",
+                Required,
+            ),
+            field("order", "Number column the rows are ordered by.", Required),
+        ],
+        &[],
+        example,
+    )
+}
+
+/// The description of `group-ordinal`.
+pub(crate) fn group_ordinal() -> OperatorDescription {
+    described(
+        "group-ordinal",
+        "Append each distinct row's place in its group by a number order, from 0; equal orders share a place.",
+        vec![
+            field(
+                "from",
+                "Rows to place; a repeated row is one row.",
+                Required,
+            ),
+            field(
+                "keys",
+                "Columns identifying one group; none means one group.",
+                Required,
+            ),
+            field("order", "Number column the rows are ordered by.", Required),
+            field(OUTPUT, "New place column.", Required),
+        ],
+        &[],
+        r#"let placed = span-bounds(from="function", span="span", start-output="start", end-output="end"); let example = group-ordinal(from=placed, keys=[file], order="start", output="place"); emit example subject file key(name, place);"#,
+    )
+}
+
+/// The description of `follow`.
+pub(crate) fn follow() -> OperatorDescription {
+    described(
+        "follow",
+        "From each source, the entities that point to themselves and are reached by following edges; a walk that ends elsewhere, or only circles, has no row.",
+        vec![
+            field("edges", "Directed edge rows.", Required),
+            field("source", "Edge source.", Required),
+            field(DESTINATION, "Edge destination.", Required),
+            field(
+                "keys",
+                "Optional columns defining independent exact graph partitions, in output order.",
+                Optional,
+            ),
+        ],
+        &[],
+        r#"let own = select id as "node", id as "target", file from "function"; let example = follow(edges=own, source="node", destination="target", keys=[file]); emit example subject node key(target);"#,
+    )
+}
+
 /// The description of `ordered-dfs`.
 pub(crate) fn ordered_dfs() -> OperatorDescription {
     described(

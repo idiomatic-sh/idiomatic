@@ -80,6 +80,10 @@ Derives the completeness of an operator's answer from its operands.
 
 Decides which configured rules govern a source file.
 
+### plan_expansion
+
+Rewrites the operations this engine never runs into the operations it does, one canonical shape each, before a plan reaches it.
+
 ### prepared_request
 
 Holds immutable request declarations consumed by compilation.

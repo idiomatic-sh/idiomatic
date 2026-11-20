@@ -6,6 +6,7 @@ pub mod files;
 pub mod hosted;
 pub mod lineage;
 pub mod observations;
+pub mod plan_orders;
 pub mod plan_parts;
 pub mod plans;
 pub mod program;
@@ -30,3 +31,4 @@ pub mod rule_requests;
 pub mod run_metadata;
 
 pub mod table_words;
+pub mod written_rows;

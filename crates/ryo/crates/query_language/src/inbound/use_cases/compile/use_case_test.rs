@@ -158,6 +158,43 @@ fn compiler_over_the_language() -> impl CompileUseCase {
     )
 }
 
+/// What the compile use case, over the real parser and the language's catalog, answers for `text`: the steps of its plan of
+/// the `kinds` named, as the plan holds them, each starred when it runs after the files; or its refusal, as its caller reads it.
+fn compiled_steps(
+    text: &str,
+    kinds: &[ryo_values::domain::query_operators::types::OperationKind],
+) -> Result<std::borrow::Cow<'static, str>, std::borrow::Cow<'static, str>> {
+    let report = compiler_over_the_language()
+        .compile(QueryRequest {
+            observations: Vec::new(),
+            text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
+                text.into(),
+            )),
+            hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
+        })
+        .map_err(|error| std::borrow::Cow::Owned(error.to_string()))?;
+    let shown: Vec<String> = report
+        .plan
+        .steps
+        .iter()
+        .filter(|step| {
+            kinds.contains(&ryo_values::domain::plans::service::kind_of(
+                &step.operation,
+            ))
+        })
+        .map(|step| {
+            let after = if step.scope == StepScope::CrossFile {
+                "*"
+            } else {
+                ""
+            };
+            format!("{:?}{after}", step.operation)
+        })
+        .collect();
+    Ok(std::borrow::Cow::Owned(shown.join("; ")))
+}
+
 /// What the use case answers, twice, for what a row gives it: how many steps the plan has.
 fn compile_twice(given: Given) -> Result<Value, Failure> {
     let use_case = CompileUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
@@ -212,6 +249,17 @@ mod fragment_refusal;
 
 #[cfg(test)]
 mod validation;
+
+#[cfg(test)]
+mod as_of;
+#[cfg(test)]
+mod follow;
+#[cfg(test)]
+mod group_bound;
+#[cfg(test)]
+mod group_ordinal;
+#[cfg(test)]
+mod written_rows;
 
 #[cfg(test)]
 mod assembling;

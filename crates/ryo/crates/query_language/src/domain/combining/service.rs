@@ -93,6 +93,11 @@ pub(crate) fn call_set(
         | QueryOperator::RenderSyntax
         | QueryOperator::FitsRendered
         | QueryOperator::OrderedMatch
+        | QueryOperator::AsOf
+        | QueryOperator::GroupMin
+        | QueryOperator::GroupMax
+        | QueryOperator::GroupOrdinal
+        | QueryOperator::Follow
         | QueryOperator::OrderedDfs
         | QueryOperator::Worklist
         | QueryOperator::GroupDigest

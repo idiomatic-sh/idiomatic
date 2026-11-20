@@ -17,6 +17,8 @@ struct Behavior {
     answer: String,
     /// How many relations the language was asked to fill in the last scan, or why the scan did not run.
     filled: String,
+    /// How many rows the last scan handed over; empty when it did not run or faulted.
+    found: String,
 }
 
 /// The colocated acceptance features of this crate, sorted.

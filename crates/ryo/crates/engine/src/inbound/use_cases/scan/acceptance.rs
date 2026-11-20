@@ -14,21 +14,27 @@ fn given_input(world: &mut Behavior, value: String) {
 /// Loads the scene's rule set and scans a file of `text` with it through the fixture language.
 #[when(expr = "scan runs over {string}")]
 fn runs(world: &mut Behavior, text: String) {
+    world.found = String::new();
     (world.answer, world.filled) =
         match crate::load::lowered(&world.input).map(|programs| scanned(&programs, &text)) {
             Ok(Ok(Some(Scanned {
                 answer: Ok(counters),
                 fills,
-            }))) => (
-                format!(
-                    "{} candidates, {} steps",
-                    counters.candidates.0, counters.steps.0
-                ),
-                fills.0.to_string(),
-            ),
+                found,
+            }))) => {
+                world.found = found.0.to_string();
+                (
+                    format!(
+                        "{} candidates, {} steps",
+                        counters.candidates.0, counters.steps.0
+                    ),
+                    fills.0.to_string(),
+                )
+            }
             Ok(Ok(Some(Scanned {
                 answer: Err(error),
                 fills,
+                ..
             }))) => (error.to_string(), fills.0.to_string()),
             Ok(walked) => (format!("{walked:?}"), String::new()),
             Err(error) => (error.to_string(), error.to_string()),
@@ -48,6 +54,12 @@ fn counted(world: &mut Behavior, candidates: String, steps: String) {
 #[then(expr = "the language filled {string} relations")]
 fn filled(world: &mut Behavior, relations: String) {
     assert_eq!(world.filled, relations);
+}
+
+/// Asserts how many rows the scan handed over; a scan that did not run, or faulted, handed over none to count.
+#[then(expr = "scan found {string} rows")]
+fn found(world: &mut Behavior, rows: String) {
+    assert_eq!(world.found, rows, "the scan answered: {}", world.answer);
 }
 
 /// Asserts what `scan` answered.

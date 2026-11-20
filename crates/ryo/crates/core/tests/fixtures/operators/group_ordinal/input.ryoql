@@ -1,0 +1,3 @@
+let placed = span-bounds(from="function", span="span", start-output="begin", end-output="finish");
+let repeated = join(left=placed, right=placed, left-on=[file], right-on=[file], output={name: [left, name], file: [left, file], begin: [left, begin]});
+let a = group-ordinal(from=repeated, keys=[file], order="begin", output="place"); emit a subject file key(name, place);

@@ -9,13 +9,15 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::ArgumentFault;
 use crate::domain::lowering::types::Builder;
 use crate::domain::reshaping::service::{
-    call_capture, call_group_count, call_group_digest, call_rank, call_rows, call_words,
+    call_capture, call_group_bound, call_group_count, call_group_digest, call_group_ordinal,
+    call_rank, call_rows, call_words,
 };
 use crate::domain::selecting::service::lower_select;
 use crate::domain::syntax::constants::{operator_named, parameter_kind_named};
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::selects;
+use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::{Operation, PlanStep};
@@ -35,6 +37,10 @@ const PER_FILE_DIGEST: &str = "let f = select * from \"function\"; let d = group
 const CROSS_DIGEST: &str = "let f = select * from \"function\"; let d = group-digest(from=f, keys=[\"name\"], distinct=\"file\", digest=\"d\", count=\"n\"); emit d subject name key(n);";
 /// The tables a parameter holds, as rows.
 const TABLES_AS_ROWS: &str = "param tables: list<table>; let r = rows(from=$tables, columns=[\"name\"]); emit r subject name key(name);";
+/// Rows written with a second row one cell short.
+const SHORT_WRITTEN_ROW: &str = "let r = rows(from=[[\"a\", \"b\"], [\"c\"]], columns=[\"first\", \"second\"]); emit r subject first key(second);";
+/// A group ordered by a column of text.
+const TEXT_ORDER: &str = "let f = select * from \"function\"; let m = group-max(from=f, keys=[\"file\"], order=\"name\"); emit m subject file key(name);";
 /// A parameter that holds no tables, read as rows.
 const NUMBER_AS_ROWS: &str = "param limit: integer; let r = rows(from=$limit, columns=[\"name\"]); emit r subject name key(name);";
 
@@ -71,6 +77,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("rows*"),
     },
     Case {
+        name: CaseName("a_written_row_of_another_width_than_the_columns_is_refused"),
+        word: Word::Refuses,
+        input: || SHORT_WRITTEN_ROW,
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(
+                error,
+                LoweringError::WrittenRowWidth {
+                    row: 2,
+                    expected: 2,
+                    found: 1,
+                    ..
+                }
+            ))
+        }),
+    },
+    Case {
+        name: CaseName("a_group_ordered_by_text_is_refused"),
+        word: Word::Refuses,
+        input: || TEXT_ORDER,
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, LoweringError::OrderNotNumber { .. }))
+        }),
+    },
+    Case {
         name: CaseName("rows_of_a_parameter_that_holds_no_tables_are_refused"),
         word: Word::Refuses,
         input: || NUMBER_AS_ROWS,
@@ -97,6 +127,10 @@ const CATALOG: &[Relation] = &[
 /// What an operation is, for the answer.
 fn operation_name(operation: &Operation) -> &'static str {
     match operation {
+        Operation::AsOf { .. } => "as-of",
+        Operation::GroupBound { .. } => "group-bound",
+        Operation::GroupOrdinal { .. } => "group-ordinal",
+        Operation::Follow { .. } => "follow",
         Operation::SpanBetween { .. } => "span-between",
         Operation::SpanBounds { .. } => "span-bounds",
         Operation::SourceMatches { .. } => "source-matches",
@@ -181,6 +215,15 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 let operator = operator_named(&call.name.0).expect("the row's call is an operator");
                 match operator {
                     QueryOperator::GroupCount => call_group_count(&mut builder, &step.name, call)?,
+                    QueryOperator::GroupMin => {
+                        call_group_bound(&mut builder, &step.name, call, GroupEnd::Least)?;
+                    }
+                    QueryOperator::GroupMax => {
+                        call_group_bound(&mut builder, &step.name, call, GroupEnd::Greatest)?;
+                    }
+                    QueryOperator::GroupOrdinal => {
+                        call_group_ordinal(&mut builder, &step.name, call)?;
+                    }
                     QueryOperator::GroupDigest => {
                         call_group_digest(&mut builder, &step.name, call)?;
                     }
@@ -195,6 +238,8 @@ fn subject(text: Input) -> Result<Value, Failure> {
                     | QueryOperator::RenderSyntax
                     | QueryOperator::FitsRendered
                     | QueryOperator::OrderedMatch
+                    | QueryOperator::AsOf
+                    | QueryOperator::Follow
                     | QueryOperator::OrderedDfs
                     | QueryOperator::Worklist
                     | QueryOperator::Select

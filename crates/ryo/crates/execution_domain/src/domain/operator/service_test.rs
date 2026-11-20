@@ -55,7 +55,7 @@ fn union() -> Operation {
 }
 /// The documented operators that do not describe themselves.
 fn described() -> Value {
-    let undescribed = super::constants::OPERATORS
+    let undescribed = ryo_values::domain::query_operators::constants::OPERATORS
         .iter()
         .filter(|operator| {
             let description = super::constants::describe(**operator);
@@ -65,7 +65,10 @@ fn described() -> Value {
         })
         .map(|operator| Cow::Owned(format!("{operator:?}")))
         .collect();
-    Answer::Census(super::constants::OPERATORS.len(), undescribed)
+    Answer::Census(
+        ryo_values::domain::query_operators::constants::OPERATORS.len(),
+        undescribed,
+    )
 }
 /// The kinds that prepare, or refuse otherwise, an operation of another kind.
 fn foreign_to_every_kind() -> Value {
@@ -109,13 +112,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_operator_describes_itself"),
         word: Word::Succeeds,
         input: || Ask::Described,
-        expect: Expect::Value(Answer::Census(26, Cow::Borrowed(&[]))),
+        expect: Expect::Value(Answer::Census(31, Cow::Borrowed(&[]))),
     },
     Case {
         name: CaseName("every_kind_refuses_an_operation_of_another_kind"),
         word: Word::Succeeds,
         input: || Ask::ForeignToEveryKind,
-        expect: Expect::Value(Answer::Census(27, Cow::Borrowed(&[]))),
+        expect: Expect::Value(Answer::Census(31, Cow::Borrowed(&[]))),
     },
     Case {
         name: CaseName("a_valid_projection_retains_its_output_schema"),

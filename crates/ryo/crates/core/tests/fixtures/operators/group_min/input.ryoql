@@ -1,0 +1,2 @@
+let placed = span-bounds(from="function", span="span", start-output="begin", end-output="finish");
+let a = group-min(from=placed, keys=[name, file], order="begin"); emit a subject file key(span);

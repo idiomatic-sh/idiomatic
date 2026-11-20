@@ -28,6 +28,10 @@ Which file the rows of a step come from and which of its columns lie in that fil
 
 The values domain's `observations` concept: Explicit authored outputs and the typed dependencies between rules, and the readiness a run records for them.
 
+### `plan_orders`
+
+The values domain's `plan_orders` concept: which row of an ordered key group a step asks for.
+
 ### `plan_parts`
 
 The values domain's `plan_parts` concept: the numbers, text and comparisons a query plan is made of.
@@ -107,3 +111,7 @@ The values domain's `stores` concept: what a lint keeps for the next run, as the
 ### `table_words`
 
 The values domain's `table_words` concept: The words a table is encoded as, and the compact table read back from them.
+
+### `written_rows`
+
+The values domain's `written_rows` concept: the rows a query writes for a `rows` step.

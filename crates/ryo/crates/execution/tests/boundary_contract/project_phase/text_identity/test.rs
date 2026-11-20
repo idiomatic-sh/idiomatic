@@ -109,7 +109,9 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                     ];
                     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps[2].operation =
                         Operation::Rows {
-                            parameter: ParameterId(0),
+                            source: ryo_values::domain::written_rows::types::RowsSource::Parameter(
+                                ParameterId(0),
+                            ),
                             keys: vec![TableKey("code".into())],
                         };
                 }

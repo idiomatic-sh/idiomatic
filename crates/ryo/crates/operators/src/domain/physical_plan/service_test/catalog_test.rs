@@ -1,8 +1,9 @@
-//! The catalogs hold: every kind of a served stage lowers once, and every kernel is run by some lowering of the case program;
+//! The catalogs hold: every kind of a served stage lowers once (the kinds of `EXPANDED` are no stage of this engine), and every kernel is run by some lowering of the case program;
 //! each check is shown failing on a planted counter-example.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::collections::kernels::interface::Reach;
+use crate::domain::physical_plan::constants::EXPANDED;
 use crate::domain::physical_plan::fixtures::{Step, text_program};
 use crate::domain::physical_plan::service::lowering::service::lowered;
 use crate::domain::physical_plan::service::{Kernel, REWRITES, plan_with};
@@ -93,7 +94,9 @@ fn with_bound_scans(mut steps: Vec<Step>) -> Vec<Step> {
     });
     steps.push(Step {
         operation: Operation::Rows {
-            parameter: ryo_values::domain::plan_parts::types::ParameterId(0),
+            source: ryo_values::domain::written_rows::types::RowsSource::Parameter(
+                ryo_values::domain::plan_parts::types::ParameterId(0),
+            ),
             keys: Vec::new(),
         },
         inputs: Vec::new(),
@@ -129,11 +132,15 @@ fn catalog_program() -> Vec<Step> {
     steps
 }
 
-/// Every kind has a node of the case program `lower` lowers.
+/// Every kind this engine runs has a node of the case program `lower` lowers: every declared kind but the ones `EXPANDED`
+/// lists, which reach it only expanded into the others.
 fn kinds_lower(lower: Lower) -> Result<Value, Failure> {
     let steps = catalog_program();
     let mut held = 0;
-    for kind in OperationKind::ALL {
+    for kind in OperationKind::ALL
+        .iter()
+        .filter(|kind| !EXPANDED.contains(kind))
+    {
         if !steps.iter().any(|step| {
             kind_of(&step.operation) == *kind
                 && lower(&step.operation, &step.inputs, &[]) != Lowering::Unlowered

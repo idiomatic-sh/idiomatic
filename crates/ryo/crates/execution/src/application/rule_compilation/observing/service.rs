@@ -59,9 +59,13 @@ pub(super) fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<
         | Operation::Rank { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
         | Operation::Words { .. }
         | Operation::Axis { .. }
         | Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }

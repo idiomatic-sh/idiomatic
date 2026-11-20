@@ -310,9 +310,9 @@ pub(crate) fn lowered(
             edges,
             cycles: cycles::service::lower(*source, *destination),
         }),
-        Operation::Rows { parameter, keys } => Some(Lowering::ScanBound {
+        Operation::Rows { source, keys } => Some(Lowering::ScanBound {
             scan: BoundScan::Rows {
-                parameter: *parameter,
+                source: source.clone(),
                 keys: keys.clone(),
                 bindings: bindings.to_vec(),
             },
@@ -320,6 +320,12 @@ pub(crate) fn lowered(
         Operation::Hosted { relation } => Some(Lowering::ScanBound {
             scan: BoundScan::Hosted(*relation),
         }),
+        // This engine never runs these kinds (`EXPANDED`): the execution domain's `plan_expansion` rewrites them into the
+        // operations above before a plan reaches it, and one that arrives unexpanded is `Unlowered`, a typed refusal.
+        Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. } => None,
     };
     lowering.unwrap_or(Lowering::Unlowered)
 }

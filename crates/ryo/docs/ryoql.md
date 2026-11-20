@@ -77,13 +77,13 @@ A `where` holds comparisons joined with `and` and `or`; `and` binds tighter than
 | --- | --- | --- |
 | `=`, `!=` | `kind = "class"` | the two sides are equal, or differ |
 | `<`, `<=`, `>`, `>=` | `lines > $max-lines` | the numbers, or the texts, compare so |
-| `in`, `not in` | `kind in $kinds` | the value is, or is not, in a `list<…>` or `set<…>` parameter |
+| `in`, `not in` | `kind in $kinds`, `kind in ["for", "async-for"]` | the value is, or is not, in a `list<…>` or `set<…>` parameter, or in a list written in the query |
 | `glob_any`, `not glob_any` | `glob_any(target, $forbidden)` | the text matches the glob, or any glob of a parameter, or none |
 | `starts_with`, `ends_with` | `ends_with(name, "Service")` | the first text starts, or ends, with the second |
 | `natural_lt` | `natural_lt(left, right)` | case-sensitive natural text ordering; ASCII digit runs, fraction-style zero padding, Unicode whitespace separators |
 | `float_text_gte` | `float_text_gte(text, $limit)` | the first text, read as a number, is at least the second |
 
-`in` and `not in` compare against a parameter; a list written in the query, as in `kind in ["class", "function"]`, is not RyoQL.
+`in` and `not in` compare against a parameter or against a list written in the query, as in `kind in ["class", "function"]`: one text or number at least, in brackets. A written list is read as the comparisons that say it, `kind = "class" or kind = "function"`, and `not in` as a `!=` for each value.
 
 A side of a comparison is a column, a text in quotes, a number, a `$parameter` or a text function:
 
@@ -114,14 +114,17 @@ A side of a comparison is a column, a text in quotes, a number, a `$parameter` o
 | `antijoin` | `left`, `right`, `left-on`, `right-on` | The left rows no right row matches on the keys. |
 | `group-count` | `from`, `keys`, `count`, `distinct` | Groups rows by `keys` and appends how many, or how many distinct values of a column. |
 | `group-digest` | `from`, `keys`, `distinct`, `digest`, `count` | Groups rows and appends a digest of the distinct values of a column: equal sets give equal digests. |
+| `group-min`, `group-max` | `from`, `keys`, `order` | Keeps each group's rows with the least, or the greatest, number order; ties are all kept. |
+| `group-ordinal` | `from`, `keys`, `order`, `output` | Appends each distinct row's place in its group by a number order, from 0; equal orders share a place. |
 | `capture` | `from`, `path`, `pattern`, `captures` | Matches a path column to a pattern such as `src/{*dir}/{name}.py` and appends the named parts. |
 | `words` | `from`, `text`, `word` | Splits a text into lower case words, one row each. |
 | `rank` | `from`, `column`, `sets`, `output` | Appends the place of the first set of a `list<set<string>>` parameter that holds the text; a row no set holds is dropped. |
 | `axis` | `from`, `relation`, `direction`, `domain` | Walks a hierarchy, such as `syntax-child`, and appends the related entity. |
-| `rows` | `from`, `columns` | The rows of a `list<table>` parameter, one for each table. |
+| `rows` | `from`, `columns` | The rows of a `list<table>` parameter, one for each table, or the rows written in the query. |
 | `ordered-dfs` | `from`, `root`, `edges`, `source`, `destination`, `order`, `edge`, `output`, optional `keys` | Independent ordered depth-first edge visits, with a zero-based ordinal per distinct key/root. |
 | `worklist` | `from`, `root`, `state`, `edges`, `source`, `destination`, `order`, `before`, `after`, `lattice`, `lower`, `upper`, `output`, optional `keys` | A first-in-first-out fixpoint over a declared lattice: from each root, every edge followed in the state its source leaves the queue in, a row each time. |
 | `closure` | `edges`, `source`, `destination`, optional `keys` | Transitively reachable pairs within exact key partitions; keys precede the endpoint columns in output. |
+| `follow` | `edges`, `source`, `destination`, optional `keys` | From each source, the entities that point to themselves and are reached by following edges; a walk that ends elsewhere, or only circles, has no row. |
 | `cycles` | `edges`, `source`, `destination` | One row for each entity that can reach itself, with the entity in both columns: two files that import each other give two rows, `a.js` and `b.js`. |
 
 ## Relations
@@ -330,3 +333,52 @@ names must be distinct. Example: with the lattice `unreached < within`,
 `unreached < caught`, `within < both`, `caught < both`, walked edges that keep
 their state and handler edges whose `after` is `caught`, the rows' destinations
 are the blocks a constructor reaches, each with the ways it is reached.
+
+## Ordered groups and followed pointers
+
+Four operators say what a self-join, a count and an `antijoin` said before. Each groups rows by key columns, and an empty key
+list is one group. An order column holds numbers: any other kind is refused when the query is compiled. None of them faults
+on a tie.
+
+### `as-of`
+
+```
+let latest = as-of(left=probes, right=events, left-on=[scope, name, file], right-on=[scope, name, file],
+                   left-order="ordinal", right-order="ordinal", bound=before,
+                   output={name: [left, name], file: [left, file], point: [left, ordinal], event: [right, ordinal]});
+```
+
+pairs each left row with the right rows of its key group nearest to it by order. `bound` says which side and whether the
+left order itself counts: `before` (the greatest right order strictly below the left order), `at-or-before`, `after` (the
+least right order strictly above) and `at-or-after`. Right rows tied at that order all pair, one output row each, as a join
+gives; a left row with no right row on that side has no output; a repeated left row pairs once for each time it is written.
+A filter or a projection on left columns can be written before or after the call with the same answer; a filter on right
+columns cannot, because it changes which row is nearest.
+
+### `group-min` and `group-max`
+
+`group-max(from=rows, keys=[loop, file, name], order="position")` keeps the rows of each group whose order no row of the
+group is above; `group-min` the rows none is below. Rows tied at that end are all kept, a repeated row as often as it is
+written, and the columns are the input's. Applying it twice changes nothing.
+
+### `group-ordinal`
+
+`group-ordinal(from=rows, keys=[call], order="ordinal", output="place")` reads the distinct rows of its input and appends to
+each how many distinct rows of its group have a strictly smaller order: the first is 0, and rows of equal order share a
+place, so the place after a tie of two skips one. A repeated row is one row. The output name must be new. To number distinct
+values of one column, `project` to the keys, that column and the order first.
+
+### `follow`
+
+`follow(edges=pointers, source="node", destination="target", keys=[scope, name, file])` answers, within each key group, each
+source with every entity it reaches over the edges that has an edge to itself: its fixed points. An entity that points to
+itself answers itself. A walk that runs out of edges gives no row, and neither does a cycle longer than one edge that reaches
+no fixed point; a source with several targets answers every fixed point it reaches. There is no depth bound. The answer is
+a set: its columns are the keys, the source and the fixed point. `source` and `destination` are of one kind, as a
+`closure`'s are, and it equals a `closure` joined to the self-pointing rows.
+
+### Written rows
+
+`rows(from=[["TRIO110", "ASYNC110"], ["TRIO115", "ASYNC115"]], columns=["code", "canonical"])` answers the rows written in
+the query, every cell text, where `rows(from=$tables, …)` answers a parameter's. A row whose width is not that of `columns`
+is refused when the query is compiled. The rows are the same for every file, so the step is made once, after the files.

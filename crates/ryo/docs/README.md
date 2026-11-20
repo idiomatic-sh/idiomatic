@@ -170,7 +170,7 @@ Core has no `syntax` port: parsing RyoQL is `crates/query_language`'s, behind it
 
 ## A6. The operator collection
 
-`crates/core/src/domain/operator/collections/operators/<op>/item.rs` with `impl OperatorItem for <Op>Item`, one contract (`fixtures/contract.rs`) over all 17: select, project, extend, join, union, intersection, difference, antijoin, group-count, group-digest, capture, words, rank, axis, rows, closure, cycles. They replace 18 concept directories. The six comparison families (affix, equality, ordering, float_text, membership, glob, as the scaffold names them) are not items of it: they are the `comparisons` collection of the `comparing` concept; the operators are 17.
+`crates/core/src/domain/operator/collections/operators/<op>/item.rs` with `impl OperatorItem for <Op>Item`, one contract (`fixtures/contract.rs`) over all 31: span-between, span-bounds, source-matches, render-syntax, fits-rendered, replace, ordered-match, as-of, ordered-dfs, worklist, select, project, extend, join, union, intersection, difference, antijoin, group-count, group-digest, group-min, group-max, group-ordinal, capture, words, rank, axis, rows, closure, follow, cycles. They replace 18 concept directories. The six comparison families (affix, equality, ordering, float_text, membership, glob, as the scaffold names them) are not items of it: they are the `comparisons` collection of the `comparing` concept; the operators are 17.
 
 ## A6a. Language crates
 

@@ -345,6 +345,35 @@ pub(crate) fn words_of(
         .collect()
 }
 
+/// The column among `fields` that the argument of `call` in `slot` names as the order of its rows.
+pub(crate) fn order_column(
+    call: &ryo_values::domain::query_syntax::types::Call,
+    fields: &[PlannedColumn],
+    slot: ArgumentSlot,
+) -> Result<parts::ColumnIndex, LoweringError> {
+    position(fields, QuerySpelling(&word_of(call, slot)?.0), call.span)
+}
+
+/// The column among `fields` that the argument of `call` in `slot` names as the order of its rows; refused when it does not
+/// hold numbers: an order is a number, never text.
+pub(crate) fn number_order(
+    call: &ryo_values::domain::query_syntax::types::Call,
+    fields: &[PlannedColumn],
+    slot: ArgumentSlot,
+) -> Result<parts::ColumnIndex, LoweringError> {
+    let order = order_column(call, fields, slot)?;
+    let column = column_of(fields, order);
+    if column.kind == ryo_relations::domain::relations::types::CellKind::Number {
+        Ok(order)
+    } else {
+        Err(LoweringError::OrderNotNumber {
+            operator: call.name.0.to_string(),
+            column: column.name.0.to_string(),
+            span: call.span,
+        })
+    }
+}
+
 /// The places among `fields` of the columns `names` names, in order; refused at the step for a name no field has.
 pub(crate) fn positions_of(
     builder: &Builder<'_>,

@@ -14,12 +14,20 @@ pub(crate) enum Compared {
     Antijoin,
     /// Ordered match.
     OrderedMatch,
+    /// As-of.
+    AsOf,
     /// Group count.
     GroupCount,
     /// Group digest.
     GroupDigest,
+    /// Group bound.
+    GroupBound,
+    /// Group ordinal.
+    GroupOrdinal,
     /// Closure.
     Closure,
+    /// Follow.
+    Follow,
     /// Ordered dfs.
     OrderedDfs,
     /// Cycles.
@@ -35,13 +43,17 @@ pub(crate) enum Compared {
 }
 
 /// Every kind of step that compares rows on a span.
-pub(crate) const COMPARED: [Compared; 12] = [
+pub(crate) const COMPARED: [Compared; 16] = [
     Compared::Join,
     Compared::Antijoin,
     Compared::OrderedMatch,
+    Compared::AsOf,
     Compared::GroupCount,
     Compared::GroupDigest,
+    Compared::GroupBound,
+    Compared::GroupOrdinal,
     Compared::Closure,
+    Compared::Follow,
     Compared::OrderedDfs,
     Compared::Cycles,
     Compared::Union,
@@ -92,6 +104,33 @@ pub(crate) fn compared(
             left_order: other,
             right_order: other,
             output: vec![],
+        },
+        Compared::AsOf => plans::Operation::AsOf {
+            left: rows,
+            right: rows,
+            left_on: vec![span],
+            right_on: vec![span],
+            left_order: other,
+            right_order: other,
+            bound: ryo_values::domain::plan_orders::types::OrderBound::Before,
+            output: vec![],
+        },
+        Compared::GroupBound => plans::Operation::GroupBound {
+            from: rows,
+            keys: vec![span],
+            order: other,
+            end: ryo_values::domain::plan_orders::types::GroupEnd::Greatest,
+        },
+        Compared::GroupOrdinal => plans::Operation::GroupOrdinal {
+            from: rows,
+            keys: vec![span],
+            order: other,
+        },
+        Compared::Follow => plans::Operation::Follow {
+            edges: rows,
+            keys: vec![],
+            source: span,
+            destination: span,
         },
         Compared::GroupCount => plans::Operation::GroupCount {
             from: rows,
@@ -179,6 +218,33 @@ pub(crate) fn compared_with_file(
             left_order: other,
             right_order: other,
             output: vec![],
+        },
+        Compared::AsOf => plans::Operation::AsOf {
+            left: rows,
+            right: rows,
+            left_on: vec![span, file],
+            right_on: vec![span, file],
+            left_order: other,
+            right_order: other,
+            bound: ryo_values::domain::plan_orders::types::OrderBound::Before,
+            output: vec![],
+        },
+        Compared::GroupBound => plans::Operation::GroupBound {
+            from: rows,
+            keys: vec![span, file],
+            order: other,
+            end: ryo_values::domain::plan_orders::types::GroupEnd::Greatest,
+        },
+        Compared::GroupOrdinal => plans::Operation::GroupOrdinal {
+            from: rows,
+            keys: vec![span, file],
+            order: other,
+        },
+        Compared::Follow => plans::Operation::Follow {
+            edges: rows,
+            keys: vec![file],
+            source: span,
+            destination: span,
         },
         Compared::GroupCount => plans::Operation::GroupCount {
             from: rows,

@@ -43,7 +43,7 @@ fn tables(rows: &[&[(&str, &str)]]) -> ParameterBinding {
 
 fn subject((keys, binding): Input) -> Result<Value, Failure> {
     let mut plan = inputs::plan(vec![Operation::Rows {
-        parameter: ParameterId(0),
+        source: ryo_values::domain::written_rows::types::RowsSource::Parameter(ParameterId(0)),
         keys: keys.iter().map(|key| TableKey((*key).into())).collect(),
     }]);
     plan.parameters

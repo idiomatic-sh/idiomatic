@@ -74,6 +74,8 @@ pub(crate) enum ArgumentSlot {
     LeftOrder,
     /// Right numeric ordering column.
     RightOrder,
+    /// Which right rows an `as-of` pairs: `before`, `at-or-before`, `after` or `at-or-after`.
+    Bound,
     /// `from`.
     From,
     /// `columns`.

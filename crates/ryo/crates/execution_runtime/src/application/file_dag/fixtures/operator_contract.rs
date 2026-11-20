@@ -22,6 +22,7 @@ use ryo_values::domain::query_bindings::types::BindingCell;
 use ryo_values::domain::query_bindings::types::BindingTable;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
+pub mod expanded;
 pub mod expectations;
 pub mod inputs;
 pub mod values;
@@ -281,7 +282,9 @@ pub fn fixture(kind: OperationKind) -> Fixture {
             ])]));
             (
                 Operation::Rows {
-                    parameter: ParameterId(0),
+                    source: ryo_values::domain::written_rows::types::RowsSource::Parameter(
+                        ParameterId(0),
+                    ),
                     keys: vec![TableKey("key".into())],
                 },
                 vec![],
@@ -371,6 +374,10 @@ pub fn fixture(kind: OperationKind) -> Fixture {
             ]),
         ),
         OperationKind::Worklist => worklist::fixture(),
+        OperationKind::AsOf => expanded::as_of(),
+        OperationKind::GroupBound => expanded::group_bound(),
+        OperationKind::GroupOrdinal => expanded::group_ordinal(),
+        OperationKind::Follow => expanded::follow(),
     };
     Fixture {
         operation,

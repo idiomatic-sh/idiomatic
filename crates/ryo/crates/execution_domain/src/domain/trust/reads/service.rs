@@ -110,8 +110,11 @@ pub(super) fn step_reads(
         | OperationKind::Union
         | OperationKind::Intersection
         | OperationKind::GroupCount
+        | OperationKind::GroupBound
+        | OperationKind::GroupOrdinal
         | OperationKind::Replace
         | OperationKind::OrderedMatch
+        | OperationKind::AsOf
         | OperationKind::OrderedDfs
         | OperationKind::Worklist
         | OperationKind::GroupDigest
@@ -120,6 +123,7 @@ pub(super) fn step_reads(
         | OperationKind::Words
         | OperationKind::Axis
         | OperationKind::Closure
+        | OperationKind::Follow
         | OperationKind::Cycles
         | OperationKind::Rows
         | OperationKind::Hosted => {

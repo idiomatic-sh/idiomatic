@@ -72,6 +72,10 @@ pub(crate) fn empty_results(operation: &Operation, inputs: &[InputShape<'_>]) ->
         | Operation::Rank { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. }
         | Operation::Words { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }
@@ -157,6 +161,10 @@ pub(crate) fn output_layout(
         | Operation::GroupCount { .. }
         | Operation::GroupDigest { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. }
         | Operation::Axis { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }

@@ -87,7 +87,7 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
             Effects::Pure,
             2,
         ),
-        GroupCount => (
+        GroupCount | GroupBound | GroupOrdinal => (
             DemandOrder::Unary,
             ResourceNeeds::GroupCounts,
             Effects::Pure,
@@ -108,7 +108,7 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
         Rank | SpanBetween | SpanBounds => {
             (DemandOrder::Unary, ResourceNeeds::None, Effects::Pure, 0)
         }
-        OrderedMatch => (
+        OrderedMatch | AsOf => (
             DemandOrder::LeftThenRight,
             ResourceNeeds::OrderedKeys,
             Effects::Pure,
@@ -120,7 +120,7 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
             Effects::Pure,
             0,
         ),
-        Closure | Cycles => (
+        Closure | Follow | Cycles => (
             DemandOrder::Unary,
             ResourceNeeds::Adjacency,
             Effects::Pure,
@@ -166,8 +166,8 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
     };
     let shape = match kind {
         Rows | Hosted => InputMode::RequestSource,
-        GroupCount | GroupDigest | OrderedMatch | Closure | Cycles | OrderedDfs | Worklist
-        | RenderSyntax => InputMode::Views,
+        GroupCount | GroupBound | GroupOrdinal | GroupDigest | OrderedMatch | AsOf | Closure
+        | Follow | Cycles | OrderedDfs | Worklist | RenderSyntax => InputMode::Views,
         Replace | Select | Project | Extend | Join | Union | Intersection | Difference
         | Antijoin | Capture | Rank | Words | Axis | SpanBetween | SourceMatches | FitsRendered
         | SpanBounds => InputMode::Row {
@@ -220,17 +220,16 @@ fn presence(kind: OperationKind) -> PresenceMask {
     use OperationKind::*;
     match kind {
         Select | Project | Extend | Capture | Words | Replace | Rank | SpanBetween | SpanBounds
-        | SourceMatches | RenderSyntax | FitsRendered | GroupCount | GroupDigest => {
-            PresenceMask::AllOf(InputMask(1))
-        }
-        Join | Intersection | OrderedMatch => PresenceMask::AllOf(InputMask(3)),
+        | SourceMatches | RenderSyntax | FitsRendered | GroupCount | GroupBound | GroupOrdinal
+        | GroupDigest => PresenceMask::AllOf(InputMask(1)),
+        Join | Intersection | OrderedMatch | AsOf => PresenceMask::AllOf(InputMask(3)),
         Union => PresenceMask::AnyOf(InputMask(3)),
         // The right input only removes rows.
         Antijoin | Difference => PresenceMask::AllOf(InputMask(1)),
         // The walk starts from the rows of the first input.
         Axis | OrderedDfs | Worklist => PresenceMask::AllOf(InputMask(1)),
         // No edge, no pair.
-        Closure | Cycles => PresenceMask::AllOf(InputMask(1)),
+        Closure | Follow | Cycles => PresenceMask::AllOf(InputMask(1)),
         Rows | Hosted => PresenceMask::Always,
     }
 }
@@ -290,11 +289,16 @@ fn failure(
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::GroupCount { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
+        // An as-of answers every tied row: no row of it is a fault, where an ordered match faults on a repeated order.
+        | Operation::AsOf { .. }
         | Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => RowFailure::Never,
@@ -358,6 +362,10 @@ pub(crate) fn prepare_for(
         | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. }
         | Operation::Words { .. }
         | Operation::Axis { .. }
         | Operation::Closure { .. }
@@ -411,6 +419,10 @@ pub(crate) fn prepare_for(
         | Operation::Rank { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. }
         | Operation::Words { .. }
         | Operation::Closure { .. }
         | Operation::OrderedDfs { .. }

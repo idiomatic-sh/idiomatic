@@ -714,13 +714,60 @@ pub(super) fn conjunction(input: &mut Input<'_>) -> ModalResult<Vec<Condition>> 
     Ok(factors.into_iter().flatten().collect())
 }
 
-/// `(a or b)`, a condition in parentheses, or one filter.
+/// `(a or b)`, a condition in parentheses, a membership in a written list, or one filter.
 pub(super) fn factor(input: &mut Input<'_>) -> ModalResult<Vec<Condition>> {
     alt((
         delimited(('(', multispace0), condition, (multispace0, ')')).map(conditions_of),
+        written_membership,
         filter.map(|test| vec![Condition::Test(test)]),
     ))
     .parse_next(input)
+}
+
+/// `left in ["a", "b"]` and `left not in ["a", "b"]`: membership in a list the query writes, where a list parameter is
+/// accepted. It is read as the comparisons that say it: `in` as one alternative for each written value, as `left = "a" or
+/// left = "b"` is, and `not in` as a `!=` for each. A list has one value at least.
+pub(super) fn written_membership(input: &mut Input<'_>) -> ModalResult<Vec<Condition>> {
+    let ((left, test, values), span) = (
+        terminated(operand, multispace1),
+        alt((
+            (keyword(Keyword::Not), multispace1, keyword(Keyword::In)).value(WrittenTest::NotEqual),
+            keyword(Keyword::In).value(WrittenTest::Equal),
+        )),
+        preceded(
+            (multispace0, '[', multispace0),
+            cut_err(terminated(
+                separated(
+                    1..,
+                    alt((
+                        string.map(WrittenOperand::Text),
+                        number.map(WrittenOperand::Number),
+                    )),
+                    (multispace0, ',', multispace0),
+                ),
+                (multispace0, opt((',', multispace0)), ']'),
+            )),
+        ),
+    )
+        .with_span()
+        .parse_next(input)?;
+    let values: Vec<WrittenOperand> = values;
+    let tests = values.into_iter().map(|right| {
+        Condition::Test(Filter {
+            left: left.clone(),
+            test,
+            right,
+            span: QuerySpan {
+                start: ByteOffset(span.start),
+                end: ByteOffset(span.end),
+            },
+        })
+    });
+    Ok(if test == WrittenTest::Equal {
+        conditions_of(tests.map(|test| vec![test]).collect())
+    } else {
+        tests.collect()
+    })
 }
 
 /// The conditions the alternatives of an `or` make: those of the one alternative, or one condition that any of them holds.

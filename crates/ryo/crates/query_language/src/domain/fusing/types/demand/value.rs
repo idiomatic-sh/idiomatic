@@ -189,6 +189,10 @@ impl<'a> DemandClosure<'a> {
             | Operation::Rank { .. }
             | Operation::Replace { .. }
             | Operation::OrderedMatch { .. }
+            | Operation::AsOf { .. }
+            | Operation::GroupBound { .. }
+            | Operation::GroupOrdinal { .. }
+            | Operation::Follow { .. }
             | Operation::Words { .. }
             | Operation::Axis { .. }
             | Operation::OrderedDfs { .. }

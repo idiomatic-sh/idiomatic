@@ -180,6 +180,9 @@ fn reads_role(operation: &Operation) -> RoleRead {
         | Operation::Rank { .. }
         | Operation::Words { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -188,6 +191,7 @@ fn reads_role(operation: &Operation) -> RoleRead {
             .iter()
             .any(|input| edges(*input) == EdgeInput::Edges),
         Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => false,

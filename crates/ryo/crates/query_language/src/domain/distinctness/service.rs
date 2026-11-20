@@ -139,6 +139,17 @@ fn step_distinct(
         Operation::Intersection { left, .. }
         | Operation::Difference { left, .. }
         | Operation::Antijoin { left, .. } => distinct_on(steps, memo, *left, keys),
+        // The rows at one end of a group are rows of its input: distinct on what those are distinct on.
+        Operation::GroupBound { from, .. } => distinct_on(steps, memo, *from, keys),
+        // It reads distinct rows and gives each one place, so its rows are distinct on every column of its input.
+        Operation::GroupOrdinal { from, .. } => {
+            match crate::domain::widths::service::width_of(steps, *from) {
+                Some(width) if (0..width.0).all(|column| keys.contains(&ColumnIndex(column))) => {
+                    Uniqueness::Unique
+                }
+                Some(_) | None => Uniqueness::Shared,
+            }
+        }
         Operation::Join { .. }
         | Operation::Union { .. }
         | Operation::Extend { .. }
@@ -152,10 +163,12 @@ fn step_distinct(
         | Operation::FitsRendered { .. }
         | Operation::SpanBounds { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
         | Operation::Axis { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => Uniqueness::Shared,

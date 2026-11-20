@@ -190,6 +190,7 @@ fn repeats_read(operation: &Operation) -> RepeatedRows {
         | Operation::GroupCount {
             distinct: Some(_), ..
         }
+        | Operation::GroupOrdinal { .. }
         | Operation::GroupDigest { .. } => RepeatedRows::Dropped,
         Operation::Project {
             distinct: RepeatedRows::Kept,
@@ -207,9 +208,12 @@ fn repeats_read(operation: &Operation) -> RepeatedRows {
         | Operation::Rank { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
         | Operation::Words { .. }
         | Operation::Axis { .. }
         | Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
