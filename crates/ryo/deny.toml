@@ -40,6 +40,12 @@ deny = [
   # Ryo carries no Tastemaker concern: Ryo runs the `tm` binary as a tool and never links Tastemaker's crates.
   { crate = "idiomatic-sh-tastemaker", reason = "no Tastemaker concern is in Ryo: Ryo runs the tm binary as a tool, never links it" },
   { crate = "idiomatic-sh-tastemaker-core", reason = "no Tastemaker concern is in Ryo: Ryo runs the tm binary as a tool, never links it" },
+  # A language states its language with its parser library; a reference linter is the oracle a benchmark runs as a tool, never
+  # code a provider or the engine links (its rules would answer for ours).
+  { crate = "ruff_linter", reason = "Ruff is the Python reference a benchmark runs as a tool; no Ryo crate links its rules" },
+  { crate = "ruff_workspace", reason = "Ruff is the Python reference a benchmark runs as a tool; no Ryo crate links its settings" },
+  { crate = "oxc_linter", reason = "Oxlint is the TypeScript reference a benchmark runs as a tool; no Ryo crate links its rules" },
+  { crate = "clippy_lints", reason = "Clippy is the Rust reference a benchmark runs as a tool; no Ryo crate links its lints" },
 ]
 
 [sources]
