@@ -87,7 +87,10 @@ pub(crate) enum Ins {
     IterField { parent: R, field: u32, out: R, field_out: R },
     Near { start: R, out: R, subs: Box<[Prog]> },
     Sub { negate: bool, subs: Box<[Prog]> },
-    Emit { cols: Box<[Opd]> },
+    /// the core row of rule `rule` (u32::MAX: the running made table's slot)
+    Emit { cols: Box<[Opd]>, rule: u32 },
+    /// shared-prefix fan-out: each child runs when one of its (rule, branch) slots is enabled in this file
+    Fork { subs: Box<[(Box<[u32]>, Prog)]> },
     Yield,
     SpanBetween { a: Opd, b: Opd, out: R },
     SpanBounds { s: Opd, start: R, end: R },
@@ -96,9 +99,9 @@ pub(crate) enum Ins {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const INS_NAMES: [&str; 21] = [
+pub(crate) const INS_NAMES: [&str; 22] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
-    "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field",
+    "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork",
 ];
 
 impl Ins {
@@ -126,6 +129,7 @@ impl Ins {
             Ins::Within { .. } => 18,
             Ins::IterRange { .. } => 19,
             Ins::IterField { .. } => 20,
+            Ins::Fork { .. } => 21,
         }
     }
 }
@@ -157,7 +161,20 @@ pub(crate) struct FactRel {
     pub made: Option<(Vec<Prog>, Vec<usize>, Option<usize>, usize)>,
 }
 
+/// Programs merged on their shared prefixes (the alpha network): one per anchor kind set (or one for every program without a kind
+/// anchor), covering the (rule, branch) slots listed.
+pub(crate) struct Group {
+    pub kinds: Option<Box<[u32]>>,
+    pub slots: Box<[u32]>,
+    pub prog: Prog,
+}
+
 pub(crate) struct NavProgram {
+    pub groups: Vec<Group>,
+    /// (rule, branch) -> slot
+    pub slot_of: Vec<Vec<u32>>,
+    pub slot_rule: Vec<u32>,
+    pub nslots: usize,
     pub rules: Vec<NavRule>,
     pub facts: Vec<FactRel>,
     pub regexes: Vec<Regex>,
@@ -194,6 +211,8 @@ struct Loader<'a> {
     regex_of: &'a mut FxMap<(String, bool), usize>,
     /// a made table's name -> the fact index of the identical made table already loaded (shared across rules)
     alias: &'a mut FxMap<String, u16>,
+    /// the rule whose programs are loading (u32::MAX while its made tables load)
+    rule: u32,
 }
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
@@ -419,7 +438,7 @@ impl Loader<'_> {
                 let subs = a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into();
                 Ins::Sub { negate, subs }
             }
-            "emit" => Ins::Emit { cols: a[1].as_array().unwrap().iter().map(|c| self.opd(c)).collect::<Vec<_>>().into() },
+            "emit" => Ins::Emit { cols: a[1].as_array().unwrap().iter().map(|c| self.opd(c)).collect::<Vec<_>>().into(), rule: self.rule },
             "yield" => Ins::Yield,
             "fn" => {
                 let args: Vec<Opd> = a[2].as_array().unwrap().iter().map(|x| self.opd(x)).collect();
@@ -547,6 +566,7 @@ impl NavProgram {
                 regexes: &mut regexes,
                 regex_of: &mut regex_of,
                 alias: &mut alias,
+                rule: u32::MAX,
             };
             for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
                 use ryo_relations::domain::relations::types::CellKind;
@@ -590,6 +610,7 @@ impl NavProgram {
                 });
             }
             loader.regs = FxMap::default();
+            loader.rule = out.len() as u32;
             let programs: Vec<Vec<Alt>> = nav["programs"]
                 .as_array()
                 .unwrap()
@@ -616,7 +637,221 @@ impl NavProgram {
                 nregs,
             });
         }
-        Self { rules: out, facts, regexes, max_regs }
+        let mut me = Self { groups: Vec::new(), slot_of: Vec::new(), slot_rule: Vec::new(), nslots: 0, rules: out, facts, regexes, max_regs };
+        me.build_groups();
+        me
+    }
+
+    /// Canonical registers per program (numbered by first appearance), then a trie over the programs of each anchor group.
+    fn build_groups(&mut self) {
+        let merge = !std::env::var("NAV_SHARE_PREFIX").is_ok_and(|v| v == "0");
+        let mut slot = 0u32;
+        let mut by_anchor: Vec<(Option<Box<[u32]>>, Vec<(u32, Vec<Ins>)>)> = Vec::new();
+        let mut max_regs = self.max_regs;
+        for (ri, r) in self.rules.iter_mut().enumerate() {
+            let mut slots = Vec::new();
+            for alts in &mut r.programs {
+                slots.push(slot);
+                self.slot_rule.push(ri as u32);
+                let prog = std::mem::take(&mut alts[0].prog);
+                let mut m: FxMap<R, R> = FxMap::default();
+                let canon: Vec<Ins> = prog.into_vec().into_iter().map(|i| map_regs(i, &mut m)).collect();
+                max_regs = max_regs.max(m.len());
+                let key = alts[0].anchor.clone();
+                let gi = if merge { by_anchor.iter().position(|(k, _)| *k == key) } else { None };
+                match gi {
+                    Some(g) => by_anchor[g].1.push((slot, canon)),
+                    None => by_anchor.push((key, vec![(slot, canon)])),
+                }
+                slot += 1;
+            }
+            self.slot_of.push(slots);
+        }
+        self.max_regs = max_regs;
+        self.nslots = slot as usize;
+        let (mut before, mut after) = (0usize, 0usize);
+        for (kinds, progs) in by_anchor {
+            before += progs.iter().map(|(_, p)| count_ins(p)).sum::<usize>();
+            let slots: Box<[u32]> = progs.iter().map(|(s, _)| *s).collect();
+            let keyed: Vec<(u32, Vec<Ins>, Vec<String>)> = progs
+                .into_iter()
+                .map(|(s, p)| {
+                    let k = p.iter().map(|i| format!("{i:?}")).collect();
+                    (s, p, k)
+                })
+                .collect();
+            let prog = trie(keyed, 0);
+            after += count_ins(&prog);
+            self.groups.push(Group { kinds, slots, prog: prog.into() });
+        }
+        if std::env::var("NAV_VERBOSE").is_ok() {
+            eprintln!("nav groups: {} programs in {} groups; instructions {before} -> {after}", self.nslots, self.groups.len());
+        }
+    }
+}
+
+fn count_ins(p: &[Ins]) -> usize {
+    p.iter()
+        .map(|i| match i {
+            Ins::Sub { subs, .. } | Ins::Near { subs, .. } => 1 + subs.iter().map(|q| count_ins(q)).sum::<usize>(),
+            Ins::Fork { subs } => 1 + subs.iter().map(|(_, q)| count_ins(q)).sum::<usize>(),
+            _ => 1,
+        })
+        .sum()
+}
+
+/// A trie over programs from `depth`: the longest common prefix once, then a Fork over the groups that differ next.
+fn trie(mut group: Vec<(u32, Vec<Ins>, Vec<String>)>, depth: usize) -> Vec<Ins> {
+    if group.len() == 1 {
+        let (_, p, _) = group.pop().unwrap();
+        return p.into_iter().skip(depth).collect();
+    }
+    let min_len = group.iter().map(|g| g.1.len()).min().unwrap();
+    let mut l = 0;
+    while depth + l < min_len && group.iter().all(|g| g.2[depth + l] == group[0].2[depth + l]) {
+        l += 1;
+    }
+    if depth + l >= min_len {
+        // one program is a prefix of (or identical to) another: keep them apart from here
+        let mut out: Vec<Ins> = Vec::new();
+        let subs: Vec<(Box<[u32]>, Prog)> = group
+            .into_iter()
+            .map(|(s, p, _)| (vec![s].into_boxed_slice(), p.into_iter().skip(depth).collect::<Vec<_>>().into_boxed_slice()))
+            .collect();
+        out.push(Ins::Fork { subs: subs.into() });
+        return out;
+    }
+    let mut out: Vec<Ins> = group[0].1[depth..depth + l].iter().map(clone_ins).collect();
+    let d = depth + l;
+    // partition by the next instruction, first-seen order
+    let mut parts: Vec<Vec<(u32, Vec<Ins>, Vec<String>)>> = Vec::new();
+    for g in group {
+        match parts.iter().position(|p| p[0].2[d] == g.2[d]) {
+            Some(i) => parts[i].push(g),
+            None => parts.push(vec![g]),
+        }
+    }
+    let subs: Vec<(Box<[u32]>, Prog)> = parts
+        .into_iter()
+        .map(|p| {
+            let slots: Box<[u32]> = p.iter().map(|g| g.0).collect();
+            (slots, trie(p, d).into_boxed_slice())
+        })
+        .collect();
+    out.push(Ins::Fork { subs: subs.into() });
+    out
+}
+
+fn clone_ins(i: &Ins) -> Ins {
+    map_regs_ref(i, &mut |r| r)
+}
+
+/// Renumbers every register of `i` (and its sub-programs) through `m`, assigning the next number on first appearance.
+fn map_regs(i: Ins, m: &mut FxMap<R, R>) -> Ins {
+    map_regs_ref(&i, &mut |r| {
+        let n = m.len() as R;
+        *m.entry(r).or_insert(n)
+    })
+}
+
+fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
+    fn o(x: &Opd, f: &mut dyn FnMut(R) -> R) -> Opd {
+        match x {
+            Opd::Reg(r) => Opd::Reg(f(*r)),
+            other => other.clone(),
+        }
+    }
+    fn v(x: &Val, f: &mut dyn FnMut(R) -> R) -> Val {
+        match x {
+            Val::Reg(r) => Val::Reg(f(*r)),
+            other => other.clone(),
+        }
+    }
+    fn p(q: &[Ins], f: &mut dyn FnMut(R) -> R) -> Prog {
+        q.iter().map(|i| map_regs_ref(i, f)).collect::<Vec<_>>().into()
+    }
+    match i {
+        Ins::IterKind { kinds, out } => Ins::IterKind { kinds: kinds.clone(), out: f(*out) },
+        Ins::IterValue { rel, col, val, out } => {
+            let val = v(val, f);
+            Ins::IterValue { rel: *rel, col: *col, val, out: f(*out) }
+        }
+        Ins::IterChildren { parent, out } => {
+            let parent = f(*parent);
+            Ins::IterChildren { parent, out: f(*out) }
+        }
+        Ins::IterScan { rel, out } => Ins::IterScan { rel: *rel, out: f(*out) },
+        Ins::IterFact { rel, col, val, out } => {
+            let val = v(val, f);
+            Ins::IterFact { rel: *rel, col: *col, val, out: f(*out) }
+        }
+        Ins::IterFactScan { rel, out } => Ins::IterFactScan { rel: *rel, out: f(*out) },
+        Ins::Row { rel, key } => Ins::Row { rel: *rel, key: f(*key) },
+        Ins::Read { rel, col, row, out } => {
+            let row = f(*row);
+            Ins::Read { rel: *rel, col: *col, row, out: f(*out) }
+        }
+        Ins::ReadFact { rel, col, row, out } => {
+            let row = f(*row);
+            Ins::ReadFact { rel: *rel, col: *col, row, out: f(*out) }
+        }
+        Ins::Test { test, l, r, text, num, regex } => {
+            let l = o(l, f);
+            let r = o(r, f);
+            Ins::Test { test: *test, l, r, text: *text, num: *num, regex: regex.clone() }
+        }
+        Ins::Axis { dir, start, out } => {
+            let start = f(*start);
+            Ins::Axis { dir: *dir, start, out: f(*out) }
+        }
+        Ins::Within { anc, desc } => {
+            let anc = f(*anc);
+            Ins::Within { anc, desc: f(*desc) }
+        }
+        Ins::IterRange { rel, col, val, out, start, lo, hi } => {
+            let val = v(val, f);
+            let lo = lo.map(|(r, b)| (f(r), b));
+            let hi = hi.map(|(r, b)| (f(r), b));
+            let out = f(*out);
+            Ins::IterRange { rel: *rel, col: *col, val, out, start: f(*start), lo, hi }
+        }
+        Ins::IterField { parent, field, out, field_out } => {
+            let parent = f(*parent);
+            let out = f(*out);
+            Ins::IterField { parent, field: *field, out, field_out: f(*field_out) }
+        }
+        Ins::Near { start, out, subs } => {
+            let start = f(*start);
+            let out = f(*out);
+            Ins::Near { start, out, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() }
+        }
+        Ins::Sub { negate, subs } => Ins::Sub { negate: *negate, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() },
+        Ins::Emit { cols, rule } => Ins::Emit { cols: cols.iter().map(|c| o(c, f)).collect::<Vec<_>>().into(), rule: *rule },
+        Ins::Fork { subs } => Ins::Fork { subs: subs.iter().map(|(s, q)| (s.clone(), p(q, f))).collect::<Vec<_>>().into() },
+        Ins::Yield => Ins::Yield,
+        Ins::SpanBetween { a, b, out } => {
+            let a = o(a, f);
+            let b = o(b, f);
+            Ins::SpanBetween { a, b, out: f(*out) }
+        }
+        Ins::SpanBounds { s, start, end } => {
+            let s = o(s, f);
+            let start = f(*start);
+            Ins::SpanBounds { s, start, end: f(*end) }
+        }
+        Ins::SourceMatches { span, base, regex, group, outs, capture_text, capture_line } => {
+            let span = o(span, f);
+            let base = base.as_ref().map(|b| o(b, f));
+            Ins::SourceMatches {
+                span,
+                base,
+                regex: *regex,
+                group: *group,
+                outs: outs.iter().map(|&r| f(r)).collect::<Vec<_>>().into(),
+                capture_text: *capture_text,
+                capture_line: *capture_line,
+            }
+        }
     }
 }
 
@@ -709,6 +944,8 @@ pub(crate) struct FileCache {
     pub dispatch: Vec<Vec<(u32, u32, u32)>>,
     pub dispatch_used: Vec<u32>,
     pub other: Vec<(u32, u32, u32)>,
+    /// per file: (rule, branch) slot -> may find rows (no kind-anchored alternative has an empty bucket)
+    pub enabled: Vec<bool>,
 }
 
 pub(crate) struct File<'a> {
@@ -1545,15 +1782,27 @@ impl<'a, 'p> Exec<'a, 'p> {
                         return false;
                     }
                 }
-                Ins::Emit { cols } => {
+                Ins::Emit { cols, rule } => {
+                    let slot = if *rule == u32::MAX { self.cur_rule } else { *rule as usize };
                     for c in cols.iter() {
                         let v = self.opd(c);
-                        self.outs[self.cur_rule].push(v);
+                        self.outs[slot].push(v);
                     }
                     self.c.emitted += 1;
                     return false;
                 }
                 Ins::Yield => return true,
+                Ins::Fork { subs } => {
+                    for (slots, q) in subs.iter() {
+                        if !slots.iter().any(|&s| self.cache.enabled[s as usize]) {
+                            continue;
+                        }
+                        if self.run_inner(q, 0) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
                 Ins::SpanBetween { a, b, out } => {
                     let (x, y) = (self.opd(a), self.opd(b));
                     self.regs[*out as usize] = (x & !0xffff_ffff) | (y & 0xffff_ffff);
@@ -1630,14 +1879,19 @@ pub(crate) fn profile_report(prog: &NavProgram, prof: &FxMap<usize, u64>) -> Str
                         walk(q, format!("{here}/{k}"), sites);
                     }
                 }
+                Ins::Fork { subs } => {
+                    for (k, (_, q)) in subs.iter().enumerate() {
+                        walk(q, format!("{here}/{k}"), sites);
+                    }
+                }
                 _ => {}
             }
         }
     }
-    for r in &prog.rules {
-        for (b, alts) in r.programs.iter().enumerate() {
-            walk(&alts[0].prog, format!("{} b{b}", r.id), &mut sites);
-        }
+    for (g, grp) in prog.groups.iter().enumerate() {
+        let first = grp.slots[0];
+        let rule = prog.slot_of.iter().position(|s| s.contains(&first)).map_or("?", |r| prog.rules[r].id.as_str());
+        walk(&grp.prog, format!("{rule} g{g}"), &mut sites);
     }
     for f in &prog.facts {
         if let Some((progs, ..)) = &f.made {

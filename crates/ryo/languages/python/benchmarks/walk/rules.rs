@@ -668,7 +668,8 @@ impl<'p> State<'p> {
                 ex.c.rule_made_rows = vec![0; nrules + 1];
                 ex.c.rule_made_steps = vec![0; nrules + 1];
             }
-            // per-file anchor choice: for each branch, the alternative with the least expected work given the real bucket sizes
+            // per file: a branch with a kind-anchored alternative over an empty bucket finds nothing (every atom must hold); the
+            // others are enabled, and the merged programs (shared prefixes across branches and rules) run their enabled children
             let mut dispatch = std::mem::take(&mut ex.cache.dispatch);
             let mut used = std::mem::take(&mut ex.cache.dispatch_used);
             let mut other = std::mem::take(&mut ex.cache.other);
@@ -677,74 +678,77 @@ impl<'p> State<'p> {
             }
             used.clear();
             other.clear();
+            let mut enabled = std::mem::take(&mut ex.cache.enabled);
+            enabled.clear();
+            enabled.resize(nav.nslots, false);
             for (ri, rule) in nav.rules.iter().enumerate() {
                 for (bi, alts) in rule.programs.iter().enumerate() {
-                    // every atom of a branch must hold, so one alternative anchored on an empty bucket proves the branch empty in this
-                    // file; otherwise the planner's cheapest alternative runs (its static cost model ranks plans better than bucket
-                    // sizes alone, measured: per-file choice by size times static work cost 2x the steps)
                     if alts.iter().any(|a| a.anchor.as_ref().is_some_and(|k| k.iter().all(|&k| ex.bucket(k).is_empty()))) {
                         continue;
                     }
-                    let ai = 0usize;
-                    let size = alts[0].anchor.as_ref().map_or(1, |k| k.iter().map(|&k| ex.bucket(k).len()).sum::<usize>());
-                    let a = &alts[ai];
-                    match &a.anchor {
-                        Some(kinds) => {
-                            if size == 0 {
-                                continue;
-                            }
-                            for &k in kinds.iter() {
-                                let n = ex.bucket(k).len();
-                                if n == 0 {
-                                    continue;
-                                }
-                                if dispatch.len() <= k as usize {
-                                    dispatch.resize_with(k as usize + 1, Vec::new);
-                                }
-                                if dispatch[k as usize].is_empty() {
-                                    used.push(k);
-                                }
-                                dispatch[k as usize].push((ri as u32, bi as u32, ai as u32));
-                                ex.c.candidates += n as u64;
-                            }
-                            ex.c.starts += 1;
-                            ex.c.rule_starts[ri] += 1;
-                        }
-                        None => {
-                            other.push((ri as u32, bi as u32, ai as u32));
-                            ex.c.starts += 1;
-                            ex.c.rule_starts[ri] += 1;
-                        }
+                    enabled[nav.slot_of[ri][bi] as usize] = true;
+                    ex.c.starts += 1;
+                    ex.c.rule_starts[ri] += 1;
+                    if let Some(kinds) = &alts[0].anchor {
+                        ex.c.candidates += kinds.iter().map(|&k| ex.bucket(k).len() as u64).sum::<u64>();
                     }
                 }
             }
-            // nodes outer, rules inner
+            ex.cache.enabled = enabled;
+            for (gi, g) in nav.groups.iter().enumerate() {
+                if !g.slots.iter().any(|&s| ex.cache.enabled[s as usize]) {
+                    continue;
+                }
+                match &g.kinds {
+                    Some(kinds) => {
+                        for &k in kinds.iter() {
+                            if ex.bucket(k).is_empty() {
+                                continue;
+                            }
+                            if dispatch.len() <= k as usize {
+                                dispatch.resize_with(k as usize + 1, Vec::new);
+                            }
+                            if dispatch[k as usize].is_empty() {
+                                used.push(k);
+                            }
+                            dispatch[k as usize].push((gi as u32, 0, 0));
+                        }
+                    }
+                    None => other.push((gi as u32, 0, 0)),
+                }
+            }
+            let group_rule = |gi: u32| -> usize {
+                let g = &nav.groups[gi as usize];
+                let r0 = nav.slot_rule[g.slots[0] as usize];
+                if g.slots.iter().all(|&s| nav.slot_rule[s as usize] == r0) { r0 as usize } else { nrules }
+            };
+            // nodes outer, merged programs inner
             for &k in &used {
                 let list = &dispatch[k as usize];
                 let n = ex.bucket(k).len();
                 for i in 0..n {
                     let id = ex.bucket(k)[i];
-                    for &(ri, bi, ai) in list {
-                        let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[bi as usize][ai as usize].prog;
+                    for &(gi, _, _) in list {
+                        let p: &[crate::nav::Ins] = &nav.groups[gi as usize].prog;
                         if let crate::nav::Ins::IterKind { out, .. } = &p[0] {
                             ex.regs[*out as usize] = u64::from(id);
                         }
                         ex.c.visits += 1;
-                        ex.cur_rule = ri as usize;
+                        ex.cur_rule = group_rule(gi);
                         let s0 = ex.c.steps;
                         ex.run(p, 1);
-                        let e = ex.c.branch_steps.entry((ri, bi)).or_default();
+                        let e = ex.c.branch_steps.entry((gi, 0)).or_default();
                         e.0 += 1;
                         e.1 += ex.c.steps - s0;
                     }
                 }
             }
-            for &(ri, bi, ai) in &other {
-                let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[bi as usize][ai as usize].prog;
-                ex.cur_rule = ri as usize;
+            for &(gi, _, _) in &other {
+                let p: &[crate::nav::Ins] = &nav.groups[gi as usize].prog;
+                ex.cur_rule = group_rule(gi);
                 let s0 = ex.c.steps;
                 ex.run(p, 0);
-                let e = ex.c.branch_steps.entry((ri, bi)).or_default();
+                let e = ex.c.branch_steps.entry((gi, 0)).or_default();
                 e.0 += 1;
                 e.1 += ex.c.steps - s0;
             }
@@ -992,7 +996,14 @@ impl<'p> State<'p> {
             let mut b: Vec<_> = self.nc.branch_steps.iter().map(|(&k, &v)| (k, v)).collect();
             b.sort_by(|a, b| b.1.1.cmp(&a.1.1));
             let nav = self.program.nav.as_ref().unwrap();
-            let top: Vec<String> = b.iter().take(60).map(|((r, br), (n, st))| format!("[\"{}\",{br},{n},{st}]", nav.rules[*r as usize].id)).collect();
+            let top: Vec<String> = b
+                .iter()
+                .take(60)
+                .map(|((g, br), (n, st))| {
+                    let r = nav.slot_rule[nav.groups[*g as usize].slots[0] as usize] as usize;
+                    format!("[\"{}/g{g}x{}\",{br},{n},{st}]", nav.rules[r].id, nav.groups[*g as usize].slots.len())
+                })
+                .collect();
             eprintln!("{{\"branches\":[{}]}}", top.join(","));
             if let Some(prof) = &self.nc.prof {
                 eprintln!("PROFILE\n{}", crate::nav::profile_report(nav, prof));
