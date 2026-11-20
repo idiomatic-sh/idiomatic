@@ -413,21 +413,6 @@ pub(crate) fn plan(prog: &mut NavProgram) -> Option<(Vec<bool>, Vec<bool>, bool,
     Some((groups, made, !deny.shared, denied))
 }
 
-/// The prior (the sink) for the trie branches of a planned group whose rules' learned order was dropped.
-pub(crate) fn sink_denied(p: &mut Prog, denied: &[bool]) {
-    for i in p.iter_mut() {
-        if let Ins::Fork { subs } = i {
-            for (slots, q) in subs.iter_mut() {
-                if !slots.is_empty() && slots.iter().all(|&s| denied[s as usize]) {
-                    *q = crate::nav::sink(std::mem::take(q));
-                } else {
-                    sink_denied(q, denied);
-                }
-            }
-        }
-    }
-}
-
 /// The unit lists of a run (`NAV_PLAN_STATS`): each group's rules, so a sample comparison can name the units a rule runs in.
 pub(crate) fn units_json(prog: &NavProgram) -> String {
     let groups: Vec<String> = prog
