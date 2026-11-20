@@ -112,6 +112,14 @@ pub(crate) const RELATIONS: &[&str] = &[
     "language-target",
     "compiler-feature",
     "filesystem.file",
+    "embedded-expression",
+    "function",
+    "parameter",
+    "decorates",
+    "inherits",
+    "bytes-literal",
+    "interpolated-string-literal",
+    "filesystem.executable",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -120,6 +128,7 @@ pub(crate) fn index_of(name: &str) -> Option<usize> {
 
 /// The per-file inputs: the flat table of the parser's nodes, the source, the lexical model (for owners), parse completeness.
 pub(crate) struct Ctx<'c, 'a> {
+    pub path: &'c std::path::Path,
     pub table: &'c Table<'a>,
     pub source: &'c str,
     pub model: &'c Model,
@@ -502,6 +511,231 @@ pub(crate) fn future_annotations(c: &Ctx<'_, '_>) -> Option<bool> {
     Some(enabled && valid)
 }
 
+// ------------------------------------------------------------------------------------------------ embedded-expression
+/// `adapter::append_literal` over the writer's annotation candidates: a string literal in annotation position parsed as a type
+/// expression; a simple one maps exactly into the host's content, a complex one (escapes, implicit concatenation) maps to the whole
+/// host. Not done: the provider's `visibility` (a candidate outside a type context, e.g. inside `Literal[..]`, is hidden), and the
+/// relations of the nodes inside an embedded expression (Django has no string annotation; 0 rows in the export).
+pub(crate) fn embedded_expression(c: &Ctx<'_, '_>, id: u32) -> Option<(&'static str, u32, u32, bool)> {
+    let AnyNodeRef::ExprStringLiteral(literal) = c.table.node[id as usize] else { return None };
+    let mut up = id;
+    let mut annotated = false;
+    while up != u32::MAX {
+        if c.model.annotation[up as usize] {
+            annotated = true;
+            break;
+        }
+        up = c.table.parent[up as usize];
+    }
+    if !annotated {
+        return None;
+    }
+    let parsed = ruff_python_parser::typing::parse_type_annotation(literal, c.source).ok()?;
+    let root = parsed.expression();
+    let kind = node_kind_name(AnyNodeRef::from(root));
+    if parsed.kind().is_simple() {
+        Some((kind, root.start().to_u32(), root.end().to_u32(), true))
+    } else {
+        let len = literal.value.to_str().len() as u32;
+        Some((kind, 0, len, false))
+    }
+}
+
+fn rows_embedded_expression(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
+    if !c.model.annotation.iter().any(|a| *a) {
+        return;
+    }
+    for &id in c.kind(NodeKind::ExprStringLiteral) {
+        if let Some((kind, s, e, exact)) = embedded_expression(c, id) {
+            sink.row(rel, &[Cell::Key(kind, s, e), Cell::Node(id), Cell::Text("deferred-type-expression"), Cell::Text(if exact { "exact-content" } else { "whole-host" }), Cell::File, Cell::Span(s, e)]);
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------ function, parameter
+fn rows_function(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
+    for &id in c.kind(NodeKind::StmtFunctionDef) {
+        let AnyNodeRef::StmtFunctionDef(f) = c.table.node[id as usize] else { continue };
+        sink.row(rel, &[Cell::Node(id), Cell::Text(f.name.as_str()), Cell::File, c.span(id)]);
+    }
+}
+
+/// `definitions::placed`: how one parameter takes its argument, its place among the callable's parameters, and the callable.
+pub(crate) fn parameter_place(c: &Ctx<'_, '_>, id: u32) -> Option<(&'static str, &'static str, i64, u32)> {
+    let mut holder = c.table.parent[id as usize];
+    if matches!(c.table.node[holder as usize], AnyNodeRef::ParameterWithDefault(_)) {
+        holder = c.table.parent[holder as usize];
+    }
+    let AnyNodeRef::Parameters(ps) = c.table.node[holder as usize] else { return None };
+    let target = c.table.node[id as usize];
+    let mut ordinal = 0i64;
+    let callable = c.table.parent[holder as usize];
+    let same = |p: &ast::Parameter| id_of(p.into()) == id;
+    for p in &ps.posonlyargs {
+        if same(&p.parameter) {
+            return Some(("positional", "positional-only", ordinal, callable));
+        }
+        ordinal += 1;
+    }
+    for p in &ps.args {
+        if same(&p.parameter) {
+            return Some(("positional-or-keyword", "positional-or-keyword", ordinal, callable));
+        }
+        ordinal += 1;
+    }
+    if let Some(v) = &ps.vararg {
+        if same(v) {
+            return Some(("variadic-positional", "var-positional", ordinal, callable));
+        }
+        ordinal += 1;
+    }
+    for p in &ps.kwonlyargs {
+        if same(&p.parameter) {
+            return Some(("keyword-only", "keyword-only", ordinal, callable));
+        }
+        ordinal += 1;
+    }
+    if let Some(v) = &ps.kwarg {
+        if same(v) {
+            return Some(("variadic-keyword", "var-keyword", ordinal, callable));
+        }
+    }
+    let _ = target;
+    None
+}
+
+fn rows_parameter(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
+    for &id in c.kind(NodeKind::Parameter) {
+        let AnyNodeRef::Parameter(p) = c.table.node[id as usize] else { continue };
+        if let Some((kind, word, ordinal, callable)) = parameter_place(c, id) {
+            sink.row(rel, &[Cell::Node(id), Cell::Text(kind), Cell::Text(word), Cell::Text(p.name.as_str()), Cell::Num(ordinal), Cell::Node(callable), Cell::File, c.span(id)]);
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------ decorates, inherits
+/// `names::dotted`: the dotted name a name or attribute chain writes.
+pub(crate) fn dotted_into(e: &Expr, out: &mut String) -> bool {
+    match e {
+        Expr::Name(n) => {
+            out.push_str(n.id.as_str());
+            true
+        }
+        Expr::Attribute(a) => {
+            if !dotted_into(&a.value, out) {
+                return false;
+            }
+            out.push('.');
+            out.push_str(a.attr.as_str());
+            true
+        }
+        _ => false,
+    }
+}
+
+/// `names::decorator_target` + `decorator_arguments`: the dotted name a decorator writes or calls, and the text between its call's
+/// parentheses (empty when it calls nothing). Returns (target known, split) over `buf` = target then arguments.
+pub(crate) fn decorator<'n>(c: &Ctx<'_, '_>, id: u32, buf: &'n mut String) -> Option<(bool, usize)> {
+    let AnyNodeRef::Decorator(d) = c.table.node[id as usize] else { return None };
+    buf.clear();
+    let named = if let Expr::Call(call) = &d.expression { &*call.func } else { &d.expression };
+    let known = dotted_into(named, buf);
+    if !known {
+        buf.clear();
+    }
+    let split = buf.len();
+    if let Expr::Call(call) = &d.expression {
+        // the call's argument list spans `(` .. `)`
+        let (s, e) = (call.arguments.range.start().to_usize(), call.arguments.range.end().to_usize());
+        if e >= s + 2 {
+            buf.push_str(&c.source[s + 1..e - 1]);
+        }
+    }
+    Some((known, split))
+}
+
+fn rows_decorates(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
+    for &id in c.kind(NodeKind::Decorator) {
+        let parent = c.table.parent[id as usize];
+        let ordinal = match c.table.node[parent as usize] {
+            AnyNodeRef::StmtFunctionDef(f) => f.decorator_list.iter().position(|d| id_of(d.into()) == id),
+            AnyNodeRef::StmtClassDef(k) => k.decorator_list.iter().position(|d| id_of(d.into()) == id),
+            _ => None,
+        }
+        .unwrap_or(0);
+        if let Some((known, split)) = decorator(c, id, buf) {
+            let target = if known { Cell::Text(&buf[..split]) } else { Cell::Null };
+            sink.row(rel, &[Cell::Node(id), Cell::Node(parent), Cell::Num(ordinal as i64), target, Cell::Text(&buf[split..]), Cell::File, c.span(id)]);
+        }
+    }
+}
+
+/// `names::base_target`: what a class base names (a subscript names its value, unless indexed by a number; a star is dynamic).
+pub(crate) fn base_target(e: &Expr, buf: &mut String) -> bool {
+    buf.clear();
+    let ok = match e {
+        Expr::Starred(_) => false,
+        Expr::Subscript(s) if matches!(&*s.slice, Expr::NumberLiteral(_)) => false,
+        Expr::Subscript(s) => dotted_into(&s.value, buf),
+        _ => dotted_into(e, buf),
+    };
+    if !ok {
+        buf.clear();
+    }
+    ok
+}
+
+fn rows_inherits(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
+    for &id in c.kind(NodeKind::StmtClassDef) {
+        let AnyNodeRef::StmtClassDef(k) = c.table.node[id as usize] else { continue };
+        let Some(args) = &k.arguments else { continue };
+        for base in args.args.iter() {
+            let b = id_of(base.into());
+            let target = if base_target(base, buf) { Cell::Text(buf.as_str()) } else { Cell::Null };
+            sink.row(rel, &[Cell::Node(b), Cell::Node(id), target, Cell::File, c.span(b)]);
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------ bytes-literal, interpolated-string-literal
+fn rows_bytes_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String) {
+    use std::fmt::Write as _;
+    for &id in c.kind(NodeKind::ExprBytesLiteral) {
+        let AnyNodeRef::ExprBytesLiteral(b) = c.table.node[id as usize] else { continue };
+        buf.clear();
+        for byte in b.value.bytes() {
+            let _ = write!(buf, "{byte:02x}");
+        }
+        sink.row(rel, &[Cell::Node(id), c.owner(id), Cell::Text(buf.as_str()), Cell::File, c.span(id)]);
+    }
+}
+
+/// The literal fragments of one f-string (not of a format spec): its plain string parts and the literal elements of its f-string
+/// parts, each with its decoded text.
+pub(crate) fn fstring_fragments<'n>(node: AnyNodeRef<'n>, out: &mut dyn FnMut(&'static str, u32, u32, &'n str)) {
+    let AnyNodeRef::ExprFString(f) = node else { return };
+    for part in f.value.iter() {
+        match part {
+            ast::FStringPartRef::Literal(l) => out("string-part", l.range.start().to_u32(), l.range.end().to_u32(), &l.value),
+            ast::FStringPartRef::FString(fs) => {
+                for e in fs.elements.iter() {
+                    if let ast::InterpolatedStringElement::Literal(l) = e {
+                        out("constant", l.range.start().to_u32(), l.range.end().to_u32(), &l.value);
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn rows_interpolated_string_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
+    for &id in c.kind(NodeKind::ExprFString) {
+        fstring_fragments(c.table.node[id as usize], &mut |k, s, e, v| {
+            sink.row(rel, &[Cell::Key(k, s, e), Cell::Node(id), Cell::Text(v), Cell::File, Cell::Span(s, e)]);
+        });
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String) {
     let want = |name: &str| index_of(name).filter(|i| wanted & (1 << i) != 0);
@@ -533,5 +767,32 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     }
     if let Some(r) = want("filesystem.file") {
         sink.row(r, &[Cell::File]);
+    }
+    if let Some(r) = want("embedded-expression") {
+        rows_embedded_expression(c, sink, r);
+    }
+    if let Some(r) = want("function") {
+        rows_function(c, sink, r);
+    }
+    if let Some(r) = want("parameter") {
+        rows_parameter(c, sink, r);
+    }
+    if let Some(r) = want("decorates") {
+        rows_decorates(c, sink, r, buf);
+    }
+    if let Some(r) = want("inherits") {
+        rows_inherits(c, sink, r, buf);
+    }
+    if let Some(r) = want("bytes-literal") {
+        rows_bytes_literal(c, sink, r, buf);
+    }
+    if let Some(r) = want("interpolated-string-literal") {
+        rows_interpolated_string_literal(c, sink, r);
+    }
+    if let Some(r) = want("filesystem.executable") {
+        // the executable bit of the file as the run reads it (host)
+        use std::os::unix::fs::PermissionsExt as _;
+        let exec = std::fs::metadata(c.path).map(|m| m.permissions().mode() & 0o111 != 0).unwrap_or(false);
+        sink.row(r, &[Cell::File, Cell::Flag(exec)]);
     }
 }

@@ -87,6 +87,7 @@ fn main() {
                 std::thread::Builder::new().stack_size(256 << 20).spawn_scoped(scope, || {
                     let mut out = Vec::new();
                     let mut worker = Worker::new(&mode, program.as_ref());
+                    worker.root = root.clone();
                     loop {
                         let index = cursor.fetch_add(1, Ordering::Relaxed);
                         let Some(path) = files.get(index) else { break };
@@ -176,6 +177,7 @@ struct Worker<'p> {
     scratch: String,
     rules: Option<rules::State<'p>>,
     provider: Option<ProviderState>,
+    root: std::path::PathBuf,
 }
 
 struct ProviderState {
@@ -214,6 +216,7 @@ impl<'p> Worker<'p> {
             scratch: String::new(),
             rules: program.map(rules::State::new),
             provider,
+            root: std::path::PathBuf::new(),
         }
     }
 
@@ -266,7 +269,8 @@ impl<'p> Worker<'p> {
             let t = Clock::now();
             self.model.build_lexical(&table, incomplete);
             totals.ns[2].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
-            let ctx = derived::Ctx { table: &table, source, model: &self.model, incomplete };
+            let full = self.root.join(path);
+            let ctx = derived::Ctx { path: &full, table: &table, source, model: &self.model, incomplete };
             let wanted: u64 = std::env::var("DERIVED_WANT").ok().map_or(u64::MAX, |w| {
                 w.split(',').filter_map(derived::index_of).fold(0, |m, i| m | (1 << i))
             });
