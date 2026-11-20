@@ -16,7 +16,7 @@ use ryo_values::domain::files::types::{CorpusFile, FileBytes};
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Session;
 
-use ryo_core::outbound::language::fixtures::fake::LanguageFake;
+use ryo_core::outbound::language::fixtures::fake::{FakeWalk, LanguageFake};
 use ryo_core::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_core::outbound::row_sink;
 use ryo_core::outbound::row_sink::interface::RowSinkPort;
@@ -74,7 +74,16 @@ fn given_input(world: &mut Behavior, value: String) {
 /// Runs `lint` over the scene the input names, keeping what it answered.
 #[when(expr = "lint runs")]
 fn runs(world: &mut Behavior) {
+    // The scenes of the new engine alone: files of words, walked by the language crate's fixture walk and scanned by the engine
+    // port's fake, which runs a rule of the one tree rule's shape and refuses every other.
+    let new_engine = matches!(
+        world.input.as_str(),
+        "the_new_engine_runs_the_rule" | "the_new_engine_refuses_the_rule"
+    );
     let paths: Vec<&str> = match world.input.as_str() {
+        "the_new_engine_runs_the_rule" | "the_new_engine_refuses_the_rule" => {
+            vec!["a.walk", "b.walk"]
+        }
         "two_rust_files_and_a_text_file" => vec!["a.rs", "b.rs", "notes.txt"],
         "only_a_text_file" => vec!["notes.txt"],
         "broken_file" => vec!["a.rs", "broken.rs"],
@@ -87,7 +96,11 @@ fn runs(world: &mut Behavior) {
         outside: Vec::new(),
     };
     let query_language = QueryLanguageFake {
-        plan: every_function(),
+        plan: if world.input == "the_new_engine_runs_the_rule" {
+            ryo_execution::inbound::use_cases::file_scan::fixtures::rule(&["id", "file", "span"])
+        } else {
+            every_function()
+        },
         ..QueryLanguageFake::default()
     };
     let collected = row_sink::factory::CollectorConnection::default();
@@ -96,17 +109,29 @@ fn runs(world: &mut Behavior) {
         let analysis_corpus: Arc<dyn ryo_core::outbound::corpus::interface::CorpusPort> =
             Arc::new(corpus);
         let analysis_language: Arc<dyn ryo_core::outbound::language::interface::LanguagePort> =
-            Arc::new(LanguageFake::default());
+            Arc::new(LanguageFake {
+                walk: if new_engine {
+                    FakeWalk::Words
+                } else {
+                    FakeWalk::NotLinked
+                },
+                ..LanguageFake::default()
+            });
         let analysis_memory: Arc<dyn ryo_core::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
         let analysis_digest = ryo_core::inbound::use_cases::lint::fixtures::engine::digest();
+        let analysis = ryo_core::application::file_analysis::service::FileAnalysis::new(
+            Arc::clone(&analysis_corpus),
+            Arc::clone(&analysis_language),
+            Arc::clone(&analysis_digest),
+            Arc::clone(&analysis_memory),
+        );
         LintUseCaseImpl::new(
-            ryo_core::application::file_analysis::service::FileAnalysis::new(
-                Arc::clone(&analysis_corpus),
-                Arc::clone(&analysis_language),
-                Arc::clone(&analysis_digest),
-                Arc::clone(&analysis_memory),
-            ),
+            if new_engine {
+                ryo_core::inbound::use_cases::lint::fixtures::engine::new_engine(analysis)
+            } else {
+                analysis
+            },
             ryo_core::application::cross_file::service::CrossFile::new(
                 Arc::clone(&analysis_corpus),
                 ryo_core::inbound::use_cases::lint::fixtures::engine::publication(),
@@ -154,18 +179,28 @@ fn runs(world: &mut Behavior) {
         }],
     };
     world.answer = match use_case.lint(request) {
-        Ok(report) => format!(
-            "{} findings and {} unread",
-            std::mem::take(
-                &mut *collected
-                    .0
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+        Ok(report) => {
+            // What the rules could not decide, each as its rule and where; nothing is said when every rule decided.
+            let undecided: String = report
+                .unknowns
+                .iter()
+                .map(|unknown| {
+                    format!("; `{}` not decided at `{}`", unknown.rule.0, unknown.path.0)
+                })
+                .collect();
+            format!(
+                "{} findings and {} unread{undecided}",
+                std::mem::take(
+                    &mut *collected
+                        .0
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                )
+                .rows
+                .len(),
+                report.unread.len()
             )
-            .rows
-            .len(),
-            report.unread.len()
-        ),
+        }
         Err(error) => error.to_string(),
     };
 }

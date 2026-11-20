@@ -102,6 +102,9 @@ pub trait MetadataUseCase {
     ) -> PartialReads;
     /// What an operator that trusts an absence of rows says it could not decide, for a relation read in part.
     fn unknown_message(&self, partial: &Partial, scope: CoverageScope<'_>) -> Message;
+    /// The path that names the repository as a whole where an unknown names a file: where a rule that decided nothing anywhere
+    /// in the repository is unknown.
+    fn repository(&self) -> FilePath;
     /// The ordinals of the files a partial project publication affects, sorted and once each: every file when a cause has no
     /// file.
     ///

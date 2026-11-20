@@ -2,7 +2,7 @@
 //! scanned in the worker that took its job, and its rows are rendered as the old engine's rows are: alone, they are streamed to
 //! the rows port in the order of the files; beside the old engine, they are compared with the old engine's rows of the file,
 //! and the first difference stops the run. Nothing is done per rule for a file: which rules govern a file is decided once, for
-//! a file that has rows.
+//! a file that has rows. A rule a rule set does not run is answered as not decided, never as run.
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::streaming::service::FileVisits;
@@ -179,13 +179,17 @@ impl FileVisits {
         self.scheduler.run(&mut jobs, count)?;
         drop(jobs);
         let (mut unread, mut unknowns) = (Vec::new(), Vec::new());
+        let mut walked = std::collections::BTreeSet::new();
         for state in states {
             if let Some(error) = state.failure {
                 return Ok(Err(error));
             }
             unread.extend(state.unread);
             unknowns.extend(state.unknowns);
+            walked.extend(state.walked);
         }
+        // A rule the engine does not run was not evaluated on the files its rule set's language walked: the answer says so.
+        unknowns.extend(scanning.not_run(&walked));
         unread.sort_by(|left: &Unread, right| left.path.cmp(&right.path));
         unknowns.sort();
         let shown = RowTotal(counted.load(Ordering::Relaxed));
@@ -290,6 +294,7 @@ impl FileAnalysis {
             Scanned::NotWalked(fault) => (None, Some(fault)),
         };
         state.by = by;
+        state.walked.extend(by);
         match fault.map(|fault| (fault.of, fault.sentence.0)) {
             Some((FaultOf::NoLanguage, _)) => state.unread.push(Unread {
                 path: entry.path.clone(),

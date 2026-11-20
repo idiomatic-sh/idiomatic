@@ -35,3 +35,9 @@ pub(super) const RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED: &str =
 /// The tracing target of the execution diagnostics.
 pub(super) const EXECUTION_DIAGNOSTIC: &str =
     ryo_values::domain::table_words::constants::EXECUTION_TARGET;
+
+/// What a rule the new engine does not run says before the language of the rule set that does not run it.
+pub(super) const NOT_RUN_BY: &str = "the new engine's rule set of the language `";
+
+/// What it says after that language.
+pub(super) const NOT_RUN_FOR: &str = "` does not run the rule: its load refused it, so the rule looked at none of that language's files";

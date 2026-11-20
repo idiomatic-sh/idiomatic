@@ -1,7 +1,9 @@
 //! The rule sets of a run of the new engine. What a run was given (its rules as they were written, their fragments, what the
 //! host declared, which were selected) is one digest, made before anything is compiled, and a rule set's pack is kept under it:
 //! the store is asked with it first, and a run given what the store holds the packs of reads its rule sets back with no plan in
-//! hand; another lowers them from its compiled rules.
+//! hand; another lowers them from its compiled rules. A rule a rule set does not run decided nothing in the files that rule
+//! set's language walked: that is answered as not decided, at the repository as a whole, never as a rule that ran.
+use super::super::constants::{NOT_RUN_BY, NOT_RUN_FOR};
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::streaming::service::FileVisits;
@@ -12,15 +14,54 @@ use crate::domain::repository::service::{
 };
 use ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase;
 use ryo_execution::inbound::use_cases::file_scan::types::{
-    ScanLoadRequest, ScanSession, ScanStoredRequest,
+    RuleSetNumber, ScanLoadRequest, ScanSession, ScanStoredRequest,
 };
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Message, MetadataUseCase as _, Unknown,
+};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
 use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_values::domain::runs::types::UnknownCause;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
+use std::collections::BTreeSet;
+
+impl Scanning<'_> {
+    /// What the rules a rule set does not run could not decide: each of them, once, at the repository as a whole, for every
+    /// rule set in `walked`, the ones whose language walked a file of the run. A rule the new engine's load refused ran on none
+    /// of those files: it found nothing there because it did not look.
+    pub(in crate::application::file_analysis) fn not_run(
+        &self,
+        walked: &BTreeSet<RuleSetNumber>,
+    ) -> Vec<Unknown> {
+        let mut unknowns = Vec::new();
+        for by in walked {
+            let Some(set) = self.session.rule_sets.get(by.0) else {
+                continue;
+            };
+            let message: Box<str> = [NOT_RUN_BY, &*set.load.language.0, NOT_RUN_FOR]
+                .concat()
+                .into();
+            for (place, id) in self.ids.iter().enumerate() {
+                let ordinal = SelectedRuleOrdinal(u32::try_from(place).unwrap_or(u32::MAX));
+                if set.load.accepted.binary_search(&ordinal).is_err() {
+                    unknowns.push(Unknown {
+                        rule: id.clone(),
+                        path: MetadataUseCaseImpl.repository(),
+                        message: Message(message.clone()),
+                        cause: UnknownCause::Undecided,
+                    });
+                }
+            }
+        }
+        unknowns
+    }
+}
 
 impl FileVisits {
     /// The packs the store the run read kept: none for a run that read no store.

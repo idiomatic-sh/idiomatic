@@ -1,4 +1,5 @@
-//! The ports the lint tests build over the engine's own use cases: publication, facts and operators.
+//! The ports the lint tests build over the engine's own use cases: publication, facts and operators; and the analysis of a run
+//! of the new engine alone, over the engine port's fake.
 
 use std::sync::Arc;
 
@@ -39,4 +40,17 @@ pub fn operators() -> Arc<dyn OperatorsPort> {
             ),
         ),
     )
+}
+
+/// The analysis of a run of the new engine alone: `analysis` with the engine port's fake composed, which runs a rule of the one
+/// tree rule's shape and refuses every other, and the new engine said to run the files whatever the environment selects.
+#[must_use]
+pub fn new_engine(
+    analysis: crate::application::file_analysis::service::FileAnalysis,
+) -> crate::application::file_analysis::service::FileAnalysis {
+    analysis
+        .scanning(Arc::new(
+            ryo_execution_runtime::outbound::engine::fixtures::fake::EngineFake::default(),
+        ))
+        .running(ryo_operators::spike::EngineMode::New)
 }

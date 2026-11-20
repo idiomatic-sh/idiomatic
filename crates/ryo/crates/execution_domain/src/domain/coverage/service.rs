@@ -255,6 +255,19 @@ pub fn partial_of(said: &[ReadInPart], everything: Recovery, wanted: &[Relation]
     partial
 }
 
+/// The path that names the repository as a whole where an unknown names a file: where a rule that decided nothing anywhere in
+/// the repository is unknown.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(&*ryo_execution_domain::domain::coverage::service::repository().0, ".");
+/// ```
+#[must_use]
+pub fn repository() -> ryo_language::domain::files::types::FilePath {
+    ryo_language::domain::files::types::FilePath(REPOSITORY.into())
+}
+
 /// What an operator that trusts an absence of rows says it could not decide, for a relation read in part in a file.
 #[must_use]
 pub fn unknown_message(partial: &Partial, scope: CoverageScope<'_>) -> Message {

@@ -240,6 +240,10 @@ pub(crate) struct ScanState {
     pub rows: Vec<ryo_values::domain::scan_rows::types::ScanRow>,
     /// The rule set whose language walked the file, when one did.
     pub by: Option<ryo_execution::inbound::use_cases::file_scan::types::RuleSetNumber>,
+    /// The rule sets whose language walked a file of the worker's.
+    pub walked: std::collections::BTreeSet<
+        ryo_execution::inbound::use_cases::file_scan::types::RuleSetNumber,
+    >,
     /// Where the lines of the file start, as far as its last row.
     pub starts: crate::domain::finish::types::LineStarts,
     /// The file's rows, rendered.

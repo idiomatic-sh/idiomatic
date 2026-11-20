@@ -108,6 +108,9 @@ impl MetadataUseCase for MetadataUseCaseImpl {
     fn unknown_message(&self, partial: &Partial, scope: CoverageScope<'_>) -> Message {
         ryo_execution_domain::domain::coverage::service::unknown_message(partial, scope)
     }
+    fn repository(&self) -> FilePath {
+        ryo_execution_domain::domain::coverage::service::repository()
+    }
     fn affected_ordinals(
         &self,
         request: AffectedFiles<'_>,

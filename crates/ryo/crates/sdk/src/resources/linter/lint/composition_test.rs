@@ -5,7 +5,7 @@
 
 use super::composition::store_skip;
 use super::entry::lint_with;
-use super::fixtures::given_words::{GIVEN, given_request};
+use super::fixtures::given_words::{GIVEN, REFUSED, given_request};
 use super::fixtures::words::{WORDS, WORDS_AGAIN, words_linter, words_request};
 use super::types::{Cache, LintReport};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -43,6 +43,9 @@ enum Wired {
     /// The same file checked ten times over one kept store, each run given what the one before it was or one thing changed:
     /// the text of a rule, the text of the fragment the rules share, which rules are selected, which language is named.
     Given(Engines),
+    /// The same file checked by two rules, one of which the new engine's load refuses: what each rule found, and what the
+    /// report says no rule could decide.
+    Refused(Engines),
     /// The same file checked by both engines when the old engine's parse ends each word a byte early.
     Planted,
 }
@@ -188,6 +191,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("a_rule_the_new_engine_refuses_is_reported_as_not_decided_never_as_run"),
+        word: Word::Succeeds,
+        input: || Wired::Refused(Engines::These(EngineMode::New)),
+        expect: Expect::Value(Cow::Borrowed(
+            "kinds found 0; words found 2; unknowns [Unknown { rule: RuleId(\"kinds\"), path: RelativePath(\".\"), message: Message(\"the new engine's rule set of the language `words` does not run the rule: its load refused it, so the rule looked at none of that language's files\") }]",
+        )),
+    },
+    Case {
+        name: CaseName(
+            "both_engines_report_what_the_old_engine_decided_of_a_rule_the_new_one_refuses",
+        ),
+        word: Word::Succeeds,
+        input: || Wired::Refused(Engines::These(EngineMode::Both)),
+        expect: Expect::Value(Cow::Borrowed("kinds found 2; words found 2; unknowns []")),
+    },
+    Case {
+        name: CaseName("the_old_engine_runs_a_rule_the_new_engine_would_refuse"),
+        word: Word::Succeeds,
+        input: || Wired::Refused(Engines::These(EngineMode::Old)),
+        expect: Expect::Value(Cow::Borrowed("kinds found 2; words found 2; unknowns []")),
+    },
+    Case {
         name: CaseName("a_planted_difference_fails_both_naming_the_rule_the_file_and_the_row"),
         word: Word::Refuses,
         input: || Wired::Planted,
@@ -307,6 +332,25 @@ fn subject(input: Input) -> Result<Value, Failure> {
             }
             let ran = said(engines).unwrap_or_else(engine_mode);
             Ok(Cow::Owned(format!("{ran:?}\n{}", runs.join("\n"))))
+        }
+        Wired::Refused(engines) => {
+            let root = words_root();
+            let (linter, _fake, _compiler) = words_linter(said(engines), Cache::None, 0);
+            let report =
+                lint_with(&linter, given_request(root.path(), REFUSED)).map_err(refused)?;
+            let found = |rule: &str| {
+                report
+                    .findings
+                    .iter()
+                    .filter(|finding| &*finding.rule.0 == rule)
+                    .count()
+            };
+            Ok(Cow::Owned(format!(
+                "kinds found {}; words found {}; unknowns {:?}",
+                found("kinds"),
+                found("words"),
+                report.unknowns
+            )))
         }
         Wired::Planted => {
             let root = words_root();

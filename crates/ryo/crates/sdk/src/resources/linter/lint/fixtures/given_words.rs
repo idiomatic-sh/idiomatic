@@ -1,6 +1,6 @@
 //! The test data of `linter lint` that fixes what a run of the language of words is given: its rules, each a root query over
-//! one catalog that holds the fragment they share, as a pack's rules are; and the runs of the rows that give a kept store the
-//! same or one thing changed.
+//! one catalog that holds the fragment they share, as a pack's rules are; the runs of the rows that give a kept store the same
+//! or one thing changed; and a run of two rules, one of which the engine port's fake refuses.
 
 use super::words::{WORDS, WORDS_AGAIN};
 use crate::domain::file::types::RelativePath;
@@ -16,12 +16,22 @@ const FRAGMENT: &str = "output relation<id: node, file: file, span: span>;\nlet 
 /// The same fragment under another text.
 const FRAGMENT_AGAIN: &str = "output relation<id: node, file: file, span: span>;\nlet words = select id, file, span from \"syntax-tree\" where kind = \"word\";\nreturn words;";
 
+/// A rule over the same words that the engine port's fake refuses: it keeps a column the fake does not find.
+const KINDS_OF_WORDS: &str = "let kinds = select id, file, span, kind from \"syntax-tree\" where kind = \"word\"; emit kinds subject file key(id);";
+
 /// The rule of the words alone, and with a second rule of the same query beside it.
 const ONE_RULE: &[(&str, &str)] = &[("words", WORDS)];
 /// The rule of the words under another text.
 const ONE_RULE_AGAIN: &[(&str, &str)] = &[("words", WORDS_AGAIN)];
 /// The rule of the words under another text, and a second rule beside it.
 const TWO_RULES: &[(&str, &str)] = &[("words", WORDS_AGAIN), ("words-too", WORDS)];
+
+/// The run of two rules over the shared fragment, one of which the engine port's fake refuses.
+pub(crate) const REFUSED: GivenWords = GivenWords {
+    rules: &[("kinds", KINDS_OF_WORDS), ("words", WORDS)],
+    fragment: FRAGMENT,
+    language: Reads::Recognized,
+};
 
 /// What each run of the `Given` rows is given, in order: what the run before it was given, or that with one thing changed.
 pub(crate) const GIVEN: &[(&str, GivenWords)] = &[

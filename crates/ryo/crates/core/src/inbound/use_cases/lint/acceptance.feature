@@ -12,6 +12,8 @@ Feature: lint
         | name | input | expected |
         | two_violations | two_rust_files_and_a_text_file | 2 findings and 1 unread |
         | clean_text_only | only_a_text_file | 0 findings and 1 unread |
+        | new_engine_runs_the_rule | the_new_engine_runs_the_rule | 6 findings and 0 unread |
+        | new_engine_refuses_the_rule | the_new_engine_refuses_the_rule | 0 findings and 0 unread; `rule` not decided at `.` |
 
     @refuses
     Scenario Outline: lint refuses

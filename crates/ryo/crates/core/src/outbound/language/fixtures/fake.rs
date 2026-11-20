@@ -60,7 +60,23 @@ pub struct LanguageFake {
     /// Paths for which this fake leaves syntax acceptance undetermined; other parsed files are accepted when this or
     /// `rejected_syntax` is nonempty.
     pub undetermined_syntax: Vec<FilePath>,
+    /// Whether the one language the fake stands for is linked with a walk, which the new engine scans files through.
+    pub walk: FakeWalk,
 }
+
+/// The walk the fake's one language is linked with.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FakeWalk {
+    /// None: the new engine can scan none of its files.
+    #[default]
+    NotLinked,
+    /// The language crate's fixture walk of files of words (`*.walk`), with its kinds.
+    Words,
+}
+
+/// The kinds of the fixture walk of files of words, in the order of their codes: the kind no element has, the sentence, the
+/// word.
+const WORD_KINDS: [&str; 3] = ["blank", "sentence", "word"];
 
 /// What the fake's catalog answers.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -122,16 +138,27 @@ impl LanguagePort for LanguageFake {
     fn walks(
         &self,
     ) -> Vec<std::sync::Arc<dyn ryo_language::inbound::use_cases::walk::types::WalkEngine>> {
-        // The fake's one language, linked without its walk.
-        vec![std::sync::Arc::new(
-            ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl::new(),
-        )]
+        match self.walk {
+            // The fake's one language, linked without its walk.
+            FakeWalk::NotLinked => vec![std::sync::Arc::new(
+                ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl::new(),
+            )],
+            FakeWalk::Words => vec![std::sync::Arc::new(
+                ryo_language::domain::fillers::fixtures::Walking,
+            )],
+        }
     }
 
     fn kind_vocabularies(&self) -> KindVocabularies {
         KindVocabularies(vec![KindVocabulary {
             language: LanguageName("fake".into()),
-            kinds: Vec::new(),
+            kinds: match self.walk {
+                FakeWalk::NotLinked => Vec::new(),
+                FakeWalk::Words => WORD_KINDS
+                    .iter()
+                    .map(|kind| ryo_values::domain::descriptions::types::KindWord((*kind).into()))
+                    .collect(),
+            },
         }])
     }
 
