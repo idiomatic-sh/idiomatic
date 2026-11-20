@@ -692,7 +692,12 @@ pub(crate) fn hoist(p: Prog) -> Prog {
         let mut reads = Vec::new();
         let mut defs = Vec::new();
         reads_defs(&v[s], &mut reads, &mut defs);
-        let candidate = is_iter(&v[s]) && !reads.is_empty() && reads.iter().all(|r| def_at.contains_key(r));
+        let candidate = is_iter(&v[s]) && !reads.is_empty() && reads.iter().all(|r| def_at.contains_key(r)) && {
+            let mut k = reads.clone();
+            k.sort_unstable();
+            k.dedup();
+            k.len() <= 2
+        };
         if candidate {
             let d = reads.iter().map(|r| def_at[r]).max().unwrap();
             let enclosing = (d + 1..s).any(|j| is_iter(&v[j]));
@@ -1311,7 +1316,7 @@ pub(crate) struct FileCache {
     /// keyed twin rows per (fact, key value): the row range in the twin's columns
     pub keyed_memo: FxMap<(u16, u64), (u32, u32)>,
     /// hoisted inner enumerations per (site, key values): captured tuples, flattened
-    pub hoisted: FxMap<(u32, Vec<u64>), Rc<Vec<u64>>>,
+    pub hoisted: FxMap<(u32, u64, u64), Rc<Vec<u64>>>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
     pub model_lex: bool,
@@ -2548,8 +2553,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     return false;
                 }
                 Ins::Hoist { id, key, seg, caps } => {
-                    let kv: Vec<u64> = key.iter().map(|&r| self.regs[r as usize]).collect();
-                    let hk = (*id, kv);
+                    let hk = (*id, self.regs[key[0] as usize], key.get(1).map_or(0, |&r| self.regs[r as usize]));
                     let tuples = match self.cache.hoisted.get(&hk) {
                         Some(t) => t.clone(),
                         None => {
