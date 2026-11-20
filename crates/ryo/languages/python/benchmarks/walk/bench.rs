@@ -14,6 +14,9 @@
     reason = "throwaway bake-off prototype, never landed (bead ryo-i8o1)"
 )]
 
+mod builtins;
+mod model;
+mod rows;
 mod rules;
 mod sema;
 mod symbols;
@@ -36,6 +39,7 @@ pub(crate) struct Totals {
     pub scopes: AtomicU64,
     pub kinds_present: AtomicU64,
     pub extra: [AtomicU64; 8],
+    pub rows: [AtomicU64; 11],
 }
 
 fn main() {
@@ -79,6 +83,21 @@ fn main() {
             .collect();
         handles.into_iter().map(|h| h.join().expect("worker")).collect()
     });
+    if let Some(dir) = mode.strip_prefix("dump:") {
+        // per-relation files, lines tagged "<relation index>\t" by the workers
+        let mut files: Vec<std::io::BufWriter<std::fs::File>> = rows::RELATIONS
+            .iter()
+            .map(|r| std::io::BufWriter::new(std::fs::File::create(format!("{dir}/{r}.tsv")).expect("create")))
+            .collect();
+        use std::io::Write as _;
+        for line in outputs.iter().flatten() {
+            let (i, rest) = line.split_once('\t').expect("tag");
+            writeln!(files[i.parse::<usize>().unwrap()], "{rest}").ok();
+        }
+        let r: Vec<u64> = totals.rows.iter().map(|x| x.load(Ordering::Relaxed)).collect();
+        eprintln!("{{\"mode\":\"dump\",\"rows\":{r:?}}}");
+        return;
+    }
     let mut lines: Vec<String> = outputs.into_iter().flatten().collect();
     lines.sort();
     use std::io::Write as _;
@@ -89,7 +108,8 @@ fn main() {
     }
     let e: Vec<u64> = totals.extra.iter().map(|x| x.load(Ordering::Relaxed)).collect();
     eprintln!(
-        "{{\"mode\":\"{mode}\",\"files\":{},\"bytes\":{},\"nodes\":{},\"scopes\":{},\"bindings\":{},\"resolved\":{},\"kinds_present\":{},\"extra\":{:?},\"findings\":{}}}",
+        "{{\"mode\":\"{mode}\",\"rows\":{:?},\"files\":{},\"bytes\":{},\"nodes\":{},\"scopes\":{},\"bindings\":{},\"resolved\":{},\"kinds_present\":{},\"extra\":{:?},\"findings\":{}}}",
+        totals.rows.iter().map(|x| x.load(Ordering::Relaxed)).collect::<Vec<_>>(),
         files.len(),
         totals.bytes.load(Ordering::Relaxed),
         totals.nodes.load(Ordering::Relaxed),
@@ -105,6 +125,8 @@ fn main() {
 struct Worker<'p> {
     mode: String,
     sema: sema::Sema,
+    model: model::Model,
+    scratch: String,
     rules: Option<rules::State<'p>>,
     provider: Option<ProviderState>,
 }
@@ -141,6 +163,8 @@ impl<'p> Worker<'p> {
         Self {
             mode: mode.to_owned(),
             sema: sema::Sema::default(),
+            model: model::Model::default(),
+            scratch: String::new(),
             rules: program.map(rules::State::new),
             provider,
         }
@@ -184,6 +208,38 @@ impl<'p> Worker<'p> {
         totals.nodes.fetch_add(table.len() as u64, Ordering::Relaxed);
         totals.kinds_present.fetch_add(u64::from(table.present.count_ones()), Ordering::Relaxed);
         if self.mode == "table" {
+            return;
+        }
+        if matches!(self.mode.as_str(), "lex" | "model" | "policy" | "rows" | "rows-lex") || self.mode.starts_with("dump:") {
+            let incomplete = !parsed.errors().is_empty();
+            self.model.build_lexical(&table, incomplete);
+            if self.mode == "lex" {
+                return;
+            }
+            let flow = self.mode != "rows-lex";
+            if flow {
+                self.model.build_flow(&table);
+                totals.bindings.fetch_add(self.model.events.len() as u64, Ordering::Relaxed);
+                if self.mode == "model" {
+                    return;
+                }
+                self.model.build_resolution(&table);
+                if self.mode == "policy" {
+                    return;
+                }
+            }
+            let wanted: u16 = if flow { 0x7ff } else { 0x3f };
+            let mut dump: Option<Box<[Vec<String>; 11]>> = self.mode.starts_with("dump:").then(|| Box::new(Default::default()));
+            let mut o = rows::Out { lines: dump.as_deref_mut(), counts: [0; 11], path: path.to_owned() };
+            rows::produce(&mut self.model, &table, index, wanted, &mut o, &mut self.scratch);
+            for (i, n) in o.counts.iter().enumerate() {
+                totals.rows[i].fetch_add(*n, Ordering::Relaxed);
+            }
+            if let Some(d) = dump {
+                for (i, v) in d.into_iter().enumerate() {
+                    out.extend(v.into_iter().map(|l| format!("{i}\t{l}")));
+                }
+            }
             return;
         }
         if self.mode == "sema" {
