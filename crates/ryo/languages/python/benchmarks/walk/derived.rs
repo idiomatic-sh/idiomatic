@@ -139,6 +139,16 @@ pub(crate) const RELATIONS: &[&str] = &[
     "raw-format-field",
 ];
 
+/// The other relation computed from the same parse (its rows come from one pass).
+pub(crate) fn partner(i: usize) -> Option<usize> {
+    let pair = |a: &str, b: &str| match RELATIONS[i] {
+        x if x == a => index_of(b),
+        x if x == b => index_of(a),
+        _ => None,
+    };
+    pair("format-parse", "format-field").or_else(|| pair("brace-format-parse", "brace-format-field")).or_else(|| pair("raw-format-segment", "raw-format-field"))
+}
+
 pub(crate) fn index_of(name: &str) -> Option<usize> {
     RELATIONS.iter().position(|r| *r == name)
 }

@@ -326,8 +326,14 @@ impl<'p> Worker<'p> {
                 let mut sink = derived::Count { counts: vec![0; n], touch: 0 };
                 for i in 0..n {
                     if wanted & (1 << i) != 0 {
+                        // a pair read from one parse (format-parse + format-field, ...) is produced once, timed on its first
+                        let partner = derived::partner(i);
+                        if partner.is_some_and(|p| p < i && wanted & (1 << p) != 0) {
+                            continue;
+                        }
+                        let mask = (1u64 << i) | partner.map_or(0, |p| if wanted & (1 << p) != 0 { 1u64 << p } else { 0 });
                         let t = Clock::now();
-                        derived::produce(&ctx, 1 << i, &mut sink, &mut self.scratch, &mut self.dstate);
+                        derived::produce(&ctx, mask, &mut sink, &mut self.scratch, &mut self.dstate);
                         totals.dns[i].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
                     }
                 }
