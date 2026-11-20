@@ -117,10 +117,23 @@ pub(crate) enum Ins {
     SubMemo { negate: bool, subs: Box<[Prog]> },
     /// lower: a call of a definition's sub-program that binds rows (as `Union`), its distinct rows memoised per file by the
     /// values of the `keys` registers (the formals the call wrote): the same call with the same args runs once per file
-    UnionKeyed { outs: Box<[R]>, subs: Box<[Prog]>, keys: Box<[R]> },
+    /// cut: `args`, when given, are written into the `keys` registers by the instruction itself (the call passes its
+    /// arguments in one step instead of one `let` each)
+    UnionKeyed { outs: Box<[R]>, subs: Box<[Prog]>, keys: Box<[R]>, args: Box<[Opd]> },
     /// lower: an absence/existence test of a definition, its answer memoised per file by the values of the `keys` registers
     /// (the formals the call wrote): nested correlated tests asked again with the same args answer from the memo
-    SubKeyed { negate: bool, subs: Box<[Prog]>, keys: Box<[R]> },
+    SubKeyed { negate: bool, subs: Box<[Prog]>, keys: Box<[R]>, args: Box<[Opd]> },
+    /// cut: a call of a definition entered from the definition's side: its uncorrelated sub-program's rows (`width` cells
+    /// each) are collected once per file and indexed by the `kcols` cells; the call looks up the values of `keys` and
+    /// continues with each distinct tuple of the `ocols` cells in `outs` (a hash join whose build side is the definition)
+    Probe { outs: Box<[R]>, subs: Box<[Prog]>, kcols: Box<[u8]>, keys: Box<[Opd]>, ocols: Box<[u8]>, width: u8 },
+    /// cut: an absence/existence test of a definition answered from the same per-file index of its uncorrelated rows
+    ProbeTest { negate: bool, subs: Box<[Prog]>, kcols: Box<[u8]>, keys: Box<[Opd]>, width: u8 },
+}
+
+/// cut: a definition's uncorrelated rows indexed by some of their cells: key cells -> the distinct tuples of the wanted cells
+pub(crate) struct ProbeIndex {
+    pub map: FxMap<Box<[u64]>, Vec<u64>>,
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -507,11 +520,30 @@ impl Loader<'_> {
                 negate: a[0] == "neg-keyed",
                 subs: a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 keys: a[2].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
+                args: a.get(3).and_then(Value::as_array).map(|v| v.iter().map(|x| self.opd(x)).collect::<Vec<_>>()).unwrap_or_default().into(),
             },
             "or-keyed" => Ins::UnionKeyed {
                 outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
                 subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 keys: a[3].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
+                args: a.get(4).and_then(Value::as_array).map(|v| v.iter().map(|x| self.opd(x)).collect::<Vec<_>>()).unwrap_or_default().into(),
+            },
+            // cut: ["or-probe", outs, subs, key columns, key values, out columns, row width]
+            "or-probe" => Ins::Probe {
+                outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
+                subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+                kcols: a[3].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
+                keys: a[4].as_array().unwrap().iter().map(|x| self.opd(x)).collect::<Vec<_>>().into(),
+                ocols: a[5].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
+                width: a[6].as_u64().unwrap() as u8,
+            },
+            // cut: ["neg-probe" | "exists-probe", subs, key columns, key values, row width]
+            "neg-probe" | "exists-probe" => Ins::ProbeTest {
+                negate: a[0] == "neg-probe",
+                subs: a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
+                kcols: a[2].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
+                keys: a[3].as_array().unwrap().iter().map(|x| self.opd(x)).collect::<Vec<_>>().into(),
+                width: a[4].as_u64().unwrap() as u8,
             },
             "collect" => Ins::Collect { regs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into() },
             o => panic!("ins {o}"),
@@ -801,6 +833,11 @@ pub(crate) struct Exec<'a, 'p> {
     pub union_memo: FxMap<usize, Rc<Vec<u64>>>,
     /// per-file answers of absence/existence tests that read no candidate register (navwide)
     pub sub_memo: FxMap<usize, bool>,
+    /// cut: per-file uncorrelated rows of definitions (by shared entry, or by sub-program list) and the indexes over them
+    /// (by the probing instruction)
+    pub def_rows: FxMap<usize, Rc<Vec<u64>>>,
+    pub probe_idx: FxMap<usize, Rc<ProbeIndex>>,
+    pub kbuf: Vec<u64>,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -1546,15 +1583,65 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
                 Ins::Union { outs, subs, memo } => return self.union(p, pc, outs, subs, *memo),
-                Ins::UnionKeyed { outs, subs, keys } => return self.union_keyed(p, pc, outs, subs, keys),
-                Ins::SubKeyed { negate, subs, keys } => {
+                Ins::UnionKeyed { outs, subs, keys, args } => {
+                    for (k, a) in keys.iter().zip(args.iter()) {
+                        self.regs[*k as usize] = self.opd(a);
+                    }
+                    return self.union_keyed(p, pc, outs, subs, keys);
+                }
+                Ins::SubKeyed { negate, subs, keys, args } => {
+                    for (k, a) in keys.iter().zip(args.iter()) {
+                        self.regs[*k as usize] = self.opd(a);
+                    }
                     if self.sub_keyed(subs, keys) == *negate {
+                        return false;
+                    }
+                }
+                Ins::Probe { outs, subs, kcols, keys, ocols, width } => {
+                    let idx = self.probe_index(subs, kcols, ocols, *width as usize, keys.as_ptr() as usize);
+                    let mut key = std::mem::take(&mut self.kbuf);
+                    key.clear();
+                    for k in keys.iter() {
+                        key.push(self.opd(k));
+                    }
+                    let hit = idx.map.get(&key[..]);
+                    self.kbuf = key;
+                    let Some(rows) = hit else { return false };
+                    let w = outs.len().max(1);
+                    for row in rows.chunks(w) {
+                        for (i, r) in outs.iter().enumerate() {
+                            self.regs[*r as usize] = row[i];
+                        }
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::ProbeTest { negate, subs, kcols, keys, width } => {
+                    let idx = self.probe_index(subs, kcols, &[], *width as usize, keys.as_ptr() as usize);
+                    let mut key = std::mem::take(&mut self.kbuf);
+                    key.clear();
+                    for k in keys.iter() {
+                        key.push(self.opd(k));
+                    }
+                    let any = idx.map.contains_key(&key[..]);
+                    self.kbuf = key;
+                    if any == *negate {
                         return false;
                     }
                 }
                 Ins::Let { from, out } => self.regs[*out as usize] = self.opd(from),
                 Ins::SubMemo { negate, subs } => {
-                    let key = subs.as_ptr() as usize;
+                    // cut: one shared entry is keyed by the entry (every test site of the definition shares its answer)
+                    let key = match &subs[..] {
+                        [q] => match &q[..] {
+                            [Ins::Shared { idx }] => 0x8000_0000_0000_0000usize | ((*idx as usize) << 1),
+                            _ => subs.as_ptr() as usize,
+                        },
+                        _ => subs.as_ptr() as usize,
+                    };
                     let any = match self.sub_memo.get(&key) {
                         Some(&v) => v,
                         None => {
@@ -1759,7 +1846,14 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// Ins::Union (navwide): every sub-program's collected tuples, distinct, each continuing the program
     fn union(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], memo: bool) -> bool {
         let w = outs.len();
-        let key = subs.as_ptr() as usize;
+        // cut: a memoised union of one shared entry is keyed by the entry (every call site of the definition shares its rows)
+        let key = match subs {
+            [q] if memo => match &q[..] {
+                [Ins::Shared { idx }] => 0x8000_0000_0000_0000usize | ((*idx as usize) << 1),
+                _ => subs.as_ptr() as usize,
+            },
+            _ => subs.as_ptr() as usize,
+        };
         let rows: Rc<Vec<u64>> = match self.union_memo.get(&key) {
             Some(r) if memo => r.clone(),
             _ => {
@@ -1793,6 +1887,63 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         }
         false
+    }
+
+    /// cut: the uncorrelated rows of a definition's sub-programs, collected once per file (shared by every instruction that
+    /// names the same shared entry)
+    fn definition_rows(&mut self, subs: &'p [Prog]) -> Rc<Vec<u64>> {
+        let key = match subs {
+            [q] => match &q[..] {
+                [Ins::Shared { idx }] => (*idx as usize) << 1 | 1,
+                _ => subs.as_ptr() as usize & !1,
+            },
+            _ => subs.as_ptr() as usize & !1,
+        };
+        if let Some(r) = self.def_rows.get(&key) {
+            return r.clone();
+        }
+        let saved = std::mem::take(&mut self.collect);
+        for q in subs {
+            self.c.subs += 1;
+            self.run_inner(q, 0);
+        }
+        let rows = Rc::new(std::mem::replace(&mut self.collect, saved));
+        self.def_rows.insert(key, rows.clone());
+        rows
+    }
+
+    /// cut: the index of a definition's uncorrelated rows for one probing instruction (`at`): key cells -> distinct tuples
+    /// of the wanted cells
+    fn probe_index(&mut self, subs: &'p [Prog], kcols: &[u8], ocols: &[u8], width: usize, at: usize) -> Rc<ProbeIndex> {
+        if let Some(i) = self.probe_idx.get(&at) {
+            return i.clone();
+        }
+        let rows = self.definition_rows(subs);
+        let mut map: FxMap<Box<[u64]>, Vec<u64>> = FxMap::default();
+        let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+        let mut key: Vec<u64> = Vec::with_capacity(kcols.len());
+        for row in rows.chunks(width.max(1)) {
+            key.clear();
+            key.extend(kcols.iter().map(|&c| row[c as usize]));
+            if ocols.is_empty() {
+                if !map.contains_key(&key[..]) {
+                    map.insert(key.clone().into(), Vec::new());
+                }
+                continue;
+            }
+            let mut full = key.clone();
+            full.extend(ocols.iter().map(|&c| row[c as usize]));
+            if seen.insert(full) {
+                let e = match map.get_mut(&key[..]) {
+                    Some(e) => e,
+                    None => map.entry(key.clone().into()).or_default(),
+                };
+                e.extend(ocols.iter().map(|&c| row[c as usize]));
+            }
+        }
+        let idx = Rc::new(ProbeIndex { map });
+        self.probe_idx.insert(at, idx.clone());
+        idx
     }
 
     /// Ins::UnionKeyed (lower): as `union`, memoised per file in `union_memo` under an odd key (a hash of the sub-program
