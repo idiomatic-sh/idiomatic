@@ -15,6 +15,8 @@ pub(crate) enum Cell<'s> {
     Node(u32),
     Key(&'static str, u32, u32),
     Text(&'s str),
+    /// a text fixed in the program (join: decoded through a per-run cache by address)
+    Word(&'static str),
     Null,
     Num(i64),
     Flag(bool),
@@ -40,6 +42,7 @@ impl Sink for Count {
                 Cell::Node(n) => u64::from(n),
                 Cell::Key(_, a, b) => u64::from(a ^ b),
                 Cell::Text(t) => t.len() as u64,
+                Cell::Word(t) => t.len() as u64,
                 Cell::Num(n) => n as u64,
                 Cell::Flag(f) => u64::from(f),
                 Cell::Span(a, b) => u64::from(a ^ b),
@@ -84,7 +87,7 @@ impl Sink for Dump<'_, '_> {
                 Cell::Key(k, a, b) => {
                     let _ = write!(s, "{k}@{a}:{b}");
                 }
-                Cell::Text(t) => esc_into(&mut s, t),
+                Cell::Text(t) | Cell::Word(t) => esc_into(&mut s, t),
                 Cell::Null => s.push_str("\\N"),
                 Cell::Num(n) => {
                     let _ = write!(s, "{n}");
@@ -1962,7 +1965,7 @@ fn rows_token_link(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize) {
     };
     token_links(c, &mut |s, t, k| {
         let st = &tokens[s];
-        sink.row(rel, &[key(s), key(t), Cell::Text(k), Cell::File, Cell::Span(st.start().to_u32(), st.end().to_u32())]);
+        sink.row(rel, &[key(s), key(t), Cell::Word(k), Cell::File, Cell::Span(st.start().to_u32(), st.end().to_u32())]);
     });
 }
 

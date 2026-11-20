@@ -2629,7 +2629,7 @@ pub(crate) struct FileCache {
     /// derived key cells: (start, stop, kind) -> view id for the current file (dkey_built), kind names -> base symbols
     pub dkey_at: FxMap<(u32, u32, u32), u32>,
     pub dkey_built: bool,
-    pub dkind: FxMap<usize, u32>,
+    pub dkind: FxMap<(usize, usize), u32>,
     pub model_lex: bool,
     pub model_flow: bool,
     /// per-file dispatch: kind code -> (rule, branch, alternative) anchored on it
@@ -5150,7 +5150,7 @@ struct DSink<'s> {
     at: &'s mut FxMap<(u32, u32, u32), u32>,
     at_built: &'s mut bool,
     /// a key cell's kind name (static text, by address) -> its base symbol, kept for the run
-    kinds: &'s mut FxMap<usize, u32>,
+    kinds: &'s mut FxMap<(usize, usize), u32>,
 }
 
 impl crate::derived::Sink for DSink<'_> {
@@ -5171,13 +5171,13 @@ impl crate::derived::Sink for DSink<'_> {
                         }
                         *self.at_built = true;
                     }
-                    let kc = match self.kinds.get(&(k.as_ptr() as usize)) {
+                    let kc = match self.kinds.get(&(k.as_ptr() as usize, k.len())) {
                         Some(&c) => c,
                         None => {
                             // a kind not yet a base symbol may become one when a later file names it: only hits are kept
                             let c = self.sym.get_base(k).unwrap_or(NULL);
                             if c != NULL {
-                                self.kinds.insert(k.as_ptr() as usize, c);
+                                self.kinds.insert((k.as_ptr() as usize, k.len()), c);
                             }
                             c
                         }
@@ -5185,6 +5185,17 @@ impl crate::derived::Sink for DSink<'_> {
                     u64::from(self.at.get(&(a, b, kc)).copied().unwrap_or(u32::MAX - 1))
                 }
                 Cell::Text(t) => u64::from(self.sym.text(t)),
+                Cell::Word(t) => match self.kinds.get(&(t.as_ptr() as usize | (1 << 63), t.len())) {
+                    Some(&c) => u64::from(c),
+                    None => {
+                        // a base symbol's code is the same in every file; a file text's is not (not kept)
+                        let c = self.sym.text(t);
+                        if (c as usize) < self.sym.base_count() {
+                            self.kinds.insert((t.as_ptr() as usize | (1 << 63), t.len()), c);
+                        }
+                        u64::from(c)
+                    }
+                },
                 Cell::Null => u64::from(NULL),
                 Cell::Num(n) => n as u64,
                 Cell::Flag(f) => u64::from(f),
