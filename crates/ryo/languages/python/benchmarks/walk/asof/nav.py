@@ -723,6 +723,19 @@ class Lowerer:
         if hit is not None:
             return hit
         self.body_memo[k] = []  # a definition never reaches itself (the plan is acyclic)
+        if BODY_UNDO:
+            # asof: a plan that fails part-way (an anchor the planner tries and gives up: `plan_top` catches Blocked and goes
+            # on) must not leave this empty list as the definition's program: every later use would call a definition with
+            # no branches (an absence test that always holds). A hazard closed, not an observed fault: F821's extra
+            # findings of the last round are NOT this (they stay with NAV_ASOF=0 NAV_FACTOR=0 NAV_TABLE=0, see STATUS).
+            try:
+                return self.body_planned(key, mask, free, k)
+            except BaseException:
+                self.body_memo.pop(k, None)
+                raise
+        return self.body_planned(key, mask, free, k)
+
+    def body_planned(self, key, mask, free, k):
         F = self.formals(key)
         idxs = []
         for B in self.defs[key]:
@@ -1539,7 +1552,11 @@ class Lowerer:
         mask = tuple(c for c, t in enumerate(args) if t is not None and tbound(t))
         seen = self.masks.setdefault(key, set())
         if mask not in seen and len(seen) >= MASK_CAP:
-            mask = ()
+            DEGRADE_SEEN[0] += 1  # asof (diagnostic): NAV_DEGRADE_MAX bisects which degraded use changes an answer
+            if DEGRADE_MAX < 0 or DEGRADE_SEEN[0] <= DEGRADE_MAX:
+                if os.environ.get("NAV_DEGRADE_LOG"):
+                    print("DEGRADE", DEGRADE_SEEN[0], key, mask, [None if t is None else (t if is_var(t) else list(t)) for t in args], file=sys.stderr)
+                mask = ()
         seen.add(mask)
         return mask
 
@@ -2321,6 +2338,11 @@ ASOF = os.environ.get("NAV_ASOF", "1") == "1"
 ASOF_SHAPE = os.environ.get("NAV_ASOF_SHAPE", "1") == "1"   # 0: only the general `power` table (to measure the two apart)
 FACTOR = os.environ.get("NAV_FACTOR", "1") == "1"
 TABLE = os.environ.get("NAV_TABLE", "1") == "1"
+BODY_UNDO = os.environ.get("NAV_BODY_UNDO", "1") == "1"  # 0: the last round's behaviour
+DEGRADE_MAX = int(os.environ.get("NAV_DEGRADE_MAX", "-1"))
+DEGRADE_SEEN = [0]
+FACTOR_MAX = int(os.environ.get("NAV_FACTOR_MAX", "-1"))
+FACTOR_SEEN = [0]
 
 
 def _step_of(v):
@@ -2651,6 +2673,10 @@ def factor_uncorrelated(self, b, bound, sub):
         free_groups.append(g)
     if not free_groups or len(free_groups) == len(groups):
         return b
+    if FACTOR_MAX >= 0:  # diagnostic: only the first FACTOR_MAX factorings (to bisect a difference between the two forms)
+        FACTOR_SEEN[0] += 1
+        if FACTOR_SEEN[0] > FACTOR_MAX:
+            return b
     drop = {(items[k][0], items[k][1]) for g in free_groups for k in g}
     nb = Br([a for i, a in enumerate(b.atoms) if ("a", i) not in drop], [f for i, f in enumerate(b.filt) if ("f", i) not in drop],
             [n for i, n in enumerate(b.negs) if ("n", i) not in drop], [x for i, x in enumerate(b.specials) if ("s", i) not in drop],

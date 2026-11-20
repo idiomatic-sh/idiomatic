@@ -663,6 +663,12 @@ impl<'p> State<'p> {
                 tables: FxMap::default(),
                 budget_end: u64::MAX,
                 aborted: false,
+                check_tables: std::env::var_os("NAV_TABLE_CHECK").is_some(),
+                check_seen: Default::default(),
+                check_done: Default::default(),
+                check_depth: 0,
+                no_budget: std::env::var_os("NAV_TABLE_NO_BUDGET").is_some(),
+                trace: std::env::var_os("NAV_TRACE_KEYED").is_some(),
             };
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {

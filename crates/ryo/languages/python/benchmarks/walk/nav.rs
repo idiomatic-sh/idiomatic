@@ -942,6 +942,15 @@ pub(crate) struct Exec<'a, 'p> {
     /// asof: the step count at which the running table build gives up (u64::MAX: none running), and whether it did
     pub budget_end: u64,
     pub aborted: bool,
+    /// asof (diagnostic, NAV_TABLE_CHECK): every table answer is compared with the per-call evaluation
+    pub check_tables: bool,
+    pub check_seen: std::collections::HashSet<u32>,
+    pub check_done: std::collections::HashSet<u64>,
+    pub check_depth: u32,
+    /// asof (diagnostic, NAV_TABLE_NO_BUDGET): table builds are never abandoned
+    pub no_budget: bool,
+    /// diagnostic (NAV_TRACE_KEYED)
+    pub trace: bool,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -1204,7 +1213,13 @@ impl<'a, 'p> Exec<'a, 'p> {
                 let loaded = self.load_facts();
                 let facts = self.cache.facts.as_mut().unwrap();
                 for (i, cols) in loaded.into_iter().enumerate() {
-                    if prog.facts[i].model.is_none() && prog.facts[i].made.is_none() && prog.facts[i].made_asof.is_none() && !facts.loaded[i] {
+                    // asof: only the relations the provider is the source of. Before, this also marked every ordered-match
+                    // table not yet built as loaded, with no rows (and replaced the derived relations): a rule that needs the
+                    // provider (`syntax-error`) in the same run emptied the other rules' made tables
+                    let f = &prog.facts[i];
+                    let made = f.made.is_some() || f.made_om.is_some() || f.made_asof.is_some();
+                    let derived = std::env::var_os("NAV_PROVIDER").is_none() && (crate::derived::index_of(&f.name).is_some() || f.name.starts_with("filesystem."));
+                    if f.model.is_none() && !made && !derived && !facts.loaded[i] {
                         facts.cols[i] = cols;
                         facts.loaded[i] = true;
                     }
@@ -1608,9 +1623,11 @@ impl<'a, 'p> Exec<'a, 'p> {
                         std::hash::Hasher::write_u64(&mut h, self.opd(v));
                     }
                     if let Some(list) = idx.get(&std::hash::Hasher::finish(&h)) {
+                        // the key values as they are now (the rest of the program runs once per row)
+                        let want: Vec<u64> = vals.iter().map(|v| self.opd(v)).collect();
                         for &row in list {
                             let table = &self.cache.facts.as_ref().unwrap().cols[*rel as usize];
-                            if !cols.iter().zip(vals.iter()).all(|(c, v)| table[*c as usize][row as usize] == self.opd(v)) {
+                            if !cols.iter().zip(&want).all(|(c, v)| table[*c as usize][row as usize] == *v) {
                                 continue;
                             }
                             self.regs[*out as usize] = u64::from(row);
@@ -1934,6 +1951,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         self.collect = saved;
         self.regs[xin as usize] = saved_x;
+        if self.trace {
+            eprintln!("C\t{}\t{start}\t{found:?}\tsteps={}\taborted={}", subs.as_ptr() as usize, self.c.steps, self.aborted);
+        }
         for row in found.chunks(w) {
             self.regs[out as usize] = row[0];
             for (i, r) in kout.iter().enumerate() {
@@ -1973,6 +1993,15 @@ impl<'a, 'p> Exec<'a, 'p> {
                 if memo {
                     self.union_memo.insert(key, r.clone());
                 }
+                if self.trace {
+                    let entry = match subs.first().and_then(|q| q.first()) {
+                        Some(Ins::Shared { idx }) => i64::from(*idx),
+                        _ => -1,
+                    };
+                    let mut b: Vec<Vec<u64>> = r.chunks(w.max(1)).map(<[u64]>::to_vec).collect();
+                    b.sort_unstable();
+                    eprintln!("U\t{entry}\tmemo={memo}\t{b:?}");
+                }
                 r
             }
         };
@@ -1999,10 +2028,65 @@ impl<'a, 'p> Exec<'a, 'p> {
                 for k in keys {
                     h.write_u64(self.regs[*k as usize]);
                 }
+                if self.check_tables && self.check_depth == 0 && !self.aborted && (self.no_budget || self.budget_end == u64::MAX) && self.check_done.insert(h.finish() ^ u64::from(t.slot)) {
+                    // diagnostic (NAV_TABLE_CHECK): the per-call evaluation must give the rows the table gives
+                    let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                    let saved = std::mem::take(&mut self.collect);
+                    self.check_depth += 1;
+                    for q in subs {
+                        self.run_inner(q, 0);
+                    }
+                    self.check_depth -= 1;
+                    let got = std::mem::replace(&mut self.collect, saved);
+                    for (k, v) in keys.iter().zip(&vals) {
+                        self.regs[*k as usize] = *v;
+                    }
+                    let w = outs.len().max(1);
+                    let mut a: Vec<Vec<u64>> = got.chunks(w).map(<[u64]>::to_vec).collect();
+                    a.sort_unstable();
+                    a.dedup();
+                    let mut b: Vec<Vec<u64>> = idx
+                        .get(&h.finish())
+                        .map(|list| {
+                            list.iter()
+                                .map(|&r| &rows[r as usize * t.width..(r as usize + 1) * t.width])
+                                .filter(|row| t.kcols.iter().zip(&vals).all(|(c, v)| row[*c as usize] == *v))
+                                .map(|row| t.fcols.iter().map(|c| row[*c as usize]).collect::<Vec<u64>>())
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    b.sort_unstable();
+                    b.dedup();
+                    if a != b && self.check_seen.insert(t.entry) {
+                        eprintln!(
+                            "TABLE-MISMATCH rows entry {} (rule-local {}) file {} keys {:?} kcols {:?} fcols {:?}\n  per-call {:?}\n  table    {:?}",
+                            t.entry, t.entry, self.f.path, vals, t.kcols, t.fcols, a, b
+                        );
+                    }
+                }
+                if self.trace {
+                    let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                    let mut b: Vec<Vec<u64>> = idx
+                        .get(&h.finish())
+                        .map(|list| {
+                            list.iter()
+                                .map(|&r| &rows[r as usize * t.width..(r as usize + 1) * t.width])
+                                .filter(|row| t.kcols.iter().zip(&vals).all(|(c, v)| row[*c as usize] == *v))
+                                .map(|row| t.fcols.iter().map(|c| row[*c as usize]).collect::<Vec<u64>>())
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    b.sort_unstable();
+                    b.dedup();
+                    self.trace_keyed("table", subs, &vals, format!("{b:?}"));
+                }
                 if let Some(list) = idx.get(&h.finish()) {
+                    // the key values as the call wrote them: the rest of the program runs once per row and may call the
+                    // same definition again (it writes the same formals), so the registers are not read inside the loop
+                    let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
                     for &r in list {
                         let row = &rows[r as usize * t.width..(r as usize + 1) * t.width];
-                        if !t.kcols.iter().zip(keys).all(|(c, k)| row[*c as usize] == self.regs[*k as usize]) {
+                        if !t.kcols.iter().zip(&vals).all(|(c, v)| row[*c as usize] == *v) {
                             continue;
                         }
                         for (i, o) in outs.iter().enumerate() {
@@ -2033,6 +2117,42 @@ impl<'a, 'p> Exec<'a, 'p> {
         let rows = match hit {
             Some(r) => {
                 self.c.keyed_hits += 1;
+                if self.trace {
+                    let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                    let mut b: Vec<Vec<u64>> = r[nk..].chunks(w).map(<[u64]>::to_vec).collect();
+                    b.sort_unstable();
+                    self.trace_keyed("hit", subs, &vals, format!("{b:?}"));
+                }
+                if self.check_tables && self.check_depth == 0 && !self.aborted && (self.no_budget || self.budget_end == u64::MAX) {
+                    // diagnostic (NAV_TABLE_CHECK): a memo hit must equal a fresh evaluation
+                    let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                    let saved = std::mem::take(&mut self.collect);
+                    let saved_regs = self.regs.clone();
+                    self.check_depth += 1;
+                    for q in subs {
+                        self.run_inner(q, 0);
+                    }
+                    self.check_depth -= 1;
+                    self.regs = saved_regs;
+                    let got = std::mem::replace(&mut self.collect, saved);
+                    let mut a: Vec<Vec<u64>> = got.chunks(w).map(<[u64]>::to_vec).collect();
+                    a.sort_unstable();
+                    a.dedup();
+                    let mut b: Vec<Vec<u64>> = r[nk..].chunks(w).map(<[u64]>::to_vec).collect();
+                    b.sort_unstable();
+                    b.dedup();
+                    if outs.is_empty() {
+                        a.truncate(1);
+                        b.truncate(1);
+                    }
+                    if a != b {
+                        let entry = match subs.first().and_then(|q| q.first()) {
+                            Some(Ins::Shared { idx }) => i64::from(*idx),
+                            _ => -1,
+                        };
+                        eprintln!("MEMO-MISMATCH rows: per-call entry {entry} file {} keys {:?}\n  fresh {:?}\n  memo  {:?}", self.f.path, vals, a, b);
+                    }
+                }
                 r
             }
             None => {
@@ -2056,6 +2176,11 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 let r = Rc::new(distinct);
                 self.union_memo.insert(key, r.clone());
+                if self.trace {
+                    let mut b: Vec<Vec<u64>> = r[nk..].chunks(w).map(<[u64]>::to_vec).collect();
+                    b.sort_unstable();
+                    self.trace_keyed("miss", subs, &vals, format!("{b:?}"));
+                }
                 if let Some(t) = table {
                     self.table_spend(t, self.c.steps - steps0);
                     if self.aborted {
@@ -2091,12 +2216,58 @@ impl<'a, 'p> Exec<'a, 'p> {
                 for k in keys {
                     h.write_u64(self.regs[*k as usize]);
                 }
-                return idx.get(&h.finish()).is_some_and(|list| {
+                let answer = idx.get(&h.finish()).is_some_and(|list| {
                     list.iter().any(|&r| {
                         let row = &rows[r as usize * t.width..(r as usize + 1) * t.width];
                         t.kcols.iter().zip(keys).all(|(c, k)| row[*c as usize] == self.regs[*k as usize])
                     })
                 });
+                if self.trace {
+                    let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                    self.trace_keyed("table", subs, &vals, format!("{answer}"));
+                }
+                if self.check_tables && self.check_depth == 0 && !self.aborted && (self.no_budget || self.budget_end == u64::MAX) && self.check_done.insert(h.finish() ^ u64::from(t.slot)) {
+                    // diagnostic (NAV_TABLE_CHECK): the per-call test must answer what the table answers
+                    let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                    self.check_depth += 1;
+                    let any = subs.iter().any(|q| self.run_inner(q, 0));
+                    self.check_depth -= 1;
+                    for (k, v) in keys.iter().zip(&vals) {
+                        self.regs[*k as usize] = *v;
+                    }
+                    if any != answer && self.check_seen.insert(t.entry) {
+                        // which branches of the per-call group hold (entry indexes), and the table's rows
+                        let mut holds: Vec<u32> = Vec::new();
+                        if let Some(Ins::Shared { idx }) = subs.first().and_then(|q| q.first()) {
+                            let group: &'p [Ins] = &self.prog.shared[*idx as usize];
+                            if let Some(Ins::Sub { subs: inner, .. }) = group.first() {
+                                self.check_depth += 1;
+                                for q in inner.iter() {
+                                    for (k, v) in keys.iter().zip(&vals) {
+                                        self.regs[*k as usize] = *v;
+                                    }
+                                    if self.run_inner(q, 0) {
+                                        if let Some(Ins::Shared { idx }) = q.first() {
+                                            holds.push(*idx);
+                                        }
+                                    }
+                                }
+                                self.check_depth -= 1;
+                            } else {
+                                holds.push(*idx);
+                            }
+                        }
+                        for (k, v) in keys.iter().zip(&vals) {
+                            self.regs[*k as usize] = *v;
+                        }
+                        let kinds: Vec<String> = vals.iter().map(|v| self.f.view.kind.get(*v as usize).and_then(|k| self.sym.str(*k)).unwrap_or("?").to_owned()).collect();
+                        eprintln!(
+                            "TABLE-MISMATCH test entry {} file {} keys {:?} (kinds if nodes {:?}) kcols {:?}: per-call {} table {}; per-call branches that hold {:?}; table rows {}",
+                            t.entry, self.f.path, vals, kinds, t.kcols, any, answer, holds, rows.len() / t.width.max(1)
+                        );
+                    }
+                }
+                return answer;
             }
         }
         let nk = keys.len();
@@ -2110,6 +2281,29 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(r) = self.union_memo.get(&key) {
             if r.len() == nk + 1 && keys.iter().enumerate().all(|(i, k)| r[i] == self.regs[*k as usize]) {
                 self.c.keyed_hits += 1;
+                if self.trace {
+                    let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                    let answer = r[nk] != 0;
+                    self.trace_keyed("hit", subs, &vals, format!("{answer}"));
+                }
+                if self.check_tables && self.check_depth == 0 && !self.aborted && (self.no_budget || self.budget_end == u64::MAX) {
+                    // diagnostic (NAV_TABLE_CHECK): a memo hit must equal a fresh evaluation
+                    let memo = r[nk] != 0;
+                    let saved_regs = self.regs.clone();
+                    self.check_depth += 1;
+                    let fresh = subs.iter().any(|q| self.run_inner(q, 0));
+                    self.check_depth -= 1;
+                    let vals: Vec<u64> = keys.iter().map(|k| saved_regs[*k as usize]).collect();
+                    self.regs = saved_regs;
+                    if fresh != memo {
+                        let entry = match subs.first().and_then(|q| q.first()) {
+                            Some(Ins::Shared { idx }) => i64::from(*idx),
+                            _ => -1,
+                        };
+                        eprintln!("MEMO-MISMATCH test: per-call entry {entry} file {} keys {:?}: fresh {fresh} memo {memo}", self.f.path, vals);
+                    }
+                    return memo;
+                }
                 return r[nk] != 0;
             }
         }
@@ -2122,6 +2316,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         if self.aborted {
             return any;
         }
+        if self.trace {
+            self.trace_keyed("miss", subs, &vals, format!("{any}"));
+        }
         let mut entry = vals;
         entry.push(u64::from(any));
         self.union_memo.insert(key, Rc::new(entry));
@@ -2129,6 +2326,16 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.table_spend(t, self.c.steps - steps0);
         }
         any
+    }
+
+    /// diagnostic (NAV_TRACE_KEYED): one line per keyed call resolution: how it was answered, the per-call entry, the
+    /// keys, the answer (rows sorted, or the test's truth); the same (entry, keys) must answer the same every time
+    fn trace_keyed(&self, how: &str, subs: &[Prog], vals: &[u64], answer: String) {
+        let entry = match subs.first().and_then(|q| q.first()) {
+            Some(Ins::Shared { idx }) => i64::from(*idx),
+            _ => -1,
+        };
+        eprintln!("K\t{entry}\t{vals:?}\t{answer}\t{how}\tbudget={}\tsteps={}", self.budget_end != u64::MAX, self.c.steps);
     }
 
     /// asof: the definition's table of this file and the index of this use, when the table is built
@@ -2166,13 +2373,16 @@ impl<'a, 'p> Exec<'a, 'p> {
         const FIRST_TRY: u64 = 2048;
         let st = self.tables.entry(t.entry).or_default();
         st.spent += steps;
-        if st.rows.is_some() || st.spent < st.next_try.max(FIRST_TRY) {
+        if st.rows.is_some() || st.spent < st.next_try.max(if self.no_budget { 0 } else { FIRST_TRY }) {
             return;
         }
-        let budget = st.spent;
+        let budget = if self.no_budget { u64::MAX / 4 } else { st.spent };
         st.next_try = st.spent.saturating_mul(4);
         let outer = self.budget_end;
         self.budget_end = outer.min(self.c.steps.saturating_add(budget));
+        if self.trace {
+            eprintln!("T\tstart\t{}\tsteps={}\tlimit={}\touter={}", t.entry, self.c.steps, self.budget_end, outer);
+        }
         let saved = std::mem::take(&mut self.collect);
         let q: &'p [Ins] = &self.prog.shared[t.entry as usize];
         self.c.subs += 1;
@@ -2186,6 +2396,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         let rows = std::mem::replace(&mut self.collect, saved);
         self.budget_end = outer;
+        if self.trace {
+            eprintln!("T\tend\t{}\tsteps={}\taborted={}\trows={}", t.entry, self.c.steps, self.aborted, rows.len() / t.width.max(1));
+        }
         if self.aborted {
             // abandoned; an enclosing build past its own budget stays stopped
             self.aborted = self.c.steps > outer;
@@ -2201,6 +2414,11 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         self.c.table_builds += 1;
         self.c.made_rows += (distinct.len() / t.width.max(1)) as u64;
+        if self.trace {
+            let mut b: Vec<Vec<u64>> = distinct.chunks(t.width.max(1)).map(<[u64]>::to_vec).collect();
+            b.sort_unstable();
+            eprintln!("R\t{}\t{:?}", t.entry, b);
+        }
         self.tables.get_mut(&t.entry).unwrap().rows = Some(Rc::new(distinct));
     }
 
