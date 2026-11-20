@@ -822,24 +822,33 @@ pub(crate) fn fuse(p: Vec<Ins>) -> Vec<Ins> {
                 out.extend(kept);
             }
             Ins::IterChildren { parent, out: o } => {
-                let fused = match it.peek() {
-                    Some(Ins::Read { rel: TRel::Sc, col: 3, row, out: f }) if *row == o => Some(*f),
+                // the reads of the child that follow (any order), one of them its field, then an equality on the field
+                let mut kept: Vec<Ins> = Vec::new();
+                let mut fr: Option<R> = None;
+                while let Some(Ins::Read { row, .. }) = it.peek() {
+                    if *row != o {
+                        break;
+                    }
+                    let r = it.next().unwrap();
+                    if let Ins::Read { rel: TRel::Sc, col: 3, out, .. } = &r {
+                        fr = Some(*out);
+                    }
+                    kept.push(r);
+                }
+                let field = match (fr, it.peek()) {
+                    (Some(f), Some(Ins::Test { test: T::Eq, l: Opd::Reg(a), r: Opd::Sym(x), .. })) if *a == f => Some((f, *x)),
                     _ => None,
                 };
-                let Some(f) = fused else {
-                    out.push(Ins::IterChildren { parent, out: o });
-                    continue;
-                };
-                let read = it.next().unwrap();
-                match it.peek() {
-                    Some(Ins::Test { test: T::Eq, l: Opd::Reg(a), r: Opd::Sym(x), .. }) if *a == f => {
-                        let x = *x;
+                match field {
+                    Some((f, x)) => {
                         it.next();
+                        kept.retain(|r| !matches!(r, Ins::Read { rel: TRel::Sc, col: 3, .. }));
                         out.push(Ins::IterField { parent, field: x, out: o, field_out: f });
+                        out.extend(kept);
                     }
-                    _ => {
+                    None => {
                         out.push(Ins::IterChildren { parent, out: o });
-                        out.push(read);
+                        out.extend(kept);
                     }
                 }
             }
