@@ -228,6 +228,10 @@ pub(crate) fn conditioned_pass(
             )?;
             let combined = joined.program;
             let routes = joined.routes;
+            if ryo_operators::spike::export_dir().is_some() {
+                let names: Vec<&str> = ids.iter().map(|id| &*id.0).collect();
+                crate::spike_export::plans(&ryo_execution_domain::spike_export::program(&combined, plans, bindings, &names));
+            }
             let physical = operators.plan(combined.program()).map_err(portable_fault)?;
             Ok::<_, OperatingError>((assemble(combined, physical), routes))
         })();
@@ -244,6 +248,10 @@ pub(crate) fn conditioned_pass(
             Err(_) => return conditioned_pass(source, sets, None, extended),
         }
     } else {
+        if ryo_operators::spike::export_dir().is_some() {
+            let names: Vec<&str> = ids.iter().map(|id| &*id.0).collect();
+            crate::spike_export::plans(&ryo_execution_domain::spike_export::program(&normal, plans, bindings, &names));
+        }
         let physical = operators.plan(normal.program()).map_err(portable_fault)?;
         (assemble(normal, physical), None)
     };

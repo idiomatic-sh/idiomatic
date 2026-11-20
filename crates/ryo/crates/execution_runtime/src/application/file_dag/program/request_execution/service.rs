@@ -33,6 +33,8 @@ impl ProgramRequestExecutionPort for RequestExecution {
         })
     }
     fn finish(self) {
+        // Spike (ryo-r6ux): the export's files are complete once the run's last file is done.
+        crate::spike_export::flush();
         // The run's last file and its project phase are done: its node counters reach its trace before it is flushed.
         crate::application::file_dag::file_pass::service::counters::service::emitted_at_end(
             &self.pass,
@@ -84,6 +86,20 @@ impl ProgramRequestExecutionPort for RequestExecution {
             intents,
             &mut scratch.demand,
         );
+        // Spike (ryo-r6ux): an export run reads every relation any rule of the program reads, for every file.
+        let exporting = ryo_operators::spike::export_dir().is_some();
+        if exporting {
+            for rule in 0..self.program.rule_count().0 {
+                if let Ok(reads) = self.program.reads(ryo_execution_domain::domain::coverage::types::RuleIndex(rule)) {
+                    for relation in &reads.0 {
+                        if !scratch.demand.contains(relation) {
+                            scratch.demand.push(*relation);
+                        }
+                    }
+                }
+            }
+        }
+        let opening = exporting.then(std::time::Instant::now);
         let lookup = crate::application::file_dag::fact_lookup::service::opened(
             sources,
             facts,
@@ -95,6 +111,23 @@ impl ProgramRequestExecutionPort for RequestExecution {
             symbols,
             &scratch.demand,
         );
+        if let Some(started) = opening {
+            crate::spike_export::OPEN_NANOS.fetch_add(
+                u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+                std::sync::atomic::Ordering::Relaxed,
+            );
+            if let Ok(opened) = &lookup {
+                let path = self
+                    .services
+                    .request()
+                    .paths()
+                    .get(usize::try_from(file.0).unwrap_or(usize::MAX))
+                    .map_or("", |path| &path.0);
+                crate::spike_export::file(file, path, source, symbols, &scratch.demand, opened.tree(), &|relation| {
+                    opened.columns(relation).ok()
+                });
+            }
+        }
         crate::application::file_dag::file_pass::service::rules::service::run_rules(
             request,
             &self.pass,

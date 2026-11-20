@@ -9,6 +9,8 @@
 )]
 
 pub mod domain;
+/// Spike (ryo-fmx3, bead ryo-r6ux): the plans as JSON for the engine bake-off.
+pub mod spike_export;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod cases;
