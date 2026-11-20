@@ -1,5 +1,8 @@
 # Annotation evaluation positions
 
+Spike (ryo-fmx3, ryo-3ccb): the classification below is now the Python provider's `annotation-evaluation` relation (language semantics,
+stated and tested in the provider); this helper keeps its signature and projects that relation onto the supplied occurrences.
+
 The helper accepts real expression occurrences and returns `id,file,evaluation,root,mode` for their directly containing annotation context: `root` is the annotation expression the occurrence belongs to (the occurrence itself when it is the annotation), and `mode` is `lazy` where the file stores annotations without evaluating them (the annotations future, or Python 3.14 onward without it) and `eager` otherwise. `evaluation` is:
 
 - `eager`: evaluated when its owning definition/statement executes, through Python 3.13 without the annotations future.
