@@ -3,6 +3,7 @@
 //! a pipeline's stages are loops over a batch's columns and hold no program.
 
 use crate::domain::lowering::definitions::types::Drafts;
+use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
 use crate::domain::lowering::planning::emitting::service::{atom_written, operand, uses_of};
 use crate::domain::lowering::planning::types::{
@@ -22,14 +23,16 @@ fn accesses<'a>(
     branch: &FlatBranch,
     plan: &PlannedBranch,
     role: UnitRole,
-    start: (Environment, Vec<Emitted>),
+    start: (Environment, Vec<Emitted>, Option<&ColumnMask>),
 ) -> Emitter<'a> {
+    let mut environment = start.0;
+    environment.pins = pins_of(branch);
     let mut emitter = Emitter {
         drafts,
         kinds,
         role,
-        uses: uses_of(branch),
-        environment: start.0,
+        uses: uses_of(branch, start.2),
+        environment,
         written: start.1,
     };
     for at in &plan.order {
@@ -147,7 +150,7 @@ pub(crate) fn branch_program(
     plan: &PlannedBranch,
     target: EmitTarget,
 ) -> Option<StepProgram> {
-    let start = (Environment::default(), Vec::new());
+    let start = (Environment::default(), Vec::new(), None);
     let emitter = accesses(drafts, kinds, branch, plan, UnitRole::Branch, start);
     let columns = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
     let steps = emitter.written.into_iter().map(step_of);
@@ -205,7 +208,12 @@ pub(crate) fn pattern_program(
     plan: &PlannedBranch,
     pattern: PatternColumns<'_>,
 ) -> Option<Vec<ProgramStep>> {
-    let start = pattern_start(branch, pattern);
+    let (environment, tests) = pattern_start(branch, pattern);
+    // What a pattern gives is its collected columns: a column nothing collects is read for nothing.
+    let mut read = pattern.collected.0.to_vec();
+    read.extend(pattern.bound.0.iter().copied());
+    let read = ColumnMask(read.into());
+    let start = (environment, tests, Some(&read));
     let emitter = accesses(drafts, kinds, branch, plan, UnitRole::Pattern, start);
     let mut steps: Vec<ProgramStep> = Vec::new();
     let mut row = Vec::with_capacity(pattern.collected.0.len());
@@ -329,7 +337,7 @@ pub(crate) fn pipeline(
     branch: &FlatBranch,
     plan: &PlannedBranch,
 ) -> Option<Pipeline> {
-    let start = (Environment::default(), Vec::new());
+    let start = (Environment::default(), Vec::new(), None);
     let emitter = accesses(drafts, kinds, branch, plan, UnitRole::Pipeline, start);
     let row = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
     let mut stages = Vec::with_capacity(emitter.written.len());

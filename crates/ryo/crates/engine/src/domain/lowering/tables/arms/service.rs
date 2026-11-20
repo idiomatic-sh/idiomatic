@@ -5,10 +5,10 @@
 use crate::domain::lowered::types::{Emptiness, FillInput, GroupFill, MadeFill, OrderedFill};
 use crate::domain::lowering::costing::service::branches_rows;
 use crate::domain::lowering::definitions::service::{
-    defined, fresh_cells, regex, text, text_word, use_branch,
+    defined, fresh_cells, fresh_variable, regex, text, text_word, use_branch,
 };
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
-use crate::domain::lowering::emptiness::service::{derived, literal_read, relation_read};
+use crate::domain::lowering::emptiness::service::{copied, derived, literal_read, relation_read};
 use crate::domain::lowering::flattening::constants::CUT_BOUNDS;
 use crate::domain::lowering::flattening::service::{compared, picked, unified};
 use crate::domain::lowering::flattening::types::{
@@ -20,7 +20,7 @@ use crate::domain::lowering::tables::fills::service::{MadeOf, made, scanned};
 use crate::domain::lowering::tables::service::test_of;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use crate::domain::steps::types::{
-    AnchorKinds, ColumnList, DefinitionId, MadeColumn, Polarity, TestOperation,
+    AnchorKinds, ColumnList, DefinitionId, MadeColumn, MadeTableId, Polarity, TestOperation,
 };
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{CellKind, Integer, KindBits};
@@ -177,6 +177,11 @@ fn input(
             let digest = digest_of(rule(state)?, step);
             let shared = readers(state.store, digest) > 1;
             let waiting = state.flat.get(usize::from(step))?.as_ref();
+            // A step that is one read of a made table or of a definition is that read for each of its readers: a table
+            // of a table's rows would be a copy.
+            if let Some(alias) = waiting.and_then(|flattened| aliased(drafts, flattened)) {
+                return Some(alias);
+            }
             let cut = want == InputWant::Defined || shared || waiting.is_some_and(past_bounds);
             if cut || drafts.defined.contains_key(&digest) {
                 let definition = step_defined(state, drafts, step)?;
@@ -187,6 +192,44 @@ fn input(
         }
         Input::BoundObservation(_) => None,
     }
+}
+
+/// The same read with fresh variables, when a flattening is one read of a made table or of a definition and its row is
+/// that read's cells: what each reader of such a step holds.
+fn aliased(drafts: &mut Drafts, flattened: &Flattened) -> Option<Flattened> {
+    let [branch] = flattened.branches.as_slice() else {
+        return None;
+    };
+    let [FlatAtom::Rows {
+        rows: rows @ (AtomRows::Made(_) | AtomRows::Definition(_)),
+        cells,
+        per_file,
+    }] = branch.atoms.as_slice()
+    else {
+        return None;
+    };
+    if *cells != branch.row {
+        return None;
+    }
+    let fresh: Vec<FlatTerm> = cells
+        .iter()
+        .map(|cell| match cell {
+            FlatTerm::Variable(_) => FlatTerm::Variable(fresh_variable(drafts)),
+            FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File => *cell,
+        })
+        .collect();
+    Some(Flattened {
+        branches: vec![FlatBranch {
+            atoms: vec![FlatAtom::Rows {
+                rows: *rows,
+                cells: fresh.clone(),
+                per_file: *per_file,
+            }],
+            row: fresh,
+        }],
+        emptiness: copied(&flattened.emptiness),
+        keyless: Vec::new(),
+    })
 }
 
 /// The size of an input as its reader would hold it: its branches and the atoms of its largest; one of each for a relation
@@ -409,6 +452,23 @@ fn fill_of(state: &RuleFlattening<'_>, step: StepId, from: DefinitionId) -> Opti
     })
 }
 
+/// The made table of a step: made the first time the step's node is flattened, and found after, in whatever rule.
+fn made_once(
+    state: &RuleFlattening<'_>,
+    drafts: &mut Drafts,
+    of: (StepId, DefinitionId),
+    fill: MadeFill,
+    width: usize,
+) -> Option<MadeTableId> {
+    let node = digest_of(rule(state)?, of.0);
+    if let Some(table) = drafts.made.get(&node) {
+        return Some(*table);
+    }
+    let table = made(drafts, fill_of(state, of.0, of.1)?, fill, width);
+    let _new = drafts.made.insert(node, table);
+    Some(table)
+}
+
 /// A list of a row's columns, as a fill names them.
 fn column_list(columns: impl IntoIterator<Item = usize>) -> ColumnList {
     let made = columns
@@ -438,7 +498,7 @@ fn group_count_arm(
         order: None,
     };
     let fill = MadeFill::Group(GroupFill::Count { distinct: None }, input);
-    let table = made(drafts, fill_of(state, step, definition)?, fill, shape.0.len());
+    let table = made_once(state, drafts, (step, definition), fill, shape.0.len())?;
     let key_kinds = shape.0.iter().take(keys.len());
     let per_file = if !keys.is_empty() && key_kinds.clone().all(|kind| *kind == CellKind::File) {
         RowsPerFile::One
@@ -497,7 +557,7 @@ fn as_of_arm(
         order: u16::try_from(usize::from(*right_order)).ok().map(MadeColumn),
     };
     let fill = MadeFill::Ordered(OrderedFill::Sorted(sorted));
-    let table = made(drafts, fill_of(state, step, definition)?, fill, right_shape.0.len());
+    let table = made_once(state, drafts, (step, definition), fill, right_shape.0.len())?;
     for branch in &mut lefts.branches {
         let key = picked(&branch.row, keys.iter().map(|(left_key, _)| *left_key))?;
         let cells = fresh_cells(drafts, &right_shape);

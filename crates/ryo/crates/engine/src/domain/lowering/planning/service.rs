@@ -8,24 +8,32 @@ use crate::domain::lowering::costing::constants::{ANCHORS_TRIED, ESTIMATE_CAP};
 use crate::domain::lowering::costing::service::keyed;
 use crate::domain::lowering::costing::types::{CellState, KeyChoice};
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
-use crate::domain::lowering::flattening::types::{FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile};
+use crate::domain::lowering::flattening::service::pins_of;
+use crate::domain::lowering::flattening::types::{
+    FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile,
+};
 use crate::domain::steps::types::CostClass;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// How a term stands for the variables given so far.
 #[must_use]
-pub(crate) fn state_of(term: FlatTerm, given: &HashSet<FlatVariable>) -> CellState {
+pub(crate) fn state_of(term: FlatTerm, given: &Given<'_>) -> CellState {
     match term {
-        FlatTerm::Variable(variable) if given.contains(&variable) => CellState::Register,
+        FlatTerm::Variable(variable) if given.variables.contains(&variable) => CellState::Register,
+        // A variable an equality holds to a constant names a bucket until something gives it.
+        FlatTerm::Variable(variable) if given.pins.contains_key(&variable) => CellState::Constant,
         FlatTerm::Variable(_) => CellState::Open,
         FlatTerm::Text(_) | FlatTerm::Number(_) => CellState::Constant,
         FlatTerm::File => CellState::File,
     }
 }
 
-/// Whether a term is given: anything but a variable nothing gave yet.
-fn ready(term: FlatTerm, given: &HashSet<FlatVariable>) -> bool {
-    state_of(term, given) != CellState::Open
+/// Whether a term is given: a constant, the file, or a variable some access gave.
+fn ready(term: FlatTerm, given: &Given<'_>) -> bool {
+    match term {
+        FlatTerm::Variable(variable) => given.variables.contains(&variable),
+        FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File => true,
+    }
 }
 
 /// The access of a rows atom now, and whether it may be placed as a keyed access: a source of one row a file is keyed by the
@@ -33,7 +41,7 @@ fn ready(term: FlatTerm, given: &HashSet<FlatVariable>) -> bool {
 fn access(
     drafts: &Drafts,
     atom: &FlatAtom,
-    given: &HashSet<FlatVariable>,
+    given: &Given<'_>,
     enumerated: Enumerated,
 ) -> Option<KeyChoice> {
     let FlatAtom::Rows {
@@ -60,6 +68,8 @@ struct Completion<'a> {
     branch: &'a FlatBranch,
     /// The variables given so far.
     given: HashSet<FlatVariable>,
+    /// The constant each pinned variable of the branch is held to.
+    pins: HashMap<FlatVariable, FlatTerm>,
     /// Which atoms are placed.
     placed: Vec<bool>,
     /// The order so far.
@@ -72,7 +82,23 @@ struct Completion<'a> {
     enumerated: Enumerated,
 }
 
+/// The variables given at a point of a branch's order, with the branch's pins.
+pub(crate) struct Given<'a> {
+    /// The variables some access gave.
+    pub(crate) variables: &'a HashSet<FlatVariable>,
+    /// The constant each pinned variable is held to.
+    pub(crate) pins: &'a HashMap<FlatVariable, FlatTerm>,
+}
+
 impl Completion<'_> {
+    /// What is given now.
+    fn given(&self) -> Given<'_> {
+        Given {
+            variables: &self.given,
+            pins: &self.pins,
+        }
+    }
+
     /// Places an atom: its variables are given from here on, and its rows are visited.
     fn place(&mut self, at: usize, gives: RowEstimate) {
         let Some(atom) = self.branch.atoms.get(at) else {
@@ -110,7 +136,7 @@ impl Completion<'_> {
         self.waiting()
             .find(|(_, atom)| match atom {
                 FlatAtom::Test { left, right, .. } => {
-                    ready(*left, &self.given) && ready(*right, &self.given)
+                    ready(*left, &self.given()) && ready(*right, &self.given())
                 }
                 FlatAtom::Rows { .. } | FlatAtom::Latest { .. } | FlatAtom::Decided { .. } => false,
             })
@@ -125,7 +151,7 @@ impl Completion<'_> {
         self.waiting()
             .find(|(_, atom)| match atom {
                 FlatAtom::Decided { cells, .. } => {
-                    cells.iter().flatten().all(|cell| ready(*cell, &self.given))
+                    cells.iter().flatten().all(|cell| ready(*cell, &self.given()))
                 }
                 FlatAtom::Rows { .. } | FlatAtom::Latest { .. } | FlatAtom::Test { .. } => false,
             })
@@ -136,11 +162,11 @@ impl Completion<'_> {
     fn cheapest(&self, class: CostClass) -> Option<(usize, RowEstimate)> {
         self.waiting()
             .filter_map(|(at, atom)| match atom {
-                FlatAtom::Rows { .. } => access(self.drafts, atom, &self.given, self.enumerated)
+                FlatAtom::Rows { .. } => access(self.drafts, atom, &self.given(), self.enumerated)
                     .filter(|choice| choice.class == class)
                     .map(|choice| (at, choice.rows)),
                 FlatAtom::Latest { key, bound, .. } => {
-                    let given = key.iter().chain([bound]).all(|cell| ready(*cell, &self.given));
+                    let given = key.iter().chain([bound]).all(|cell| ready(*cell, &self.given()));
                     (given && class == CostClass::Fanout).then_some((at, RowEstimate(1)))
                 }
                 FlatAtom::Decided { .. } | FlatAtom::Test { .. } => None,
@@ -161,6 +187,7 @@ fn completed(
         drafts,
         branch,
         given: given.clone(),
+        pins: pins_of(branch),
         placed: vec![false; branch.atoms.len()],
         order: Vec::with_capacity(branch.atoms.len()),
         rows: RowEstimate(1),
@@ -219,12 +246,17 @@ pub(crate) fn planned(
     if role == UnitRole::Pattern {
         return completed(drafts, branch, given, role, None);
     }
+    let pins = pins_of(branch);
+    let start = Given {
+        variables: given,
+        pins: &pins,
+    };
     let mut anchors: Vec<(usize, RowEstimate)> = branch
         .atoms
         .iter()
         .enumerate()
         .filter_map(|(at, atom)| {
-            access(drafts, atom, given, Enumerated::NotYet).map(|choice| (at, choice.rows))
+            access(drafts, atom, &start, Enumerated::NotYet).map(|choice| (at, choice.rows))
         })
         .collect();
     anchors.sort_by_key(|(at, rows)| (*rows, *at));

@@ -25,13 +25,20 @@ use ryo_relations::domain::relations::service::{columns, kind};
 use ryo_relations::domain::relations::types::{CellKind, FactForm, KindBits, NodeColumn, Relation};
 use std::collections::HashMap;
 
-/// How often each variable is written in a branch: in its atoms and in its row.
+/// How often each variable is written in a branch: in its atoms, and in the columns of its row its unit gives (every
+/// column, or the ones named). A variable written once is read by nothing: its cell is never read.
 #[must_use]
-pub(crate) fn uses_of(branch: &FlatBranch) -> HashMap<FlatVariable, usize> {
+pub(crate) fn uses_of(
+    branch: &FlatBranch,
+    given: Option<&ColumnMask>,
+) -> HashMap<FlatVariable, usize> {
     let mut uses: HashMap<FlatVariable, usize> = HashMap::new();
-    let row = branch.row.iter().filter_map(|term| match term {
-        FlatTerm::Variable(variable) => Some(*variable),
-        FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File => None,
+    let wanted = |place: usize| {
+        given.is_none_or(|mask| mask.0.iter().any(|column| usize::from(column.0) == place))
+    };
+    let row = branch.row.iter().enumerate().filter_map(|(place, term)| match term {
+        FlatTerm::Variable(variable) if wanted(place) => Some(*variable),
+        FlatTerm::Variable(_) | FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File => None,
     });
     for variable in branch.atoms.iter().flat_map(variables).chain(row) {
         let count = uses.entry(variable).or_default();
@@ -40,28 +47,93 @@ pub(crate) fn uses_of(branch: &FlatBranch) -> HashMap<FlatVariable, usize> {
     uses
 }
 
-/// The operand of a term: a given variable's register, a constant's word, the file. None for a variable nothing gave.
-#[must_use]
-pub(crate) fn operand(environment: &Environment, term: FlatTerm) -> Option<StepOperand> {
-    Some(match term {
-        FlatTerm::Variable(variable) => {
-            StepOperand::Register(*environment.registers.get(&variable)?)
-        }
-        FlatTerm::Text(number) => StepOperand::Word(text_word(number)),
-        FlatTerm::Number(number) => StepOperand::Word(CellWord(number.0.cast_unsigned())),
-        FlatTerm::File => StepOperand::File,
-    })
+/// The word of a constant term; none for a variable and for the file.
+fn constant_word(term: FlatTerm) -> Option<CellWord> {
+    match term {
+        FlatTerm::Text(number) => Some(text_word(number)),
+        FlatTerm::Number(number) => Some(CellWord(number.0.cast_unsigned())),
+        FlatTerm::Variable(_) | FlatTerm::File => None,
+    }
 }
 
-/// How a cell stands in an environment.
+/// The operand of a term: a given variable's register, or its constant when an access was keyed by its pin; a constant's
+/// word; the file. None for a variable nothing gave.
+#[must_use]
+pub(crate) fn operand(environment: &Environment, term: FlatTerm) -> Option<StepOperand> {
+    match term {
+        FlatTerm::Variable(variable) => match environment.registers.get(&variable) {
+            Some(register) => Some(StepOperand::Register(*register)),
+            None if environment.keyed.contains_key(&variable) => {
+                let pin = *environment.pins.get(&variable)?;
+                constant_word(pin).map(StepOperand::Word)
+            }
+            None => None,
+        },
+        FlatTerm::Text(_) | FlatTerm::Number(_) => constant_word(term).map(StepOperand::Word),
+        FlatTerm::File => Some(StepOperand::File),
+    }
+}
+
+/// How a cell stands in an environment: a variable something gave is a register's value; a variable nothing gave is a
+/// constant when an equality pins it, and open otherwise.
 fn state_of(environment: &Environment, term: FlatTerm) -> CellState {
     match term {
-        FlatTerm::Variable(variable) if environment.registers.contains_key(&variable) => {
+        FlatTerm::Variable(variable)
+            if environment.registers.contains_key(&variable)
+                || environment.keyed.contains_key(&variable) =>
+        {
             CellState::Register
+        }
+        FlatTerm::Variable(variable) if environment.pins.contains_key(&variable) => {
+            CellState::Constant
         }
         FlatTerm::Variable(_) => CellState::Open,
         FlatTerm::Text(_) | FlatTerm::Number(_) => CellState::Constant,
         FlatTerm::File => CellState::File,
+    }
+}
+
+/// The value a key takes for a cell. A given variable is a register's value: one an access was keyed by as a constant is
+/// put in a register first (a `Let` in a program, a read of the row it was keyed in for a pipeline), so that a key of the
+/// plan is a key of the access. A pinned variable nothing gave is its constant: the bucket a unit starts from.
+fn key_value(emitter: &mut Emitter<'_>, term: FlatTerm) -> Option<StepOperand> {
+    let FlatTerm::Variable(variable) = term else {
+        return operand(&emitter.environment, term);
+    };
+    if let Some(register) = emitter.environment.registers.get(&variable) {
+        return Some(StepOperand::Register(*register));
+    }
+    let word = constant_word(*emitter.environment.pins.get(&variable)?)?;
+    let Some(place) = emitter.environment.keyed.get(&variable).copied() else {
+        return Some(StepOperand::Word(word));
+    };
+    let written = match (emitter.role, place) {
+        (UnitRole::Branch | UnitRole::Pattern, _) => {
+            let out = fresh_register(emitter.drafts);
+            emitter.written.push(Emitted::Let {
+                from: StepOperand::Word(word),
+                out,
+            });
+            Some(out)
+        }
+        (UnitRole::Pipeline, Some(cell)) => {
+            let out = fresh_register(emitter.drafts);
+            emitter.written.push(Emitted::Read {
+                source: cell.source,
+                column: cell.column,
+                row: cell.row,
+                out,
+            });
+            Some(out)
+        }
+        (UnitRole::Pipeline, None) => None,
+    };
+    match written {
+        Some(out) => {
+            let _new = emitter.environment.registers.insert(variable, out);
+            Some(StepOperand::Register(out))
+        }
+        None => Some(StepOperand::Word(word)),
     }
 }
 
@@ -146,7 +218,8 @@ fn cells_read(
         };
         match (*cell, state_of(&emitter.environment, *cell)) {
             (_, CellState::File) => {}
-            (FlatTerm::Variable(variable), CellState::Open) => {
+            // A variable nothing gave takes the row's cell, when something else reads it: a pin of it is tested after.
+            (FlatTerm::Variable(variable), CellState::Open | CellState::Constant) => {
                 if emitter.uses.get(&variable).copied().unwrap_or(0) >= 2 {
                     let out = cell_register(emitter, rows, column, row);
                     let _new = emitter.environment.registers.insert(variable, out);
@@ -217,9 +290,20 @@ fn used(emitter: &mut Emitter<'_>, definition: DefinitionId, cells: &[FlatTerm],
         let Ok(column) = u16::try_from(place).map(MadeColumn) else {
             continue;
         };
-        match (*cell, state_of(&emitter.environment, *cell)) {
-            (_, CellState::File) => {}
-            (FlatTerm::Variable(variable), CellState::Open) => {
+        let state = state_of(&emitter.environment, *cell);
+        match (*cell, state, key.contains(&place)) {
+            (_, CellState::File, _) => {}
+            // A bound cell: a given variable's value, or the constant a pin holds the cell to.
+            (given, CellState::Register | CellState::Constant, true) => {
+                if let Some(value) = key_value(emitter, given) {
+                    bound.push(column);
+                    values.push(value);
+                    if let (FlatTerm::Variable(variable), CellState::Constant) = (given, state) {
+                        let _new = emitter.environment.keyed.insert(variable, None);
+                    }
+                }
+            }
+            (FlatTerm::Variable(variable), CellState::Open | CellState::Constant, _) => {
                 if emitter.uses.get(&variable).copied().unwrap_or(0) >= 2 {
                     let out = fresh_register(emitter.drafts);
                     collected.push(column);
@@ -227,15 +311,9 @@ fn used(emitter: &mut Emitter<'_>, definition: DefinitionId, cells: &[FlatTerm],
                     let _new = emitter.environment.registers.insert(variable, out);
                 }
             }
-            (given, CellState::Register | CellState::Constant | CellState::Open) => {
-                let Some(value) = operand(&emitter.environment, given) else {
-                    continue;
-                };
-                if key.contains(&place) {
-                    bound.push(column);
-                    values.push(value);
-                } else {
-                    // A variable the use itself gave in an earlier cell: this cell is collected and tested.
+            (given, CellState::Register | CellState::Constant | CellState::Open, _) => {
+                // A variable the use itself gave in an earlier cell: this cell is collected and tested.
+                if let Some(value) = operand(&emitter.environment, given) {
                     let out = fresh_register(emitter.drafts);
                     collected.push(column);
                     outputs.push(out);
@@ -319,16 +397,26 @@ fn rows_read(
             values.push(StepOperand::Register(file));
         }
     }
+    let mut pinned = Vec::new();
     for place in &choice.cells {
         let (Some(column), Some(cell)) = (read_column(source, *place), cells.get(*place)) else {
             continue;
         };
-        let Some(value) = operand(&emitter.environment, *cell) else {
+        let state = states.get(*place).copied();
+        let Some(value) = key_value(emitter, *cell) else {
             continue;
         };
-        if let (ReadColumn::Node(NodeColumn::Kind), AtomRows::Relation(relation)) = (column, source)
-        {
-            kinds = anchor_kinds(emitter, relation, *cell);
+        if let (FlatTerm::Variable(variable), Some(CellState::Constant)) = (*cell, state) {
+            pinned.push((variable, column));
+            if let (ReadColumn::Node(NodeColumn::Kind), AtomRows::Relation(relation)) =
+                (column, source)
+            {
+                kinds = emitter
+                    .environment
+                    .pins
+                    .get(&variable)
+                    .and_then(|pin| anchor_kinds(emitter, relation, *pin));
+            }
         }
         listed.push(column);
         values.push(value);
@@ -348,6 +436,15 @@ fn rows_read(
         kinds,
         out,
     });
+    // A pinned variable the access was keyed by is given from here on: as its constant, and by the row's own cell.
+    for (variable, column) in pinned {
+        let cell = FileCell {
+            source: source_of(source),
+            column,
+            row: out,
+        };
+        let _new = emitter.environment.keyed.insert(variable, Some(cell));
+    }
     file_noted(emitter, source, out);
     cells_read(emitter, source, cells, &choice.cells, out);
 }
@@ -427,6 +524,13 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             cells,
         } => decided(emitter, *polarity, *definition, cells),
         FlatAtom::Test { test, left, right } => {
+            // A pin an access was keyed by holds already.
+            if let (TestOperation::Equal, FlatTerm::Variable(variable)) = (test, left)
+                && !emitter.environment.registers.contains_key(variable)
+                && emitter.environment.keyed.contains_key(variable)
+            {
+                return;
+            }
             let (Some(left), Some(right)) = (
                 operand(&emitter.environment, *left),
                 operand(&emitter.environment, *right),

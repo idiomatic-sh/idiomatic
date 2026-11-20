@@ -2,6 +2,8 @@
 //! text). Each is the smallest plan of its shape; the lowering's track makes each faithful to the shape it names. The plan of
 //! each operation's growth case is in `growth`.
 
+#[cfg(test)]
+pub(crate) mod described;
 pub mod growth;
 mod parts;
 pub mod pending;

@@ -3,9 +3,12 @@
 //! read being one definition for the pack; each rule's branches and each pattern asked of a definition are planned and
 //! written once; and the pack is proved before it is answered. No rule is refused for what it costs or for how large it is.
 
+use super::costing::constants::GROUP_ROWS;
 use super::costing::service::branches_rows;
 use super::definitions::service::{defined, use_branch};
-use super::definitions::types::{DefinitionDraft, Drafts, Flattened, WaitingPattern};
+use super::definitions::types::{
+    DefinitionDraft, Drafts, Flattened, RowEstimate, WaitingPattern,
+};
 use super::emptiness::service::copied;
 use super::flattening::types::{FlatBranch, FlatTerm, FlatVariable};
 use super::nodes::service::{digest_of, stored};
@@ -32,8 +35,8 @@ use crate::domain::lowered::types::{
 };
 use crate::domain::statistics::types::Statistics;
 use crate::domain::steps::types::{
-    ColumnMask, DefinitionId, EmitTarget, MadeTableId, ReadColumn, RegisterCount, RegisterList,
-    StepProgram,
+    ColumnMask, DefinitionId, EmitTarget, MadeTableId, Polarity, ProgramStep, ReadColumn,
+    RegisterCount, RegisterList, StepBody, StepProgram, StepRows,
 };
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::{RepeatedRows, StepId};
@@ -284,6 +287,98 @@ fn assembled(drafts: Drafts, rules: Vec<LoweredRule>) -> LoweredPack {
     }
 }
 
+/// The tables a rule's branch cannot give a row without: each table it reads rows of, by a made table's rows, by a
+/// definition's rows whole, or by a use in table form that asks for a row.
+fn tables_needed(pack: &LoweredPack, program: &StepProgram) -> Vec<MadeTableId> {
+    let of_definition = |definition: DefinitionId| {
+        let place = usize::try_from(definition.0).unwrap_or(usize::MAX);
+        let patterns = pack.definitions.get(place).map(|definition| &definition.patterns);
+        patterns.into_iter().flatten()
+    };
+    let used = |body: &StepBody| match body {
+        StepBody::Definition {
+            definition,
+            bound,
+            collected,
+            ..
+        } => of_definition(*definition)
+            .find(|pattern| pattern.bound == *bound && pattern.collected == *collected)
+            .and_then(|pattern| match pattern.form {
+                PatternForm::Table(table) => Some(table),
+                PatternForm::Call(_) => None,
+            }),
+        StepBody::Inline(_) => None,
+    };
+    let read = |source: &StepRows| match source {
+        StepRows::Made(table) => Some(*table),
+        StepRows::Definition(definition) => {
+            of_definition(*definition).find_map(|pattern| match pattern.form {
+                PatternForm::Table(table) => Some(table),
+                PatternForm::Call(_) => None,
+            })
+        }
+        StepRows::Node(_) | StepRows::Filled(_) | StepRows::Written(_) => None,
+    };
+    let mut needed = Vec::new();
+    for placed in &program.0 {
+        let table = match &placed.step {
+            ProgramStep::EachRow { source, .. } | ProgramStep::EachMatch { source, .. } => {
+                read(source)
+            }
+            ProgramStep::Latest { table, .. } => Some(*table),
+            ProgramStep::Or { bodies, .. } => bodies.iter().find_map(used),
+            ProgramStep::Exists {
+                polarity: Polarity::Present,
+                body,
+                ..
+            } => used(body),
+            ProgramStep::Exists { .. }
+            | ProgramStep::EachKind { .. }
+            | ProgramStep::EachRange { .. }
+            | ProgramStep::Children { .. }
+            | ProgramStep::Axis { .. }
+            | ProgramStep::Within { .. }
+            | ProgramStep::Nearest { .. }
+            | ProgramStep::Closure { .. }
+            | ProgramStep::Read { .. }
+            | ProgramStep::Test { .. }
+            | ProgramStep::Call { .. }
+            | ProgramStep::Render { .. }
+            | ProgramStep::Let { .. }
+            | ProgramStep::Fork { .. }
+            | ProgramStep::Yield { .. }
+            | ProgramStep::Emit { .. } => None,
+        };
+        needed.extend(table.filter(|table| !needed.contains(table)));
+    }
+    needed
+}
+
+/// Gives each rule's branch its whole need: the formula of its rows, then each table it cannot give a row without, the
+/// smallest estimate first. The order is fixed at load: a part that needs no table is decided before any table is made, and
+/// no decision depends on what another rule built.
+fn needs_added(pack: &mut LoweredPack, rows: &[RowEstimate]) {
+    let estimate = |table: &MadeTableId| {
+        let place = usize::try_from(table.0).unwrap_or(usize::MAX);
+        (rows.get(place).copied().unwrap_or_default(), *table)
+    };
+    let mut needs: Vec<Vec<MadeTableId>> = Vec::new();
+    for branch in pack.rules.iter().flat_map(|rule| &rule.branches) {
+        let mut tables = tables_needed(pack, &branch.program);
+        tables.sort_by_key(estimate);
+        needs.push(tables);
+    }
+    let branches = pack.rules.iter_mut().flat_map(|rule| &mut rule.branches);
+    for (branch, tables) in branches.zip(needs) {
+        if tables.is_empty() {
+            continue;
+        }
+        let formula = std::mem::take(&mut branch.emptiness);
+        let parts = std::iter::once(formula).chain(tables.into_iter().map(Emptiness::Table));
+        branch.emptiness = Emptiness::All(parts.collect());
+    }
+}
+
 /// The rule a fault of the proof belongs to, with its refusal: the rule itself, or the rule its unit was lowered from.
 fn fault_refused(drafts_homes: &(Vec<NodeHome>, Vec<NodeHome>), rules: &[RuleNodes<'_>], unproved: Unproved) -> Refused {
     let at = |homes: &[NodeHome], number: u32| {
@@ -356,7 +451,18 @@ fn built(
         drafts.definitions.iter().map(|draft| draft.home).collect(),
         drafts.table_homes.clone(),
     );
-    let pack = assembled(drafts, lowered);
+    // What each table is taken to hold: a definition's own estimate for the table of its rows, a group's for any other.
+    let mut table_rows = vec![GROUP_ROWS; drafts.tables.len()];
+    for definition in &drafts.definitions {
+        let slot = definition
+            .table
+            .and_then(|table| table_rows.get_mut(usize::try_from(table.0).unwrap_or(usize::MAX)));
+        if let Some(slot) = slot {
+            *slot = definition.rows;
+        }
+    }
+    let mut pack = assembled(drafts, lowered);
+    needs_added(&mut pack, &table_rows);
     proved(&pack, &products).map_err(|unproved| fault_refused(&homes, rules, unproved))?;
     Ok(pack)
 }

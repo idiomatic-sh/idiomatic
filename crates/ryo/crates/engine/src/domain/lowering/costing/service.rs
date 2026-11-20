@@ -8,6 +8,7 @@ use super::constants::{
 use super::types::{CellState, KeyChoice};
 use crate::domain::lowering::definitions::service::draft;
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
+use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
 };
@@ -140,6 +141,7 @@ pub(crate) fn keyed(
 /// source gives one row.
 #[must_use]
 pub(crate) fn branch_rows(drafts: &Drafts, branch: &FlatBranch) -> RowEstimate {
+    let pins = pins_of(branch);
     let mut least = ESTIMATE_CAP;
     let mut any = false;
     for atom in &branch.atoms {
@@ -152,6 +154,9 @@ pub(crate) fn branch_rows(drafts: &Drafts, branch: &FlatBranch) -> RowEstimate {
             let states: Vec<CellState> = cells
                 .iter()
                 .map(|cell| match cell {
+                    FlatTerm::Variable(variable) if pins.contains_key(variable) => {
+                        CellState::Constant
+                    }
                     FlatTerm::Variable(_) => CellState::Open,
                     FlatTerm::Text(_) | FlatTerm::Number(_) => CellState::Constant,
                     FlatTerm::File => CellState::File,

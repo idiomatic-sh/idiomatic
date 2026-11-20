@@ -72,6 +72,8 @@ pub(crate) struct Drafts {
     pub(crate) defined: HashMap<NodeDigest, DefinitionId>,
     /// The made tables, by number.
     pub(crate) tables: Vec<MadeTable>,
+    /// The made table of each merged plan node that makes one: one table a node, whoever reads it.
+    pub(crate) made: HashMap<NodeDigest, MadeTableId>,
     /// Where each made table was lowered from, by table.
     pub(crate) table_homes: Vec<NodeHome>,
     /// The patterns asked and not yet placed.

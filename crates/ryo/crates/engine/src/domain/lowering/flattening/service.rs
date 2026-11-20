@@ -49,17 +49,42 @@ fn found(classes: &HashMap<FlatVariable, FlatTerm>, term: FlatTerm) -> FlatTerm 
     at
 }
 
+/// The constant each pinned variable of a branch is held to: the equalities of a variable and a constant among its tests.
+#[must_use]
+pub(crate) fn pins_of(branch: &FlatBranch) -> HashMap<FlatVariable, FlatTerm> {
+    let pins = branch.atoms.iter().filter_map(|atom| match atom {
+        FlatAtom::Test {
+            test: TestOperation::Equal,
+            left: FlatTerm::Variable(variable),
+            right: right @ (FlatTerm::Text(_) | FlatTerm::Number(_)),
+        } => Some((*variable, *right)),
+        FlatAtom::Test { .. }
+        | FlatAtom::Rows { .. }
+        | FlatAtom::Latest { .. }
+        | FlatAtom::Decided { .. } => None,
+    });
+    pins.collect()
+}
+
 /// The branch with each pair of terms made equal: every pair goes into one union-find over the branch's terms, then the
-/// branch is rewritten once. None when two different constants would be equal: the branch holds of no row.
+/// branch is rewritten once. A class keeps its variable: a constant it is equal to is one test of it (a pin), so a key of
+/// the plan stays a key when one side of it is a constant. None when the branch then holds of no row: two different
+/// constants equal, or a constant equal to the file.
 #[must_use]
 pub(crate) fn unified(mut branch: FlatBranch, pairs: &[(FlatTerm, FlatTerm)]) -> Option<FlatBranch> {
     let mut classes: HashMap<FlatVariable, FlatTerm> = HashMap::new();
+    let mut pinned: Vec<(FlatVariable, FlatTerm)> = Vec::new();
     for (left, right) in pairs {
         let (left, right) = (found(&classes, *left), found(&classes, *right));
         match (left, right) {
             _ if left == right => {}
-            (FlatTerm::Variable(variable), other) | (other, FlatTerm::Variable(variable)) => {
+            (FlatTerm::Variable(variable), other @ (FlatTerm::Variable(_) | FlatTerm::File))
+            | (other @ FlatTerm::File, FlatTerm::Variable(variable)) => {
                 let _old = classes.insert(variable, other);
+            }
+            (FlatTerm::Variable(variable), constant @ (FlatTerm::Text(_) | FlatTerm::Number(_)))
+            | (constant @ (FlatTerm::Text(_) | FlatTerm::Number(_)), FlatTerm::Variable(variable)) => {
+                pinned.push((variable, constant));
             }
             (
                 FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File,
@@ -67,15 +92,51 @@ pub(crate) fn unified(mut branch: FlatBranch, pairs: &[(FlatTerm, FlatTerm)]) ->
             ) => return None,
         }
     }
-    if classes.is_empty() {
-        return Some(branch);
+    if !classes.is_empty() {
+        for atom in &mut branch.atoms {
+            each_term(atom, &mut |term| *term = found(&classes, *term));
+        }
+        for term in &mut branch.row {
+            *term = found(&classes, *term);
+        }
     }
-    for atom in &mut branch.atoms {
-        each_term(atom, &mut |term| *term = found(&classes, *term));
+    for (variable, constant) in pinned {
+        match found(&classes, FlatTerm::Variable(variable)) {
+            FlatTerm::Variable(left) => branch.atoms.push(FlatAtom::Test {
+                test: TestOperation::Equal,
+                left: FlatTerm::Variable(left),
+                right: constant,
+            }),
+            FlatTerm::File | FlatTerm::Text(_) | FlatTerm::Number(_) => return None,
+        }
     }
-    for term in &mut branch.row {
-        *term = found(&classes, *term);
+    // One pin a variable: the same pin written twice is one, and two constants for one variable hold of no row. A pin
+    // whose two sides the rewrite made constants is decided here.
+    let mut pins: HashMap<FlatVariable, FlatTerm> = HashMap::new();
+    let mut kept = Vec::with_capacity(branch.atoms.len());
+    for atom in branch.atoms {
+        match atom {
+            FlatAtom::Test {
+                test: TestOperation::Equal,
+                left: FlatTerm::Variable(variable),
+                right: right @ (FlatTerm::Text(_) | FlatTerm::Number(_)),
+            } => match pins.insert(variable, right) {
+                Some(first) if first != right => return None,
+                Some(_) => {}
+                None => kept.push(atom),
+            },
+            FlatAtom::Test {
+                test: TestOperation::Equal,
+                left: FlatTerm::File,
+                right: FlatTerm::Text(_) | FlatTerm::Number(_),
+            } => return None,
+            FlatAtom::Test { .. }
+            | FlatAtom::Rows { .. }
+            | FlatAtom::Latest { .. }
+            | FlatAtom::Decided { .. } => kept.push(atom),
+        }
     }
+    branch.atoms = kept;
     Some(branch)
 }
 

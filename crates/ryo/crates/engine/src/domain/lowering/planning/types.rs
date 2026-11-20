@@ -104,12 +104,13 @@ pub(crate) enum Emitted {
     },
 }
 
-/// A file column of a row already read: where a pipeline reads the file's own cell from when a key needs it in a register.
+/// A cell of a row already read: where a pipeline reads the file's own cell, or a pinned variable's, from when a key needs it
+/// in a register.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct FileCell {
     /// The row's source.
     pub(crate) source: StepRows,
-    /// Its file column.
+    /// The cell's column.
     pub(crate) column: ReadColumn,
     /// The row's handle.
     pub(crate) row: Register,
@@ -125,11 +126,16 @@ pub(crate) enum Enumerated {
     Already,
 }
 
-/// What is known while a branch is written: the register of each variable given so far.
+/// What is known while a branch is written: the register of each variable given so far, and the pinned variables an access
+/// was keyed by, each with the row its cell can be read from when a later key needs it in a register.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Environment {
-    /// The register of each bound variable.
+    /// The register of each variable some access gave.
     pub(crate) registers: HashMap<FlatVariable, Register>,
+    /// The constant each pinned variable of the branch is held to.
+    pub(crate) pins: HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
+    /// The pinned variables an access was keyed by: given, as their constant; with the cell of the row found, when there is one.
+    pub(crate) keyed: HashMap<FlatVariable, Option<FileCell>>,
     /// A file column already at hand.
     pub(crate) file: Option<FileCell>,
     /// Whether rows were enumerated yet.
