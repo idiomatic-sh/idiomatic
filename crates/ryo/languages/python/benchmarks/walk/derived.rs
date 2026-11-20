@@ -134,6 +134,7 @@ pub(crate) const RELATIONS: &[&str] = &[
     "format-field",
     "brace-format-parse",
     "brace-format-field",
+    "literal-expression-parse",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -2425,6 +2426,65 @@ fn rows_brace_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, parse_rel: Option<usi
     }
 }
 
+// ------------------------------------------------------------------------------------------------ literal-expression-parse
+/// `literal_expression_parsing` + the `ruff_string_annotation` adapter: whether a string literal's value parses as a Python
+/// expression the way a string annotation is read: its string tokens as written, one per line, in parentheses, parsed by the
+/// parser's own string-annotation entry point; memoised per distinct carrier text within the file.
+fn raw_body(token: &str) -> Option<&str> {
+    let b = token.as_bytes();
+    let prefix = usize::from(matches!(b.first(), Some(b'r' | b'R' | b'u' | b'U')));
+    let quoted = token.get(prefix..)?;
+    let quote = *quoted.as_bytes().first()?;
+    if !matches!(quote, b'\'' | b'"') {
+        return None;
+    }
+    let width = if quoted.as_bytes().get(..3).is_some_and(|f| f.iter().all(|x| *x == quote)) { 3 } else { 1 };
+    let end = quoted.len().checked_sub(width)?;
+    if end < width || !quoted.as_bytes().get(end..)?.iter().all(|x| *x == quote) {
+        return None;
+    }
+    quoted.get(width..end)
+}
+
+pub(crate) fn literal_expression(c: &Ctx<'_, '_>, id: u32, carrier: &mut String, memo: &mut crate::sema::FxMap<u64, &'static str>) -> Option<&'static str> {
+    let AnyNodeRef::ExprStringLiteral(s) = c.table.node[id as usize] else { return None };
+    carrier.clear();
+    carrier.push_str("(\n");
+    for part in s.value.iter() {
+        let text = &c.source[part.range.start().to_usize()..part.range.end().to_usize()];
+        if raw_body(text).is_none() {
+            return Some("unavailable");
+        }
+        carrier.push_str(text);
+        carrier.push('\n');
+    }
+    carrier.push(')');
+    let key = crate::sema::hash_text(carrier);
+    if let Some(&o) = memo.get(&key) {
+        return Some(o);
+    }
+    let outcome = match ruff_python_parser::parse_expression(carrier) {
+        Ok(parsed) => match parsed.expr() {
+            Expr::StringLiteral(literal) => {
+                if ruff_python_parser::typing::parse_type_annotation(literal, carrier).is_ok() { "parsed" } else { "malformed" }
+            }
+            _ => "unavailable",
+        },
+        Err(_) => "unavailable",
+    };
+    memo.insert(key, outcome);
+    Some(outcome)
+}
+
+fn rows_literal_expression(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf: &mut String, st: &mut State) {
+    st.carriers.clear();
+    for &id in c.kind(NodeKind::ExprStringLiteral) {
+        if let Some(o) = literal_expression(c, id, buf, &mut st.carriers) {
+            sink.row(rel, &[Cell::Node(id), Cell::Text("python-string-annotation"), Cell::Text(o), Cell::File, c.span(id)]);
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
@@ -2438,6 +2498,7 @@ pub(crate) struct State {
     pub terminals: Terminals,
     pub constant_keys: ConstantKeys,
     pub cfields: Vec<cformat::Field>,
+    pub carriers: crate::sema::FxMap<u64, &'static str>,
 }
 
 pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
@@ -2522,6 +2583,9 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     let (bp, bf) = (want("brace-format-parse"), want("brace-format-field"));
     if bp.is_some() || bf.is_some() {
         rows_brace_format(c, sink, bp, bf, buf);
+    }
+    if let Some(r) = want("literal-expression-parse") {
+        rows_literal_expression(c, sink, r, buf, st);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
