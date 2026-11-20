@@ -19,6 +19,7 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
+mod exec;
 mod nav;
 mod pack;
 mod plan;
@@ -103,6 +104,7 @@ fn main() {
         .map(|f| f.as_str().unwrap().to_owned())
         .collect();
     let threads: usize = std::env::var("WALK_THREADS").ok().and_then(|t| t.parse().ok()).unwrap_or(4);
+    let rss0 = exec::rss().0;
     let t_load = std::time::Instant::now();
     let program = if mode == "rules" || mode == "nav" {
         Some(rules::Program::load(&args[4]))
@@ -111,6 +113,11 @@ fn main() {
     };
     if program.is_some() {
         eprintln!("{{\"program_load_s\":{:.3}}}", t_load.elapsed().as_secs_f64());
+        if std::env::var_os("NAV_MEM").is_some() {
+            // exec: what loading the program added to the resident set
+            let (now, peak) = exec::rss();
+            eprintln!("{{\"rss_after_load\":{now},\"rss_peak_after_load\":{peak},\"rss_before_load\":{rss0}}}");
+        }
     }
     let t_loaded = t_load.elapsed().as_secs_f64();
     let slow_ms: u64 = std::env::var("WALK_SLOW_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(0);

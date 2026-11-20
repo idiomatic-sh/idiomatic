@@ -452,6 +452,13 @@ impl Program {
         let t = Instant::now();
         nav.specialize_all();
         eprintln!("{{\"pack_specialise_s\":{:.3}}}", t.elapsed().as_secs_f64());
+        // exec: the last pass encodes every program into the compact executable form (NAV_COMPACT=0: the instruction trees,
+        // pack version 4, run by the tree interpreter)
+        if !std::env::var("NAV_COMPACT").is_ok_and(|v| v == "0") {
+            let t = Instant::now();
+            crate::exec::encode(nav);
+            eprintln!("{{\"pack_encode_s\":{:.3}}}", t.elapsed().as_secs_f64());
+        }
         crate::pack::write(&v, &p.symbols, p.nav.as_ref().unwrap(), out)
     }
 
@@ -610,6 +617,11 @@ fn span(s: u32, e: u32) -> u64 {
     (u64::from(s) << 32) | u64::from(e)
 }
 
+fn thread_cpu_ns() -> u64 {
+    let t = rustix::time::clock_gettime(rustix::time::ClockId::ThreadCPUTime);
+    t.tv_sec as u64 * 1_000_000_000 + t.tv_nsec as u64
+}
+
 struct Ctx<'a> {
     view: &'a View,
     table: &'a Table<'a>,
@@ -646,11 +658,23 @@ pub(crate) struct State<'p> {
     cache: crate::nav::FileCache,
     pub nc: crate::nav::Counters,
     pub nav_ns: u64,
+    /// exec: thread CPU time from the view's end to the programs' end (facts, model and derived relations included)
+    pub nav_cpu_ns: u64,
     pub tail_ns: u64,
     pub tail_files: u64,
     regs: Vec<u64>,
     outs: Vec<Vec<u64>>,
     model: crate::model::Model,
+    mem: MemProbe,
+}
+
+/// NAV_MEM: the worker's peak live heap (jemalloc's per-thread counters) after a file's programs ran, and what it held then
+#[derive(Default)]
+struct MemProbe {
+    on: bool,
+    peak: u64,
+    at: String,
+    parts: Vec<(String, usize)>,
 }
 
 impl<'p> State<'p> {
@@ -683,11 +707,13 @@ impl<'p> State<'p> {
             cache: crate::nav::FileCache::default(),
             nc: crate::nav::Counters::default(),
             nav_ns: 0,
+            nav_cpu_ns: 0,
             tail_ns: 0,
             tail_files: 0,
             regs: Vec::new(),
             outs: Vec::new(),
             model: crate::model::Model::default(),
+            mem: MemProbe::default(),
         }
     }
 
@@ -707,6 +733,9 @@ impl<'p> State<'p> {
         let nav = program.nav.as_ref().unwrap();
         self.files += 1;
         self.sym.reset_file();
+        if self.files == 1 {
+            self.mem.on = std::env::var_os("NAV_MEM").is_some();
+        }
         let t0 = Instant::now();
         let mut view = std::mem::take(&mut self.view);
         view.build(table, parsed, source, &mut self.sym);
@@ -737,6 +766,11 @@ impl<'p> State<'p> {
         self.cache.key_memo.clear();
         self.cache.union_key_memo.clear();
         self.cache.fact2.clear();
+        let compact = nav.x.on;
+        if compact {
+            self.cache.x.start_file(&nav.x, nav.regexes.len());
+        }
+        let mem_on = self.mem.on;
         let nrules = nav.rules.len();
         let mut outs = std::mem::take(&mut self.outs);
         outs.resize_with(nrules + 1, Vec::new);
@@ -746,6 +780,8 @@ impl<'p> State<'p> {
         let mut regs = std::mem::take(&mut self.regs);
         regs.resize(nav.max_regs.max(1), 0);
         let fact_before = self.nc.fact_ns;
+        // exec: the programs' thread CPU time (the wall clock above counts the time a loaded machine keeps the thread waiting)
+        let cpu1 = thread_cpu_ns();
         let mut aux_rows: Vec<(usize, Vec<(u32, Vec<u8>, Vec<u64>)>)> = Vec::new();
         {
             let f = crate::nav::File { view: &view, table, source, path, file: index, incomplete: !parsed.errors().is_empty(), parsed };
@@ -771,6 +807,7 @@ impl<'p> State<'p> {
                 ex.c.prof = Some(FxMap::default());
             }
             ex.c.diag = ex.c.prof.is_some() || std::env::var_os("NAV_DIAG").is_some();
+            ex.c.optime = ex.c.diag && std::env::var_os("NAV_OPTIME").is_some();
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {
                 ex.c.rule_steps = vec![0; nrules + 1];
@@ -839,7 +876,7 @@ impl<'p> State<'p> {
                 if g.slots.iter().all(|&s| nav.slot_rule[s as usize] == r0) { r0 as usize } else { nrules }
             };
             // batched: each kind-anchored merged program over its whole candidate list (straight-line steps as loops)
-            let batched = std::env::var("NAV_BATCH").is_ok_and(|v| v == "1");
+            let batched = !compact && std::env::var("NAV_BATCH").is_ok_and(|v| v == "1");
             if batched {
                 let mut ids: Vec<u32> = Vec::new();
                 for (gi, g) in nav.groups.iter().enumerate() {
@@ -873,6 +910,24 @@ impl<'p> State<'p> {
                 for i in 0..n {
                     let id = ex.bucket(k)[i];
                     for &(gi, _, _) in list {
+                        if compact {
+                            // exec: the group's compact program from the step after its kind walk
+                            let g = gi as usize;
+                            ex.regs[nav.x.group_out[g] as usize] = u64::from(id);
+                            ex.c.visits += 1;
+                            ex.cur_rule = nav.x.group_rule[g] as usize;
+                            if ex.c.diag {
+                                let s0 = ex.c.steps;
+                                let m0 = ex.c.made_steps_total;
+                                ex.xtop(nav.x.group_entry[g] + 1);
+                                let e = ex.c.branch_steps.entry((gi, 0)).or_default();
+                                e.0 += 1;
+                                e.1 += (ex.c.steps - s0) - (ex.c.made_steps_total - m0);
+                            } else {
+                                ex.xtop(nav.x.group_entry[g] + 1);
+                            }
+                            continue;
+                        }
                         let p: &[crate::nav::Ins] = &nav.groups[gi as usize].prog;
                         if let crate::nav::Ins::IterKind { out, .. } = &p[0] {
                             ex.regs[*out as usize] = u64::from(id);
@@ -889,6 +944,18 @@ impl<'p> State<'p> {
                 }
             }
             for &(gi, _, _) in &other {
+                if compact {
+                    ex.cur_rule = nav.x.group_rule[gi as usize] as usize;
+                    let s0 = ex.c.steps;
+                    let m0 = ex.c.made_steps_total;
+                    ex.xtop(nav.x.group_entry[gi as usize]);
+                    if ex.c.diag {
+                        let e = ex.c.branch_steps.entry((gi, 0)).or_default();
+                        e.0 += 1;
+                        e.1 += (ex.c.steps - s0) - (ex.c.made_steps_total - m0);
+                    }
+                    continue;
+                }
                 let p: &[crate::nav::Ins] = &nav.groups[gi as usize].prog;
                 ex.cur_rule = group_rule(gi);
                 let s0 = ex.c.steps;
@@ -912,7 +979,46 @@ impl<'p> State<'p> {
             outs = ex.outs;
         }
         let t2 = Instant::now();
+        self.nav_cpu_ns += thread_cpu_ns() - cpu1;
         self.nav_ns += (t2 - t1).as_nanos() as u64 - (self.nc.fact_ns - fact_before);
+        if mem_on {
+            // NAV_MEM: what the worker holds after the file's programs ran (capacities of the structures the executor owns;
+            // the parse, the node table, the semantic model and the derived relations' state are not in it)
+            {
+                let facts: usize = self.cache.facts.as_ref().map_or(0, |f| {
+                    f.cols.iter().flatten().map(|c| c.capacity() * 8).sum::<usize>()
+                        + f.idx.values().map(|i| match &**i {
+                            crate::nav::FIdx::Dense { head, next } => (head.capacity() + next.capacity()) * 4,
+                            crate::nav::FIdx::Hash(m) => m.capacity() * 40 + m.values().map(|v| v.capacity() * 4).sum::<usize>(),
+                        }).sum::<usize>()
+                });
+                let v = &view;
+                let view_b = (v.kind.capacity() + v.text.capacity() + v.start.capacity() + v.stop.capacity() + v.parent.capacity() + v.field.capacity() + v.ordinal.capacity() + v.child_off.capacity() + v.children.capacity() + v.lines.capacity()) * 4;
+                let hoisted: usize = self.cache.hoisted.capacity() * 40 + self.cache.hoisted.values().map(|t| 40 + t.capacity() * 8).sum::<usize>();
+                let near: usize = self.cache.near_memo.values().map(|m| m.capacity() * 4).sum();
+                let consts: usize = self.cache.const_by.values().map(|l| 40 + l.capacity() * 4).sum::<usize>() + self.cache.tree_idx.values().map(|t| t.bytes()).sum::<usize>() + self.cache.csr.values().map(|c| c.bytes()).sum::<usize>();
+                let outs_b: usize = outs.iter().map(|o| o.capacity() * 8).sum();
+                let mut parts: Vec<(String, usize)> = vec![
+                    ("view_columns".into(), view_b),
+                    ("fact_columns_and_indexes".into(), facts),
+                    ("tree_indexes_const_lists_csr".into(), consts),
+                    ("hoisted_tuples(tree)".into(), hoisted),
+                    ("node_memos(tree)".into(), near),
+                    ("core_rows".into(), outs_b),
+                ];
+                if compact {
+                    parts.extend(self.cache.x.bytes().into_iter().map(|(n, b)| (format!("x_{n}"), b)));
+                }
+                let total: usize = parts.iter().map(|p| p.1).sum();
+                parts.push(("source_bytes".into(), source.len()));
+                parts.push(("nodes".into(), view.len()));
+                if total as u64 > self.mem.peak {
+                    self.mem.peak = total as u64;
+                    self.mem.at = path.to_owned();
+                    self.mem.parts = parts;
+                }
+            }
+        }
         let ctx = Ctx { view: &view, table, source, file: 0, path };
         self.memo.clear();
         self.scans.clear();
@@ -1144,8 +1250,8 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"batched_steps\":{},\"const_misses\":{},\"csr_builds\":{},\"csr_ns\":{},\"hoist_runs\":{},\"hoist_misses\":{},\"twin_switches\":{},\"made_ns\":{},\"index_ns\":{},\"index_tree_ns\":{},\"index_const_ns\":{},\"index_fact_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
-                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.batched_steps, c.const_misses, c.csr_builds, c.csr_ns, c.hoist_runs, c.hoist_misses, c.twin_switches, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
+                "{{\"nav\":{{\"nav_cpu_ns\":{},\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"batched_steps\":{},\"const_misses\":{},\"csr_builds\":{},\"csr_ns\":{},\"hoist_runs\":{},\"hoist_misses\":{},\"twin_switches\":{},\"made_ns\":{},\"index_ns\":{},\"index_tree_ns\":{},\"index_const_ns\":{},\"index_fact_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
+                self.nav_cpu_ns, self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.batched_steps, c.const_misses, c.csr_builds, c.csr_ns, c.hoist_runs, c.hoist_misses, c.twin_switches, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
                 c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits,
                 crate::nav::INS_NAMES.iter().enumerate().map(|(i, n)| format!("\"{n}\":{}", c.op_steps.get(i).copied().unwrap_or(0))).collect::<Vec<_>>().join(","),
                 {
@@ -1182,6 +1288,38 @@ impl<'p> State<'p> {
             let (sk, sm) = c.key_sites.values().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
             let (hk, hm) = c.hoist_sites.values().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
             eprintln!("{{\"forks\":{{\"children\":{},\"disabled\":{}}}}}", c.fork_children, c.fork_disabled);
+            if self.mem.on {
+                eprintln!(
+                    "{{\"mem\":{{\"peak_held\":{},\"at\":\"{}\",{}}}}}",
+                    self.mem.peak,
+                    self.mem.at,
+                    self.mem.parts.iter().map(|(n, b)| format!("\"{n}\":{b}")).collect::<Vec<_>>().join(",")
+                );
+            }
+            if nav.x.on {
+                let xs = &self.cache.x;
+                let (hk, hm) = xs.hsite.iter().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
+                let (sk, sm) = xs.ksite.iter().fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1));
+                eprintln!("{{\"xmemo\":{{\"key_lookups\":{sk},\"key_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm},\"tuples_peak\":{},\"node_memo_peak\":{}}}}}", xs.tup_peak.max(xs.tup.len()), xs.nm_peak.max(0));
+                if c.diag {
+                    let ops: Vec<String> = (0..crate::exec::NXOPS).filter(|&o| xs.xsteps[o] > 0).map(|o| format!("\"{}\":[{},{}]", crate::exec::xop_name(o), xs.xsteps[o], xs.xns[o])).collect();
+                    eprintln!("{{\"xops\":{{{}}}}}", ops.join(","));
+                    let mut pairs: Vec<(u64, usize, usize)> = Vec::new();
+                    for a in 0..crate::exec::NXOPS {
+                        for b in 0..crate::exec::NXOPS {
+                            let n = xs.xpairs[a * crate::exec::NXOPS + b];
+                            if a != 0 && n > 0 {
+                                pairs.push((n, a, b));
+                            }
+                        }
+                    }
+                    pairs.sort_by(|a, b| b.0.cmp(&a.0));
+                    eprintln!("{{\"xpairs\":[{}]}}", pairs.iter().take(60).map(|(n, a, b)| format!("[\"{}\",\"{}\",{n}]", crate::exec::xop_name(*a), crate::exec::xop_name(*b))).collect::<Vec<_>>().join(","));
+                }
+            } else if c.diag && !c.op_ticks.is_empty() {
+                let ops: Vec<String> = crate::nav::INS_NAMES.iter().enumerate().filter(|(i, _)| c.op_steps.get(*i).copied().unwrap_or(0) > 0).map(|(i, n)| format!("\"{n}\":[{},{}]", c.op_steps[i], c.op_ticks[i])).collect();
+                eprintln!("{{\"xops\":{{{}}}}}", ops.join(","));
+            }
             eprintln!("{{\"memo\":{{\"near_allocs\":{},\"near_cells\":{},\"subkey_lookups\":{sk},\"subkey_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm}}}}}", c.memo_allocs, c.memo_cells);
             if let Some(prof) = &self.nc.prof {
                 if std::env::var_os("NAV_PLAN_STATS").is_some() {

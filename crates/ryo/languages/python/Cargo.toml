@@ -50,6 +50,8 @@ ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/r
 ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../../crates/execution_runtime" }
 # The sema bench's per-stage thread CPU clock (bead ryo-emlr, throwaway).
 rustix = { version = "=1.1.5", features = ["time"] }
+# The exec bench's frame stack (bead ryo-dxw1, throwaway): a fixed-capacity vector on the stack, no initialisation.
+arrayvec = "=0.7.8"
 
 [[test]]
 name = "allocation"

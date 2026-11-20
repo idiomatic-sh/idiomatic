@@ -404,6 +404,8 @@ pub(crate) struct NavProgram {
     pub max_regs: usize,
     /// navwide: whether any relation of the program is served only by the old provider's readers
     pub needs_provider: bool,
+    /// exec: the programs in compact executable form (`x.on`: the run executes these; the instruction trees are then empty)
+    pub x: crate::exec::Compact,
 }
 
 fn trel(name: &str) -> Option<TRel> {
@@ -2274,6 +2276,7 @@ impl NavProgram {
             regex_patterns: patterns,
             max_regs,
             needs_provider,
+            x: crate::exec::Compact::default(),
         };
         me.build_groups();
         me.reshare();
@@ -2680,11 +2683,16 @@ pub(crate) struct Counters {
     pub made_depth: u32,
     /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
     pub diag: bool,
+    /// exec, NAV_OPTIME: ticks per instruction kind (tree interpreter), the last dispatch's tick and kind
+    pub optime: bool,
+    pub op_ticks: Vec<u64>,
+    pub op_last: Option<Instant>,
+    pub op_cur: usize,
 }
 
 impl Counters {
     /// index-build time charged to the rule that demanded it (the outermost build's demander inside a made table)
-    fn charge_index(&mut self, cur: usize, ns: u64) {
+    pub(crate) fn charge_index(&mut self, cur: usize, ns: u64) {
         let r = if self.made_depth > 0 { self.top_rule } else { cur };
         if let Some(x) = self.rule_index_ns.get_mut(r) {
             *x += ns;
@@ -2713,14 +2721,30 @@ pub(crate) struct Csr {
     ids: Vec<u32>,
 }
 
+impl Csr {
+    /// the ids holding one value (exec: constant value walks)
+    pub(crate) fn bucket(&self, v: u32) -> &[u32] {
+        self.at.get(&v).map_or(&[], |&(a, b)| &self.ids[a as usize..b as usize])
+    }
+}
+
 /// A tree relation column's value index: ids sorted by (value, start, id).
 pub(crate) struct TIdx {
     vals: Vec<u32>,
     ids: Vec<u32>,
 }
 
+impl Csr {
+    pub(crate) fn bytes(&self) -> usize {
+        self.at.capacity() * 16 + self.ids.capacity() * 4
+    }
+}
+
 impl TIdx {
-    fn get(&self, v: u32) -> &[u32] {
+    pub(crate) fn bytes(&self) -> usize {
+        (self.vals.capacity() + self.ids.capacity()) * 4
+    }
+    pub(crate) fn get(&self, v: u32) -> &[u32] {
         let a = self.vals.partition_point(|&x| x < v);
         let b = a + self.vals[a..].partition_point(|&x| x == v);
         &self.ids[a..b]
@@ -2803,6 +2827,8 @@ pub(crate) struct FileCache {
     pub other: Vec<(u32, u32, u32)>,
     /// per file: (rule, branch) slot -> may find rows (no kind-anchored alternative has an empty bucket)
     pub enabled: Vec<bool>,
+    /// exec: the compact executor's per-worker state
+    pub x: crate::exec::XState,
 }
 
 pub(crate) struct File<'a> {
@@ -2897,7 +2923,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     /// A tree relation's column at a row (the row is the relation's key id); None when the row does not exist.
-    fn tread(&mut self, rel: TRel, col: u8, id: u32) -> Option<u64> {
+    pub(crate) fn tread(&mut self, rel: TRel, col: u8, id: u32) -> Option<u64> {
         let v = self.f.view;
         let i = id as usize;
         if i >= v.len() {
@@ -2953,7 +2979,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         })
     }
 
-    fn row_exists(&mut self, rel: TRel, id: u32) -> bool {
+    pub(crate) fn row_exists(&mut self, rel: TRel, id: u32) -> bool {
         match rel {
             TRel::Ss | TRel::Sl => (id as usize) < self.f.view.len(),
             TRel::Sc => (id as usize) < self.f.view.len() && self.f.view.parent[id as usize] != u32::MAX,
@@ -2998,7 +3024,7 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     /// A keyed twin's rows for one key value: run its programs with the key register set, group, append; memoised per file.
     #[inline(never)]
-    fn keyed_rows(&mut self, rel: u16, value: u64) -> (u32, u32) {
+    pub(crate) fn keyed_rows(&mut self, rel: u16, value: u64) -> (u32, u32) {
         if let Some(&r) = self.cache.keyed_memo.get(&(rel, value)) {
             return r;
         }
@@ -3106,6 +3132,11 @@ impl<'a, 'p> Exec<'a, 'p> {
         let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
         self.cur_rule = slot;
         self.regs[param as usize] = value;
+        if prog.x.on {
+            for &e in &prog.x.fact_e[rel as usize] {
+                self.xcall(e);
+            }
+        }
         for q in progs {
             self.run_inner(q, 0);
         }
@@ -3223,7 +3254,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// a tree column's ids bucketed by value for base-symbol values (the pack's literals are base symbols): one counting sort
     /// whose cost is the file's size (a reusable count array; only the values present are touched)
     #[inline(never)]
-    fn col_csr(&mut self, rel: TRel, col: u8) -> Rc<Csr> {
+    pub(crate) fn col_csr(&mut self, rel: TRel, col: u8) -> Rc<Csr> {
         if let Some(c) = self.cache.csr.get(&(rel as u8, col)) {
             return c.clone();
         }
@@ -3284,7 +3315,7 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     /// a tree relation's value index: (value, start, id) sorted once per file; a value's ids are a slice in start order
     #[inline(never)]
-    fn tree_index(&mut self, rel: TRel, col: u8) -> Rc<TIdx> {
+    pub(crate) fn tree_index(&mut self, rel: TRel, col: u8) -> Rc<TIdx> {
         let key = (rel as u8, col);
         if let Some(i) = self.cache.tree_idx.get(&key) {
             return i.clone();
@@ -3311,7 +3342,7 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     // ---- facts: the model's relations one at a time on first demand; the provider's readers once per file for the rest
     #[inline(never)]
-    fn ensure(&mut self, rel: u16) {
+    pub(crate) fn ensure(&mut self, rel: u16) {
         if !(self.c.diag && self.c.prof.is_some()) {
             return self.ensure_inner(rel);
         }
@@ -3359,6 +3390,11 @@ impl<'a, 'p> Exec<'a, 'p> {
             let nr = prog.facts[rel as usize].nregs;
             let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
             self.cur_rule = slot;
+            if prog.x.on {
+                for &e in &prog.x.fact_e[rel as usize] {
+                    self.xcall(e);
+                }
+            }
             for q in progs {
                 self.run_inner(q, 0);
             }
@@ -3580,7 +3616,7 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     /// a fact's rows by the values of two columns, one pass per file
     #[inline(never)]
-    fn fact_index2(&mut self, rel: u16, c1: u8, c2: u8) -> Rc<FxMap<(u64, u64), Vec<u32>>> {
+    pub(crate) fn fact_index2(&mut self, rel: u16, c1: u8, c2: u8) -> Rc<FxMap<(u64, u64), Vec<u32>>> {
         self.ensure(rel);
         if let Some(i) = self.cache.fact2.get(&(rel, c1, c2)) {
             return i.clone();
@@ -3603,7 +3639,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     #[inline(never)]
-    fn fact_index(&mut self, rel: u16, col: u8) -> Rc<FIdx> {
+    pub(crate) fn fact_index(&mut self, rel: u16, col: u8) -> Rc<FIdx> {
         self.ensure(rel);
         let n_view = self.f.view.len();
         let dense = matches!(self.prog.facts[rel as usize].kinds[col as usize], ryo_relations::domain::relations::types::CellKind::Node);
@@ -3924,6 +3960,19 @@ impl<'a, 'p> Exec<'a, 'p> {
                     self.c.op_steps.resize(NINS, 0);
                 }
                 self.c.op_steps[p[pc].code()] += 1;
+                if self.c.optime {
+                    // exec: the time since the last dispatch goes to the instruction dispatched then
+                    if self.c.op_ticks.len() < NINS {
+                        self.c.op_ticks.resize(NINS, 0);
+                    }
+                    let t = Instant::now();
+                    let cur = self.c.op_cur;
+                    if let Some(l) = self.c.op_last {
+                        self.c.op_ticks[cur] += (t - l).as_nanos() as u64;
+                    }
+                    self.c.op_last = Some(t);
+                    self.c.op_cur = p[pc].code();
+                }
                 let r = if self.c.made_depth > 0 { self.c.top_rule } else { self.cur_rule } as u32;
                 self.c.cur_site = &p[pc] as *const Ins as usize;
                 if let Some(prof) = self.c.prof.as_mut() {
@@ -4972,9 +5021,14 @@ impl<'a, 'p> Exec<'a, 'p> {
         let prog = self.prog;
         let slot = self.outs.len() - 1;
         let mut out = Vec::new();
-        for (merged, progs, kinds) in &prog.rules[rule].aux {
+        for (ai, (merged, progs, kinds)) in prog.rules[rule].aux.iter().enumerate() {
             let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
             self.cur_rule = slot;
+            if prog.x.on {
+                for &e in &prog.x.aux_e[rule][ai] {
+                    self.xcall(e);
+                }
+            }
             for q in progs {
                 self.run_inner(q, 0);
             }
@@ -5170,9 +5224,12 @@ impl<'a, 'p> Exec<'a, 'p> {
         let slot = self.outs.len() - 1;
         let nr = self.prog.facts[rel as usize].nregs.min(self.regs.len());
         let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
-        let run = |ex: &mut Self, progs: &'p [Prog]| -> Vec<u64> {
+        let run = |ex: &mut Self, progs: &'p [Prog], entries: &'p [u32]| -> Vec<u64> {
             let saved = (ex.cur_rule, std::mem::take(&mut ex.outs[slot]));
             ex.cur_rule = slot;
+            for &e in entries {
+                ex.xcall(e);
+            }
             for q in progs {
                 ex.run_inner(q, 0);
             }
@@ -5180,8 +5237,11 @@ impl<'a, 'p> Exec<'a, 'p> {
             ex.cur_rule = saved.0;
             rows
         };
-        let lrows = run(self, &om.left);
-        let rrows = run(self, &om.right);
+        let prog = self.prog;
+        let none: &'p [u32] = &[];
+        let (le, re) = if prog.x.on { (prog.x.om_e[rel as usize].0.as_slice(), prog.x.om_e[rel as usize].1.as_slice()) } else { (none, none) };
+        let lrows = run(self, &om.left, le);
+        let rrows = run(self, &om.right, re);
         self.regs[..nr].copy_from_slice(&saved_regs);
         let distinct = |rows: &[u64], w: usize| -> Vec<Vec<u64>> {
             let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
@@ -5298,7 +5358,7 @@ fn ordered_dfs(d: &OrderedDfs, roots: &[Vec<u64>], edges: &[Vec<u64>], key: impl
 }
 
 /// RyoQL `capture` (navwide copy of the walk interpreter's): every way the text matches the slot pattern
-fn capture_matches(pattern: &str, whole: &str, tail: &str, slots: &mut Vec<std::ops::Range<usize>>, out: &mut Vec<Vec<std::ops::Range<usize>>>) {
+pub(crate) fn capture_matches(pattern: &str, whole: &str, tail: &str, slots: &mut Vec<std::ops::Range<usize>>, out: &mut Vec<Vec<std::ops::Range<usize>>>) {
     let Some(open) = pattern.find('{') else {
         if pattern == tail {
             out.push(slots.clone());
@@ -5335,13 +5395,13 @@ fn capture_matches(pattern: &str, whole: &str, tail: &str, slots: &mut Vec<std::
 }
 
 #[derive(Clone, Copy)]
-enum Numeric {
+pub(crate) enum Numeric {
     Int(i128),
     Float(f64),
 }
 
 /// canonical signed decimal integers, marked decimal floats, `inf`, `-inf`, `NaN` (no radix, underscore or whitespace)
-fn read_numeric(t: &str) -> Option<Numeric> {
+pub(crate) fn read_numeric(t: &str) -> Option<Numeric> {
     match t {
         "inf" => return Some(Numeric::Float(f64::INFINITY)),
         "-inf" => return Some(Numeric::Float(f64::NEG_INFINITY)),
@@ -5362,7 +5422,7 @@ fn read_numeric(t: &str) -> Option<Numeric> {
     t.parse::<i128>().ok().map(Numeric::Int)
 }
 
-fn numeric_cmp(a: Numeric, b: Numeric) -> Option<std::cmp::Ordering> {
+pub(crate) fn numeric_cmp(a: Numeric, b: Numeric) -> Option<std::cmp::Ordering> {
     match (a, b) {
         (Numeric::Int(x), Numeric::Int(y)) => Some(x.cmp(&y)),
         (Numeric::Int(x), Numeric::Float(y)) => (x as f64).partial_cmp(&y),
@@ -5373,7 +5433,7 @@ fn numeric_cmp(a: Numeric, b: Numeric) -> Option<std::cmp::Ordering> {
 
 /// natural text order (ryoql.md): ASCII digit runs by length then digits unless zero-led (then lexically); Unicode
 /// whitespace separates runs without weight; other scalars compare case-sensitively
-fn natural_compare(left: &str, right: &str) -> std::cmp::Ordering {
+pub(crate) fn natural_compare(left: &str, right: &str) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     let (mut left, mut right) = (left, right);
     loop {

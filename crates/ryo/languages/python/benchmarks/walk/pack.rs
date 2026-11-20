@@ -13,6 +13,8 @@ const MAGIC: u32 = 0x4e41_5650; // "NAVP"
 
 struct Enc {
     w: Vec<u32>,
+    /// exec: the programs are in the compact section; the instruction trees are written empty
+    skip: bool,
 }
 
 impl Enc {
@@ -81,12 +83,18 @@ impl Enc {
         }
     }
     fn prog(&mut self, p: &[Ins]) {
+        if self.skip {
+            return self.u(0);
+        }
         self.u(p.len() as u32);
         for i in p {
             self.ins(i);
         }
     }
     fn progs(&mut self, ps: &[Prog]) {
+        if self.skip {
+            return self.u(0);
+        }
         self.u(ps.len() as u32);
         for p in ps {
             self.prog(p);
@@ -795,7 +803,7 @@ fn tails_expand(t: &Value) -> Value {
 pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -> usize {
     let regex_patterns = &nav.regex_patterns;
     let tails = serde_json::to_string(&tails_dedup(v)).unwrap();
-    let mut e = Enc { w: Vec::new() };
+    let mut e = Enc { w: Vec::new(), skip: nav.x.on };
     // constant pool: base symbols in id order, then regex patterns
     let texts = symbols.base_texts();
     e.u(texts.len() as u32);
@@ -902,6 +910,42 @@ pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -
         e.prog(&g.prog);
     }
     let mut bytes: Vec<u8> = Vec::new();
+    if nav.x.on {
+        // version 5 (exec): [magic, 5, tails length, meta words, compact meta words, instructions, pool words, constants],
+        // the tails JSON (padded to 8 bytes), the meta words, the compact meta words, padding to 8 bytes, then the three
+        // tables as they sit in memory: 16-byte instructions, u32 pool, u64 constants
+        let cm = crate::exec::pack_meta(nav);
+        for x in [MAGIC, 5, tails.len() as u32, e.w.len() as u32, cm.len() as u32, nav.x.code.len() as u32, nav.x.pool.len() as u32, nav.x.k64.len() as u32] {
+            bytes.extend_from_slice(&x.to_le_bytes());
+        }
+        bytes.extend_from_slice(tails.as_bytes());
+        while bytes.len() % 8 != 0 {
+            bytes.push(b' ');
+        }
+        bytes.extend_from_slice(&crate::exec::bytes_of(&e.w));
+        bytes.extend_from_slice(&crate::exec::bytes_of(&cm));
+        while bytes.len() % 8 != 0 {
+            bytes.push(0);
+        }
+        let at = bytes.len();
+        bytes.extend_from_slice(&crate::exec::bytes_of(&nav.x.code));
+        bytes.extend_from_slice(&crate::exec::bytes_of(&nav.x.pool));
+        while bytes.len() % 8 != 0 {
+            bytes.push(0);
+        }
+        bytes.extend_from_slice(&crate::exec::bytes_of(&nav.x.k64));
+        eprintln!(
+            "{{\"pack_sections\":{{\"tails_json\":{},\"meta\":{},\"compact_meta\":{},\"code\":{},\"pool\":{},\"k64\":{},\"tables_at\":{at}}}}}",
+            tails.len(),
+            e.w.len() * 4,
+            cm.len() * 4,
+            nav.x.code.len() * 16,
+            nav.x.pool.len() * 4,
+            nav.x.k64.len() * 8
+        );
+        std::fs::write(out, &bytes).expect("write pack");
+        return bytes.len();
+    }
     for x in [MAGIC, 4, tails.len() as u32, e.w.len() as u32] {
         bytes.extend_from_slice(&x.to_le_bytes());
     }
@@ -918,19 +962,37 @@ pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -
 
 /// Reads a pack: the symbols (every base symbol at its id), the tails in the loader's format, the navigation program.
 pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
-    let bytes = std::fs::read(path).expect("pack");
-    let word = |i: usize| u32::from_le_bytes(bytes[i * 4..i * 4 + 4].try_into().unwrap());
-    assert_eq!(word(0), MAGIC, "pack magic");
-    assert_eq!(word(1), 4, "pack version");
-    let tails_len = word(2) as usize;
-    let nwords = word(3) as usize;
     let t0 = std::time::Instant::now();
-    let tails: Value = serde_json::from_slice(&bytes[16..16 + tails_len]).expect("tails");
+    let mut file = std::fs::File::open(path).expect("pack");
+    let head: Vec<u32> = crate::exec::read_table(&mut file, 4);
+    assert_eq!(head[0], MAGIC, "pack magic");
+    assert!(head[1] == 4 || head[1] == 5, "pack version");
+    let compact = head[1] == 5;
+    let tails_len = head[2] as usize;
+    let nwords = head[3] as usize;
+    // version 5: four more header words (compact meta words, instructions, pool words, constants)
+    let more: Vec<u32> = if compact { crate::exec::read_table(&mut file, 4) } else { Vec::new() };
+    let header = if compact { 32 } else { 16 };
+    let pad = if compact { 8 } else { 4 };
+    let tails: Value = {
+        let tails_bytes: Vec<u8> = crate::exec::read_table(&mut file, (header + tails_len).div_ceil(pad) * pad - header);
+        serde_json::from_slice(&tails_bytes[..tails_len]).expect("tails")
+    };
     let t_tails = t0.elapsed().as_secs_f64();
-    let off = (16 + tails_len).div_ceil(4) * 4;
-    let words: Vec<u32> = bytes[off..off + nwords * 4].chunks_exact(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
-    // the file's bytes are not needed past this point (peak memory: the words and the decoded programs only)
-    drop(bytes);
+    let words: Vec<u32> = crate::exec::read_table(&mut file, nwords);
+    let mut xparts: Option<(Vec<u32>, Vec<crate::exec::XIns>, Vec<u32>, Vec<u64>)> = None;
+    if compact {
+        // the compact program: three tables read as they are (one read each, nothing decoded per instruction)
+        let cm: Vec<u32> = crate::exec::read_table(&mut file, more[0] as usize);
+        let at = 32 + (32 + tails_len).div_ceil(8) * 8 - 32 + (nwords + more[0] as usize) * 4;
+        let _skip: Vec<u8> = crate::exec::read_table(&mut file, at.div_ceil(8) * 8 - at);
+        let code: Vec<crate::exec::XIns> = crate::exec::read_table(&mut file, more[1] as usize);
+        let pool: Vec<u32> = crate::exec::read_table(&mut file, more[2] as usize);
+        let _skip: Vec<u8> = crate::exec::read_table(&mut file, (more[2] as usize * 4).div_ceil(8) * 8 - more[2] as usize * 4);
+        let k64: Vec<u64> = crate::exec::read_table(&mut file, more[3] as usize);
+        xparts = Some((cm, code, pool, k64));
+    }
+    drop(file);
     let mut d = Dec { w: &words, at: 0 };
     let mut symbols = Symbols::default();
     let n = d.u();
@@ -1057,7 +1119,13 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
             regexes.len()
         );
     }
-    let mut nav = NavProgram { groups, slot_of, slot_rule, nslots, rules, shared, facts, regexes, regex_patterns: Vec::new(), max_regs, needs_provider };
+    let mut nav = NavProgram { groups, slot_of, slot_rule, nslots, rules, shared, facts, regexes, regex_patterns: Vec::new(), max_regs, needs_provider, x: crate::exec::Compact::default() };
+    if let Some((cm, code, pool, k64)) = xparts {
+        nav.x.code = code;
+        nav.x.pool = pool;
+        nav.x.k64 = k64;
+        crate::exec::unpack_meta(&mut nav, &cm);
+    }
     // the pack stores the specialised programs (written after specialize_all)
     (symbols, tails, nav)
 }
