@@ -108,7 +108,8 @@ enum Dir {
 
 struct Rule {
     id: String,
-    steps: Vec<Op>,
+    /// shared by Rc across rules for the merged nodes the compiled pack places at the same positions in every rule
+    steps: Vec<std::sync::Arc<Op>>,
     /// per step: kind literal anchors when it is a semantic-syntax select on kind
     anchors: Vec<Option<Vec<u32>>>,
     /// the merged program's node id of each step: equal ids are one evaluation per file, across rules
@@ -452,12 +453,38 @@ impl Program {
     fn build(v: &Value, mut symbols: Symbols, prebuilt: Option<crate::nav::NavProgram>) -> Self {
         let mut rules = Vec::new();
         let mut nav_rules: Vec<&Value> = Vec::new();
+        // compiled pack: merged nodes used by two or more rules sit at the same positions in every rule, built once, shared
+        let mut shared: Vec<u64> = Vec::new();
+        if v.get("nodes").is_some() && !std::env::var("NAV_SHARE_TAILS").is_ok_and(|x| x == "0") {
+            let mut uses: FxMap<u64, u32> = FxMap::default();
+            for r in v["rules"].as_array().unwrap() {
+                let mut ids: Vec<u64> = r["ids"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap()).collect();
+                ids.sort_unstable();
+                ids.dedup();
+                for m in ids {
+                    *uses.entry(m).or_default() += 1;
+                }
+            }
+            shared = uses.into_iter().filter(|&(_, n)| n >= 2).map(|(m, _)| m).collect();
+            shared.sort_unstable();
+        }
+        let shared_set: std::collections::HashSet<u64> = shared.iter().copied().collect();
+        let mut shared_ops: FxMap<u64, (std::sync::Arc<Op>, Option<Vec<u32>>)> = FxMap::default();
         for r in v["rules"].as_array().unwrap() {
             let mut loader = Loader { sym: &mut symbols, pos: FxMap::default(), mpos: FxMap::default() };
+            let mut root_m = None;
             // the compiled pack names each merged node once ("nodes") and lists each rule's merged ids in step order
             let (steps_v, merged): (Vec<&Value>, Vec<u64>) = if let Some(nodes) = v.get("nodes") {
-                let ids: Vec<u64> = r["ids"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap()).collect();
-                for (i, &m) in ids.iter().enumerate().rev() {
+                let ids0: Vec<u64> = r["ids"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap()).collect();
+                root_m = Some(ids0[r["root"].as_u64().unwrap() as usize]);
+                let mut ids: Vec<u64> = shared.clone();
+                let mut seen: std::collections::HashSet<u64> = std::collections::HashSet::new();
+                for &m in &ids0 {
+                    if !shared_set.contains(&m) && seen.insert(m) {
+                        ids.push(m);
+                    }
+                }
+                for (i, &m) in ids.iter().enumerate() {
                     loader.mpos.insert(m, i);
                 }
                 (ids.iter().map(|m| &nodes[m.to_string().as_str()]).collect(), ids)
@@ -471,9 +498,21 @@ impl Program {
             let mut steps = Vec::new();
             let mut anchors = Vec::new();
             let mut failed = None;
-            for s in steps_v {
+            for (k, s) in steps_v.iter().enumerate() {
+                let m = merged[k];
+                if shared_set.contains(&m) {
+                    if let Some((op, a)) = shared_ops.get(&m) {
+                        steps.push(op.clone());
+                        anchors.push(a.clone());
+                        continue;
+                    }
+                }
                 match loader.step(s) {
                     Ok((op, a)) => {
+                        let op = std::sync::Arc::new(op);
+                        if shared_set.contains(&m) {
+                            shared_ops.insert(m, (op.clone(), a.clone()));
+                        }
                         steps.push(op);
                         anchors.push(a);
                     }
@@ -488,7 +527,10 @@ impl Program {
                 eprintln!("skip {id}: {e}");
                 continue;
             }
-            let root = if v.get("nodes").is_some() { r["root"].as_u64().unwrap() as usize } else { loader.pos[&r["root"].as_u64().unwrap()] };
+            let root = match root_m {
+                Some(m) => loader.mpos[&m],
+                None => loader.pos[&r["root"].as_u64().unwrap()],
+            };
             let nodes = merged.iter().map(|&m| m as u32).collect();
             rules.push(Rule { id, steps, anchors, nodes, root, emit_key: Loader::cols(&r["emit_key"]) });
             if r.get("nav").is_some() {
@@ -932,6 +974,7 @@ impl<'p> State<'p> {
     fn rule_may_run(&mut self, rule: &Rule) -> bool {
         self.may.clear();
         for (i, op) in rule.steps.iter().enumerate() {
+            let op: &Op = op;
             let get = |x: &Input, may: &Vec<bool>| match x {
                 Input::Step(p) => may[*p],
                 Input::Rel(RelId::Ee) => false,
@@ -1943,7 +1986,7 @@ impl<'p> State<'p> {
                 }
             }
         };
-        match &rule.steps[p] {
+        match &*rule.steps[p] {
             Op::Select { from, comps, kept } => {
                 let (r, mut all, map) = base(from)?;
                 // comparisons of this select are on its input's columns: only a direct read of the relation keeps them raw
