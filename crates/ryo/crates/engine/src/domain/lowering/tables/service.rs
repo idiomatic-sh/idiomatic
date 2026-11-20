@@ -5,10 +5,14 @@
 use crate::domain::lowering::nodes::service::{digested, input_shape, reached};
 use crate::domain::lowering::nodes::types::{RuleNodes, StepShape};
 use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
-use crate::domain::steps::types::TestOperation;
-use ryo_relations::domain::relations::types::CellKind;
+use crate::domain::lowering::tables::types::TreeAxis;
+use crate::domain::steps::types::{AxisDirection, TestOperation};
+use ryo_relations::domain::catalog::service::{fact_form, node_column};
+use ryo_relations::domain::relations::service::columns;
+use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input, JoinColumn, Operand, PlanComparison, QueryLiteral, Side, StepScope, Test,
+    ColumnIndex, Direction, Input, JoinColumn, Operand, PlanComparison, QueryLiteral, Side,
+    StepScope, Test,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -104,6 +108,37 @@ fn keys_held(left: &StepShape, right: &StepShape, on: (&[ColumnIndex], &[ColumnI
     on.0.len() == on.1.len() && picked(left, on.0).is_some() && picked(right, on.1).is_some()
 }
 
+/// The node relation an axis walks the tree of: its edges are a relation of the node-table form whose parent and child
+/// columns are the node table's parent and element. None for edges a step derives.
+#[must_use]
+pub(crate) fn tree_relation(edges: &Input, parent: ColumnIndex, child: ColumnIndex) -> Option<Relation> {
+    let Input::Relation(relation) = edges else {
+        return None;
+    };
+    let listed = columns(*relation);
+    let column = |place: ColumnIndex| listed.get(usize::from(place)).copied().and_then(node_column);
+    let tree = fact_form(*relation) == FactForm::NodeTable
+        && column(parent) == Some(NodeColumn::Parent)
+        && column(child) == Some(NodeColumn::Id);
+    tree.then_some(*relation)
+}
+
+/// How the lowering walks a plan's axis: along a tree axis, or to the nearest ancestor its domain holds. None for an axis
+/// not lowered yet.
+#[must_use]
+pub(crate) const fn walk_of(direction: Direction) -> Option<TreeAxis> {
+    match direction {
+        Direction::Ancestor => Some(TreeAxis::Along(AxisDirection::Ancestor)),
+        Direction::Descendant => Some(TreeAxis::Along(AxisDirection::Descendant)),
+        Direction::NearestAncestor => Some(TreeAxis::Nearest),
+        Direction::Parent
+        | Direction::Child
+        | Direction::Deep
+        | Direction::PreviousSibling
+        | Direction::NextSibling => None,
+    }
+}
+
 /// What a step's rows look like, from its inputs' shapes; none when the lowering does not evaluate the step. Every operation
 /// is named: the ones in the second half are what is left to lower.
 fn shaped(
@@ -194,9 +229,36 @@ fn shaped(
                 .then(|| joined(&left, &right, output))
                 .flatten()
         }
+        Operation::Axis {
+            from,
+            edges,
+            domain,
+            direction,
+            id,
+            parent,
+            child,
+            domain_id,
+            domain_filter,
+            domain_view,
+            output,
+        } => {
+            let (mut shape, domain) = (of(from)?, of(domain)?);
+            // A walk over edges a step derives, and an axis with a view of its domain or its own answer columns, are not
+            // lowered yet; nor are the axes `walk_of` names none for.
+            let tree = tree_relation(edges, *parent, *child).is_some();
+            let plain = domain_view.is_empty()
+                && output.is_empty()
+                && comparable(rule, &domain, domain_filter)
+                && (domain_filter.is_empty() || walk_of(*direction) != Some(TreeAxis::Nearest));
+            let reached = *domain.0.get(usize::from(*domain_id))?;
+            let _start = shape.0.get(usize::from(*id))?;
+            (tree && plain && walk_of(*direction).is_some()).then(|| {
+                shape.0.push(reached);
+                shape
+            })
+        }
         // What is left to lower, each by name: no arm stands for the rest.
-        Operation::Axis { .. }
-        | Operation::Intersection { .. }
+        Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
         | Operation::GroupBound { .. }

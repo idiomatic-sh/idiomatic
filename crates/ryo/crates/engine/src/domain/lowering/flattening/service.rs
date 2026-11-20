@@ -17,6 +17,10 @@ pub(crate) fn each_term(atom: &mut FlatAtom, visit: &mut impl FnMut(&mut FlatTer
             cells.iter_mut().for_each(visit);
         }
         FlatAtom::Decided { cells, .. } => cells.iter_mut().flatten().for_each(visit),
+        FlatAtom::Walk { start, reached, .. } | FlatAtom::Nearest { start, reached, .. } => {
+            visit(start);
+            visit(reached);
+        }
         FlatAtom::Test { left, right, .. } => {
             visit(left);
             visit(right);
@@ -61,6 +65,8 @@ pub(crate) fn pins_of(branch: &FlatBranch) -> HashMap<FlatVariable, FlatTerm> {
         FlatAtom::Test { .. }
         | FlatAtom::Rows { .. }
         | FlatAtom::Latest { .. }
+        | FlatAtom::Walk { .. }
+        | FlatAtom::Nearest { .. }
         | FlatAtom::Decided { .. } => None,
     });
     pins.collect()
@@ -133,6 +139,8 @@ pub(crate) fn unified(mut branch: FlatBranch, pairs: &[(FlatTerm, FlatTerm)]) ->
             FlatAtom::Test { .. }
             | FlatAtom::Rows { .. }
             | FlatAtom::Latest { .. }
+            | FlatAtom::Walk { .. }
+            | FlatAtom::Nearest { .. }
             | FlatAtom::Decided { .. } => kept.push(atom),
         }
     }

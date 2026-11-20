@@ -17,15 +17,16 @@ use crate::domain::lowering::flattening::types::{
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, readers};
 use crate::domain::lowering::nodes::types::{NodeHome, RuleNodes, StepShape};
 use crate::domain::lowering::tables::fills::service::{MadeOf, made, scanned};
-use crate::domain::lowering::tables::service::test_of;
-use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
+use crate::domain::lowering::tables::service::{test_of, tree_relation, walk_of};
+use crate::domain::lowering::tables::types::{InputWant, RuleFlattening, TreeAxis};
 use crate::domain::steps::types::{
     AnchorKinds, ColumnList, DefinitionId, MadeColumn, MadeTableId, Polarity, TestOperation,
 };
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{CellKind, Integer, KindBits};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input, JoinColumn, Operand, PlanComparison, QueryLiteral, Side, StepId,
+    ColumnIndex, Direction, Input, JoinColumn, Operand, PlanComparison, QueryLiteral, Side,
+    StepId,
 };
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -182,7 +183,10 @@ fn input(
             if let Some(alias) = waiting.and_then(|flattened| aliased(drafts, flattened)) {
                 return Some(alias);
             }
-            let cut = want == InputWant::Defined || shared || waiting.is_some_and(past_bounds);
+            let cut = want == InputWant::Defined
+                || shared
+                || always_defined(state, step)
+                || waiting.is_some_and(past_bounds);
             if cut || drafts.defined.contains_key(&digest) {
                 let definition = step_defined(state, drafts, step)?;
                 Some(use_of(drafts, definition))
@@ -247,6 +251,7 @@ fn sized(state: &RuleFlattening<'_>, drafts: &Drafts, read: Input) -> (usize, us
         Some(flattened)
             if !drafts.defined.contains_key(&digest)
                 && readers(state.store, digest) < 2
+                && !always_defined(state, step)
                 && !past_bounds(flattened) =>
         {
             let atoms = flattened.branches.iter().map(|branch| branch.atoms.len());
@@ -580,6 +585,103 @@ fn as_of_arm(
     })
 }
 
+/// The branches of an axis over a node relation's tree. Along an axis: each start beside each row of the domain, one walk
+/// between the two. To the nearest ancestor: each start with one nearest walk, whose condition is the domain's definition.
+fn axis_arm(
+    state: &mut RuleFlattening<'_>,
+    drafts: &mut Drafts,
+    operation: &Operation,
+) -> Option<Flattened> {
+    let Operation::Axis {
+        from,
+        edges,
+        domain,
+        direction,
+        id,
+        parent,
+        child,
+        domain_id,
+        domain_filter,
+        ..
+    } = operation
+    else {
+        return None;
+    };
+    let relation = tree_relation(edges, *parent, *child)?;
+    let (start, entity) = (usize::from(*id), usize::from(*domain_id));
+    match walk_of(*direction)? {
+        TreeAxis::Nearest => {
+            // The start's rows are a definition: the pattern a pipeline uses for the walk is then keyed by the start.
+            let mut starts = input(state, drafts, *from, InputWant::Defined)?;
+            let held = input(state, drafts, *domain, InputWant::Defined)?;
+            let Emptiness::Definition(definition) = held.emptiness else {
+                return None;
+            };
+            for branch in &mut starts.branches {
+                let reached = FlatTerm::Variable(fresh_variable(drafts));
+                branch.atoms.push(FlatAtom::Nearest {
+                    relation,
+                    domain: definition,
+                    column: MadeColumn(u16::try_from(entity).ok()?),
+                    start: *branch.row.get(start)?,
+                    reached,
+                });
+                branch.row.push(reached);
+            }
+            let parts = vec![starts.emptiness, Emptiness::Unknown, held.emptiness];
+            Some(Flattened {
+                emptiness: derived(operation, parts),
+                ..starts
+            })
+        }
+        TreeAxis::Along(walk) => {
+            let wants = join_wants(sized(state, drafts, *from), sized(state, drafts, *domain));
+            let starts = input(state, drafts, *from, wants.0)?;
+            let mut held = input(state, drafts, *domain, wants.1)?;
+            held.branches = all_selected(state, drafts, held.branches, domain_filter)?;
+            let mut branches = Vec::with_capacity(starts.branches.len() * held.branches.len());
+            for left in &starts.branches {
+                for right in &held.branches {
+                    let mut walked = left.clone();
+                    let reached = *right.row.get(entity)?;
+                    walked.atoms.extend(right.atoms.iter().cloned());
+                    walked.atoms.push(FlatAtom::Walk {
+                        relation,
+                        direction: walk,
+                        start: *left.row.get(start)?,
+                        reached,
+                    });
+                    walked.row.push(reached);
+                    branches.push(walked);
+                }
+            }
+            let mut keyless = starts.keyless;
+            keyless.extend(held.keyless);
+            let parts = vec![starts.emptiness, Emptiness::Unknown, held.emptiness];
+            Some(Flattened {
+                branches,
+                emptiness: derived(operation, parts),
+                keyless,
+            })
+        }
+    }
+}
+
+/// Whether a step is always a definition for its readers: a nearest axis, whose walk a pipeline runs through a pattern of
+/// the step's own definition.
+fn always_defined(state: &RuleFlattening<'_>, step: StepId) -> bool {
+    let operation = rule(state)
+        .and_then(|rule| rule.rule.plan.steps.get(usize::from(step)))
+        .map(|step| &step.operation);
+    matches!(
+        operation,
+        Some(Operation::Axis {
+            direction: Direction::NearestAncestor,
+            ..
+        })
+    )
+}
+
 /// The flattening of one step. None for an operation the lowering does not evaluate: the rule was refused before it came here.
 fn arm(
     state: &mut RuleFlattening<'_>,
@@ -632,9 +734,9 @@ fn arm(
         Operation::Antijoin { .. } => antijoin_arm(state, drafts, operation),
         Operation::GroupCount { .. } => group_count_arm(state, drafts, step, operation),
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
+        Operation::Axis { .. } => axis_arm(state, drafts, operation),
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
-        Operation::Axis { .. }
-        | Operation::Intersection { .. }
+        Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
         | Operation::GroupBound { .. }

@@ -28,3 +28,12 @@ pub(crate) enum InputWant {
     /// One use of the input's definition, whatever its size: the right side of an absence, the rows of a fill.
     Defined,
 }
+
+/// How the lowering walks a plan's axis.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TreeAxis {
+    /// Each element along a tree axis.
+    Along(crate::domain::steps::types::AxisDirection),
+    /// The nearest ancestor the axis's domain holds.
+    Nearest,
+}

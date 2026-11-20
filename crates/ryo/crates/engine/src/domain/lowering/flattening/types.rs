@@ -1,7 +1,9 @@
 //! The types of the `flattening` part of the lowering: a plan step as conjunctive branches of atoms over terms. A branch is
 //! the unit the planning orders and the two emitters write: steps for a program, stages for a table's pipeline.
 
-use crate::domain::steps::types::{DefinitionId, MadeTableId, Polarity, TestOperation};
+use crate::domain::steps::types::{
+    AxisDirection, DefinitionId, MadeColumn, MadeTableId, Polarity, TestOperation,
+};
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
 
@@ -79,6 +81,30 @@ pub(crate) enum FlatAtom {
         definition: DefinitionId,
         /// The cell asked of each column; none: any.
         cells: Vec<Option<FlatTerm>>,
+    },
+    /// One element reached from another along a tree axis of a node relation.
+    Walk {
+        /// The node relation whose tree is walked.
+        relation: Relation,
+        /// The axis, from the start.
+        direction: AxisDirection,
+        /// The element walked from.
+        start: FlatTerm,
+        /// The element reached.
+        reached: FlatTerm,
+    },
+    /// The nearest ancestor of an element that a definition holds in a column: the domain of a nearest axis.
+    Nearest {
+        /// The node relation whose tree is walked.
+        relation: Relation,
+        /// The definition of the domain.
+        domain: DefinitionId,
+        /// The domain's column that holds the element.
+        column: MadeColumn,
+        /// The element walked from.
+        start: FlatTerm,
+        /// The ancestor reached.
+        reached: FlatTerm,
     },
     /// A test of two terms.
     Test {

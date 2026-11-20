@@ -28,11 +28,16 @@ pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> Placement
         CallForm::Scans => return decided(FormChoice::Table),
         CallForm::Keyed => {}
     }
+    match facts.table {
+        // The table's own pipeline runs this definition's programs: a pattern of it that has a program keeps it.
+        TableForm::Calls => return decided(FormChoice::Call),
+        TableForm::Keyed | TableForm::Product => {}
+    }
     if facts.call_patterns >= CALL_PATTERNS {
         return decided(FormChoice::Table);
     }
     match facts.table {
-        TableForm::Product => decided(FormChoice::Call),
+        TableForm::Product | TableForm::Calls => decided(FormChoice::Call),
         TableForm::Keyed => Placement {
             form: match (stage, facts.measured) {
                 (SampleStage::Absent, _)

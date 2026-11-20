@@ -30,6 +30,8 @@ pub(crate) enum TableForm {
     Keyed,
     /// It holds a product stage.
     Product,
+    /// One of its pipelines uses a pattern of the definition itself, in call form: a nearest walk, which no stage runs.
+    Calls,
 }
 
 /// What the placement rule reads of one pattern.

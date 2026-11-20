@@ -4,7 +4,9 @@
 //! and a pattern that would need one anywhere else have no program, and the caller takes the table form.
 
 use super::types::{Enumerated, PlannedBranch, UnitRole};
-use crate::domain::lowering::costing::constants::{ANCHORS_TRIED, ESTIMATE_CAP};
+use crate::domain::lowering::costing::constants::{
+    ANCESTORS, ANCHORS_TRIED, CHILDREN, DESCENDANTS, ESTIMATE_CAP,
+};
 use crate::domain::lowering::costing::service::keyed;
 use crate::domain::lowering::costing::types::{CellState, KeyChoice};
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
@@ -12,7 +14,7 @@ use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{
     FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile,
 };
-use crate::domain::steps::types::CostClass;
+use crate::domain::steps::types::{AxisDirection, CostClass};
 use std::collections::{HashMap, HashSet};
 
 /// How a term stands for the variables given so far.
@@ -109,7 +111,10 @@ impl Completion<'_> {
         }
         self.order.push(at);
         match atom {
-            FlatAtom::Rows { .. } | FlatAtom::Latest { .. } => {
+            FlatAtom::Rows { .. }
+            | FlatAtom::Latest { .. }
+            | FlatAtom::Walk { .. }
+            | FlatAtom::Nearest { .. } => {
                 self.given.extend(crate::domain::lowering::flattening::service::variables(atom));
                 self.enumerated = Enumerated::Already;
                 self.rows = RowEstimate(self.rows.0.saturating_mul(gives.0)).min(ESTIMATE_CAP);
@@ -135,10 +140,17 @@ impl Completion<'_> {
         }
         self.waiting()
             .find(|(_, atom)| match atom {
-                FlatAtom::Test { left, right, .. } => {
-                    ready(*left, &self.given()) && ready(*right, &self.given())
-                }
-                FlatAtom::Rows { .. } | FlatAtom::Latest { .. } | FlatAtom::Decided { .. } => false,
+                // A walk between two given elements is a test of them.
+                FlatAtom::Test { left, right, .. }
+                | FlatAtom::Walk {
+                    start: left,
+                    reached: right,
+                    ..
+                } => ready(*left, &self.given()) && ready(*right, &self.given()),
+                FlatAtom::Rows { .. }
+                | FlatAtom::Latest { .. }
+                | FlatAtom::Nearest { .. }
+                | FlatAtom::Decided { .. } => false,
             })
             .map(|(at, _)| at)
     }
@@ -153,7 +165,11 @@ impl Completion<'_> {
                 FlatAtom::Decided { cells, .. } => {
                     cells.iter().flatten().all(|cell| ready(*cell, &self.given()))
                 }
-                FlatAtom::Rows { .. } | FlatAtom::Latest { .. } | FlatAtom::Test { .. } => false,
+                FlatAtom::Rows { .. }
+                | FlatAtom::Latest { .. }
+                | FlatAtom::Walk { .. }
+                | FlatAtom::Nearest { .. }
+                | FlatAtom::Test { .. } => false,
             })
             .map(|(at, _)| at)
     }
@@ -168,6 +184,31 @@ impl Completion<'_> {
                 FlatAtom::Latest { key, bound, .. } => {
                     let given = key.iter().chain([bound]).all(|cell| ready(*cell, &self.given()));
                     (given && class == CostClass::Fanout).then_some((at, RowEstimate(1)))
+                }
+                // A walk from the one end that is given: what that end reaches along the axis, or against it.
+                FlatAtom::Walk {
+                    direction,
+                    start,
+                    reached,
+                    ..
+                } => {
+                    let ends = (ready(*start, &self.given()), ready(*reached, &self.given()));
+                    let rows = match (ends, direction) {
+                        ((true, false), AxisDirection::Parent) => RowEstimate(1),
+                        ((true, false), AxisDirection::Ancestor)
+                        | ((false, true), AxisDirection::Descendant) => ANCESTORS,
+                        ((true, false), AxisDirection::Descendant)
+                        | ((false, true), AxisDirection::Ancestor | AxisDirection::Parent) => {
+                            DESCENDANTS
+                        }
+                        ((true, false) | (false, true), _) => CHILDREN,
+                        ((true, true) | (false, false), _) => return None,
+                    };
+                    (class == CostClass::Fanout).then_some((at, rows))
+                }
+                FlatAtom::Nearest { start, .. } => {
+                    (ready(*start, &self.given()) && class == CostClass::Fanout)
+                        .then_some((at, RowEstimate(1)))
                 }
                 FlatAtom::Decided { .. } | FlatAtom::Test { .. } => None,
             })

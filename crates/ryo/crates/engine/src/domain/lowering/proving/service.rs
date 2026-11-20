@@ -56,7 +56,7 @@ fn held(step: &ProgramStep) -> (Vec<&StepProgram>, usize) {
             edges, condition, ..
         } => {
             let walked = match edges {
-                NearestEdges::Tree => None,
+                NearestEdges::Tree(_) => None,
                 NearestEdges::Derived { edges, .. } => inline(edges),
             };
             (walked.into_iter().chain(inline(condition)).collect(), of(condition))

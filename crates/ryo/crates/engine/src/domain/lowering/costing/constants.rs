@@ -19,6 +19,10 @@ pub(crate) const KEY_SHARE: u64 = 64;
 pub(crate) const CHILDREN: RowEstimate = RowEstimate(4);
 /// The rows of a relation's own key that holds any number of rows per value.
 pub(crate) const MANY_ROWS: RowEstimate = RowEstimate(2);
+/// The ancestors of one element.
+pub(crate) const ANCESTORS: RowEstimate = RowEstimate(8);
+/// The descendants of one element.
+pub(crate) const DESCENDANTS: RowEstimate = RowEstimate(32);
 /// The anchors tried for a branch that has no given cell: the cheapest of this many.
 pub(crate) const ANCHORS_TRIED: usize = 4;
 /// The greatest estimate: every estimate past it is it.

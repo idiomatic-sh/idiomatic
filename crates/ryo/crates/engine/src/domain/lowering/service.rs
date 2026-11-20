@@ -10,7 +10,7 @@ use super::definitions::types::{
     DefinitionDraft, Drafts, Flattened, RowEstimate, WaitingPattern,
 };
 use super::emptiness::service::copied;
-use super::flattening::types::{FlatBranch, FlatTerm, FlatVariable};
+use super::flattening::types::{FlatAtom, FlatBranch, FlatTerm, FlatVariable};
 use super::nodes::service::{digest_of, stored};
 use super::nodes::types::{NodeHome, NodeStore, RuleNodes};
 use super::placement::service::{measured, placed, sampled};
@@ -93,7 +93,7 @@ fn definition_table(
     let mut pipelines = Vec::with_capacity(branches.len());
     for branch in &branches {
         let written = planned(drafts, branch, &HashSet::new(), UnitRole::Pipeline)
-            .and_then(|plan| pipeline(drafts, sample.kinds, branch, &plan));
+            .and_then(|plan| pipeline(drafts, sample.kinds, branch, &plan, Some(definition)));
         pipelines.push(written.ok_or_else(|| home_refused(home))?);
     }
     let table = MadeTableId(u32::try_from(drafts.tables.len()).unwrap_or(u32::MAX));
@@ -145,7 +145,10 @@ fn pattern_placed(
     let call_patterns = calls
         .filter(|pattern| matches!(pattern.form, Some(PatternForm::Call(_))))
         .count();
-    let table = if draft.keyless.is_empty() {
+    let walks = branches.iter().flat_map(|branch| &branch.atoms);
+    let table = if walks.clone().any(|atom| matches!(atom, FlatAtom::Nearest { .. })) {
+        TableForm::Calls
+    } else if draft.keyless.is_empty() {
         TableForm::Keyed
     } else {
         TableForm::Product
@@ -172,6 +175,7 @@ fn pattern_placed(
     let form = match (placement.form, plans) {
         (FormChoice::Call, Some(plans)) => {
             let columns = PatternColumns {
+                definition: waiting.definition,
                 formals: &formals,
                 bound: &bound,
                 collected: &collected,

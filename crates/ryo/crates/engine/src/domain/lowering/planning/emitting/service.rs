@@ -15,7 +15,8 @@ use crate::domain::lowering::planning::types::{
 };
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
-    AnchorKinds, ColumnList, ColumnMask, CostClass, DefinitionId, MadeColumn, MadeTableId,
+    AnchorKinds, AxisDirection, ColumnList, ColumnMask, CostClass, DefinitionId, MadeColumn,
+    MadeTableId,
     MatchColumns, Polarity, ReadColumn, Register, RegisterList, StepOperand, StepOperands,
     StepRows, TestOperation,
 };
@@ -484,6 +485,141 @@ fn decided(
     });
 }
 
+/// The register of a given term, for a walk: a walk starts from a register.
+fn register_of(emitter: &mut Emitter<'_>, term: FlatTerm) -> Option<Register> {
+    match key_value(emitter, term)? {
+        StepOperand::Register(register) => Some(register),
+        StepOperand::Word(_) | StepOperand::Words(_) | StepOperand::File => None,
+    }
+}
+
+/// Gives a term the cell in `out`: a variable nothing gave takes it; one that was given is tested against it.
+fn given_or_tested(emitter: &mut Emitter<'_>, term: FlatTerm, out: Register) {
+    match (term, operand(&emitter.environment, term)) {
+        (FlatTerm::Variable(variable), None) => {
+            let _new = emitter.environment.registers.insert(variable, out);
+        }
+        (_, Some(right)) => emitter.written.push(Emitted::Test {
+            test: TestOperation::Equal,
+            left: StepOperand::Register(out),
+            right,
+        }),
+        (FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File, None) => {}
+    }
+}
+
+/// The axis that walks an axis back: from what it reaches to what it starts from.
+const fn reversed(direction: AxisDirection) -> Option<AxisDirection> {
+    match direction {
+        AxisDirection::Ancestor => Some(AxisDirection::Descendant),
+        AxisDirection::Descendant => Some(AxisDirection::Ancestor),
+        AxisDirection::NextSibling => Some(AxisDirection::PreviousSibling),
+        AxisDirection::PreviousSibling => Some(AxisDirection::NextSibling),
+        // A parent's children are a walk of their own (`Children`): no axis walks to them.
+        AxisDirection::Parent => None,
+    }
+}
+
+/// A walk along a tree axis. From the end that is given it enumerates the other; between two given elements a program
+/// tests the containment in place, and a pipeline walks from the start and keeps the rows that reach the other.
+fn walked(
+    emitter: &mut Emitter<'_>,
+    relation: Relation,
+    direction: AxisDirection,
+    ends: (FlatTerm, FlatTerm),
+) {
+    let given = |emitter: &Emitter<'_>, term| state_of(&emitter.environment, term) == CellState::Register;
+    let (from_start, from_reached) = (given(emitter, ends.0), given(emitter, ends.1));
+    emitter.environment.enumerated = Enumerated::Already;
+    let contained = match direction {
+        AxisDirection::Ancestor => Some((ends.1, ends.0)),
+        AxisDirection::Descendant => Some((ends.0, ends.1)),
+        AxisDirection::Parent | AxisDirection::NextSibling | AxisDirection::PreviousSibling => None,
+    };
+    if let (true, true, Some((ancestor, descendant)), UnitRole::Branch | UnitRole::Pattern) =
+        (from_start, from_reached, contained, emitter.role)
+    {
+        let registers = (register_of(emitter, ancestor), register_of(emitter, descendant));
+        if let (Some(ancestor), Some(descendant)) = registers {
+            emitter.written.push(Emitted::Within {
+                relation,
+                ancestor,
+                descendant,
+            });
+        }
+        return;
+    }
+    let (walk, from, to) = if from_start {
+        (Some(direction), ends.0, ends.1)
+    } else {
+        (reversed(direction), ends.1, ends.0)
+    };
+    let (Some(walk), Some(start)) = (walk, register_of(emitter, from)) else {
+        return;
+    };
+    let out = fresh_register(emitter.drafts);
+    emitter.written.push(Emitted::Axis {
+        relation,
+        direction: walk,
+        start,
+        out,
+    });
+    given_or_tested(emitter, to, out);
+}
+
+/// A nearest walk. A program runs it in place, the domain's definition asked whether it holds the element under test. A
+/// pipeline holds no walk with a condition: it uses the pattern of its own definition that binds the start and collects
+/// what is reached, whose program is this walk, run once per distinct start.
+fn nearest(
+    emitter: &mut Emitter<'_>,
+    walk: (Relation, DefinitionId, MadeColumn),
+    start: FlatTerm,
+    reached: FlatTerm,
+) {
+    let Some(from) = register_of(emitter, start) else {
+        return;
+    };
+    emitter.environment.enumerated = Enumerated::Already;
+    let out = fresh_register(emitter.drafts);
+    let column_of = |emitter: &Emitter<'_>, term: FlatTerm| {
+        let place = emitter.row.iter().position(|each| *each == term)?;
+        u16::try_from(place).ok().map(MadeColumn)
+    };
+    match (emitter.role, emitter.unit) {
+        (UnitRole::Pipeline, Some(unit)) => {
+            let (Some(bound), Some(collected)) =
+                (column_of(emitter, start), column_of(emitter, reached))
+            else {
+                return;
+            };
+            let (bound, collected) = (ColumnMask([bound].into()), ColumnMask([collected].into()));
+            asked(emitter.drafts, unit, &bound, &collected);
+            emitter.written.push(Emitted::Use {
+                definition: unit,
+                bound,
+                collected,
+                values: StepOperands([StepOperand::Register(from)].into()),
+                outputs: RegisterList([out].into()),
+                mode: UseMode::Rows,
+            });
+        }
+        (UnitRole::Branch | UnitRole::Pattern | UnitRole::Pipeline, _) => {
+            let bound = ColumnMask([walk.2].into());
+            asked(emitter.drafts, walk.1, &bound, &ColumnMask::default());
+            let element = fresh_register(emitter.drafts);
+            emitter.written.push(Emitted::Nearest {
+                relation: walk.0,
+                domain: walk.1,
+                column: walk.2,
+                element,
+                start: from,
+                out,
+            });
+        }
+    }
+    given_or_tested(emitter, reached, out);
+}
+
 /// Writes one atom of a branch.
 pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
     match atom {
@@ -523,6 +659,19 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             definition,
             cells,
         } => decided(emitter, *polarity, *definition, cells),
+        FlatAtom::Walk {
+            relation,
+            direction,
+            start,
+            reached,
+        } => walked(emitter, *relation, *direction, (*start, *reached)),
+        FlatAtom::Nearest {
+            relation,
+            domain,
+            column,
+            start,
+            reached,
+        } => nearest(emitter, (*relation, *domain, *column), *start, *reached),
         FlatAtom::Test { test, left, right } => {
             // A pin an access was keyed by holds already.
             if let (TestOperation::Equal, FlatTerm::Variable(variable)) = (test, left)

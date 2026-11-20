@@ -9,10 +9,11 @@ use crate::domain::lowering::planning::emitting::service::{atom_written, operand
 use crate::domain::lowering::planning::types::{
     Emitted, Emitter, Environment, PlannedBranch, UnitRole,
 };
-use crate::domain::steps::stages::types::{FillStage, Pipeline, PlacedStage, UseMode};
+use crate::domain::steps::stages::types::{FillStage, Pipeline, PlacedStage, TreeWalk, UseMode};
 use crate::domain::steps::types::{
-    ColumnMask, EmitTarget, PlacedStep, Polarity, ProgramStep, Register, RegisterList, StepBody,
-    StepMemo, StepOperand, StepOperands, StepProgram, TestOperation,
+    ColumnMask, DefinitionId, EmitTarget, NearestEdges, PlacedStep, Polarity, ProgramStep,
+    Register, RegisterList, StepBody, StepMemo, StepOperand, StepOperands, StepProgram,
+    TestOperation,
 };
 use ryo_values::domain::descriptions::types::KindVocabulary;
 
@@ -22,7 +23,7 @@ fn accesses<'a>(
     kinds: &'a KindVocabulary,
     branch: &FlatBranch,
     plan: &PlannedBranch,
-    role: UnitRole,
+    unit: (UnitRole, Option<DefinitionId>),
     start: (Environment, Vec<Emitted>, Option<&ColumnMask>),
 ) -> Emitter<'a> {
     let mut environment = start.0;
@@ -30,7 +31,9 @@ fn accesses<'a>(
     let mut emitter = Emitter {
         drafts,
         kinds,
-        role,
+        role: unit.0,
+        unit: unit.1,
+        row: branch.row.clone(),
         uses: uses_of(branch, start.2),
         environment,
         written: start.1,
@@ -123,6 +126,46 @@ fn step_of(access: Emitted) -> ProgramStep {
             out,
         },
         Emitted::Test { test, left, right } => ProgramStep::Test { test, left, right },
+        Emitted::Axis {
+            relation,
+            direction,
+            start,
+            out,
+        } => ProgramStep::Axis {
+            relation,
+            direction,
+            start,
+            out,
+        },
+        Emitted::Within {
+            relation,
+            ancestor,
+            descendant,
+        } => ProgramStep::Within {
+            relation,
+            ancestor,
+            descendant,
+        },
+        Emitted::Nearest {
+            relation,
+            domain,
+            column,
+            element,
+            start,
+            out,
+        } => ProgramStep::Nearest {
+            edges: NearestEdges::Tree(relation),
+            condition: StepBody::Definition {
+                definition: domain,
+                bound: ColumnMask([column].into()),
+                collected: ColumnMask::default(),
+                values: StepOperands([StepOperand::Register(element)].into()),
+            },
+            element,
+            start,
+            out,
+            memo: StepMemo::None,
+        },
         Emitted::Let { from, out } => ProgramStep::Let { from, out },
     }
 }
@@ -151,7 +194,7 @@ pub(crate) fn branch_program(
     target: EmitTarget,
 ) -> Option<StepProgram> {
     let start = (Environment::default(), Vec::new(), None);
-    let emitter = accesses(drafts, kinds, branch, plan, UnitRole::Branch, start);
+    let emitter = accesses(drafts, kinds, branch, plan, (UnitRole::Branch, None), start);
     let columns = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
     let steps = emitter.written.into_iter().map(step_of);
     Some(program(
@@ -162,6 +205,8 @@ pub(crate) fn branch_program(
 /// What a call-form pattern is of: the definition's formals, and the columns it binds and collects.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PatternColumns<'a> {
+    /// The definition.
+    pub(crate) definition: DefinitionId,
     /// One register per column of the definition.
     pub(crate) formals: &'a [Register],
     /// The columns that arrive bound.
@@ -214,7 +259,7 @@ pub(crate) fn pattern_program(
     read.extend(pattern.bound.0.iter().copied());
     let read = ColumnMask(read.into());
     let start = (environment, tests, Some(&read));
-    let emitter = accesses(drafts, kinds, branch, plan, UnitRole::Pattern, start);
+    let emitter = accesses(drafts, kinds, branch, plan, (UnitRole::Pattern, Some(pattern.definition)), start);
     let mut steps: Vec<ProgramStep> = Vec::new();
     let mut row = Vec::with_capacity(pattern.collected.0.len());
     for column in &pattern.collected.0 {
@@ -325,7 +370,19 @@ fn stage_of(access: Emitted, first: bool) -> Option<FillStage> {
             out,
         },
         Emitted::Test { test, left, right } => FillStage::Keep { test, left, right },
-        Emitted::Let { .. } => return None,
+        Emitted::Axis {
+            relation,
+            direction,
+            start,
+            out,
+        } => FillStage::Walk {
+            relation,
+            walk: TreeWalk::Axis(direction),
+            start,
+            out,
+        },
+        // A pipeline holds no test of containment, no walk with a condition and no `Let`.
+        Emitted::Within { .. } | Emitted::Nearest { .. } | Emitted::Let { .. } => return None,
     })
 }
 
@@ -336,9 +393,10 @@ pub(crate) fn pipeline(
     kinds: &KindVocabulary,
     branch: &FlatBranch,
     plan: &PlannedBranch,
+    unit: Option<DefinitionId>,
 ) -> Option<Pipeline> {
     let start = (Environment::default(), Vec::new(), None);
-    let emitter = accesses(drafts, kinds, branch, plan, UnitRole::Pipeline, start);
+    let emitter = accesses(drafts, kinds, branch, plan, (UnitRole::Pipeline, unit), start);
     let row = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
     let mut stages = Vec::with_capacity(emitter.written.len());
     for (place, access) in emitter.written.into_iter().enumerate() {

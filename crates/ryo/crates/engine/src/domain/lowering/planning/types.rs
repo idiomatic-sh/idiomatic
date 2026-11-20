@@ -4,8 +4,8 @@ use crate::domain::lowering::definitions::types::RowEstimate;
 use crate::domain::lowering::flattening::types::FlatVariable;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
-    AnchorKinds, ColumnMask, DefinitionId, MadeTableId, MatchColumns, ReadColumn, Register,
-    RegisterList, StepOperand, StepOperands, StepRows, TestOperation,
+    AnchorKinds, AxisDirection, ColumnMask, DefinitionId, MadeColumn, MadeTableId, MatchColumns,
+    ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows, TestOperation,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_orders::types::OrderBound;
@@ -95,6 +95,41 @@ pub(crate) enum Emitted {
         /// Its right operand.
         right: StepOperand,
     },
+    /// Each element along a tree axis from an element.
+    Axis {
+        /// The node relation whose tree is walked.
+        relation: Relation,
+        /// The axis.
+        direction: AxisDirection,
+        /// The element walked from.
+        start: Register,
+        /// The element reached.
+        out: Register,
+    },
+    /// The test that one element is a proper ancestor of another: a program's only.
+    Within {
+        /// The node relation whose tree is walked.
+        relation: Relation,
+        /// The ancestor.
+        ancestor: Register,
+        /// The descendant.
+        descendant: Register,
+    },
+    /// The nearest ancestor of an element that a definition holds in a column: a program's only.
+    Nearest {
+        /// The node relation whose tree is walked.
+        relation: Relation,
+        /// The definition of the domain.
+        domain: DefinitionId,
+        /// The domain's column.
+        column: MadeColumn,
+        /// Where the element under test is written.
+        element: Register,
+        /// The element walked from.
+        start: Register,
+        /// The ancestor reached.
+        out: Register,
+    },
     /// A register takes a value: a program's only.
     Let {
         /// The value.
@@ -151,6 +186,10 @@ pub(crate) struct Emitter<'a> {
     pub(crate) kinds: &'a ryo_values::domain::descriptions::types::KindVocabulary,
     /// What the branch is written for.
     pub(crate) role: UnitRole,
+    /// The definition whose pattern or table the branch is written for; none for a rule's own branch.
+    pub(crate) unit: Option<DefinitionId>,
+    /// The branch's row.
+    pub(crate) row: Vec<crate::domain::lowering::flattening::types::FlatTerm>,
     /// How often each variable is written in the branch and its row.
     pub(crate) uses: HashMap<FlatVariable, usize>,
     /// The registers given so far.
