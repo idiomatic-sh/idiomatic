@@ -983,7 +983,7 @@ class Lowerer:
             # asof: a plan that fails part-way (an anchor the planner tries and gives up: `plan_top` catches Blocked and goes
             # on) must not leave this empty list as the definition's program: every later use would call a definition with
             # no branches (an absence test that always holds). A hazard closed, not an observed fault: F821's extra
-            # findings of the last round are NOT this (they stay with NAV_ASOF=0 NAV_FACTOR=0 NAV_TABLE=0, see STATUS).
+            # findings of the last round are NOT this (bind: they were the executor's u16 register wrap, see nav.rs `R`).
             try:
                 return self.body_planned(key, mask, free, k, calls)
             except BaseException:
@@ -1458,8 +1458,6 @@ class Lowerer:
         """One branch -> a list of instructions. bound: variables bound by the enclosing program."""
         if first is None:
             b = self.detach(b, bound, sub)
-        if FACTOR and bound:
-            b = self.factor_uncorrelated(b, bound, sub)  # asof: parts no bound variable reaches run once per file
         bound = set(bound)
         cost = [0.0, 1.0]
         E = collect_vars(b, set(bound))
@@ -1734,9 +1732,6 @@ class Lowerer:
                         c = 10.0 if tbound(s[1]) else 12.0
                     elif s[0] == "or":
                         c = (3.0 * len(s[2])) if any(tbound(t) for t in s[1]) else (200.0 * len(s[2]) if bound else 1e6)
-                        if len(s) > 3:  # asof: a factored part answers from the file's memo (a test, or rows to continue with)
-                            # bind: its rows are a cross product with everything placed after it, so they go last (it was 20)
-                            c = 1.5 if not s[1] else FACTOR_RANK
                     elif s[0] == "call":
                         nb = max(len(self.defs[s[1]]), 1)
                         c = (3.0 * nb) if any(t is not None and tbound(t) for t in s[2]) else (200.0 * nb if bound else 1e6)
@@ -1875,8 +1870,6 @@ class Lowerer:
                         # a union reading no bound variable answers the same rows for every candidate: memoised per file
                         uncorrelated = not any(v in bound for z in D for v in z.deep())
                         prog.append(["or", free, [self.plan(z, set(bound), None, free) for z in D]] + ([1] if uncorrelated else []))
-                    elif FACTOR and len(s) > 3 and not any(v in bound for z in D for v in z.deep()):
-                        prog.append(["exists-memo", [self.plan(z, set(bound), None, True) for z in D]])  # asof: once per file
                     else:
                         prog.append(["exists", [self.plan(z, set(bound), None, True) for z in D]])
                     bound.update(free)
@@ -3436,18 +3429,13 @@ def share_rule(nav, min_bytes=300):
 #        probes and to the events (semi-joins the table satisfies by construction) are folded into the table.
 #    When a shape is not met exactly the step is lowered as before (definitions and calls).
 # 2. KEYED ACCESS to such a table: `["iter", table, "byk", [[columns], [terms]], row]`, a hash of every bound column.
-# 3. UNCORRELATED PARTS of a branch planned in a bound context (items no bound variable reaches, through shared variables)
-#    are one memoised `or` (their rows once per file) instead of an iteration per candidate.
+# (3. bind: the factoring of uncorrelated parts of a branch is deleted: the eight binding rules cost 42M steps less without it.)
 ASOF = os.environ.get("NAV_ASOF", "1") == "1"
 ASOF_SHAPE = os.environ.get("NAV_ASOF_SHAPE", "1") == "1"   # 0: only the general `power` table (to measure the two apart)
-FACTOR = os.environ.get("NAV_FACTOR", "1") == "1"
-FACTOR_RANK = float(os.environ.get("NAV_FACTOR_RANK", "1e5"))
 TABLE = os.environ.get("NAV_TABLE", "1") == "1"
 BODY_UNDO = os.environ.get("NAV_BODY_UNDO", "1") == "1"  # 0: the last round's behaviour
 DEGRADE_MAX = int(os.environ.get("NAV_DEGRADE_MAX", "-1"))
 DEGRADE_SEEN = [0]
-FACTOR_MAX = int(os.environ.get("NAV_FACTOR_MAX", "-1"))
-FACTOR_SEEN = [0]
 
 
 def _step_of(v):
@@ -3725,82 +3713,8 @@ def keyed_accesses(self, rel, ts, tbound):
     return [(1.0 if covered else 1.2, "byk", [bc, [ts[c] for c in bc]])]
 
 
-def factor_uncorrelated(self, b, bound, sub):
-    """b planned with `bound` variables: the items (atoms, filters, tests, specials) that no bound variable reaches through
-    shared variables answer the same rows for every candidate. Each such connected part that enumerates something becomes
-    one `or` special over a sub-branch (marked: memoised per file by the planner), binding the variables the rest needs."""
-    items = [("a", i, set(t for t in ts if is_var(t))) for i, (_, ts) in enumerate(b.atoms)]
-    if len(items) < 2 and not b.specials:
-        return b
-    items += [("f", i, set(t for t in f[1:] if is_var(t))) for i, f in enumerate(b.filt)]
-    items += [("n", i, set(t for t in a if t is not None and is_var(t))) for i, (_, _, a) in enumerate(b.negs)]
-    for i, sp in enumerate(b.specials):
-        vs = set(t for t in special_vars(sp) if is_var(t))
-        for k in SUB_LISTS.get(sp[0], ()):
-            for x in sp[k]:
-                vs |= x.deep()
-        if sp[0] == "clos":
-            vs.update(t for t in [sp[4], sp[5]] + list(sp[6]) if is_var(t))
-        if sp[0] == "nearc":
-            vs.update(t for t in [sp[3], sp[4]] if is_var(t))
-        items.append(("s", i, vs))
-    parent = list(range(len(items)))
-
-    def find(i):
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-    owner, tied = {}, set()
-    for k, (_, _, vs) in enumerate(items):
-        for v in vs:
-            if v in bound:
-                tied.add(k)
-            elif v in owner:
-                parent[find(k)] = find(owner[v])
-            else:
-                owner[v] = k
-    groups = collections.defaultdict(list)
-    for k in range(len(items)):
-        groups[find(k)].append(k)
-    tied_roots = {find(k) for k in tied}
-    need = set(t for t in (sub if isinstance(sub, list) else (b.out if not sub else [])) if is_var(t))
-    free_groups = []
-    for root, g in groups.items():
-        if root in tied_roots:
-            continue
-        # it must enumerate (an atom, a call, a closure or a union): a lone filter or test has nothing to iterate
-        if not any(items[k][0] == "a" or (items[k][0] == "s" and b.specials[items[k][1]][0] in ("call", "or", "clos")) for k in g):
-            continue
-        # a part that is only one keyed made-table/definition use already answers from a memo
-        if len(g) == 1 and items[g[0]][0] == "s":
-            continue
-        free_groups.append(g)
-    if not free_groups or len(free_groups) == len(groups):
-        return b
-    if FACTOR_MAX >= 0:  # diagnostic: only the first FACTOR_MAX factorings (to bisect a difference between the two forms)
-        FACTOR_SEEN[0] += 1
-        if FACTOR_SEEN[0] > FACTOR_MAX:
-            return b
-    drop = {(items[k][0], items[k][1]) for g in free_groups for k in g}
-    nb = Br([a for i, a in enumerate(b.atoms) if ("a", i) not in drop], [f for i, f in enumerate(b.filt) if ("f", i) not in drop],
-            [n for i, n in enumerate(b.negs) if ("n", i) not in drop], [x for i, x in enumerate(b.specials) if ("s", i) not in drop],
-            list(b.out))
-    rest_vars = collect_vars(nb, set()) | need
-    for g in free_groups:
-        sel = {(items[k][0], items[k][1]) for k in g}
-        gv = set().union(*(items[k][2] for k in g))
-        outs = sorted(v for v in gv if v in rest_vars)
-        sb = Br([a for i, a in enumerate(b.atoms) if ("a", i) in sel], [f for i, f in enumerate(b.filt) if ("f", i) in sel],
-                [n for i, n in enumerate(b.negs) if ("n", i) in sel], [x for i, x in enumerate(b.specials) if ("s", i) in sel],
-                list(outs))
-        nb.specials.append(["or", list(outs), [sb], "factored"])
-    return nb
-
-
 # ---- bind: what a branch cannot hold without (emptiness known before anything is enumerated) ------------------------------
 NEED = os.environ.get("NAV_NEED", "1") == "1"
-NEED_LATE = os.environ.get("NAV_NEED_LATE", "1") == "1"
 LIGHT_OPS = ("read", "row", "test", "let", "fn", "yield", "collect", "emit")
 
 
@@ -3878,14 +3792,7 @@ def with_need(self, b, prog):
     subs.sort(key=build_cost)  # the cheapest table first: an empty one spares the others
     if not kinds and not facts and not subs:
         return prog
-    prog = list(prog)
-    # what costs nothing to know is asked first; a table is asked for only when the program is about to enumerate (after
-    # its leading reads and tests of what is bound: when those fail, no table is built)
-    at = next((k for k, ins in enumerate(prog) if ins[0] not in LIGHT_OPS), 0) if NEED_LATE else 0
-    if at == 0 or not subs:
-        return [["need", [["ts", ks] for ks in kinds], facts, subs]] + prog
-    head = [["need", [["ts", ks] for ks in kinds], facts, []]] if kinds or facts else []
-    return head + prog[:at] + [["need", [], [], subs]] + prog[at:]
+    return [["need", [["ts", ks] for ks in kinds], facts, subs]] + list(prog)
 
 
 def bulk_prog(self, b):
@@ -4023,7 +3930,6 @@ Lowerer.snapshot = snapshot
 Lowerer.rollback = rollback
 Lowerer.asof_try = asof_try
 Lowerer.keyed_accesses = keyed_accesses
-Lowerer.factor_uncorrelated = factor_uncorrelated
 # ====================================================================== end asof ============================================
 
 
