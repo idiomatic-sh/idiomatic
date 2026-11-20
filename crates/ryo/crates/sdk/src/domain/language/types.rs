@@ -10,6 +10,7 @@ use ryo_language::inbound::use_cases::parse::types::{
     SkippedDirectory,
 };
 use ryo_language::inbound::use_cases::project::types::ProjectEngine;
+use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 use ryo_relations::domain::relations::types::FileId;
 
 /// What a language is called: the name of its directory.
@@ -41,6 +42,8 @@ pub struct Language {
     engine: Arc<dyn ParseEngine>,
     /// The use case that reads the repository's manifests for the language.
     project: Arc<dyn ProjectEngine>,
+    /// The language's walk for the new engine, when it was linked with one.
+    walk: Option<Arc<dyn WalkEngine>>,
 }
 
 impl std::fmt::Debug for Language {
@@ -65,7 +68,15 @@ impl Language {
             build,
             engine,
             project,
+            walk: None,
         }
+    }
+
+    /// The same language, linked with its walk: what [`walking`](crate::languages::walking) builds for the `walk:` arm of
+    /// [`link!`](crate::link), and nothing else.
+    pub(crate) fn walking(mut self, walk: Arc<dyn WalkEngine>) -> Self {
+        self.walk = Some(walk);
+        self
     }
 
     /// What the language is called: the name of its directory.
@@ -106,6 +117,15 @@ impl Language {
     #[must_use]
     pub(crate) fn parse_use_case(&self) -> Arc<dyn ParseEngine> {
         Arc::clone(&self.engine)
+    }
+
+    /// The language's walk: what the SDK's edges hand the new engine's file scan. A language linked without one has the walk of
+    /// the language that reads nothing, which the new engine refuses to scan with.
+    #[must_use]
+    pub(crate) fn walk_use_case(&self) -> Arc<dyn WalkEngine> {
+        self.walk.clone().unwrap_or_else(|| {
+            Arc::new(ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl::new())
+        })
     }
 
     /// The use case that reads the repository's manifests: what the SDK's edges hand the engine.

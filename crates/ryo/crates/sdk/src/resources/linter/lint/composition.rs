@@ -256,6 +256,7 @@ impl From<Language> for language::factory::LanguageConnection {
             build: language::types::LanguageBuild(linked.build().0.clone()),
             parse: linked.parse_use_case(),
             project: linked.project_use_case(),
+            walk: linked.walk_use_case(),
         }
     }
 }

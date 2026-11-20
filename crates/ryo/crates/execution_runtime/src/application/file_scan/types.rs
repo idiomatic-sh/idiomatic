@@ -6,10 +6,11 @@ use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::NodeTable;
-use ryo_language::inbound::use_cases::walk::interface::WalkUseCase;
+use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use std::sync::Arc;
 
 /// What each column of a found row holds, in column order: a `Symbol` column holds a word of the file, copied to owned text.
 ///
@@ -169,31 +170,36 @@ pub struct ScanReport {
     pub faults: Vec<FaultedFile>,
 }
 
-/// One worker's state: the node table, the language's buffers and the engine's per-file state, each cleared per file and never
-/// freed, and what the worker found. Made by `service::worker`.
+/// One worker's state: the language, the node table, the language's own buffers and the engine's per-file state, each
+/// cleared per file and never freed, and what the worker found. Made by `service::worker`.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
 /// use ryo_execution_runtime::application::file_scan::service::worker;
+/// use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 /// use ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl;
+/// use std::sync::Arc;
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
-/// assert!(worker::<WalkUseCaseImpl>(&engine, &Programs::default()).report.found.is_empty());
+/// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
+/// assert!(worker(&language, &engine, &Programs::default()).report.found.is_empty());
 /// ```
-pub struct ScanWorker<W: WalkUseCase> {
+pub struct ScanWorker {
+    /// The language whose files the worker scans.
+    pub language: Arc<dyn WalkEngine>,
     /// The table of the file being scanned.
     pub table: NodeTable,
-    /// The language's per-worker buffers.
-    pub walk: W::Scratch,
+    /// The language's own buffers for this worker.
+    pub buffers: Box<dyn std::any::Any + Send>,
     /// The engine's per-file state.
     pub scan: ScanScratch,
     /// What the worker found in the files it scanned.
     pub report: ScanReport,
 }
 
-impl<W: WalkUseCase> std::fmt::Debug for ScanWorker<W> {
+impl std::fmt::Debug for ScanWorker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct(std::any::type_name::<Self>())
             .finish_non_exhaustive()

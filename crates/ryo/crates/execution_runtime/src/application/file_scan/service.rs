@@ -20,13 +20,12 @@ use ryo_engine::inbound::use_cases::scan::errors::ScanError;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::facts::service::text;
 use ryo_language::domain::facts::types::{FileFacts, FileWords};
-use ryo_language::domain::node_table::service::builder;
 use ryo_language::domain::node_table::types::NodeTable;
-use ryo_language::inbound::use_cases::walk::interface::WalkUseCase;
-use ryo_language::inbound::use_cases::walk::types::{FileVisit, WalkRequest};
+use ryo_language::inbound::use_cases::walk::types::{FileVisit, WalkEngine, WalkRequest};
 use ryo_operators::spike::{engine_compared, engine_difference};
 use ryo_relations::domain::relations::types::{CellKind, Count, FileId};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use std::sync::Arc;
 
 /// A worker's state for a rule set, before its first file.
 ///
@@ -35,16 +34,24 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
 /// use ryo_execution_runtime::application::file_scan::service::worker;
+/// use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 /// use ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl;
+/// use std::sync::Arc;
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
-/// assert!(worker::<WalkUseCaseImpl>(&engine, &Programs::default()).report.faults.is_empty());
+/// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
+/// assert!(worker(&language, &engine, &Programs::default()).report.faults.is_empty());
 /// ```
 #[must_use]
-pub fn worker<W: WalkUseCase>(engine: &dyn EnginePort, programs: &Programs) -> ScanWorker<W> {
+pub fn worker(
+    language: &Arc<dyn WalkEngine>,
+    engine: &dyn EnginePort,
+    programs: &Programs,
+) -> ScanWorker {
     ScanWorker {
+        language: Arc::clone(language),
         table: NodeTable::default(),
-        walk: W::Scratch::default(),
+        buffers: language.buffers(),
         scan: engine.state_for(programs),
         report: ScanReport::default(),
     }
@@ -130,7 +137,7 @@ impl FileVisit for Visiting<'_> {
     }
 }
 
-/// One file, in the worker that took it: walked by `walk` into the worker's table, lent to the engine's scan, its found rows kept
+/// One file, in the worker that took it: walked by the worker's language into its table, lent to the engine's scan, its found rows kept
 /// in the worker's report. Rows found before a fault stay kept: the fault says whose rows of the file are not complete.
 ///
 /// # Errors
@@ -148,50 +155,43 @@ impl FileVisit for Visiting<'_> {
 /// use ryo_language::domain::files::types::SourcePath;
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_language::inbound::use_cases::walk::errors::WalkError;
-/// use ryo_language::inbound::use_cases::walk::types::WalkRequest;
+/// use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
 /// use ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl;
 /// use ryo_relations::domain::relations::types::FileId;
+/// use std::sync::Arc;
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let (programs, columns) = (Programs::default(), EmitColumns::default());
-/// let mut worker = worker::<WalkUseCaseImpl>(&engine, &programs);
+/// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
+/// let mut worker = worker(&language, &engine, &programs);
 /// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
 /// let run = ScanRun { programs: &programs, columns: &columns };
-/// let answer = scanned(&WalkUseCaseImpl::new(), &engine, run, &mut worker, file);
+/// let answer = scanned(&engine, run, &mut worker, file);
 /// assert_eq!(answer, Err(FileScanError::Walk { cause: WalkError::Unsupported }));
 /// ```
-pub fn scanned<W: WalkUseCase>(
-    walk: &W,
+pub fn scanned(
     engine: &dyn EnginePort,
     run: ScanRun<'_>,
-    worker: &mut ScanWorker<W>,
+    worker: &mut ScanWorker,
     file: WalkRequest<'_>,
 ) -> Result<ScanCounters, FileScanError> {
-    let ScanWorker {
-        table,
-        walk: buffers,
-        scan,
-        report,
-    } = worker;
     let mut visiting = Visiting {
         engine,
         programs: run.programs,
-        state: scan,
+        state: &mut worker.scan,
         keeping: Keeping {
             columns: run.columns,
             file: file.file,
-            report,
+            report: &mut worker.report,
             misfit: None,
         },
         answer: None,
     };
-    let walked = walk.walk(
-        file,
-        needs(run.programs),
-        &mut builder(table, W::KIND_COUNT),
-        buffers,
-        &mut visiting,
-    );
+    let (table, buffers) = (&mut worker.table, &mut *worker.buffers);
+    let needs = needs(run.programs);
+    let walked = worker
+        .language
+        .walk_file(file, needs, table, buffers, &mut visiting);
     match (walked, visiting.answer, visiting.keeping.misfit) {
         (Err(cause), _, _) => Err(FileScanError::Walk { cause }),
         (Ok(()), None, _) => Err(FileScanError::NotLent),
@@ -212,23 +212,24 @@ pub fn scanned<W: WalkUseCase>(
 /// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, ScanRun};
 /// use ryo_language::domain::files::types::SourcePath;
 /// use ryo_language::domain::symbols::types::ByteSlice;
-/// use ryo_language::inbound::use_cases::walk::types::WalkRequest;
+/// use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
 /// use ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl;
 /// use ryo_relations::domain::relations::types::FileId;
+/// use std::sync::Arc;
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let (programs, columns) = (Programs::default(), EmitColumns::default());
-/// let mut worker = worker::<WalkUseCaseImpl>(&engine, &programs);
+/// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
+/// let mut worker = worker(&language, &engine, &programs);
 /// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
 /// let run = ScanRun { programs: &programs, columns: &columns };
-/// let _counted = ran(&WalkUseCaseImpl::new(), &engine, run, &mut worker, &[file]);
+/// let _counted = ran(&engine, run, &mut worker, &[file]);
 /// assert_eq!(worker.report.faults.len(), 1);
 /// ```
-pub fn ran<W: WalkUseCase>(
-    walk: &W,
+pub fn ran(
     engine: &dyn EnginePort,
     run: ScanRun<'_>,
-    worker: &mut ScanWorker<W>,
+    worker: &mut ScanWorker,
     files: &[WalkRequest<'_>],
 ) -> ScanCounters {
     let mut total = ScanCounters::default();
@@ -236,7 +237,7 @@ pub fn ran<W: WalkUseCase>(
         InstructionCount(one.0.saturating_add(other.0))
     };
     for file in files {
-        match scanned(walk, engine, run, worker, *file) {
+        match scanned(engine, run, worker, *file) {
             Ok(counted) => {
                 total = ScanCounters {
                     steps: sum(total.steps, counted.steps),

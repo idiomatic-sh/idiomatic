@@ -15,6 +15,9 @@ pub struct LanguageConnection {
     /// Reads the repository's manifests.
     pub project:
         std::sync::Arc<dyn ryo_language::inbound::use_cases::project::types::ProjectEngine>,
+    /// Walks one file for the new engine. A language linked without its walk has the walk of the language that reads nothing,
+    /// which has no kind: the new engine refuses to scan with it.
+    pub walk: std::sync::Arc<dyn ryo_language::inbound::use_cases::walk::types::WalkEngine>,
 }
 
 impl std::fmt::Debug for LanguageConnection {

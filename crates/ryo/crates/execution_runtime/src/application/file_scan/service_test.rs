@@ -22,10 +22,11 @@ use ryo_language::domain::fillers::fixtures::Walking;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::fixtures::FAILING;
-use ryo_language::inbound::use_cases::walk::types::WalkRequest;
+use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
 use ryo_relations::domain::relations::types::{CellKind, Count, FileId};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
+use std::sync::Arc;
 
 /// What a row does.
 #[derive(Clone, Copy, Debug)]
@@ -215,6 +216,11 @@ fn accepted(engine: &EngineFake) -> Programs {
         .unwrap_or_default()
 }
 
+/// The fixture language, as a linked language is held.
+fn words() -> Arc<dyn WalkEngine> {
+    Arc::new(Walking)
+}
+
 /// A file of the cases: its path, its number and its bytes.
 fn file<'a>(path: &'a str, number: u32, bytes: &'a [u8]) -> WalkRequest<'a> {
     WalkRequest {
@@ -228,12 +234,12 @@ fn file<'a>(path: &'a str, number: u32, bytes: &'a [u8]) -> WalkRequest<'a> {
 fn worked(files: &[WalkRequest<'_>], columns: &EmitColumns) -> ScanReport {
     let engine = EngineFake::default();
     let programs = accepted(&engine);
-    let mut worker = worker::<Walking>(&engine, &programs);
+    let mut worker = worker(&words(), &engine, &programs);
     let run = ScanRun {
         programs: &programs,
         columns,
     };
-    let counted = ran(&Walking, &engine, run, &mut worker, files);
+    let counted = ran(&engine, run, &mut worker, files);
     assert_eq!(
         counted.steps, counted.candidates,
         "the fake steps once per candidate"
@@ -331,7 +337,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::NoColumns | Scenario::Unread => {
             let engine = EngineFake::default();
             let (programs, held) = (accepted(&engine), EmitColumns::default());
-            let mut worker = worker::<Walking>(&engine, &programs);
+            let mut worker = worker(&words(), &engine, &programs);
             let run = ScanRun {
                 programs: &programs,
                 columns: &held,
@@ -340,15 +346,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 Scenario::Unread => "a.txt",
                 _ => "a.walk",
             };
-            scanned(
-                &Walking,
-                &engine,
-                run,
-                &mut worker,
-                file(path, 1, b"one two"),
-            )
-            .map(|_| lines(&worker.report))
-            .map_err(Refusal::Fault)
+            scanned(&engine, run, &mut worker, file(path, 1, b"one two"))
+                .map(|_| lines(&worker.report))
+                .map_err(Refusal::Fault)
         }
     }
 }
