@@ -1,8 +1,9 @@
 //! What the `syntax` port asks of the outside: Python text in, the element table of its syntax tree
 //! out.
 
-use super::types::{PythonSourceKind, SourceText};
-use ryo::languages::TableBuilder;
+use super::types::{PythonSourceKind, ReportedSyntax, SourceText};
+use crate::domain::node::types::WalkedTree;
+use ryo::languages::{NodeTableBuilder, TableBuilder};
 
 /// What every `syntax` adapter implements.
 pub(crate) trait SyntaxPort: Send + Sync {
@@ -32,5 +33,18 @@ pub(crate) trait SyntaxPort: Send + Sync {
         text: SourceText<'_>,
         source_kind: PythonSourceKind,
         builder: &mut TableBuilder<'_>,
+    );
+
+    /// Walks Python text into the node table `builder` builds: every node as the library's walk opens it, with the field it fills,
+    /// and its tokens between the nodes; reports what the library and the language said of the file, as much as `reported` asks;
+    /// then lends the walked tree, the typed node of each id among it, to `lend` while the parse lives. A file with errors still
+    /// gives the nodes that could be read: walking never fails.
+    fn walk(
+        &self,
+        text: SourceText<'_>,
+        source_kind: PythonSourceKind,
+        reported: ReportedSyntax,
+        builder: &mut NodeTableBuilder<'_>,
+        lend: &mut dyn FnMut(&mut NodeTableBuilder<'_>, WalkedTree<'_>),
     );
 }

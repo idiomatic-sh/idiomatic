@@ -1,5 +1,9 @@
 //! Optional lexical token metadata over the completed native tree only.
 use super::constants::TOKEN_LINK_INCOMPLETE;
+use crate::domain::file_view::types::PythonWalk;
+use crate::domain::layout_facts::service::token_links;
+use crate::domain::node::service::{fixed, node_cell, span_at};
+use crate::domain::token_links::types::Pairing;
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -26,6 +30,28 @@ ryo::reads! {
                 }
                 Event::Incomplete => { partial TOKEN_LINK_INCOMPLETE => languages::Missing::Any; }
             }
+        }
+    }
+}
+
+// The engine fills `token-link` from the walked file: every row of the file, once.
+ryo::fills! {
+    TokenLinkItem => languages::TokenLink, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::TokenLink as languages::CatalogRelation>::Row;
+        let syntax = file.syntax;
+        let memo = &mut file.buffers.fixed;
+        let pairing = token_links(&syntax, &mut file.buffers.brackets, &mut |link| {
+            rows.write(Row {
+                source: node_cell(&syntax, link.source),
+                target: node_cell(&syntax, link.target),
+                link_kind: fixed(words, memo, link_kind(link.kind)),
+                file: syntax.file,
+                span: span_at(&syntax, link.source),
+            });
+        });
+        if pairing == Pairing::Lost {
+            rows.partial(languages::ReportText(TOKEN_LINK_INCOMPLETE), languages::Missing::Any);
         }
     }
 }

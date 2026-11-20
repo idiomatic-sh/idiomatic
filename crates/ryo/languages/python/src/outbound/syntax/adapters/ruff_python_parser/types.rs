@@ -208,3 +208,49 @@ impl std::borrow::Borrow<str> for BoundName {
         &self.0
     }
 }
+
+/// A place among the fields the open nodes of a walk hand their children, from zero.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(super) struct FieldIndex(pub usize);
+
+/// A node the walk has opened and not closed yet.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct OpenWalked<'t> {
+    /// The node.
+    pub node: ruff_python_ast::AnyNodeRef<'t>,
+    /// Where the fields of its children start among the walk's fields.
+    pub from: FieldIndex,
+    /// The field of its next child, when its children open in the order the fields were read.
+    pub next: FieldIndex,
+}
+
+/// The walker of the node table: it walks the library's tree in the order of the file, writes each node with the field it fills
+/// and the tokens between the nodes, and keeps the typed node of each id.
+pub(super) struct Walker<'b, 'w, 't> {
+    /// The table's builder.
+    pub builder: &'b mut languages::NodeTableBuilder<'w>,
+    /// The library's tokens, in the order of the file.
+    pub tokens: &'t [RuffToken],
+    /// The first token not written yet.
+    pub next: TokenIndex,
+    /// Where the last token written ends: the gap up to the next token is white space.
+    pub written: Offset,
+    /// Where each open node ends, the innermost last.
+    pub ends: Vec<Offset>,
+    /// The strings open, the innermost last: what an interpolation is named by.
+    pub strings: Vec<Strings>,
+    /// The library's tokens, to find a keyword in.
+    pub parsed_tokens: &'t Tokens,
+    /// Where `CPython` refuses what the library reads: what the adapter reports after the library's own errors.
+    pub refused: Vec<ParserRefusal>,
+    /// How long the file is.
+    pub length: Offset,
+    /// Whether the module postpones its annotations: the property the walk records on the module node.
+    pub future_annotations: FutureAnnotations,
+    /// The typed node of each id written so far.
+    pub nodes: Vec<ruff_python_ast::AnyNodeRef<'t>>,
+    /// The open nodes, the innermost last.
+    pub open: Vec<OpenWalked<'t>>,
+    /// The fields the open nodes hand their children, one run for each open node.
+    pub fields: Vec<crate::domain::node::types::ChildField<'t>>,
+}

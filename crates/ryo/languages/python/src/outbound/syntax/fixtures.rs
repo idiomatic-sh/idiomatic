@@ -3,3 +3,5 @@
 pub(crate) mod contract;
 pub(crate) mod fake;
 pub(crate) mod library;
+#[cfg(test)]
+pub(crate) mod model_view;

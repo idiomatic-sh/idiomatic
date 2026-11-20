@@ -1,7 +1,14 @@
 //! Static raw-token reader binding; ordinary decoded format demand remains independent.
 use crate::application::raw_format::service::prepare;
+use crate::domain::file_view::types::PythonWalk;
 use crate::domain::format_syntax::service::flag_text;
+use crate::domain::format_syntax::types::{FormatDialect, FormatInput};
+use crate::domain::literal_facts::service::string_tokens;
+use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at, word, written};
+use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::raw_format::constants::INCOMPLETE;
+use crate::domain::raw_format::service::body;
+use crate::domain::raw_format::types::RawFormatToken;
 use crate::domain::{
     format_syntax::types::{DynamicInput, FormatParseResult, FormatParseState},
     model::types::Declarations,
@@ -13,8 +20,11 @@ use crate::inbound::contracts::parse::readers::format::composition::{
     argument_kind, error_parts, intern, intern_character, mapping_key, property_flag,
     quantity_mode, summary_of,
 };
+use crate::inbound::contracts::parse::readers::format::constants::NO_CHARACTER;
 use crate::inbound::contracts::parse::readers::format::constants::PERCENT_STRING;
 use crate::outbound::format_syntax::adapters::ruff_literal_cformat::grammar::RuffLiteralCFormat;
+use crate::outbound::format_syntax::interface::FormatSyntaxPort as _;
+use ruff_python_ast::AnyNodeRef;
 use ryo::languages;
 
 /// Reads one parse outcome for each original raw string token.
@@ -77,6 +87,154 @@ ryo::reads! {
         when state(&index) {
             FormatParseState::Fresh | FormatParseState::Partial => { partial INCOMPLETE => languages::Missing::Any; }
             FormatParseState::Complete => {}
+        }
+    }
+}
+
+/// The string tokens of the string at `node` into `tokens`, in the order they are written, each with the percent-format parse of
+/// its body as it is written into `parses`: none for a token whose body cannot be told from its quotes. Nothing for a node that is
+/// no string.
+fn raw_segments(
+    file: &SyntaxFile<'_>,
+    node: AnyNodeRef<'_>,
+    tokens: &mut Vec<languages::Position>,
+    parses: &mut Vec<Option<FormatParseResult>>,
+) {
+    parses.clear();
+    string_tokens(file, node, tokens);
+    parses.extend(tokens.iter().map(|token| {
+        body(RawFormatToken(written(file, *token).0))
+            .map(|raw| RuffLiteralCFormat.parse(FormatInput(raw.0), FormatDialect::PercentString))
+    }));
+}
+
+/// Whether every token of a string was parsed: a string with no token, or with a token whose body is not told or whose grammar
+/// is unavailable, is read only in part.
+fn segments_whole(parses: &[Option<FormatParseResult>]) -> languages::SyntaxCompleteness {
+    let unavailable = |parsed: &Option<FormatParseResult>| {
+        matches!(parsed, None | Some(FormatParseResult::Unavailable))
+    };
+    if parses.is_empty() || parses.iter().any(unavailable) {
+        languages::SyntaxCompleteness::Incomplete
+    } else {
+        languages::SyntaxCompleteness::Complete
+    }
+}
+
+/// Whether the file was read whole, by its parser and its lexer.
+fn source_whole(file: &SyntaxFile<'_>) -> languages::SyntaxCompleteness {
+    if file.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
+        languages::SyntaxCompleteness::Incomplete
+    } else {
+        file.completeness.lexical
+    }
+}
+
+// The engine fills `raw-format-segment` from the walked file: every row of the file, once.
+ryo::fills! {
+    RawFormatSegmentItem => languages::RawFormatSegment, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::RawFormatSegment as languages::CatalogRelation>::Row;
+        let memo = &mut file.buffers.fixed;
+        let syntax = file.syntax;
+        let mut whole = source_whole(&syntax);
+        let (mut tokens, mut parses) = (Vec::new(), Vec::new());
+        for Numbered { id, node } in nodes_of_kind(&syntax, Kind::Node(Node::Constant)) {
+            if !matches!(node, AnyNodeRef::ExprStringLiteral(_)) {
+                continue;
+            }
+            raw_segments(&syntax, node, &mut tokens, &mut parses);
+            if segments_whole(&parses) == languages::SyntaxCompleteness::Incomplete {
+                whole = languages::SyntaxCompleteness::Incomplete;
+            }
+            for (ordinal, (token, parsed)) in tokens.iter().zip(&parses).enumerate() {
+                let summary = summary_of(parsed.as_ref(), DynamicInput::NotObserved);
+                let errors = error_parts(parsed.as_ref());
+                let mut buffer = [0_u8; 4];
+                let character = match errors.character {
+                    Some(character) => &*character.0.encode_utf8(&mut buffer),
+                    None => NO_CHARACTER,
+                };
+                rows.write(Row {
+                    id: node_cell(&syntax, id),
+                    segment: node_cell(&syntax, *token),
+                    segment_ordinal: languages::Integer(i64::try_from(ordinal).unwrap_or(i64::MAX)),
+                    dialect: fixed(words, memo, languages::NameText(PERCENT_STRING)),
+                    outcome: fixed(words, memo, summary.outcome),
+                    error_category: fixed(words, memo, errors.category),
+                    error_character: word(words, languages::NameText(character)),
+                    error_index: errors.index,
+                    positional_consumption: languages::Integer(
+                        i64::try_from(summary.summary.positional_consumption.0).unwrap_or(i64::MAX),
+                    ),
+                    mapping_present: property_flag(summary.summary.mapping_present),
+                    dynamic_width: property_flag(summary.summary.dynamic_width),
+                    dynamic_precision: property_flag(summary.summary.dynamic_precision),
+                    file: syntax.file,
+                    span: span_at(&syntax, *token),
+                });
+            }
+        }
+        if whole == languages::SyntaxCompleteness::Incomplete {
+            rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
+        }
+    }
+}
+
+// The engine fills `raw-format-field` from the walked file: every row of the file, once.
+ryo::fills! {
+    RawFormatFieldItem => languages::RawFormatField, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::RawFormatField as languages::CatalogRelation>::Row;
+        let memo = &mut file.buffers.fixed;
+        let syntax = file.syntax;
+        let source = source_whole(&syntax);
+        let mut whole = source;
+        let (mut tokens, mut parses) = (Vec::new(), Vec::new());
+        for Numbered { id, node } in nodes_of_kind(&syntax, Kind::Node(Node::Constant)) {
+            if !matches!(node, AnyNodeRef::ExprStringLiteral(_)) {
+                continue;
+            }
+            raw_segments(&syntax, node, &mut tokens, &mut parses);
+            if segments_whole(&parses) == languages::SyntaxCompleteness::Incomplete {
+                whole = languages::SyntaxCompleteness::Incomplete;
+                continue;
+            }
+            if source == languages::SyntaxCompleteness::Incomplete {
+                continue;
+            }
+            let mut first_field = 0_usize;
+            for (ordinal, (token, parsed)) in tokens.iter().zip(&parses).enumerate() {
+                let Some(FormatParseResult::Parsed(parsed)) = parsed else {
+                    continue;
+                };
+                for field in &parsed.fields {
+                    let mut buffer = [0_u8; 4];
+                    let conversion = &*field.conversion.0.encode_utf8(&mut buffer);
+                    let among = first_field.saturating_add(field.ordinal.0);
+                    rows.write(Row {
+                        id: node_cell(&syntax, id),
+                        segment: node_cell(&syntax, *token),
+                        segment_ordinal: languages::Integer(i64::try_from(ordinal).unwrap_or(i64::MAX)),
+                        ordinal: languages::Integer(i64::try_from(among).unwrap_or(i64::MAX)),
+                        segment_field_ordinal: languages::Integer(
+                            i64::try_from(field.ordinal.0).unwrap_or(i64::MAX),
+                        ),
+                        argument_kind: fixed(words, memo, argument_kind(&field.argument)),
+                        mapping_key: word(words, mapping_key(&field.argument)),
+                        conversion: word(words, languages::NameText(conversion)),
+                        width_mode: fixed(words, memo, quantity_mode(field.width)),
+                        precision_mode: fixed(words, memo, quantity_mode(field.precision)),
+                        file: syntax.file,
+                        span: span_at(&syntax, *token),
+                        flags: fixed(words, memo, languages::NameText(flag_text(field.flags).0)),
+                    });
+                }
+                first_field = first_field.saturating_add(parsed.fields.len());
+            }
+        }
+        if whole == languages::SyntaxCompleteness::Incomplete {
+            rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
         }
     }
 }

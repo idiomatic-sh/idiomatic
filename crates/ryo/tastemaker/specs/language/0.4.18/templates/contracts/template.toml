@@ -1,10 +1,11 @@
 description = "The language's contracts: one public module per contract part the language spec places, and nothing else."
-why = "Declares each contract part (`parse`, `project`) so the crate's inbound surface is the list of the engine traits the language fulfils. The list is the two contract parts the spec places, so a contract that is placed and not declared here is a finding."
+why = "Declares each contract part (`parse`, `project`, and `walk`, the engine's walk contract beside `parse`) so the crate's inbound surface is the list of the engine traits the language fulfils. The list is exact, so a contract that is not declared here, or a module that is no contract, is a finding."
 content = '''
 //! The {{ lang }} language's contracts, one module each.
 
 pub(crate) mod parse;
 pub(crate) mod project;
+pub(crate) mod walk;
 '''
 match = "declarations"
 
@@ -23,6 +24,8 @@ given.files.'src/inbound/contracts.rs' = '''
 
 pub(crate) mod parse;
 pub(crate) mod project;
+pub(crate) mod walk;
+pub(crate) mod walk;
 '''
 
 [[scenarios]]
@@ -33,6 +36,8 @@ given.files.'src/inbound/contracts.rs' = '''
 
 pub(crate) mod parse;
 pub(crate) mod project;
+pub(crate) mod walk;
+pub(crate) mod walk;
 pub mod stray;
 '''
 then.findings = [

@@ -24,3 +24,12 @@ pub(crate) struct DeferredAnnotation {
     /// Exclusive physical source offset.
     pub end: ryo::languages::Offset,
 }
+
+/// How much of what is said of a file a walk reports.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ReportedSyntax {
+    /// Everything: the library's errors, the language's own validation and what `CPython` refuses.
+    Every,
+    /// Only what leaves the tree or the tokens incomplete: nothing reads the reports themselves.
+    Refusals,
+}

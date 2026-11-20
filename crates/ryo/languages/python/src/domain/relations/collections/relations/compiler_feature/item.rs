@@ -1,4 +1,6 @@
 //! Project the frontend-owned module flag; no linter visitation or source-order snapshots.
+use crate::domain::file_view::types::PythonWalk;
+use crate::domain::node::service::fixed;
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -33,6 +35,31 @@ ryo::reads! {
                 row { file: file, feature: value(feature), enabled: value(enabled), }
             }
             None => { partial super::constants::INCOMPLETE => languages::Missing::Any; }
+        }
+    }
+}
+
+// The engine fills `compiler-feature` from the walked file: every row of the file, once.
+ryo::fills! {
+    CompilerFeatureItem => languages::CompilerFeature, walk(PythonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::CompilerFeature as languages::CatalogRelation>::Row;
+        let memo = &mut file.buffers.fixed;
+        let mode = languages::node_table::property_of(
+            file.syntax.table,
+            languages::Position(0),
+            MODULE_FUTURE_ANNOTATIONS,
+        );
+        match feature_flag(mode) {
+            Some(enabled) => rows.write(Row {
+                file: file.syntax.file,
+                feature: fixed(words, memo, languages::NameText(super::constants::FUTURE_ANNOTATIONS)),
+                enabled,
+            }),
+            None => rows.partial(
+                languages::ReportText(super::constants::INCOMPLETE),
+                languages::Missing::Any,
+            ),
         }
     }
 }

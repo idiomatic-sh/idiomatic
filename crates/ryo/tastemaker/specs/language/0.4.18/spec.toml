@@ -1231,6 +1231,25 @@ files.'demo/src/inbound/contracts.rs' = '''
 
 pub(crate) mod parse;
 pub(crate) mod project;
+pub(crate) mod walk;
+'''
+files.'demo/src/inbound/contracts/walk.rs' = '''
+//! The demo language's `walk` contract.
+
+pub(crate) mod contract;
+'''
+files.'demo/src/inbound/contracts/walk/contract.rs' = '''
+//! The `walk` contract: the language's implementation of `ryo::languages::Walk`, beside `parse` until the engine reads only walks.
+
+use std::sync::Arc;
+
+use crate::outbound::syntax::interface::SyntaxPort;
+
+/// The ports the walk calls, which the edge injects.
+pub(crate) struct WalkPorts {
+    /// The parser.
+    pub(crate) syntax: Arc<dyn SyntaxPort>,
+}
 '''
 files.'demo/src/inbound/contracts/parse.rs' = '''
 //! The demo language's `parse` contract.

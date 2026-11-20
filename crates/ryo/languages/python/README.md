@@ -11,11 +11,38 @@ let language = ryo_python::linked();
 assert_eq!(&*language.name().0, "python");
 ```
 
+For the engine that walks each file once, `ryo_python::walk()` (or `walk_with_settings`) gives the language's walk: it implements
+`ryo::languages::Walk`, writes a file's node table and lends the engine the file over the language's fillers.
+
+```rust
+use ryo::languages::Walk;
+
+fn kinds<W: Walk>(_: &W) -> ryo::languages::Count {
+    W::KIND_COUNT
+}
+assert!(kinds(&ryo_python::walk()).0 > 0);
+```
+
 ## Domains
 
 ### definitions
 
 The python domain's `definitions` concept: what an element defines, as the `defines` and `parameter` relations say it: a function, a class, an imported or assigned name, a parameter and its place, an exception's name, a pattern's capture or a type parameter, with Python's own word for each.
+
+### `file_view`
+
+The python domain's `file_view` concept: the language as the engine walks it, and its view of one walked file, which every
+filler reads.
+
+### `layout_facts`, `literal_facts`, `name_facts`
+
+The fillers' readings of a walked file from the parser's own nodes: the links between its tokens, its indentation regions and
+its lines; what its literals are and hold; the names its imports, decorators, bases, arguments and parameters write.
+
+### node, `node_fields`, `expression_fields`
+
+The parser's own tree of one file read in place: the id and the typed node of each syntax node, the text and the row cells of
+an element, and the field each child fills under its parent, read from the typed parent.
 
 ### extras
 

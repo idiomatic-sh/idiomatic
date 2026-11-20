@@ -37,18 +37,18 @@ ryo::reads! {
 
 #[derive(Clone, Copy)]
 /// A potential Python environment-provided name and its target-version origin.
-struct CatalogName {
+pub(crate) struct CatalogName {
     /// The spelling made available by Python.
-    name: languages::NameText<'static>,
+    pub name: languages::NameText<'static>,
     /// First Python major version providing the name.
-    major: languages::Integer,
+    pub major: languages::Integer,
     /// First Python minor version providing the name.
-    minor: languages::Integer,
+    pub minor: languages::Integer,
 }
 
 /// Names supplied by the builtins environment, including attributes of the builtins module.
 /// These module attributes overlap with module execution globals without sharing origin.
-const BUILTIN_ATTRIBUTES: &[CatalogName] = &[
+pub(crate) const BUILTIN_ATTRIBUTES: &[CatalogName] = &[
     catalog(
         languages::NameText(super::constants::DOC),
         languages::Integer(3),
@@ -84,7 +84,7 @@ const BUILTIN_ATTRIBUTES: &[CatalogName] = &[
 /// PEP 366. Sources: docs.python.org/3.2/whatsnew/3.2.html, docs.python.org/3.12/reference/datamodel.html,
 /// docs.python.org/3.6/whatsnew/3.6.html, docs.python.org/3/reference/datamodel.html,
 /// peps.python.org/pep-0302/, and peps.python.org/pep-0366/.
-const MODULE_GLOBALS: &[CatalogName] = &[
+pub(crate) const MODULE_GLOBALS: &[CatalogName] = &[
     catalog(
         languages::NameText(super::constants::ANNOTATIONS),
         languages::Integer(3),
