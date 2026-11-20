@@ -194,6 +194,8 @@ enum Op {
     TextMap { src: Src, map: crate::domain::physical_plan::types::RowMap },
     Ordered { l: Src, r: Src, lk: Vec<usize>, rk: Vec<usize>, lo: usize, ro: usize, out: Vec<(bool, usize)> },
     Closure { src: Src, keys: Vec<usize>, from: usize, to: usize },
+    /// project(cols of left) over select(left.a TEST right.b) over join(left, right on keys), as a per-group bound test.
+    SemiBand { l: Src, r: Src, lk: Vec<usize>, rk: Vec<usize>, a: usize, b: usize, test: Test, cols: Vec<usize>, dedup: bool },
     Axis { starts: Src, edges: Src, domain: Src, dir: ryo_values::domain::plan_parts::types::Direction, id: usize, parent: usize, child: usize, domain_id: usize },
 }
 
@@ -213,6 +215,7 @@ impl Op {
             Op::Ordered { .. } => 11,
             Op::Closure { .. } => 12,
             Op::Axis { .. } => 13,
+            Op::SemiBand { .. } => 3,
         }
     }
     fn sources(&self) -> Vec<Src> {
@@ -225,7 +228,7 @@ impl Op {
             | Op::TextMap { src, .. }
             | Op::Closure { src, .. } => vec![*src],
             Op::Axis { starts, edges, domain, .. } => vec![*starts, *edges, *domain],
-            Op::Ordered { l, r, .. } => vec![*l, *r],
+            Op::Ordered { l, r, .. } | Op::SemiBand { l, r, .. } => vec![*l, *r],
             Op::Join { l, r, .. }
             | Op::Union { l, r }
             | Op::Inter { l, r }
@@ -264,6 +267,8 @@ pub struct Program {
     guards: Vec<Vec<u32>>,
     needs_source: bool,
     rel_kinds: Vec<Vec<CellKind>>,
+    /// Per node, the rules whose findings in a file need a row of it in that file.
+    necessary_for: Vec<Vec<u32>>,
     /// Closure nodes computed at their joins, from the keys the other side holds.
     virtual_closure: Vec<bool>,
     /// Every relation any node of the program reads (the fill floor's input).
@@ -381,7 +386,7 @@ fn remap(op: &mut Op, f: &mut dyn FnMut(usize) -> usize) {
             fix(edges);
             fix(domain);
         }
-        Op::Ordered { l, r, .. } => {
+        Op::Ordered { l, r, .. } | Op::SemiBand { l, r, .. } => {
             fix(l);
             fix(r);
         }
@@ -623,6 +628,64 @@ pub fn install(program: &LogicalProgram<'_>, rule_ids: &[Box<str>], spans: &[Opt
             Err(error) => errors[at] = Some(error),
         }
     }
+    // Semi band fusion: project(left columns) <- select(one order test, left column vs right column) <- join, where the join and
+    // the select each have exactly one reader in the whole program.
+    {
+        let mut program_readers = vec![0u32; nodes.len()];
+        for node in nodes {
+            for input in node.inputs.0 {
+                if let PlanInput::Node(read) = input {
+                    program_readers[read.0 as usize] += 1;
+                }
+            }
+        }
+        for (at, node) in program.emitted_rules() {
+            let _ = at;
+            program_readers[node.0 as usize] += 1;
+        }
+        for at in 0..ops.len() {
+            let Some(Op::Project { src: Src::Node(sel), cols, dedup }) = &ops[at] else { continue };
+            let sel = *sel as usize;
+            let Some(Op::Select { src: Src::Node(join), cmps, kept }) = &ops[sel] else { continue };
+            let join = *join as usize;
+            if !kept.is_empty() || cmps.len() != 1 || program_readers[sel] != 1 || program_readers[join] != 1 {
+                continue;
+            }
+            let Some(Op::Join { l, r, lk, rk, out, rfilter, reach: None }) = &ops[join] else { continue };
+            if !rfilter.is_empty() {
+                continue;
+            }
+            let cmp = &cmps[0];
+            let (Opd::Col(x), Opd::Col(y)) = (&cmp.l, &cmp.r) else { continue };
+            let side = |c: usize| out.get(c.wrapping_sub(1)).copied();
+            let flipped = |test: Test| match test {
+                Test::LessThan => Some(Test::GreaterThan),
+                Test::LessThanOrEqual => Some(Test::GreaterThanOrEqual),
+                Test::GreaterThan => Some(Test::LessThan),
+                Test::GreaterThanOrEqual => Some(Test::LessThanOrEqual),
+                _ => None,
+            };
+            let (a, b, test) = match (side(*x), side(*y)) {
+                (Some((false, a)), Some((true, b))) if flipped(cmp.test).is_some() => (a, b, cmp.test),
+                (Some((true, b)), Some((false, a))) => match flipped(cmp.test) {
+                    Some(test) => (a, b, test),
+                    None => continue,
+                },
+                _ => continue,
+            };
+            let mut left_cols = Vec::new();
+            for c in cols {
+                match side(*c) {
+                    Some((false, lc)) => left_cols.push(lc),
+                    _ => break,
+                }
+            }
+            if left_cols.len() != cols.len() {
+                continue;
+            }
+            ops[at] = Some(Op::SemiBand { l: *l, r: *r, lk: lk.clone(), rk: rk.clone(), a, b, test, cols: left_cols, dedup: *dedup });
+        }
+    }
     // A rule is covered when every node its emitted node depends on lowered.
     let mut rules = Vec::new();
     let mut needed = vec![false; nodes.len()];
@@ -714,16 +777,22 @@ pub fn install(program: &LogicalProgram<'_>, rule_ids: &[Box<str>], spans: &[Opt
     // there: the first input of select/project/extend/bounds/group, both inputs of an inner join and intersection, the left of an
     // antijoin or difference. A union empties only when both sides do, so it stops the walk.
     let mut guards = Vec::new();
-    for rule in &rules {
+    let mut necessary_for: Vec<Vec<u32>> = vec![Vec::new(); nodes.len()];
+    for (rule_index, rule) in rules.iter().enumerate() {
         let mut found: Vec<u32> = Vec::new();
         let mut stack = vec![rule.node];
+        let mut visited = std::collections::BTreeSet::new();
         while let Some(at) = stack.pop() {
+            if !visited.insert(at) {
+                continue;
+            }
+            necessary_for[at as usize].push(rule_index as u32);
             let Some(op) = &ops[at as usize] else { continue };
             let necessary: Vec<Src> = match op {
                 Op::Select { src, .. } | Op::Project { src, .. } | Op::Extend { src, .. } | Op::Group { src, .. } | Op::Bounds { src, .. }
                 | Op::TextMap { src, .. } | Op::Closure { src, .. } => vec![*src],
                 Op::Axis { starts, edges, domain, .. } => vec![*starts, *edges, *domain],
-                Op::Join { l, r, .. } | Op::Inter { l, r } | Op::Ordered { l, r, .. } => vec![*l, *r],
+                Op::Join { l, r, .. } | Op::Inter { l, r } | Op::Ordered { l, r, .. } | Op::SemiBand { l, r, .. } => vec![*l, *r],
                 Op::Anti { l, .. } | Op::Diff { l, .. } => vec![*l],
                 Op::Union { .. } => vec![],
             };
@@ -759,7 +828,9 @@ pub fn install(program: &LogicalProgram<'_>, rule_ids: &[Box<str>], spans: &[Opt
             any = true;
             let fits = match other {
                 Op::Join { l, r, lk, rk, reach: None, .. } if l != r => {
-                    (*l == me && lk.contains(&source_at)) || (*r == me && rk.contains(&source_at))
+                    let end_at = source_at + 1;
+                    (*l == me && (lk.contains(&source_at) || lk.contains(&end_at)))
+                        || (*r == me && (rk.contains(&source_at) || rk.contains(&end_at)))
                 }
                 _ => false,
             };
@@ -774,6 +845,7 @@ pub fn install(program: &LogicalProgram<'_>, rule_ids: &[Box<str>], spans: &[Opt
     }
     let needs_source = needed_list.iter().any(|at| matches!(ops[*at as usize], Some(Op::TextMap { .. })));
     let program = Program {
+        necessary_for,
         ops,
         widths: widths.iter().map(|w| w.unwrap_or(0)).collect(),
         needed: needed_list,
@@ -884,6 +956,7 @@ struct Stats {
     batches: u64,
     pruned_rule_files: u64,
     run_rule_files: u64,
+    dyn_pruned: u64,
     peak_batch_cells: u64,
     node_nanos: Vec<u64>,
     node_tuples: Vec<u64>,
@@ -899,6 +972,7 @@ struct Worker {
     stats: Stats,
     symbol_codes: FxHashMap<u32, u32>,
     cache: FxHashMap<(usize, Vec<usize>), Arc<Vec<u64>>>,
+    pair_cache: FxHashMap<(usize, usize, usize), Arc<Vec<u64>>>,
 }
 
 impl Worker {
@@ -917,6 +991,7 @@ impl Worker {
             stats: Stats::default(),
             symbol_codes: FxHashMap::default(),
             cache: FxHashMap::default(),
+            pair_cache: FxHashMap::default(),
         }
     }
 }
@@ -1418,6 +1493,24 @@ fn evaluate(program: &Program, w: &mut Worker) {
             w.stats.node_nanos[node as usize] += spent;
             w.stats.node_tuples[node as usize] += (out.len() / program.widths[node as usize].max(1)) as u64;
             w.stats.tuples[class] += (out.len() / program.widths[node as usize].max(1)) as u64;
+            // Semi-join reduction: a necessary node with no row in a file drops the file from every rule that needs it.
+            let needs = &program.necessary_for[node as usize];
+            if !needs.is_empty() {
+                let width = program.widths[node as usize].max(1);
+                let mut present = vec![false; nfiles];
+                for row in out.chunks_exact(width) {
+                    present[row[0] as usize] = true;
+                }
+                for rule in needs {
+                    let (word, bit) = (*rule as usize / 64, 1u64 << (*rule % 64));
+                    for (file, bits) in alive.iter_mut().enumerate() {
+                        if !present[file] && bits[word] & bit != 0 {
+                            bits[word] &= !bit;
+                            w.stats.dyn_pruned += 1;
+                        }
+                    }
+                }
+            }
             results[node as usize] = Some(out);
             for source in op.sources() {
                 if let Src::Node(read) = source {
@@ -1454,6 +1547,7 @@ fn evaluate(program: &Program, w: &mut Worker) {
         rel.clear();
     }
     w.cache.clear();
+    w.pair_cache.clear();
     w.files.clear();
 }
 
@@ -1482,6 +1576,21 @@ fn closure_rows(
     live: &[bool],
     seeds: Option<&[u64]>,
 ) -> Vec<u64> {
+    closure_dir(edges_rows, width, keys, from, to, live, seeds, false)
+}
+
+/// `closure_rows`, walked from the destinations when `backward` (the seeds are destinations); rows keep (source, destination).
+fn closure_dir(
+    edges_rows: &[u64],
+    width: usize,
+    keys: &[usize],
+    from: usize,
+    to: usize,
+    live: &[bool],
+    seeds: Option<&[u64]>,
+    backward: bool,
+) -> Vec<u64> {
+    let (from, to) = if backward { (to, from) } else { (from, to) };
     let gw = keys.len() + 1;
     let ew = gw + 2;
     let mut edges = Vec::new();
@@ -1544,8 +1653,13 @@ fn closure_rows(
                         let next = slice[e * ew + gw + 1];
                         if seen.insert(next) {
                             out.extend_from_slice(group);
-                            out.push(start);
-                            out.push(next);
+                            if backward {
+                                out.push(next);
+                                out.push(start);
+                            } else {
+                                out.push(start);
+                                out.push(next);
+                            }
                             stack.push(next);
                         }
                     }
@@ -1571,6 +1685,41 @@ fn seeds_of(rows: &[u64], width: usize, col: usize, live: &[bool]) -> Vec<u64> {
     }
     sort_rows(&mut pairs, 2, true);
     pairs
+}
+
+/// The sorted (file, from, to) triples of an edge input: built once per batch for a base relation (every file), per call for a
+/// node (its live files).
+fn edge_pairs(
+    cache: &mut FxHashMap<(usize, usize, usize), Arc<Vec<u64>>>,
+    src: Src,
+    rows: &[u64],
+    width: usize,
+    from: usize,
+    to: usize,
+    live: &[bool],
+    stats: &mut Stats,
+) -> Arc<Vec<u64>> {
+    if let Src::Rel(slot) = src
+        && let Some(found) = cache.get(&(slot, from, to))
+    {
+        return Arc::clone(found);
+    }
+    let started = Instant::now();
+    let base = matches!(src, Src::Rel(_));
+    let mut pairs = Vec::new();
+    for row in rows.chunks_exact(width) {
+        if base || live[row[0] as usize] {
+            pairs.extend_from_slice(&[row[0], row[from], row[to]]);
+        }
+    }
+    sort_rows(&mut pairs, 3, false);
+    stats.index_nanos += started.elapsed().as_nanos() as u64;
+    stats.index_tuples += (pairs.len() / 3) as u64;
+    let made = Arc::new(pairs);
+    if let Src::Rel(slot) = src {
+        cache.insert((slot, from, to), Arc::clone(&made));
+    }
+    made
 }
 
 struct BridgeRes<'a> {
@@ -1749,17 +1898,26 @@ fn run_op(
                     },
                 };
                 // The logical position of the closure's source among the side's columns.
-                let source_logical = match &columns {
-                    Some(columns) => columns.iter().position(|c| *c == ckeys.len()).map(|p| p + 1),
-                    None => Some(ckeys.len() + 1),
+                let logical_of = |at: usize| match &columns {
+                    Some(columns) => columns.iter().position(|c| *c == at).map(|p| p + 1),
+                    None => Some(at + 1),
                 };
                 let ow = width_of(program, other);
                 let other_rows = source(other, results, rels);
-                let seeds = source_logical
-                    .and_then(|sl| keys.iter().position(|k| *k == sl))
-                    .map(|i| seeds_of(other_rows, ow, other_keys[i], live));
+                let seeded_at = |logical: Option<usize>| {
+                    logical
+                        .and_then(|sl| keys.iter().position(|k| *k == sl))
+                        .map(|i| seeds_of(other_rows, ow, other_keys[i], live))
+                };
+                let (seeds, backward) = match seeded_at(logical_of(ckeys.len())) {
+                    Some(seeds) => (Some(seeds), false),
+                    None => match seeded_at(logical_of(ckeys.len() + 1)) {
+                        Some(seeds) => (Some(seeds), true),
+                        None => (None, false),
+                    },
+                };
                 let ew = width_of(program, edges);
-                let rows = closure_rows(source(edges, results, rels), ew, &ckeys, cfrom, cto, live, seeds.as_deref());
+                let rows = closure_dir(source(edges, results, rels), ew, &ckeys, cfrom, cto, live, seeds.as_deref(), backward);
                 match columns {
                     None => Some((rows, ckeys.len() + 3)),
                     Some(columns) => {
@@ -1790,7 +1948,14 @@ fn run_op(
             if lids.is_empty() {
                 return out;
             }
-            let li = index(lrows, lw, lk, Some(&lids), &mut w.stats);
+            let li: Arc<Vec<u64>> = match (l, &lmade) {
+                (Src::Rel(slot), None) => {
+                    let mut icols = vec![0];
+                    icols.extend_from_slice(lk);
+                    cached_index(&mut w.cache, *slot, lrows, lw, icols, &mut w.stats)
+                }
+                _ => Arc::new(index(lrows, lw, lk, Some(&lids), &mut w.stats)),
+            };
             let base_right = match (r, &rmade) {
                 (Src::Rel(slot), None) => Some(*slot),
                 _ => None,
@@ -1802,7 +1967,7 @@ fn run_op(
                 let ri = cached_index(&mut w.cache, slot, rrows, rw, icols, &mut w.stats);
                 merge(&li, &ri, lk.len() + 1, |key, a, b| {
                     let row = &rrows[b * rw..b * rw + rw];
-                    if rfilter.iter().all(|c| holds(c, row, &mut ctx)) {
+                    if live[key[0] as usize] && rfilter.iter().all(|c| holds(c, row, &mut ctx)) {
                         out.push(key[0]);
                         for (right, c) in cols.iter() {
                             out.push(if *right { row[*c] } else { lrows[a * lw + c] });
@@ -1822,6 +1987,9 @@ fn run_op(
                 }
                 let ri = index(rrows, rw, rk, Some(&rids), &mut w.stats);
                 merge(&li, &ri, lk.len() + 1, |key, a, b| {
+                    if !live[key[0] as usize] {
+                        return;
+                    }
                     out.push(key[0]);
                     for (right, c) in cols.iter() {
                         out.push(if *right { rrows[b * rw + c] } else { lrows[a * lw + c] });
@@ -1971,6 +2139,89 @@ fn run_op(
                 }
             }
         }
+        Op::SemiBand { l, r, lk, rk, a, b, test, cols, dedup } => {
+            let (lw, rw) = (width_of(program, *l), width_of(program, *r));
+            let (lrows, rrows) = (source(*l, results, rels), source(*r, results, rels));
+            let files = ctx.files;
+            let number = |cell: u64, f: u64| -> Option<i64> {
+                match tag(cell) {
+                    TAG_NODE => Some((((files[f as usize].id as u64) << 32) | (cell & 0xffff_ffff)) as i64),
+                    TAG_NUM => Some(num_of(cell)),
+                    TAG_SPAN => span_of(cell).map(|(start, _)| i64::from(start)),
+                    _ => None,
+                }
+            };
+            // Per right group (file, keys): the max and min of b.
+            let rids: Vec<u32> = (0..rrows.len() / rw).filter(|at| live[rrows[at * rw] as usize]).map(|at| at as u32).collect();
+            let lids: Vec<u32> = (0..lrows.len() / lw).filter(|at| live[lrows[at * lw] as usize]).map(|at| at as u32).collect();
+            if rids.is_empty() || lids.is_empty() {
+                return out;
+            }
+            let ri = index(rrows, rw, rk, Some(&rids), &mut w.stats);
+            let k = rk.len() + 1;
+            let iw = k + 1;
+            let mut groups: Vec<u64> = Vec::new();
+            let mut bounds: Vec<(i64, i64)> = Vec::new();
+            let mut numeric = true;
+            for entry in ri.chunks_exact(iw) {
+                let row_at = entry[k] as usize;
+                let Some(value) = number(rrows[row_at * rw + b], entry[0]) else {
+                    numeric = false;
+                    break;
+                };
+                let same = groups.len() >= k && groups[groups.len() - k..] == entry[..k];
+                if same {
+                    let last = bounds.last_mut().unwrap_or_else(|| unreachable!());
+                    last.0 = last.0.max(value);
+                    last.1 = last.1.min(value);
+                } else {
+                    groups.extend_from_slice(&entry[..k]);
+                    bounds.push((value, value));
+                }
+            }
+            if numeric {
+                let ng = bounds.len();
+                let mut key = Vec::with_capacity(k);
+                for id in lids {
+                    let row = &lrows[id as usize * lw..id as usize * lw + lw];
+                    key.clear();
+                    key.push(row[0]);
+                    key.extend(lk.iter().map(|c| row[*c]));
+                    let at = gallop(&groups, k, k, 0, &key);
+                    if at >= ng || groups[at * k..at * k + k] != *key {
+                        continue;
+                    }
+                    let Some(value) = number(row[*a], row[0]) else { numeric = false; break };
+                    let (max, min) = bounds[at];
+                    let pass = match test {
+                        Test::LessThan => value < max,
+                        Test::LessThanOrEqual => value <= max,
+                        Test::GreaterThan => value > min,
+                        _ => value >= min,
+                    };
+                    if pass {
+                        out.push(row[0]);
+                        out.extend(cols.iter().map(|c| row[*c]));
+                    }
+                }
+            }
+            if !numeric {
+                // Text or another kind in an order test: the pairs, tested one by one through the engine's comparison.
+                out.clear();
+                let li = index(lrows, lw, lk, None, &mut w.stats);
+                let cmp = Cmp { test: *test, l: Opd::Col(1), r: Opd::Col(2), fast: None, memo: None };
+                merge(&li, &ri, k, |key, x, y| {
+                    let pair = [key[0], lrows[x * lw + a], rrows[y * rw + b]];
+                    if live[key[0] as usize] && holds(&cmp, &pair, &mut ctx) {
+                        out.push(key[0]);
+                        out.extend(cols.iter().map(|c| lrows[x * lw + c]));
+                    }
+                });
+            }
+            if *dedup {
+                sort_rows(&mut out, cols.len() + 1, true);
+            }
+        }
         Op::Ordered { l, r, lk, rk, lo, ro, out: cols } => {
             let (lw, rw) = (width_of(program, *l), width_of(program, *r));
             let (lrows, rrows) = (source(*l, results, rels), source(*r, results, rels));
@@ -2025,13 +2276,9 @@ fn run_op(
             let up = matches!(dir, Direction::Parent | Direction::Ancestor | Direction::NearestAncestor);
             let (from, to) = if up { (*child, *parent) } else { (*parent, *child) };
             let (sw, ew, dw) = (width_of(program, *starts), width_of(program, *edges), width_of(program, *domain));
-            let mut pairs = Vec::new();
-            for row in source(*edges, results, rels).chunks_exact(ew) {
-                if live[row[0] as usize] {
-                    pairs.extend_from_slice(&[row[0], row[from], row[to]]);
-                }
-            }
-            sort_rows(&mut pairs, 3, false);
+            let edge_rows = source(*edges, results, rels);
+            let pairs_made = edge_pairs(&mut w.pair_cache, *edges, edge_rows, ew, from, to, live, &mut w.stats);
+            let pairs: &[u64] = &pairs_made;
             let mut members = Vec::new();
             for row in source(*domain, results, rels).chunks_exact(dw) {
                 if live[row[0] as usize] {
@@ -2057,6 +2304,75 @@ fn run_op(
             };
             let mut seen = rustc_hash::FxHashSet::default();
             let mut queue = std::collections::VecDeque::new();
+            let start_rows = source(*starts, results, rels);
+            let start_count = start_rows.len() / sw;
+            if *dir == Direction::Ancestor && nm.saturating_mul(8) < start_count {
+                // pairs are (file, child, parent) for an upward walk: reverse them to walk down from each member.
+                let downs_made = edge_pairs(&mut w.pair_cache, *edges, edge_rows, ew, to, from, live, &mut w.stats);
+                let downs: &[u64] = &downs_made;
+                let nd = downs.len() / 3;
+                let sids: Vec<u32> = (0..start_count).filter(|at| live[start_rows[at * sw] as usize]).map(|at| at as u32).collect();
+                let sidx = index(start_rows, sw, &[*id], Some(&sids), &mut w.stats);
+                let ns = sidx.len() / 3;
+                for member_at in 0..nm {
+                    let (file, entity) = (members[member_at * 2], members[member_at * 2 + 1]);
+                    seen.clear();
+                    queue.clear();
+                    queue.push_back(entity);
+                    while let Some(node) = queue.pop_front() {
+                        let mut e = gallop(&downs, 3, 2, 0, &[file, node]);
+                        while e < nd && downs[e * 3] == file && downs[e * 3 + 1] == node {
+                            let below = downs[e * 3 + 2];
+                            e += 1;
+                            if !seen.insert(below) {
+                                continue;
+                            }
+                            queue.push_back(below);
+                            let mut s_at = gallop(&sidx, 3, 2, 0, &[file, below]);
+                            while s_at < ns && sidx[s_at * 3] == file && sidx[s_at * 3 + 1] == below {
+                                let row_at = sidx[s_at * 3 + 2] as usize;
+                                out.extend_from_slice(&start_rows[row_at * sw..row_at * sw + sw]);
+                                out.push(entity);
+                                s_at += 1;
+                            }
+                        }
+                    }
+                }
+                return out;
+            }
+            if *dir == Direction::Descendant && nm < start_count.saturating_mul(2) {
+                let ups_made = edge_pairs(&mut w.pair_cache, *edges, edge_rows, ew, to, from, live, &mut w.stats);
+                let ups: &[u64] = &ups_made;
+                let nu = ups.len() / 3;
+                let sids: Vec<u32> = (0..start_count).filter(|at| live[start_rows[at * sw] as usize]).map(|at| at as u32).collect();
+                let sidx = index(start_rows, sw, &[*id], Some(&sids), &mut w.stats);
+                let ns = sidx.len() / 3;
+                for member_at in 0..nm {
+                    let (file, entity) = (members[member_at * 2], members[member_at * 2 + 1]);
+                    seen.clear();
+                    queue.clear();
+                    queue.push_back(entity);
+                    while let Some(node) = queue.pop_front() {
+                        let mut e = gallop(&ups, 3, 2, 0, &[file, node]);
+                        while e < nu && ups[e * 3] == file && ups[e * 3 + 1] == node {
+                            let above = ups[e * 3 + 2];
+                            e += 1;
+                            if !seen.insert(above) {
+                                continue;
+                            }
+                            queue.push_back(above);
+                            let mut s_at = gallop(&sidx, 3, 2, 0, &[file, above]);
+                            while s_at < ns && sidx[s_at * 3] == file && sidx[s_at * 3 + 1] == above {
+                                let row_at = sidx[s_at * 3 + 2] as usize;
+                                out.extend_from_slice(&start_rows[row_at * sw..row_at * sw + sw]);
+                                out.push(entity);
+                                s_at += 1;
+                            }
+                        }
+                    }
+                }
+                return out;
+            }
             for row in source(*starts, results, rels).chunks_exact(sw) {
                 let file = row[0];
                 if !live[file as usize] {
@@ -2161,6 +2477,7 @@ pub fn finish() {
         stats.batches += s.batches;
         stats.pruned_rule_files += s.pruned_rule_files;
         stats.run_rule_files += s.run_rule_files;
+        stats.dyn_pruned += s.dyn_pruned;
         stats.peak_batch_cells = stats.peak_batch_cells.max(s.peak_batch_cells);
         if stats.node_nanos.len() < s.node_nanos.len() {
             stats.node_nanos.resize(s.node_nanos.len(), 0);
@@ -2190,7 +2507,7 @@ pub fn finish() {
         text.push_str(&format!("\"rules\":{},\"nodes\":{},\"relations\":{},", program.rules.len(), program.needed.len(), program.rels.len()));
         text.push_str(&format!("\"findings\":{},\"texts\":{texts},", lines.len()));
         text.push_str(&format!("\"index_s\":{:.4},\"index_tuples\":{},\"sort_s\":{:.4},", stats.index_nanos as f64 / 1e9, stats.index_tuples, stats.sort_nanos as f64 / 1e9));
-        text.push_str(&format!("\"pruned_rule_files\":{},\"run_rule_files\":{},\"peak_batch_cells\":{},", stats.pruned_rule_files, stats.run_rule_files, stats.peak_batch_cells));
+        text.push_str(&format!("\"pruned_rule_files\":{},\"run_rule_files\":{},\"dyn_pruned\":{},\"peak_batch_cells\":{},", stats.pruned_rule_files, stats.run_rule_files, stats.dyn_pruned, stats.peak_batch_cells));
         text.push_str("\"classes\":{");
         for at in 0..NCLASS {
             let ns_per = if stats.tuples[at] > 0 { stats.nanos[at] as f64 / stats.tuples[at] as f64 } else { 0.0 };
