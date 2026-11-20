@@ -827,7 +827,11 @@ const FL_RECLAIM: u8 = 2;
 #[derive(Default, Clone, Copy)]
 pub(crate) struct XFIdx {
     generation: u32,
+    /// the first rows are in a run of the arena indexed by node id (a node column with enough rows to be worth 4 bytes
+    /// per node of the file); else in the keyed map
     dense: bool,
+    /// the column holds nodes: a key past the file's nodes has no rows
+    node: bool,
     head: u32,
     nhead: u32,
     next: u32,
@@ -901,6 +905,9 @@ pub(crate) struct XState {
     pub optime: bool,
     pub tup_peak: usize,
     pub ia_peak: usize,
+    /// NAV_SPARSE (default 8): a node column's index keeps a head per node when it has at least one row per this many
+    /// nodes of the file (a very large value: whenever it has a row)
+    pub sparse: usize,
     /// calls of the dispatch loop over the run
     pub calls: u64,
 }
@@ -925,6 +932,7 @@ impl XState {
             self.xns = vec![0; NXOPS];
             self.xpairs = vec![0; NXOPS * NXOPS];
             self.optime = std::env::var_os("NAV_OPTIME").is_some();
+            self.sparse = std::env::var("NAV_SPARSE").ok().and_then(|v| v.parse().ok()).unwrap_or(8);
         }
         self.generation += 1;
         self.tup_peak = self.tup_peak.max(self.tup.len());
@@ -1205,14 +1213,15 @@ impl<'p> Exec<'_, 'p> {
         let generation = self.cache.x.generation;
         let t0 = std::time::Instant::now();
         let n_view = self.f.view.len();
-        let dense = matches!(prog.facts[rel as usize].kinds[col as usize], ryo_relations::domain::relations::types::CellKind::Node);
+        let node = matches!(prog.facts[rel as usize].kinds[col as usize], ryo_relations::domain::relations::types::CellKind::Node);
         let cache = &mut *self.cache;
         let c = &cache.facts.as_ref().unwrap().cols[rel as usize][col as usize];
         let xs = &mut cache.x;
-        let mut ix = XFIdx { generation, dense, head: 0, nhead: 0, next: 0 };
+        // a head per node costs 4 bytes per node of the file: only for a column with at least a row per SPARSE nodes
+        let dense = node && c.len() * xs.sparse >= n_view;
+        let mut ix = XFIdx { generation, dense, node, head: 0, nhead: n_view as u32 + 1, next: 0 };
         if dense {
             ix.head = xs.ia.len() as u32;
-            ix.nhead = n_view as u32 + 1;
             xs.ia.resize(xs.ia.len() + n_view + 1, u32::MAX);
         }
         ix.next = xs.ia.len() as u32;
@@ -1243,8 +1252,10 @@ impl<'p> Exec<'_, 'p> {
     fn xfact_first(&self, id: u16, key: u64) -> (u32, u32) {
         let xs = &self.cache.x;
         let ix = xs.fidx[id as usize];
-        let first = if ix.dense {
-            if key as usize >= ix.nhead as usize - 1 { u32::MAX } else { xs.ia[ix.head as usize + key as usize] }
+        let first = if ix.node && key as usize >= ix.nhead as usize - 1 {
+            u32::MAX
+        } else if ix.dense {
+            xs.ia[ix.head as usize + key as usize]
         } else {
             xs.fat.get(&(id, key)).copied().unwrap_or(u32::MAX)
         };
