@@ -15,6 +15,39 @@ use std::time::Instant;
 
 pub(crate) type R = u16;
 
+thread_local! {
+    static CPU_CLOCK: bool = std::env::var_os("NAV_CPUCLOCK").is_some();
+    static SORTED_INDEX: bool = !std::env::var("NAV_SORTED_INDEX").is_ok_and(|v| v == "0");
+    /// the whole-or-per-key choice: 0 never whole by choice; 1 (default, the measured runs) whole when the plan fills it whole
+    /// in most files; 2 also by a count-based cost (tried: it gains 0.02-0.03 thread-s and mis-chooses two relations whose
+    /// early files are not typical; the engine should measure each relation's two costs, not assume a ratio)
+    static KEY_POLICY: u8 = std::env::var("NAV_PERKEY_POLICY").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+    static REUSE_FACTS: bool = !std::env::var("NAV_REUSE_FACTS").is_ok_and(|v| v == "0");
+}
+static EPOCH: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+
+/// The component clock (facts): the thread's own CPU time under NAV_CPUCLOCK (independent of the machine's load; a system call
+/// per read, so only the counter run uses it), the wall clock otherwise.
+#[derive(Clone, Copy)]
+pub(crate) struct Tick(u64);
+
+impl Tick {
+    pub(crate) fn now() -> Self {
+        if CPU_CLOCK.with(|c| *c) {
+            let t = rustix::time::clock_gettime(rustix::time::ClockId::ThreadCPUTime);
+            Self(t.tv_sec as u64 * 1_000_000_000 + t.tv_nsec as u64)
+        } else {
+            Self(EPOCH.get_or_init(std::time::Instant::now).elapsed().as_nanos() as u64)
+        }
+    }
+    pub(crate) fn elapsed(&self) -> std::time::Duration {
+        std::time::Duration::from_nanos(Self::now().0.saturating_sub(self.0))
+    }
+    pub(crate) fn since(&self, earlier: Tick) -> u64 {
+        self.0.saturating_sub(earlier.0)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum TRel {
     Ss,
@@ -2680,6 +2713,29 @@ pub(crate) struct Counters {
     pub made_depth: u32,
     /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
     pub diag: bool,
+    /// facts (NAV_ACCT): what programs read of what is produced. Per fact relation, ACCT_NAMES order.
+    pub acct: bool,
+    pub rel_acct: Vec<[u64; NACCT]>,
+    /// view columns (VIEW_COLS order): reads, files with a read
+    pub view_reads: [u64; NVIEW],
+    pub view_files: [u64; NVIEW],
+    /// view ids over the run, distinct ids whose text was read (per file, summed), text reads of whole columns (index builds)
+    pub view_ids: u64,
+    pub view_tokens: u64,
+    pub text_distinct: u64,
+    /// whole-column passes over the view per (what, relation, column): 0 value buckets, 1 sorted value index
+    pub view_passes: FxMap<(u8, u8, u8), (u64, u64)>,
+    /// files where a row of a model relation was read: [lexical relations, flow relations]; files where the lexical model was
+    /// built only for a derived relation's owner column
+    pub model_read_files: [u64; 2],
+    /// probes per (relation, column, 0 register key / 1 constants / 2 two constant columns) and cells read per (relation, column)
+    /// per-key fills over the run: fills (memo misses), rows written, lookups, and their time (every 64th fill clocked, times 64)
+    pub key_fills: u64,
+    pub key_rows: u64,
+    pub key_lookups: u64,
+    pub key_fill_ns: u64,
+    pub probe_cols: FxMap<(u16, u8, u8), u64>,
+    pub read_cols: FxMap<(u16, u8), u64>,
 }
 
 impl Counters {
@@ -2697,6 +2753,13 @@ impl Counters {
         }
     }
 }
+pub(crate) const NACCT: usize = 19;
+pub(crate) const ACCT_NAMES: [&str; NACCT] = [
+    "fills", "rows", "cells", "ns", "key_probes", "const_probes", "scans", "probes2", "rows_by_probe", "rows_by_scan", "cells_read",
+    "rows_touched", "files_probed_only", "files_scanned", "key_fills", "key_rows", "key_ns", "key_hits", "rows_touched_by_key",
+];
+pub(crate) const NVIEW: usize = 9;
+pub(crate) const VIEW_COLS: [&str; NVIEW] = ["kind", "text", "start", "stop", "parent", "ordinal", "field", "children", "line"];
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
 #[derive(Default)]
@@ -2705,6 +2768,8 @@ pub(crate) struct Facts {
     pub loaded: Vec<bool>,
     pub provider_done: bool,
     pub idx: FxMap<(u16, u8), Rc<FIdx>>,
+    /// facts: the first row of each relation's whole fill (rows before it were filled per key; scans and indexes start here)
+    pub whole_from: Vec<u32>,
 }
 
 /// A tree column bucketed by base-symbol value: value -> range of `ids` (start order).
@@ -2731,6 +2796,9 @@ impl TIdx {
 pub(crate) enum FIdx {
     Dense { head: Vec<u32>, next: Vec<u32> },
     Hash(FxMap<u64, Vec<u32>>),
+    /// facts: a node column of a relation with few rows for the file's size: (key, row) pairs in key order, found by binary
+    /// search (a dense head array costs the file's size per index)
+    Sorted { keys: Vec<u32>, rows: Vec<u32> },
 }
 
 pub(crate) struct Provider {
@@ -2754,8 +2822,57 @@ impl Provider {
     }
 }
 
+/// What the choice between a relation's whole fill and its per-key fills is made from, per worker over the run (facts).
+#[derive(Default, Clone, Copy)]
+pub(crate) struct KeyStat {
+    /// files that read the relation
+    files: u32,
+    /// of them, those read in per-key mode, and those of these the plan filled whole anyway (a scan, a constant probe)
+    a_files: u32,
+    a_whole: u32,
+    /// per-key mode files never filled whole: their ids, and their cost in row units (KEY_FILL_UNITS a fill, one a row)
+    a_nodes: u64,
+    a_units: u64,
+    /// files filled whole: their ids and the rows written
+    b_nodes: u64,
+    b_rows: u64,
+}
+
+/// A per-key fill costs about as much as writing this many rows of a whole fill (measured: 130-430 ns against 20-80 ns).
+const KEY_FILL_UNITS: u64 = 4;
+
+impl FileCache {
+    /// a new file (facts): the relations' column buffers are emptied and kept (their memory serves the next file's rows);
+    /// nothing is loaded, no index stands
+    pub(crate) fn reset_facts(&mut self) {
+        if !REUSE_FACTS.with(|x| *x) {
+            self.facts = None;
+            return;
+        }
+        if let Some(f) = self.facts.as_mut() {
+            for rel in 0..f.cols.len() {
+                if f.loaded[rel] || f.cols[rel].iter().any(|c| !c.is_empty()) {
+                    for c in &mut f.cols[rel] {
+                        c.clear();
+                    }
+                    f.loaded[rel] = false;
+                    f.whole_from[rel] = 0;
+                }
+            }
+            f.idx.clear();
+            f.provider_done = false;
+        }
+    }
+
+    /// the derived relation's index among the provider's (set with the per-relation classes)
+    fn key_fn_di(&self, rel: u16) -> usize {
+        self.rel_di[rel as usize] as usize
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct FileCache {
+    pub rel_di: Vec<u32>,
     /// kind code -> ids of that kind (nodes and tokens), a CSR over the view's kind column
     pub kind_off: Vec<u32>,
     pub kind_ids: Vec<u32>,
@@ -2769,6 +2886,9 @@ pub(crate) struct FileCache {
     /// per tree column: ids bucketed by base-symbol value (counting sort, each bucket in start order)
     pub csr: FxMap<(u8, u8), Rc<Csr>>,
     pub csr_count: Vec<u32>,
+    /// per token kind (256: a gap) the last short text looked up among the base symbols: (length, bytes, code)
+    pub csr_last: Vec<(u32, u64, u32)>,
+    pub csr_short: Vec<(u32, u64, u32)>,
     /// keyed twin rows per (fact, key value): the row range in the twin's columns
     pub keyed_memo: FxMap<(u16, u64), (u32, u32)>,
     /// statistics run: per made table its build steps in this file, and the (site, table) pairs already charged
@@ -2797,12 +2917,47 @@ pub(crate) struct FileCache {
     pub dkind: FxMap<(usize, usize), u32>,
     pub model_lex: bool,
     pub model_flow: bool,
+    pub model_res: bool,
     /// per-file dispatch: kind code -> (rule, branch, alternative) anchored on it
     pub dispatch: Vec<Vec<(u32, u32, u32)>>,
     pub dispatch_used: Vec<u32>,
     pub other: Vec<(u32, u32, u32)>,
     /// per file: (rule, branch) slot -> may find rows (no kind-anchored alternative has an empty bucket)
     pub enabled: Vec<bool>,
+    /// facts (NAV_ACCT): per relation the rows touched in this file (bitset) and flags (1 probed, 2 scanned); view columns read;
+    /// view ids whose text was read
+    /// facts, per worker: the columns of each relation that have a per-key function (a bit per column), as the provider declares
+    /// them; the relation's index among the provider's per-key fillers (derived: 0.., model: 1000..)
+    pub key_cols: Vec<u16>,
+    pub key_fn: Vec<u32>,
+    /// per relation, read once per worker: how it is served (0 the old provider, 1 a host relation of the file, 2 rows of the
+    /// view, 3 a derived relation) and, for a derived relation, the fact computed in the same pass (u32::MAX: none) and
+    /// whether its rows read the lexical model
+    pub rel_class: Vec<u8>,
+    pub rel_partner: Vec<(u32, u32)>,
+    pub rel_model: Vec<bool>,
+    /// per file: (relation, column, key) -> the row range its per-key fill wrote
+    pub key_rows: FxMap<u64, (u32, u32)>,
+    pub key_tick: u32,
+    /// per worker: the rows of the relations that are the same in every file
+    pub const_rel: FxMap<u16, Vec<Vec<u64>>>,
+    /// what a clock read pair costs on this thread (calibrated once; taken off every clocked per-key fill)
+    pub key_clock_ns: u64,
+    /// per file: relations a per-key fill ran for. Per worker over the run: (files that read the relation, files that filled
+    /// it whole); a relation filled whole in most files that read it is filled whole at its first probe (its per-key fills
+    /// before the whole fill would be paid twice)
+    pub key_used: Vec<bool>,
+    pub key_stats: Vec<KeyStat>,
+    pub key_whole: Vec<bool>,
+    /// per file: per-key fills and the rows they wrote, per relation
+    pub key_fills_file: Vec<u32>,
+    pub key_rows_file: Vec<u32>,
+    pub acct_touched: Vec<Vec<u64>>,
+    /// the rows a register probe yielded (what a plan that never probed by constant would read)
+    pub acct_keyed: Vec<Vec<u64>>,
+    pub acct_flags: Vec<u8>,
+    pub acct_view: [bool; NVIEW],
+    pub acct_text: Vec<u64>,
 }
 
 pub(crate) struct File<'a> {
@@ -2847,7 +3002,7 @@ fn span(s: u32, e: u32) -> u64 {
 
 impl<'a, 'p> Exec<'a, 'p> {
     pub(crate) fn build_kinds(&mut self) {
-        let t = Instant::now();
+        let t = Tick::now();
         let v = self.f.view;
         let maxk = v.kind.iter().copied().max().unwrap_or(0) as usize + 2;
         let off = &mut self.cache.kind_off;
@@ -2876,6 +3031,229 @@ impl<'a, 'p> Exec<'a, 'p> {
             return &[];
         }
         &self.cache.kind_ids[self.cache.kind_off[k] as usize..self.cache.kind_off[k + 1] as usize]
+    }
+
+    // ---- facts accounting (NAV_ACCT)
+    #[inline(never)]
+    fn acct_row(&mut self, rel: u16, row: u64, how: u8) {
+        // how: 0 a constant probe yielded the row, 1 a scan, 2 a register probe
+        let scan = how == 1;
+        let r = rel as usize;
+        if self.c.rel_acct.len() < self.prog.facts.len() {
+            self.c.rel_acct.resize(self.prog.facts.len(), [0; NACCT]);
+        }
+        if self.cache.acct_touched.len() < self.prog.facts.len() {
+            self.cache.acct_touched.resize(self.prog.facts.len(), Vec::new());
+            self.cache.acct_flags.resize(self.prog.facts.len(), 0);
+        }
+        if how == 2 {
+            if self.cache.acct_keyed.len() < self.prog.facts.len() {
+                self.cache.acct_keyed.resize(self.prog.facts.len(), Vec::new());
+            }
+            let t = &mut self.cache.acct_keyed[r];
+            let w = (row / 64) as usize;
+            if t.len() <= w {
+                t.resize(w + 1, 0);
+            }
+            t[w] |= 1 << (row % 64);
+        }
+        self.c.rel_acct[r][if scan { 9 } else { 8 }] += 1;
+        let t = &mut self.cache.acct_touched[r];
+        let w = (row / 64) as usize;
+        if t.len() <= w {
+            t.resize(w + 1, 0);
+        }
+        t[w] |= 1 << (row % 64);
+    }
+
+    #[inline(never)]
+    fn acct_probe(&mut self, rel: u16, what: usize) {
+        let r = rel as usize;
+        if self.c.rel_acct.len() < self.prog.facts.len() {
+            self.c.rel_acct.resize(self.prog.facts.len(), [0; NACCT]);
+        }
+        if self.cache.acct_touched.len() < self.prog.facts.len() {
+            self.cache.acct_touched.resize(self.prog.facts.len(), Vec::new());
+            self.cache.acct_flags.resize(self.prog.facts.len(), 0);
+        }
+        self.c.rel_acct[r][what] += 1;
+        self.cache.acct_flags[r] |= if what == 6 { 2 } else { 1 };
+    }
+
+    #[inline(never)]
+    fn acct_view(&mut self, col: usize, id: u64) {
+        self.c.view_reads[col] += 1;
+        self.cache.acct_view[col] = true;
+        if col == 1 {
+            let w = (id / 64) as usize;
+            if self.cache.acct_text.len() <= w {
+                self.cache.acct_text.resize(w + 1, 0);
+            }
+            self.cache.acct_text[w] |= 1 << (id % 64);
+        }
+    }
+
+    /// what one step reads of the view and of fact rows (the iterations mark their rows where they yield them)
+    #[inline(never)]
+    fn acct_ins(&mut self, i: &Ins) {
+        match i {
+            Ins::ReadCol { which, row, .. } => self.acct_view(*which as usize, self.regs[*row as usize]),
+            Ins::ReadChild { which, row, .. } => self.acct_view(4 + *which as usize, self.regs[*row as usize]),
+            Ins::Read { rel, col, row, .. } => {
+                let id = self.regs[*row as usize];
+                match (rel, col) {
+                    (TRel::Ss, 1) => self.acct_view(0, id),
+                    (TRel::Ss, 2) => self.acct_view(1, id),
+                    (TRel::Ss, 4) | (TRel::Sl, 2) | (TRel::Sl, 5) | (TRel::Sl, 6) | (TRel::Id, 3) => {
+                        self.acct_view(2, id);
+                        self.acct_view(3, id);
+                    }
+                    (TRel::Sc, 0) => self.acct_view(4, id),
+                    (TRel::Sc, 2) => self.acct_view(5, id),
+                    (TRel::Sc, 3) => self.acct_view(6, id),
+                    (TRel::Sl, 3) | (TRel::Sl, 4) | (TRel::Sl, 7) | (TRel::Sl, 8) => self.acct_view(8, id),
+                    _ => {}
+                }
+            }
+            Ins::Row { rel: TRel::Sc, key } => self.acct_view(4, self.regs[*key as usize]),
+            Ins::IterChildren { parent, .. } => self.acct_view(7, self.regs[*parent as usize]),
+            Ins::IterField { parent, .. } => {
+                self.acct_view(7, self.regs[*parent as usize]);
+                self.acct_view(6, self.regs[*parent as usize]);
+            }
+            Ins::Axis { dir, start, .. } => {
+                self.acct_view(if matches!(dir, Dir::Parent | Dir::Ancestor) { 4 } else { 7 }, self.regs[*start as usize])
+            }
+            Ins::Near { start, .. } | Ins::NearMemo { start, .. } | Ins::AncExists { start, .. } => self.acct_view(4, self.regs[*start as usize]),
+            Ins::Within { desc, .. } => self.acct_view(4, self.regs[*desc as usize]),
+            Ins::ChildToward { desc, field, .. } => {
+                self.acct_view(4, self.regs[*desc as usize]);
+                if field.is_some() {
+                    self.acct_view(6, self.regs[*desc as usize]);
+                }
+            }
+            Ins::Sibling { start, .. } => self.acct_view(7, self.regs[*start as usize]),
+            Ins::IterRange { .. } => self.acct_view(2, 0),
+            Ins::ReadFact { rel, row, col, .. } => {
+                let (rel, row) = (*rel, self.regs[*row as usize]);
+                *self.c.read_cols.entry((rel, *col)).or_default() += 1;
+                self.acct_row(rel, row, 0);
+                self.c.rel_acct[rel as usize][8] -= 1;
+                self.c.rel_acct[rel as usize][10] += 1;
+            }
+            Ins::IterFact { rel, val, col, .. } => {
+                *self.c.probe_cols.entry((*rel, *col, u8::from(!matches!(val, Val::Reg(_))))).or_default() += 1;
+                self.acct_probe(*rel, if matches!(val, Val::Reg(_)) { 4 } else { 5 })
+            }
+            Ins::IterFact2 { rel, c1, c2, .. } => {
+                *self.c.probe_cols.entry((*rel, *c1, 2)).or_default() += 1;
+                *self.c.probe_cols.entry((*rel, *c2, 2)).or_default() += 1;
+                self.acct_probe(*rel, 7)
+            }
+            Ins::IterFactScan { rel, .. } => self.acct_probe(*rel, 6),
+            _ => {}
+        }
+    }
+
+    /// end of a file (facts): which relations were read and which were filled whole, into the per-key policy of the next files
+    pub(crate) fn key_policy_roll(&mut self) {
+        if self.cache.key_cols.is_empty() {
+            return;
+        }
+        let policy = KEY_POLICY.with(|x| *x);
+        let Some(facts) = self.cache.facts.as_ref() else { return };
+        let nodes = self.f.view.len() as u64;
+        for rel in 0..self.cache.key_stats.len().min(facts.loaded.len()) {
+            if self.cache.key_cols[rel] == 0 {
+                continue;
+            }
+            let used = std::mem::take(&mut self.cache.key_used[rel]);
+            let fills = u64::from(std::mem::take(&mut self.cache.key_fills_file[rel]));
+            let rows = u64::from(std::mem::take(&mut self.cache.key_rows_file[rel]));
+            let whole = facts.loaded[rel];
+            if !(used || whole) {
+                continue;
+            }
+            let was_whole_mode = self.cache.key_whole[rel];
+            let s = &mut self.cache.key_stats[rel];
+            s.files += 1;
+            if whole {
+                s.b_nodes += nodes;
+                s.b_rows += facts.cols[rel].first().map_or(0, Vec::len) as u64 - u64::from(facts.whole_from[rel]);
+            }
+            if !was_whole_mode {
+                s.a_files += 1;
+                s.a_whole += u32::from(whole);
+                if !whole {
+                    s.a_nodes += nodes;
+                    s.a_units += KEY_FILL_UNITS * fills + rows;
+                }
+            }
+            // the next file's mode: whole when the plan fills the relation whole in most files anyway (its per-key fills before
+            // that are paid twice); else by cost: rows per id of a whole fill against fills and rows per id of per-key fills,
+            // with a whole fill and a per-key file now and then (one in 64 each) to learn and keep both current
+            self.cache.key_whole[rel] = match policy {
+                0 => false,
+                _ if s.a_files < 4 => false,
+                _ if s.a_whole * 2 >= s.a_files => true,
+                1 => false,
+                _ if s.b_nodes == 0 || s.files % 64 == 32 => true,
+                _ if s.files % 64 == 0 => false,
+                _ => s.b_rows as u128 * s.a_nodes as u128 <= s.a_units as u128 * s.b_nodes as u128 && s.a_nodes > 0,
+            };
+        }
+    }
+
+    /// end of a file: the per-file marks into the run's counters
+    pub(crate) fn acct_file_end(&mut self) {
+        let prog = self.prog;
+        self.c.view_ids += self.f.view.len() as u64;
+        self.c.view_tokens += (self.f.view.len() - self.f.view.n_nodes) as u64;
+        for (k, f) in self.cache.acct_view.iter_mut().enumerate() {
+            self.c.view_files[k] += u64::from(*f);
+            *f = false;
+        }
+        self.c.text_distinct += self.cache.acct_text.iter().map(|w| u64::from(w.count_ones())).sum::<u64>();
+        self.cache.acct_text.clear();
+        let mut model = [false; 2];
+        for r in 0..self.cache.acct_touched.len() {
+            let n: u64 = self.cache.acct_touched[r].iter().map(|w| u64::from(w.count_ones())).sum();
+            self.cache.acct_touched[r].clear();
+            if let Some(k) = self.cache.acct_keyed.get_mut(r) {
+                self.c.rel_acct[r][18] += k.iter().map(|w| u64::from(w.count_ones())).sum::<u64>();
+                k.clear();
+            }
+            let flags = std::mem::take(&mut self.cache.acct_flags[r]);
+            let a = &mut self.c.rel_acct[r];
+            a[11] += n;
+            a[12] += u64::from(flags == 1);
+            a[13] += u64::from(flags & 2 != 0);
+            if let Some(mi) = prog.facts[r].model {
+                if n > 0 || flags != 0 {
+                    model[usize::from(mi >= 6)] = true;
+                }
+            }
+        }
+        self.c.model_read_files[0] += u64::from(model[0]);
+        self.c.model_read_files[1] += u64::from(model[1]);
+    }
+
+    /// a whole-relation fill, for the accounting: rows, cells and time
+    fn acct_fill(&mut self, rel: u16, ns: u64) {
+        if !self.c.acct {
+            return;
+        }
+        if self.c.rel_acct.len() < self.prog.facts.len() {
+            self.c.rel_acct.resize(self.prog.facts.len(), [0; NACCT]);
+        }
+        let facts = self.cache.facts.as_ref().unwrap();
+        let cols = &facts.cols[rel as usize];
+        let rows = cols.first().map_or(0, Vec::len) as u64 - u64::from(facts.whole_from[rel as usize]);
+        let a = &mut self.c.rel_acct[rel as usize];
+        a[0] += 1;
+        a[1] += rows;
+        a[2] += rows * cols.len() as u64;
+        a[3] += ns;
     }
 
     fn ident(&mut self, id: u32) -> u32 {
@@ -2907,7 +3285,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             TRel::Ss => match col {
                 0 => id as u64,
                 1 => v.kind[i] as u64,
-                2 => v.text[i] as u64,
+                2 => v.text_of(i, self.sym, self.f.source) as u64,
                 3 => 0,
                 _ => span(v.start[i], v.stop[i]),
             },
@@ -3071,6 +3449,15 @@ impl<'a, 'p> Exec<'a, 'p> {
                 v
             }
             FIdx::Hash(m) => m.get(&value).cloned().unwrap_or_default(),
+            FIdx::Sorted { keys, rows } => {
+                if value >= u64::from(u32::MAX) {
+                    Vec::new()
+                } else {
+                    let a = keys.partition_point(|&k| k < value as u32);
+                    let b = a + keys[a..].partition_point(|&k| k == value as u32);
+                    rows[a..b].to_vec()
+                }
+            }
         };
         let facts = self.cache.facts.as_mut().unwrap();
         let width = facts.cols[rel as usize].len();
@@ -3091,7 +3478,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         let f = &prog.facts[rel as usize];
         let (progs, keys, distinct, width) = f.made.as_ref().unwrap();
         let (_, param) = f.keyed.unwrap();
-        let t0 = Instant::now();
+        let t0 = Tick::now();
         let made_before = self.c.made_ns;
         let fact_before = self.c.fact_ns;
         let steps0 = self.c.steps;
@@ -3148,6 +3535,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             loaded: vec![false; prog.facts.len()],
             provider_done: false,
             idx: FxMap::default(),
+            whole_from: vec![0; prog.facts.len()],
         });
     }
 
@@ -3158,7 +3546,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(l) = self.cache.const_idx.get(&key) {
             return l.clone();
         }
-        let t0 = Instant::now();
+        let t0 = Tick::now();
         self.c.const_misses += 1;
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
         let wanted: Vec<u64> = match val {
@@ -3227,15 +3615,69 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(c) = self.cache.csr.get(&(rel as u8, col)) {
             return c.clone();
         }
-        let t_csr = Instant::now();
+        let t_csr = Tick::now();
         self.c.csr_builds += 1;
+
         let nb = self.sym.base_count();
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
         let v = self.f.view;
         let mut vals: Vec<u32> = Vec::with_capacity(n);
         match (rel, col) {
             (TRel::Sc, 3) => vals.extend((0..n).map(|i| if v.parent[i] == u32::MAX { u32::MAX } else { v.field[i] })),
-            (TRel::Ss, 2) => vals.extend_from_slice(&v.text[..n]),
+            (TRel::Ss, 2) => {
+                // facts: the buckets hold base-symbol values only, so a text is looked up among the base symbols, never
+                // interned; a token whose text repeats the last one of its kind (every operator, keyword and bracket, most
+                // gaps) costs a comparison
+                let src = self.f.source.as_bytes();
+                let last = &mut self.cache.csr_last;
+                last.clear();
+                last.resize(257, (u32::MAX, 0, u32::MAX));
+                // per worker: short texts (8 bytes at most) already looked up, direct-mapped by their bytes; an entry saying
+                // "no base symbol" may outlive a word's promotion at a file boundary, and no pack constant is such a word
+                let memo = &mut self.cache.csr_short;
+                if memo.is_empty() {
+                    memo.resize(8192, (u32::MAX, 0, u32::MAX));
+                }
+                vals.resize(v.n_nodes.min(n), u32::MAX);
+                let mut long_last: (usize, usize, u32) = (0, 0, u32::MAX);
+                for i in v.n_nodes..n {
+                    let t = v.text[i].get();
+                    if t != crate::view::TEXT_UNSET {
+                        vals.push(t);
+                        continue;
+                    }
+                    let (s, e) = (v.start[i] as usize, v.stop[i] as usize);
+                    let len = (e - s) as u32;
+                    if len <= 8 {
+                        // the text's bytes as one word (read in place when eight bytes follow, the rest masked off)
+                        let word = if s + 8 <= src.len() {
+                            let w = u64::from_le_bytes([src[s], src[s + 1], src[s + 2], src[s + 3], src[s + 4], src[s + 5], src[s + 6], src[s + 7]]);
+                            if len == 8 { w } else { w & ((1u64 << (8 * len)) - 1) }
+                        } else {
+                            let mut w = [0u8; 8];
+                            w[..len as usize].copy_from_slice(&src[s..e]);
+                            u64::from_le_bytes(w)
+                        };
+                        let slot = v.leaves[i - v.n_nodes].0.map_or(256, |k| k as u8 as usize);
+                        let l = &mut last[slot];
+                        if l.0 != len || l.1 != word {
+                            let h = ((word ^ u64::from(len)).wrapping_mul(0x9e37_79b9_7f4a_7c15) >> 51) as usize;
+                            let m = &mut memo[h];
+                            if m.0 != len || m.1 != word {
+                                *m = (len, word, self.sym.get_base(&self.f.source[s..e]).unwrap_or(u32::MAX));
+                            }
+                            *l = *m;
+                        }
+                        vals.push(l.2);
+                    } else {
+                        // a long text repeating the last long one (a run of equal indentation) is compared, not looked up
+                        if long_last.1 - long_last.0 != e - s || src[long_last.0..long_last.1] != src[s..e] {
+                            long_last = (s, e, self.sym.get_base(&self.f.source[s..e]).unwrap_or(u32::MAX));
+                        }
+                        vals.push(long_last.2);
+                    }
+                }
+            }
             _ => {
                 for id in 0..n as u32 {
                     vals.push(self.tread(rel, col, id).map_or(u32::MAX, |x| x as u32));
@@ -3277,9 +3719,44 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         // buckets stay in id order; a range walk sorts its own (small) list by start
         self.c.csr_ns += t_csr.elapsed().as_nanos() as u64;
+        if self.c.acct {
+            let e = self.c.view_passes.entry((0, rel as u8, col)).or_default();
+            e.0 += 1;
+            e.1 += t_csr.elapsed().as_nanos() as u64;
+        }
         let c = Rc::new(Csr { at, ids });
         self.cache.csr.insert((rel as u8, col), c.clone());
         c
+    }
+
+    /// facts: the index of the start-offset column is the ids in (start, id) order, and the nodes and the leaves are each
+    /// already in that order: one merge, no sort (None when a list is not ascending, and for every other column)
+    fn start_order(&self, rel: TRel, col: u8) -> Option<TIdx> {
+        if !(rel == TRel::Sl && col == 5) {
+            return None;
+        }
+        let v = self.f.view;
+        let (n, total) = (v.n_nodes, v.len());
+        let start = &v.start;
+        if (1..n).any(|i| start[i] < start[i - 1]) || (n + 1..total).any(|i| start[i] < start[i - 1]) {
+            return None;
+        }
+        let mut vals = Vec::with_capacity(total);
+        let mut ids = Vec::with_capacity(total);
+        let (mut a, mut b) = (0, n);
+        while a < n || b < total {
+            // equal starts: the node first (its id is the lower one)
+            let take_node = b >= total || (a < n && start[a] <= start[b]);
+            let id = if take_node { a } else { b };
+            vals.push(start[id]);
+            ids.push(id as u32);
+            if take_node {
+                a += 1;
+            } else {
+                b += 1;
+            }
+        }
+        Some(TIdx { vals, ids })
     }
 
     /// a tree relation's value index: (value, start, id) sorted once per file; a value's ids are a slice in start order
@@ -3289,24 +3766,235 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = self.cache.tree_idx.get(&key) {
             return i.clone();
         }
-        let t0 = Instant::now();
+        let t0 = Tick::now();
+
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
-        let mut pairs: Vec<(u64, u32)> = Vec::with_capacity(n);
-        for id in 0..n as u32 {
-            if let Some(v) = self.tread(rel, col, id) {
-                pairs.push(((u64::from(v as u32) << 32) | u64::from(self.f.view.start[id as usize]), id));
+        let idx = match self.start_order(rel, col) {
+            Some(idx) => idx,
+            None => {
+                let mut pairs: Vec<(u64, u32)> = Vec::with_capacity(n);
+                for id in 0..n as u32 {
+                    if let Some(v) = self.tread(rel, col, id) {
+                        pairs.push(((u64::from(v as u32) << 32) | u64::from(self.f.view.start[id as usize]), id));
+                    }
+                }
+                pairs.sort_unstable();
+                TIdx { vals: pairs.iter().map(|p| (p.0 >> 32) as u32).collect(), ids: pairs.iter().map(|p| p.1).collect() }
             }
-        }
-        pairs.sort_unstable();
-        let idx = TIdx { vals: pairs.iter().map(|p| (p.0 >> 32) as u32).collect(), ids: pairs.iter().map(|p| p.1).collect() };
+        };
         self.c.made_tables += 1;
         self.c.made_rows += n as u64;
         self.c.index_ns += t0.elapsed().as_nanos() as u64;
         self.c.charge_index(self.cur_rule, t0.elapsed().as_nanos() as u64);
         self.c.index_split[0] += t0.elapsed().as_nanos() as u64;
+        if self.c.acct {
+            let e = self.c.view_passes.entry((1, rel as u8, col)).or_default();
+            e.0 += 1;
+            e.1 += t0.elapsed().as_nanos() as u64;
+        }
         let m = Rc::new(idx);
         self.cache.tree_idx.insert(key, m.clone());
         m
+    }
+
+    /// the semantic model's parts on first demand in the file: the lexical part (scopes, definitions, resolved loads), and the
+    /// flow part (events, reads, uses, shadows, resolution) only for the relations that read it
+    fn ensure_model(&mut self, level: u8) {
+        let flow = level >= 1;
+        if !self.cache.model_lex {
+            let t = Tick::now();
+            self.model.build_lexical(self.f.table, self.f.incomplete);
+            self.model.resolve_loads(self.f.table);
+            self.cache.model_lex = true;
+            self.c.model_lex_ns += t.elapsed().as_nanos() as u64;
+            self.c.model_files += 1;
+        }
+        if flow && !self.cache.model_flow {
+            let t = Tick::now();
+            self.model.build_flow(self.f.table);
+            self.cache.model_flow = true;
+            self.c.model_flow_ns += t.elapsed().as_nanos() as u64;
+            self.c.flow_files += 1;
+        }
+        // the resolution pass over the flow facts: only for the relation that reads it
+        if level >= 2 && !self.cache.model_res {
+            let t = Tick::now();
+            self.model.build_resolution(self.f.table);
+            self.cache.model_res = true;
+            self.c.model_flow_ns += t.elapsed().as_nanos() as u64;
+        }
+    }
+
+    /// facts: whether a register probe of `col` is answered by the relation's per-key function: the provider declares one for the
+    /// column, and the relation has not been filled whole in this file (a scan or a probe of another column did that)
+    #[inline]
+    fn key_fillable(&mut self, rel: u16, col: u8) -> bool {
+        if self.cache.key_cols.is_empty() {
+            self.declare_keys();
+        }
+        self.cache.key_cols[rel as usize] >> col & 1 == 1
+            && !self.cache.key_whole[rel as usize]
+            && !self.cache.facts.as_ref().is_some_and(|f| f.loaded[rel as usize])
+    }
+
+    /// the provider's declarations, read once per worker: which columns of which relations have a per-key function
+    #[inline(never)]
+    fn declare_keys(&mut self) {
+        let off = std::env::var("NAV_PERKEY").is_ok_and(|v| v == "0");
+        let only = std::env::var("NAV_PERKEY_ONLY").ok();
+        let mut cols = Vec::new();
+        let mut fns = Vec::new();
+        let prog = self.prog;
+        let (mut class, mut partner, mut model) = (Vec::new(), Vec::new(), Vec::new());
+        for f in &prog.facts {
+            let di = crate::derived::index_of(&f.name);
+            class.push(if f.model.is_some() || f.made.is_some() || f.made_om.is_some() {
+                0
+            } else if f.name.starts_with("filesystem.") {
+                1
+            } else if f.name == "comment" || f.name == "indent-region" {
+                2
+            } else if di.is_some() {
+                3
+            } else {
+                0
+            });
+            partner.push(match di.and_then(crate::derived::partner) {
+                Some(p) => match prog.facts.iter().position(|g| g.name == crate::derived::RELATIONS[p] && g.made.is_none() && g.model.is_none()) {
+                    Some(pi) => (p as u32, pi as u32),
+                    None => (u32::MAX, u32::MAX),
+                },
+                None => (u32::MAX, u32::MAX),
+            });
+            model.push(crate::derived::needs_model(&f.name));
+            self.cache.rel_di.push(di.map_or(u32::MAX, |d| d as u32));
+        }
+        self.cache.rel_class = class;
+        self.cache.rel_partner = partner;
+        self.cache.rel_model = model;
+        for f in &self.prog.facts {
+            let mut c = 0u16;
+            let mut k = u32::MAX;
+            if !off && f.made.is_none() && f.made_om.is_none() && only.as_ref().is_none_or(|o| o.split(',').any(|n| n == f.name)) {
+                if let Some(mi) = f.model {
+                    c = crate::semrows::key_columns(mi);
+                    k = 1000 + mi as u32;
+                } else if let Some(di) = crate::derived::index_of(&f.name) {
+                    c = crate::derived::key_columns(&f.name);
+                    k = di as u32;
+                }
+            }
+            cols.push(c);
+            fns.push(k);
+        }
+        if cols.is_empty() {
+            cols.push(0);
+        }
+        self.cache.key_used = vec![false; cols.len()];
+        self.cache.key_stats = vec![KeyStat::default(); cols.len()];
+        self.cache.key_fills_file = vec![0; cols.len()];
+        self.cache.key_rows_file = vec![0; cols.len()];
+        self.cache.key_whole = vec![false; cols.len()];
+        self.cache.key_cols = cols;
+        self.cache.key_fn = fns;
+        let mut least = u64::MAX;
+        for _ in 0..2000 {
+            let t = Tick::now();
+            least = least.min(t.elapsed().as_nanos() as u64);
+        }
+        self.cache.key_clock_ns = least;
+    }
+
+    /// facts: the rows of `rel` whose column `col` holds `key`, written by the relation's per-key function on first demand
+    /// (memoised per file); no other row of the relation is produced
+    fn key_rows(&mut self, rel: u16, col: u8, key: u64) -> (u32, u32) {
+        if key >= u64::from(u32::MAX - 1) {
+            return (0, 0);
+        }
+        let mk = (u64::from(rel) << 48) | (u64::from(col) << 40) | key;
+        self.c.key_lookups += 1;
+        if let Some(&r) = self.cache.key_rows.get(&mk) {
+            return r;
+        }
+        self.ensure_facts();
+        self.cache.key_tick = self.cache.key_tick.wrapping_add(1);
+        let clocked = self.c.acct && self.cache.key_tick % 64 == 0;
+        let build0 = self.cache.dstate.build_ns;
+        let model0 = self.c.model_lex_ns + self.c.model_flow_ns;
+        let t0 = if clocked { Some(Tick::now()) } else { None };
+        self.cache.key_used[rel as usize] = true;
+        let start = self.cache.facts.as_ref().unwrap().cols[rel as usize].first().map_or(0, Vec::len) as u32;
+        let code = self.cache.key_fn[rel as usize];
+        if code >= 1000 {
+            let mi = (code - 1000) as usize;
+            self.ensure_model(crate::semrows::model_level(mi));
+            let facts = self.cache.facts.as_mut().unwrap();
+            let mut cols = std::mem::take(&mut facts.cols[rel as usize]);
+            crate::semrows::produce(self.model, self.f.table, mi, self.sym, &mut cols, &mut self.scratch, Some((col, key as u32)));
+            self.cache.facts.as_mut().unwrap().cols[rel as usize] = cols;
+        } else {
+            self.fill_key_derived(rel, code as usize, col, key as u32);
+        }
+        let end = self.cache.facts.as_ref().unwrap().cols[rel as usize].first().map_or(0, Vec::len) as u32;
+        self.c.key_fills += 1;
+        self.c.key_rows += u64::from(end - start);
+        self.cache.key_fills_file[rel as usize] += 1;
+        self.cache.key_rows_file[rel as usize] += end - start;
+        // a clocked fill: without the clock's own cost and without a whole-file analysis it started (those are clocked one by
+        // one, in the provider's state)
+        // nor a part of the model it was the first to ask for (clocked on its own line)
+        let fill_ns = t0.map(|t0| {
+            (t0.elapsed().as_nanos() as u64)
+                .saturating_sub(self.cache.key_clock_ns)
+                .saturating_sub(self.cache.dstate.build_ns - build0)
+                .saturating_sub(self.c.model_lex_ns + self.c.model_flow_ns - model0)
+        });
+        if let Some(ns) = fill_ns {
+            self.c.key_fill_ns += 64 * ns;
+        }
+        if self.c.acct {
+            if self.c.rel_acct.len() < self.prog.facts.len() {
+                self.c.rel_acct.resize(self.prog.facts.len(), [0; NACCT]);
+            }
+            let a = &mut self.c.rel_acct[rel as usize];
+            a[14] += 1;
+            a[15] += u64::from(end - start);
+            if let Some(ns) = fill_ns {
+                a[16] += 64 * ns;
+            }
+        }
+        self.cache.key_rows.insert(mk, (start, end));
+        (start, end)
+    }
+
+    /// a derived relation's per-key function, its cells written straight into the relation's columns
+    fn fill_key_derived(&mut self, rel: u16, di: usize, col: u8, key: u32) {
+        let prog = self.prog;
+        if crate::derived::needs_model(&prog.facts[rel as usize].name) {
+            self.ensure_model(0);
+        }
+        let ctx = crate::derived::Ctx {
+            parsed: self.f.parsed,
+            path: std::path::Path::new(""),
+            table: self.f.table,
+            source: self.f.source,
+            model: self.model,
+            incomplete: self.f.incomplete,
+            view: Some(self.f.view),
+        };
+        let facts = self.cache.facts.as_mut().unwrap();
+        let mut sink = DSink {
+            targets: [(di, prog.facts[rel as usize].kinds.len()), (usize::MAX, 0)],
+            out: [std::mem::take(&mut facts.cols[rel as usize]), Vec::new()],
+            sym: self.sym,
+            view: self.f.view,
+            at: &mut self.cache.dkey_at,
+            at_built: &mut self.cache.dkey_built,
+            kinds: &mut self.cache.dkind,
+        };
+        crate::derived::produce_key(&ctx, di, col, key, &mut sink, &mut self.scratch, &mut self.cache.dstate);
+        let out = std::mem::take(&mut sink.out[0]);
+        self.cache.facts.as_mut().unwrap().cols[rel as usize] = out;
     }
 
     // ---- facts: the model's relations one at a time on first demand; the provider's readers once per file for the rest
@@ -3333,11 +4021,12 @@ impl<'a, 'p> Exec<'a, 'p> {
             loaded: vec![false; prog.facts.len()],
             provider_done: false,
             idx: FxMap::default(),
+            whole_from: vec![0; prog.facts.len()],
         });
         if facts.loaded[rel as usize] {
             return;
         }
-        let t = Instant::now();
+        let t = Tick::now();
         if let Some(om) = &prog.facts[rel as usize].made_om {
             self.ordered_match(rel, om);
             self.c.fact_ns += t.elapsed().as_nanos() as u64;
@@ -3345,7 +4034,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         if let Some((progs, keys, distinct, width)) = &prog.facts[rel as usize].made {
             let nkeys = &keys.len();
-            let made_t0 = Instant::now();
+            let made_t0 = Tick::now();
             if self.c.made_depth == 0 {
                 self.c.top_rule = self.cur_rule;
             }
@@ -3426,35 +4115,49 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         match prog.facts[rel as usize].model {
             Some(mi) => {
-                if !self.cache.model_lex {
-                    let t = Instant::now();
-                    self.model.build_lexical(self.f.table, self.f.incomplete);
-                    self.model.resolve_loads(self.f.table);
-                    self.cache.model_lex = true;
-                    self.c.model_lex_ns += t.elapsed().as_nanos() as u64;
-                    self.c.model_files += 1;
+                let t = Tick::now();
+                // a relation the provider declares the same in every file: its rows are kept for the run once every word in
+                // them is a base symbol (the same code in every file)
+                let constant = crate::semrows::constant(mi);
+                if constant {
+                    if let Some(kept) = self.cache.const_rel.get(&rel) {
+                        let facts = self.cache.facts.as_mut().unwrap();
+                        facts.cols[rel as usize].clone_from(kept);
+                        facts.loaded[rel as usize] = true;
+                        self.c.fact_rows += kept.first().map_or(0, Vec::len) as u64;
+                        let ns = t.elapsed().as_nanos() as u64;
+                        self.c.model_rows_ns += ns;
+                        self.c.fact_ns += ns;
+                        self.acct_fill(rel, ns);
+                        return;
+                    }
+                } else {
+                    self.ensure_model(crate::semrows::model_level(mi));
                 }
-                if mi >= 6 && !self.cache.model_flow {
-                    let t = Instant::now();
-                    self.model.build_flow(self.f.table);
-                    self.model.build_resolution(self.f.table);
-                    self.cache.model_flow = true;
-                    self.c.model_flow_ns += t.elapsed().as_nanos() as u64;
-                    self.c.flow_files += 1;
-                }
-                let t = Instant::now();
+                let t = Tick::now();
                 let facts = self.cache.facts.as_mut().unwrap();
                 let mut cols = std::mem::take(&mut facts.cols[rel as usize]);
-                crate::semrows::produce(self.model, self.f.table, mi, self.sym, &mut cols, &mut self.scratch);
-                self.c.fact_rows += cols.first().map_or(0, Vec::len) as u64;
+                let from = cols.first().map_or(0, Vec::len);
+                facts.whole_from[rel as usize] = from as u32;
+                crate::semrows::produce(self.model, self.f.table, mi, self.sym, &mut cols, &mut self.scratch, None);
+                if constant && from == 0 {
+                    let kinds = &prog.facts[rel as usize].kinds;
+                    let stable = cols.iter().zip(kinds.iter()).all(|(col, k)| {
+                        !matches!(k, ryo_relations::domain::relations::types::CellKind::Symbol) || col.iter().all(|&v| v == u64::from(NULL) || Symbols::is_base(v as u32))
+                    });
+                    if stable {
+                        self.cache.const_rel.insert(rel, cols.clone());
+                    }
+                }
+                self.c.fact_rows += (cols.first().map_or(0, Vec::len) - from) as u64;
                 let facts = self.cache.facts.as_mut().unwrap();
                 facts.cols[rel as usize] = cols;
                 facts.loaded[rel as usize] = true;
-                self.c.model_rows_ns += t.elapsed().as_nanos() as u64;
+                let ns = t.elapsed().as_nanos() as u64;
+                self.c.model_rows_ns += ns;
+                self.acct_fill(rel, ns);
             }
-            None if !PROVIDER_ALL.with(|p| *p)
-                && (crate::derived::index_of(&prog.facts[rel as usize].name).is_some() || prog.facts[rel as usize].name.starts_with("filesystem.")) =>
-            {
+            None if !PROVIDER_ALL.with(|p| *p) && self.rel_class(rel) != 0 => {
                 self.load_derived(rel);
             }
             None => {
@@ -3493,7 +4196,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         }
         let bytes = self.f.source.as_bytes();
-        let t = Instant::now();
+        let t = Tick::now();
         clear_symbols(&mut p.symbols);
         let request = ParseRequest {
             path: ryo_language::domain::files::types::SourcePath(self.f.path),
@@ -3585,11 +4288,12 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = self.cache.fact2.get(&(rel, c1, c2)) {
             return i.clone();
         }
-        let t0 = Instant::now();
+        let t0 = Tick::now();
         let facts = self.cache.facts.as_ref().unwrap();
         let (a, b) = (&facts.cols[rel as usize][c1 as usize], &facts.cols[rel as usize][c2 as usize]);
+        let from = facts.whole_from[rel as usize] as usize;
         let mut m: FxMap<(u64, u64), Vec<u32>> = FxMap::default();
-        for (row, (&x, &y)) in a.iter().zip(b.iter()).enumerate() {
+        for (row, (&x, &y)) in a.iter().zip(b.iter()).enumerate().skip(from) {
             m.entry((x, y)).or_default().push(row as u32);
         }
         self.c.made_tables += 1;
@@ -3611,12 +4315,17 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = facts.idx.get(&(rel, col)) {
             return i.clone();
         }
-        let t0 = Instant::now();
+        let t0 = Tick::now();
         let c = &facts.cols[rel as usize][col as usize];
-        let idx = if dense {
+        let from = facts.whole_from[rel as usize] as usize;
+        let idx = if dense && (c.len() - from) * 8 < n_view && SORTED_INDEX.with(|x| *x) {
+            let mut pairs: Vec<(u32, u32)> = c.iter().enumerate().skip(from).filter(|(_, v)| (**v as usize) < n_view).map(|(row, &v)| (v as u32, row as u32)).collect();
+            pairs.sort_unstable();
+            FIdx::Sorted { keys: pairs.iter().map(|p| p.0).collect(), rows: pairs.iter().map(|p| p.1).collect() }
+        } else if dense {
             let mut head = vec![u32::MAX; n_view + 1];
             let mut next = vec![u32::MAX; c.len()];
-            for (row, &v) in c.iter().enumerate().rev() {
+            for (row, &v) in c.iter().enumerate().skip(from).rev() {
                 let k = (v as usize).min(n_view);
                 next[row] = head[k];
                 head[k] = row as u32;
@@ -3624,7 +4333,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             FIdx::Dense { head, next }
         } else {
             let mut m: FxMap<u64, Vec<u32>> = FxMap::default();
-            for (row, &v) in c.iter().enumerate() {
+            for (row, &v) in c.iter().enumerate().skip(from) {
                 m.entry(v).or_default().push(row as u32);
             }
             FIdx::Hash(m)
@@ -3715,7 +4424,7 @@ impl<'a, 'p> Exec<'a, 'p> {
     }
 
     #[inline(never)]
-    fn iter_fact_list(&mut self, p: &'p [Ins], pc: usize, idx: &FIdx, keys: &[u64], out: R) -> bool {
+    fn iter_fact_list(&mut self, p: &'p [Ins], pc: usize, rel: u16, idx: &FIdx, keys: &[u64], out: R, how: u8) -> bool {
         for &k in keys {
             match idx {
                 FIdx::Dense { head, next } => {
@@ -3726,10 +4435,32 @@ impl<'a, 'p> Exec<'a, 'p> {
                     while row != u32::MAX {
                         self.regs[out as usize] = row as u64;
                         self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(rel, u64::from(row), how);
+                        }
                         if self.run_core(p, pc + 1) {
                             return true;
                         }
                         row = next[row as usize];
+                    }
+                }
+                FIdx::Sorted { keys, rows } => {
+                    if k >= u64::from(u32::MAX) {
+                        continue;
+                    }
+                    let a = keys.partition_point(|&x| x < k as u32);
+                    let mut i = a;
+                    while i < keys.len() && keys[i] == k as u32 {
+                        let row = rows[i];
+                        self.regs[out as usize] = row as u64;
+                        self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(rel, u64::from(row), how);
+                        }
+                        if self.run_core(p, pc + 1) {
+                            return true;
+                        }
+                        i += 1;
                     }
                 }
                 FIdx::Hash(m) => {
@@ -3737,6 +4468,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                         for &row in list {
                             self.regs[out as usize] = row as u64;
                             self.c.visits += 1;
+                            if self.c.acct {
+                                self.acct_row(rel, u64::from(row), how);
+                            }
                             if self.run_core(p, pc + 1) {
                                 return true;
                             }
@@ -3785,7 +4519,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 break;
             }
             match &p[pc] {
-                Ins::ReadCol { which, row, out } if col(cols, *row).is_some() => {
+                Ins::ReadCol { which, row, out } if *which != 1 && col(cols, *row).is_some() => {
                     let ci = col(cols, *row).unwrap();
                     self.c.steps += sel.len() as u64;
                     self.c.batched_steps += sel.len() as u64;
@@ -3793,7 +4527,6 @@ impl<'a, 'p> Exec<'a, 'p> {
                     let mut o = vec![0u64; src.len()];
                     let a: &[u32] = match which {
                         0 => &v.kind,
-                        1 => &v.text,
                         2 => &v.start,
                         _ => &v.stop,
                     };
@@ -3929,6 +4662,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                 if let Some(prof) = self.c.prof.as_mut() {
                     *prof.entry((&p[pc] as *const Ins as usize, r)).or_default() += 1;
                 }
+                if self.c.acct {
+                    self.acct_ins(&p[pc]);
+                }
             }
             match &p[pc] {
                 Ins::ReadCol { which, row, out } => {
@@ -3939,7 +4675,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                     self.regs[*out as usize] = u64::from(match which {
                         0 => v.kind[i],
-                        1 => v.text[i],
+                        1 => v.text_of(i, self.sym, self.f.source),
                         2 => v.start[i],
                         _ => v.stop[i],
                     });
@@ -4093,6 +4829,23 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for row in a..b {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(*rel, u64::from(row), 2);
+                        }
+                        if self.run_core(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterFact { rel, col, val: Val::Reg(r), out } if self.key_fillable(*rel, *col) => {
+                    let (a, b) = self.key_rows(*rel, *col, self.regs[*r as usize]);
+                    for row in a..b {
+                        self.regs[*out as usize] = u64::from(row);
+                        self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(*rel, u64::from(row), 2);
+                        }
                         if self.run_core(p, pc + 1) {
                             return true;
                         }
@@ -4114,15 +4867,34 @@ impl<'a, 'p> Exec<'a, 'p> {
                         Val::Syms(s) => {
                             one = [0];
                             let _ = one;
-                            return self.iter_fact_list(p, pc, &idx, &s.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
+                            return self.iter_fact_list(p, pc, *rel, &idx, &s.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out, 0);
                         }
                         Val::Nums(n) => {
                             one = [0];
                             let _ = one;
-                            return self.iter_fact_list(p, pc, &idx, &n.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out);
+                            return self.iter_fact_list(p, pc, *rel, &idx, &n.iter().map(|&x| x as u64).collect::<Vec<_>>(), *out, 0);
                         }
                     };
-                    return self.iter_fact_list(p, pc, &idx, keys, *out);
+                    return self.iter_fact_list(p, pc, *rel, &idx, keys, *out, if matches!(val, Val::Reg(_)) { 2 } else { 0 });
+                }
+                Ins::IterFact2 { rel, c1, v1, c2, v2, out } if self.key_fillable(*rel, *c1) || self.key_fillable(*rel, *c2) => {
+                    // a keyed column probed by a constant: the per-key function's rows, the other constant tested on each
+                    let ((kc, kv), (oc, ov)) = if self.key_fillable(*rel, *c1) { ((*c1, *v1), (*c2, *v2)) } else { ((*c2, *v2), (*c1, *v1)) };
+                    let (a, b) = self.key_rows(*rel, kc, kv);
+                    for row in a..b {
+                        if self.cache.facts.as_ref().unwrap().cols[*rel as usize][oc as usize][row as usize] != ov {
+                            continue;
+                        }
+                        self.regs[*out as usize] = u64::from(row);
+                        self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(*rel, u64::from(row), 0);
+                        }
+                        if self.run_core(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
                 }
                 Ins::IterFact2 { rel, c1, v1, c2, v2, out } => {
                     let idx = self.fact_index2(*rel, *c1, *c2);
@@ -4130,6 +4902,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                     for &row in rows {
                         self.regs[*out as usize] = u64::from(row);
                         self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(*rel, u64::from(row), 0);
+                        }
                         if self.run_core(p, pc + 1) {
                             return true;
                         }
@@ -4138,10 +4913,15 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::IterFactScan { rel, out } => {
                     self.ensure(*rel);
-                    let n = self.cache.facts.as_ref().unwrap().cols[*rel as usize].first().map_or(0, Vec::len);
-                    for row in 0..n {
+                    let facts = self.cache.facts.as_ref().unwrap();
+                    let n = facts.cols[*rel as usize].first().map_or(0, Vec::len);
+                    let from = facts.whole_from[*rel as usize] as usize;
+                    for row in from..n {
                         self.regs[*out as usize] = row as u64;
-                                self.c.visits += 1;
+                        self.c.visits += 1;
+                        if self.c.acct {
+                            self.acct_row(*rel, row as u64, 1);
+                        }
                         if self.run_core(p, pc + 1) {
                             return true;
                         }
@@ -4988,28 +5768,33 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// navwide: one derived relation (and the relation computed in the same pass) from derived.rs's rows form over the node
     /// table, decoded into the view's ids and the run's text codes
     fn load_derived(&mut self, rel: u16) {
-        let t = Instant::now();
+        let t = Tick::now();
         let rows0 = self.c.fact_rows;
         self.load_derived_inner(rel);
+        let ns = t.elapsed().as_nanos() as u64;
         let e = self.c.derived_by.entry(rel).or_default();
         e.0 += 1;
-        e.1 += t.elapsed().as_nanos() as u64;
+        e.1 += ns;
         e.2 += self.c.fact_rows - rows0;
+        self.acct_fill(rel, ns);
+    }
+
+    fn rel_class(&mut self, rel: u16) -> u8 {
+        if self.cache.key_cols.is_empty() {
+            self.declare_keys();
+        }
+        self.cache.rel_class[rel as usize]
     }
 
     fn load_derived_inner(&mut self, rel: u16) {
-        let t = Instant::now();
-        if !self.cache.model_lex {
-            let t = Instant::now();
-            self.model.build_lexical(self.f.table, self.f.incomplete);
-            self.model.resolve_loads(self.f.table);
-            self.cache.model_lex = true;
-            self.c.model_lex_ns += t.elapsed().as_nanos() as u64;
-            self.c.model_files += 1;
-        }
         let prog = self.prog;
         let name = prog.facts[rel as usize].name.as_str();
-        if name.starts_with("filesystem.") {
+        let class = self.rel_class(rel);
+        if self.cache.rel_model[rel as usize] {
+            self.ensure_model(0);
+        }
+        let t = Tick::now();
+        if class == 1 {
             // the host's relations of the file (derived.rs has file and executable; a read failure never reaches a rule here)
             let cols = host_filesystem(name, prog.facts[rel as usize].kinds.len(), self.f.path);
             let facts = self.cache.facts.as_mut().unwrap();
@@ -5018,7 +5803,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.derived_ns += t.elapsed().as_nanos() as u64;
             return;
         }
-        if name == "comment" || name == "indent-region" {
+        if class == 2 {
             // served from the run's own view (derived.rs reads the same view type, built a second time)
             let cols = self.view_rows(name, prog.facts[rel as usize].kinds.len());
             let facts = self.cache.facts.as_mut().unwrap();
@@ -5029,50 +5814,61 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.derived_ns += t.elapsed().as_nanos() as u64;
             return;
         }
-        let di = crate::derived::index_of(name).unwrap();
-        let mut targets: Vec<(usize, u16)> = vec![(di, rel)];
-        if let Some(p) = crate::derived::partner(di) {
-            if let Some(pi) = prog.facts.iter().position(|f| f.name == crate::derived::RELATIONS[p] && f.made.is_none() && f.model.is_none()) {
-                targets.push((p, pi as u16));
+        let di = self.cache.key_fn_di(rel);
+        let mut targets = [(di, rel), (usize::MAX, 0)];
+        let mut ntargets = 1;
+        let (p, pi) = self.cache.rel_partner[rel as usize];
+        if p != u32::MAX {
+            // the relation computed in the same pass comes along only when it has no per-key function or is filled whole in
+            // most files anyway (facts); a relation read at keys is not filled for being a neighbour
+            let pi = pi as usize;
+            let already = self.cache.facts.as_ref().is_some_and(|f| f.loaded[pi]);
+            if !already && (self.cache.key_cols[pi] == 0 || self.cache.key_whole[pi]) {
+                targets[1] = (p as usize, pi as u16);
+                ntargets = 2;
             }
         }
+        let targets = &targets[..ntargets];
         let wanted = targets.iter().fold(0u64, |m, (d, _)| m | (1 << d));
-        let root = std::env::args().nth(3).unwrap_or_default();
-        let full = std::path::Path::new(&root).join(self.f.path);
+        // the host's relations of the file are answered above; no derived relation reads the path
         let ctx = crate::derived::Ctx {
             parsed: self.f.parsed,
-            path: &full,
+            path: std::path::Path::new(""),
             table: self.f.table,
             source: self.f.source,
             model: self.model,
             incomplete: self.f.incomplete,
+            view: Some(self.f.view),
         };
-        let mut at = std::mem::take(&mut self.cache.dkey_at);
-        let mut kinds = std::mem::take(&mut self.cache.dkind);
+        // the whole fill goes after the rows per-key fills wrote (they stay where the programs holding them read them)
+        let facts = self.cache.facts.as_mut().unwrap();
+        let mut tg = [(usize::MAX, 0usize); 2];
+        let mut out = [Vec::new(), Vec::new()];
+        for (k, (d, r)) in targets.iter().enumerate() {
+            tg[k] = (*d, prog.facts[*r as usize].kinds.len());
+            out[k] = std::mem::take(&mut facts.cols[*r as usize]);
+            facts.whole_from[*r as usize] = out[k].first().map_or(0, Vec::len) as u32;
+        }
         let mut sink = DSink {
-            targets: targets.iter().map(|(d, r)| (*d, prog.facts[*r as usize].kinds.len())).collect(),
-            out: targets.iter().map(|(_, r)| vec![Vec::new(); prog.facts[*r as usize].kinds.len()]).collect(),
+            targets: tg,
+            out,
             sym: self.sym,
             view: self.f.view,
-            at: &mut at,
+            at: &mut self.cache.dkey_at,
             at_built: &mut self.cache.dkey_built,
-            kinds: &mut kinds,
+            kinds: &mut self.cache.dkind,
         };
-        let mut st = std::mem::take(&mut self.cache.dstate);
-        st.view_file = None;
-        let mut buf = std::mem::take(&mut self.scratch);
-        crate::derived::produce(&ctx, wanted, &mut sink, &mut buf, &mut st);
+        crate::derived::produce(&ctx, wanted, &mut sink, &mut self.scratch, &mut self.cache.dstate, None);
+        crate::derived::drop_build_clock();
         let out = std::mem::take(&mut sink.out);
-        drop(sink);
-        self.cache.dkey_at = at;
-        self.cache.dkind = kinds;
-        self.scratch = buf;
-        self.cache.dstate = st;
         let facts = self.cache.facts.as_mut().unwrap();
         for ((_, r), cols) in targets.iter().zip(out) {
-            self.c.fact_rows += cols.first().map_or(0, Vec::len) as u64;
+            self.c.fact_rows += u64::from(cols.first().map_or(0, Vec::len) as u32 - facts.whole_from[*r as usize]);
             facts.cols[*r as usize] = cols;
             facts.loaded[*r as usize] = true;
+        }
+        for (_, r) in targets.iter().skip(1) {
+            self.acct_fill(*r, 0);
         }
         self.c.derived_files += 1;
         self.c.derived_ns += t.elapsed().as_nanos() as u64;
@@ -5088,9 +5884,14 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         };
         if name == "comment" {
-            let k = self.sym.get_base("comment");
-            for id in v.n_nodes..v.len() {
-                if Some(v.kind[id]) == k {
+            // the comment tokens are a kind bucket (facts: no pass over every token)
+            if let Some(k) = self.sym.get_base("comment") {
+                let (a, b) = match self.cache.kind_off.get(k as usize + 1) {
+                    Some(&b) => (self.cache.kind_off[k as usize] as usize, b as usize),
+                    None => (0, 0),
+                };
+                for &id in &self.cache.kind_ids[a..b] {
+                    let id = id as usize;
                     let text = &self.f.source[v.start[id] as usize + 1..v.stop[id] as usize];
                     let t = u64::from(self.sym.text(text));
                     push(&mut cols, &[id as u64, t, 0, span(v.start[id], v.stop[id]), 0]);
@@ -5426,8 +6227,8 @@ fn host_filesystem(name: &str, width: usize, file: &str) -> Vec<Vec<u64>> {
 /// navwide: derived.rs rows into nav's columns (node ids are the view's: AST nodes share the table's ids; keyed elements by span
 /// and kind name; texts as the run's codes)
 struct DSink<'s> {
-    targets: Vec<(usize, usize)>,
-    out: Vec<Vec<Vec<u64>>>,
+    targets: [(usize, usize); 2],
+    out: [Vec<Vec<u64>>; 2],
     sym: &'s mut Symbols,
     view: &'s View,
     /// join: (start, stop, kind) -> view id, built once per file and kept across the file's derived relations
@@ -5440,11 +6241,19 @@ struct DSink<'s> {
 impl crate::derived::Sink for DSink<'_> {
     fn row(&mut self, rel: usize, cells: &[crate::derived::Cell<'_>]) {
         use crate::derived::Cell;
-        let Some(slot) = self.targets.iter().position(|(d, _)| *d == rel) else { return };
+        let slot = if self.targets[0].0 == rel {
+            0
+        } else if self.targets[1].0 == rel {
+            1
+        } else {
+            return;
+        };
         let width = self.targets[slot].1;
         for (c, cell) in cells.iter().enumerate().take(width) {
             let v = match *cell {
                 Cell::Node(n) => u64::from(n),
+                // a token's id is its place among the leaves: no lookup
+                Cell::Token(i) => (self.view.n_nodes as u64) + u64::from(self.view.tok_leaf[i as usize]),
                 Cell::Key(k, a, b) => {
                     let v = self.view;
                     if !*self.at_built {
@@ -5469,17 +6278,7 @@ impl crate::derived::Sink for DSink<'_> {
                     u64::from(self.at.get(&(a, b, kc)).copied().unwrap_or(u32::MAX - 1))
                 }
                 Cell::Text(t) => u64::from(self.sym.text(t)),
-                Cell::Word(t) => match self.kinds.get(&(t.as_ptr() as usize | (1 << 63), t.len())) {
-                    Some(&c) => u64::from(c),
-                    None => {
-                        // a base symbol's code is the same in every file; a file text's is not (not kept)
-                        let c = self.sym.text(t);
-                        if (c as usize) < self.sym.base_count() {
-                            self.kinds.insert((t.as_ptr() as usize | (1 << 63), t.len()), c);
-                        }
-                        u64::from(c)
-                    }
-                },
+                Cell::Word(t) => u64::from(self.sym.word(t)),
                 Cell::Null => u64::from(NULL),
                 Cell::Num(n) => n as u64,
                 Cell::Flag(f) => u64::from(f),

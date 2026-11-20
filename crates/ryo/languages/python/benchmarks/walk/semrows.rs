@@ -21,17 +21,114 @@ fn t(sym: &mut Symbols, text: Option<&str>) -> u64 {
     }
 }
 
-/// Fills `cols` (one vector per column) with the rows of relation `rel` (index into RELATIONS).
-pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mut Symbols, cols: &mut [Vec<u64>], scratch: &mut String) {
+/// A word fixed in the provider's code: its code by address, no hashing of the text (facts).
+fn w(sym: &mut Symbols, word: &'static str) -> u64 {
+    u64::from(sym.word(word))
+}
+
+/// A name the model interned: its code in the run's symbols, hashed once per file per distinct name (facts).
+fn nm(model: &mut Model, sym: &mut Symbols, name: u32) -> u64 {
+    const UNSET: u32 = u32::MAX - 2;
+    let i = name as usize;
+    if i >= model.sym_span.len() {
+        return t(sym, model.text(name));
+    }
+    if model.run_sym.len() < model.sym_span.len() {
+        model.run_sym.resize(model.sym_span.len(), UNSET);
+    }
+    if model.run_sym[i] == UNSET {
+        model.run_sym[i] = t(sym, model.text(name)) as u32;
+    }
+    u64::from(model.run_sym[i])
+}
+
+/// The relations whose rows are the same in every file (the language's implicit symbols).
+pub(crate) fn constant(rel: usize) -> bool {
+    rel == 5
+}
+
+/// The columns of relation `rel` with a per-key function (facts): a scope by its node (column 1); a reference, a resolution and a
+/// qualified name by the name or attribute expression (column 0). The flow relations are arrays of the model, filled whole.
+pub(crate) fn key_columns(rel: usize) -> u16 {
+    match rel {
+        0 => 1 << 1,
+        2..=4 => 1,
+        // a read by the name it reads (a word, not a node): the model's reads of that name, no row of any other
+        7 => 1 << 1,
+        _ => 0,
+    }
+}
+
+/// How much of the model relation `rel` reads: 0 the lexical part, 1 the flow part, 2 the resolution pass over it.
+pub(crate) fn model_level(rel: usize) -> u8 {
+    match rel {
+        0..=5 => 0,
+        10 => 2,
+        _ => 1,
+    }
+}
+
+/// Fills `cols` (one vector per column) with the rows of relation `rel` (index into RELATIONS); with `only = (column, node)`,
+/// just the rows whose key column holds that node (the per-key function: nothing else of the relation is computed).
+pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mut Symbols, cols: &mut [Vec<u64>], scratch: &mut String, only: Option<(u8, u32)>) {
     let mut push = |cols: &mut [Vec<u64>], cells: &[u64]| {
         for (c, &v) in cols.iter_mut().zip(cells) {
             c.push(v);
         }
     };
     let n = table.len();
+    if let (7, Some((_, code))) = (rel, only) {
+        // binding-read by name: the key is the name's code in the run's symbols
+        if model.flow_incomplete {
+            return;
+        }
+        scratch.clear();
+        match sym.str(code) {
+            Some(text) => scratch.push_str(text),
+            None => return,
+        }
+        let Some(name) = model.name_id(scratch) else { return };
+        for k in 0..model.reads.len() {
+            if model.reads[k].name != name {
+                continue;
+            }
+            let r = model.reads[k].clone();
+            let (a, b) = r.state.since();
+            let cells = [
+                u64::from(r.at),
+                u64::from(code),
+                u64::from(r.scope),
+                u64::from(r.phase),
+                w(sym, r.context.word()),
+                w(sym, r.state.word()),
+                a as u64,
+                b as u64,
+                0,
+                sp(table, r.at),
+            ];
+            push(cols, &cells);
+        }
+        return;
+    }
+    let one = only.map(|(_, id)| id).filter(|id| (*id as usize) < n);
+    if only.is_some() && one.is_none() {
+        return;
+    }
+    let all = |k: usize| -> &[u32] {
+        match &one {
+            Some(id) => {
+                if table.kind[*id as usize] == k as u8 {
+                    std::slice::from_ref(id)
+                } else {
+                    &[]
+                }
+            }
+            None => table.of_kind(k as u8),
+        }
+    };
     match rel {
         0 => {
-            for id in 0..n as u32 {
+            for id in one.map_or(0..n as u32, |id| id..id + 1) {
                 if matches!(
                     table.node[id as usize],
                     AnyNodeRef::ModModule(_)
@@ -63,9 +160,9 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                 };
                 let cells = [
                     u64::from(d.at),
-                    t(sym, Some(kind)),
-                    t(sym, Some(d.word)),
-                    t(sym, model.text(d.name)),
+                    w(sym, kind),
+                    w(sym, d.word),
+                    nm(model, sym, d.name),
                     u64::from(d.owner),
                     0,
                     (u64::from(d.named_start) << 32) | u64::from(d.named_stop),
@@ -75,7 +172,7 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
         }
         2..=4 => {
             for &kind in &[ruff_python_ast::NodeKind::ExprName as u8, ruff_python_ast::NodeKind::ExprAttribute as u8] {
-                for &id in table.of_kind(kind) {
+                for &id in all(kind as usize) {
                     let i = id as usize;
                     let is_name = matches!(table.node[i], AnyNodeRef::ExprName(_));
                     let ctx_store = if is_name { model.store[i] == 1 } else { !load(table, i) };
@@ -97,14 +194,14 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                         let r = model.resolve_memo(table, id);
                         if r != NONE {
                             let name = model.sym[i];
-                            let cells = [u64::from(id), u64::from(model.scope_of[i]), t(sym, model.text(name)), u64::from(r), 0, sp(table, id)];
+                            let cells = [u64::from(id), u64::from(model.scope_of[i]), nm(model, sym, name), u64::from(r), 0, sp(table, id)];
                             push(cols, &cells);
                         }
                     }
                     if rel == 4 && !model.incomplete {
                         let (label, since, has_path) = crate::rows::qualify_pub(model, table, id, scratch);
                         let path = if has_path { t(sym, Some(scratch)) } else { u64::from(NULL) };
-                        let cells = [u64::from(id), path, t(sym, Some(label)), since.0 as u64, since.1 as u64, 0, sp(table, id)];
+                        let cells = [u64::from(id), path, w(sym, label), since.0 as u64, since.1 as u64, 0, sp(table, id)];
                         push(cols, &cells);
                     }
                 }
@@ -112,7 +209,7 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
         }
         5 => {
             for (name, kind, major, minor) in crate::builtins::IMPLICIT {
-                let cells = [t(sym, Some(*name)), t(sym, Some(*kind)), 0, *major as u64, *minor as u64, 0];
+                let cells = [w(sym, name), w(sym, kind), 0, *major as u64, *minor as u64, 0];
                 push(cols, &cells);
             }
         }
@@ -122,10 +219,10 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                 let e = model.events[k];
                 let cells = [
                     u64::from(e.at),
-                    t(sym, model.text(e.name)),
+                    nm(model, sym, e.name),
                     u64::from(e.scope),
                     u64::from(e.phase),
-                    t(sym, Some(e.kind.word())),
+                    w(sym, e.kind.word()),
                     e.ordinal as u64,
                     0,
                     sp(table, e.at),
@@ -140,11 +237,11 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                 let (a, b) = r.state.since();
                 let cells = [
                     u64::from(r.at),
-                    t(sym, model.text(r.name)),
+                    nm(model, sym, r.name),
                     u64::from(r.scope),
                     u64::from(r.phase),
-                    t(sym, Some(r.context.word())),
-                    t(sym, Some(r.state.word())),
+                    w(sym, r.context.word()),
+                    w(sym, r.state.word()),
                     a as u64,
                     b as u64,
                     0,
@@ -161,8 +258,8 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                     u64::from(u.binding),
                     u64::from(u.scope),
                     u64::from(u.phase),
-                    t(sym, Some(u.context.word())),
-                    t(sym, Some(if u.unique { "unique" } else { "alternative" })),
+                    w(sym, u.context.word()),
+                    w(sym, if u.unique { "unique" } else { "alternative" }),
                     0,
                     sp(table, u.at),
                 ];
@@ -178,7 +275,7 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                     u64::from(s.scope),
                     u64::from(s.previous_scope),
                     u64::from(s.phase),
-                    t(sym, Some(if s.lexical { "lexical" } else { "replacement" })),
+                    w(sym, if s.lexical { "lexical" } else { "replacement" }),
                     0,
                 ];
                 push(cols, &cells);
@@ -190,12 +287,12 @@ pub(crate) fn produce(model: &mut Model, table: &Table<'_>, rel: usize, sym: &mu
                 let cells = [
                     u64::from(r.at),
                     u64::from(r.event),
-                    t(sym, Some(r.kind.word())),
+                    w(sym, r.kind.word()),
                     u64::from(r.scope),
                     u64::from(r.lexical),
                     r.depth as u64,
                     r.ordinal as u64,
-                    t(sym, Some(r.context.word())),
+                    w(sym, r.context.word()),
                     0,
                     sp(table, r.at),
                 ];

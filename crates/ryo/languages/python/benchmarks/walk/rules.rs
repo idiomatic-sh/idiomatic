@@ -653,6 +653,10 @@ pub(crate) struct State<'p> {
     model: crate::model::Model,
 }
 
+thread_local! {
+    static ACCT: bool = std::env::var_os("NAV_ACCT").is_some();
+}
+
 impl<'p> State<'p> {
     pub(crate) fn new(program: &'p Program) -> Self {
         Self {
@@ -707,18 +711,19 @@ impl<'p> State<'p> {
         let nav = program.nav.as_ref().unwrap();
         self.files += 1;
         self.sym.reset_file();
-        let t0 = Instant::now();
+        let t0 = crate::nav::Tick::now();
         let mut view = std::mem::take(&mut self.view);
         view.build(table, parsed, source, &mut self.sym);
         self.views += 1;
-        let t1 = Instant::now();
-        self.view_ns += (t1 - t0).as_nanos() as u64;
+        let t1 = crate::nav::Tick::now();
+        self.view_ns += t1.since(t0);
         if self.provider.is_none() && nav.needs_provider {
             self.provider = Some(crate::nav::Provider::new());
         }
-        self.cache.facts = None;
+        self.cache.reset_facts();
         self.cache.model_lex = false;
         self.cache.model_flow = false;
+        self.cache.model_res = false;
         self.cache.ident = None;
         self.cache.tree_idx.clear();
         self.cache.const_idx.clear();
@@ -732,6 +737,8 @@ impl<'p> State<'p> {
         self.cache.hoisted.clear();
         self.cache.probed.clear();
         self.cache.dkey_built = false;
+        self.cache.key_rows.clear();
+        self.cache.dstate.new_file();
         self.cache.sub_memo.clear();
         self.cache.near_memo.clear();
         self.cache.key_memo.clear();
@@ -770,7 +777,8 @@ impl<'p> State<'p> {
             if ex.c.prof.is_none() && (std::env::var("NAV_PROFILE").is_ok() || std::env::var_os("NAV_PLAN_STATS").is_some()) {
                 ex.c.prof = Some(FxMap::default());
             }
-            ex.c.diag = ex.c.prof.is_some() || std::env::var_os("NAV_DIAG").is_some();
+            ex.c.acct = ACCT.with(|a| *a);
+            ex.c.diag = ex.c.prof.is_some() || ex.c.acct || std::env::var_os("NAV_DIAG").is_some();
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {
                 ex.c.rule_steps = vec![0; nrules + 1];
@@ -905,14 +913,18 @@ impl<'p> State<'p> {
                     aux_rows.push((ri, rows));
                 }
             }
+            if ex.c.acct {
+                ex.acct_file_end();
+            }
+            ex.key_policy_roll();
             ex.cache.dispatch = dispatch;
             ex.cache.dispatch_used = used;
             ex.cache.other = other;
             regs = ex.regs;
             outs = ex.outs;
         }
-        let t2 = Instant::now();
-        self.nav_ns += (t2 - t1).as_nanos() as u64 - (self.nc.fact_ns - fact_before);
+        let t2 = crate::nav::Tick::now();
+        self.nav_ns += t2.since(t1).saturating_sub(self.nc.fact_ns - fact_before);
         let ctx = Ctx { view: &view, table, source, file: 0, path };
         self.memo.clear();
         self.scans.clear();
@@ -1174,6 +1186,25 @@ impl<'p> State<'p> {
             mb.sort_by(|a, b| b.1.1.cmp(&a.1.1));
             let mb: Vec<String> = mb.iter().take(if std::env::var_os("NAV_ALLBRANCHES").is_some() { usize::MAX } else { 40 }).map(|(k, v)| format!("[\"{}\",{},{},{},{},{k}]", nav.facts[*k as usize].name, v.0, v.1, v.2, v.3)).collect();
             eprintln!("{{\"made_by\":[{}]}}", mb.join(","));
+            if self.nc.acct {
+                let c = &self.nc;
+                let rels: Vec<String> = c
+                    .rel_acct
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, a)| a.iter().any(|x| *x != 0))
+                    .map(|(k, a)| format!("\"{}\":[{}]", nav.facts[k].name, a.iter().map(u64::to_string).collect::<Vec<_>>().join(",")))
+                    .collect();
+                let passes: Vec<String> = c.view_passes.iter().map(|((w, r, col), n)| format!("[{w},{r},{col},{},{}]", n.0, n.1)).collect();
+                let probes: Vec<String> = c.probe_cols.iter().map(|((r, col, w), n)| format!("[\"{}\",{col},{w},{n}]", nav.facts[*r as usize].name)).collect();
+                let reads: Vec<String> = c.read_cols.iter().map(|((r, col), n)| format!("[\"{}\",{col},{n}]", nav.facts[*r as usize].name)).collect();
+                eprintln!("{{\"acct_cols\":{{\"probes\":[{}],\"reads\":[{}]}}}}", probes.join(","), reads.join(","));
+                eprintln!(
+                    "{{\"acct\":{{\"rel\":{{{}}},\"view_reads\":{:?},\"view_files\":{:?},\"view_ids\":{},\"view_tokens\":{},\"text_distinct\":{},\"view_passes\":[{}],\"model_read_files\":{:?},\"view_split_ns\":{:?},\"extra\":{{\"key_fills\":{},\"key_rows\":{},\"key_lookups\":{},\"key_fill_ns\":{},\"analysis_ns\":{},\"analysis_by\":{:?},\"clock_read_ns\":{}}}}}}}",
+                    rels.join(","), c.view_reads, c.view_files, c.view_ids, c.view_tokens, c.text_distinct, passes.join(","), c.model_read_files, self.view.split_ns,
+                    c.key_fills, c.key_rows, c.key_lookups, c.key_fill_ns, self.cache.dstate.build_total_ns, crate::derived::build_clocks(), self.cache.key_clock_ns
+                );
+            }
             let mut db: Vec<_> = self.nc.derived_by.iter().map(|(&k, &v)| (k, v)).collect();
             db.sort_by(|a, b| b.1.1.cmp(&a.1.1));
             let db: Vec<String> = db.iter().map(|(k, v)| format!("[\"{}\",{},{},{}]", nav.facts[*k as usize].name, v.0, v.1, v.2)).collect();
@@ -1262,7 +1293,7 @@ impl<'p> State<'p> {
                 if i >= v.len() {
                     return false;
                 }
-                buf.extend([id as u64, v.kind[i] as u64, v.text[i] as u64, ctx.file, span(v.start[i], v.stop[i])]);
+                buf.extend([id as u64, v.kind[i] as u64, v.text_of(i, &mut self.sym, ctx.source) as u64, ctx.file, span(v.start[i], v.stop[i])]);
             }
             RelId::Sc => {
                 if i >= v.len() || v.parent[i] == u32::MAX {
