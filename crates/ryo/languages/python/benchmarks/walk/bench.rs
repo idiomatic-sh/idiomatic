@@ -44,9 +44,22 @@ pub(crate) struct Totals {
     /// thread-ns per stage: 0 parse, 1 table, 2 lexical model, 3 flow model, 4 policy, 5.. rows per relation, 16 lexical resolution of every name load
     pub ns: [AtomicU64; 17],
     /// derived relations: rows and thread-ns per relation (derived::RELATIONS order)
-    pub drows: [AtomicU64; 32],
-    pub dns: [AtomicU64; 32],
+    pub drows: Counters,
+    pub dns: Counters,
     pub touch: AtomicU64,
+}
+
+pub(crate) struct Counters(pub [AtomicU64; 64]);
+impl Default for Counters {
+    fn default() -> Self {
+        Self(std::array::from_fn(|_| AtomicU64::new(0)))
+    }
+}
+impl std::ops::Index<usize> for Counters {
+    type Output = AtomicU64;
+    fn index(&self, i: usize) -> &AtomicU64 {
+        &self.0[i]
+    }
 }
 
 /// Thread CPU time (CLOCK_THREAD_CPUTIME_ID): a stage's own CPU, not counting time the thread is preempted.

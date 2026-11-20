@@ -135,6 +135,8 @@ pub(crate) const RELATIONS: &[&str] = &[
     "brace-format-parse",
     "brace-format-field",
     "literal-expression-parse",
+    "raw-format-segment",
+    "raw-format-field",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -2485,6 +2487,62 @@ fn rows_literal_expression(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, buf
     }
 }
 
+// ------------------------------------------------------------------------------------------------ raw-format-segment, raw-format-field
+/// `raw_format`: each string token of a string literal parsed as a percent format as written (its body between the quotes, not
+/// decoded), one segment per token; its fields numbered across the literal's segments, only when every segment parsed.
+const FLAG_SPELLINGS: [&str; 32] = [
+    "", " ", "#", " #", "+", " +", "#+", " #+", "-", " -", "#-", " #-", "+-", " +-", "#+-", " #+-", "0", " 0", "#0", " #0", "+0", " +0",
+    "#+0", " #+0", "-0", " -0", "#-0", " #-0", "+-0", " +-0", "#+-0", " #+-0",
+];
+
+fn rows_raw_format(c: &Ctx<'_, '_>, sink: &mut dyn Sink, seg_rel: Option<usize>, field_rel: Option<usize>, st: &mut State) {
+    let mut fields: Vec<cformat::Field> = Vec::new();
+    let mut parsed: Vec<(u32, u32, Result<cformat::Summary, Option<cformat::Error>>, Vec<cformat::Field>)> = Vec::new();
+    let _ = st;
+    for &id in c.kind(NodeKind::ExprStringLiteral) {
+        let AnyNodeRef::ExprStringLiteral(s) = c.table.node[id as usize] else { continue };
+        parsed.clear();
+        let mut complete = true;
+        for part in s.value.iter() {
+            let (ps, pe) = (part.range.start().to_u32(), part.range.end().to_u32());
+            let r = match raw_body(&c.source[ps as usize..pe as usize]) {
+                None => {
+                    complete = false;
+                    Err(None)
+                }
+                Some(body) => cformat::parse(body, &mut fields).map_err(Some),
+            };
+            parsed.push((ps, pe, r, fields.clone()));
+        }
+        if parsed.is_empty() {
+            complete = false;
+        }
+        let mut first_field = 0usize;
+        for (ordinal, (ps, pe, r, fs)) in parsed.iter().enumerate() {
+            let seg = Cell::Key("string", *ps, *pe);
+            if let Some(rel) = seg_rel {
+                let (outcome, cat, ch, idx, sm) = match r {
+                    Ok(sm) => ("parsed", "none", None, 0, *sm),
+                    Err(Some(e)) => ("malformed", e.kind.word(), e.character, e.index, cformat::Summary::default()),
+                    Err(None) => ("unavailable", "none", None, 0, cformat::Summary::default()),
+                };
+                let mut b = [0u8; 4];
+                let ch = ch.map_or("", |x: char| &*x.encode_utf8(&mut b));
+                sink.row(rel, &[Cell::Node(id), seg, Cell::Num(ordinal as i64), Cell::Text("percent-string"), Cell::Text(outcome), Cell::Text(cat), Cell::Text(ch), Cell::Num(idx as i64), Cell::Num(sm.positional as i64), Cell::Flag(sm.mapping), Cell::Flag(sm.dynamic_width), Cell::Flag(sm.dynamic_precision), Cell::File, Cell::Span(*ps, *pe)]);
+            }
+            if let (Some(rel), true, Ok(_)) = (field_rel, complete, r) {
+                for f in fs {
+                    let mut b = [0u8; 4];
+                    sink.row(rel, &[Cell::Node(id), seg, Cell::Num(ordinal as i64), Cell::Num((first_field + f.ordinal) as i64), Cell::Num(f.ordinal as i64), Cell::Text(if f.key.is_some() { "mapping" } else { "positional" }), Cell::Text(f.key.as_deref().unwrap_or("")), Cell::Text(f.conversion.encode_utf8(&mut b)), Cell::Text(f.width.word()), Cell::Text(f.precision.word()), Cell::File, Cell::Span(*ps, *pe), Cell::Text(FLAG_SPELLINGS[f.flags as usize & 31])]);
+                }
+            }
+            if r.is_ok() {
+                first_field += fs.len();
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
 /// Reusable per-worker state of the derived analyses.
 #[derive(Default)]
@@ -2586,6 +2644,10 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     }
     if let Some(r) = want("literal-expression-parse") {
         rows_literal_expression(c, sink, r, buf, st);
+    }
+    let (rs, rf) = (want("raw-format-segment"), want("raw-format-field"));
+    if rs.is_some() || rf.is_some() {
+        rows_raw_format(c, sink, rs, rf, st);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)
