@@ -2447,21 +2447,27 @@ impl<'a, 'p> Exec<'a, 'p> {
 /// NAV_PROFILE report: the hottest instruction sites, each with its rule, branch, path and instruction.
 pub(crate) fn profile_report(prog: &NavProgram, prof: &FxMap<usize, u64>) -> String {
     let mut sites: FxMap<usize, String> = FxMap::default();
-    fn walk(p: &[Ins], path: String, sites: &mut FxMap<usize, String>) {
+    let owner_of = |slots: &[u32]| -> String {
+        let mut ids: Vec<&str> = slots.iter().map(|&s| prog.rules[prog.slot_rule[s as usize] as usize].id.as_str()).collect();
+        ids.dedup();
+        if ids.len() > 3 { format!("{}+{}more", ids[0], ids.len() - 1) } else { ids.join("+") }
+    };
+    fn walk(p: &[Ins], path: String, owner: &str, sites: &mut FxMap<usize, String>, owner_of: &dyn Fn(&[u32]) -> String) {
         for (pc, ins) in p.iter().enumerate() {
             let here = format!("{path}.{pc}");
             let text = format!("{ins:?}");
             let text: String = text.chars().take(160).collect();
-            sites.insert(ins as *const Ins as usize, format!("{here} {text}"));
+            sites.insert(ins as *const Ins as usize, format!("{owner} {here} {text}"));
             match ins {
                 Ins::Sub { subs, .. } | Ins::Near { subs, .. } => {
                     for (k, q) in subs.iter().enumerate() {
-                        walk(q, format!("{here}/{k}"), sites);
+                        walk(q, format!("{here}/{k}"), owner, sites, owner_of);
                     }
                 }
                 Ins::Fork { subs } => {
-                    for (k, (_, q)) in subs.iter().enumerate() {
-                        walk(q, format!("{here}/{k}"), sites);
+                    for (k, (slots, q)) in subs.iter().enumerate() {
+                        let o = owner_of(slots);
+                        walk(q, format!("{here}/{k}"), &o, sites, owner_of);
                     }
                 }
                 _ => {}
@@ -2469,14 +2475,13 @@ pub(crate) fn profile_report(prog: &NavProgram, prof: &FxMap<usize, u64>) -> Str
         }
     }
     for (g, grp) in prog.groups.iter().enumerate() {
-        let first = grp.slots[0];
-        let rule = prog.slot_of.iter().position(|s| s.contains(&first)).map_or("?", |r| prog.rules[r].id.as_str());
-        walk(&grp.prog, format!("{rule} g{g}"), &mut sites);
+        let o = owner_of(&grp.slots);
+        walk(&grp.prog, format!("g{g}"), &o, &mut sites, &owner_of);
     }
     for f in &prog.facts {
         if let Some((progs, ..)) = &f.made {
             for (k, q) in progs.iter().enumerate() {
-                walk(q, format!("{} p{k}", f.name), &mut sites);
+                walk(q, format!("p{k}"), &f.name, &mut sites, &owner_of);
             }
         }
     }
