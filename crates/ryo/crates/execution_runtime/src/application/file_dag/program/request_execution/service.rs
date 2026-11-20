@@ -84,6 +84,15 @@ impl ProgramRequestExecutionPort for RequestExecution {
             intents,
             &mut scratch.demand,
         );
+        // Spike (ryo-or7l): a codegen run demands what its mode reads.
+        match ryo_operators::codegen::rt::mode() {
+            ryo_operators::codegen::rt::Mode::Off | ryo_operators::codegen::rt::Mode::Pack => {}
+            ryo_operators::codegen::rt::Mode::Parse => scratch.demand.clear(),
+            ryo_operators::codegen::rt::Mode::Facts | ryo_operators::codegen::rt::Mode::Rules => {
+                scratch.demand.clear();
+                scratch.demand.extend(ryo_operators::codegen::generated::RELS.iter().copied().filter(|relation| ryo_operators::domain::tree_cells::service::native_form(*relation).is_none()));
+            }
+        }
         let lookup = crate::application::file_dag::fact_lookup::service::opened(
             sources,
             facts,

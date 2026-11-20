@@ -141,6 +141,14 @@ pub(crate) fn plan_with(
         }
         drop(std::fs::write(path, text));
     }
+    // Spike (ryo-or7l): the rule plans printed as Rust, and the report of what was covered and what blocked the rest.
+    if let Some(path) = std::env::var_os("RYO_CODEGEN_EMIT") {
+        let (source, report) = crate::codegen::generator::generate(program);
+        drop(std::fs::write(&path, source));
+        let mut report_path = path;
+        report_path.push(".report.tsv");
+        drop(std::fs::write(report_path, report));
+    }
     let mut nodes: Vec<PhysicalNode> = logical
         .iter()
         .map(|node| PhysicalNode {

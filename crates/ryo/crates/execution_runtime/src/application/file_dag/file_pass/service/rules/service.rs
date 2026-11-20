@@ -68,6 +68,7 @@ pub(crate) fn run_rules(
             };
         }
     };
+    let codegen = ryo_operators::codegen::rt::mode();
     let partials = lookup.partials().to_vec();
     if let Err(error) = request.admission.clone() {
         given_back(pass, scratch);
@@ -145,6 +146,90 @@ pub(crate) fn run_rules(
     // Spike (ryo-8y7q): each node's last rule turn, found once for the program, for releasing nodes at their last turn.
     let turns = pass.turns.get_or_init(|| last_turns(pass, program.rule_order()));
     at.buffers.set_turns(turns);
+    // Spike (ryo-or7l): the generated rules over the file's facts, read in place; the nodes the generator could not express
+    // (the bridge) answered first by the table plan.
+    if let Some(path) = std::env::var_os("RYO_CODEGEN_KINDS") {
+        static DUMPED: std::sync::Once = std::sync::Once::new();
+        DUMPED.call_once(|| {
+            let mut text = String::new();
+            for node in 0..200_000u32 {
+                if let Ok(kinds) = ryo_execution_domain::domain::executable_program::service::refusals::service::layout(
+                    &pass.program,
+                    ryo_operators::domain::physical_plan::types::PlanNodeId(node),
+                ) {
+                    text.push_str(&ryo_operators::codegen::generator::kinds_line(node as usize, kinds));
+                }
+            }
+            for (index, id) in pass.ids.iter().enumerate() {
+                text.push_str(&format!("#rule\t{index}\t{}\n", id.0));
+            }
+            drop(std::fs::write(path, text));
+        });
+    }
+    if codegen == ryo_operators::codegen::rt::Mode::Rules {
+        let started = std::time::Instant::now();
+        let mut bridged = Vec::with_capacity(ryo_operators::codegen::generated::BRIDGES.len());
+        for &(node, _rule) in ryo_operators::codegen::generated::BRIDGES {
+            let node = ryo_operators::domain::physical_plan::types::PlanNodeId(node);
+            let program = &pass.program;
+            let ran = crate::application::file_dag::file_pass::service::answering::service::ran_answering(program, node, &mut |each| {
+                crate::application::file_dag::file_pass::service::nodes::service::file_step(&mut at, symbols, each)
+            })
+            .and_then(|()| crate::application::file_dag::file_pass::service::answering::service::ran_rows(program, &at.buffers, node));
+            bridged.push(match ran {
+                Ok(table) => table.cells.iter().map(|cell| ryo_relations::domain::relations::service::to_bits(*cell).0).collect(),
+                Err(_) => {
+                    ryo_operators::codegen::rt::bridge_failed();
+                    Vec::new()
+                }
+            });
+        }
+        ryo_operators::codegen::rt::bridge_time(started.elapsed());
+        let filled = std::time::Instant::now();
+        let tree = at.inputs.lookup.tree();
+        let owned: Vec<Vec<ryo_relations::domain::relations::types::FactColumn>> = ryo_operators::codegen::generated::RELS
+            .iter()
+            .map(|relation| match ryo_operators::domain::tree_cells::service::native_form(*relation) {
+                None => Vec::new(),
+                Some(form) => {
+                    let count = ryo_language::domain::elements::service::end_of(tree).0;
+                    let first = if form == ryo_operators::domain::tree_cells::types::TreeForm::Edges { 1 } else { 0 };
+                    let rows = ryo_operators::domain::tree_cells::types::TreeRows { form, elements: tree, file };
+                    (0..ryo_relations::domain::relations::service::kinds(*relation).len())
+                        .map(|column| {
+                            ryo_relations::domain::relations::types::FactColumn(
+                                (first..count)
+                                    .map(|at| {
+                                        ryo_relations::domain::relations::service::to_bits(ryo_operators::domain::tree_cells::service::tree_value(
+                                            &rows,
+                                            ryo_relations::domain::relations::types::Position(at),
+                                            ryo_values::domain::plan_parts::types::ColumnIndex(column as u32),
+                                        ))
+                                        .0
+                                    })
+                                    .collect(),
+                            )
+                        })
+                        .collect()
+                }
+            })
+            .collect();
+        let rels: Vec<&[ryo_relations::domain::relations::types::FactColumn]> = ryo_operators::codegen::generated::RELS
+            .iter()
+            .zip(&owned)
+            .map(|(relation, owned)| match ryo_operators::domain::tree_cells::service::native_form(*relation) {
+                Some(_) => &owned[..],
+                None => at.inputs.lookup.columns(*relation).map_or(&[][..], |view| view.columns),
+            })
+            .collect();
+        ryo_operators::codegen::rt::fill_time(filled.elapsed());
+        let path = paths.get(file.0 as usize).map_or("", |path| &**path);
+        ryo_operators::codegen::rt::run_file(rels, bridged, &*symbols, input.source.0, at.inputs.lookup.tree(), path, &|rule| {
+            let plan = pass.plans.get(rule)?;
+            let id = pass.ids.get(rule)?;
+            Some((plan.emit.key.iter().map(|c| c.0 as usize).collect(), plan.emit.subject.0 as usize, id.0.to_string()))
+        });
+    }
     let CaptureContext {
         worker,
         arena: Arena(arena),
@@ -157,6 +242,11 @@ pub(crate) fn run_rules(
         for rule in program.rule_order() {
             turn += 1;
             at.buffers.turn_begins(turn);
+            if codegen != ryo_operators::codegen::rt::Mode::Off {
+                rule_done(&mut at, rule);
+                at.buffers.turn_ended(turn);
+                continue;
+            }
             let Some(FileRuleIntent::Run {
                 diagnostic,
                 observations,

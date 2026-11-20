@@ -163,6 +163,11 @@ impl<'p> LogicalProgram<'p> {
         self.emits.iter().map(|emitted| emitted.node)
     }
 
+    /// Spike (ryo-or7l): each rule's emitted node with its rule, in rule order.
+    pub(crate) fn emits(&self) -> impl Iterator<Item = (u32, PlanNodeId)> + '_ {
+        self.emits.iter().map(|emitted| (emitted.rule.0, emitted.node))
+    }
+
     /// The consumers that read no node.
     pub(crate) fn held(&self) -> &[PlanNodeId] {
         &self.holds

@@ -6,6 +6,7 @@ pub mod domain;
 pub mod inbound;
 pub mod outbound;
 pub mod spike;
+pub mod codegen;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod cases;
