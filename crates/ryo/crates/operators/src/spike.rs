@@ -399,9 +399,13 @@ pub fn dump() {
 /// Spike (ryo-jenl): whether the key census is on, set once from `RYO_KEYSTATS` (a file the census is written to).
 #[inline]
 pub fn keystats() -> bool {
-    static ON: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
-    switch(&ON, || std::env::var_os("RYO_KEYSTATS").is_some())
+    static ON: Switch = Switch(std::sync::atomic::AtomicU8::new(0));
+    switch(&ON.0, || std::env::var_os("RYO_KEYSTATS").is_some())
 }
+
+/// Spike (ryo-jenl): a switch's byte on a cache line of its own, so no counter written beside it makes its read a miss.
+#[repr(align(64))]
+pub struct Switch(std::sync::atomic::AtomicU8);
 
 /// Spike (ryo-jenl): a switch read once into a byte (0 not read yet, 1 off, 2 on), so a hot path's check is one plain load.
 #[inline]
@@ -421,12 +425,20 @@ fn switch(cell: &std::sync::atomic::AtomicU8, read: impl FnOnce() -> bool) -> bo
 /// Spike (ryo-jenl): whether a key's cells hash one word each (`cellword` in `RYO_DENSE_OFF`), as one plain load.
 #[inline]
 pub fn cellword() -> bool {
-    static ON: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
-    switch(&ON, || dense_levers()[2])
+    static ON: Switch = Switch(std::sync::atomic::AtomicU8::new(0));
+    switch(&ON.0, || dense_levers()[2])
+}
+
+/// Spike (ryo-jenl): whether a walk meets nodes by position (`visited` in `RYO_DENSE_OFF`), as one plain load.
+#[inline]
+pub fn visited_on() -> bool {
+    static ON: Switch = Switch(std::sync::atomic::AtomicU8::new(0));
+    switch(&ON.0, || dense_levers()[5])
 }
 
 /// Spike (ryo-jenl): census sites: 0 index build, 1 index probe, 2 repeat check, 3 row-set build, 4 row-set ask, 5 text index,
-/// 6 index rows keyed by words, 7 index probes by words.
+/// 6 index rows keyed by words, 7 index probes by words. The per-probe and per-row sites (1, 2, 4, 7) were counted on
+/// commit 01ba804f4 and e6014fa6d and are no longer counted: a check per probe cost more than it told.
 /// Classes: 0 one node column, 1 two node columns, 2 one other column, 3 two columns otherwise, 4 wider.
 static KEY_ROWS: [std::sync::atomic::AtomicU64; 40] = [const { std::sync::atomic::AtomicU64::new(0) }; 40];
 /// Spike (ryo-jenl): single-node-column builds: rows by log2 of the id range, rows by log2 of range/rows, rows of builds
@@ -493,7 +505,7 @@ pub fn dump_keys() {
 /// comma-separated, or `all`) is on: `words`, index keys that are one word hashed exactly; `repeats`, a repeat check of a
 /// one-word row hashed by its word; `cellword`, a key's cells hashed one word each; `slots`, a one-word index whose words
 /// span few places addressed by position; `walks`, the
-/// indexes of walks, closures, components and groups keyed the same way.
+/// indexes of walks, closures, components and groups keyed the same way; `visited`, a walk's met nodes by position.
 pub fn dense_lever(name: &str) -> bool {
     let at = match name {
         "words" => 0,
@@ -501,6 +513,7 @@ pub fn dense_lever(name: &str) -> bool {
         "cellword" => 2,
         "slots" => 3,
         "walks" => 4,
+        "visited" => 5,
         _ => return true,
     };
     dense_levers()[at]
@@ -508,11 +521,11 @@ pub fn dense_lever(name: &str) -> bool {
 
 /// Spike (ryo-jenl): the dense-key switches, read once from `RYO_DENSE_OFF`.
 #[inline]
-pub fn dense_levers() -> &'static [bool; 5] {
-    static ON: OnceLock<[bool; 5]> = OnceLock::new();
+pub fn dense_levers() -> &'static [bool; 6] {
+    static ON: OnceLock<[bool; 6]> = OnceLock::new();
     ON.get_or_init(|| {
         let off = std::env::var("RYO_DENSE_OFF").unwrap_or_default();
         let on = |name: &str| !off.split(',').any(|item| item == name || item == "all");
-        [on("words"), on("repeats"), on("cellword"), on("slots"), on("walks")]
+        [on("words"), on("repeats"), on("cellword"), on("slots"), on("walks"), on("visited")]
     })
 }

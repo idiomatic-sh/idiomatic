@@ -275,9 +275,6 @@ pub(crate) fn find_cells(
     indexed_side: KeyedSide<'_>,
     probe: KeyedRowAt<'_>,
 ) -> Result<Option<KeyedRun>, PortableOperatorFault> {
-    if crate::spike::keystats() {
-        crate::spike::key_rows(1, usize::from(rows.census), 1);
-    }
     if rows.words != KeyWords::Cells && probe.side.on.len() == indexed_side.on.len() {
         return word_found(rows, probe.side.on, probe.row, &|row, column| cell_of(probe.side.rows, row, column));
     }
@@ -310,9 +307,6 @@ pub(crate) fn find_value(
     let [column] = indexed_side.on else {
         return Err(PortableOperatorFault::ShapeMismatch);
     };
-    if crate::spike::keystats() {
-        crate::spike::key_rows(1, usize::from(rows.census), 1);
-    }
     if rows.words != KeyWords::Cells {
         let mut words = rows.words;
         return Ok(words.word(key, None, false).and_then(|word| find_word(rows, word)));
@@ -479,9 +473,6 @@ pub(crate) fn find_read(
     at: RowIndex,
     left: &impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
 ) -> Result<Option<KeyedRun>, PortableOperatorFault> {
-    if crate::spike::keystats() {
-        crate::spike::key_rows(1, usize::from(rows.census), 1);
-    }
     if rows.words != KeyWords::Cells && left_on.len() == right_on.len() {
         return word_found(rows, left_on, at, left);
     }
@@ -685,8 +676,5 @@ fn word_found(
 /// Spike (ryo-jenl): the key of word-keyed `rows` whose word is `word`.
 #[inline]
 fn find_word(rows: &KeyedRows, word: u64) -> Option<KeyedRun> {
-    if crate::spike::keystats() {
-        crate::spike::key_rows(7, usize::from(rows.census), 1);
-    }
     rows.word_run(word)
 }

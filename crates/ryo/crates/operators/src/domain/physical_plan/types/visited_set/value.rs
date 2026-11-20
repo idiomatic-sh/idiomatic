@@ -7,7 +7,7 @@ use ryo_relations::domain::relations::types::Value;
 use std::hash::{Hash as _, Hasher as _};
 
 /// The entities one walk has met. Every walk kernel marks what it meets here and resets it before its next start.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct VisitedSet {
     /// The entities met, by their hash.
     table: hashbrown::HashTable<Value>,
@@ -16,7 +16,19 @@ pub(crate) struct VisitedSet {
     /// The table slots every reset so far has emptied.
     #[cfg(test)]
     work: ResetWork,
+    /// Spike (ryo-jenl): the walk that last met each node of `file`, by the node's place in the file: a node is a dense id,
+    /// so it is met by position, never hashed.
+    stamps: Vec<u32>,
+    /// Spike (ryo-jenl): the walks reset so far; the open walk's stamp is one more.
+    walks: u32,
+    /// Spike (ryo-jenl): the file whose nodes are met by position (`u64::MAX`: none yet).
+    file: u64,
+    /// Spike (ryo-jenl): whether the open walk met a node by position.
+    placed: bool,
 }
+
+/// Spike (ryo-jenl): the most places a visited set addresses by position.
+const MOST_PLACES: u64 = 1 << 20;
 
 /// How many table slots the resets of a visited set have emptied.
 #[cfg(test)]
@@ -26,6 +38,29 @@ pub(crate) struct ResetWork(pub(crate) usize);
 impl VisitedSet {
     /// Marks `entity` met, and answers whether it was met already in this walk.
     pub(crate) fn meet(&mut self, entity: Value) -> SetMembership {
+        if let Value::Node(node) = entity
+            && crate::spike::visited_on()
+        {
+            let (file, place) = (node.0 >> 32, node.0 & 0xffff_ffff);
+            if file != self.file && !self.placed {
+                self.file = file;
+            }
+            if file == self.file && place < MOST_PLACES {
+                let place = usize::try_from(place).unwrap_or(usize::MAX);
+                if place >= self.stamps.len() {
+                    self.stamps.resize(place + 1, 0);
+                }
+                let stamp = self.walks.wrapping_add(1);
+                if let Some(slot) = self.stamps.get_mut(place) {
+                    self.placed = true;
+                    if *slot == stamp {
+                        return SetMembership::In;
+                    }
+                    *slot = stamp;
+                    return SetMembership::Out;
+                }
+            }
+        }
         let hash = value_hash(entity).0;
         if self.table.find(hash, |held| *held == entity).is_some() {
             return SetMembership::In;
@@ -40,6 +75,14 @@ impl VisitedSet {
     /// Empties it for the next walk: removes each entity the walk met, or, when it met an eighth of the table's room or
     /// more, empties the whole table, whichever touches fewer slots.
     pub(crate) fn reset(&mut self) {
+        if self.placed {
+            self.walks = self.walks.wrapping_add(1);
+            if self.walks.wrapping_add(1) == 0 {
+                self.stamps.fill(0);
+                self.walks = 0;
+            }
+            self.placed = false;
+        }
         if self.met.len().saturating_mul(8) >= self.table.capacity() {
             #[cfg(test)]
             {
@@ -66,7 +109,7 @@ impl VisitedSet {
     /// Whether no entity is met.
     #[cfg(test)]
     pub(crate) fn is_empty(&self) -> crate::domain::contract::types::PredicateOutcome {
-        if self.table.is_empty() && self.met.is_empty() {
+        if self.table.is_empty() && self.met.is_empty() && !self.placed {
             crate::domain::contract::types::PredicateOutcome::Holds
         } else {
             crate::domain::contract::types::PredicateOutcome::Fails
@@ -91,10 +134,28 @@ impl crate::domain::kept_room::types::KeptRoom for VisitedSet {
     fn kept(&mut self) {
         self.table.kept();
         self.met.kept();
+        self.stamps.kept();
+        self.walks = 0;
+        self.placed = false;
     }
 
     #[cfg(test)]
     fn room(&self) -> crate::domain::kept_room::types::Room {
         self.table.room().max(self.met.room())
+    }
+}
+
+impl Default for VisitedSet {
+    fn default() -> Self {
+        Self {
+            table: hashbrown::HashTable::new(),
+            met: Vec::new(),
+            #[cfg(test)]
+            work: ResetWork::default(),
+            stamps: Vec::new(),
+            walks: 0,
+            file: u64::MAX,
+            placed: false,
+        }
     }
 }

@@ -68,9 +68,6 @@ impl RowSet {
     /// Keeps the row `table` holds from cell `start` when no row kept before it holds the same cells: `First`, and it is kept;
     /// `Repeat` otherwise. The set keeps the rows of `table` in order, so the row kept is the table's next row.
     pub(crate) fn first_seen(&mut self, table: &Table, start: CellStart) -> FirstSeen {
-        if crate::spike::keystats() {
-            crate::spike::key_rows(2, crate::spike::key_class(table.kinds.iter().copied()), 1);
-        }
         let new = table.cells.get(start.0..).unwrap_or_default();
         if self.kept.is_empty() {
             self.words = if crate::spike::dense_lever("repeats") {
@@ -155,9 +152,6 @@ impl RowSet {
         cell: impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
         row: &[Value],
     ) -> SetMembership {
-        if crate::spike::keystats() {
-            crate::spike::key_rows(4, crate::spike::key_class(kinds.iter().copied()), 1);
-        }
         let hash = hash_of_cells(row.iter().copied());
         if self
             .kept
