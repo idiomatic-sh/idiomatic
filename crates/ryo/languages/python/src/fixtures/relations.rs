@@ -164,6 +164,7 @@ pub(super) fn expected() -> Vec<Expected> {
         binding_read::expected(),
         binding_use::expected(),
         binding_resolution::expected(),
+        lookup_scope::expected(),
         binding_shadow::expected(),
         implicit_symbol::expected(),
         brace_format_parse::expected(),
@@ -321,6 +322,11 @@ mod binding_use {
 /// Canonical positive fixture for `binding_resolution`.
 mod binding_resolution {
     include!("../../tests/fixtures/relations/binding_resolution/expected.rs");
+}
+
+/// Canonical positive fixture for `lookup_scope`.
+mod lookup_scope {
+    include!("../../tests/fixtures/relations/lookup_scope/expected.rs");
 }
 
 /// Canonical positive fixture for `binding_shadow`.
