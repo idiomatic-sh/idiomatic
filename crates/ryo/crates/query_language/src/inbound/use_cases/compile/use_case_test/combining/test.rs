@@ -27,6 +27,11 @@ type Failure = LoweringError;
 const ALIGNED: &str = "let a = select name, file from \"function\"; let b = select file, name from \"function\"; let u = union(left=a, right=b); emit u subject file key(name);";
 const UNALIGNED: &str = "let a = select name, file from \"function\"; let b = select name, id from \"function\"; let u = union(left=a, right=b); emit u subject file key(name);";
 
+/// The functions' names and files that a second selection of them lacks.
+const DIFFERENCE: &str = "let a = select name, file from \"function\"; let b = select name, file from \"function\" where name = \"main\"; let d = difference(left=a, right=b); emit d subject file key(name);";
+/// The functions' names and files that a second selection of them holds too.
+const INTERSECTION: &str = "let a = select name, file from \"function\"; let b = select name, file from \"function\" where name = \"main\"; let i = intersection(left=a, right=b); emit i subject file key(name);";
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -34,6 +39,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || ALIGNED,
         expect: Expect::Value("project project project-keyed union"),
+    },
+    Case {
+        name: CaseName("a_difference_is_the_distinct_left_rows_and_one_antijoin_on_every_column"),
+        word: Word::Succeeds,
+        input: || DIFFERENCE,
+        expect: Expect::Value("project select project project antijoin"),
+    },
+    Case {
+        name: CaseName(
+            "an_intersection_is_the_distinct_left_rows_and_two_antijoins_on_every_column",
+        ),
+        word: Word::Succeeds,
+        input: || INTERSECTION,
+        expect: Expect::Value("project select project project antijoin antijoin"),
     },
     Case {
         name: CaseName("inputs_with_other_columns_are_refused"),
@@ -140,7 +159,11 @@ fn subject(text: Input) -> Result<Value, Failure> {
             }
         }
     }
-    let known = ["project project project-keyed union"];
+    let known = [
+        "project project project-keyed union",
+        "project select project project antijoin",
+        "project select project project antijoin antijoin",
+    ];
     Ok(known
         .into_iter()
         .find(|list| *list == named(&builder.steps))
