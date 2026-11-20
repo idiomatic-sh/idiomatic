@@ -1158,7 +1158,8 @@ pub(crate) fn sink(p: Prog) -> Prog {
     let mut k = v.len();
     while k > 0 {
         k -= 1;
-        if !matches!(v[k], Ins::SubKey { .. } | Ins::AncExists { .. }) {
+        let plain = SINK_ALL.with(|x| *x) && matches!(v[k], Ins::Sub { .. });
+        if !plain && !matches!(v[k], Ins::SubKey { .. } | Ins::AncExists { .. }) {
             continue;
         }
         let mut reads = Vec::new();
@@ -1441,6 +1442,7 @@ thread_local! {
     static HOIST_DEFER: bool = !std::env::var("NAV_HOIST_DEFER").is_ok_and(|v| v == "0");
     static HOIST_PROBE: bool = !std::env::var("NAV_HOIST_PROBE").is_ok_and(|v| v == "0");
     static HOIST_SHARE: bool = !std::env::var("NAV_HOIST_SHARE").is_ok_and(|v| v == "0");
+    static SINK_ALL: bool = std::env::var("NAV_SINK_ALL").is_ok_and(|v| v == "1");
     static HOIST_OUTER: bool = !std::env::var("NAV_HOIST_OUTER").is_ok_and(|v| v == "0");
     static HOIST_IDS: std::cell::RefCell<FxMap<String, u32>> = std::cell::RefCell::new(FxMap::default());
 }
@@ -4370,6 +4372,9 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// (keys, node) once; then the rest of the program per reached pair
     #[allow(clippy::too_many_arguments)]
     fn closure(&mut self, p: &'p [Ins], pc: usize, src: R, out: R, xin: R, kout: &[R], nkeys: usize, subs: &'p [Prog]) -> bool {
+        if nkeys == 0 {
+            return self.closure_nodes(p, pc, src, out, xin, subs);
+        }
         let w = 1 + nkeys;
         let start = self.regs[src as usize];
         let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
@@ -4546,6 +4551,41 @@ impl<'a, 'p> Exec<'a, 'p> {
                 self.regs[*r as usize] = row[i];
             }
             self.c.visits += 1;
+            if self.run_inner(p, pc + 1) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Ins::Closure without partition keys: the reached nodes as plain numbers (no per-node allocation)
+    fn closure_nodes(&mut self, p: &'p [Ins], pc: usize, src: R, out: R, xin: R, subs: &'p [Prog]) -> bool {
+        let start = self.regs[src as usize];
+        let mut seen: std::collections::HashSet<u64, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+        let mut found: Vec<u64> = Vec::new();
+        let mut stack: Vec<u64> = vec![start];
+        let saved = std::mem::take(&mut self.collect);
+        let saved_x = self.regs[xin as usize];
+        while let Some(n) = stack.pop() {
+            self.regs[xin as usize] = n;
+            self.collect.clear();
+            for q in subs {
+                self.c.subs += 1;
+                self.run_inner(q, 0);
+            }
+            for i in 0..self.collect.len() {
+                let y = self.collect[i];
+                if seen.insert(y) {
+                    self.c.visits += 1;
+                    found.push(y);
+                    stack.push(y);
+                }
+            }
+        }
+        self.collect = saved;
+        self.regs[xin as usize] = saved_x;
+        for &y in &found {
+            self.regs[out as usize] = y;
             if self.run_inner(p, pc + 1) {
                 return true;
             }
