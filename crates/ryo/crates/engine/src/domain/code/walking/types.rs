@@ -56,7 +56,7 @@ pub(crate) struct WithinWord {
 /// The operands of `Nearest` and `NearestDerived`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct NearestWord {
-    /// `KEPT` when the answer is kept per start.
+    /// `KEPT` when the answer is kept per start; over the tree, `OWN_TREE` when the walk is of the file's own tree alone.
     pub(crate) flag: WordFlag,
     /// The register holding the start.
     pub(crate) start: Register,

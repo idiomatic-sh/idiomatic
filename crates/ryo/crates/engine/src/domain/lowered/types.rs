@@ -1,5 +1,6 @@
 //! The types of the `lowered` concept: what the lowering writes and the load-time passes rewrite: the pack's definitions and made tables once each, then each rule's own program. Crate-private; dropped once encoded.
 
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::steps::stages::types::Pipeline;
 use crate::domain::steps::types::{
@@ -17,7 +18,9 @@ use ryo_values::domain::table_words::types::ColumnCount;
 /// A rule set as lowered: the pack's definitions and tables once each, then each rule's own program.
 #[derive(Debug, Default)]
 pub(crate) struct LoweredPack {
-    /// Every definition some rule reaches, by number; named by its merged plan node.
+    /// Every definition some rule reaches, by number; named by its merged plan node, and one per node: two uses of one node,
+    /// in one rule or in two, name one definition. "N definitions" in a load's answer is how many of these the pack holds,
+    /// counted by node: the definitions lowered.
     pub(crate) definitions: Vec<PackDefinition>,
     /// Every made table some program reads, by number; one per (fill, merged plan node).
     pub(crate) tables: Vec<MadeTable>,
@@ -33,7 +36,8 @@ pub(crate) struct LoweredPack {
     pub(crate) reads: Vec<Relation>,
 }
 
-/// A sub-plan lowered once for the pack: its rows are a function of the file alone.
+/// A sub-plan lowered once for the pack: its rows are a function of the file alone. A plan step that is flattened into what
+/// reads it is no definition; a made table that is not a definition's own rows is none either.
 #[derive(Debug)]
 pub(crate) struct PackDefinition {
     /// The merged plan node it is the rows of.
@@ -55,6 +59,9 @@ pub(crate) struct DefinitionPattern {
     pub(crate) collected: ColumnMask,
     /// How it is evaluated.
     pub(crate) form: PatternForm,
+    /// Whether its form was the shape rule's to decide or is a sample's: the lowering marks each flip candidate `Open`,
+    /// whichever form it gave it, and the encoding writes the mark into the pattern's unit.
+    pub(crate) shape: ShapeChoice,
 }
 
 /// The two ways a pattern is evaluated.
@@ -120,7 +127,7 @@ pub(crate) struct Branch {
 /// A table made in the file once and read by key.
 #[derive(Debug)]
 pub(crate) struct MadeTable {
-    /// The merged plan node it is the rows of.
+    /// The merged plan node it is the rows of. A `Rows` table is a definition's own and bears that definition's node.
     pub(crate) node: NodeDigest,
     /// How its rows are made.
     pub(crate) fill: MadeFill,
