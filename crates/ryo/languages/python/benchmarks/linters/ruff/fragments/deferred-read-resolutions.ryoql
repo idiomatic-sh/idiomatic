@@ -39,8 +39,7 @@ let source_locations = select id, "start-byte" as start, file from "source-locat
 let reference_positions = select l.id as id, l.deletion as deletion, l.scope as scope, l.name as name, l.point as point, r.start as reference_start, l.file as file from deletion_events as l join source_locations as r on l.id = r.id and l.file = r.file;
 let forward_deletions = select l.id as id, l.deletion as deletion, l.scope as scope, l.name as name, l.point as point, l.file as file from reference_positions as l join source_locations as r on l.deletion = r.id and l.file = r.file where l.reference_start < r.start;
 let predecessor_options = select l.id as id, l.deletion as deletion, l.scope as scope, l.name as name, r.ordinal as point, r.kind as kind, l.file as file from forward_deletions as l join events as r on l.scope = r.scope and l.name = r.name and l.file = r.file where r.ordinal < l.point and (r.kind = "bind" or r.kind = "annotation" or r.kind = "delete" or r.kind = "cleanup");
-let older_predecessors = select l.id as id, l.deletion as deletion, l.point as point, l.file as file from predecessor_options as l join predecessor_options as r on l.id = r.id and l.deletion = r.deletion and l.file = r.file where l.point < r.point;
-let predecessors = antijoin(left=predecessor_options, right=older_predecessors, left-on=["id", "deletion", "point", "file"], right-on=["id", "deletion", "point", "file"]);
+let predecessors = group-max(from=predecessor_options, keys=["id", "deletion", "file"], order="point");
 let restored_bindings = select id, file from predecessors where kind = "bind";
 let no_predecessors = antijoin(left=forward_deletions, right=predecessor_options, left-on=["id", "file"], right-on=["id", "file"]);
 let no_module_predecessors = select l.id as id, l.name as name, l.file as file from no_predecessors as l join modules as r on l.scope = r.id and l.file = r.file;

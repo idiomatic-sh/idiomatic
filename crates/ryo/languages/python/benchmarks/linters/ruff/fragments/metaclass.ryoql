@@ -53,8 +53,7 @@ let traversal_edges = select context, source, destination, position, base, file 
 let traversal_roots = select context as entry, context, file from ordered_contexts;
 let visits = ordered-dfs(from=traversal_roots, root="entry", edges=traversal_edges, source="source", destination="destination", order="position", edge="base", keys=["context", "file"], output="visit");
 let true_visits = select l.context as context, l.entry as entry, l.visit as visit, l.file as file from visits as l join direct_context_success_bases as r on l.context = r.context and l.base = r.base and l.file = r.file;
-let later_true_visits = select l.context as context, l.visit as visit, l.file as file from true_visits as l join true_visits as r on l.context = r.context and l.file = r.file where r.visit < l.visit;
-let first_true_visits = antijoin(left=true_visits, right=later_true_visits, left-on=["context", "visit", "file"], right-on=["context", "visit", "file"]);
+let first_true_visits = group-min(from=true_visits, keys=["context", "file"], order="visit");
 let successful_class_rows = select l.context as context, r.class as class, l.file as file from first_true_visits as l join root_classes as r on l.context = r.context and l.file = r.file;
 let successful_class_groups = group-count(from=successful_class_rows, keys=["context", "class", "file"], count="count", distinct="class");
 let successful_classes = select context, class, file from successful_class_groups;

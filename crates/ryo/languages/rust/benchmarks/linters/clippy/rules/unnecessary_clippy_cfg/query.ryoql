@@ -25,8 +25,7 @@ let owner_parents = select l.owner as owner, r.parent as attribute, l.file as fi
 let whole_attrs = select l.attribute as id, l.file as file, r.span as span from owner_parents as l join "syntax-tree" as r on l.attribute = r.id;
 let partial_lints = select l.owner as owner, l.file as file, l.item_span as item_span from lints as l join partial as r on l.owner = r.owner;
 let bounded = span-bounds(from=partial_lints, span="item_span", start-output="begin", end-output="finish");
-let later = select l.owner as owner, l.item_span as item_span from bounded as l join bounded as r on l.owner = r.owner where r.begin < l.begin;
-let firsts = antijoin(left=bounded, right=later, left-on=["owner", "item_span"], right-on=["owner", "item_span"]);
+let firsts = group-min(from=bounded, keys=["owner"], order="begin");
 let first_lints = select owner as id, file, item_span as span from firsts;
 let candidates = union(left=whole_attrs, right=first_lints);
 let violations = lint_attributes(candidates=candidates, names="(?:^|,)\s*(?:clippy::(?:unnecessary_clippy_cfg|suspicious|all))\s*(?:,|$)");

@@ -103,8 +103,7 @@ let loop_bodies = select l.child as body, l.parent as loop, r.kind as kind from 
 let body_children = select l.parent as block, l.child as statement, l.ordinal as ordinal, r.kind as kind from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "body";
 let blocks = select id from "semantic-syntax" where kind = "block-statement";
 let block_statements = select l.block as block, l.statement as statement, l.ordinal as ordinal, l.kind as kind from body_children as l join blocks as r on l.block = r.id;
-let later_statements = select l.block as block, l.statement as statement from block_statements as l join block_statements as r on l.block = r.block where l.ordinal > r.ordinal;
-let first_statements = antijoin(left=block_statements, right=later_statements, left-on=["block", "statement"], right-on=["block", "statement"]);
+let first_statements = group-min(from=block_statements, keys=["block"], order="ordinal");
 let returning_blocks = select block from first_statements where kind = "return-statement";
 let direct_returns = select loop from loop_bodies where kind = "return-statement";
 let block_returns = select l.loop as loop from loop_bodies as l join returning_blocks as r on l.body = r.block;

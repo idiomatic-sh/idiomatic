@@ -21,8 +21,7 @@ let base_matches = builtin_match(checks=exception_checks, builtin="builtins.Base
 let blind_matches = union(left=exception_matches, right=base_matches);
 let broad_members = select l.handler as handler, l.root as id, l.file as file from type_members as l join blind_matches as r on l.root = r.check and l.file = r.file;
 let broad_locations = select l.handler as handler, l.id as id, l.file as file, r.span as span, r."start-byte" as begin from broad_members as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let later_broad_members = select l.handler as handler, l.id as id, l.file as file from broad_locations as l join broad_locations as r on l.handler = r.handler and l.file = r.file where r.begin < l.begin;
-let first_broad_members = antijoin(left=broad_locations, right=later_broad_members, left-on=["handler", "id", "file"], right-on=["handler", "id", "file"]);
+let first_broad_members = group-min(from=broad_locations, keys=["handler", "file"], order="begin");
 let visit_barriers = select id, file from nodes where kind = "except-handler" or kind = "try" or kind = "try-star" or kind = "function-def" or kind = "async-function-def" or kind = "class-def";
 let raises = select id, file from nodes where kind = "raise";
 let raise_owners = axis(from=raises, relation="semantic-child", direction=nearest-ancestor, domain=visit_barriers);
@@ -83,8 +82,7 @@ let positionals = select l.call as call, r.child as argument, r.ordinal as ordin
 let keywords = select l.call as call, r.child as keyword, r.ordinal as ordinal, l.file as file from call_wrappers as l join edges as r on l.wrapper = r.parent and l.file = r.file where r.field = "keywords";
 let keyword_labels = select l.call as call, l.keyword as keyword, l.ordinal as ordinal, r.child as token, l.file as file from keywords as l join edges as r on l.keyword = r.parent and l.file = r.file where r.field = "arg";
 let exc_info_keywords_a = select l.call as call, l.keyword as keyword, l.ordinal as ordinal, l.file as file from keyword_labels as l join identifiers as r on l.token = r.id and l.file = r.file where r.name = "exc_info";
-let later_exc_info = select l.call as call, l.keyword as keyword, l.file as file from exc_info_keywords_a as l join exc_info_keywords_a as r on l.call = r.call and l.file = r.file where r.ordinal < l.ordinal;
-let exc_info_keywords = antijoin(left=exc_info_keywords_a, right=later_exc_info, left-on=["call", "keyword", "file"], right-on=["call", "keyword", "file"]);
+let exc_info_keywords = group-min(from=exc_info_keywords_a, keys=["call", "file"], order="ordinal");
 let exc_info_values = select l.call as call, r.child as value, l.file as file from exc_info_keywords as l join edges as r on l.keyword = r.parent and l.file = r.file where r.field = "value";
 let primitive_false = select id, file from "literal-properties" where kind = "null" or kind = "boolean" and boolean = "false" or (kind = "integer" or kind = "float" or kind = "complex") and zero = "true" or (kind = "string" or kind = "bytes") and empty = "true";
 let containers = select id, kind, file from nodes where kind = "list" or kind = "tuple" or kind = "set" or kind = "dict";

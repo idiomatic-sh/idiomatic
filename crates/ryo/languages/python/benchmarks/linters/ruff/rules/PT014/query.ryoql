@@ -9,11 +9,9 @@ let call_arguments_nodes = select id from "semantic-syntax" where kind = "call-a
 let argument_owners = select l.parent as call, r.id as arguments from "semantic-child" as l join call_arguments_nodes as r on l.child = r.id;
 let positional_fields = select parent, child, ordinal from "semantic-child" where field = "args";
 let positional_arguments = select l.call as call, r.child as argument, r.ordinal as ordinal from argument_owners as l join positional_fields as r on l.arguments = r.parent;
-let later_positionals = select l.call as call, l.argument as argument from positional_arguments as l join positional_arguments as r on l.call = r.call where l.ordinal > r.ordinal;
-let first_positionals = antijoin(left=positional_arguments, right=later_positionals, left-on=["argument"], right-on=["argument"]);
+let first_positionals = group-min(from=positional_arguments, keys=["call"], order="ordinal");
 let after_first = select l.call as call, l.argument as argument, l.ordinal as ordinal from positional_arguments as l join first_positionals as r on l.call = r.call where l.ordinal > r.ordinal;
-let later_after_first = select l.call as call, l.argument as argument from after_first as l join after_first as r on l.call = r.call where l.ordinal > r.ordinal;
-let second_positionals = antijoin(left=after_first, right=later_after_first, left-on=["argument"], right-on=["argument"]);
+let second_positionals = group-min(from=after_first, keys=["call"], order="ordinal");
 let positional_argvalues = select call, argument as value from second_positionals;
 let keyword_fields = select parent, child from "semantic-child" where field = "keywords";
 let keyword_occurrences = select l.call as call, r.child as keyword from argument_owners as l join keyword_fields as r on l.arguments = r.parent;

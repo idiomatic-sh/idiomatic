@@ -5,8 +5,7 @@ let bodies = select parent, child, ordinal from "semantic-child" where field = "
 let function_bodies = select r.parent as parent, r.child as child, r.ordinal as ordinal from functions as l join bodies as r on l.id = r.parent;
 let counts = group-count(from=function_bodies, keys=["parent"], count="count", distinct="child");
 let multiple = select parent from counts where count > 1;
-let earlier = select l.child as child from function_bodies as l join function_bodies as r on l.parent = r.parent where l.ordinal < r.ordinal;
-let last = antijoin(left=function_bodies, right=earlier, left-on=["child"], right-on=["child"]);
+let last = group-max(from=function_bodies, keys=["parent"], order="ordinal");
 let returns = select id, file, span from "semantic-syntax" where kind = "return";
 let last_returns = select l.parent as function, r.id as id, r.file as file, r.span as span from last as l join returns as r on l.child = r.id;
 let candidates = select l.function as function, l.id as id, l.file as file, l.span as span from last_returns as l join multiple as r on l.function = r.parent;

@@ -24,8 +24,7 @@ let descending_left_pairs = select l.id as id, l.file as file, l.left_compare as
 let descending_pairs = select l.id as id, l.file as file, l.left_compare as left_compare, l.right_compare as right_compare from descending_left_pairs as l join descending as r on l.right_compare = r.id and l.file = r.file;
 let monotone_pairs = union(left=ascending_pairs, right=descending_pairs);
 let right_members = select parent as comparison, child as value, ordinal, file from "semantic-child" where field = "comparators";
-let nonlast_members = select l.comparison as comparison, l.value as value, l.file as file from right_members as l join right_members as r on l.comparison = r.comparison and l.file = r.file where l.ordinal < r.ordinal;
-let last_members = antijoin(left=right_members, right=nonlast_members, left-on=["comparison","value","file"], right-on=["comparison","value","file"]);
+let last_members = group-max(from=right_members, keys=["comparison", "file"], order="ordinal");
 let left_members = select parent as comparison, child as value, file from "semantic-child" where field = "left";
 let names = select id, file from nodes where kind = "name";
 let named_identifiers = select l.id as id, l.file as file, r.name as name from names as l join "identifier" as r on l.id = r.id and l.file = r.file;
