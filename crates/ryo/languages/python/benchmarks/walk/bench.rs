@@ -14,6 +14,11 @@
     reason = "throwaway bake-off prototype, never landed (bead ryo-i8o1)"
 )]
 
+/// jemalloc, as the ryo CLI ships it where it builds (join: per-thread arenas of the system allocator kept about 200 MiB of
+/// freed per-file memory resident); WALK_SYSTEM_ALLOC is not read, the choice is at build time
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 mod nav;
 mod pack;
 mod builtins;

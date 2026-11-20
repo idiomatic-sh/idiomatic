@@ -42,6 +42,8 @@ idiomatic-sh-ryo-python = { path = ".", features = ["fixtures"] }
 divan.workspace = true
 # The walk bench's regex leaves (bead ryo-i8o1, throwaway).
 regex-automata.workspace = true
+# The join bench's allocator (bead ryo-t2i0, throwaway): jemalloc, as the ryo CLI ships it where it builds.
+tikv-jemallocator.workspace = true
 # The nav bench's provider facts (bead ryo-lxty, throwaway): the provider's readers write typed columns.
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../../crates/language" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations" }

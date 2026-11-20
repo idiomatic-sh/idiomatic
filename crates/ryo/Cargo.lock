@@ -1622,6 +1622,7 @@ dependencies = [
  "serde_json",
  "strum",
  "thiserror 2.0.20",
+ "tikv-jemallocator",
  "toml 1.1.4+spec-1.1.0",
  "unicode-properties",
 ]
