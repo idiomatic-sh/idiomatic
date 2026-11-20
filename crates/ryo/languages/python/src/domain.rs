@@ -58,7 +58,7 @@ pub(crate) mod binding_observations;
 pub(crate) mod binding_analysis;
 
 /// Spike (ryo-fmx3): schedule-order name resolution over the binding analysis.
-pub(crate) mod binding_in_effect;
+pub(crate) mod lookup_path;
 pub(crate) mod binding_resolution;
 
 /// Explicit uncertainty for repeated and exceptional namespace effects.

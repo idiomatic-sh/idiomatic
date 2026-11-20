@@ -127,7 +127,7 @@ impl languages::Semantics<Sections> for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
-    fn binding_lookup(&self) -> Support<Reader<languages::BindingLookup, Sections>> {
+    fn lookup_scope(&self) -> Support<Reader<languages::LookupScope, Sections>> {
         // This optional analysis is not yet implemented or advertised by this provider.
         languages::absent(AbsenceCause::NotYetRead)
     }

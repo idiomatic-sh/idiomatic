@@ -54,8 +54,8 @@ pub(crate) mod binding_use;
 /// Schedule-order name resolution.
 pub(crate) mod binding_resolution;
 
-/// Schedule-order lookup: the binding in effect and later events.
-pub(crate) mod binding_lookup;
+/// The lookup path of each read or deletion.
+pub(crate) mod lookup_scope;
 
 /// Generic static binding analysis.
 pub(crate) mod binding_shadow;

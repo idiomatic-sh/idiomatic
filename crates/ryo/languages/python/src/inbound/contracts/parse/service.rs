@@ -41,7 +41,7 @@ pub(super) fn prepare_model(settings: &PythonParserSettings, model: &mut Declara
     crate::domain::qualification::service::clear(model.qualification.get_mut());
     crate::domain::binding_analysis::service::clear(model.binding_analysis.get_mut());
     crate::domain::binding_resolution::service::clear(model.binding_resolution.get_mut());
-    crate::domain::binding_in_effect::service::clear(model.binding_lookup.get_mut());
+    crate::domain::lookup_path::service::clear(model.lookup_scope.get_mut());
     model.semantic.get_mut().hidden.clear();
     model.semantic.get_mut().state = crate::domain::model::types::QualificationState::Fresh;
     // The declarations and the binding index are built on a reader's first lookup, not for every file.
