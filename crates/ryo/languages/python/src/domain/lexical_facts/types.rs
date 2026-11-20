@@ -3,10 +3,6 @@
 use crate::domain::qualification::types::Version;
 use ryo::languages::Symbol;
 
-/// The word of each name of the file that a filler has written so far, by the name's code.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct NameWords(pub Vec<Option<Symbol>>);
-
 /// The text of a dotted or qualified name being written.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct QualifiedPath(pub String);
@@ -24,4 +20,19 @@ pub(crate) enum NameProvenance {
     Unresolved,
     /// A wildcard import or a deletion leaves the origin unproven: no path.
     Ambiguous,
+}
+
+/// The five words that say where a name comes from, as the file's words have them.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ProvenanceWords {
+    /// An import.
+    pub import: Symbol,
+    /// A builtin.
+    pub builtin: Symbol,
+    /// A definition of the file that is not an import.
+    pub local: Symbol,
+    /// Nothing the file defines and no builtin.
+    pub unresolved: Symbol,
+    /// An origin left unproven.
+    pub ambiguous: Symbol,
 }

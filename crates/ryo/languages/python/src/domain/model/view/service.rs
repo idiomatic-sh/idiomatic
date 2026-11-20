@@ -39,11 +39,15 @@ pub(crate) fn built(
     let tree = TypedTree { table, nodes };
     if part != ModelPart::Nothing && built.lexical == PartState::Pending {
         names::clear(&mut model.names);
+        names::clear_words(model.words.get_mut());
         lexical::build(&mut model.lexical, &mut model.names, tree);
         declarations::build(&mut model.lexical, table);
         definitions::build(&mut model.definitions, &model.lexical, &model.names, tree);
-        resolution::build(&mut model.resolution, &model.definitions, &model.lexical, table);
         built.lexical = PartState::Ready;
+    }
+    if part == ModelPart::Resolution && built.resolution == PartState::Pending {
+        resolution::build(&mut model.resolution, &model.definitions, &model.lexical, table);
+        built.resolution = PartState::Ready;
     }
     if part == ModelPart::Flow && built.flow == PartState::Pending {
         let deferred = model.target >= LAZY_ANNOTATIONS_FROM

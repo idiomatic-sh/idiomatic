@@ -3,11 +3,12 @@
 use crate::domain::model::definitions::types::DefinitionModel;
 use crate::domain::model::flow::types::FlowModel;
 use crate::domain::model::lexical::types::LexicalModel;
-use crate::domain::model::names::types::NameTable;
+use crate::domain::model::names::types::{FactWords, NameTable};
 use crate::domain::model::resolution::types::ResolutionModel;
 use crate::domain::model::types::BindingSchedule;
 use crate::domain::standard_library::types::TargetVersion;
 use ryo::languages::{FileId, NodeTable};
+use std::cell::RefCell;
 
 /// The per-file view as the semantic fillers read it.
 pub(crate) trait ModelView {
@@ -20,8 +21,10 @@ pub(crate) trait ModelView {
 pub(crate) enum ModelPart {
     /// No part: the filler reads the table and the file's number alone, and the model is left as it is.
     Nothing,
-    /// Scopes, names, declarations, definitions and the static resolution of every name that is read.
+    /// Scopes, names, declarations and definitions.
     Lexical,
+    /// The lexical part, and the one definition the static rule gives every name that is read.
+    Resolution,
     /// The lexical part, and the schedule interpreted: events, reads, uses and shadows.
     Flow,
 }
@@ -54,6 +57,8 @@ pub(crate) struct SemanticModel {
     pub schedule: BindingSchedule,
     /// The schedule interpreted.
     pub flow: FlowModel,
+    /// The words the fillers have written for the file in hand, kept from one filler to the next.
+    pub words: RefCell<FactWords>,
 }
 
 /// Whether a part of the model is built for the file in hand.
@@ -71,6 +76,8 @@ pub(crate) enum PartState {
 pub(crate) struct Built {
     /// The lexical part.
     pub lexical: PartState,
+    /// The static resolution.
+    pub resolution: PartState,
     /// The flow part.
     pub flow: PartState,
 }

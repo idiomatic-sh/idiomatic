@@ -45,7 +45,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(source: Input) -> Value {
     let mut answer = None;
     viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
-        let model = view.semantics(ModelPart::Lexical).model;
+        let model = view.semantics(ModelPart::Resolution).model;
         let last = (0..model.lexical.class.len()).rev().find(|number| {
             model.lexical.class.get(*number) == Some(&NodeClass::Name)
                 && model.lexical.usage.get(*number) == Some(&NameUse::Load)

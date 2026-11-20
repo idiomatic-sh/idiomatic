@@ -1,10 +1,12 @@
 //! The `names` service of the model: free functions named by verb over the names of one file, with no IO and no ports.
 
 use super::constants::{HASH_START, HASH_STEP, UNKNOWN_NAME};
-use super::types::{NameCode, NameEntry, NameHash, NameSlot, NameTable};
+use super::types::{FactWords, HeldWord, HeldWords, NameCode, NameEntry, NameHash, NameSlot, NameTable, NameWords};
+use crate::domain::names::service::unknown;
+use crate::domain::names::types::Unresolved;
 use crate::domain::qualification::service::builtin_named;
 use crate::domain::qualification::types::Version;
-use ryo::languages::{NameText, Offset};
+use ryo::languages::{FileWords, NameText, Offset, Symbol, facts};
 
 /// Forgets every name, keeping the buffers.
 pub(crate) fn clear(table: &mut NameTable) {
@@ -119,4 +121,46 @@ pub(crate) fn builtin_of(table: &NameTable, code: NameCode) -> Option<Version> {
         .entries
         .get(usize::from(code))
         .and_then(|entry| entry.builtin)
+}
+
+/// The word of `text` among the file's words.
+pub(crate) fn word(words: &mut FileWords, text: NameText<'_>) -> Symbol {
+    Symbol(u32::try_from(facts::intern(words, text).0).unwrap_or(u32::MAX))
+}
+
+/// The word of the name `code`, interned the first time a filler writes it for the file and written from `known` after that; the
+/// unknown word of a wildcard import for the names one binds. The words of a file hold for all its fills: the engine forgets
+/// them only after the file.
+pub(crate) fn name_word(names: &NameTable, words: &mut FileWords, known: &mut NameWords, code: NameCode) -> Symbol {
+    if let Some(Some(found)) = known.0.get(usize::from(code)) {
+        return *found;
+    }
+    let Some(text) = text_of(names, code) else {
+        return unknown(Unresolved::WildcardImport);
+    };
+    let found = word(words, text);
+    if known.0.len() < names.entries.len() {
+        known.0.resize(names.entries.len(), None);
+    }
+    if let Some(slot) = known.0.get_mut(usize::from(code)) {
+        *slot = Some(found);
+    }
+    found
+}
+
+/// The word of a fixed text of the vocabulary, interned the first time it is written for the file and written from `held` after
+/// that: a row costs a look among a handful of held words, never a hash of the text.
+pub(crate) fn held_word(words: &mut FileWords, held: &mut HeldWords, text: NameText<'static>) -> Symbol {
+    if let Some(found) = held.0.iter().find(|each| std::ptr::eq(each.text.0, text.0)) {
+        return found.word;
+    }
+    let found = word(words, text);
+    held.0.push(HeldWord { text, word: found });
+    found
+}
+
+/// Forgets the words written for the last file, keeping the buffers.
+pub(crate) fn clear_words(known: &mut FactWords) {
+    known.names.0.clear();
+    known.fixed.0.clear();
 }
