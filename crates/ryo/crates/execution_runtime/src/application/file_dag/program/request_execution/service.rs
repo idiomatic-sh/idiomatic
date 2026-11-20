@@ -33,6 +33,10 @@ impl ProgramRequestExecutionPort for RequestExecution {
         })
     }
     fn finish(self) {
+        // Spike (ryo-qz0d): the sorted engine's last batches and its findings.
+        if ryo_operators::sorted::on() {
+            ryo_operators::sorted::finish();
+        }
         // The run's last file and its project phase are done: its node counters reach its trace before it is flushed.
         crate::application::file_dag::file_pass::service::counters::service::emitted_at_end(
             &self.pass,
@@ -79,6 +83,59 @@ impl ProgramRequestExecutionPort for RequestExecution {
         // What the request's last file left, its demand refilled: the file's sources are asked only for what its running rules
         // read.
         let mut scratch = crate::application::file_dag::file_pass::service::taken(&self.pass);
+        // Spike (ryo-qz0d): the sorted engine reads the file's relations into its batch; the rule pass runs no rule.
+        if ryo_operators::sorted::on() {
+            scratch.demand = ryo_operators::sorted::relations();
+            let lookup = crate::application::file_dag::fact_lookup::service::opened(
+                sources,
+                facts,
+                crate::application::file_dag::fact_lookup::types::FileWants {
+                    active,
+                    said,
+                    recovery,
+                },
+                symbols,
+                &scratch.demand,
+            );
+            if let Ok(opened) = &lookup {
+                let path = self.services.request().path(file).map_or("", |path| &*path.0);
+                let runs = |rule: u32| {
+                    matches!(
+                        intents.get(usize::try_from(rule).unwrap_or(usize::MAX)),
+                        Some(ryo_execution_domain::domain::rule_intent::types::FileRuleIntent::Run { .. })
+                    )
+                };
+                ryo_operators::sorted::fill_file(
+                    file,
+                    path,
+                    &runs,
+                    &|relation| opened.columns(relation).ok(),
+                    opened.tree(),
+                    symbols,
+                    source.0,
+                );
+            }
+            let undemanded = vec![
+                ryo_execution_domain::domain::rule_intent::types::FileRuleIntent::Undemanded;
+                intents.len()
+            ];
+            return crate::application::file_dag::file_pass::service::rules::service::run_rules(
+                request,
+                &self.pass,
+                crate::application::file_dag::file_pass::types::OpenedFile {
+                    file,
+                    intents: &undemanded,
+                    source,
+                    answering,
+                    semantic,
+                    first,
+                },
+                lookup,
+                symbols,
+                capture,
+                scratch,
+            );
+        }
         crate::application::file_dag::file_pass::service::file_demand(
             &self.program,
             intents,

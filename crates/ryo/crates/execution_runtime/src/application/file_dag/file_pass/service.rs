@@ -214,6 +214,15 @@ pub(crate) fn conditioned_pass(
     let mut inputs = ProgramInputs::hosting(hosted.clone());
     inputs.assuming(None, extended);
     let normal = logical(&rules, &mut inputs)?;
+    // Spike (ryo-qz0d): the sorted engine lowers the merged program at load.
+    if ryo_operators::sorted::on() {
+        let names: Vec<Box<str>> = ids.iter().map(|id| id.0.clone()).collect();
+        let spans: Vec<Option<usize>> = plans
+            .iter()
+            .map(|plan| plan.emit.headings.iter().position(|heading| &*heading.0 == "span"))
+            .collect();
+        ryo_operators::sorted::install(normal.program(), &names, &spans);
+    }
     let (program, conditional) = if let Some(absence) = condition {
         let mut alternative = ProgramInputs::hosting(hosted.clone());
         alternative.assuming(Some(absence.clone()), extended);
