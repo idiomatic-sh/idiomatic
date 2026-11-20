@@ -1091,10 +1091,14 @@ impl<'a, 'p> Exec<'a, 'p> {
                 self.c.fact_rows += if ci == 0 { col.len() as u64 } else { 0 };
                 rel_cols.push(col);
             }
+            if f.name.starts_with("filesystem.") {
+                rel_cols = host_filesystem(&f.name, f.kinds.len(), self.f.path);
+            }
             out.push(rel_cols);
         }
         out
     }
+
 
     fn fact_index(&mut self, rel: u16, col: u8) -> Rc<FIdx> {
         self.ensure(rel);
@@ -2011,4 +2015,23 @@ fn natural_compare(left: &str, right: &str) -> std::cmp::Ordering {
             right = &right[b.len_utf8()..];
         }
     }
+}
+
+/// navwide: the host's filesystem relations for the current file (its path, its executable bit; no read failures, since
+/// the file was read)
+fn host_filesystem(name: &str, width: usize, file: &str) -> Vec<Vec<u64>> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut cols = vec![Vec::new(); width];
+    match name {
+        "filesystem.file" => cols[0].push(0),
+        "filesystem.executable" => {
+            let root = std::env::args().nth(3).unwrap_or_default();
+            let path = std::path::Path::new(&root).join(file);
+            let exec = std::fs::metadata(&path).map(|m| m.permissions().mode() & 0o111 != 0).unwrap_or(false);
+            cols[0].push(0);
+            cols[1].push(u64::from(exec));
+        }
+        _ => {}
+    }
+    cols
 }
