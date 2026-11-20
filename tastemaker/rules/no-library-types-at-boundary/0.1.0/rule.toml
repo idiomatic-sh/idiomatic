@@ -1,0 +1,219 @@
+description = "What crosses a crate's boundary names only the crate's own types and its contracts' types: no type path of a listed library is written in a signature of a `pub` item (a function's parameters, return type, generic parameters and where clause; a public field of a public struct; a variant of a public enum; a public type alias, constant or static; a method or associated type of a public trait), in a member of an `impl` of a contract trait (its associated types and its method signatures), or in a `pub use`."
+why = "A crate may implement its concern with any library, inside itself; what it hands across its boundary is its own (owner, 2026-11-20: \"we dont want to have external lib types leak into our engine\"; \"im fine with using external libs in our providers to implement languages. but we must own the contracts\"). Where a library may be named inside the crate is `client-at-adapter`'s; this rule says what may cross: a library type in a public signature or in the associated type of a contract implementation makes every caller depend on the library, so the library can no longer be swapped behind the crate. The compiler holds the rest of the boundary: `unreachable_pub` makes a written `pub` item one reachable from the crate root (it does not look at fields, so a field counts only when its struct is `pub`), `private_interfaces` keeps the crate's private types out of a public signature, and a trait implementation's method signatures are the trait's. The libraries are the entry's `libraries` and `domain-libraries`, path globs as written in code; the contract traits are its `contracts`. Found from the paths the files write (`reference`), each resolved through the file's own imports by its first segment (`use lib::Tree`, `use lib::nested as n` and `use lib as l` all count), under the syntax of each surface (`syntax-tree`, `syntax-child`, `visibility`), and from the imports a `pub use` makes. Not seen: a path inside a macro invocation or an attribute, a name brought in by a glob import (`use lib::*`), a crate-private alias of a library type (`type T = lib::Tree;` in another file) named in a public signature, a trait implementation of a trait that is no contract (`impl From<lib::Error> for Error`), and a library type a contract trait's own generic parameter is given."
+
+query = '''
+param libraries: set<string>;
+param domain-libraries: set<string>;
+param contracts: set<string>;
+let nodes = select l."id" as "id", l."kind" as "kind" from "syntax-tree" as l where l."text" = "";
+let edges = project(from="syntax-child", columns=["parent", "child", "field"]);
+let written = project(from="reference", columns=["occurrence", "file", "span", "target"]);
+let imports = project(from="static-import", columns=["occurrence", "file", "span", "binding", "target"]);
+let heads = replace(from=written, text="target", pattern="::.*$", replacement="", output="head");
+let through-imports = select l."occurrence" as "occurrence", l."file" as "file", l."span" as "span", l."target" as "target", r."target" as "origin" from heads as l join imports as r on l."file" = r."file" and l."head" = r."binding";
+let as-written = select l."occurrence" as "occurrence", l."file" as "file", l."span" as "span", l."target" as "target", l."target" as "origin" from written as l;
+let resolved-origins = union(left=as-written, right=through-imports);
+let resolved = replace(from=resolved-origins, text="origin", pattern="$", replacement="::_", output="beneath");
+let written-public = select l."declaration" as "id" from "visibility" as l where l."text" = "pub";
+let public-kinds = select r."id" as "id", r."kind" as "kind" from written-public as l join nodes as r on l."id" = r."id";
+let public-fields = select * from public-kinds where kind = "record-field" or kind = "tuple-field";
+let public-items = select l."id" as "id" from public-kinds as l where l."kind" != "record-field" and l."kind" != "tuple-field";
+let field-lists = select l."id" as "id", r."parent" as "list" from public-fields as l join edges as r on l."id" = r."child";
+let field-owners = select l."id" as "id", r."parent" as "owner" from field-lists as l join edges as r on l."list" = r."child";
+let reachable-fields = select l."id" as "id" from field-owners as l join public-items as r on l."owner" = r."id";
+let public = union(left=public-items, right=reachable-fields);
+let public-traits = select * from public-kinds where kind = "trait";
+let public-trait-ids = project(from=public-traits, columns=["id"]);
+let impls = select * from nodes where kind = "impl";
+let trait-types = select l."id" as "impl", r."child" as "type" from impls as l join edges as r on l."id" = r."parent" where r."field" = "trait";
+let trait-paths = select l."impl" as "impl", r."child" as "path" from trait-types as l join edges as r on l."type" = r."parent" where r."field" = "path";
+let contract-paths = select * from resolved where glob_any(origin, $contracts) or glob_any(beneath, $contracts);
+let contract-impls = select l."impl" as "id" from trait-paths as l join contract-paths as r on l."path" = r."occurrence";
+let containers = union(left=public-trait-ids, right=contract-impls);
+let member-lists = select r."child" as "list" from containers as l join edges as r on l."id" = r."parent" where r."field" = "assoc-item-list";
+let members = select r."child" as "id" from member-lists as l join edges as r on l."list" = r."parent" where r."field" = "items";
+let surface = union(left=public, right=members);
+let roots = select r."child" as "id" from surface as l join edges as r on l."id" = r."parent" where glob_any(r."field", "{param-list,ret-type,generic-param-list,where-clause,ty,variant-list,type-bound-list}");
+let below = axis(from=roots, relation="syntax-child", direction=descendant, domain=nodes);
+let below-ids = select related as "id" from below;
+let reached = union(left=roots, right=below-ids);
+let crossing-paths = select l."file" as "file", l."span" as "span", l."target" as "target" from resolved as l join reached as r on l."occurrence" = r."id" where glob_any(l."origin", $libraries) or glob_any(l."beneath", $libraries) or glob_any(l."origin", $domain-libraries) or glob_any(l."beneath", $domain-libraries);
+let reexports = select l."file" as "file", l."span" as "span", l."target" as "target" from imports as l join public as r on l."occurrence" = r."id";
+let crossing-imports = select * from reexports where glob_any(target, $libraries) or glob_any(target, $domain-libraries);
+let crossing = union(left=crossing-paths, right=crossing-imports);
+emit crossing subject "file" key("span", "target");
+'''
+
+[params.libraries]
+type = "set<string>"
+description = "The libraries the crate implements its concern with, each a path glob of the crate as it is written in code: `rusqlite::*`."
+
+[params.domain-libraries]
+type = "set<string>"
+description = "The libraries whose data types the crate's domain reads in place, as path globs: `indexmap::*`. They are as much the crate's own business as `libraries`, and cross its boundary no more; two lists, so an entry reuses the two its manifest already declares."
+
+[params.contracts]
+type = "set<string>"
+description = "The contract traits the crate implements for its callers, as path globs: `ryo::*`. A member of an `impl` of one of them is part of the boundary."
+
+[diagnostic]
+primary = "span"
+message = "library type `{target}` crosses the crate's boundary"
+help = "Hand the caller a type of the crate's own, or one of the contract's: wrap the library's value in a type the crate declares, keep the field private, or answer in the contract's types. The library stays inside the crate, where `client-at-adapter` places it. An ignore is never the fix."
+
+[given]
+include = ['src/**']
+params = { libraries = ['parser_lib::*'], domain-libraries = ['tree_lib::*'], contracts = ['contract_sdk::*'] }
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'library-inside'
+scenario = 'The library is used inside the crate: in function bodies, private fields, crate-visible items, a public field of a crate-visible struct, a trait implementation that is no contract and a contract method body.'
+given.files.'src/lib.rs' = '''
+//! A crate that implements its concern with a library and hands across only its own types.
+
+use contract_sdk::Walk;
+use parser_lib::Tree;
+use parser_lib::nested as nest;
+
+mod reading;
+
+/// The crate's own answer.
+pub struct Answer {
+    /// The count.
+    pub count: usize,
+    tree: Tree,
+}
+
+pub(crate) struct Cached {
+    pub tree: Tree,
+}
+
+pub(crate) type Inner = parser_lib::Node<u8>;
+
+/// Reads one text.
+pub fn read(text: &str) -> Answer {
+    let tree: Tree = parser_lib::parse(text);
+    let _out: nest::Out = nest::out();
+    Answer { count: 0, tree }
+}
+
+pub(crate) fn walk_inside(tree: &parser_lib::Tree) -> Tree {
+    tree.clone()
+}
+
+impl parser_lib::Visit for Answer {
+    type Node = parser_lib::Node<u8>;
+}
+
+impl Walk for Answer {
+    type Output = Answer;
+    fn walk(&self) -> usize {
+        let _node: parser_lib::Node<u8> = parser_lib::node();
+        self.count
+    }
+}
+'''
+given.files.'src/reading.rs' = '''
+//! A module added beside the root: its public items are crate-visible, and the library stays inside them.
+
+use parser_lib as pl;
+
+pub(crate) fn tokens(tree: &pl::Tree) -> Vec<pl::Token> {
+    tree.tokens()
+}
+
+pub(crate) fn span(tree: &pl::Tree) -> tree_lib::Span {
+    tree.span()
+}
+'''
+
+[[scenarios]]
+id = 'library-crosses'
+scenario = 'Library types cross the boundary: a qualified parameter, an imported return type, a type reached through an import alias, a generic bound, a public field of a public struct, a public type alias, a public enum variant, a public trait method, a contract associated type, a contract reached by an import, a `pub use`, a public function of a newly added module whose crate is renamed, and a type of a domain library.'
+given.files.'src/lib.rs' = '''
+//! A crate that leaks its library across its boundary.
+
+use contract_sdk::Project;
+use parser_lib::Tree;
+use parser_lib::nested as nest;
+
+pub mod reading;
+
+/// The crate's answer, which leaks the tree.
+pub struct Answer {
+    /// The tree.
+    pub tree: Tree,
+}
+
+/// A name for the library's node.
+pub type Node = parser_lib::Node<u8>;
+
+/// A kind.
+pub enum Kind {
+    /// A leaf of the library.
+    Leaf(parser_lib::Leaf),
+}
+
+/// Reads one tree.
+pub fn read(tree: &parser_lib::Tree) -> Option<nest::Out> {
+    let _ = tree;
+    None
+}
+
+/// Visits a tree.
+pub fn visit<V: parser_lib::Visit>(visitor: V) {
+    let _ = visitor;
+}
+
+/// A port.
+pub trait Port {
+    /// Reads.
+    fn read(&self) -> Tree;
+}
+
+impl contract_sdk::Walk for Answer {
+    type Output = parser_lib::Tree;
+}
+
+impl Project for Answer {
+    type Output = Tree;
+}
+
+pub use parser_lib::Exported;
+'''
+given.files.'src/reading.rs' = '''
+//! A module added beside the root, reachable from it.
+
+use parser_lib as pl;
+
+/// The tokens of a tree.
+pub fn tokens(text: &str) -> Vec<pl::Token> {
+    let _ = text;
+    Vec::new()
+}
+
+/// The span of a tree, a type of the library the domain reads in place.
+pub fn span() -> tree_lib::Span {
+    tree_lib::Span::default()
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 12 },
+  { path = 'src/lib.rs', line = 16 },
+  { path = 'src/lib.rs', line = 21 },
+  { path = 'src/lib.rs', line = 25 },
+  { path = 'src/lib.rs', line = 25 },
+  { path = 'src/lib.rs', line = 31 },
+  { path = 'src/lib.rs', line = 38 },
+  { path = 'src/lib.rs', line = 42 },
+  { path = 'src/lib.rs', line = 46 },
+  { path = 'src/lib.rs', line = 49 },
+  { path = 'src/reading.rs', line = 6 },
+  { path = 'src/reading.rs', line = 12 },
+]
