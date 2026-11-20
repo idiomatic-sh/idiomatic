@@ -11,11 +11,14 @@ use crate::view::View;
 use regex_automata::meta::Regex;
 use serde_json::Value;
 use std::rc::Rc;
+use std::time::Instant;
 
 pub(crate) type R = u16;
 
 thread_local! {
     static CPU_CLOCK: bool = std::env::var_os("NAV_CPUCLOCK").is_some();
+    static SORTED_INDEX: bool = !std::env::var("NAV_SORTED_INDEX").is_ok_and(|v| v == "0");
+    static REUSE_FACTS: bool = !std::env::var("NAV_REUSE_FACTS").is_ok_and(|v| v == "0");
 }
 static EPOCH: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
 
@@ -1537,8 +1540,6 @@ fn ins_free_reads(i: &Ins) -> Vec<R> {
 
 thread_local! {
     static SKI: bool = !std::env::var("NAV_SKI").is_ok_and(|v| v == "0");
-    static SORTED_INDEX: bool = !std::env::var("NAV_SORTED_INDEX").is_ok_and(|v| v == "0");
-    static REUSE_FACTS: bool = !std::env::var("NAV_REUSE_FACTS").is_ok_and(|v| v == "0");
     static PROVIDER_ALL: bool = std::env::var_os("NAV_PROVIDER").is_some();
     static HOIST_CONST: bool = !std::env::var("NAV_HOIST_CONST").is_ok_and(|v| v == "0");
     static HOIST_DEFER: bool = !std::env::var("NAV_HOIST_DEFER").is_ok_and(|v| v == "0");
@@ -1738,7 +1739,7 @@ impl NavProgram {
             ("sink", &sink),
         ];
         for (name, f) in stages {
-            let t = Tick::now();
+            let t = Instant::now();
             let pass = |q: &mut Prog| *q = f(std::mem::take(q));
             if name == "memo" {
                 // memo specialisation reads the shared entries' free registers (entries only reference entries before them)
@@ -3737,6 +3738,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.cache.key_tick = self.cache.key_tick.wrapping_add(1);
         let clocked = self.c.acct && self.cache.key_tick % 64 == 0;
         let build0 = self.cache.dstate.build_ns;
+        let model0 = self.c.model_lex_ns + self.c.model_flow_ns;
         let t0 = if clocked { Some(Tick::now()) } else { None };
         self.cache.key_used[rel as usize] = true;
         let start = self.cache.facts.as_ref().unwrap().cols[rel as usize].first().map_or(0, Vec::len) as u32;
@@ -3756,7 +3758,13 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.c.key_rows += u64::from(end - start);
         // a clocked fill: without the clock's own cost and without a whole-file analysis it started (those are clocked one by
         // one, in the provider's state)
-        let fill_ns = t0.map(|t0| (t0.elapsed().as_nanos() as u64).saturating_sub(self.cache.key_clock_ns).saturating_sub(self.cache.dstate.build_ns - build0));
+        // nor a part of the model it was the first to ask for (clocked on its own line)
+        let fill_ns = t0.map(|t0| {
+            (t0.elapsed().as_nanos() as u64)
+                .saturating_sub(self.cache.key_clock_ns)
+                .saturating_sub(self.cache.dstate.build_ns - build0)
+                .saturating_sub(self.c.model_lex_ns + self.c.model_flow_ns - model0)
+        });
         if let Some(ns) = fill_ns {
             self.c.key_fill_ns += 64 * ns;
         }
