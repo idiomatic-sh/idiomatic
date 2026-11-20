@@ -117,10 +117,62 @@ pub(crate) enum Ins {
     SubMemo { negate: bool, subs: Box<[Prog]> },
     /// lower: a call of a definition's sub-program that binds rows (as `Union`), its distinct rows memoised per file by the
     /// values of the `keys` registers (the formals the call wrote): the same call with the same args runs once per file
-    UnionKeyed { outs: Box<[R]>, subs: Box<[Prog]>, keys: Box<[R]> },
+    UnionKeyed { outs: Box<[R]>, subs: Box<[Prog]>, keys: Box<[R]>, table: Option<TableUse> },
     /// lower: an absence/existence test of a definition, its answer memoised per file by the values of the `keys` registers
     /// (the formals the call wrote): nested correlated tests asked again with the same args answer from the memo
-    SubKeyed { negate: bool, subs: Box<[Prog]>, keys: Box<[R]> },
+    SubKeyed { negate: bool, subs: Box<[Prog]>, keys: Box<[R]>, table: Option<TableUse> },
+    /// asof: the rows of a relation whose `cols` hold the values of `vals`, through a per-file hash of those columns
+    /// (index `slot` of the program's keyed-index table, built on first use in the file)
+    IterFactKeyed { rel: u16, slot: u32, cols: Box<[u8]>, vals: Box<[Opd]>, out: R },
+}
+
+/// asof: how a keyed call reads its definition's own table of the file: the shared entry of the definition's uncorrelated
+/// program (it collects every column), the row width, the places of the call's key columns and of its collected columns in
+/// the row, and the index slot of (entry, key places, collected places)
+#[derive(Debug)]
+pub(crate) struct TableUse {
+    pub entry: u32,
+    pub width: usize,
+    pub kcols: Box<[u8]>,
+    pub fcols: Box<[u8]>,
+    pub slot: u32,
+}
+
+/// asof: a definition's table in one file: the steps its per-call evaluation has cost so far, the cost at which the table is
+/// tried next, its distinct rows once built, and the indexes by slot
+#[derive(Default)]
+pub(crate) struct DefTable {
+    pub spent: u64,
+    pub next_try: u64,
+    pub rows: Option<Rc<Vec<u64>>>,
+    pub idx: FxMap<u32, Rc<FxMap<u64, Vec<u32>>>>,
+}
+
+/// asof: a made table that answers a pointer-doubling chain `J(0)^(2^levels)` per key group (bead ryo-8hfg)
+pub(crate) struct AsOf {
+    /// `Some`: the as-of form. Events and probes (rows of `w` cells: the keys and the order), the table is, per probe, the
+    /// latest event at or before it in its key group, plus every event with itself. `None`: the general form, `events`
+    /// holds J(0)'s own programs (rows in the table's layout) and the executor squares the relation.
+    pub shape: Option<AsOfShape>,
+    pub events: Vec<Prog>,
+    pub probes: Vec<Prog>,
+    pub w: usize,
+    pub levels: u32,
+    /// the table's layout: its key columns, its node column, its target column
+    pub jkeys: Vec<usize>,
+    pub node: usize,
+    pub target: usize,
+}
+
+pub(crate) struct AsOfShape {
+    /// the events' (and probes') column of each table key, their order column, whether the order is a number
+    pub ekeys: Vec<usize>,
+    pub order: usize,
+    pub number: bool,
+    /// ties in order: events before probes (the union's left side first), as the ordered match sees them
+    pub events_first: bool,
+    /// rows kept: node is a probe, target is an event, node is an event, target is a probe
+    pub restrict: [bool; 4],
 }
 
 /// a made table answered by an ordered match of two inputs' rows (navwide)
@@ -181,6 +233,8 @@ pub(crate) struct FactRel {
     pub made: Option<(Vec<Prog>, Vec<usize>, Option<usize>, usize)>,
     /// navwide: a made table answered by an ordered match
     pub made_om: Option<OrderedMatch>,
+    /// asof: a made table answered by an as-of sweep or a relation power
+    pub made_asof: Option<AsOf>,
 }
 
 pub(crate) struct NavProgram {
@@ -192,6 +246,8 @@ pub(crate) struct NavProgram {
     pub max_regs: usize,
     /// navwide: whether any relation of the program is served only by the old provider's readers
     pub needs_provider: bool,
+    /// asof: the (relation, columns) of every keyed access, one per-file hash index each
+    pub keyed: Vec<(u16, Box<[u8]>)>,
 }
 
 fn trel(name: &str) -> Option<TRel> {
@@ -224,6 +280,10 @@ struct Loader<'a> {
     regex_of: FxMap<(String, bool), usize>,
     /// the rule's first entry in the shared sub-program table (navwide)
     shared_base: usize,
+    /// asof: the program's keyed-index table
+    keyed: &'a mut Vec<(u16, Box<[u8]>)>,
+    /// asof: the program's definition-table index slots: (entry, key places, collected places)
+    table_slots: &'a mut Vec<(u32, Box<[u8]>, Box<[u8]>)>,
 }
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
@@ -315,7 +375,7 @@ impl Loader<'_> {
         }
         let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
         let model = if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
-        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None });
+        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None, made_asof: None });
         (self.facts.len() - 1) as u16
     }
 
@@ -327,6 +387,22 @@ impl Loader<'_> {
         self.regexes.push(Regex::new(&pattern).unwrap_or_else(|e| panic!("regex {pattern}: {e}")));
         self.regex_of.insert((text.to_owned(), glob), self.regexes.len() - 1);
         self.regexes.len() - 1
+    }
+
+    /// asof: `[entry, width, [key places], [collected places]]`
+    fn table_use(&mut self, v: Option<&Value>) -> Option<TableUse> {
+        let a = v?.as_array()?;
+        let places = |x: &Value| -> Box<[u8]> { x.as_array().unwrap().iter().map(|c| c.as_u64().unwrap() as u8).collect::<Vec<_>>().into() };
+        let entry = (self.shared_base + a[0].as_u64().unwrap() as usize) as u32;
+        let (kcols, fcols) = (places(&a[2]), places(&a[3]));
+        let slot = match self.table_slots.iter().position(|(e, k, f)| *e == entry && *k == kcols && *f == fcols) {
+            Some(i) => i,
+            None => {
+                self.table_slots.push((entry, kcols.clone(), fcols.clone()));
+                self.table_slots.len() - 1
+            }
+        };
+        Some(TableUse { entry, width: a[1].as_u64().unwrap() as usize, kcols, fcols, slot: slot as u32 })
     }
 
     fn prog(&mut self, p: &Value) -> Prog {
@@ -363,6 +439,18 @@ impl Loader<'_> {
                 } else {
                     let f = self.fact(rel);
                     match kind {
+                        "byk" => {
+                            let cols: Box<[u8]> = a[3][0].as_array().unwrap().iter().map(|c| c.as_u64().unwrap() as u8).collect::<Vec<_>>().into();
+                            let vals: Box<[Opd]> = a[3][1].as_array().unwrap().iter().map(|v| self.opd(v)).collect::<Vec<_>>().into();
+                            let slot = match self.keyed.iter().position(|(r, c)| *r == f && *c == cols) {
+                                Some(i) => i,
+                                None => {
+                                    self.keyed.push((f, cols.clone()));
+                                    self.keyed.len() - 1
+                                }
+                            };
+                            Ins::IterFactKeyed { rel: f, slot: slot as u32, cols, vals, out }
+                        }
                         "by" => {
                             let col = a[3][0].as_u64().unwrap() as u8;
                             let val = self.val(&a[3][1]);
@@ -507,11 +595,13 @@ impl Loader<'_> {
                 negate: a[0] == "neg-keyed",
                 subs: a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 keys: a[2].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
+                table: self.table_use(a.get(3)),
             },
             "or-keyed" => Ins::UnionKeyed {
                 outs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
                 subs: a[2].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into(),
                 keys: a[3].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into(),
+                table: self.table_use(a.get(4)),
             },
             "collect" => Ins::Collect { regs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into() },
             o => panic!("ins {o}"),
@@ -538,6 +628,8 @@ impl NavProgram {
         let mut shared: Vec<Prog> = Vec::new();
         let mut out = Vec::new();
         let mut max_regs = 0;
+        let mut keyed: Vec<(u16, Box<[u8]>)> = Vec::new();
+        let mut table_slots: Vec<(u32, Box<[u8]>, Box<[u8]>)> = Vec::new();
         for r in rules {
             let nav = &r["nav"];
             let kinds = nav["kinds"].as_object().unwrap();
@@ -549,6 +641,8 @@ impl NavProgram {
                 regexes: &mut regexes,
                 regex_of: FxMap::default(),
                 shared_base: shared.len(),
+                keyed: &mut keyed,
+                table_slots: &mut table_slots,
             };
             for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
                 use ryo_relations::domain::relations::types::CellKind;
@@ -566,6 +660,24 @@ impl NavProgram {
                         _ => CellKind::Number,
                     })
                     .collect();
+                if m["op"] == "asof" || m["op"] == "power" {
+                    let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
+                    let n = |k: &str| m[k].as_u64().unwrap() as usize;
+                    let shape = (m["op"] == "asof").then(|| {
+                        let r = m["restrict"].as_array().unwrap();
+                        AsOfShape {
+                            ekeys: cols(&m["ekeys"]),
+                            order: n("order"),
+                            number: m["order_number"].as_bool().unwrap_or(false),
+                            events_first: m["events_first"].as_bool().unwrap_or(true),
+                            restrict: [r[0] == true, r[1] == true, r[2] == true, r[3] == true],
+                        }
+                    });
+                    let probes: Vec<Prog> = m["right_programs"].as_array().map(Vec::as_slice).unwrap_or(&[]).iter().map(|p| loader.prog(p)).collect();
+                    let asof = AsOf { shape, events: progs, probes, w: n("width"), levels: n("levels") as u32, jkeys: cols(&m["jkeys"]), node: n("node"), target: n("target") };
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: None, made_asof: Some(asof) });
+                    continue;
+                }
                 if m["op"] == "ordered_dfs" {
                     let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
                     let right: Vec<Prog> = m["right_programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
@@ -591,7 +703,7 @@ impl NavProgram {
                             edge_keys: cols(&m["edge_keys"]),
                         }),
                     };
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om) });
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), made_asof: None });
                     continue;
                 }
                 if m["op"] == "ordered_match" {
@@ -610,11 +722,12 @@ impl NavProgram {
                         output: m["output"].as_array().unwrap().iter().map(|o| (o[0].as_u64().unwrap() == 1, o[1].as_u64().unwrap() as usize)).collect(),
                         dfs: None,
                     };
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om) });
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), made_asof: None });
                     continue;
                 }
                 loader.facts.push(FactRel {
                     made_om: None,
+                    made_asof: None,
                     model: None,
                     name: m["name"].as_str().unwrap().to_owned(),
                     relation: None,
@@ -671,9 +784,14 @@ impl NavProgram {
         }
         let needs_provider = std::env::var_os("NAV_PROVIDER").is_some()
             || facts.iter().any(|f| {
-                f.model.is_none() && f.made.is_none() && f.made_om.is_none() && crate::derived::index_of(&f.name).is_none() && !f.name.starts_with("filesystem.")
+                f.model.is_none()
+                    && f.made.is_none()
+                    && f.made_om.is_none()
+                    && f.made_asof.is_none()
+                    && crate::derived::index_of(&f.name).is_none()
+                    && !f.name.starts_with("filesystem.")
             });
-        Self { rules: out, shared, facts, regexes, max_regs, needs_provider }
+        Self { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed }
     }
 }
 
@@ -706,6 +824,29 @@ pub(crate) struct Counters {
     pub rule_steps: Vec<u64>,
     pub rule_visits: Vec<u64>,
     pub rule_starts: Vec<u64>,
+    /// asof (diagnostic, NAV_PROF): per shared entry (then one slot for the top-level programs and one for made-table
+    /// builds): runs, exclusive steps, exclusive visits
+    pub prof: Vec<[u64; 3]>,
+    pub prof_cur: usize,
+    pub prof_mark: (u64, u64),
+    /// asof: keyed memo lookups and hits (or-keyed, neg-keyed, exists-keyed)
+    pub keyed_calls: u64,
+    pub keyed_hits: u64,
+    /// asof: definition tables built and abandoned (budget)
+    pub table_builds: u64,
+    pub table_fails: u64,
+}
+
+impl Counters {
+    /// asof (diagnostic): the steps and visits since the last switch go to the current slot; `to` becomes current
+    pub(crate) fn prof_switch(&mut self, to: usize) -> usize {
+        let cur = self.prof_cur;
+        self.prof[cur][1] += self.steps - self.prof_mark.0;
+        self.prof[cur][2] += self.visits - self.prof_mark.1;
+        self.prof_mark = (self.steps, self.visits);
+        self.prof_cur = to;
+        cur
+    }
 }
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
@@ -715,6 +856,8 @@ pub(crate) struct Facts {
     pub loaded: Vec<bool>,
     pub provider_done: bool,
     pub idx: FxMap<(u16, u8), Rc<FIdx>>,
+    /// asof: the keyed indexes of the file, by slot: hash of the key columns' values -> rows
+    pub kidx: Vec<Option<Rc<FxMap<u64, Vec<u32>>>>>,
 }
 
 /// A fact column's index: by view id (dense head/next chains) for node columns, hashed otherwise.
@@ -794,6 +937,11 @@ pub(crate) struct Exec<'a, 'p> {
     pub union_memo: FxMap<usize, Rc<Vec<u64>>>,
     /// per-file answers of absence/existence tests that read no candidate register (navwide)
     pub sub_memo: FxMap<usize, bool>,
+    /// asof: the definitions' tables of this file, by the shared entry of their uncorrelated program
+    pub tables: FxMap<u32, DefTable>,
+    /// asof: the step count at which the running table build gives up (u64::MAX: none running), and whether it did
+    pub budget_end: u64,
+    pub aborted: bool,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -943,13 +1091,29 @@ impl<'a, 'p> Exec<'a, 'p> {
             loaded: vec![false; prog.facts.len()],
             provider_done: false,
             idx: FxMap::default(),
+            kidx: vec![None; prog.keyed.len()],
         });
         if facts.loaded[rel as usize] {
             return;
         }
         let t = Instant::now();
+        if let Some(a) = &prog.facts[rel as usize].made_asof {
+            let prev = if self.c.prof.is_empty() { 0 } else { self.c.prof_switch(prog.shared.len() + 1) };
+            self.asof_table(rel, a);
+            if !self.c.prof.is_empty() {
+                self.c.prof[prog.shared.len() + 1][0] += 1;
+                self.c.prof_switch(prev);
+            }
+            self.c.fact_ns += t.elapsed().as_nanos() as u64;
+            return;
+        }
         if let Some(om) = &prog.facts[rel as usize].made_om {
+            let prev = if self.c.prof.is_empty() { 0 } else { self.c.prof_switch(prog.shared.len() + 1) };
             self.ordered_match(rel, om);
+            if !self.c.prof.is_empty() {
+                self.c.prof[prog.shared.len() + 1][0] += 1;
+                self.c.prof_switch(prev);
+            }
             self.c.fact_ns += t.elapsed().as_nanos() as u64;
             return;
         }
@@ -963,6 +1127,9 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
             let rows = std::mem::replace(&mut self.outs[slot], saved.1);
             self.cur_rule = saved.0;
+            if self.aborted {
+                return;
+            }
             let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
             let mut groups: FxMap<Vec<u64>, u64> = FxMap::default();
             let mut order: Vec<Vec<u64>> = Vec::new();
@@ -1032,7 +1199,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 let loaded = self.load_facts();
                 let facts = self.cache.facts.as_mut().unwrap();
                 for (i, cols) in loaded.into_iter().enumerate() {
-                    if prog.facts[i].model.is_none() && prog.facts[i].made.is_none() && !facts.loaded[i] {
+                    if prog.facts[i].model.is_none() && prog.facts[i].made.is_none() && prog.facts[i].made_asof.is_none() && !facts.loaded[i] {
                         facts.cols[i] = cols;
                         facts.loaded[i] = true;
                     }
@@ -1156,6 +1323,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         let facts = self.cache.facts.as_mut().unwrap();
         if let Some(i) = facts.idx.get(&(rel, col)) {
             return i.clone();
+        }
+        if !facts.loaded[rel as usize] {
+            return Rc::new(FIdx::Hash(FxMap::default()));
         }
         let c = &facts.cols[rel as usize][col as usize];
         let idx = if dense {
@@ -1306,6 +1476,11 @@ impl<'a, 'p> Exec<'a, 'p> {
         let mut pc = pc;
         loop {
             self.c.steps += 1;
+            if self.c.steps > self.budget_end {
+                // asof: a table build past its budget: every running program stops (nothing it computed is kept)
+                self.aborted = true;
+                return true;
+            }
             match &p[pc] {
                 Ins::Read { rel, col, row, out } => {
                     let id = self.regs[*row as usize] as u32;
@@ -1420,6 +1595,27 @@ impl<'a, 'p> Exec<'a, 'p> {
                     };
                     let keys = keys.to_vec();
                     return self.iter_fact_list(p, pc, &idx, &keys, *out);
+                }
+                Ins::IterFactKeyed { rel, slot, cols, vals, out } => {
+                    let idx = self.keyed_index(*rel, *slot, cols);
+                    let mut h = crate::sema::Fx::default();
+                    for v in vals.iter() {
+                        std::hash::Hasher::write_u64(&mut h, self.opd(v));
+                    }
+                    if let Some(list) = idx.get(&std::hash::Hasher::finish(&h)) {
+                        for &row in list {
+                            let table = &self.cache.facts.as_ref().unwrap().cols[*rel as usize];
+                            if !cols.iter().zip(vals.iter()).all(|(c, v)| table[*c as usize][row as usize] == self.opd(v)) {
+                                continue;
+                            }
+                            self.regs[*out as usize] = u64::from(row);
+                            self.c.visits += 1;
+                            if self.run_inner(p, pc + 1) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
                 }
                 Ins::IterFactScan { rel, out } => {
                     self.ensure(*rel);
@@ -1539,9 +1735,13 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Closure { src, out, xin, kout, nkeys, subs } => return self.closure(p, pc, *src, *out, *xin, kout, *nkeys, subs),
                 Ins::Union { outs, subs, memo } => return self.union(p, pc, outs, subs, *memo),
-                Ins::UnionKeyed { outs, subs, keys } => return self.union_keyed(p, pc, outs, subs, keys),
-                Ins::SubKeyed { negate, subs, keys } => {
-                    if self.sub_keyed(subs, keys) == *negate {
+                Ins::UnionKeyed { outs, subs, keys, table } => return self.union_keyed(p, pc, outs, subs, keys, table.as_ref()),
+                Ins::SubKeyed { negate, subs, keys, table } => {
+                    let any = self.sub_keyed(subs, keys, table.as_ref());
+                    if self.aborted {
+                        return true;
+                    }
+                    if any == *negate {
                         return false;
                     }
                 }
@@ -1555,6 +1755,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                                 self.c.subs += 1;
                                 self.run_inner(q, 0)
                             });
+                            if self.aborted {
+                                return true;
+                            }
                             self.sub_memo.insert(key, v);
                             v
                         }
@@ -1619,7 +1822,14 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 Ins::Shared { idx } => {
                     let q: &'p [Ins] = &self.prog.shared[*idx as usize];
-                    return self.run_inner(q, 0);
+                    if self.c.prof.is_empty() {
+                        return self.run_inner(q, 0);
+                    }
+                    let prev = self.c.prof_switch(*idx as usize);
+                    self.c.prof[*idx as usize][0] += 1;
+                    let r = self.run_inner(q, 0);
+                    self.c.prof_switch(prev);
+                    return r;
                 }
                 Ins::SpanBetween { a, b, out } => {
                     let (x, y) = (self.opd(a), self.opd(b));
@@ -1744,6 +1954,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                     self.run_inner(q, 0);
                 }
                 let rows = std::mem::replace(&mut self.collect, saved);
+                if self.aborted {
+                    return true;
+                }
                 let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
                 let mut distinct = Vec::with_capacity(rows.len());
                 for row in rows.chunks(w.max(1)) {
@@ -1773,8 +1986,32 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// Ins::UnionKeyed (lower): as `union`, memoised per file in `union_memo` under an odd key (a hash of the sub-program
     /// list and the key registers' values; plain union keys are pointers, so even); the stored rows start with the key
     /// values, checked on a hit (a hash collision recomputes)
-    fn union_keyed(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], keys: &[R]) -> bool {
+    fn union_keyed(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], keys: &[R], table: Option<&'p TableUse>) -> bool {
         use std::hash::Hasher;
+        if let Some(t) = table {
+            if let Some((rows, idx)) = self.def_table(t) {
+                let mut h = crate::sema::Fx::default();
+                for k in keys {
+                    h.write_u64(self.regs[*k as usize]);
+                }
+                if let Some(list) = idx.get(&h.finish()) {
+                    for &r in list {
+                        let row = &rows[r as usize * t.width..(r as usize + 1) * t.width];
+                        if !t.kcols.iter().zip(keys).all(|(c, k)| row[*c as usize] == self.regs[*k as usize]) {
+                            continue;
+                        }
+                        for (i, o) in outs.iter().enumerate() {
+                            self.regs[*o as usize] = row[t.fcols[i] as usize];
+                        }
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        }
         let w = outs.len().max(1);
         let nk = keys.len();
         let mut h = crate::sema::Fx::default();
@@ -1783,21 +2020,30 @@ impl<'a, 'p> Exec<'a, 'p> {
             h.write_u64(self.regs[*k as usize]);
         }
         let key = (h.finish() as usize) | 1;
+        self.c.keyed_calls += 1;
         let hit = match self.union_memo.get(&key) {
             Some(r) if r.len() >= nk && keys.iter().enumerate().all(|(i, k)| r[i] == self.regs[*k as usize]) => Some(r.clone()),
             _ => None,
         };
         let rows = match hit {
-            Some(r) => r,
+            Some(r) => {
+                self.c.keyed_hits += 1;
+                r
+            }
             None => {
                 let saved = std::mem::take(&mut self.collect);
+                let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                let steps0 = self.c.steps;
                 for q in subs {
                     self.c.subs += 1;
                     self.run_inner(q, 0);
                 }
                 let rows = std::mem::replace(&mut self.collect, saved);
+                if self.aborted {
+                    return true;
+                }
                 let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
-                let mut distinct: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+                let mut distinct: Vec<u64> = vals.clone();
                 for row in rows.chunks(w) {
                     if seen.insert(row) {
                         distinct.extend_from_slice(row);
@@ -1805,6 +2051,16 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 let r = Rc::new(distinct);
                 self.union_memo.insert(key, r.clone());
+                if let Some(t) = table {
+                    self.table_spend(t, self.c.steps - steps0);
+                    if self.aborted {
+                        return true;
+                    }
+                    // the formals as the call wrote them (a table build runs other calls of the definition's callees)
+                    for (k, v) in keys.iter().zip(&vals) {
+                        self.regs[*k as usize] = *v;
+                    }
+                }
                 r
             }
         };
@@ -1822,8 +2078,22 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     /// Ins::SubKeyed (lower): whether any sub-program holds, memoised per file in `union_memo` under an odd key (hash of
     /// the sub-program list and the key registers' values); the stored entry is the key values then the answer
-    fn sub_keyed(&mut self, subs: &'p [Prog], keys: &[R]) -> bool {
+    fn sub_keyed(&mut self, subs: &'p [Prog], keys: &[R], table: Option<&'p TableUse>) -> bool {
         use std::hash::Hasher;
+        if let Some(t) = table {
+            if let Some((rows, idx)) = self.def_table(t) {
+                let mut h = crate::sema::Fx::default();
+                for k in keys {
+                    h.write_u64(self.regs[*k as usize]);
+                }
+                return idx.get(&h.finish()).is_some_and(|list| {
+                    list.iter().any(|&r| {
+                        let row = &rows[r as usize * t.width..(r as usize + 1) * t.width];
+                        t.kcols.iter().zip(keys).all(|(c, k)| row[*c as usize] == self.regs[*k as usize])
+                    })
+                });
+            }
+        }
         let nk = keys.len();
         let mut h = crate::sema::Fx::default();
         h.write_u64(subs.as_ptr() as u64 ^ 0x9e37_79b9_7f4a_7c15);
@@ -1831,20 +2101,99 @@ impl<'a, 'p> Exec<'a, 'p> {
             h.write_u64(self.regs[*k as usize]);
         }
         let key = (h.finish() as usize) | 1;
+        self.c.keyed_calls += 1;
         if let Some(r) = self.union_memo.get(&key) {
             if r.len() == nk + 1 && keys.iter().enumerate().all(|(i, k)| r[i] == self.regs[*k as usize]) {
+                self.c.keyed_hits += 1;
                 return r[nk] != 0;
             }
         }
         let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+        let steps0 = self.c.steps;
         let any = subs.iter().any(|q| {
             self.c.subs += 1;
             self.run_inner(q, 0)
         });
+        if self.aborted {
+            return any;
+        }
         let mut entry = vals;
         entry.push(u64::from(any));
         self.union_memo.insert(key, Rc::new(entry));
+        if let Some(t) = table {
+            self.table_spend(t, self.c.steps - steps0);
+        }
         any
+    }
+
+    /// asof: the definition's table of this file and the index of this use, when the table is built
+    fn def_table(&mut self, t: &TableUse) -> Option<(Rc<Vec<u64>>, Rc<FxMap<u64, Vec<u32>>>)> {
+        let st = self.tables.get_mut(&t.entry)?;
+        let rows = st.rows.clone()?;
+        if let Some(i) = st.idx.get(&t.slot) {
+            return Some((rows, i.clone()));
+        }
+        // rows hashed by the key places; one row per distinct (key, collected) projection
+        let mut m: FxMap<u64, Vec<u32>> = FxMap::default();
+        let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+        for (r, row) in rows.chunks(t.width.max(1)).enumerate() {
+            let proj: Vec<u64> = t.kcols.iter().chain(t.fcols.iter()).map(|c| row[*c as usize]).collect();
+            if !seen.insert(proj) {
+                continue;
+            }
+            let mut h = crate::sema::Fx::default();
+            for c in t.kcols.iter() {
+                std::hash::Hasher::write_u64(&mut h, row[*c as usize]);
+            }
+            m.entry(std::hash::Hasher::finish(&h)).or_default().push(r as u32);
+        }
+        let m = Rc::new(m);
+        st.idx.insert(t.slot, m.clone());
+        self.c.made_tables += 1;
+        Some((rows, m))
+    }
+
+    /// asof: `steps` more were spent evaluating the definition per call in this file. Once that passes the next try point
+    /// the definition's uncorrelated program runs under a budget of the steps spent so far: finished, its distinct rows are
+    /// the table every later call reads; past the budget it is abandoned and tried again at four times the spend. So a file
+    /// pays at most a constant times the cheaper of (per-call evaluation, the table).
+    fn table_spend(&mut self, t: &'p TableUse, steps: u64) {
+        const FIRST_TRY: u64 = 2048;
+        let st = self.tables.entry(t.entry).or_default();
+        st.spent += steps;
+        if st.rows.is_some() || st.spent < st.next_try.max(FIRST_TRY) {
+            return;
+        }
+        let budget = st.spent;
+        st.next_try = st.spent.saturating_mul(4);
+        let outer = self.budget_end;
+        self.budget_end = outer.min(self.c.steps.saturating_add(budget));
+        let saved = std::mem::take(&mut self.collect);
+        let q: &'p [Ins] = &self.prog.shared[t.entry as usize];
+        self.c.subs += 1;
+        let prev = if self.c.prof.is_empty() { 0 } else { self.c.prof_switch(self.prog.shared.len() + 1) };
+        self.run_inner(q, 0);
+        if !self.c.prof.is_empty() {
+            self.c.prof_switch(prev);
+        }
+        let rows = std::mem::replace(&mut self.collect, saved);
+        self.budget_end = outer;
+        if self.aborted {
+            // abandoned; an enclosing build past its own budget stays stopped
+            self.aborted = self.c.steps > outer;
+            self.c.table_fails += 1;
+            return;
+        }
+        let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+        let mut distinct = Vec::with_capacity(rows.len());
+        for row in rows.chunks(t.width.max(1)) {
+            if seen.insert(row) {
+                distinct.extend_from_slice(row);
+            }
+        }
+        self.c.table_builds += 1;
+        self.c.made_rows += (distinct.len() / t.width.max(1)) as u64;
+        self.tables.get_mut(&t.entry).unwrap().rows = Some(Rc::new(distinct));
     }
 
     /// navwide: `numeric>=` and `natural<`; a number register is a number, a text register is read as canonical numeric text
@@ -2049,6 +2398,172 @@ impl<'a, 'p> Exec<'a, 'p> {
         false
     }
 
+    /// asof: the per-file hash of a relation's rows by the values of `cols` (built on the first keyed access)
+    fn keyed_index(&mut self, rel: u16, slot: u32, cols: &[u8]) -> Rc<FxMap<u64, Vec<u32>>> {
+        self.ensure(rel);
+        let facts = self.cache.facts.as_mut().unwrap();
+        if let Some(i) = &facts.kidx[slot as usize] {
+            return i.clone();
+        }
+        if !facts.loaded[rel as usize] {
+            return Rc::new(FxMap::default());
+        }
+        let table = &facts.cols[rel as usize];
+        let n = table.first().map_or(0, Vec::len);
+        let mut m: FxMap<u64, Vec<u32>> = FxMap::default();
+        for row in 0..n {
+            let mut h = crate::sema::Fx::default();
+            for c in cols {
+                std::hash::Hasher::write_u64(&mut h, table[*c as usize][row]);
+            }
+            m.entry(std::hash::Hasher::finish(&h)).or_default().push(row as u32);
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += n as u64;
+        let m = Rc::new(m);
+        facts.kidx[slot as usize] = Some(m.clone());
+        m
+    }
+
+    /// asof: the made table of a pointer-doubling chain, `J(0)^(2^levels)` per key group, in the chain's own layout.
+    /// As-of form: events and probes sorted once by (keys, order); a group whose orders are all distinct is one sweep (each
+    /// probe's answer is the latest event before it; an event answers itself); a group with equal orders goes through the
+    /// ordered match and the squaring exactly as the plan states them. General form: J(0)'s rows, squared.
+    fn asof_table(&mut self, rel: u16, a: &'p AsOf) {
+        let slot = self.outs.len() - 1;
+        let run = |ex: &mut Self, progs: &'p [Prog]| -> Vec<u64> {
+            let saved = (ex.cur_rule, std::mem::take(&mut ex.outs[slot]));
+            ex.cur_rule = slot;
+            for q in progs {
+                ex.run_inner(q, 0);
+            }
+            let rows = std::mem::replace(&mut ex.outs[slot], saved.1);
+            ex.cur_rule = saved.0;
+            rows
+        };
+        let width = a.jkeys.len() + 2;
+        let mut cols: Vec<Vec<u64>> = vec![Vec::new(); width];
+        let mut push = |key: &[u64], node: u64, target: u64| {
+            for (i, &c) in a.jkeys.iter().enumerate() {
+                cols[c].push(key[i]);
+            }
+            cols[a.node].push(node);
+            cols[a.target].push(target);
+        };
+        let saturated: u128 = if a.levels >= 64 { u128::MAX } else { 1u128 << a.levels };
+        match &a.shape {
+            None => {
+                let rows = run(self, &a.events);
+                let mut groups: FxMap<Vec<u64>, Vec<(u64, u64)>> = FxMap::default();
+                let mut order: Vec<Vec<u64>> = Vec::new();
+                for r in rows.chunks(a.w.max(1)) {
+                    let k: Vec<u64> = a.jkeys.iter().map(|&c| r[c]).collect();
+                    groups
+                        .entry(k.clone())
+                        .or_insert_with(|| {
+                            order.push(k);
+                            Vec::new()
+                        })
+                        .push((r[a.node], r[a.target]));
+                }
+                for k in order {
+                    for (n, t) in power_pairs(groups.remove(&k).unwrap(), a.levels) {
+                        push(&k, n, t);
+                    }
+                }
+            }
+            Some(sh) => {
+                let erows = run(self, &a.events);
+                let prows = run(self, &a.probes);
+                let key = |o: u64| -> i128 { if sh.number { i128::from(o as i64) } else { i128::from(o) } };
+                // per key group, the stream in the union's order: (order, is a probe); equal rows once
+                let mut groups: FxMap<Vec<u64>, Vec<(u64, bool)>> = FxMap::default();
+                let mut order: Vec<Vec<u64>> = Vec::new();
+                let mut seen: std::collections::HashSet<(Vec<u64>, u64, bool), std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+                let sides: [(&Vec<u64>, bool); 2] = if sh.events_first { [(&erows, false), (&prows, true)] } else { [(&prows, true), (&erows, false)] };
+                for (rows, probe) in sides {
+                    for r in rows.chunks(a.w.max(1)) {
+                        let k: Vec<u64> = sh.ekeys.iter().map(|&c| r[c]).collect();
+                        if !seen.insert((k.clone(), r[sh.order], probe)) {
+                            continue;
+                        }
+                        groups
+                            .entry(k.clone())
+                            .or_insert_with(|| {
+                                order.push(k);
+                                Vec::new()
+                            })
+                            .push((r[sh.order], probe));
+                    }
+                }
+                let keep = |node_probe: bool, node_event: bool, target_event: bool, target_probe: bool| -> bool {
+                    (!sh.restrict[0] || node_probe) && (!sh.restrict[1] || target_event) && (!sh.restrict[2] || node_event) && (!sh.restrict[3] || target_probe)
+                };
+                for k in order {
+                    let mut st = groups.remove(&k).unwrap();
+                    st.sort_by_key(|e| key(e.0));
+                    let ties = st.windows(2).any(|w| w[0].0 == w[1].0);
+                    if !ties {
+                        let mut last_event: Option<usize> = None;
+                        for i in 0..st.len() {
+                            let (o, probe) = st[i];
+                            if !probe {
+                                last_event = Some(i);
+                                if keep(false, true, true, false) {
+                                    push(&k, o, o);
+                                }
+                                continue;
+                            }
+                            // the probe's pointer chain: one element back per hop until an event (which points to itself)
+                            let at = match last_event {
+                                Some(e) if (i - e) as u128 <= saturated => Some(e),
+                                _ if (i as u128) >= saturated => Some(i - saturated as usize),
+                                _ => None,
+                            };
+                            if let Some(j) = at {
+                                if keep(true, false, !st[j].1, st[j].1) {
+                                    push(&k, o, st[j].0);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                    // equal orders in the group: the ordered match of the stream with itself, then the squaring, as stated
+                    let mut pairs: Vec<(u64, u64)> = Vec::new();
+                    let mut j = 0usize;
+                    for i in 0..st.len() {
+                        let lo = key(st[i].0);
+                        while j < st.len() && key(st[j].0) <= lo {
+                            j += 1;
+                        }
+                        if j >= st.len() {
+                            break;
+                        }
+                        if st[j].1 {
+                            pairs.push((st[j].0, st[i].0));
+                        }
+                        j += 1;
+                    }
+                    pairs.extend(st.iter().filter(|e| !e.1).map(|e| (e.0, e.0)));
+                    let is = |o: u64, probe: bool| st.iter().any(|e| e.0 == o && e.1 == probe);
+                    for (n, t) in power_pairs(pairs, a.levels) {
+                        if keep(is(n, true), is(n, false), is(t, false), is(t, true)) {
+                            push(&k, n, t);
+                        }
+                    }
+                }
+            }
+        }
+        if self.aborted {
+            return;
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += cols.first().map_or(0, Vec::len) as u64;
+        let facts = self.cache.facts.as_mut().unwrap();
+        facts.cols[rel as usize] = cols;
+        facts.loaded[rel as usize] = true;
+    }
+
     /// a made table by ordered match (navwide): per equal-key group, each left row in ascending order consumes the earliest
     /// unconsumed right row with a strictly greater order
     fn ordered_match(&mut self, rel: u16, om: &'p OrderedMatch) {
@@ -2065,6 +2580,9 @@ impl<'a, 'p> Exec<'a, 'p> {
         };
         let lrows = run(self, &om.left);
         let rrows = run(self, &om.right);
+        if self.aborted {
+            return;
+        }
         let distinct = |rows: &[u64], w: usize| -> Vec<Vec<u64>> {
             let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
             rows.chunks(w.max(1)).filter(|r| seen.insert(r)).map(<[u64]>::to_vec).collect()
@@ -2124,6 +2642,30 @@ impl<'a, 'p> Exec<'a, 'p> {
         facts.cols[rel as usize] = cols;
         facts.loaded[rel as usize] = true;
     }
+}
+
+/// asof: the pairs of `R^(2^levels)` for a relation R given as (node, target) pairs: `levels` squarings (R o R: node to the
+/// targets of its targets), stopping early when a squaring changes nothing (a fixed point stays one)
+fn power_pairs(mut r: Vec<(u64, u64)>, levels: u32) -> Vec<(u64, u64)> {
+    r.sort_unstable();
+    r.dedup();
+    for _ in 0..levels {
+        let mut next: Vec<(u64, u64)> = Vec::with_capacity(r.len());
+        for &(x, y) in &r {
+            let mut i = r.partition_point(|p| p.0 < y);
+            while i < r.len() && r[i].0 == y {
+                next.push((x, r[i].1));
+                i += 1;
+            }
+        }
+        next.sort_unstable();
+        next.dedup();
+        if next == r {
+            break;
+        }
+        r = next;
+    }
+    r
 }
 
 /// RyoQL `ordered_dfs` (navwide): per distinct (root keys, root), depth-first, out-edges in ascending order, the root seen first;

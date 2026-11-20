@@ -660,12 +660,19 @@ impl<'p> State<'p> {
                 collect: Vec::new(),
                 union_memo: FxMap::default(),
                 sub_memo: FxMap::default(),
+                tables: FxMap::default(),
+                budget_end: u64::MAX,
+                aborted: false,
             };
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {
                 ex.c.rule_steps = vec![0; nrules + 1];
                 ex.c.rule_visits = vec![0; nrules + 1];
                 ex.c.rule_starts = vec![0; nrules + 1];
+            }
+            if ex.c.prof.is_empty() && std::env::var_os("NAV_PROF").is_some() {
+                ex.c.prof = vec![[0; 3]; nav.shared.len() + 2];
+                ex.c.prof_cur = nav.shared.len();
             }
             // per-file anchor choice: for each branch, the alternative with the least expected work given the real bucket sizes
             let mut dispatch = std::mem::take(&mut ex.cache.dispatch);
@@ -982,6 +989,20 @@ impl<'p> State<'p> {
         totals.extra[6].fetch_add(self.views, Ordering::Relaxed);
         totals.extra[7].fetch_add(self.files * self.program.rules.len() as u64, Ordering::Relaxed);
         if self.program.nav.is_some() {
+            if !self.nc.prof.is_empty() {
+                let cur = self.nc.prof_cur;
+                self.nc.prof_switch(cur);
+                let rows: Vec<String> =
+                    self.nc.prof.iter().enumerate().filter(|(_, v)| v[1] > 0).map(|(i, v)| format!("[{},{},{},{}]", i, v[0], v[1], v[2])).collect();
+                eprintln!(
+                    "{{\"prof\":[{}],\"keyed_calls\":{},\"keyed_hits\":{},\"table_builds\":{},\"table_fails\":{}}}",
+                    rows.join(","),
+                    self.nc.keyed_calls,
+                    self.nc.keyed_hits,
+                    self.nc.table_builds,
+                    self.nc.table_fails
+                );
+            }
             let c = &self.nc;
             eprintln!(
                 "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"per_rule\":{{{}}}}}}}",
