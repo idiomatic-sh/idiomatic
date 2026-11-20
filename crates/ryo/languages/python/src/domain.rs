@@ -97,3 +97,9 @@ pub(crate) mod token_links;
 
 /// Standard project-metadata validation outcomes.
 pub(crate) mod manifest_validation;
+
+/// The rows of the lexical relations, written from the model.
+pub(crate) mod lexical_facts;
+
+/// The rows of the binding relations, written from the model.
+pub(crate) mod binding_facts;
