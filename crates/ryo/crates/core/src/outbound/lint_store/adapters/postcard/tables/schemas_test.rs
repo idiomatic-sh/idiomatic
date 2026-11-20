@@ -93,6 +93,7 @@ fn handed_reads_back(stored: &Stored) -> bool {
     }
     rest.is_some_and(|rest| {
         StoredHanded(ryo_values::domain::stores::types::HandedRows {
+            clean: Vec::new(),
             frontier: words,
             ..rest.0
         }) == stored.handed

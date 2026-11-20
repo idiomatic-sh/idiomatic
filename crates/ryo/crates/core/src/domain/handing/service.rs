@@ -78,6 +78,15 @@ pub(crate) fn handed_in<W>(
         partials: covered
             .map(|each| each.partials.clone())
             .unwrap_or_default(),
+        clean: handed
+            .clean
+            .iter()
+            .filter(|each| each.files.binary_search(&file).is_ok())
+            .map(|each| ryo_values::domain::records::types::HandedClean {
+                bucket: each.bucket,
+                frame: std::sync::Arc::new(each.frame.clone()),
+            })
+            .collect(),
     }
 }
 
@@ -124,6 +133,26 @@ pub(crate) fn hand_into(
                 })
             }
         }
+    }
+    // Spike (ryo-fmx3, host3): a clean bucket names the file among the bucket's clean files; one whose clean frame differs
+    // from the bucket's is kept as a row of its own.
+    for each in handed.clean.iter().filter(|each| wanted(each.bucket)) {
+        if ryo_values::domain::stores::service::clean_file(stored, each.bucket, &each.frame, file) {
+            continue;
+        }
+        stored
+            .proofs
+            .push(ryo_values::domain::stores::types::StoredFrontierProof {
+                file,
+                bucket: each.bucket,
+                proof: each.frame.proof.clone(),
+            });
+        stored.frontier.push(StoredWords {
+            file,
+            bucket: each.bucket,
+            proof: each.frame.proof.clone(),
+            words: each.frame.words.clone(),
+        });
     }
     if let ryo_values::domain::records::types::HandedReadiness::Recorded(root) = handed.observations
     {

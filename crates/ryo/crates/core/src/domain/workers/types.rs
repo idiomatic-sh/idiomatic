@@ -120,6 +120,19 @@ pub(crate) enum Checking {
     Later,
 }
 
+/// Spike (ryo-fmx3, host3): a bucket's clean frame as a worker kept it, and once moved for the store, the shared frame and its
+/// words as the recording reads them.
+#[derive(Debug)]
+pub(crate) struct CleanTemplate {
+    /// The frame as kept: its words and proof.
+    pub kept: Kept,
+    /// The frame moved as any file's words are moved, made once.
+    pub moved: std::cell::OnceCell<(
+        std::sync::Arc<ryo_values::domain::records::types::CleanFrame>,
+        crate::domain::recording::types::BucketWords,
+    )>,
+}
+
 /// What one worker owns, which no other worker touches while the jobs run: its element table, the bytes of the file it reads,
 /// the rules that govern it, its tables of the store and the room it computes in.
 pub(crate) struct Tables {
@@ -163,6 +176,10 @@ pub(crate) struct Tables {
     pub unrecorded: Vec<FilePath>,
     /// What the file being read handed to the cross-file steps, bucket by bucket.
     pub captured: Vec<Kept>,
+    /// Spike (ryo-fmx3, host3): the buckets the file being read hands its clean frame in.
+    pub clean: Vec<ryo_values::domain::stored_facts::types::Bucket>,
+    /// Spike (ryo-fmx3, host3): each bucket's clean frame as this worker first kept it, and once moved, the frame and its words.
+    pub clean_frames: std::collections::HashMap<ryo_values::domain::stored_facts::types::Bucket, CleanTemplate>,
     /// What this worker made of the files it read, to be kept: the place of the file among the files, and the record.
     pub fresh: Vec<FreshRecord>,
     /// What the language wrote of each file this worker read, by the file's place, for the project.

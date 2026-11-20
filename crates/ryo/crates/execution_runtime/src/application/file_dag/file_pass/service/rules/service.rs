@@ -154,7 +154,7 @@ pub(crate) fn run_rules(
     } = capture;
     let ran = (|| {
         // Spike (ryo-fmx3, host3): room for every rule's record once, not grown rule by rule.
-        let mut rules = if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet) {
+        let mut rules = if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietRoom) {
             crate::application::file_dag::program::file_session::service::rule_room(program.rule_count().0)
         } else {
             Vec::new()
@@ -189,7 +189,7 @@ pub(crate) fn run_rules(
                     // Spike (ryo-fmx3, host3): a complete root holding no row delivers nothing: the caller renders no row
                     // of it and notes nothing, so it is withheld rather than handed over empty.
                     let quiet = matches!(&outcome, RootOutcome::Complete(table) if table.count.0 == 0)
-                        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet);
+                        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietEmit);
                     let emit = if emits && !quiet {
                         EmittedRoot::Delivered(outcome)
                     } else {
@@ -290,7 +290,7 @@ pub(crate) fn delivered_rule(
     if observations == ObservationDemand::Required {
         let stated = at.request.program.rule_plan(rule)?;
         // Spike (ryo-fmx3, host3): the rule's outputs are written into the room the last file left, not into new lists.
-        let lean = ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet);
+        let lean = ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietOutputs);
         let (mut states, mut answers) = if lean {
             let mut states = at.outputs.get_mut(rule.0).map(std::mem::take).unwrap_or_default();
             states.clear();

@@ -44,6 +44,8 @@ pub(crate) fn tables_for(number: WorkerNumber) -> Tables {
         unread: Vec::new(),
         unrecorded: Vec::new(),
         captured: Vec::new(),
+        clean: Vec::new(),
+        clean_frames: std::collections::HashMap::new(),
         fresh: Vec::new(),
         notes: Vec::new(),
         reads: FilesRead::default(),

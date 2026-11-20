@@ -55,6 +55,16 @@ pub trait FactsWorker: Send + Sync {
     /// `Store` when the handle refuses them; `File` when a file fails.
     fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError>;
 
+    /// Spike (ryo-fmx3, host3): adds a clean file to a bucket: the file's frame holds no row and is complete, and its words are
+    /// the bucket's one clean frame. A store that keeps no clean set keeps the frame as any other.
+    ///
+    /// # Errors
+    ///
+    /// As [`FactsWorker::keep`].
+    fn keep_clean(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
+        self.keep(bucket, words)
+    }
+
     /// Empties the rows of the worker's file, keeping the room for the next one. The buckets keep what was added to them.
     ///
     /// # Errors

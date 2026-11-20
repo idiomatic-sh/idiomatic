@@ -29,6 +29,7 @@ pub(crate) fn begin(tables: &mut Tables) -> ArenaBase {
 pub(crate) fn prepare(tables: &mut Tables) -> ArenaBase {
     let base = ArenaBase(u32::try_from(tables.arena.0.len()).unwrap_or(u32::MAX));
     tables.captured.clear();
+    tables.clean.clear();
     tables.current_observations = None;
     clear_elements(&mut tables.elements);
     base

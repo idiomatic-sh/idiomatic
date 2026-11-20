@@ -207,6 +207,31 @@ impl FactsWorker for SpillWorker {
         Ok(())
     }
 
+    fn keep_clean(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
+        let mut spill = self.spill.lock().map_err(|_| refused())?;
+        match spill.clean.entry(bucket) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                let _ = entry.insert(super::types::CleanFiles {
+                    words: words.words.clone(),
+                    proof: words.proof.clone(),
+                    files: vec![words.file],
+                });
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let held = entry.get_mut();
+                if held.words == *words.words && held.proof == *words.proof {
+                    held.files.push(words.file);
+                    Ok(())
+                } else {
+                    // A frame unlike the bucket's clean frame is kept as a frame of its own.
+                    drop(spill);
+                    self.keep(bucket, words)
+                }
+            }
+        }
+    }
+
     fn release(&mut self) -> Result<(), FactsError> {
         for column in self.tables.iter_mut().flatten() {
             column.0.clear();
@@ -242,9 +267,28 @@ impl FactsFinish for SpillFinish {
             .flatten()
             .map(|stretch| usize::try_from(stretch.length.0).unwrap_or(usize::MAX))
             .fold(0_usize, usize::saturating_add);
-        let mut words = Vec::with_capacity(length);
+        let clean_length: usize = self
+            .spilled
+            .iter()
+            .filter_map(|spill| spill.clean.get(&bucket))
+            .map(|clean| clean.words.0.len().saturating_mul(clean.files.len()))
+            .fold(0_usize, usize::saturating_add);
+        let mut words = Vec::with_capacity(length.saturating_add(clean_length));
         let mut sources = Vec::new();
         for spill in &self.spilled {
+            // Spike (ryo-fmx3, host3): each clean file is read as the frame it stands for, with the proof it was kept with.
+            if let Some(clean) = spill.clean.get(&bucket) {
+                for file in &clean.files {
+                    let start = words.len();
+                    words.extend_from_slice(&clean.words.0);
+                    sources.push(BucketSource {
+                        file: *file,
+                        start: crate::outbound::facts::types::KeptWordsStart(start),
+                        length: KeptWordsLength(clean.words.0.len()),
+                        proof: clean.proof.clone(),
+                    });
+                }
+            }
             let Some(stretches) = spill.stretches.get(&bucket) else {
                 continue;
             };
@@ -286,20 +330,29 @@ impl FactsFinish for SpillFinish {
     /// The bucket's stretches, each start where `kept` would place its words: nothing is read from the spill file.
     fn sources(&self, bucket: Bucket) -> Result<KeptSources, FactsError> {
         let mut kept = KeptSources::default();
-        for stretch in self
-            .spilled
-            .iter()
-            .filter_map(|spill| spill.stretches.get(&bucket))
-            .flatten()
-        {
-            let length = usize::try_from(stretch.length.0).unwrap_or(usize::MAX);
-            kept.sources.push(BucketSource {
-                file: stretch.file,
-                start: crate::outbound::facts::types::KeptWordsStart(kept.length.0),
-                length: KeptWordsLength(length),
-                proof: stretch.proof.clone(),
-            });
-            kept.length.0 = kept.length.0.saturating_add(length);
+        // Spike (ryo-fmx3, host3): placed as `kept` places them: each worker's clean files, then its stretches.
+        for spill in &self.spilled {
+            if let Some(clean) = spill.clean.get(&bucket) {
+                for file in &clean.files {
+                    kept.sources.push(BucketSource {
+                        file: *file,
+                        start: crate::outbound::facts::types::KeptWordsStart(kept.length.0),
+                        length: KeptWordsLength(clean.words.0.len()),
+                        proof: clean.proof.clone(),
+                    });
+                    kept.length.0 = kept.length.0.saturating_add(clean.words.0.len());
+                }
+            }
+            for stretch in spill.stretches.get(&bucket).into_iter().flatten() {
+                let length = usize::try_from(stretch.length.0).unwrap_or(usize::MAX);
+                kept.sources.push(BucketSource {
+                    file: stretch.file,
+                    start: crate::outbound::facts::types::KeptWordsStart(kept.length.0),
+                    length: KeptWordsLength(length),
+                    proof: stretch.proof.clone(),
+                });
+                kept.length.0 = kept.length.0.saturating_add(length);
+            }
         }
         Ok(kept)
     }

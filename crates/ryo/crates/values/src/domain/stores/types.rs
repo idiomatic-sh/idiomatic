@@ -154,6 +154,19 @@ pub struct HandedRows<W> {
     pub notes: Vec<StoredNotes>,
     /// The relations of each file read in part, with the rules that govern it, one row for each file read in part.
     pub covered: Vec<StoredCovered>,
+    /// Spike (ryo-fmx3, host3): the clean files of each bucket, by bucket: one clean frame and the files clean in it.
+    pub clean: Vec<StoredClean>,
+}
+
+/// Spike (ryo-fmx3, host3): the files of a bucket whose frame holds no row and is complete, kept as one frame and a file list.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoredClean {
+    /// The bucket.
+    pub bucket: Bucket,
+    /// Its clean frame.
+    pub frame: crate::domain::records::types::CleanFrame,
+    /// The files clean in it, ascending.
+    pub files: Vec<StoredFileNumber>,
 }
 
 impl<W> Default for HandedRows<W> {
@@ -165,6 +178,7 @@ impl<W> Default for HandedRows<W> {
             texts: Vec::new(),
             notes: Vec::new(),
             covered: Vec::new(),
+            clean: Vec::new(),
         }
     }
 }

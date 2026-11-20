@@ -55,7 +55,7 @@ pub(crate) fn node_outcome(
     if let Ok(made) = &node
         && at.evaluation.is_empty()
         && at.publication.is_empty()
-        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet)
+        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietEmit)
         && let Ok(selected) =
             crate::application::file_dag::file_pass::service::selection::service::selected_step(
                 at.pass,
@@ -130,7 +130,7 @@ pub(crate) fn node_rows(
     // are complete, with no policy made per node.
     if at.evaluation.is_empty()
         && at.publication.is_empty()
-        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet)
+        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietWhole)
     {
         let pass_program = at.pass;
         ran_answering(&pass_program.program, node, &mut |each| {

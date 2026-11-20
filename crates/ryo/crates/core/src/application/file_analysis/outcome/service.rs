@@ -51,6 +51,7 @@ impl FileAnalysis {
             });
         }
         let moved = moved_words(tables, number, base)?;
+        let clean = crate::domain::recording::service::clean_moved(tables, number, base)?;
         let layout = setting.program.observation_layout().0;
         let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
             (
@@ -87,6 +88,10 @@ impl FileAnalysis {
         // and a rule's words digested in this worker before are not digested again.
         let lever = ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Record);
         let mut searched: Vec<&crate::domain::recording::types::BucketWords> = moved.iter().collect();
+        // Spike (ryo-fmx3, host3): a clean bucket is read with its moved clean frame, so each rule's digest is the one its words
+        // would make.
+        searched.extend(clean.iter().map(|(_, words)| words));
+        let in_order = in_order && clean.is_empty();
         let searched_in_order = if lever && !in_order {
             // A stable sort: a rule's buckets, made in input order, keep their order.
             searched.sort_by_key(|each| each.bucket.0);
@@ -125,6 +130,17 @@ impl FileAnalysis {
         let mut shown = vec![noted];
         shown.extend(frontier.iter().copied());
         let mut ran = made_ran(tables, number, self.digest.combine(&shown), moved, base);
+        if let ryo_values::domain::records::types::Handing::Made(handed) = &mut ran.handed {
+            handed.clean = tables
+                .clean
+                .iter()
+                .zip(&clean)
+                .map(|(bucket, (frame, _))| ryo_values::domain::records::types::HandedClean {
+                    bucket: *bucket,
+                    frame: std::sync::Arc::clone(frame),
+                })
+                .collect();
+        }
         ran.noted = noted;
         ran.frontier = frontier
             .iter()

@@ -118,6 +118,48 @@ pub(crate) fn moved_words(
     Some(moved)
 }
 
+/// Spike (ryo-fmx3, host3): the clean frames the file hands, each moved once per worker as `moved_words` moves a file's words:
+/// a frame of no row names no file, worker or text, so the same moved words stand for every file clean in the bucket. None
+/// when one cannot be moved, as `moved_words` answers.
+#[must_use]
+pub(crate) fn clean_moved(
+    tables: &Tables,
+    number: FileId,
+    base: ArenaBase,
+) -> Option<Vec<&(std::sync::Arc<ryo_values::domain::records::types::CleanFrame>, BucketWords)>> {
+    let mut made = Vec::with_capacity(tables.clean.len());
+    for bucket in &tables.clean {
+        let template = tables.clean_frames.get(bucket)?;
+        if template.moved.get().is_none() {
+            let plain = Remap {
+                from_file: number,
+                to_file: FileId(0),
+                from_worker: tables.number,
+                to_worker: WorkerNumber(0),
+                from_base: ArenaStart(base.0),
+                to_base: ArenaStart(0),
+            };
+            let mut words = Words::default();
+            remap_packed(&template.kept.words.0, &plain, &mut words)?;
+            let packed = pack(WordSlice(&words.0));
+            let _ = template.moved.set((
+                std::sync::Arc::new(ryo_values::domain::records::types::CleanFrame {
+                    proof: template.kept.proof.clone(),
+                    words: packed.clone(),
+                }),
+                BucketWords {
+                    bucket: *bucket,
+                    proof: template.kept.proof.clone(),
+                    word_count: WordCount(words.0.len()),
+                    words: packed,
+                },
+            ));
+        }
+        made.push(template.moved.get()?);
+    }
+    Some(made)
+}
+
 /// What the file handed to one rule, apart: the buckets of the rule's frontier with their words, one after the other. An edit that
 /// changes only what one rule reads leaves the others' steps as they were.
 #[cfg(test)]

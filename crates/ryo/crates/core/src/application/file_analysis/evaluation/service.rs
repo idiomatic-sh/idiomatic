@@ -168,6 +168,39 @@ impl FileAnalysis {
                 if visit.setting.keeping == Keeping::Keeps
                     && *visit.setting.answering == Answering::Findings
                     && !empty
+                    && capture.clean
+                    && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Frames)
+                {
+                    // Spike (ryo-fmx3, host3): a clean frame is kept once per bucket and worker; the file is named clean in it.
+                    let same = match tables.clean_frames.get(&capture.bucket) {
+                        Some(template) => {
+                            template.kept.proof == capture.proof && template.kept.words.0 == capture.words
+                        }
+                        None => {
+                            let _ = tables.clean_frames.insert(
+                                capture.bucket,
+                                crate::domain::workers::types::CleanTemplate {
+                                    kept: ryo_values::domain::records::types::Kept {
+                                        bucket: capture.bucket,
+                                        proof: capture.proof.clone(),
+                                        words: ryo_values::domain::stored_facts::types::KeptWords(
+                                            capture.words.clone(),
+                                        ),
+                                    },
+                                    moved: std::cell::OnceCell::new(),
+                                },
+                            );
+                            true
+                        }
+                    };
+                    if same {
+                        tables.clean.push(capture.bucket);
+                        continue;
+                    }
+                }
+                if visit.setting.keeping == Keeping::Keeps
+                    && *visit.setting.answering == Answering::Findings
+                    && !empty
                 {
                     tables
                         .captured

@@ -38,7 +38,7 @@ use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepScope};
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::{FrontierOrdinal, FrontierProof, ProducerRule};
+use ryo_values::domain::records::types::{FrontierCoverage, FrontierOrdinal, FrontierProof, ProducerRule};
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::runs::types::{FileHandover, ParsedRows, RowsHanded, RuleNumber};
 use ryo_values::domain::stored_facts::service::frontier_bucket;
@@ -125,7 +125,7 @@ pub(crate) fn captured_rule(
                         .is_ok_and(|node| deferred_layout(&at.pass.program, *node).is_some());
                     // Spike (ryo-fmx3, host3): a frontier that is a named output of the rule was answered with that output
                     // in this file, rows and coverage: it is read from there, not asked of the program again.
-                    let held = if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Quiet) {
+                    let held = if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietFrontier) {
                         plan.observations
                             .iter()
                             .position(|output| output.source == Input::Step(step))
@@ -174,6 +174,30 @@ pub(crate) fn captured_rule(
             let coverage = file_frontier_coverage(coverage, at.file)?;
             let rows = table.count;
             handed = handed.saturating_add(u64::try_from(rows.0).unwrap_or(u64::MAX));
+            // Spike (ryo-fmx3, host3): a frame of no row that is complete is its bucket's clean frame: its words depend only on
+            // its columns, so they are made once per worker and columns, and the file is kept as a clean file of the bucket.
+            let clean = rows.0 == 0
+                && coverage == FrontierCoverage::Complete
+                && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Frames);
+            let proof = FrontierProof {
+                rule: ProducerRule(u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?),
+                input: FrontierOrdinal(
+                    u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
+                ),
+                rule_digest: digest,
+                coverage,
+            };
+            if clean && let Some(words) = clean_frame(&table.kinds) {
+                return Ok(CapturedFrontier {
+                    input,
+                    bucket: frontier_bucket(first, input),
+                    proof,
+                    words,
+                    rows,
+                    clean,
+                });
+            }
+            let kinds = clean.then(|| table.kinds.clone());
             let frame_places = escape_frame(
                 &mut table,
                 Leaving {
@@ -191,21 +215,18 @@ pub(crate) fn captured_rule(
             words.0.clear();
             encode_table(&table, &frame_places, words);
             let packed = pack(WordSlice(&words.0));
+            if let Some(kinds) = kinds
+                && frame_places.is_empty()
+            {
+                remember_clean_frame(kinds, &packed);
+            }
             Ok(CapturedFrontier {
                 input,
                 bucket: frontier_bucket(first, input),
-                proof: FrontierProof {
-                    rule: ProducerRule(
-                        u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,
-                    ),
-                    input: FrontierOrdinal(
-                        u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
-                    ),
-                    rule_digest: digest,
-                    coverage,
-                },
+                proof,
                 words: packed,
                 rows,
+                clean,
             })
         })();
         captures.push(FrontierCapture { input, outcome });
@@ -227,14 +248,17 @@ pub(crate) fn captured_rule(
     }
     for each in &captures {
         if let Ok(kept) = &each.outcome {
-            if let Err(error) = at.inputs.lookup.keep(
-                kept.bucket,
-                WordsToKeep {
-                    words: &kept.words,
-                    file: at.file,
-                    proof: &kept.proof,
-                },
-            ) {
+            let words = WordsToKeep {
+                words: &kept.words,
+                file: at.file,
+                proof: &kept.proof,
+            };
+            let done = if kept.clean {
+                at.inputs.lookup.keep_clean(kept.bucket, words)
+            } else {
+                at.inputs.lookup.keep(kept.bucket, words)
+            };
+            if let Err(error) = done {
                 return Ok(RuleAfter::Stopped(FileStop::Facts(error)));
             }
             committed(at, rule, kept.input)?;
@@ -242,6 +266,29 @@ pub(crate) fn captured_rule(
     }
     observed(at, rule, plan, nodes)?;
     Ok(RuleAfter::Ran { captures })
+}
+
+thread_local! {
+    /// Spike (ryo-fmx3, host3): the packed words of a frame of no row, by its columns, made once per worker.
+    static CLEAN_FRAMES: std::cell::RefCell<std::collections::HashMap<Vec<ryo_relations::domain::relations::types::CellKind>, ryo_values::domain::stored_facts::types::PackedWords>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Spike (ryo-fmx3, host3): the words of a frame of no row with columns `kinds`, when this worker made one before.
+fn clean_frame(
+    kinds: &[ryo_relations::domain::relations::types::CellKind],
+) -> Option<ryo_values::domain::stored_facts::types::PackedWords> {
+    CLEAN_FRAMES.with(|frames| frames.borrow().get(kinds).cloned())
+}
+
+/// Spike (ryo-fmx3, host3): remembers the words of a frame of no row with columns `kinds`.
+fn remember_clean_frame(
+    kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
+    words: &ryo_values::domain::stored_facts::types::PackedWords,
+) {
+    CLEAN_FRAMES.with(|frames| {
+        let _ = frames.borrow_mut().insert(kinds, words.clone());
+    });
 }
 
 /// A relation's rows in the open file, as the file's sources wrote them or, for a tree relation, as the open file's tree has
