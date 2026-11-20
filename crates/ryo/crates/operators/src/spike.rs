@@ -743,6 +743,23 @@ pub fn engine_loaded(mode: EngineMode, accepted: usize, selected: usize, unlower
     );
 }
 
+/// Spike (ryo-fmx3.1): writes to stderr what the store's pack of the selected rules reads back: nothing was lowered.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::spike::{EngineMode, engine_unpacked};
+///
+/// engine_unpacked(EngineMode::Both, 0, 3);
+/// ```
+pub fn engine_unpacked(mode: EngineMode, accepted: usize, selected: usize) {
+    let refused = selected.saturating_sub(accepted);
+    eprintln!(
+        "ryo engine {}: pack of the store accepted {accepted} of {selected} rules; refused {refused} (nothing lowered)",
+        engine_name(mode)
+    );
+}
+
 /// Spike (ryo-fmx3.1): writes to stderr how many accepted rules `both` compared, all equal.
 ///
 /// # Examples
@@ -754,7 +771,7 @@ pub fn engine_compared(rules: usize) {
     eprintln!("ryo engine both: compared {rules} rules, 0 differences");
 }
 
-/// Spike (ryo-fmx3.1): why the harness stops a run the new engine would have to run files for, before its file scan lands.
+/// Spike (ryo-fmx3.1): why the harness stops a run the new engine would have to run files for, while no linked language walks.
 ///
 /// # Examples
 ///
@@ -765,7 +782,7 @@ pub fn engine_compared(rules: usize) {
 /// ```
 pub fn engine_refusal(mode: EngineMode, accepted: usize) -> String {
     format!(
-        "RYO_ENGINE={}: the new engine accepts {accepted} rules and runs no file yet (the file scan is track H's)",
+        "RYO_ENGINE={}: the new engine accepts {accepted} rules and runs no file yet (no linked language walks its files: the link holds parse and project only)",
         engine_name(mode)
     )
 }

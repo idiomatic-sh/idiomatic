@@ -30,6 +30,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::digest::types::DigestBytes;
+use ryo_execution_runtime::outbound::engine::interface::EnginePort;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_language::domain::elements::service::syntax_acceptance;
 use ryo_relations::domain::relations::types::FileId;
@@ -52,6 +53,8 @@ pub struct FileAnalysis {
     pub(in crate::application::file_analysis) digest: Arc<dyn DigestPort>,
     /// Says how much memory the process holds, which a file's visit keeps within the run's budget.
     memory: Arc<dyn MemoryPort>,
+    /// The new engine, when the edge composed one: what the build branch's `RYO_ENGINE` harness loads the rules into.
+    engine: Option<Arc<dyn EnginePort>>,
 }
 
 impl std::fmt::Debug for FileAnalysis {
@@ -109,7 +112,31 @@ impl FileAnalysis {
             language,
             digest,
             memory,
+            engine: None,
         }
+    }
+
+    /// The same, with the new engine the build branch's `RYO_ENGINE` harness loads the selected rules into.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_core::application::file_analysis::service::FileAnalysis;
+    /// use std::sync::Arc;
+    ///
+    /// fn with_the_new_engine(analysis: FileAnalysis) -> FileAnalysis {
+    ///     analysis.scanning(Arc::new(ryo_execution_runtime::outbound::engine::factory::use_case()))
+    /// }
+    /// ```
+    #[must_use]
+    pub fn scanning(mut self, engine: Arc<dyn EnginePort>) -> Self {
+        self.engine = Some(engine);
+        self
+    }
+
+    /// The new engine, when the edge composed one.
+    pub(crate) fn engine(&self) -> Option<Arc<dyn EnginePort>> {
+        self.engine.clone()
     }
 
     /// The visit of one file, in the worker that took its job: read it, decide which rules govern it, parse it, and run their

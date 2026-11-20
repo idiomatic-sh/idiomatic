@@ -1,5 +1,6 @@
 //! The injected contracts the runtime calls; adapters remain at composition edges.
 pub mod digest;
+pub mod engine;
 pub mod facts;
 pub mod observer;
 pub mod operators;

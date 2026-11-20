@@ -157,7 +157,8 @@ pub(crate) fn build(
                     Arc::clone(&analysis_language),
                     Arc::clone(&analysis_digest),
                     Arc::clone(&analysis_memory),
-                ),
+                )
+                .scanning(Arc::new(ryo_execution_runtime::outbound::engine::factory::use_case())),
                 ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                     &analysis_corpus,
                 ), Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
